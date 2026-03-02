@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Zendi TTS Test</title>
+</head>
+<body>
+<h1>Prueba Motor TTS Zendi</h1>
+<button id="btnPlay" disabled>Cargando voces...</button>
+<p id="status">Espera...</p>
+<script>
+    let voices = [];
+    function loadVoices() {
+        voices = window.speechSynthesis.getVoices();
+        if(voices.length > 0) {
+            document.getElementById('btnPlay').disabled = false;
+            document.getElementById('btnPlay').innerText = "Hablar como Zendi";
+            document.getElementById('status').innerText = "Voces cargadas. Listo.";
+            window.speechSynthesis.onvoiceschanged = null;
+        }
+    }
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    setTimeout(loadVoices, 500);
+
+    document.getElementById('btnPlay').onclick = () => {
+        document.getElementById('status').innerText = "PROCESANDO... (isSpeaking = true)";
+        document.getElementById('btnPlay').disabled = true;
+        
+        const utterance = new SpeechSynthesisUtterance("¡Epa! Esta es una prueba de que los botones ya no se quedan pegados en procesando. ¡Listo!");
+        utterance.lang = "es-US";
+        utterance.rate = 1.15;
+        
+        utterance.onend = () => {
+            document.getElementById('status').innerText = "LIBERADO. LISTO. (isSpeaking = false)";
+            document.getElementById('btnPlay').disabled = false;
+        };
+
+        // Fallback simuation
+        const estimatedTime = ("¡Epa! Esta es una prueba de que los botones ya no se quedan pegados en procesando. ¡Listo!".split(' ').length / 2.5) * 1000 + 1000;
+        setTimeout(() => { 
+             console.log("Fallback disparado");
+             document.getElementById('status').innerText = "LIBERADO POR FALLBACK. LISTO. (isSpeaking = false)";
+             document.getElementById('btnPlay').disabled = false;
+        }, estimatedTime);
+
+        window.speechSynthesis.speak(utterance);
+    };
+</script>
+</body>
+</html>

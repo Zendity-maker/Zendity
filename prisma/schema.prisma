@@ -1,0 +1,879 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// 1. ZENDITY CORE (Multitenant & Licencias)
+// =======================
+
+model Headquarters {
+  id            String   @id @default(uuid())
+  name          String
+  licenseActive Boolean  @default(true)
+  licenseExpiry DateTime
+  createdAt     DateTime @default(now())
+
+  users      User[]
+  patients   Patient[]
+  courses    Course[]
+  userCourses UserCourse[]
+  incidents  Incident[]
+  familyMem  FamilyMember[]
+  evals      EmployeeEvaluation[]
+  surveys    FamilySurvey[]
+  corporateDocs CorporateDocument[]
+
+  // FASE 18 Integrations
+  conciergeProducts ConciergeProduct[]
+  conciergeServices ConciergeService[]
+
+  // FASE 19 Integrations
+  invoices   Invoice[]
+
+  // FASE 21 Integrations
+  shiftHandovers ShiftHandover[]
+
+  // FASE 22 Integrations (CRM & Smart Receptionist)
+  phone          String?
+  logoUrl        String?
+  integrations   HqIntegration?
+  crmLeads       CRMLead[]
+}
+
+// =======================
+// ROLES Y STAFF
+// =======================
+
+model User {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  name            String
+  email           String   @unique
+  pinCode         String?  // PIN de 4-6 dígitos para inicio de sesión rápido en clínicas
+  role            Role // e.g. Gerente, Enfermero, SocialWorker
+  complianceScore Int      @default(100) // Para automatizar academia
+  createdAt       DateTime @default(now())
+
+  headquarters     Headquarters               @relation(fields: [headquartersId], references: [id])
+  courseEnrolls    UserCourse[]
+  administeredMeds MedicationAdministration[]
+  wellnessNotes    WellnessDiary[]
+  evalsReceived    EmployeeEvaluation[]       @relation("Employee")
+  evalsGiven       EmployeeEvaluation[]       @relation("Evaluator")
+
+  // RRHH FASE 4 Integrations
+  isShiftBlocked   Boolean  @default(false)
+  blockReason      String?
+
+  // FASE 6 Integrations
+  signedLifePlans  LifePlan[] @relation("LifePlanSigner")
+
+  // FASE 7 Integrations
+  vitalSignsMeasured VitalSigns[]
+  dailyLogsWritten   DailyLog[]
+
+  // FASE 9 Integrations
+  medicationAudits   MedicationAuditLog[]
+  zendiInteractions  ZendiInteractionLog[]
+
+  // FASE 18 Integrations
+  specialistAppointments ConciergeAppointment[] @relation("SpecialistAppointments")
+
+  // FASE 21 Integrations
+  handoversGiven       ShiftHandover[] @relation("OutgoingNurse")
+  handoversReceived    ShiftHandover[] @relation("IncomingNurse")
+
+  // FASE 23 Clínico (Prevención de UPPs y Caídas)
+  ulcerLogs            UlcerLog[]
+  posturalChanges      PosturalChangeLog[]
+  
+  // FASE 24 Prevención de Caídas
+  fallEvals            FallRiskAssessment[]
+}
+
+enum Role {
+  ADMIN
+  NURSE
+  CAREGIVER
+  SOCIAL_WORKER
+  DIRECTOR
+  THERAPIST
+  BEAUTY_SPECIALIST
+}
+
+enum ColorGroup {
+  RED
+  YELLOW
+  GREEN
+  BLUE
+  UNASSIGNED
+}
+
+// =======================
+// 2. PACIENTES Y PREINGRESO
+// =======================
+
+model Patient {
+  id             String   @id @default(uuid())
+  headquartersId String
+  name           String
+  roomNumber     String?
+  diet           String? // Asignación por preingreso
+  avdScore       Int? // Puntuación de Actividades Vida Diaria
+  downtonRisk    Boolean  @default(false) // Escala de Caídas
+  nortonRisk     Boolean  @default(false) // Escala de Úlceras
+  colorGroup     ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
+  conciergeBalance Float    @default(0.0) // FASE 18: Saldo Gift Cards B2C
+  createdAt      DateTime @default(now())
+
+  headquarters  Headquarters        @relation(fields: [headquartersId], references: [id])
+  medications   PatientMedication[]
+  incidents     Incident[]
+  familyMembers FamilyMember[]
+  familyMessages FamilyMessage[]   // FASE 13 Integrations
+  wellnessNotes WellnessDiary[]
+
+  // FASE 6 Integrations
+  intakeData    IntakeData?
+  lifePlan      LifePlan?
+
+  // FASE 7 Integrations
+  vitalSigns    VitalSigns[]
+  dailyLogs     DailyLog[]
+
+  // FASE 23 Clínico (Prevención de UPPs y Caídas)
+  pressureUlcers    PressureUlcer[]
+  posturalChanges   PosturalChangeLog[]
+  
+  // FASE 24 Fall Risk
+  fallRiskAssessments FallRiskAssessment[]
+  fallIncidents       FallIncident[]
+
+  // FASE 9 Integrations
+  healthAppointments HealthAppointment[]
+
+  // FASE 18 Integrations
+  conciergeOrders       ConciergeOrder[]
+  conciergeAppointments ConciergeAppointment[]
+
+  // FASE 19 Integrations
+  invoices              Invoice[]
+
+  // FASE 21 Integrations
+  handoverNotes         HandoverNote[]
+}
+
+// =======================
+// 3. ZENDITY MED (eMAR & Cumplimiento)
+// =======================
+
+model Medication {
+  id          String              @id @default(uuid())
+  name        String              // Ej: "Losartan"
+  dosage      String              // Ej: "50mg"
+  route       String              @default("Oral") // Vía: Oral, Tópica, Intravenosa
+  patientMeds PatientMedication[]
+}
+
+model PatientMedication {
+  id            String  @id @default(uuid())
+  patientId     String
+  medicationId  String
+  
+  // Reglas del eMAR
+  frequency     String  @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
+  scheduleTimes String  // JSON Array Estructurado o CSV: "08:00, 14:00, 20:00"
+  instructions  String? // Ej: "Tomar con alimentos"
+  prescribedBy  String? // Nombre del médico externo o interno
+  
+  startDate     DateTime @default(now())
+  endDate       DateTime? // Si es tratamiento temporal (Ej: Antibióticos por 7 días)
+  isActive      Boolean  @default(true)
+
+  patient         Patient                    @relation(fields: [patientId], references: [id])
+  medication      Medication                 @relation(fields: [medicationId], references: [id])
+  administrations MedicationAdministration[]
+  auditLogs       MedicationAuditLog[] 
+}
+
+model MedicationAdministration {
+  id                  String    @id @default(uuid())
+  patientMedicationId String
+  administeredById    String // ID de la enfermera
+  
+  scheduledFor        String?   // A qué hora tocaba (Ej: "08:00")
+  administeredAt      DateTime  @default(now()) // Cuándo se dió realmente
+  
+  status              MedStatus
+  notes               String?   // Obligatorio si el Status es REFUSED o MISSED
+
+  patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
+  administeredBy    User              @relation(fields: [administeredById], references: [id])
+}
+
+enum MedStatus {
+  ADMINISTERED // Sustituye GIVEN para mayor elegancia médica
+  MISSED       // Olvido o paciente no disponible
+  REFUSED      // Paciente se negó a tomarla
+  OMITTED      // Médico ordenó saltar esta dosis
+}
+
+// =======================
+// 4. ZENDITY INCIDENTS & AUDIT
+// =======================
+
+model Incident {
+  id                 String       @id @default(uuid())
+  headquartersId     String
+  patientId          String
+  type               IncidentType
+  severity           Severity     @default(LOW)
+  description        String
+  reportedAt         DateTime     @default(now())
+  biometricSignature String // Obligatorio cero papel
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+}
+
+enum IncidentType {
+  FALL
+  ULCER
+  BEHAVIOR
+  OTHER
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// =======================
+// 5. ZENDITY ACADEMY (LMS)
+// =======================
+
+// =======================
+// 6. PORTAL DE FAMILIARES (HIPAA) & CUSTOMER EXPERIENCE
+// =======================
+
+model FamilyMember {
+  id             String   @id @default(uuid())
+  headquartersId String   // [HIPAA: Verificación Multitenant]
+  patientId      String
+  name           String
+  email          String   @unique
+  passcode       String?  // PIN familiar (ej. 889900)
+  accessLevel    String   // e.g., "Full", "Read-Only"
+
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  patient        Patient      @relation(fields: [patientId], references: [id])
+  surveys        FamilySurvey[]
+}
+
+model WellnessDiary {
+  id             String   @id @default(uuid())
+  patientId      String   
+  authorId       String   
+  note           String   
+  mediaUrl       String?  
+  createdAt      DateTime @default(now())
+
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  author         User     @relation(fields: [authorId], references: [id])
+}
+
+model FamilySurvey {
+  id             String   @id @default(uuid())
+  headquartersId String   
+  familyMemberId String   
+  ratingCare     Int      // 1-5 Estrellas
+  ratingClean    Int      // 1-5 Estrellas
+  ratingHealth   Int      // 1-5 Estrellas
+  createdAt      DateTime @default(now())
+
+  headquarters   Headquarters   @relation(fields: [headquartersId], references: [id])
+  familyMember   FamilyMember   @relation(fields: [familyMemberId], references: [id])
+}
+
+// =======================
+// 12. CLÍNICO: PREVENCIÓN DE UPPs (Fase 23)
+// =======================
+
+model PressureUlcer {
+  id             String   @id @default(uuid())
+  patientId      String
+  bodyLocation   String   // Ej: "Talón Derecho", "Sacro"
+  stage          Int      // 1 (Enrojecimiento) a 4 (Tejido profundo)
+  identifiedAt   DateTime @default(now())
+  resolvedAt     DateTime?
+  status         String   @default("ACTIVE") // ACTIVE, HEALING, RESOLVED
+
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  logs           UlcerLog[]
+}
+
+model UlcerLog {
+  id               String   @id @default(uuid())
+  ulcerId          String
+  nurseId          String
+  notes            String
+  woundSize        String?  // Ej: "2x3 cm"
+  treatmentApplied String   // Ej: "Limpieza con Salina + Vendaje Hidrocoloide"
+  createdAt        DateTime @default(now())
+  hasPhoto         Boolean  @default(false)
+
+  ulcer            PressureUlcer @relation(fields: [ulcerId], references: [id])
+  nurse            User          @relation(fields: [nurseId], references: [id])
+}
+
+model PosturalChangeLog {
+  id             String   @id @default(uuid())
+  patientId      String
+  nurseId        String
+  position       String   // Ej: "Decúbito Lateral Izquierdo", "Supino"
+  performedAt    DateTime @default(now())
+  isComplianceAlert Boolean @default(false) // Si se hizo tardío (fuera de las 2hrs)
+
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  nurse          User     @relation(fields: [nurseId], references: [id])
+}
+model FamilyMessage {
+  id             String   @id @default(uuid())
+  patientId      String   // Para organizar los mensajes en bandejas por paciente
+  senderType     SenderType
+  senderId       String   // ID del FamilyMember o del User (Staff)
+  content        String
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  patient        Patient  @relation(fields: [patientId], references: [id])
+}
+
+enum SenderType {
+  FAMILY
+  STAFF
+  SYSTEM
+}
+
+// =======================
+// 7. RRHH & EVALUACIÓN CONTÍNUA
+// =======================
+
+model EmployeeEvaluation {
+  id             String    @id @default(uuid())
+  headquartersId String    
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  
+  employeeId     String
+  employee       User      @relation("Employee", fields: [employeeId], references: [id])
+  
+  evaluatorId    String
+  evaluator      User      @relation("Evaluator", fields: [evaluatorId], references: [id])
+  
+  // FASE 4: Evaluaciones Especializadas
+  score          Int       // Score Global 0-100
+  categoryScores Json?     // { "higiene": 80, "seguridad": 70, "empatia": 90 }
+  feedback       String?
+
+  createdAt      DateTime  @default(now())
+}
+
+// =======================
+// ZENDITY ACADEMY (MÓDULO DE CERTIFICACIÓN CONTINUA)
+// =======================
+
+model Course {
+  id              String       @id @default(uuid())
+  headquartersId  String
+  title           String
+  description     String
+  durationMins    Int
+  bonusCompliance Int          // Puntos que suma al complianceScore (e.g. 5, 10, 20)
+  videoUrl        String?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  enrollments     UserCourse[]
+}
+
+model UserCourse {
+  id              String   @id @default(uuid())
+  employeeId      String
+  courseId        String
+  headquartersId  String
+  status          CourseStatus @default(IN_PROGRESS)
+  score           Int?     // Si incluye exámen final
+  completedAt     DateTime?
+  certificateUrl  String?
+
+  employee        User     @relation(fields: [employeeId], references: [id])
+  course          Course   @relation(fields: [courseId], references: [id])
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+
+  createdAt       DateTime @default(now())
+  @@unique([employeeId, courseId])
+}
+
+enum CourseStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// =======================
+// 8. ZENDITY HQ (Docs Legales)
+// =======================
+
+model CorporateDocument {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  type            DocType
+  name            String
+  expirationDate  DateTime
+  fileUrl         String?
+  status          DocStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+}
+
+enum DocType {
+  LICENSE
+  INSURANCE
+  PERMIT
+  OTHER
+}
+
+enum DocStatus {
+  ACTIVE
+  EXPIRED
+  WARNING
+}
+
+// =======================
+// 9. ZENDITY INTAKE & LIFE PLAN (PAI)
+// =======================
+
+model IntakeData {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  medicalHistory  String
+  allergies       String?
+  diagnoses       String
+  rawMedications  String // Receta original (ej. texto o JSON)
+  status          IntakeStatus @default(PENDING)
+  createdAt       DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+}
+
+enum IntakeStatus {
+  PENDING
+  PROCESSED
+}
+
+model LifePlan {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  status          LifePlanStatus @default(DRAFT)
+  
+  // PAI Técnico traducido por IA
+  criticalAlerts  String?
+  feeding         String?
+  mobility        String?
+  customs         String?
+
+  signedById      String?
+  signedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  signedBy        User?    @relation("LifePlanSigner", fields: [signedById], references: [id])
+}
+
+enum LifePlanStatus {
+  DRAFT
+  APPROVED
+}
+
+// =======================
+// 10. ZENDITY CARE (Tablet & Piso)
+// =======================
+
+model VitalSigns {
+  id              String   @id @default(uuid())
+  patientId       String
+  measuredById    String
+  systolic        Int
+  diastolic       Int
+  temperature     Float
+  heartRate       Int
+  createdAt       DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  measuredBy      User     @relation(fields: [measuredById], references: [id])
+}
+
+model DailyLog {
+  id              String   @id @default(uuid())
+  patientId       String
+  authorId        String
+  bathCompleted   Boolean  @default(false)
+  foodIntake      Int      // % de ingesta (0, 25, 50, 75, 100)
+  notes           String?
+  isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
+  createdAt       DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+  author          User     @relation(fields: [authorId], references: [id])
+}
+
+// =======================
+// 11. ZENDITY MED EVOLUTIVO & ZENDI AI (Fase 9)
+// =======================
+
+enum AuditAction {
+  ADDED
+  MODIFIED
+  DISCONTINUED
+  VERIFIED_BY_NURSE
+}
+
+model MedicationAuditLog {
+  id                   String            @id @default(uuid())
+  action               AuditAction
+  patientMedicationId  String
+  authorId             String
+  reason               String
+  createdAt            DateTime          @default(now())
+
+  patientMedication    PatientMedication @relation(fields: [patientMedicationId], references: [id])
+  author               User              @relation(fields: [authorId], references: [id])
+}
+
+model HealthAppointment {
+  id              String   @id @default(uuid())
+  patientId       String
+  type            String   // e.g "Consulta Medica", "Laboratorio", "Curación"
+  title           String
+  appointmentDate DateTime
+  resolved        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patientId], references: [id])
+}
+
+model ZendiInteractionLog {
+  id              String   @id @default(uuid())
+  authorId        String
+  transcript      String
+  zendiResponse   String
+  contextPath     String
+  createdAt       DateTime @default(now())
+
+  author          User     @relation(fields: [authorId], references: [id])
+}
+
+// =======================
+// 8. ZENDITY CONCIERGE (MARKETPLACE & SERVICIOS EXTERNOS)
+// =======================
+
+model ConciergeProduct {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  name            String
+  description     String?
+  price           Float
+  imageUrl        String?
+  category        String   // Ej: "Higiene", "Nutrición", "GiftCards"
+  stock           Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  headquarters    Headquarters     @relation(fields: [headquartersId], references: [id])
+  orders          ConciergeOrder[]
+}
+
+model ConciergeOrder {
+  id              String   @id @default(uuid())
+  patientId       String
+  productId       String
+  quantity        Int      @default(1)
+  totalPrice      Float
+  status          OrderStatus @default(PENDING) // PENDING, DELIVERED, CANCELLED
+  orderedById     String   // ID de FamilyMember que lo compró
+  orderedByType   String   @default("FAMILY")
+  createdAt       DateTime @default(now())
+
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  product         ConciergeProduct @relation(fields: [productId], references: [id])
+}
+
+enum OrderStatus {
+  PENDING
+  DELIVERED
+  CANCELLED
+}
+
+model ConciergeService {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  name            String
+  description     String?
+  price           Float
+  category        String   // Ej: "Terapia", "Belleza"
+  providerType    Role     // THERAPIST o BEAUTY_SPECIALIST
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  headquarters    Headquarters           @relation(fields: [headquartersId], references: [id])
+  appointments    ConciergeAppointment[]
+}
+
+model ConciergeAppointment {
+  id              String   @id @default(uuid())
+  patientId       String
+  serviceId       String
+  specialistId    String?  // El Terapista o Estilista (User) asignado (puede ser null hasta ser aceptado)
+  scheduledAt     DateTime?
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?  // Progreso de Terapia o Notas de Estilista
+  evidenceUrl     String?  // Foto del Antes/Después
+  createdAt       DateTime @default(now())
+
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  service         ConciergeService @relation(fields: [serviceId], references: [id])
+  specialist      User?            @relation("SpecialistAppointments", fields: [specialistId], references: [id])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// =======================
+// 9. ZENDITY PAY (INVOICING & SMART RECEIPTS)
+// =======================
+
+model Invoice {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  patientId       String
+  
+  invoiceNumber   String   // Hash Corto "INV-001"
+  issueDate       DateTime @default(now())
+  dueDate         DateTime
+  
+  subtotal        Float    @default(0.0)
+  taxRate         Float    @default(0.0)
+  totalAmount     Float    @default(0.0)
+  
+  status          InvoiceStatus @default(PENDING)
+  notes           String?  // Notas para la familia
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  patient         Patient      @relation(fields: [patientId], references: [id])
+  items           InvoiceItem[]
+}
+
+model InvoiceItem {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  
+  description     String   // Ej. "Cuota Mensual Nivel 1" o "Manicura Concierge"
+  quantity        Int      @default(1)
+  unitPrice       Float
+  totalPrice      Float
+  
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// =======================
+// 10. ZENDITY SHIFTS & HANDOVERS (RELEVO DE GUARDIA)
+// =======================
+
+model ShiftHandover {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  
+  shiftType       ShiftType // MORNING (6am-2pm), EVENING (2pm-10pm), NIGHT (10pm-6am)
+  outgoingNurseId String    // Enfermera que entrega el turno
+  incomingNurseId String?   // Enfermera que recibe el turno (Null si aún no lo ha aceptado)
+  
+  status          HandoverStatus @default(PENDING) // PENDING, ACCEPTED
+  createdAt       DateTime @default(now())
+  acceptedAt      DateTime?
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  outgoingNurse   User         @relation("OutgoingNurse", fields: [outgoingNurseId], references: [id])
+  incomingNurse   User?        @relation("IncomingNurse", fields: [incomingNurseId], references: [id])
+  notes           HandoverNote[]
+}
+
+model HandoverNote {
+  id              String   @id @default(uuid())
+  shiftHandoverId String
+  patientId       String
+  
+  clinicalNotes   String   // Novedades: "Paciente con fiebre en la tarde, seguir protocolo"
+  isCritical      Boolean  @default(false)
+  
+  shiftHandover   ShiftHandover @relation(fields: [shiftHandoverId], references: [id], onDelete: Cascade)
+  patient         Patient       @relation(fields: [patientId], references: [id])
+}
+
+enum ShiftType {
+  MORNING
+  EVENING
+  NIGHT
+}
+
+enum HandoverStatus {
+  PENDING
+  ACCEPTED
+}
+// =======================
+// 12. ZENDITY CRM & SMART RECEPTIONIST (Fase 22)
+// =======================
+
+model HqIntegration {
+  id              String       @id @default(uuid())
+  headquartersId  String       @unique
+  vapiApiKey      String?
+  twilioApiKey    String?
+  sendgridApiKey  String?
+  docusignApiKey  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+}
+
+enum LeadStage {
+  PROSPECT
+  TOUR
+  EVALUATION
+  CONTRACT
+  ADMISSION
+}
+
+model CRMLead {
+  id              String       @id @default(uuid())
+  headquartersId  String
+  stage           LeadStage    @default(PROSPECT)
+  
+  // Datos del prospecto
+  firstName       String
+  lastName        String
+  phone           String?
+  email           String?
+  notes           String?
+  
+  // Requisitos de Admisión (Validación Estricta "No-Code Error")
+  medicalEvaluationCompleted Boolean @default(false)
+  contractSigned             Boolean @default(false)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  transcripts     AITranscript[]
+  interactions    InteractionLog[]
+}
+
+model AITranscript {
+  id              String       @id @default(uuid())
+  crmLeadId       String
+  agentId         String       // Vapi o similar id
+  transcriptText  String
+  durationSeconds Int?
+  createdAt       DateTime     @default(now())
+
+  crmLead         CRMLead      @relation(fields: [crmLeadId], references: [id])
+}
+
+enum InteractionType {
+  WHATSAPP
+  EMAIL
+  OUTBOUND_CALL
+}
+
+model InteractionLog {
+  id              String          @id @default(uuid())
+  crmLeadId       String
+  type            InteractionType
+  summary         String
+  createdAt       DateTime        @default(now())
+
+  crmLead         CRMLead         @relation(fields: [crmLeadId], references: [id])
+}
+
+// =======================
+// 13. ZENDITY FALL RISK (Fase 24 - Prevención de Caídas)
+// =======================
+
+model FallRiskAssessment {
+  id              String         @id @default(uuid())
+  patientId       String
+  evaluatorId     String
+  
+  riskLevel       FallRiskLevel  @default(LOW)
+  morseScore      Int?           // Escala opcional si se usa Morse
+  factors         String?        // Json o string delimitado de riesgos adicionales
+  
+  evaluatedAt     DateTime       @default(now())
+  nextReviewAt    DateTime?      // Generalmente a 30 días
+
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  evaluator       User           @relation(fields: [evaluatorId], references: [id])
+}
+
+model FallIncident {
+  id              String         @id @default(uuid())
+  patientId       String
+  
+  location        String         // Baño, Habitación, Pasillo
+  severity        IncidentSeverity @default(MILD)
+  interventions   String         // Reacción médica, Traslado
+  notes           String?
+  
+  incidentDate    DateTime       @default(now())
+  reportedAt      DateTime       @default(now())
+
+  patient         Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+enum FallRiskLevel {
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum IncidentSeverity {
+  NONE
+  MILD
+  SEVERE
+  FATAL
+}
