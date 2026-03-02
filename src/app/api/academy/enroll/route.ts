@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
         // Check if enrollment already exists
         const existing = await prisma.userCourse.findFirst({
-            where: { userId, courseId }
+            where: { employeeId: userId, courseId }
         });
 
         if (existing) {
@@ -20,11 +20,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, record: updated }, { status: 200 });
         }
 
+        // Fetch User to get their HQ
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+
         // Create new enrollment
         const record = await prisma.userCourse.create({
             data: {
-                userId,
+                employeeId: userId,
                 courseId,
+                headquartersId: user?.headquartersId || "",
                 status: 'IN_PROGRESS'
             }
         });

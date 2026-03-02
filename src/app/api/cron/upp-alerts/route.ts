@@ -26,7 +26,7 @@ export async function GET(req: Request) {
             },
             include: {
                 posturalChanges: {
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: { performedAt: 'desc' },
                     take: 1
                 }
             }
@@ -39,12 +39,12 @@ export async function GET(req: Request) {
             const lastRotation = patient.posturalChanges[0];
 
             // Si no tiene registros O su último registro fue hace más de 2 horas.
-            if (!lastRotation || lastRotation.createdAt < limitTime) {
+            if (!lastRotation || lastRotation.performedAt < limitTime) {
                 violations.push({
                     patientId: patient.id,
                     patientName: patient.name,
-                    lastRotationTime: lastRotation ? lastRotation.createdAt : 'Ninguna',
-                    hoursOverdue: lastRotation ? ((now.getTime() - lastRotation.createdAt.getTime()) / (1000 * 60 * 60)).toFixed(1) : 'Crítico (+24h)'
+                    lastRotationTime: lastRotation ? lastRotation.performedAt : 'Ninguna',
+                    hoursOverdue: lastRotation ? ((now.getTime() - lastRotation.performedAt.getTime()) / (1000 * 60 * 60)).toFixed(1) : 'Crítico (+24h)'
                 });
 
                 // Si detecta violación y el último LOG no estaba marcado como alerta, forzamos un LOG rojo
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
                     await prisma.posturalChangeLog.create({
                         data: {
                             patientId: patient.id,
-                            userId: "system_cron", // Auditor Automático ID
+                            nurseId: "system_cron", // Auditor Automático ID
                             position: "SISTEMA: VENCIMIENTO DE RELOJ POSTURAL",
                             isComplianceAlert: true,
                         }

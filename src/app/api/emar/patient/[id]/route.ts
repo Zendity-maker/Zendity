@@ -1,22 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { startOfWeek, endOfWeek } from 'date-fns';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
-        const patientId = params.id;
-
         // 1. Obtener los medicamentos activos del paciente
         const patientMeds = await prisma.patientMedication.findMany({
             where: {
-                patientId: patientId,
+                patientId: id,
                 isActive: true
             },
             include: {
@@ -34,7 +33,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
         const weeklyLogs = await prisma.medicationAdministration.findMany({
             where: {
-                patientMedication: { patientId: patientId },
+                patientMedication: { patientId: id },
                 administeredAt: { gte: start, lte: end }
             }
         });

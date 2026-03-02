@@ -74,16 +74,17 @@ export async function POST(request: NextRequest) {
 
             // C. Asignarle el curso forzoso
             if (reinforcementCourse) {
-                // Chequear si ya lo tiene asigando
+                // Chequear si ya lo tiene asignado
                 const existingEnroll = await prisma.userCourse.findFirst({
-                    where: { userId: employeeId, courseId: reinforcementCourse.id }
+                    where: { employeeId: employeeId, courseId: reinforcementCourse.id }
                 });
 
                 if (!existingEnroll) {
                     await prisma.userCourse.create({
                         data: {
-                            userId: employeeId,
+                            employeeId: employeeId,
                             courseId: reinforcementCourse.id,
+                            headquartersId: evaluator.headquartersId, // Inyectado del evaluator HQ
                             status: "ASSIGNED"
                         }
                     });

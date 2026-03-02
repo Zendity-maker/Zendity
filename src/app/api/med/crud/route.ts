@@ -5,13 +5,13 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
     try {
-        const { action, patientId, medicationId, scheduleTime, authorId, reason, patientMedicationId } = await req.json();
+        const { action, patientId, medicationId, scheduleTimes, authorId, reason, patientMedicationId } = await req.json();
 
         let updatedMed;
 
         if (action === 'ADDED') {
             updatedMed = await prisma.patientMedication.create({
-                data: { patientId, medicationId, scheduleTime }
+                data: { patientId, medicationId, scheduleTimes }
             });
             await prisma.medicationAuditLog.create({
                 data: { action: 'ADDED', patientMedicationId: updatedMed.id, authorId, reason }
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         else if (action === 'MODIFIED') {
             updatedMed = await prisma.patientMedication.update({
                 where: { id: patientMedicationId },
-                data: { scheduleTime }
+                data: { scheduleTimes }
             });
             await prisma.medicationAuditLog.create({
                 data: { action: 'MODIFIED', patientMedicationId: updatedMed.id, authorId, reason }
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         else if (action === 'DISCONTINUED') {
             updatedMed = await prisma.patientMedication.update({
                 where: { id: patientMedicationId },
-                data: { alertsEnabled: false, scheduleTime: "DESCONTINUADO" }
+                data: { isActive: false, scheduleTimes: "DESCONTINUADO" }
             });
             await prisma.medicationAuditLog.create({
                 // Mantener record auditando el ID

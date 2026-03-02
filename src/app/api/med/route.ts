@@ -32,14 +32,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { patientMedicationId, administeredById, biometricSignature, status, notes } = body;
+        const { patientMedicationId, administeredById, status, notes } = body;
 
         const record = await prisma.medicationAdministration.create({
             data: {
                 patientMedicationId,
                 administeredById,
-                biometricSignature,
-                status, // GIVEN, MISSED, REFUSED
+                status: status || 'ADMINISTERED', // ADMINISTERED, MISSED, REFUSED
                 notes,
             }
         });

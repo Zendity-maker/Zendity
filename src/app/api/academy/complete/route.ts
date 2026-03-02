@@ -7,7 +7,7 @@ export async function POST(request: Request) {
         const { userId, courseId } = body;
 
         const existing = await prisma.userCourse.findFirst({
-            where: { userId, courseId }
+            where: { employeeId: userId, courseId }
         });
 
         if (existing) {
@@ -19,11 +19,11 @@ export async function POST(request: Request) {
 
             // DESBLOQUEO AUTOMÁTICO RRHH
             // Si el usuario estaba bloqueado por RRHH, este curso de refuerzo le devuelve el pase operativo.
-            const user = await prisma.user.findUnique({ where: { id: userId }});
+            const user = await prisma.user.findUnique({ where: { id: userId } });
             if (user?.isShiftBlocked) {
                 await prisma.user.update({
                     where: { id: userId },
-                    data: { 
+                    data: {
                         isShiftBlocked: false,
                         blockReason: null
                     }

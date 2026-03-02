@@ -5,18 +5,18 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
     try {
-        const { patientMedicationId, administeredById, status, notes, biometricSignature } = await req.json();
+        const { patientMedicationId, administeredById, status, notes } = await req.json();
 
-        if (!biometricSignature || biometricSignature.length < 4) {
-            return NextResponse.json({ success: false, error: "Firma obligatoria" }, { status: 400 });
+        // Validaciones básicas preventivas
+        if (!patientMedicationId || !administeredById) {
+            return NextResponse.json({ success: false, error: "Datos incompletos" }, { status: 400 });
         }
 
         const admin = await prisma.medicationAdministration.create({
             data: {
                 patientMedicationId,
                 administeredById,
-                status: status || 'GIVEN',
-                biometricSignature,
+                status: status || 'ADMINISTERED',
                 notes
             }
         });

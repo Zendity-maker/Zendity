@@ -36,7 +36,7 @@ export async function GET(req: Request) {
                 },
                 medications: {
                     include: { medication: true },
-                    where: { alertsEnabled: true } // Medicamentos activos
+                    where: { isActive: true } // Medicamentos activos
                 }
             }
         });
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
 
         if (lastVitals) {
             if (lastVitals.temperature > 99.5) {
-                translatedMessage += `Adicionalmente, notamos una ligera elevación de temperatura más temprano, pero nuestros enfermeros ya activaron los protocolos de confort y líquidos, así que se encuentra bajo cuidado experto constante. `;
+                translatedMessage += `Adicionalmente, notamos una ligera elevación de temperatura más temprano, pero nuestros enfermeros ya activaron los protocolos de confort y líquidos. `;
             } else {
                 translatedMessage += `Sus signos vitales, como la presión y la temperatura, están dentro de los rangos seguros y calmados. `;
             }

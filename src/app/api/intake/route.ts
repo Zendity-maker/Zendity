@@ -94,7 +94,7 @@ export async function POST(req: Request) {
                 data: {
                     patientId: patient.id,
                     medicationId: coreMed.id,
-                    scheduleTime: "08:00 AM", // default asamblea
+                    scheduleTimes: "08:00 AM", // default asamblea
                 }
             });
         }
