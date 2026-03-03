@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { startOfDay, endOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,21 @@ export async function GET(req: Request) {
             orderBy: { name: 'asc' }
         });
 
-        return NextResponse.json({ success: true, patients });
+        const todayStart = startOfDay(new Date());
+        const todayEnd = endOfDay(new Date());
+
+        const events = await prisma.headquartersEvent.findMany({
+            where: {
+                headquartersId: hqId,
+                startTime: { gte: todayStart, lte: todayEnd }
+            },
+            include: {
+                patient: { select: { id: true, name: true } }
+            },
+            orderBy: { startTime: 'asc' }
+        });
+
+        return NextResponse.json({ success: true, patients, events });
     } catch (error) {
         console.error("Care Fetch Error:", error);
         return NextResponse.json({ success: false, error: "Error cargando residentes zonificados" }, { status: 500 });

@@ -9,6 +9,7 @@ export default function ZendityCareTabletPage() {
     const router = useRouter();
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
+    const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
     // Zendi Welcome Briefing (Fase 10)
@@ -135,7 +136,10 @@ export default function ZendityCareTabletPage() {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
             const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
             const data = await res.json();
-            if (data.success) setPatients(data.patients);
+            if (data.success) {
+                setPatients(data.patients);
+                setEvents(data.events || []);
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -378,6 +382,28 @@ export default function ZendityCareTabletPage() {
             </div>
 
             <div className="max-w-7xl mx-auto p-8">
+                {events.length > 0 && (
+                    <div className="mb-8 flex flex-col gap-3">
+                        {events.map((e: any) => {
+                            const timeStr = new Date(e.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            return (
+                                <div key={e.id} className="bg-amber-100 border-l-8 border-amber-500 p-4 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white text-xl">⏳</div>
+                                        <div>
+                                            <p className="font-bold text-amber-900 leading-tight">Calendario: {e.title}</p>
+                                            <p className="text-sm font-medium text-amber-700">
+                                                Hoy a las {timeStr} {e.patient ? `• Paciente: ${e.patient.name}` : '• Actividad Global'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="text-amber-600/50 font-black text-xs uppercase tracking-widest">{e.type}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="text-center p-20 text-xl font-bold text-slate-400 animate-pulse">Cargando Residentes...</div>
                 ) : (

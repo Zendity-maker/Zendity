@@ -43,6 +43,10 @@ model Headquarters {
   logoUrl        String?
   integrations   HqIntegration?
   crmLeads       CRMLead[]
+
+  // FASE 29 Calendario y Horarios
+  events         HeadquartersEvent[]
+  shiftSchedules ShiftSchedule[]
 }
 
 // =======================
@@ -94,6 +98,9 @@ model User {
   
   // FASE 24 Prevención de Caídas
   fallEvals            FallRiskAssessment[]
+
+  // FASE 29 Horarios de Trabajo
+  shiftSchedules       ShiftSchedule[]
 }
 
 enum Role {
@@ -104,6 +111,7 @@ enum Role {
   DIRECTOR
   THERAPIST
   BEAUTY_SPECIALIST
+  SUPERVISOR
 }
 
 enum ColorGroup {
@@ -166,6 +174,9 @@ model Patient {
 
   // FASE 21 Integrations
   handoverNotes         HandoverNote[]
+
+  // FASE 29 Calendario
+  events                HeadquartersEvent[]
 }
 
 // =======================
@@ -876,4 +887,47 @@ enum IncidentSeverity {
   MILD
   SEVERE
   FATAL
+}
+
+// =======================
+// 14. ZENDITY CALENDAR & SHIFTS (Fase 29 - Portal Supervisor)
+// =======================
+
+model HeadquartersEvent {
+  id              String       @id @default(uuid())
+  headquartersId  String
+  title           String
+  description     String?
+  type            EventType    @default(OTHER)
+  startTime       DateTime
+  endTime         DateTime
+  patientId       String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  patient         Patient?     @relation(fields: [patientId], references: [id])
+}
+
+enum EventType {
+  LABORATORY
+  MEDICAL_VISIT
+  FAMILY_VISIT
+  ACTIVITY
+  OTHER
+}
+
+model ShiftSchedule {
+  id              String       @id @default(uuid())
+  headquartersId  String
+  employeeId      String
+  startTime       DateTime
+  endTime         DateTime
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  employee        User         @relation(fields: [employeeId], references: [id])
 }

@@ -65,6 +65,12 @@ export default function CorporateLayout({
                             <Link href="/corporate/hr/staff" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
                                 <FaUsers className="text-base" /> Gestor RR.HH
                             </Link>
+                            <Link href="/corporate/calendar" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
+                                <FaChartPie className="text-base" /> Calendario
+                            </Link>
+                            <Link href="/corporate/supervisor" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
+                                <FaBrain className="text-base" /> Supervisor Cabina
+                            </Link>
                             <Link href="/corporate/billing" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
                                 <FaFileInvoiceDollar className="text-base" /> Facturación
                             </Link>

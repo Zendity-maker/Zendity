@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 
 export async function POST(req: Request) {
     try {
@@ -28,6 +32,26 @@ export async function POST(req: Request) {
                 formattedText = rawText.charAt(0).toUpperCase() + rawText.slice(1) + ".";
                 formattedText = formattedText.replace("el don", "el residente").replace("la doña", "la residente");
             }
+        } else if (type === 'SUPERVISOR_MEMO' && rawText) {
+            // FASE 29: Zendi AI para Cartas y Amonestaciones de RRHH (OpenAI)
+            const prompt = `
+            Eres Zendi AI, la inteligencia corporativa de la red de enfermería geriátrica Vivid Senior Living.
+            Tu función actual es servir como Asistente Logístico de Recursos Humanos para un Supervisor.
+            Él/Ella te pasará unas notas crudas o un incidente puntual sobre un empleado.
+            Tu trabajo es transformar esas notas crudas en un Memorándum Oficial, Profesional, Objetivo y de Grado Corporativo.
+            Debe ser diplomático pero firme. Si son notas positivas, debe ser un Reconocimiento Formal.
+            No des explicaciones de lo que hiciste, solo devuelve el cuerpo del texto oficial listo para ser copiado.
+            
+            NOTAS DEL SUPERVISOR (En crudo):
+            "${rawText}"
+            `;
+
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [{ role: "user", content: prompt }]
+            });
+
+            formattedText = completion.choices[0].message.content || rawText;
         }
 
         return NextResponse.json({ success: true, formattedText });
