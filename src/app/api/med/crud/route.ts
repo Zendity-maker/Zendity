@@ -3,6 +3,18 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+export async function GET(req: Request) {
+    try {
+        const medications = await prisma.medication.findMany({
+            orderBy: { name: 'asc' }
+        });
+        return NextResponse.json({ success: true, medications });
+    } catch (error) {
+        console.error("Fetch Meds Error:", error);
+        return NextResponse.json({ success: false, error: "Failed to fetch medications" }, { status: 500 });
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const { action, patientId, medicationId, scheduleTimes, authorId, reason, patientMedicationId } = await req.json();

@@ -59,6 +59,9 @@ export default function CorporateLayout({
                             <Link href="/corporate/medical/emar" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
                                 <FaPills className="text-base" /> eMAR
                             </Link>
+                            <Link href="/corporate/medical/catalog" className="text-teal-200 hover:text-teal-400 transition-colors flex items-center gap-1 text-xs">
+                                ↳ Catálogo de Farmacia
+                            </Link>
                             <Link href="/corporate/hr/staff" className="text-teal-200 hover:text-white transition-colors flex items-center gap-1">
                                 <FaUsers className="text-base" /> Gestor RR.HH
                             </Link>
