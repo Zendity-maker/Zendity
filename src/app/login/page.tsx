@@ -35,15 +35,7 @@ export default function LoginPage() {
         }
     };
 
-    // Funciones de Demo Inmediata (Llenado Rápido)
-    const fillDemo = (tipo: 'admin' | 'enfermera' | 'cuidador' | 'familiar' | 'terapista' | 'estilista') => {
-        if (tipo === 'admin') { setEmail("admin@vividcupey.com"); setPinCode("1234"); }
-        if (tipo === 'enfermera') { setEmail("enfermera@vividcupey.com"); setPinCode("1111"); }
-        if (tipo === 'cuidador') { setEmail("cuidador@vividcupey.com"); setPinCode("2222"); }
-        if (tipo === 'familiar') { setEmail("hija@vividcupey.com"); setPinCode("889900"); }
-        if (tipo === 'terapista') { setEmail("terapista@vividcupey.com"); setPinCode("3333"); }
-        if (tipo === 'estilista') { setEmail("belleza@vividcupey.com"); setPinCode("4444"); }
-    }
+
 
     return (
         <div className="w-full flex items-center justify-center min-h-screen bg-gradient-to-br from-teal-900 via-slate-900 to-black p-4 fixed inset-0 z-50">
@@ -103,31 +95,7 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                {/* Accesos Rápidos para DEMO */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                    <p className="text-xs text-white/30 font-bold uppercase tracking-widest mb-3 text-center">Auto-relleno Demo</p>
-                    <div className="pt-6 border-t border-white/10 mt-6 grid grid-cols-2 lg:grid-cols-3 gap-2">
-                        <button type="button" onClick={() => fillDemo('admin')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-teal-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Admin
-                        </button>
-                        <button type="button" onClick={() => fillDemo('enfermera')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-teal-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Enfermera
-                        </button>
-                        <button type="button" onClick={() => fillDemo('cuidador')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-teal-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Cuidador
-                        </button>
-                        <button type="button" onClick={() => fillDemo('familiar')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-pink-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Familiar
-                        </button>
-                        <button type="button" onClick={() => fillDemo('terapista')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-indigo-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Terapista
-                        </button>
-                        <button type="button" onClick={() => fillDemo('estilista')} className="text-xs font-bold py-2 bg-white/5 hover:bg-white/10 text-fuchsia-300 rounded-lg transition-colors border border-white/5">
-                            Auto-Fill Estilista
-                        </button>
-                    </div>
 
-                </div>
             </div>
         </div>
     );

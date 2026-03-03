@@ -36,10 +36,6 @@ export default function FamilyLoginPage() {
         }
     };
 
-    const loadDemoFamily = () => {
-        setEmail("hija@vividcupey.com");
-        setPinCode("889900");
-    };
 
     return (
         <div className="min-h-screen bg-[#FFF9F2] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -122,24 +118,7 @@ export default function FamilyLoginPage() {
                         </div>
                     </form>
 
-                    <div className="mt-8 relative">
-                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                            <div className="w-full border-t border-slate-200" />
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-4 bg-white text-slate-400 font-medium">B2C Test Demo</span>
-                        </div>
-                    </div>
 
-                    <div className="mt-6">
-                        <button
-                            onClick={loadDemoFamily}
-                            type="button"
-                            className="w-full inline-flex justify-center rounded-xl border-2 border-slate-100 px-4 py-3 bg-white text-sm font-bold text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
-                        >
-                            👨‍👩‍👧 Cargar Demo Hija (Doña Rosa)
-                        </button>
-                    </div>
                 </div>
                 {/* Branding footer */}
                 <p className="mt-8 text-center text-xs font-semibold text-slate-400 uppercase tracking-widest">
