@@ -98,6 +98,16 @@ export default function ZendityCRMPage() {
                 if (newStage === 'ADMISSION') {
                     alert('Conversión exitosa. Prospecto añadido al módulo Médico oficialmente.');
                 }
+                if (newStage === 'CONTRACT') {
+                    // Trigger DocuSign Webhook asíncrono
+                    fetch('/api/crm/docusign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ leadId, hqId: activeHqId })
+                    }).then(res => {
+                        if (res.ok) alert('El Contrato Electrónico ha sido despachado a la bandeja del prospecto (Vía DocuSign).');
+                    });
+                }
             }
         } catch (error) {
             console.error(error);
