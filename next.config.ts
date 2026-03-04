@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     // !! WARN !!
     ignoreBuildErrors: true,
-  }
+  },
+  serverExternalPackages: ['docusign-esign']
 };
 
 export default nextConfig;
