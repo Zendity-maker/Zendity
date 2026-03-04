@@ -99,8 +99,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </main>
                 </div>
             ) : (
-                <div className="w-full h-screen overflow-y-auto relative bg-slate-50">
-                    <div className="pb-24">
+                <div className="w-full h-screen bg-slate-50 flex flex-col">
+                    <div className="flex-1 w-full h-full">
                         {children}
                     </div>
                     {/* Botón Flotante Global para Salir de Módulos Específicos (Corporate/Family) */}
