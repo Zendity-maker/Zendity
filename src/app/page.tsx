@@ -3,15 +3,12 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import {
+  MessageSquare, Download, TrendingUp, TrendingDown, Minus,
+  ArrowRight, Activity, Users, Building, X
+} from 'lucide-react';
 
 interface LeaderboardItem {
   name: string;
@@ -39,7 +36,7 @@ export default function InsightsDashboard() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Colores dinámicos para las líneas de HQ
-  const colors = ["#0f766e", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
+  const colors = ["#0d9488", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
 
   useEffect(() => {
     async function fetchInsights() {
@@ -63,7 +60,7 @@ export default function InsightsDashboard() {
   // --- Family Link Polling ---
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 30000); // Polling cada 30s
+    const interval = setInterval(fetchMessages, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -104,30 +101,38 @@ export default function InsightsDashboard() {
   };
 
   const exportPdf = () => {
-    // La impresión nativa ignora las limitaciones de html2canvas con OkLCH/LAB y permite 
-    // texto seleccionable en el PDF final. Ocultamos la UI con clases print: de Tailwind.
     window.print();
   };
 
   const renderTrendIcon = (trend: string) => {
-    if (trend === "UP") return <span className="text-emerald-500 font-bold" title="En Crecimiento">🟢 ⬆️</span>;
-    if (trend === "DOWN") return <span className="text-red-500 font-bold" title="Deficiente">🔴 ⬇️</span>;
-    return <span className="text-amber-500 font-bold" title="Estable">🟡 ➖</span>;
+    if (trend === "UP") return <TrendingUp className="text-emerald-500 w-5 h-5 mx-auto" />;
+    if (trend === "DOWN") return <TrendingDown className="text-rose-500 w-5 h-5 mx-auto" />;
+    return <Minus className="text-amber-500 w-5 h-5 mx-auto" />;
   };
 
   if (loading) {
-    return <div className="p-10 text-center text-teal-600 font-bold animate-pulse">Compilando Métricas Históricas...</div>;
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="flex flex-col items-center gap-4 animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
+            <Activity className="w-6 h-6" />
+          </div>
+          <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Compilando Métricas...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 print:m-0 print:p-0">
+    <div className="space-y-6 animate-in fade-in zoom-in-[0.99] duration-500 print:m-0 print:p-0 pb-12">
+
       {/* Ocultar Cabecera y Botón en Documento PDF */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 print:hidden border-b border-slate-200/60 pb-6">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent flex items-center gap-3">
-            Zendity Insights <span className="text-2xl">📈</span>
+          <h2 className="text-3xl font-black bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent flex items-center gap-3 tracking-tight">
+            Zendity <span className="text-teal-500">Insights</span>
           </h2>
-          <p className="text-slate-500 mt-1">
+          <p className="text-slate-500 mt-2 font-medium text-sm">
             Dashboard Maestro de Cumplimiento Multitenant
           </p>
         </div>
@@ -135,11 +140,11 @@ export default function InsightsDashboard() {
           {/* Botón Bandeja Family Link */}
           <button
             onClick={() => { setShowInbox(true); setActiveThread(null); }}
-            className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-md transition-all flex items-center gap-2"
+            className="relative bg-white text-slate-700 border border-slate-200 hover:border-teal-300 hover:text-teal-700 font-bold px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-sm"
           >
-            <span>📨</span> Mensajes
+            <MessageSquare className="w-4 h-4" /> Sala de Enfermería
             {inboxThreads.some(t => t.unreadCount > 0) && (
-              <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce shadow-sm">
                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
               </span>
             )}
@@ -148,58 +153,67 @@ export default function InsightsDashboard() {
           <button
             onClick={exportPdf}
             disabled={generatingPdf}
-            className={`bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg hover:shadow-teal-500/20 transition-all flex items-center gap-2 ${generatingPdf ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+            className={`bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-sm px-5 py-2.5 shadow-md shadow-slate-900/10 transition-all flex items-center gap-2 ${generatingPdf ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            <span>{generatingPdf ? "⏳ Generando..." : "📄 Exportar Evidencia Gubernamental"}</span>
+            <Download className="w-4 h-4" />
+            <span>{generatingPdf ? "Generando..." : "Exportar Evidencia"}</span>
           </button>
         </div>
       </div>
 
       {/* Contenedor a exportar en PDF */}
-      <div ref={reportRef} className="space-y-6 bg-slate-50 p-2 rounded-xl">
+      <div ref={reportRef} className="space-y-6">
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Promedio Global</h3>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-black text-teal-700">
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-teal-200 transition-colors">
+            <div className="flex justify-between items-start">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Promedio Global</h3>
+              <div className="p-2 bg-teal-50 text-teal-600 rounded-lg"><Activity className="w-4 h-4" /></div>
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-800 tracking-tight">
                 {chartData.length > 0 ? (
                   chartData[chartData.length - 1][headquarters[0]] || 0
                 ) : 0}
               </span>
-              <span className="text-sm font-bold text-slate-400">Pts</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Pts</span>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Sedes Evaluadas</h3>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-black text-slate-800">{headquarters.length}</span>
-              <span className="text-sm font-bold text-slate-400">HQs</span>
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-indigo-200 transition-colors">
+            <div className="flex justify-between items-start">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sedes Evaluadas</h3>
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Building className="w-4 h-4" /></div>
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-800 tracking-tight">{headquarters.length}</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">HQs</span>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Empleados Auditados</h3>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-black text-slate-800">{leaderboard.length}</span>
-              <span className="text-sm font-bold text-slate-400">Staff</span>
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-amber-200 transition-colors">
+            <div className="flex justify-between items-start">
+              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Empleados Auditados</h3>
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Users className="w-4 h-4" /></div>
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-800 tracking-tight">{leaderboard.length}</span>
+              <span className="text-xs font-bold text-slate-400 uppercase">Staff</span>
             </div>
           </div>
         </div>
 
         {/* Master Chart - Recharts */}
-        <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200">
-          <div className="mb-6">
-            <h3 className="text-xl font-black text-slate-800">Crecimiento Histórico Comparativo (Sedes)</h3>
-            <p className="text-sm text-slate-500">Evaluación de desempeño RRHH mes a mes.</p>
+        <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+          <div className="mb-8">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Crecimiento Histórico Comparativo</h3>
+            <p className="text-sm text-slate-500 font-medium mt-1">Evaluación de desempeño RRHH mes a mes.</p>
           </div>
 
           <div className="h-96 w-full">
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
@@ -215,11 +229,12 @@ export default function InsightsDashboard() {
                     dx={-10}
                   />
                   <Tooltip
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.05)', fontWeight: 600 }}
+                    cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
                   />
                   <Legend
                     iconType="circle"
-                    wrapperStyle={{ paddingTop: '20px', fontWeight: 600, color: '#475569' }}
+                    wrapperStyle={{ paddingTop: '20px', fontWeight: 600, color: '#475569', fontSize: '12px' }}
                   />
                   {headquarters.map((hq, idx) => (
                     <Line
@@ -227,57 +242,59 @@ export default function InsightsDashboard() {
                       type="monotone"
                       dataKey={hq}
                       stroke={colors[idx % colors.length]}
-                      strokeWidth={4}
-                      activeDot={{ r: 8, strokeWidth: 0 }}
+                      strokeWidth={3}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      dot={{ r: 3, strokeWidth: 2, fill: 'white' }}
                     />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                <p className="text-slate-400 font-bold">No hay datos históricos suficientes.</p>
+              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <Activity className="w-8 h-8 text-slate-300 mb-2" />
+                <p className="text-slate-400 font-bold text-sm">No hay datos históricos suficientes.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Leaderboard y Tendencias */}
-        <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200">
+        <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
           <div className="mb-6">
-            <h3 className="text-xl font-black text-slate-800">Leaderboard de Empleados & Tendencias</h3>
-            <p className="text-sm text-slate-500">Métricas de desempeño clínico y administrativo del mes actual frente al anterior.</p>
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">Leaderboard de Personal & Tendencias</h3>
+            <p className="text-sm text-slate-500 font-medium mt-1">Métricas de desempeño clínico y administrativo del mes actual.</p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left">
               <thead>
-                <tr className="border-b-2 border-slate-100 text-sm font-black text-slate-400 uppercase tracking-widest">
+                <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   <th className="py-4 px-4">Empleado</th>
-                  <th className="py-4 px-4">Rol</th>
+                  <th className="py-4 px-4">Rol en Sede</th>
                   <th className="py-4 px-4">Sede (HQ)</th>
                   <th className="py-4 px-4 text-center">Score Actual</th>
                   <th className="py-4 px-4 text-center">Tendencia</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-50">
                 {leaderboard.map((emp, i) => (
-                  <tr key={i} className={`hover:bg-slate-50 transition-colors ${emp.trend === 'DOWN' ? 'bg-red-50/30' : ''}`}>
+                  <tr key={i} className={`hover:bg-slate-50/80 transition-colors group ${emp.trend === 'DOWN' ? 'bg-rose-50/20' : ''}`}>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-200/60 shadow-inner group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
                           {emp.name.substring(0, 2).toUpperCase()}
                         </div>
-                        <span className="font-bold text-slate-800">{emp.name}</span>
+                        <span className="font-bold text-slate-800 text-sm">{emp.name}</span>
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg border border-slate-200">
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[11px] font-bold rounded-md border border-slate-200/60 tracking-wide">
                         {emp.role}
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-sm font-medium text-slate-600">{emp.hq}</td>
+                    <td className="py-4 px-4 text-sm font-semibold text-slate-500">{emp.hq}</td>
                     <td className="py-4 px-4 text-center">
-                      <span className={`font-black text-lg ${emp.currentScore >= 90 ? 'text-teal-600' : emp.currentScore <= 75 ? 'text-red-500' : 'text-amber-500'}`}>
+                      <span className={`inline-flex font-black text-sm px-3 py-1 rounded-full border shadow-sm ${emp.currentScore >= 90 ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' : emp.currentScore <= 75 ? 'bg-rose-50 text-rose-700 border-rose-200/60' : 'bg-amber-50 text-amber-700 border-amber-200/60'}`}>
                         {emp.currentScore}
                       </span>
                     </td>
@@ -293,66 +310,90 @@ export default function InsightsDashboard() {
 
       </div>
 
-      {/* INBOX MODAL (Family Link) FASE 13 */}
+      {/* INBOX MODAL (Slide-over Panel) FASE 13 */}
       {showInbox && (
-        <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm print:hidden">
-          <div className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative">
-            <button onClick={() => setShowInbox(false)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold">X</button>
-            <h3 className="text-3xl font-black text-slate-900 mb-6 flex items-center gap-3">📨 Sala de Enfermería</h3>
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowInbox(false)}
+          ></div>
 
-            <div className="flex flex-col h-[600px] -mt-4">
+          {/* Slide-over Panel */}
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-slate-200">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-teal-600" /> Sala de Enfermería
+                </h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Family Link</p>
+              </div>
+              <button onClick={() => setShowInbox(false)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto flex flex-col bg-slate-50/30">
               {!activeThread ? (
-                <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                  <p className="text-sm font-bold text-slate-400 mb-4 px-1">Consultas y Requerimientos de Familiares</p>
+                <div className="p-4 space-y-3">
                   {inboxThreads.length === 0 ? (
-                    <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">Sin mensajes hoy. 😊</div>
+                    <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 font-bold flex flex-col items-center gap-3">
+                      <MessageSquare className="w-8 h-8 opacity-40" />
+                      <span>Sin mensajes hoy. 😊</span>
+                    </div>
                   ) : (
                     inboxThreads.map((thread: any, idx) => (
-                      <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
+                      <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                         <div>
-                          <h4 className="font-black text-slate-800 text-lg group-hover:text-teal-600">{thread.patient.name}</h4>
-                          <p className="text-xs text-slate-400 font-bold uppercase">Cuarto {thread.patient.room} • {thread.messages.length} Mensajes Totales</p>
+                          <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600">{thread.patient.name}</h4>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Cuarto {thread.patient.room}</p>
                         </div>
-                        {thread.unreadCount > 0 && (
-                          <span className="bg-rose-500 text-white font-black text-sm px-3 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
+                        {thread.unreadCount > 0 ? (
+                          <span className="bg-rose-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
+                        ) : (
+                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-teal-500 transition-colors" />
                         )}
                       </div>
                     ))
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col h-full bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative">
-                  {/* Hilo Específico */}
-                  <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                    <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-400 hover:text-slate-800 font-bold px-2 py-1 bg-slate-100 rounded-lg">← Volver</button>
-                    <span className="font-black text-slate-800 text-lg">{activeThread.patient.name}</span>
+                <div className="flex flex-col h-full bg-slate-50/50 overflow-hidden relative">
+                  {/* Hilo Específico Header */}
+                  <div className="p-3 px-4 bg-white border-b border-slate-200 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
+                    <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-400 hover:text-slate-800 font-bold p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
+                      <ArrowRight className="w-4 h-4 rotate-180" />
+                    </button>
+                    <span className="font-black text-slate-800 text-sm">{activeThread.patient.name}</span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col">
+                  {/* Mensajes */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col scroll-smooth">
                     {activeThread.messages.map((msg: any) => {
                       const isStaff = msg.senderType === 'STAFF';
                       return (
-                        <div key={msg.id} className={`max-w-[85%] p-4 rounded-2xl ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-none shadow-md' : 'bg-white border border-slate-200 text-slate-800 self-start rounded-bl-none shadow-sm'}`}>
-                          <p className="text-sm font-medium">{msg.content}</p>
-                          <div className={`text-[10px] mt-2 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {isStaff && '✓'}
+                        <div key={msg.id} className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-sm shadow-sm' : 'bg-white border border-slate-200 text-slate-700 self-start rounded-bl-sm shadow-sm'}`}>
+                          <p className="font-medium">{msg.content}</p>
+                          <div className={`text-[9px] mt-1.5 font-bold text-right uppercase tracking-wider ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  <div className="p-4 bg-white border-t border-slate-200">
+                  {/* Input Area */}
+                  <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.02)]">
                     <form onSubmit={(e) => { e.preventDefault(); sendReply(activeThread.patient.id); }} className="flex gap-2">
                       <input
                         type="text"
                         value={replyContent}
                         onChange={(e) => setReplyContent(e.target.value)}
-                        placeholder="Escribe una respuesta clínica..."
-                        className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                        placeholder="Escribe al familiar..."
+                        className="flex-1 bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400"
                       />
-                      <button type="submit" disabled={sendingReply || !replyContent.trim()} className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black px-6 rounded-xl shadow-md transition-all">
-                        Enviar
+                      <button type="submit" disabled={sendingReply || !replyContent.trim()} className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-bold px-4 rounded-xl shadow-sm transition-all flex items-center justify-center">
+                        <ArrowRight className="w-5 h-5" />
                       </button>
                     </form>
                   </div>
@@ -360,7 +401,7 @@ export default function InsightsDashboard() {
               )}
             </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>
