@@ -1,0 +1,80 @@
+node_modules/next/dist/build/templates/app-page.d.ts(3,25): error TS2307: Cannot find module 'VAR_MODULE_GLOBAL_ERROR' or its corresponding type declarations.
+node_modules/next/dist/build/webpack-config.d.ts(10,104): error TS2694: Namespace '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/next/dist/compiled/webpack/webpack".webpack' has no exported member 'RuleSetUseItem'.
+node_modules/next/dist/build/webpack/loaders/next-app-loader/index.d.ts(1,13): error TS2613: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/next/dist/compiled/webpack/webpack"' has no default export. Did you mean to use 'import { webpack } from "/Users/andresfloresruiz/Desktop/Zendity/node_modules/next/dist/compiled/webpack/webpack"' instead?
+node_modules/next/dist/client/components/error-boundary.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/components/http-access-fallback/error-boundary.d.ts(11,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/components/layout-router.d.ts(2,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/client/with-router.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/lib/metadata/metadata.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/server/app-render/entry-base.d.ts(1,114): error TS2307: Cannot find module 'react-server-dom-webpack/server' or its corresponding type declarations.
+node_modules/next/dist/server/app-render/entry-base.d.ts(2,27): error TS2307: Cannot find module 'react-server-dom-webpack/static' or its corresponding type declarations.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(39,16): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(40,13): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(41,15): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/server/web/spec-extension/adapters/headers.d.ts(42,26): error TS2304: Cannot find name 'HeadersIterator'.
+node_modules/next/dist/shared/lib/app-router-context.shared-runtime.d.ts(4,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/app-router-types.d.ts(7,13): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/head-manager-context.shared-runtime.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/image-config-context.shared-runtime.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/loadable-context.shared-runtime.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/loadable.shared-runtime.d.ts(21,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/router-context.shared-runtime.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/server-inserted-html.shared-runtime.d.ts(1,8): error TS1259: Module '"/Users/andresfloresruiz/Desktop/Zendity/node_modules/@types/react/index"' can only be default-imported using the 'esModuleInterop' flag
+node_modules/next/dist/shared/lib/utils.d.ts(10,13): error TS1192: Module '"fs"' has no default export.
+src/app/corporate/crm/page.tsx(5,25): error TS2307: Cannot find module '@/context/AuthContext' or its corresponding type declarations.
+src/app/corporate/crm/page.tsx(114,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(117,9): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(120,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(121,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(122,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(123,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(125,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(129,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(130,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(133,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(140,13): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(141,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(146,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(148,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(149,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(150,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(151,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(153,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(159,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(161,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(162,45): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(163,49): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(166,49): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(171,70): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(173,49): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(176,45): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(177,64): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(178,64): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(182,74): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(183,76): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(184,74): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(188,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(201,17): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(202,21): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(203,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(204,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(205,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(210,25): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(211,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(212,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(213,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(214,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(216,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(217,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(218,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(222,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(223,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(224,33): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(225,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(226,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(227,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(229,37): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(230,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(231,41): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.
+src/app/corporate/crm/page.tsx(236,29): error TS17004: Cannot use JSX unless the '--jsx' flag is provided.

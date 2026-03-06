@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import docusign from 'docusign-esign';
 
 // Mock/Envs for DocuSign (En Producción B2B se usan Integration Keys reales)
 const DOCUSIGN_CLIENT_ID = process.env.DOCUSIGN_CLIENT_ID || 'mock_client';
@@ -24,6 +23,7 @@ export async function POST(req: Request) {
 
         // Si tenemos llaves Reales de DocuSign
         if (DOCUSIGN_CLIENT_ID !== 'mock_client' && DOCUSIGN_PRIVATE_KEY !== 'mock_key') {
+            const docusign = eval('require')('docusign-esign');
             const apiClient = new docusign.ApiClient();
             apiClient.setBasePath('https://demo.docusign.net/restapi');
 

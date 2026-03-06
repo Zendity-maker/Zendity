@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaHeartbeat, FaRegCalendarCheck, FaRegUser, FaNotesMedical } from "react-icons/fa";
+import { FaRegCalendarCheck, FaRegUser, FaNotesMedical } from "react-icons/fa";
 
 export default function FamilyDashboard() {
     const [resident, setResident] = useState<any>(null);
@@ -69,42 +69,7 @@ export default function FamilyDashboard() {
             </div>
 
             {/* Quick Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Vitals Card */}
-                <div className="bg-white rounded-3xl p-8 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden group hover:shadow-xl hover:border-rose-100 transition-all duration-500">
-                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-rose-50 to-pink-50 rounded-full -z-0 transition-transform duration-700 group-hover:scale-150"></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="font-extrabold text-slate-800 text-lg">Signos Vitales</h3>
-                            <div className="bg-rose-100 p-3 rounded-2xl text-rose-500 shadow-inner">
-                                <FaHeartbeat className="text-xl" />
-                            </div>
-                        </div>
-
-                        {latestVitals ? (
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                                    <span className="text-slate-500 font-medium">Presión Arterial</span>
-                                    <span className="font-black text-rose-500 text-lg">{latestVitals.bloodPressure}</span>
-                                </div>
-                                <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                                    <span className="text-slate-500 font-medium">Frecuencia Cardíaca</span>
-                                    <span className="font-black text-slate-800 text-lg">{latestVitals.heartRate} <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">bpm</span></span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500 font-medium">Nivel de Glucosa</span>
-                                    <span className="font-black text-slate-800 text-lg">{latestVitals.glucose || "N/A"}</span>
-                                </div>
-                                <div className="pt-4 mt-2 border-t border-dashed border-slate-100 text-right">
-                                    <span className="inline-block bg-slate-50 px-3 py-1 rounded-lg text-xs font-bold text-slate-400">Hace instantes</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="text-slate-500 text-sm font-medium">No hay registros recientes en el expediente.</p>
-                        )}
-                    </div>
-                </div>
-
+            <div className="grid grid-cols-1 gap-6">
                 {/* Daily Log Card */}
                 <div className="bg-white rounded-3xl p-8 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden group hover:shadow-xl hover:border-sky-100 transition-all duration-500">
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-sky-50 to-blue-50 rounded-full -z-0 transition-transform duration-700 group-hover:scale-150"></div>

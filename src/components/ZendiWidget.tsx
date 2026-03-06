@@ -36,6 +36,13 @@ export default function ZendiWidget() {
 
             recognition.onerror = (event: any) => {
                 console.error("Speech Recognition Error:", event.error);
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    setResponseMsg("⚠️ Necesito permiso de micrófono para escucharte.");
+                } else if (event.error === 'network') {
+                    setResponseMsg("⚠️ Error de red. Revisa tu conexión.");
+                } else {
+                    setResponseMsg("⚠️ No te escuché bien. ¿Puedes repetir?");
+                }
                 setIsListening(false);
             };
 
@@ -109,6 +116,9 @@ export default function ZendiWidget() {
             if (data.success) {
                 setResponseMsg(data.response);
                 playZendiVoice(data.response); // Call neural voice player
+            } else {
+                setResponseMsg(data.error || "Lo siento, falló la conexión con mi servidor.");
+                setIsSpeaking(false);
             }
         } catch (error) {
             setResponseMsg("Lo siento, no tengo conexión con los servidores de la instalación.");

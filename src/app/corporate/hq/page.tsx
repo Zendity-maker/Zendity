@@ -26,9 +26,43 @@ export default function ZendityHQPage() {
     const [expDate, setExpDate] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // Branding states
+    const [logoUrl, setLogoUrl] = useState("");
+    const [savingBranding, setSavingBranding] = useState(false);
+
     useEffect(() => {
         fetchDocs();
+        fetchBranding();
     }, []);
+
+    const fetchBranding = async () => {
+        try {
+            const res = await fetch("/api/corporate/hq/branding");
+            const data = await res.json();
+            if (data.success && data.hq?.logoUrl) setLogoUrl(data.hq.logoUrl);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleSaveBranding = async () => {
+        setSavingBranding(true);
+        try {
+            const res = await fetch("/api/corporate/hq/branding", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ logoUrl })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Branding actualizado exitosamente.");
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSavingBranding(false);
+        }
+    };
 
     const fetchDocs = async () => {
         setLoading(true);
@@ -157,6 +191,40 @@ export default function ZendityHQPage() {
                                 {submitting ? 'Subiendo Bóveda...' : 'Custodiar Documento'}
                             </button>
                         </form>
+                    </div>
+
+                    {/* Branding Panel */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
+                            🎨 Zendity Branding
+                        </h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Logo URL (Marca Blanca)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: /vivid-logo.png o https://..."
+                                    className="w-full border-slate-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-slate-50 text-sm"
+                                    value={logoUrl}
+                                    onChange={(e) => setLogoUrl(e.target.value)}
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">Este logo reemplazará a Zendity en el Portal Familiar B2C.</p>
+                            </div>
+
+                            {logoUrl && (
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-center items-center h-24">
+                                    <img src={logoUrl} alt="Preview Logo" className="max-h-full object-contain" />
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleSaveBranding}
+                                disabled={savingBranding}
+                                className="w-full py-2.5 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-all text-sm"
+                            >
+                                {savingBranding ? 'Guardando...' : 'Aplicar Marca'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 

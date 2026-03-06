@@ -8,9 +8,6 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     // !! WARN !!
     ignoreBuildErrors: true,
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['docusign-esign']
   }
 };
 

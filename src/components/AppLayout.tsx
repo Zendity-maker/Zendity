@@ -29,6 +29,7 @@ const corporateNavigationSections = [
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Supervisor Cabina", href: "/corporate/supervisor", icon: UserCheck },
+            { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
         ]
     },
     {
@@ -72,7 +73,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     // Si estamos en auth o family, renderizamos sin sidebar unificado (tienen su propio layout)
     if (isAuthRoute || isFamilyRoute) {
-        return <div className="w-full min-h-screen">{children}</div>;
+        return <div className="w-full h-full">{children}</div>;
     }
 
     // Determinar Workspace Activo basado en la ruta interactiva ("Clinical" vs "Corporate")

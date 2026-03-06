@@ -3,6 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar } from "react-icons/fa";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export default async function FamilyLayout({ children }: { children: React.ReactNode }) {
     const session = await getServerSession(authOptions);
@@ -11,21 +14,28 @@ export default async function FamilyLayout({ children }: { children: React.React
         redirect("/login");
     }
 
-    const hqName = (session.user as any).headquartersName || "Zendity Partner";
+    const hqId = (session.user as any).headquartersId;
+    const hq = await prisma.headquarters.findUnique({ where: { id: hqId } });
+    const hqName = hq?.name || "Zendity Partner";
+    const logoUrl = hq?.logoUrl || null;
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+        <div className="absolute inset-0 bg-slate-50 font-sans text-slate-800 overflow-y-auto w-full h-full pb-20">
             {/* Nav B2C - Mobile Friendly, Clean look */}
             <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-100">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-20 items-center">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-rose-200">
-                                Z
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500">Zendity Family</h1>
-                                <p className="text-xs font-medium text-slate-400 uppercase tracking-widest">{hqName}</p>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt={hqName} className="h-10 object-contain" />
+                            ) : (
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-rose-200">
+                                    {hqName.charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                            <div className="flex flex-col justify-center">
+                                {!logoUrl && <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500">{hqName}</h1>}
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{!logoUrl ? "Portal Familiar" : "Portal Familiar"}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
@@ -50,7 +60,7 @@ export default async function FamilyLayout({ children }: { children: React.React
             </nav>
 
             {/* Main B2C Content */}
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24 sm:pb-12">
+            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-32 sm:pb-12">
                 {children}
             </main>
 

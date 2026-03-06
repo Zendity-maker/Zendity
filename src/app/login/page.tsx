@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -10,6 +10,23 @@ export default function LoginPage() {
     const [pinCode, setPinCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Branding States
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [hqName, setHqName] = useState<string>("Zendity Network");
+
+    useEffect(() => {
+        // Fetch public branding config before login
+        fetch('/api/public/hq/branding')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.hq) {
+                    if (data.hq.logoUrl) setLogoUrl(data.hq.logoUrl);
+                    if (data.hq.name) setHqName(data.hq.name);
+                }
+            })
+            .catch(err => console.error("Error loading branding:", err));
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,14 +61,20 @@ export default function LoginPage() {
 
             <div className="relative w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-10 shadow-2xl">
 
-                {/* Logo */}
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-black text-3xl shadow-[0_0_30px_rgba(20,184,166,0.5)] mb-6">
-                    Z
-                </div>
+                {/* Logo Dinámico */}
+                {logoUrl ? (
+                    <div className="mx-auto h-20 flex items-center justify-center mb-6">
+                        <img src={logoUrl} alt={hqName} className="max-h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
+                    </div>
+                ) : (
+                    <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-black text-3xl shadow-[0_0_30px_rgba(20,184,166,0.5)] mb-6">
+                        {hqName.charAt(0).toUpperCase()}
+                    </div>
+                )}
 
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Acceso a Zendity</h1>
-                    <p className="text-teal-100/70 text-sm">Clúster: Vivid Senior Living Cupey</p>
+                    <h1 className="text-3xl font-bold text-white mb-2 line-clamp-1">{hqName}</h1>
+                    <p className="text-teal-100/70 text-sm">Powered by Zendity OS</p>
                 </div>
 
                 {error && (

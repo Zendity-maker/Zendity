@@ -1,268 +1,292 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
-// Kanban Stages Definition
-const STAGES = [
-    { id: 'PROSPECT', label: 'Prospecto Nuevo', icon: '📞', color: 'bg-slate-100', border: 'border-slate-200' },
-    { id: 'TOUR', label: 'Tour Agendado', icon: '🏛️', color: 'bg-blue-50', border: 'border-blue-200' },
-    { id: 'EVALUATION', label: 'Evaluación Médica', icon: '🩺', color: 'bg-amber-50', border: 'border-amber-200' },
-    { id: 'CONTRACT', label: 'Contrato Legal', icon: '✍️', color: 'bg-indigo-50', border: 'border-indigo-200' },
-    { id: 'ADMISSION', label: 'Ingreso', icon: '🏥', color: 'bg-emerald-50', border: 'border-emerald-200' }
+type LeadStage = "PROSPECT" | "TOUR" | "EVALUATION" | "CONTRACT" | "ADMISSION";
+
+interface CRMLead {
+    id: string;
+    stage: LeadStage;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+    notes: string | null;
+}
+
+const STAGES: { key: LeadStage; label: string; icon: string; color: string }[] = [
+    { key: "PROSPECT", label: "Prospecto", icon: "👀", color: "bg-slate-100 border-slate-200" },
+    { key: "TOUR", label: "Tour Programado", icon: "🏛️", color: "bg-blue-50 border-blue-200" },
+    { key: "EVALUATION", label: "Evaluación Médica", icon: "🩺", color: "bg-amber-50 border-amber-200" },
+    { key: "CONTRACT", label: "Contrato", icon: "✍️", color: "bg-indigo-50 border-indigo-200" },
+    { key: "ADMISSION", label: "Admisión Ofical", icon: "🎉", color: "bg-emerald-50 border-emerald-200" },
 ];
 
-export default function ZendityCRMPage() {
+export default function CRMDashboardPage() {
+    const router = useRouter();
     const { user } = useAuth();
-    const activeHqId = user?.headquartersId || user?.hqId;
-
-    const [leads, setLeads] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [leads, setLeads] = useState<CRMLead[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // Modal State
-    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
-    const [newLeadUrl, setNewLead] = useState({ firstName: '', lastName: '', phone: '', email: '' });
-
-    const fetchLeads = async () => {
-        if (!activeHqId) return;
-        setIsLoading(true);
-        try {
-            const res = await fetch(`/api/corporate/crm?headquartersId=${activeHqId}`);
-            if (res.ok) {
-                const data = await res.json();
-                setLeads(data);
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newLead, setNewLead] = useState({ firstName: "", lastName: "", email: "", phone: "" });
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         fetchLeads();
-    }, [activeHqId]);
+    }, []);
+
+    const fetchLeads = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/corporate/crm/leads");
+            const data = await res.json();
+            if (data.success) {
+                setLeads(data.leads);
+            }
+        } catch (error) {
+            console.error("Error fetching leads:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleCreateLead = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!activeHqId) return;
-
+        setSaving(true);
         try {
-            const res = await fetch('/api/corporate/crm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'CREATE',
-                    headquartersId: activeHqId,
-                    ...newLeadUrl
-                })
+            const res = await fetch("/api/corporate/crm/leads", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newLead)
             });
-
-            if (res.ok) {
-                setCreateModalOpen(false);
-                setNewLead({ firstName: '', lastName: '', phone: '', email: '' });
-                fetchLeads();
+            const data = await res.json();
+            if (data.success) {
+                setIsModalOpen(false);
+                setNewLead({ firstName: "", lastName: "", email: "", phone: "" });
+                fetchLeads(); // Refresh board
             } else {
-                alert("Error al crear prospecto");
+                alert(data.error);
             }
         } catch (error) {
-            console.error(error);
+            console.error("Error creating lead:", error);
+        } finally {
+            setSaving(false);
         }
     };
 
-    const updateLeadStage = async (leadId: string, newStage: string) => {
-        const lead = leads.find(l => l.id === leadId);
-        if (!activeHqId || !lead) return;
+    const handleMoveLead = async (id: string, newStage: LeadStage) => {
+        // Optimistic UI update
+        const originalLeads = [...leads];
+        setLeads(leads.map(l => l.id === id ? { ...l, stage: newStage } : l));
 
-        // Front-End Validation for No-Code Error strict policy
-        if (newStage === 'ADMISSION' && (!lead.medicalEvaluationCompleted || !lead.contractSigned)) {
-            alert("No-Code Error Block: No puedes ingresar a este candidato. Asegúrate de tener su Evaluación Médica y Contrato Firmado marcados.");
-            return;
+        if (newStage === "ADMISSION") {
+            const isConfirmed = window.confirm("¡Atención! Mover este prospecto a Admisión creará automáticamente su Ficha Clínica (LifePlan) y su cuenta del Portal Familiar. ¿Deseas proceder?");
+            if (!isConfirmed) {
+                setLeads(originalLeads); // Revert
+                return;
+            }
         }
 
         try {
-            // Optimistic UI update
-            setLeads(leads.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
-
-            const res = await fetch('/api/corporate/crm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'UPDATE_STAGE', leadId, stage: newStage })
+            const res = await fetch("/api/corporate/crm/leads", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, stage: newStage })
             });
-
-            if (!res.ok) {
-                const errData = await res.json();
-                alert(errData.error || "Error al actualizar etapa");
-                fetchLeads(); // Revert Optimistic
-            } else {
-                if (newStage === 'ADMISSION') {
-                    alert('Conversión exitosa. Prospecto añadido al módulo Médico oficialmente.');
-                }
-                if (newStage === 'CONTRACT') {
-                    // Trigger DocuSign Webhook asíncrono
-                    fetch('/api/crm/docusign', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ leadId, hqId: activeHqId })
-                    }).then(res => {
-                        if (res.ok) alert('El Contrato Electrónico ha sido despachado a la bandeja del prospecto (Vía DocuSign).');
-                    });
-                }
+            const data = await res.json();
+            if (!data.success) {
+                alert("Error actualizando lead: " + data.error);
+                setLeads(originalLeads); // Revert on error
+            } else if (newStage === "ADMISSION") {
+                alert("🎉 ¡Admisión Exitosa! El expediente clínico ha sido auto-generado. Enfermería ya puede visualizarlo en el sistema.");
             }
         } catch (error) {
-            console.error(error);
-            fetchLeads(); // Revert
+            console.error("Error updating lead:", error);
+            setLeads(originalLeads);
         }
     };
 
-    const toggleRequirement = async (leadId: string, type: 'medical' | 'contract', currentValue: boolean) => {
-        const lead = leads.find(l => l.id === leadId);
-        if (!lead) return;
+    // Kanban Drag and Drop Logic
+    const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
 
-        const payload = {
-            action: 'UPDATE_REQUIREMENTS',
-            leadId,
-            medicalEvaluationCompleted: type === 'medical' ? !currentValue : lead.medicalEvaluationCompleted,
-            contractSigned: type === 'contract' ? !currentValue : lead.contractSigned
-        };
+    const handleDragStart = (e: React.DragEvent, id: string) => {
+        setDraggedLeadId(id);
+        e.dataTransfer.effectAllowed = "move";
+        // Pequeño retardo para que la tarjeta no desaparezca instantáneamente al arrastrar
+        setTimeout(() => {
+            const el = document.getElementById(`lead-${id}`);
+            if (el) el.classList.add('opacity-50');
+        }, 0);
+    };
 
-        try {
-            const res = await fetch('/api/corporate/crm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) fetchLeads();
-        } catch (error) {
-            console.error(error);
+    const handleDragEnd = (e: React.DragEvent, id: string) => {
+        setDraggedLeadId(null);
+        const el = document.getElementById(`lead-${id}`);
+        if (el) el.classList.remove('opacity-50');
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault(); // Necesario para permitir el drop
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e: React.DragEvent, newStage: LeadStage) => {
+        e.preventDefault();
+        if (draggedLeadId) {
+            const lead = leads.find(l => l.id === draggedLeadId);
+            if (lead && lead.stage !== newStage) {
+                handleMoveLead(draggedLeadId, newStage);
+            }
         }
+        setDraggedLeadId(null);
     };
 
-    const onDragStart = (e: React.DragEvent, leadId: string) => {
-        e.dataTransfer.setData("leadId", leadId);
-    };
 
-    const onDrop = (e: React.DragEvent, targetStage: string) => {
-        e.preventDefault();
-        const leadId = e.dataTransfer.getData("leadId");
-        if (leadId) updateLeadStage(leadId, targetStage);
-    };
-
-    const onDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-    };
-
-    if (isLoading) {
-        return <div className="p-10 text-center animate-pulse text-slate-500 font-bold">Cargando Tablero CRM...</div>;
-    }
+    if (loading) return <div className="p-10 font-bold text-center text-indigo-600 animate-pulse">Cargando ZENDITY CRM...</div>;
 
     return (
-        <div className="p-8 h-[calc(100vh-80px)] overflow-hidden flex flex-col space-y-6">
-            <div className="flex justify-between items-center shrink-0">
+        <div className="max-w-7xl mx-auto space-y-6 h-full flex flex-col pt-4">
+
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 gap-4 flex-shrink-0">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">Zendity B2B Sales</h1>
-                    <p className="text-slate-500 mt-1">Embudo de Adquisición de Residentes (Kanban)</p>
+                    <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+                        <span>🤝</span> Admisiones y CRM
+                    </h1>
+                    <p className="text-slate-500 text-sm max-w-xl">
+                        Acelerador B2B de Admisiones. Arrastre pacientes a "Admisión" para auto-generar su Ficha Clínica PAI.
+                    </p>
                 </div>
-                <button
-                    onClick={() => setCreateModalOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-2xl shadow-lg flex items-center gap-2"
-                >
-                    <span>+ Añadir Prospecto Manual</span>
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={() => router.push('/corporate')} className="px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                        Volver al Inicio
+                    </button>
+                    <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-indigo-600 shadow-[0_4px_15px_rgba(79,70,229,0.3)] rounded-xl text-sm font-bold text-white hover:bg-indigo-500 active:scale-95 transition-all">
+                        + Nuevo Ingreso
+                    </button>
+                </div>
             </div>
 
-            <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
-                {STAGES.map((stage) => {
-                    const columnLeads = leads.filter(l => l.stage === stage.id);
-                    return (
-                        <div
-                            key={stage.id}
-                            className={`flex flex-col min-w-[320px] max-w-[320px] rounded-3xl border-2 border-dashed ${stage.border} bg-slate-50/50 p-4`}
-                            onDrop={(e) => onDrop(e, stage.id)}
-                            onDragOver={onDragOver}
-                        >
-                            <h3 className="font-black text-slate-700 mb-4 flex justify-between items-center px-2">
-                                <span>{stage.icon} {stage.label}</span>
-                                <span className="bg-white border rounded-full px-2 py-0.5 text-xs text-slate-500">{columnLeads.length}</span>
-                            </h3>
+            {/* KANBAN BOARD (Horizontal Scroll) */}
+            <div className="flex-1 overflow-x-auto pb-6">
+                <div className="flex gap-6 h-full min-h-[600px] min-w-max">
+                    {STAGES.map((stage) => {
+                        const stageLeads = leads.filter(l => l.stage === stage.key);
 
-                            <div className="flex flex-col gap-3 overflow-y-auto">
-                                {columnLeads.map(lead => (
-                                    <div
-                                        key={lead.id}
-                                        draggable
-                                        onDragStart={(e) => onDragStart(e, lead.id)}
-                                        className={`bg-white border p-4 rounded-2xl shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-colors group ${stage.color} relative`}
-                                    >
-                                        <p className="font-bold text-slate-800 mb-1">{lead.firstName} {lead.lastName}</p>
-                                        {lead.phone && <p className="text-xs text-slate-500">📞 {lead.phone}</p>}
-                                        {lead.email && <p className="text-xs text-slate-500">📧 {lead.email}</p>}
-
-                                        {/* Zendi AI Indicators */}
-                                        {(lead.transcripts?.length > 0 || lead.interactions?.length > 0) && (
-                                            <div className="mt-3 flex gap-2">
-                                                {lead.transcripts?.length > 0 && <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-lg">🎤 IA Voz Activa</span>}
-                                                {lead.interactions?.length > 0 && <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-lg">💬 Auto-SMS</span>}
-                                            </div>
-                                        )}
-
-                                        {/* Admission Strict Checklist */}
-                                        {(stage.id === 'EVALUATION' || stage.id === 'CONTRACT' || stage.id === 'ADMISSION') && (
-                                            <div className="mt-4 pt-3 border-t border-slate-200/50 space-y-2">
-                                                <button
-                                                    onClick={() => toggleRequirement(lead.id, 'medical', lead.medicalEvaluationCompleted)}
-                                                    className="flex items-center gap-2 text-xs w-full text-left"
-                                                >
-                                                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${lead.medicalEvaluationCompleted ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'}`}>
-                                                        {lead.medicalEvaluationCompleted && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                                    </span>
-                                                    <span className={lead.medicalEvaluationCompleted ? 'text-slate-600 font-medium line-through opacity-70' : 'text-slate-700 font-bold'}>Evaluación Médica (Pre-Ingreso)</span>
-                                                </button>
-
-                                                <button
-                                                    onClick={() => toggleRequirement(lead.id, 'contract', lead.contractSigned)}
-                                                    className="flex items-center gap-2 text-xs w-full text-left"
-                                                >
-                                                    <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${lead.contractSigned ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'}`}>
-                                                        {lead.contractSigned && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                                    </span>
-                                                    <span className={lead.contractSigned ? 'text-slate-600 font-medium line-through opacity-70' : 'text-slate-700 font-bold'}>Firma DocuSign Completada</span>
-                                                </button>
-                                            </div>
-                                        )}
+                        return (
+                            <div
+                                key={stage.key}
+                                className={`flex-shrink-0 w-80 rounded-2xl border ${stage.color} flex flex-col overflow-hidden transition-colors ${draggedLeadId ? 'hover:bg-slate-50 border-dashed' : ''}`}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, stage.key)}
+                            >
+                                {/* Stage Header */}
+                                <div className="p-4 bg-white/50 backdrop-blur-sm border-b border-inherit flex justify-between items-center pointer-events-none">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">{stage.icon}</span>
+                                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">{stage.label}</h3>
                                     </div>
-                                ))}
+                                    <span className="bg-white/80 px-2 py-0.5 rounded-full text-xs font-bold text-slate-600 shadow-sm border border-slate-200">
+                                        {stageLeads.length}
+                                    </span>
+                                </div>
+
+                                {/* Leads List */}
+                                <div className="p-4 flex-1 overflow-y-auto space-y-3 relative min-h-[150px]">
+                                    {stageLeads.map(lead => (
+                                        <div
+                                            key={lead.id}
+                                            id={`lead-${lead.id}`}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, lead.id)}
+                                            onDragEnd={(e) => handleDragEnd(e, lead.id)}
+                                            className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing hover:shadow-md transition-all group relative z-10"
+                                        >
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h4 className="font-bold text-slate-800 text-md leading-tight">{lead.firstName} {lead.lastName}</h4>
+
+                                                {/* Dropdown for next stage (Seguro para móviles que no tienen Drag'n'Drop) */}
+                                                <select
+                                                    className="opacity-0 group-hover:opacity-100 absolute top-2 right-2 border border-slate-200 text-xs rounded-lg px-2 max-w-[100px] bg-slate-50 cursor-pointer shadow-sm transition-opacity"
+                                                    value={lead.stage}
+                                                    onChange={(e) => handleMoveLead(lead.id, e.target.value as LeadStage)}
+                                                >
+                                                    {STAGES.map(s => <option key={s.key} value={s.key}>Mover a: {s.label}</option>)}
+                                                </select>
+                                                <span className="text-slate-300 group-hover:hidden select-none">⠿</span>
+                                            </div>
+
+                                            <div className="text-xs text-slate-500 space-y-1">
+                                                {lead.email && <div className="truncate pointer-events-none">📧 {lead.email}</div>}
+                                                {lead.phone && <div className="pointer-events-none">📞 {lead.phone}</div>}
+                                            </div>
+
+                                            {/* Action Hints */}
+                                            {stage.key === "PROSPECT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-slate-400 pointer-events-none">→ Programar Tour familiar</div>}
+                                            {stage.key === "EVALUATION" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-amber-600 pointer-events-none">⚠ Recabar Firma Médica</div>}
+                                            {stage.key === "CONTRACT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-center pointer-events-none">¡Listo para Mover a Admisión!</div>}
+                                        </div>
+                                    ))}
+                                    {stageLeads.length === 0 && (
+                                        <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium -z-10 bg-slate-50/50">
+                                            Arrastra aquí
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Create Lead Modal */}
-            {isCreateModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
-                        <div className="bg-indigo-600 p-6">
-                            <h2 className="text-xl font-bold text-white">Nuevo Prospecto (Lead)</h2>
+            {/* Modal Nuevo Ingreso */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+                            <h2 className="text-2xl font-black text-slate-800">Crear Prospecto</h2>
+                            <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
+                                ✕
+                            </button>
                         </div>
-                        <form onSubmit={handleCreateLead} className="p-6 space-y-4">
+
+                        <form onSubmit={handleCreateLead} className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">Nombre</label><input required value={newLeadUrl.firstName} onChange={e => setNewLead({ ...newLeadUrl, firstName: e.target.value })} className="w-full bg-slate-50 border p-3 rounded-xl focus:ring-2 focus:ring-indigo-500" /></div>
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">Apellido</label><input required value={newLeadUrl.lastName} onChange={e => setNewLead({ ...newLeadUrl, lastName: e.target.value })} className="w-full bg-slate-50 border p-3 rounded-xl focus:ring-2 focus:ring-indigo-500" /></div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1 uppercase">Nombre del Residente</label>
+                                    <input type="text" required value={newLead.firstName} onChange={(e) => setNewLead({ ...newLead, firstName: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Ej: Maria" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1 uppercase">Apellidos</label>
+                                    <input type="text" required value={newLead.lastName} onChange={(e) => setNewLead({ ...newLead, lastName: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Ej: Rodriguez" />
+                                </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">Teléfono</label><input type="tel" value={newLeadUrl.phone} onChange={e => setNewLead({ ...newLeadUrl, phone: e.target.value })} className="w-full bg-slate-50 border p-3 rounded-xl focus:ring-2 focus:ring-indigo-500" /></div>
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">Email</label><input type="email" value={newLeadUrl.email} onChange={e => setNewLead({ ...newLeadUrl, email: e.target.value })} className="w-full bg-slate-50 border p-3 rounded-xl focus:ring-2 focus:ring-indigo-500" /></div>
+
+                            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+                                <h3 className="font-bold text-indigo-900 text-sm mb-3">Datos del Familiar Reposable</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-wider">Email (Para enviar contrato y Portal)</label>
+                                        <input type="email" required value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="familiar@correo.com" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-wider">Teléfono</label>
+                                        <input type="tel" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} className="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="+1 787..." />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setCreateModalOpen(false)} className="px-6 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl w-full hover:bg-slate-50">Cancelar</button>
-                                <button type="submit" className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl w-full hover:bg-indigo-700">Crear Prospecto</button>
-                            </div>
+
+                            <button type="submit" disabled={saving} className="w-full py-4 mt-6 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all text-sm">
+                                {saving ? 'Añadiendo a Pipeline...' : 'Iniciar Seguimiento de Venta'}
+                            </button>
                         </form>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

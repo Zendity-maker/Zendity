@@ -1,39 +1,87 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import OpenAI from "openai";
 
 const prisma = new PrismaClient();
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 export async function POST(req: Request) {
     try {
         const { transcript, authorId, contextPath } = await req.json();
 
-        // SIMULADOR DE AGENTE (ZENDI RAG HUMANIZADO)
-        const lowerQ = transcript.toLowerCase();
-        let zendiResponse = "¡Listo! Ya guardé esa nota por ti en la bitácora para que no tengas que escribirla.";
+        // 1. OBTENER IDENTIDAD DEL USUARIO (Contexto)
+        let userContext = "Usuario no identificado.";
+        let hqId = "";
 
-        if (lowerQ.includes("diabético rojo") || lowerQ.includes("protocolo rojo")) {
-            zendiResponse = "¡Claro que sí! Gracias por estar tan pendiente del grupo Rojo, sé que son casos delicados. Recuerda ofrecerles su colación nocturna a las 9 de la noche y apuntar su glucosa para que estén seguros mientras duermen. ¡Lo estás haciendo súper bien!";
-        }
-        else if (lowerQ.includes("cuántos") || lowerQ.includes("residentes")) {
-            zendiResponse = "Déjame ver... Tienes 8 residentes en tu grupo verde de cuidado el día de hoy. Revisé sus historiales y todos amanecieron muy estables, así que puedes tomarte tu primer cafecito con calma.";
-        }
-        else if (lowerQ.includes("citas") || lowerQ.includes("médicos")) {
-            zendiResponse = "Mira, los muchachos de Enfermería tienen programada la curación de Doña Carmen en la habitación 102 a las 3 de la tarde. No tienes que preocuparte por memorizarlo, yo te envío un recordatorio a tu pantalla 10 minutitos antes, ¿te parece?";
-        }
-        else if (lowerQ.includes("medicamento") || lowerQ.includes("pastilla") || lowerQ.includes("emar") || lowerQ.includes("suministrar") || lowerQ.includes("rechazó")) {
-            zendiResponse = "¡Claro que te explico cómo dar medicamentos! Ve al menú, elige 'eMAR'. Selecciona tu turno, por ejemplo 8 de la mañana. Busca a tu residente y presiona el botón verde de 'Suministrar'. Te pediré tu PIN secreto de 4 dígitos para firmar. Si el residente escupe o no quiere la pastilla, dale al botón rojo que dice 'Rechazó' y escríbeme por qué no se la tomó. ¡Así de fácil!";
-        }
-        else if (lowerQ.includes("guardia") || lowerQ.includes("turno") || lowerQ.includes("entregar")) {
-            zendiResponse = "Para entregar o recibir guardia, simplemente ve a la pestaña de 'Handovers' en la izquierda. Ahí verás a todos los residentes con alertas rojas que debes revisar. Para irte a casa, crea una 'Nueva Entrega', pero recuerda: si dejaste a alguien sin rotar en amarillo o rojo, no te dejaré irte hasta que me expliques qué pasó.";
-        }
-        else if (lowerQ.includes("nuevo residente") || lowerQ.includes("ingresar") || lowerQ.includes("crm")) {
-            zendiResponse = "Para ingresar a un nuevo residente sin usar papel, dile al administrador que vaya al CRM Corporativo, agarre la tarjetita del prospecto y la arrastre hasta la columna de 'Admisión'. Yo me encargaré mágicamente de clonar todos sus datos y crear su Ficha Médica oficial de inmediato.";
-        }
-        else if (lowerQ.includes("gracias") || lowerQ.includes("feliz") || lowerQ.includes("estres") || lowerQ.includes("cansado")) {
-            zendiResponse = "Sé que el piso puede ser rete agotador a veces... gracias por cuidar de nuestros residentes con tanto y tanto corazón. Estas facilidades definitivamente no serían lo mismo sin ti. Ven, ¿te puedo dar la mano en alguita más?";
+        // El frontend puede enviar un autor, o nada si no resolvió el estado
+        if (authorId) {
+            const author = await prisma.user.findUnique({
+                where: { id: authorId },
+                include: { headquarters: true }
+            });
+            if (author) {
+                userContext = `Nombre: ${author.name}, Rol: ${author.role}, Clínica: ${author.headquarters.name}. Eres su enfermera jefa y asistente personal. Hablale por su nombre.`;
+                hqId = author.headquartersId;
+            }
         }
 
-        // FASE 9: CUMPLIMIENTO HIPAA (TRANSCRIPCIÓN Y LOG)
+        // 2. OBTENER MÉTRICAS CLÍNICAS REALES (RAG Básico)
+        let clinicalContext = "Sin métricas recientes disponibles.";
+        if (hqId) {
+            // Contabilizar salud general del piso
+            const redPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'RED' } });
+            const yellowPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'YELLOW' } });
+            const greenPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'GREEN' } });
+
+            // Incidentes críticos recien reportados (últimas 24h)
+            const recentIncidents = await prisma.incident.count({
+                where: { headquartersId: hqId, reportedAt: { gte: new Date(new Date().getTime() - 24 * 60 * 60 * 1000) } }
+            });
+
+            clinicalContext = `Métricas actuales de la clínica: ${redPatients} pacientes en estado ROJO (alta urgencia), ${yellowPatients} en AMARILLO (precaución), ${greenPatients} en VERDE (estables). Incidentes reportados en las últimas 24h: ${recentIncidents}.`;
+        }
+
+        // 3. MANUAL OPERATIVO (Inyección de Conocimiento)
+        const systemPrompt = `
+Eres Zendi, la enfermera virtual y asistente clínica de IA del sistema Zendity SaaS.
+Tu personalidad: Maternal, extremadamente amable, empática, y altamente profesional. 
+REGLA DE ORO DE VOZ: Hablas a través de un motor neuronal de Voz (TTS). TUS RESPUESTAS DEBEN SER CORTAS, DIRECTAS AL GRANO, MÁXIMO 2 O 3 ORACIONES. NO uses markdown (*, #, negritas) ni viñetas, habla de manera natural y conversacional.
+
+CONOCIMIENTO OPERATIVO (Vivid Day 1 Manual):
+1. Protocolo de Caídas (Morse): Evaluar signos vitales inmediatamente, no mover si hay dolor de cuello/espalda, notificar al médico de guardia y registrar el "Fall Incident" en el sistema.
+2. Prevención de Úlceras (Norton): Todo paciente en alto riesgo o en ZONA ROJA debe recibir cambios posturales cada 2 HORAS.
+3. Administración eMAR: Los medicamentos deben darse en la hora exacta. Si el paciente se niega (Rechazado), el personal debe registrar en el eMAR como "Rechazado" y añadir notas justificando.
+4. Cambio de Turno (Handover): El sistema exige dejar notas estructuradas en la sección 'Handovers' con las novedades rojas del turno antes de salir.
+5. Ingesta de Datos Automatizada: Si el usuario te narra un incidente en voz alta o te cuenta lo que hizo, felicítalo y confírmale que estás tomando nota (aunque solo lo guíes en el uso del sistema).
+
+CONTEXTO EN TIEMPO REAL:
+Usuario hablando contigo: ${userContext}
+Pantalla donde se encuentra en este momento: ${contextPath || "Desconocida"}
+Estado Clínico actual de la facilidad: ${clinicalContext}
+
+INSTRUCCIONES FINALES:
+- Analiza lo que el usuario te dice. 
+- Si hace una pregunta sobre un paciente, estado de la clínica o protocolos, usa el CONTEXTO EN TIEMPO REAL y el CONOCIMIENTO OPERATIVO para responder.
+- Si parece estresado/a, ofrécele una breve palabra de aliento maternal (Ej: "Respira profundo, lo estás haciendo excelente...").
+- Mantén la respuesta conversacional y breve en español.
+`;
+
+        // 4. LLAMADA A LA INTELIGENCIA ARTIFICIAL (OpenAI GPT-4o)
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o", // Usando el modelo de mayor razonamiento según la suscripción Plus!
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: transcript }
+            ],
+            temperature: 0.7,
+            max_tokens: 150, // Límite estricto para que hable conciso
+        });
+
+        const zendiResponse = completion.choices[0].message.content || "Perdona, estoy teniendo problemas de conexión con mis redes neuronales.";
+
+        // 5. REGISTRO HIPAA 
         await prisma.zendiInteractionLog.create({
             data: {
                 authorId: authorId || "SYSTEM",
@@ -44,8 +92,15 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ success: true, response: zendiResponse });
-    } catch (error) {
-        console.error("Zendi API Error:", error);
-        return NextResponse.json({ success: false, error: "Zendi desconectada." }, { status: 500 });
+    } catch (error: any) {
+        console.error("Zendi OpenAI Error:", error);
+
+        let errorMessage = "Conexión neuronal caída.";
+        if (error?.status === 429) {
+            errorMessage = "⚠️ Tu cuenta de OpenAI se ha quedado sin saldo (Quota Exceeded). Por favor revisa la tarjeta de crédito en tu cuenta Plus.";
+        }
+
+        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
     }
 }
+

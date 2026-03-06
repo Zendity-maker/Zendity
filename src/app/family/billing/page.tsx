@@ -1,165 +1,138 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { FaFileInvoiceDollar, FaDownload, FaCheckCircle, FaExclamationCircle, FaShieldAlt } from "react-icons/fa";
-import Link from "next/link";
-import { jsPDF } from "jspdf";
+import { useState, useEffect } from "react";
+import { FaFileInvoiceDollar, FaCheckCircle, FaExclamationCircle, FaLock, FaRegClock, FaCloudDownloadAlt } from "react-icons/fa";
 
-export default function FamilyBillingPage() {
+export default function FamilyBilling() {
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Aprovecha la API del Dashboard Familiar (o crearíamos una específica)
-        // Por ahora, traemos la info básica del paciente autenticado
-        fetch('/api/family/dashboard')
+        fetch('/api/family/billing')
             .then(res => res.json())
             .then(data => {
-                if (data.success && data.resident && data.resident.invoices) {
-                    setInvoices(data.resident.invoices);
+                if (data.success) {
+                    setInvoices(data.invoices);
                 }
                 setLoading(false);
             })
             .catch(() => setLoading(false));
     }, []);
 
-    const generatePDF = (invoice: any) => {
-        const doc = new jsPDF();
-
-        // Brand Header
-        doc.setFontSize(22);
-        doc.setTextColor(59, 130, 246); // Blue
-        doc.text("Vivid Senior Living Cupey", 20, 20);
-
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text("123 Care Street, San Juan, PR", 20, 28);
-        doc.text("Tel: (787) 555-1234 | billing@vividcupey.com", 20, 34);
-
-        // Invoice Info
-        doc.setFontSize(16);
-        doc.setTextColor(0);
-        doc.text("FACTURA DE SERVICIOS", 130, 20);
-
-        doc.setFontSize(10);
-        doc.text(`No. Factura: ${invoice.invoiceNumber}`, 130, 28);
-        doc.text(`Fecha Emisión: ${new Date(invoice.issueDate).toLocaleDateString()}`, 130, 34);
-        doc.text(`Estado: ${invoice.status}`, 130, 40);
-
-        // Line
-        doc.setLineWidth(0.5);
-        doc.line(20, 48, 190, 48);
-
-        // Resident Info
-        doc.setFontSize(12);
-        doc.text("Facturado a:", 20, 58);
-        doc.setFontSize(10);
-        doc.text(`Residente: ${invoice.patient.name}`, 20, 65);
-
-        // Items Table Header
-        doc.setFillColor(240, 240, 240);
-        doc.rect(20, 80, 170, 10, 'F');
-        doc.setFontSize(10);
-        doc.text("Descripción", 25, 87);
-        doc.text("Cant.", 130, 87);
-        doc.text("Total", 160, 87);
-
-        // Items
-        let y = 100;
-        invoice.items.forEach((item: any) => {
-            doc.text(item.description.substring(0, 50), 25, y);
-            doc.text(item.quantity.toString(), 133, y);
-            doc.text(`$${item.totalPrice.toFixed(2)}`, 160, y);
-            y += 10;
-        });
-
-        // Line before totals
-        doc.line(130, y, 190, y);
-        y += 10;
-
-        // Totals
-        doc.text("Subtotal:", 130, y);
-        doc.text(`$${invoice.subtotal.toFixed(2)}`, 160, y);
-        y += 8;
-        doc.text("Impuesto (IVU):", 130, y);
-        doc.text(`$${(invoice.taxRate * invoice.subtotal).toFixed(2)}`, 160, y);
-        y += 8;
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("TOTAL DUE:", 130, y);
-        doc.text(`$${invoice.totalAmount.toFixed(2)}`, 160, y);
-
-        // Footer note
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(150);
-        doc.text(invoice.notes || "Gracias por confiar en Zendity Care.", 20, 280);
-
-        doc.save(`${invoice.invoiceNumber}_VividCupey.pdf`);
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
     };
 
-    if (loading) return (
-        <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
-        </div>
-    );
+    const StatusBadge = ({ status }: { status: string }) => {
+        switch (status) {
+            case 'PAID':
+                return <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaCheckCircle /> Pagado</span>;
+            case 'PENDING':
+                return <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaRegClock /> Pendiente</span>;
+            case 'OVERDUE':
+                return <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaExclamationCircle /> Vencido</span>;
+            default:
+                return <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{status}</span>;
+        }
+    };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                    <FaFileInvoiceDollar className="text-indigo-500" /> Facturación y Pagos
-                </h1>
-                <p className="text-slate-500 mt-1 font-medium">Buzón histórico de tus recibos y cuentas claras.</p>
-            </div>
-
-            {/* List */}
-            <div className="bg-white rounded-3xl shadow-md border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <FaShieldAlt className="text-emerald-500" /> Transacciones Seguras
-                    </h3>
-                </div>
-
-                <div className="p-6">
-                    {invoices.length === 0 ? (
-                        <div className="text-center p-8 text-slate-400 italic">No hay historial de facturación disponible para tu familiar.</div>
-                    ) : (
-                        <div className="space-y-4">
-                            {invoices.map((inv) => (
-                                <div key={inv.id} className="flex flex-col md:flex-row items-center justify-between p-5 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-colors bg-white">
-                                    <div className="flex items-center gap-4 mb-4 md:mb-0">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
-                                            {inv.status === 'PAID' ? <FaCheckCircle /> : <FaExclamationCircle />}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{new Date(inv.issueDate).toLocaleDateString('es-PR', { month: 'long', year: 'numeric' })}</p>
-                                            <h4 className="text-lg font-black text-slate-800">{inv.invoiceNumber}</h4>
-                                            {inv.status === 'PENDING' && <p className="text-xs text-amber-600 font-bold mt-1">Vence: {new Date(inv.dueDate).toLocaleDateString()}</p>}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-                                        <div className="text-right">
-                                            <p className="text-xs font-bold text-slate-400 uppercase">Monto</p>
-                                            <p className="text-xl font-black text-slate-800">${inv.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                                        </div>
-                                        <button
-                                            onClick={() => generatePDF(inv)}
-                                            className="w-12 h-12 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-xl flex items-center justify-center transition-all border border-indigo-100 shadow-sm"
-                                            title="Descargar Factura PDF"
-                                        >
-                                            <FaDownload />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+        <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700">
+            {/* Encabezado */}
+            <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-900/20 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -z-0"></div>
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-md">
+                                <FaFileInvoiceDollar className="text-xl text-indigo-300" />
+                            </div>
+                            <h2 className="font-extrabold text-2xl tracking-tight">Zendity Pay</h2>
                         </div>
-                    )}
+                        <p className="text-indigo-200 text-sm font-medium">Estado de Cuenta y Facturación Mensual</p>
+                    </div>
                 </div>
             </div>
+
+            {/* Area Principal - Facturas */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
+                <h3 className="font-black text-slate-800 text-lg mb-6 flex items-center gap-2">
+                    Mis Facturas
+                </h3>
+
+                {loading ? (
+                    <div className="flex justify-center items-center h-32">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                    </div>
+                ) : invoices.length === 0 ? (
+                    <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 border border-slate-100/50">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                            <FaFileInvoiceDollar className="text-2xl text-slate-300" />
+                        </div>
+                        <h4 className="font-bold text-slate-700">Sin Facturas Pendientes</h4>
+                        <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Actualmente no existen registros de facturación asociados al paciente.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {invoices.map((inv) => (
+                            <div key={inv.id} className="group border border-slate-100 hover:border-indigo-100 rounded-2xl p-5 sm:p-6 transition-all bg-white hover:shadow-md hover:shadow-indigo-50/50 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-bl-[100px] -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="relative z-10 flex flex-col sm:flex-row justify-between gap-6">
+
+                                    {/* Info Principal */}
+                                    <div className="space-y-3 flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-black text-slate-800 tracking-wider">#{inv.invoiceNumber}</span>
+                                            <StatusBadge status={inv.status} />
+                                        </div>
+
+                                        <div className="text-sm text-slate-500 font-medium">
+                                            <p>Vence el: <span className="font-bold text-slate-700">{new Date(inv.dueDate).toLocaleDateString()}</span></p>
+                                        </div>
+
+                                        {/* Breakdowns (Items) */}
+                                        {inv.items && inv.items.length > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-dashed border-slate-100 space-y-2">
+                                                {inv.items.map((item: any) => (
+                                                    <div key={item.id} className="flex justify-between text-sm">
+                                                        <span className="text-slate-600 font-medium">{item.description} <span className="text-slate-400 text-xs">x{item.quantity}</span></span>
+                                                        <span className="font-bold text-slate-800">{formatCurrency(item.totalPrice)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Columna Acciones / Total */}
+                                    <div className="flex flex-col items-start sm:items-end justify-between border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
+                                        <div className="text-left sm:text-right w-full mb-4 sm:mb-0">
+                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Total a Pagar</p>
+                                            <p className="text-3xl font-black text-slate-800 tracking-tighter">{formatCurrency(inv.totalAmount)}</p>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                                            {inv.status !== 'PAID' ? (
+                                                <button className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-200 w-full">
+                                                    <FaLock className="text-xs" /> Pagar Seguro
+                                                </button>
+                                            ) : (
+                                                <button className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl font-bold transition-all w-full">
+                                                    <FaCloudDownloadAlt /> Recibo
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <p className="text-center text-xs text-slate-400 font-semibold uppercase tracking-widest">
+                <FaLock className="inline-block mb-1 mr-1" /> Zendity Secure Payments
+            </p>
         </div>
     );
 }

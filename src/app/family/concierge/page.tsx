@@ -2,30 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+
+interface MarketplaceItem {
+    id: string;
+    name: string;
+    price: number;
+    category: string;
+    stock?: number;
+}
 
 export default function ConciergePage() {
-    const [data, setData] = useState<{ products: any[], services: any[], balance: number } | null>(null);
+    const [data, setData] = useState<{ products: MarketplaceItem[], services: MarketplaceItem[], balance: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [buying, setBuying] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState("");
-    const router = useRouter();
+
+    const [errorMsg, setErrorMsg] = useState("");
 
     const loadMarketplace = () => {
         fetch('/api/family/concierge')
             .then(res => res.json())
             .then(resData => {
-                if (resData.success) setData(resData);
+                if (resData.success) {
+                    setData(resData);
+                } else {
+                    setErrorMsg(resData.error || "No se pudo cargar el catálogo.");
+                }
                 setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch(() => {
+                setErrorMsg("Error de red al conectar con el servidor.");
+                setLoading(false);
+            });
     };
 
     useEffect(() => {
         loadMarketplace();
     }, []);
 
-    const handlePurchase = async (item: any, type: 'product' | 'service') => {
+    const handlePurchase = async (item: MarketplaceItem, type: 'product' | 'service') => {
         if (!data || data.balance < item.price) {
             if (item.category !== 'GiftCards') {
                 alert("Saldo insuficiente para esta operación. Por favor adquiere una Gift Card.");
@@ -61,6 +76,14 @@ export default function ConciergePage() {
     if (loading) return (
         <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
+        </div>
+    );
+
+    if (errorMsg) return (
+        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-rose-100 flex flex-col items-center mt-10">
+            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl mb-4 text-rose-500">⚠️</div>
+            <h3 className="text-xl font-bold text-slate-800">Error al cargar el Marketplace</h3>
+            <p className="text-slate-500 mt-2">{errorMsg}</p>
         </div>
     );
 
@@ -143,7 +166,7 @@ export default function ConciergePage() {
                                     {product.category === 'GiftCards' && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>}
                                 </div>
                                 <h4 className="font-bold text-slate-800 text-lg leading-tight mb-1">{product.name}</h4>
-                                <p className="text-sm font-bold text-slate-500 mb-4">Stock: {product.stock > 0 ? product.stock : 'Agotado'}</p>
+                                <p className="text-sm font-bold text-slate-500 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -152,8 +175,8 @@ export default function ConciergePage() {
                                     onClick={() => handlePurchase(product, 'product')}
                                     disabled={buying === product.id}
                                     className={`flex-1 py-3 font-bold rounded-xl transition-all active:scale-95 ${product.category === 'GiftCards'
-                                            ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
-                                            : 'bg-sky-100 hover:bg-sky-500 text-sky-700 hover:text-white'
+                                        ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
+                                        : 'bg-sky-100 hover:bg-sky-500 text-sky-700 hover:text-white'
                                         }`}
                                 >
                                     {buying === product.id ? 'Procesando...' : (product.category === 'GiftCards' ? 'Añadir Fondo' : 'Comprar')}
