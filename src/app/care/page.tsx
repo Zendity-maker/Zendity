@@ -15,7 +15,7 @@ export default function ZendityCareTabletPage() {
     // Shift Session (Clock-In) Core
     const [activeSession, setActiveSession] = useState<any>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
-    const [initialCensus, setInitialCensus] = useState<number | "">("");
+    const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
     const [sessionLoading, setSessionLoading] = useState(true);
 
     // Zendi Welcome Briefing (Fase 10)
@@ -26,7 +26,8 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | null>(null);
+    const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
 
     const [zendiToast, setZendiToast] = useState("");
 
@@ -38,6 +39,10 @@ export default function ZendityCareTabletPage() {
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
     const [formattingNotes, setFormattingNotes] = useState(false);
+
+    // Action Hub States
+    const [hubPatientId, setHubPatientId] = useState("");
+    const [hubDescription, setHubDescription] = useState("");
 
     // ==========================================
     // FASE 30: CLOCK-IN & CENSUS VERIFICATION
@@ -63,6 +68,26 @@ export default function ZendityCareTabletPage() {
     const startTurnAndBriefing = async (color: string) => {
         setSelectedColor(color);
         if (!activeSession) {
+            setLoading(true);
+            try {
+                const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+                const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
+                const data = await res.json();
+                if (data.success) {
+                    setPatients(data.patients);
+                    const initChecks: Record<string, string> = {};
+                    data.patients.forEach((p: any) => {
+                        if (p.status === 'TEMPORARY_LEAVE') initChecks[p.id] = p.leaveType || 'HOSPITAL';
+                        else initChecks[p.id] = 'PRESENT';
+                    });
+                    setCensusChecklist(initChecks);
+                    setEvents(data.events || []);
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
             setVerifyingCensus(true);
             return;
         }
@@ -70,13 +95,15 @@ export default function ZendityCareTabletPage() {
     };
 
     const confirmCensusAndClockIn = async () => {
-        if (initialCensus === "" || initialCensus <= 0) return alert("Ingrese un censo válido.");
+        const calculatedCensus = Object.values(censusChecklist).filter(v => v === 'PRESENT').length;
+        if (calculatedCensus < 0) return alert("Error calculando el censo de residentes presentes.");
+
         setSubmitting(true);
         try {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
             const res = await fetch("/api/care/shift/start", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ caregiverId: user?.id, headquartersId: hq, initialCensus: Number(initialCensus) })
+                body: JSON.stringify({ caregiverId: user?.id, headquartersId: hq, initialCensus: calculatedCensus })
             });
             const data = await res.json();
             if (data.success) {
@@ -100,10 +127,11 @@ export default function ZendityCareTabletPage() {
 
         try {
             // Obtener Briefing de 12 horas desde Backend
+            const calculatedCensus = activeSession ? undefined : Object.values(censusChecklist).filter(v => v === 'PRESENT').length;
             const res = await fetch("/api/care/briefing", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ colorGroup: color, userName: user?.name, initialCensus: activeSession ? undefined : Number(initialCensus) })
+                body: JSON.stringify({ colorGroup: color, userName: user?.name, initialCensus: calculatedCensus })
             });
             const data = await res.json();
             if (data.success) {
@@ -395,6 +423,85 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    const submitHubReport = async () => {
+        if (!hubPatientId || !hubDescription) return alert("Seleccione paciente y agregue descripción.");
+        setSubmitting(true);
+        try {
+            const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
+            let endpoint = "";
+            let payload: any = {
+                patientId: hubPatientId,
+                authorId: user?.id,
+                description: hubDescription
+            };
+
+            if (hubAction === "COMPLAINT") {
+                endpoint = "/api/care/reports/complaint";
+                payload.type = "COMPLAINT";
+            } else if (hubAction === "CLINICAL") {
+                endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog pero con flag isAlert true
+                payload = {
+                    patientId: hubPatientId,
+                    authorId: user?.id,
+                    type: 'LOG',
+                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true }
+                };
+            } else if (hubAction === "MAINTENANCE") {
+                endpoint = "/api/care/incidents"; // Endpoint de eventos generales
+                payload = {
+                    patientId: hubPatientId,
+                    headquartersId: hqId,
+                    type: 'OTHER',
+                    severity: 'LOW',
+                    description: "[MANTENIMIENTO] " + hubDescription,
+                    biometricSignature: user?.id || "N/A"
+                };
+            }
+
+            const res = await fetch(endpoint, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert(`✅ Reporte de tipo ${hubAction} enviado a Central.`);
+                setHubAction(null);
+                setModalType(null);
+                setHubDescription("");
+            } else {
+                alert("Error al enviar reporte: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const returnResident = async (patientId: string) => {
+        if (!confirm("¿Confirmar que el residente ha retornado a las instalaciones?")) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/corporate/patients/${patientId}/discharge`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: 'RETURN', date: new Date() })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Retorno registrado exitosamente.");
+                fetchPatients(selectedColor!); // Recargar la lista
+            } else {
+                alert("Error al registrar retorno: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const colorStyles: Record<string, string> = { RED: "bg-red-600", YELLOW: "bg-amber-500", GREEN: "bg-emerald-500", BLUE: "bg-blue-600" };
 
     // =========================================================
@@ -427,28 +534,53 @@ export default function ZendityCareTabletPage() {
     if (verifyingCensus && selectedColor) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-                <div className="bg-white rounded-[3rem] p-10 max-w-xl w-full text-center shadow-2xl animate-in zoom-in-95">
-                    <h1 className="text-4xl font-black text-slate-800 mb-4">Firmar Entrada</h1>
-                    <p className="text-xl text-slate-500 mb-8 font-medium">
-                        Antes de iniciar tu turno en el Grupo <span className="font-bold text-slate-800">{selectedColor}</span>, debes confirmar físicamente cuántos residentes hay.
+                <div className="bg-white rounded-[3rem] p-10 max-w-4xl w-full text-center shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+                    <h1 className="text-4xl font-black text-slate-800 mb-2">Verificación de Censo</h1>
+                    <p className="text-lg text-slate-500 mb-6 font-medium">
+                        Confirma el estatus actual de cada residente en el <span className="font-bold text-slate-800">Grupo {selectedColor}</span>.
                     </p>
-                    <input
-                        type="number"
-                        value={initialCensus}
-                        onChange={e => setInitialCensus(e.target.value ? Number(e.target.value) : "")}
-                        placeholder="Cantidad de Residentes"
-                        className="w-full text-center text-4xl p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl mb-8 outline-none focus:border-indigo-500 font-black"
-                    />
-                    <button
-                        onClick={confirmCensusAndClockIn}
-                        disabled={submitting || initialCensus === ""}
-                        className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-2xl rounded-2xl transition-all disabled:opacity-50"
-                    >
-                        {submitting ? "Procesando..." : "Firmar Entrada y Escuchar Zendi"}
-                    </button>
-                    <button onClick={() => { setVerifyingCensus(false); setSelectedColor(null); }} className="mt-4 text-slate-400 font-bold hover:text-slate-600">
-                        Volver
-                    </button>
+
+                    {loading ? (
+                        <div className="py-10 text-slate-400 font-bold animate-pulse">Cargando residentes del grupo...</div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 text-left">
+                            {patients.length === 0 && <div className="text-center p-8 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl">No hay residentes activos en este grupo.</div>}
+                            {patients.map(p => (
+                                <div key={p.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-black text-lg">{p.name.charAt(0)}</div>
+                                        <span className="font-bold text-slate-800 text-xl">{p.name}</span>
+                                    </div>
+                                    <div className="flex flex-wrap bg-slate-200 rounded-xl p-1 gap-1">
+                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'PRESENT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'PRESENT' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>✅ Presente</button>
+                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'HOSPITAL' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'HOSPITAL' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>🏥 Hospital</button>
+                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'FAMILY_VISIT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'FAMILY_VISIT' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>👨‍👩‍👦 Familia</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {!loading && (
+                        <div className="mt-auto border-t border-slate-100 pt-6">
+                            <div className="flex justify-between items-center mb-6 bg-indigo-50 p-4 rounded-2xl">
+                                <span className="font-bold text-indigo-800">Censo Final a Reportar:</span>
+                                <span className="text-3xl font-black text-indigo-600">{Object.values(censusChecklist).filter(v => v === 'PRESENT').length} Residentes</span>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={() => { setVerifyingCensus(false); setSelectedColor(null); }} className="px-8 py-5 bg-slate-100 text-slate-500 font-bold hover:bg-slate-200 rounded-2xl transition-all">
+                                    Volver
+                                </button>
+                                <button
+                                    onClick={confirmCensusAndClockIn}
+                                    disabled={submitting || patients.length === 0}
+                                    className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xl rounded-2xl shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
+                                >
+                                    {submitting ? "Firmando Entrada..." : "✅ Confirmar Censo y Escuchar Zendi"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -577,32 +709,48 @@ export default function ZendityCareTabletPage() {
                     <div className="text-center p-20 text-xl font-bold text-slate-400 animate-pulse">Cargando Residentes...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                        {patients.map(p => (
-                            <div key={p.id} className={`bg-white rounded-[2.5rem] overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all`}>
-                                <div className="p-6 pb-4 border-b border-slate-100">
-                                    <div className="flex justify-between items-start">
-                                        <h2 className="text-2xl font-black text-slate-800 leading-tight">{p.name}</h2>
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl font-bold">{p.name.charAt(0)}</div>
+                        {patients.map(p => {
+                            const isAbsent = p.status === 'TEMPORARY_LEAVE';
+                            return (
+                                <div key={p.id} className={`bg-white rounded-[2.5rem] overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
+                                    {isAbsent && (
+                                        <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
+                                            <div className="bg-amber-100 border border-amber-300 text-amber-800 px-6 py-2 rounded-full font-black flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105">
+                                                <span className="text-2xl">🏥</span> Residente Fuera de Instalaciones ({p.leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); returnResident(p.id); }}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition pointer-events-auto"
+                                            >
+                                                Registrar Retorno al Piso
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="p-6 pb-4 border-b border-slate-100">
+                                        <div className="flex justify-between items-start">
+                                            <h2 className="text-2xl font-black text-slate-800 leading-tight">{p.name}</h2>
+                                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl font-bold">{p.name.charAt(0)}</div>
+                                        </div>
+                                        {p.lifePlan && <p className="mt-2 text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg inline-block">PAI: {p.lifePlan.feeding}</p>}
                                     </div>
-                                    {p.lifePlan && <p className="mt-2 text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg inline-block">PAI: {p.lifePlan.feeding}</p>}
-                                </div>
 
-                                <div className="p-4 grid grid-cols-2 gap-3 bg-slate-50/50">
-                                    <button onClick={() => { setActivePatient(p); setModalType('VITALS'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
-                                        <span className="text-4xl pr-1">🩺</span><span className="text-xs font-black text-slate-500 uppercase">Vitales</span>
-                                    </button>
-                                    <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
-                                        <span className="text-4xl pr-1">📝</span><span className="text-xs font-black text-slate-500 uppercase">Bitácora</span>
-                                    </button>
-                                    <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-8 bg-teal-50 border border-teal-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-teal-100 col-span-2">
-                                        <span className="text-4xl pr-1">💊</span><span className="text-xs font-black text-teal-700 uppercase">Medicamentos</span>
-                                    </button>
+                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <button onClick={() => { setActivePatient(p); setModalType('VITALS'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
+                                            <span className="text-4xl pr-1">🩺</span><span className="text-xs font-black text-slate-500 uppercase">Vitales</span>
+                                        </button>
+                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
+                                            <span className="text-4xl pr-1">📝</span><span className="text-xs font-black text-slate-500 uppercase">Bitácora</span>
+                                        </button>
+                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-8 bg-teal-50 border border-teal-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-teal-100 col-span-2">
+                                            <span className="text-4xl pr-1">💊</span><span className="text-xs font-black text-teal-700 uppercase">Medicamentos</span>
+                                        </button>
+                                    </div>
+                                    <div className={`p-4 bg-white border-t border-slate-100 ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-2"><span className="text-xl">⚠️</span> Reportar Caída</button>
+                                    </div>
                                 </div>
-                                <div className="p-4 bg-white border-t border-slate-100">
-                                    <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-2"><span className="text-xl">⚠️</span> Reportar Caída</button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -728,8 +876,84 @@ export default function ZendityCareTabletPage() {
                                 <button onClick={submitFall} disabled={submitting} className="w-full py-5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl mt-4 shadow-rose-500/30">Evaluar Riesgo y Enviar Alerta Roja</button>
                             </div>
                         )}
+
+                        {/* FASE 32: ACTION HUB OVERLAY */}
+                        {modalType === 'HUB' && (
+                            <div className="space-y-4">
+                                <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-100 pb-2 flex items-center gap-2"><span>⚡️</span> Operaciones Centrales</p>
+
+                                {!hubAction ? (
+                                    <div className="grid grid-cols-1 gap-4 mt-4">
+                                        <button onClick={() => setHubAction("CLINICAL")} className="flex items-center gap-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 p-5 rounded-2xl transition-all">
+                                            <span className="text-4xl">🏥</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-purple-900 text-lg">Cambio Clínico u Observación</p>
+                                                <p className="font-medium text-purple-700/70 text-sm">Comportamiento, Infección, Tristeza (Notifica a Enfermería)</p>
+                                            </div>
+                                        </button>
+                                        <button onClick={() => setHubAction("COMPLAINT")} className="flex items-center gap-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 p-5 rounded-2xl transition-all">
+                                            <span className="text-4xl">👨‍👩‍👦</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-orange-900 text-lg">Queja o Situación Familiar</p>
+                                                <p className="font-medium text-orange-700/70 text-sm">Desacuerdos, reclamos o situaciones con visitas</p>
+                                            </div>
+                                        </button>
+                                        <button onClick={() => setHubAction("MAINTENANCE")} className="flex items-center gap-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 p-5 rounded-2xl transition-all">
+                                            <span className="text-4xl">🔧</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-slate-700 text-lg">Incidente de Operación / Mantenimiento</p>
+                                                <p className="font-medium text-slate-500 text-sm">Focos rotos, derrames, objetos extraviados, limpieza</p>
+                                            </div>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-right-4">
+                                        <button onClick={() => setHubAction(null)} className="text-sm font-bold text-indigo-500 mb-2">← Cambiar Tipo de Reporte</button>
+
+                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                            <label className="text-sm font-bold text-slate-500 block mb-2">Residente Involucrado (Requerido)</label>
+                                            <select value={hubPatientId} onChange={e => setHubPatientId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white font-bold text-slate-800 outline-none focus:border-indigo-500">
+                                                <option value="">-- Seleccionar Residente --</option>
+                                                {patients.map(p => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                            <label className="text-sm font-bold text-slate-500 block mb-2">Descripción del Evento</label>
+                                            <textarea
+                                                className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-32 resize-none focus:border-indigo-500 outline-none"
+                                                placeholder="Describe detalladamente qué sucedió, quién estuvo involucrado y si requiere atención inmediata..."
+                                                value={hubDescription}
+                                                onChange={e => setHubDescription(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <button
+                                            onClick={submitHubReport}
+                                            disabled={submitting || !hubPatientId || !hubDescription}
+                                            className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 transition-all"
+                                        >
+                                            {submitting ? "Codificando Alerta..." : `Generar Ticket ${hubAction === 'COMPLAINT' ? 'Familiar' : hubAction === 'CLINICAL' ? 'Clínico' : 'Operativo'}`}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
+            )}
+
+            {/* FASE 32: Floating Action Hub Trigger */}
+            {!briefingMode && activeSession && (
+                <button
+                    onClick={() => { setHubAction(null); setModalType('HUB'); }}
+                    className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 hover:bg-slate-800 text-white font-black px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-3 active:scale-95 transition-all z-40 border-4 border-slate-800 hover:border-slate-700 group hover:pr-6"
+                >
+                    <span className="text-3xl group-hover:rotate-12 transition-transform">⚡️</span>
+                    <span className="text-xl tracking-tight">Acciones Rápidas</span>
+                </button>
             )}
 
             {/* Zendi Contextual Toast Notification */}

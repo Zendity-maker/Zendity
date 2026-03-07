@@ -9,7 +9,10 @@ export async function POST(req: Request) {
 
         // 1. Obtener Residentes de esa Zona de Color y sus alertas de 12Hrs
         const patients = await prisma.patient.findMany({
-            where: { colorGroup: colorGroup as any },
+            where: {
+                colorGroup: colorGroup as any,
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
+            },
             include: {
                 vitalSigns: {
                     where: { createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } },

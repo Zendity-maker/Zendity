@@ -103,7 +103,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, shift: newShift });
     } catch (error) {
         console.error("POST Shift Error:", error);
-        console.error("Payload was:", body);
         return NextResponse.json({ success: false, error: 'Failed to create shift' }, { status: 500 });
     }
 }

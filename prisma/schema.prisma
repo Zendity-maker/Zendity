@@ -137,17 +137,25 @@ enum ColorGroup {
 // =======================
 
 model Patient {
-  id               String     @id @default(uuid())
+  id               String        @id @default(uuid())
   headquartersId   String
   name             String
   roomNumber       String?
   diet             String? // Asignación por preingreso
   avdScore         Int? // Puntuación de Actividades Vida Diaria
-  downtonRisk      Boolean    @default(false) // Escala de Caídas
-  nortonRisk       Boolean    @default(false) // Escala de Úlceras
-  colorGroup       ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
-  conciergeBalance Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
-  createdAt        DateTime   @default(now())
+  downtonRisk      Boolean       @default(false) // Escala de Caídas
+  nortonRisk       Boolean       @default(false) // Escala de Úlceras
+  colorGroup       ColorGroup    @default(UNASSIGNED) // FASE 7: Zonificación
+  conciergeBalance Float         @default(0.0) // FASE 18: Saldo Gift Cards B2C
+  
+  // FASE 31: Gestión de Egresos y Permisos Temporales
+  status           PatientStatus @default(ACTIVE)
+  leaveType        LeaveType?
+  leaveDate        DateTime?
+  dischargeDate    DateTime?
+  dischargeReason  String?
+
+  createdAt        DateTime      @default(now())
 
   headquarters   Headquarters        @relation(fields: [headquartersId], references: [id])
   medications    PatientMedication[]
@@ -965,6 +973,7 @@ model ShiftSession {
   expectedEndTime DateTime?
   actualEndTime   DateTime?
   initialCensus   Int?
+  leaveCensus     Int       @default(0) // Residentes del turno ausentes (Hospital/Familia)
   aiSummaryReport String?
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
@@ -1047,4 +1056,21 @@ model Complaint {
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id])
   patient      Patient      @relation(fields: [patientId], references: [id])
+}
+
+// =======================
+// FASE 31: Egresos y Ausencias
+// =======================
+
+enum PatientStatus {
+  ACTIVE
+  DISCHARGED
+  DECEASED
+  TEMPORARY_LEAVE
+}
+
+enum LeaveType {
+  HOSPITAL
+  FAMILY_VISIT
+  OTHER
 }

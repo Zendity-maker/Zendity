@@ -1,21 +1,12 @@
-import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { startOfDay, endOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
 
-// GET: Obtiene residentes filtrados por el Color seleccionado en el turno
-export async function GET(req: Request) {
+async function test() {
     try {
-        const { searchParams } = new URL(req.url);
-        const color = searchParams.get('color') || 'UNASSIGNED';
-        const hqId = searchParams.get('hqId');
-
-        if (!hqId) {
-            return NextResponse.json({ success: false, error: "Headquarters ID requerido" }, { status: 400 });
-        }
-
-        console.log("CARE API CALLED WITH:", { color, hqId });
+        const color = 'YELLOW';
+        const hqId = '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0';
 
         const patients = await prisma.patient.findMany({
             where: {
@@ -30,6 +21,8 @@ export async function GET(req: Request) {
             orderBy: { name: 'asc' }
         });
 
+        console.log("Patients length:", patients.length);
+
         const todayStart = startOfDay(new Date());
         const todayEnd = endOfDay(new Date());
 
@@ -43,10 +36,10 @@ export async function GET(req: Request) {
             },
             orderBy: { startTime: 'asc' }
         });
-
-        return NextResponse.json({ success: true, patients, events });
-    } catch (error: any) {
-        console.error("Care Fetch Error:", error);
-        return NextResponse.json({ success: false, error: "Error: " + (error.message || String(error)) }, { status: 500 });
+        console.log("Events length:", events.length);
+    } catch(e) {
+        console.error("ERROR CAUGHT:");
+        console.error(e);
     }
 }
+test();
