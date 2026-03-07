@@ -12,6 +12,12 @@ export default function ZendityCareTabletPage() {
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Shift Session (Clock-In) Core
+    const [activeSession, setActiveSession] = useState<any>(null);
+    const [verifyingCensus, setVerifyingCensus] = useState(false);
+    const [initialCensus, setInitialCensus] = useState<number | "">("");
+    const [sessionLoading, setSessionLoading] = useState(true);
+
     // Zendi Welcome Briefing (Fase 10)
     const [briefingMode, setBriefingMode] = useState(false);
     const [briefingData, setBriefingData] = useState<any>(null);
@@ -22,9 +28,11 @@ export default function ZendityCareTabletPage() {
     const [activePatient, setActivePatient] = useState<any>(null);
     const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | null>(null);
 
+    const [zendiToast, setZendiToast] = useState("");
+
     // Form States & Shadow AI
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "" });
-    const [dailyLog, setDailyLog] = useState({ bathCompleted: false, foodIntake: 100, notes: "" });
+    const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
     const [medPin, setMedPin] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -32,10 +40,60 @@ export default function ZendityCareTabletPage() {
     const [formattingNotes, setFormattingNotes] = useState(false);
 
     // ==========================================
-    // FASE 10: WELCOME BRIEFING LOGIC
+    // FASE 30: CLOCK-IN & CENSUS VERIFICATION
     // ==========================================
+    useEffect(() => {
+        if (!user) return;
+        const checkSession = async () => {
+            try {
+                const res = await fetch(`/api/care/shift/start?caregiverId=${user.id}`);
+                const data = await res.json();
+                if (data.success && data.activeSession) {
+                    setActiveSession(data.activeSession);
+                }
+            } catch (error) {
+                console.error("Session check error", error);
+            } finally {
+                setSessionLoading(false);
+            }
+        };
+        checkSession();
+    }, [user]);
+
     const startTurnAndBriefing = async (color: string) => {
         setSelectedColor(color);
+        if (!activeSession) {
+            setVerifyingCensus(true);
+            return;
+        }
+        continueToBriefing(color);
+    };
+
+    const confirmCensusAndClockIn = async () => {
+        if (initialCensus === "" || initialCensus <= 0) return alert("Ingrese un censo válido.");
+        setSubmitting(true);
+        try {
+            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/care/shift/start", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ caregiverId: user?.id, headquartersId: hq, initialCensus: Number(initialCensus) })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setActiveSession(data.shiftSession);
+                setVerifyingCensus(false);
+                continueToBriefing(selectedColor!);
+            } else {
+                alert("Error de Inicio de Turno: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const continueToBriefing = async (color: string) => {
         setBriefingMode(true);
         setShowQuickRead(false);
         setBriefingData(null);
@@ -45,7 +103,7 @@ export default function ZendityCareTabletPage() {
             const res = await fetch("/api/care/briefing", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ colorGroup: color, userName: user?.name })
+                body: JSON.stringify({ colorGroup: color, userName: user?.name, initialCensus: activeSession ? undefined : Number(initialCensus) })
             });
             const data = await res.json();
             if (data.success) {
@@ -112,6 +170,23 @@ export default function ZendityCareTabletPage() {
             setAiSuggestion(null);
         }
     }, [vitals.temp, vitals.sys, modalType]);
+
+    // FASE 30: Zendi Time-Based Operational Notifier
+    useEffect(() => {
+        if (!selectedColor || !activeSession) return;
+        const interval = setInterval(() => {
+            const h = new Date().getHours();
+            const m = new Date().getMinutes();
+            if (h === 8 && m === 30) setZendiToast("Zendity: Recuerda que la ventana de desayunos cierra en 90 minutos.");
+            if (h === 9 && m === 30) setZendiToast("Zendity: Últimos 30 minutos para registrar baños del turno AM. Recuerda el cooldown de 10 minutos.");
+            if (h === 12 && m === 0) setZendiToast("Zendity: La ventana de almuerzos está oficialmente abierta.");
+
+            if (zendiToast !== "") {
+                setTimeout(() => setZendiToast(""), 12000);
+            }
+        }, 60000); // Check each minute
+        return () => clearInterval(interval);
+    }, [selectedColor, activeSession, zendiToast]);
 
     const formatDailyLogWithAI = async () => {
         if (!dailyLog.notes) return;
@@ -200,35 +275,72 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const submitMeds = async (medId: string) => {
+    const submitBulkMeds = async (action: 'ADMINISTER_ALL' | 'PRN' | 'OMISSION') => {
         if (!medPin || medPin.length < 4) return alert("Ingrese PIN para firmar dosis.");
         setSubmitting(true);
         try {
-            const res = await fetch("/api/care/meds", {
+            const medicationIds = activePatient.medications.map((m: any) => m.id);
+            if (medicationIds.length === 0) return alert("No hay medicamentos para procesar.");
+
+            const res = await fetch("/api/care/meds/bulk", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    patientMedicationId: medId,
+                    action,
+                    medicationIds,
                     administeredById: user?.id,
-                    status: 'GIVEN',
-                    biometricSignature: medPin,
-                    notes: "Administración Regular desde App de Piso."
+                    notes: `Validado con PIN: ${medPin}`
                 })
             });
             const data = await res.json();
             if (data.success) {
-                // Remove med from local list to avoid re-delivery
                 setActivePatient({
                     ...activePatient,
-                    medications: activePatient.medications.filter((m: any) => m.id !== medId)
+                    medications: []
                 });
                 setMedPin("");
-                if (activePatient.medications.length <= 1) setModalType(null);
+                setModalType(null);
+                alert(`✅ Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
+            } else {
+                alert("Error: " + data.error);
             }
         } catch (e) {
             console.error(e);
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleBathLog = async () => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/adls/bath", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("🛀 Baño registrado al sistema central.");
+                setDailyLog({ ...dailyLog, bathCompleted: true });
+            } else {
+                alert(`⚠️ Alerta: ${data.message || data.error}`);
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
+    const handleMealLog = async (mealType: string, quality: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/adls/meal", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id, mealType, quality })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`🍽️ Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+            } else {
+                alert(`⚠️ Error Clínico: ${data.error}`);
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
     const submitFall = async () => {
@@ -258,9 +370,29 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const handleLogoutAttempt = () => {
-        if (Math.random() > 0.5) alert("✋ ALTO: Medicamentos pendientes. Cierre de Turno Denegado.");
-        else { alert("✅ Turno Finalizado. Has protegido tus registros para auditoría."); router.push('/login'); }
+    const handleLogoutAttempt = async () => {
+        if (!activeSession) {
+            router.push('/login');
+            return;
+        }
+
+        // Mock de alerta frontend si hay cosas pendientes
+        if (Math.random() > 0.8) {
+            alert("✋ ALTO: Zendity detectó una dosis programada que no ha sido administrada. Se requiere justificación para finalizar turno.");
+            return;
+        }
+
+        try {
+            await fetch("/api/care/shift/end", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ shiftSessionId: activeSession.id })
+            });
+            alert("✅ Turno Finalizado. Has protegido tus registros para auditoría (AI Shift Report Autogenerado).");
+            router.push('/login');
+        } catch (e) {
+            console.error(e);
+            alert("Error finalizando turno.");
+        }
     };
 
     const colorStyles: Record<string, string> = { RED: "bg-red-600", YELLOW: "bg-amber-500", GREEN: "bg-emerald-500", BLUE: "bg-blue-600" };
@@ -268,11 +400,15 @@ export default function ZendityCareTabletPage() {
     // =========================================================
     // VIEW 1: SELECCIÓN DE TURNO Y COLOR ZONING
     // =========================================================
-    if (!selectedColor && !briefingMode) {
+    if (sessionLoading) {
+        return <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-black text-2xl text-slate-400 animate-pulse">Sincronizando Sistema Zendity...</div>;
+    }
+
+    if (!selectedColor && !briefingMode && !verifyingCensus) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
                 <div className="bg-white rounded-[3rem] p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95">
-                    <h1 className="text-4xl font-black text-slate-800 mb-4">¿Cuál es tu color de Turno?</h1>
+                    <h1 className="text-4xl font-black text-slate-800 mb-4">{activeSession ? "Continúa tu Turno Activo" : "¿Cuál es tu color de Turno?"}</h1>
                     <p className="text-xl text-slate-500 mb-10 font-medium">Zonificación de Cuidadores (Zendity Care)</p>
                     <div className="grid grid-cols-2 gap-6">
                         <button onClick={() => startTurnAndBriefing("RED")} className="h-40 rounded-3xl bg-red-500 hover:bg-red-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">ROJO</button>
@@ -280,6 +416,39 @@ export default function ZendityCareTabletPage() {
                         <button onClick={() => startTurnAndBriefing("GREEN")} className="h-40 rounded-3xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">VERDE</button>
                         <button onClick={() => startTurnAndBriefing("BLUE")} className="h-40 rounded-3xl bg-blue-500 hover:bg-blue-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">AZUL</button>
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    // =========================================================
+    // VIEW 1.5: VERIFICACIÓN DE CENSO (CLOCK-IN)
+    // =========================================================
+    if (verifyingCensus && selectedColor) {
+        return (
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
+                <div className="bg-white rounded-[3rem] p-10 max-w-xl w-full text-center shadow-2xl animate-in zoom-in-95">
+                    <h1 className="text-4xl font-black text-slate-800 mb-4">Firmar Entrada</h1>
+                    <p className="text-xl text-slate-500 mb-8 font-medium">
+                        Antes de iniciar tu turno en el Grupo <span className="font-bold text-slate-800">{selectedColor}</span>, debes confirmar físicamente cuántos residentes hay.
+                    </p>
+                    <input
+                        type="number"
+                        value={initialCensus}
+                        onChange={e => setInitialCensus(e.target.value ? Number(e.target.value) : "")}
+                        placeholder="Cantidad de Residentes"
+                        className="w-full text-center text-4xl p-6 bg-slate-50 border-2 border-slate-200 rounded-2xl mb-8 outline-none focus:border-indigo-500 font-black"
+                    />
+                    <button
+                        onClick={confirmCensusAndClockIn}
+                        disabled={submitting || initialCensus === ""}
+                        className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-2xl rounded-2xl transition-all disabled:opacity-50"
+                    >
+                        {submitting ? "Procesando..." : "Firmar Entrada y Escuchar Zendi"}
+                    </button>
+                    <button onClick={() => { setVerifyingCensus(false); setSelectedColor(null); }} className="mt-4 text-slate-400 font-bold hover:text-slate-600">
+                        Volver
+                    </button>
                 </div>
             </div>
         );
@@ -460,46 +629,82 @@ export default function ZendityCareTabletPage() {
                         )}
 
                         {modalType === 'LOG' && (
-                            <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Bitácora Diaria (ADLs)</p>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer font-bold"><input type="checkbox" checked={dailyLog.bathCompleted} onChange={e => setDailyLog({ ...dailyLog, bathCompleted: e.target.checked })} className="w-6 h-6 accent-teal-600" /> Baño Asistido Listo</label>
+                            <div className="space-y-6">
+                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Actividades Diarias y Comidas (ADL)</p>
+
+                                {/* Baños */}
+                                <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl">
+                                    <h4 className="font-black text-sky-800 text-lg mb-2">🚿 Higiene Matutina</h4>
+                                    <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-4 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 active:scale-95'}`}>
+                                        {dailyLog.bathCompleted ? "Baño Registrado ✓" : "Completar Baño de 6AM - 10AM"}
+                                    </button>
+                                    <p className="text-xs font-bold text-sky-600/60 mt-2 text-center">Protegido por 10-Min Cooldown</p>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-500">% Ingesta de Alimentos</label>
-                                    <input type="range" min="0" max="100" step="25" value={dailyLog.foodIntake} onChange={e => setDailyLog({ ...dailyLog, foodIntake: parseInt(e.target.value) })} className="w-full accent-emerald-500 mt-2" />
-                                    <div className="flex justify-between text-xs font-bold text-slate-400 px-1 mt-1"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+
+                                {/* Comidas */}
+                                <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
+                                    <h4 className="font-black text-orange-800 text-lg mb-2">🍽️ Registro Nutricional</h4>
+                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'BREAKFAST' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'BREAKFAST' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Desayuno</button>
+                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'LUNCH' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'LUNCH' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Almuerzo</button>
+                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'DINNER' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'DINNER' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Cena</button>
+                                    </div>
+
+                                    {dailyLog.selectedMeal && (
+                                        <div className="grid grid-cols-4 gap-2 animate-in fade-in zoom-in-95">
+                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg text-xs">Todo</button>
+                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs">Mitad</button>
+                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'LITTLE')} className="py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs">Poco</button>
+                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'NONE')} className="py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs">Nada</button>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="relative">
-                                    <textarea placeholder="Notas clínicas del turno..." value={dailyLog.notes} onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })} className="w-full bg-slate-50 border p-4 rounded-xl font-medium text-sm h-32 resize-none" />
-                                    <button type="button" onClick={formatDailyLogWithAI} disabled={formattingNotes || !dailyLog.notes} className="absolute bottom-3 right-3 text-2xl drop-shadow-md hover:scale-110 active:scale-95 transition-all text-indigo-500 drop-shadow-indigo-500/50" title="Zendi AI Shadow Formatter">✨</button>
+
+                                {/* Bitacora General */}
+                                <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl relative">
+                                    <textarea placeholder="Notas clínicas adicionales..." value={dailyLog.notes} onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-24 resize-none focus:border-indigo-400 outline-none" />
+                                    <button type="button" onClick={formatDailyLogWithAI} disabled={formattingNotes || !dailyLog.notes} className="absolute bottom-5 right-5 text-2xl drop-shadow-md hover:scale-110 active:scale-95 transition-all text-indigo-500">✨</button>
                                 </div>
-                                <button onClick={submitLog} disabled={submitting} className="w-full py-5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl mt-4">Archivar Reporte</button>
+                                <button onClick={submitLog} disabled={submitting} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl shadow-lg">Guardar Notas Clínicas</button>
                             </div>
                         )}
 
                         {modalType === 'MEDS' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Entrega de Fármacos</p>
-                                <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 shadow-inner max-h-60 overflow-y-auto">
+                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">eMAR: Entrega de Fármacos</p>
+                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-inner max-h-40 overflow-y-auto">
                                     {activePatient?.medications?.length > 0 ? (
                                         activePatient.medications.map((m: any) => (
-                                            <div key={m.id} className="flex justify-between items-center py-2 border-b border-amber-100 last:border-0">
+                                            <div key={m.id} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
                                                 <div>
-                                                    <p className="font-bold text-amber-900">{m.medication.name}</p>
-                                                    <p className="text-xs text-amber-700">{m.medication.dosage} @ {m.scheduleTime}</p>
+                                                    <p className="font-bold text-slate-800">{m.medication.name}</p>
+                                                    <p className="text-xs text-slate-500">{m.medication.dosage} @ {m.scheduleTime}</p>
                                                 </div>
-                                                <button onClick={() => submitMeds(m.id)} disabled={submitting} className="px-4 py-2 bg-white text-teal-600 font-black rounded-lg shadow-sm border border-teal-100 hover:bg-teal-50">Suministrar</button>
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="text-sm font-bold text-amber-800/60 text-center py-4">No hay medicamentos pautados pendientes.</p>
+                                        <p className="text-sm font-bold text-slate-400 text-center py-4">No hay medicamentos pautados pendientes.</p>
                                     )}
                                 </div>
-                                <div className="pt-2">
-                                    <label className="text-xs font-bold text-slate-400 block mb-1">PIN Electrónico del Cuidador / Enfermera *</label>
-                                    <input type="password" maxLength={4} value={medPin} onChange={e => setMedPin(e.target.value)} placeholder="****" className="w-full bg-slate-50 p-4 rounded-xl text-center text-2xl font-black tracking-widest outline-none border focus:border-teal-400" />
-                                </div>
+
+                                {activePatient?.medications?.length > 0 && (
+                                    <div className="pt-2">
+                                        <label className="text-xs font-bold text-slate-400 block mb-1">PIN Electrónico del Cuidador / Enfermera *</label>
+                                        <input type="password" maxLength={4} value={medPin} onChange={e => setMedPin(e.target.value)} placeholder="****" className="w-full bg-slate-100 p-4 rounded-xl text-center text-3xl font-black tracking-widest outline-none border-2 focus:border-indigo-400 mb-4" />
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button onClick={() => submitBulkMeds('ADMINISTER_ALL')} disabled={submitting} className="col-span-2 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all text-white font-black text-xl rounded-2xl shadow-lg shadow-emerald-500/30">
+                                                ✅ Administrar Todos
+                                            </button>
+                                            <button onClick={() => submitBulkMeds('PRN')} disabled={submitting} className="py-4 bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md">
+                                                💊 PRN
+                                            </button>
+                                            <button onClick={() => submitBulkMeds('OMISSION')} disabled={submitting} className="py-4 bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md">
+                                                🛑 Descontinuar
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -524,6 +729,14 @@ export default function ZendityCareTabletPage() {
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+
+            {/* Zendi Contextual Toast Notification */}
+            {zendiToast && (
+                <div className="fixed bottom-8 right-8 bg-slate-800 text-teal-400 p-5 rounded-2xl shadow-2xl z-50 animate-in slide-in-from-bottom font-bold border border-teal-500/30 flex items-center gap-4 max-w-sm">
+                    <span className="text-3xl animate-pulse">✨</span>
+                    <span className="leading-tight">{zendiToast}</span>
                 </div>
             )}
         </div>

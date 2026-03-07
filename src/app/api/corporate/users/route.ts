@@ -1,11 +1,36 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
-export async function GET() {
-    // Mock estático de Enfermeras Locales para saltear la llamada DB a `User`
-    const mockNurses = [
-        { id: "u1", name: "Lucía Fernández (RN)", role: "NURSE" },
-        { id: "u2", name: "Gabriel Soto (LPN)", role: "NURSE" },
-    ];
+const prisma = new PrismaClient();
 
-    return NextResponse.json(mockNurses);
+export async function GET(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const hqId = searchParams.get('headquartersId');
+        const rolesParam = searchParams.get('role'); // e.g. "NURSE,CAREGIVER"
+
+        let rolesFilter: any = undefined;
+        if (rolesParam) {
+            rolesFilter = { in: rolesParam.split(',') };
+        }
+
+        const users = await prisma.user.findMany({
+            where: {
+                ...(hqId && { headquartersId: hqId }),
+                ...(rolesFilter && { role: rolesFilter }),
+            },
+            select: {
+                id: true,
+                name: true,
+                role: true
+            }
+        });
+
+        // Si por alguna razón la DB está vacía, devolvemos un array vacío,
+        // pero NO devolvemos ids fantasmas ("u1") para evitar Foreign Key error en Prisma.
+        return NextResponse.json(users);
+    } catch (error) {
+        console.error("GET Corporate Users Error:", error);
+        return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+    }
 }

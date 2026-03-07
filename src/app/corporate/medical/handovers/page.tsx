@@ -201,7 +201,7 @@ export default function HandoversPage() {
         }
     };
 
-    const isAuthorized = user?.role === 'NURSE' || user?.role === 'ADMIN' || user?.role === 'CAREGIVER';
+    const isAuthorized = user?.role && ['NURSE', 'ADMIN', 'CAREGIVER', 'DIRECTOR', 'HR', 'SUPERADMIN'].includes(user.role);
 
     if (!isAuthorized) {
         return <div className="p-8 text-center text-red-500 font-bold">No tienes permiso para acceder al registro de Relevos de Guardia.</div>;

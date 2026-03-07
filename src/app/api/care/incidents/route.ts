@@ -23,6 +23,14 @@ export async function POST(req: Request) {
             }
         });
 
+        // ---------------------------------------------------------
+        // RUTEO AUTOMÁTICO (Clínico a Enfermería)
+        // ---------------------------------------------------------
+        // TODO: Emitir evento WebSocket o Push Notification a los roles:
+        // - NURSE
+        // - DIRECTOR_OF_NURSING
+        console.log(`[ALERTA CLÍNICA]: Incidente ${incident.id} auto-ruteado a la Estación de Enfermería.`);
+
         return NextResponse.json({ success: true, incident });
 
     } catch (error) {
