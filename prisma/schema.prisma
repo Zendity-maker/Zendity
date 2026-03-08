@@ -51,6 +51,9 @@ model Headquarters {
   // FASE 30: Zendity Care Core
   shiftSessions  ShiftSession[]
   complaints     Complaint[]
+
+  // FASE 39: Super Admin B2B SaaS Billing
+  saasInvoices   SaaSInvoice[]
 }
 
 // =======================
@@ -1087,4 +1090,41 @@ enum LeaveType {
   HOSPITAL
   FAMILY_VISIT
   OTHER
+}
+
+// =======================
+// 16. SUPER ADMIN B2B SAAS BILLING (Fase 39)
+// =======================
+
+model SaaSInvoice {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  invoiceNumber   String   @unique
+  issueDate       DateTime @default(now())
+  dueDate         DateTime
+  status          InvoiceStatus @default(PENDING)
+  
+  subtotal        Float
+  taxRate         Float    @default(0.0) // ITBIS o Sales Tax aplicable
+  totalAmount     Float
+  
+  notes           String?
+  paidAt          DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  items           SaaSInvoiceItem[]
+}
+
+model SaaSInvoiceItem {
+  id             String      @id @default(uuid())
+  saasInvoiceId  String
+  description    String
+  quantity       Int         @default(1)
+  unitPrice      Float
+  totalPrice     Float
+
+  saasInvoice    SaaSInvoice @relation(fields: [saasInvoiceId], references: [id], onDelete: Cascade)
 }
