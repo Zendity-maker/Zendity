@@ -214,16 +214,7 @@ export default function CorporateDashboardPage() {
 
                 {/* 4. Módulos Adicionales Panel */}
                 <div className="space-y-6">
-                    {/* Quick Actions / Módulo de Escalabilidad */}
-                    <div className="bg-gradient-to-br from-teal-900 to-slate-900 rounded-2xl p-6 shadow-md text-white">
-                        <h3 className="text-lg font-bold mb-2">Escalabilidad Multitenant</h3>
-                        <p className="text-teal-100 text-sm mb-5 leading-relaxed">
-                            Zendity aprovisiona nuevas sedes de manera aislada (HIPAA Compliant). Al crear un Hogar, se generan bases de datos independientes.
-                        </p>
-                        <button onClick={() => alert("Asistente de Expansión de Nuevas Sedes: Disponible en Próximas Fases.")} className="w-full bg-white text-teal-900 font-bold py-3 rounded-xl hover:bg-teal-50 shadow-sm transition-all focus:ring-4 focus:ring-teal-500/30">
-                            Asistente de Nueva Sede →
-                        </button>
-                    </div>
+
 
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
                         <h3 className="text-lg font-bold text-slate-800 mb-4">Módulos Corporativos</h3>
