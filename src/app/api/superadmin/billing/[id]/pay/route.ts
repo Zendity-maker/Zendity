@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
+export async function PATCH(request: Request, context: any) {
     try {
         const { id } = await context.params;
 
@@ -12,7 +12,7 @@ export async function PATCH(request: Request, context: { params: { id: string } 
             return NextResponse.json({ success: false, error: 'Missing invoice id' }, { status: 400 });
         }
 
-        const updatedInvoice = await prisma.saasInvoice.update({
+        const updatedInvoice = await prisma.saaSInvoice.update({
             where: { id },
             data: {
                 status: 'PAID',

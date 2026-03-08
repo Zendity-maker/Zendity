@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { FileSignature, ShieldAlert, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -24,8 +24,8 @@ export default async function FamilyDocumentsPage() {
         }
     });
 
-    const pending = documents.filter(d => d.status === "PENDING");
-    const completed = documents.filter(d => d.status === "SIGNED");
+    const pending = documents.filter((d: any) => d.status === "PENDING");
+    const completed = documents.filter((d: any) => d.status === "SIGNED");
 
     return (
         <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -48,7 +48,7 @@ export default async function FamilyDocumentsPage() {
                         Requieren su Firma ({pending.length})
                     </h2>
                     <div className="space-y-3">
-                        {pending.map(doc => (
+                        {pending.map((doc: any) => (
                             <div key={doc.id} className="bg-white p-4 rounded-xl border border-amber-100 flex items-center justify-between">
                                 <div>
                                     <h3 className="font-bold text-gray-800">{doc.title}</h3>
@@ -73,7 +73,7 @@ export default async function FamilyDocumentsPage() {
                         Historial de Archivos
                     </h2>
                     <div className="space-y-3">
-                        {completed.map(doc => (
+                        {completed.map((doc: any) => (
                             <div key={doc.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
                                 <div>
                                     <h3 className="font-bold text-gray-600">{doc.title}</h3>

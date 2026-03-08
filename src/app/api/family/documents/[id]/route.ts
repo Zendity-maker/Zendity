@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: any) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || session.user.role !== "FAMILY") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -12,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
         const document = await prisma.legalDocument.findUnique({
             where: {
-                id: params.id,
+                id: id,
             }
         });
 

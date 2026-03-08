@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: any) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || session.user.role !== "FAMILY") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const document = await prisma.legalDocument.findUnique({
-            where: { id: params.id }
+            where: { id: id }
         });
 
         if (!document || document.familyMemberId !== session.user.id) {
@@ -31,7 +32,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
         // Modificamos el LegalDocument en prisma para sellarlo
         const signedDocument = await prisma.legalDocument.update({
-            where: { id: params.id },
+            where: { id: id },
             data: {
                 status: "SIGNED",
                 signatureData: signatureData,

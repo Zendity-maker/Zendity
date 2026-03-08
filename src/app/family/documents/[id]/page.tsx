@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import SignatureCanvas from "react-signature-canvas";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import { Loader2, ArrowLeft, PenTool, Download } from "lucide-react";
+import { Loader2, ArrowLeft, PenTool, Download, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 export default function DocumentSignerPage() {

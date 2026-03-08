@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
         const whereClause = hqId ? { headquartersId: hqId } : {};
 
-        const invoices = await prisma.saasInvoice.findMany({
+        const invoices = await prisma.saaSInvoice.findMany({
             where: whereClause,
             include: {
                 headquarters: {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         const totalAmount = subtotal + taxVal;
 
         // Create the invoice and items in a transaction
-        const newInvoice = await prisma.saasInvoice.create({
+        const newInvoice = await prisma.saaSInvoice.create({
             data: {
                 headquartersId,
                 invoiceNumber,
