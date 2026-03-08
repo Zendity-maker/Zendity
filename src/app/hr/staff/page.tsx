@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import AddStaffModal from "./AddStaffModal";
 
 export default function ZendityStaffDirectoryPage() {
     const { user } = useAuth();
@@ -55,9 +56,7 @@ export default function ZendityStaffDirectoryPage() {
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mt-6 animate-in slide-in-from-bottom-4">
                 <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800 text-lg">Staff Clínico Autorizado</h3>
-                    <button className="bg-teal-600 hover:bg-teal-700 active:scale-95 transition-all text-white text-sm font-black py-2.5 px-5 rounded-xl shadow-sm">
-                        + Registrar Empleado
-                    </button>
+                    <AddStaffModal />
                 </div>
 
                 <div className="overflow-x-auto">
