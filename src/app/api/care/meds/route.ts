@@ -12,14 +12,28 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Datos incompletos" }, { status: 400 });
         }
 
+        const adminStatus = status || 'ADMINISTERED';
+
         const admin = await prisma.medicationAdministration.create({
             data: {
                 patientMedicationId,
                 administeredById,
-                status: status || 'ADMINISTERED',
+                status: adminStatus,
                 notes
             }
         });
+
+        // FASE 45: Gamification & Trust Score Penalty
+        if (adminStatus === 'OMITTED') {
+            await prisma.user.update({
+                where: { id: administeredById },
+                data: {
+                    complianceScore: {
+                        decrement: 5
+                    }
+                }
+            });
+        }
 
         return NextResponse.json({ success: true, administration: admin });
 

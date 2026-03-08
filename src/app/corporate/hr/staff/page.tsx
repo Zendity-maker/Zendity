@@ -19,6 +19,8 @@ type StaffMember = {
     createdAt: string;
 };
 
+import Link from 'next/link';
+
 export default function StaffManagementPage() {
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ export default function StaffManagementPage() {
                                 <th className="p-4 text-sm font-semibold text-gray-600">Credenciales (Login)</th>
                                 <th className="p-4 text-sm font-semibold text-gray-600">Score RRHH</th>
                                 <th className="p-4 text-sm font-semibold text-gray-600">Estado de Acceso</th>
-                                <th className="p-4 text-sm font-semibold text-gray-600 text-center">Moderar</th>
+                                <th className="p-4 text-sm font-semibold text-gray-600 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -195,7 +197,7 @@ export default function StaffManagementPage() {
                                                     />
                                                 </div>
                                                 <span className={`text-xs font-bold ${s.complianceScore >= 80 ? 'text-green-700' : 'text-red-600'}`}>
-                                                    {s.complianceScore} pts
+                                                    {s.complianceScore}
                                                 </span>
                                             </div>
                                         </td>
@@ -213,16 +215,25 @@ export default function StaffManagementPage() {
                                             )}
                                         </td>
                                         <td className="p-4 text-center">
-                                            <button
-                                                onClick={() => toggleStaffStatus(s.id, s.isShiftBlocked)}
-                                                className={`p-2 rounded-xl border transition-colors ${s.isShiftBlocked
+                                            <div className="flex items-center justify-center gap-2">
+                                                <Link
+                                                    href={`/corporate/hr/staff/${s.id}`}
+                                                    className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                                                    title="Ver Perfil & Rendimiento"
+                                                >
+                                                    <UserCog className="w-4 h-4" />
+                                                </Link>
+                                                <button
+                                                    onClick={() => toggleStaffStatus(s.id, s.isShiftBlocked)}
+                                                    className={`p-2 rounded-xl border transition-colors ${s.isShiftBlocked
                                                         ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
                                                         : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
-                                                    }`}
-                                                title={s.isShiftBlocked ? 'Reactivar Empleado' : 'Suspender Acceso'}
-                                            >
-                                                {s.isShiftBlocked ? <Shield className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
-                                            </button>
+                                                        }`}
+                                                    title={s.isShiftBlocked ? 'Reactivar Empleado' : 'Suspender Acceso'}
+                                                >
+                                                    {s.isShiftBlocked ? <Shield className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
