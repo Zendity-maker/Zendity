@@ -15,9 +15,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { Viewport } from "next";
+
 export const metadata: Metadata = {
   title: "Zendity - Healthcare Dashboard",
   description: "Plataforma multitenant para hogares de envejecientes.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Zendity"
+  }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#4f46e5",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const navigation = [
@@ -45,6 +61,26 @@ export default function RootLayout({
             </AppLayout>
           </AuthProvider>
         </NextAuthProvider>
+
+        {/* PWA Service Worker Registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(
+                    function(registration) {
+                      console.log('ServiceWorker registration successful');
+                    },
+                    function(err) {
+                      console.log('ServiceWorker registration failed: ', err);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html >
   );

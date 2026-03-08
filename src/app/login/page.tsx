@@ -63,7 +63,7 @@ export default function LoginPage() {
 
                 {/* Logo Dinámico */}
                 {logoUrl ? (
-                    <div className="mx-auto h-20 flex items-center justify-center mb-6">
+                    <div className="mx-auto h-32 flex items-center justify-center mb-8">
                         <img src={logoUrl} alt={hqName} className="max-h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
                     </div>
                 ) : (
