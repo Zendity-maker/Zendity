@@ -114,6 +114,9 @@ model User {
   bathLogs      BathLog[]
   mealLogs      MealLog[]
   serviceVisits ServiceVisit[]
+
+  // FASE 42: Maintenance Tickets Assigned
+  maintenanceTickets HeadquartersEvent[] @relation("MaintenanceTickets")
 }
 
 enum Role {
@@ -125,6 +128,7 @@ enum Role {
   THERAPIST
   BEAUTY_SPECIALIST
   SUPERVISOR
+  MAINTENANCE
 }
 
 enum ColorGroup {
@@ -941,16 +945,21 @@ model HeadquartersEvent {
   title          String
   description    String?
   type           EventType @default(OTHER)
-  status         String    @default("PENDING") // FASE 33: Triage Flag
+  status         String    @default("PENDING") // FASE 33: Triage Flag / FASE 42: PENDING/IN_PROGRESS/RESOLVED
   startTime      DateTime
   endTime        DateTime
   patientId      String?
   photoUrl       String?   // FASE 37: Image Uploads
 
+  // FASE 42: SLA Maintenance Resolution tracking
+  assignedToId          String? // User ID del Técnico
+  resolutionTimeMinutes Int? 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  assignedTo   User?        @relation("MaintenanceTickets", fields: [assignedToId], references: [id])
   patient      Patient?     @relation(fields: [patientId], references: [id])
 }
 
@@ -959,6 +968,7 @@ enum EventType {
   MEDICAL_VISIT
   FAMILY_VISIT
   ACTIVITY
+  INFRASTRUCTURE
   OTHER
 }
 

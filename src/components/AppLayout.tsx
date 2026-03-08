@@ -17,6 +17,7 @@ const clinicalNavigation = [
     { name: 'Intake (Admitir)', href: '/intake', icon: '📥' },
     { name: 'Med & Zoning', href: '/med', icon: '💊' },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: '📱' },
+    { name: 'Cabina Supervisor', href: '/care/supervisor', icon: '🔭' },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: '🪪' },
     { name: 'Academy', href: '/academy', icon: '🎓' },
 ];
@@ -28,8 +29,6 @@ const corporateNavigationSections = [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
-            { name: "Supervisor Cabina", href: "/corporate/supervisor", icon: UserCheck },
-            { name: "Planificador Semanal", href: "/corporate/supervisor/shifts", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
         ]
     },

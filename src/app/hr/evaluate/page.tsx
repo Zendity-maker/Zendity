@@ -156,10 +156,10 @@ export default function HREvaluatePage() {
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
                                     <div className="flex justify-between items-center relative z-10">
                                         <div>
-                                            <h2 className="text-xl font-bold">Rúbrica: {selectedEmp.role === 'NURSE' || selectedEmp.role === 'CAREGIVER' ? 'Métricas Clínicas' : 'Métricas Directivas'}</h2>
+                                            <h2 className="text-xl font-bold">Rúbrica: {selectedEmp.role === 'NURSE' || selectedEmp.role === 'CAREGIVER' ? 'Métricas Clínicas' : selectedEmp.role === 'MAINTENANCE' ? 'SLA Infraestructura' : 'Métricas Directivas'}</h2>
                                             <p className="text-slate-400 text-sm mt-1">Evaluando a: <span className="text-white font-medium">{selectedEmp.name}</span></p>
                                         </div>
-                                        <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '⚕️' : '📋'}</div>
+                                        <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '⚕️' : selectedEmp.role === 'MAINTENANCE' ? '🔧' : '📋'}</div>
                                     </div>
                                 </div>
 
@@ -208,6 +208,26 @@ export default function HREvaluatePage() {
                                                 desc="Manejo de equipo y control de ausentismo del personal base."
                                                 value={scores['liderazgo'] || 100}
                                                 onChange={(val) => handleScoreChange('liderazgo', val)}
+                                            />
+                                        </>
+                                    )}
+
+                                    {/* Preguntas de Mantenimiento (Technical SLAs) */}
+                                    {selectedEmp.role === 'MAINTENANCE' && (
+                                        <>
+                                            <QuestionRow
+                                                id="sla_resolution"
+                                                label="Cumplimiento de SLA (Tiempos de Resolución)"
+                                                desc="Velocidad y eficacia cerrando tickets de averías críticas reportadas por el Action Hub."
+                                                value={scores['sla_resolution'] || 100}
+                                                onChange={(val) => handleScoreChange('sla_resolution', val)}
+                                            />
+                                            <QuestionRow
+                                                id="prevencion_riesgos"
+                                                label="Prevención de Riesgos Estructurales"
+                                                desc="Detección proactiva de peligros ambientales (pisos mojados, cables expuestos, iluminación fundida)."
+                                                value={scores['prevencion_riesgos'] || 100}
+                                                onChange={(val) => handleScoreChange('prevencion_riesgos', val)}
                                             />
                                         </>
                                     )}

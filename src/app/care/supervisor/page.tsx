@@ -22,6 +22,10 @@ export default function SupervisorDashboardPage() {
     // FASE 30: Live Mission Monitor State
     const [liveData, setLiveData] = useState<any>(null);
 
+    // FASE 41: Clinical Supervisor Rounds
+    const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
+    const [isSavingRound, setIsSavingRound] = useState(false);
+
     useEffect(() => {
         if (user) {
             fetchSupervisorData();
@@ -35,7 +39,7 @@ export default function SupervisorDashboardPage() {
         if (!user) return;
         const hqId = user.hqId || user.headquartersId || "hq-demo-1";
         try {
-            const res = await fetch(`/api/corporate/supervisor/live?hqId=${hqId}`);
+            const res = await fetch(`/api/care/supervisor/live?hqId=${hqId}`);
             const data = await res.json();
             if (data.success) {
                 setLiveData(data);
@@ -47,7 +51,7 @@ export default function SupervisorDashboardPage() {
 
     const fetchSupervisorData = async () => {
         try {
-            const res = await fetch("/api/corporate/supervisor");
+            const res = await fetch("/api/care/supervisor");
             const data = await res.json();
             if (data.success) {
                 setStaff(data.staff || []);
@@ -91,7 +95,7 @@ export default function SupervisorDashboardPage() {
         e.preventDefault();
         setIsSavingShift(true);
         try {
-            const res = await fetch("/api/corporate/supervisor", {
+            const res = await fetch("/api/care/supervisor", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(shiftForm)
@@ -110,7 +114,7 @@ export default function SupervisorDashboardPage() {
     const handleDeleteShift = async (id: string) => {
         if (!confirm("¿Eliminar este turno de la base de datos?")) return;
         try {
-            const res = await fetch(`/api/corporate/supervisor?id=${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/care/supervisor?id=${id}`, { method: "DELETE" });
             if (res.ok) fetchSupervisorData();
         } catch (error) {
             console.error(error);
@@ -137,6 +141,34 @@ export default function SupervisorDashboardPage() {
         }
     };
 
+    const handleSaveRound = async () => {
+        if (!user) return;
+        setIsSavingRound(true);
+        try {
+            const hqId = user.hqId || user.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/care/supervisor/rounds", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    hqId,
+                    supervisorId: user.id,
+                    ...roundForm
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("✅ Ronda Guardada: " + roundForm.area);
+                setRoundForm({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
+            } else {
+                alert("Error guardando ronda: " + data.error);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingRound(false);
+        }
+    };
+
     const copyToClipboard = () => {
         navigator.clipboard.writeText(processedMemo);
         alert("Memo copiado al portapapeles. Listo para enviar a RRHH o imprimir.");
@@ -151,21 +183,21 @@ export default function SupervisorDashboardPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
+        <div className="max-w-7xl mx-auto space-y-8 pb-12">
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-teal-500 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
                 <div className="relative z-10">
                     <h1 className="text-4xl md:text-5xl font-black mb-4 flex items-center gap-4">
                         <Brain className="w-12 h-12 text-teal-400" />
-                        Cabina del Supervisor
+                        Cabina del Supervisor Clínico
                     </h1>
                     <p className="text-xl text-slate-300 font-medium max-w-2xl">
-                        Centro de Control Logístico B2B. Asigna horarios del Staff y apóyate en Zendi AI para redactar reportes disciplinarios o de mérito.
+                        Centro de Control Operativo B2B. Monitorea a los Cuidadores en Tiempo Real y apóyate en Zendi AI para redactar reportes disciplinarios.
                     </p>
                 </div>
             </div>
 
-            {/* MISSION MONITOR FASE 30 */}
+            {/* MISSION MONITOR FASE 41 */}
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
@@ -221,7 +253,7 @@ export default function SupervisorDashboardPage() {
                 )}
             </div>
 
-            {/* BANDEJA DE TRIAJE (QUEJAS) FASE 30 */}
+            {/* BANDEJA DE TRIAJE (QUEJAS) */}
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                 <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 mb-6">
                     <Send className="w-7 h-7 text-indigo-500" />
@@ -264,6 +296,67 @@ export default function SupervisorDashboardPage() {
                 )}
             </div>
 
+            {/* RONDAS SUPERVISOR (ROUNDS) FASE 41 */}
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                        <Activity className="w-7 h-7 text-teal-600" />
+                        Rondas Clínicas (Housekeeping & Safety)
+                    </h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="md:col-span-1">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Zona a Auditar</label>
+                        <select
+                            value={roundForm.area}
+                            onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        >
+                            <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
+                            <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
+                            <option value="Área de Memoria (Dementia)">Área de Memoria (Dementia)</option>
+                            <option value="Comedor Principal">Comedor Principal</option>
+                            <option value="Salón de Actividades">Salón de Actividades</option>
+                            <option value="Zonas Exteriores / Jardín">Zonas Exteriores / Jardín</option>
+                        </select>
+                    </div>
+
+                    <div className="md:col-span-1 flex flex-col justify-end gap-3 pb-1">
+                        <button
+                            onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })}
+                            className={`w-full py-3 rounded-xl font-bold border transition-colors flex items-center justify-center gap-2 ${roundForm.isClean ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-300'}`}
+                        >
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${roundForm.isClean ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
+                                {roundForm.isClean && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            </div>
+                            Área Limpia
+                        </button>
+                    </div>
+
+                    <div className="md:col-span-1 flex flex-col justify-end gap-3 pb-1">
+                        <button
+                            onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })}
+                            className={`w-full py-3 rounded-xl font-bold border transition-colors flex items-center justify-center gap-2 ${roundForm.isSafe ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-300'}`}
+                        >
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${roundForm.isSafe ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
+                                {roundForm.isSafe && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            </div>
+                            Área Segura (Cero Caídas)
+                        </button>
+                    </div>
+
+                    <div className="md:col-span-1 flex flex-col justify-end pb-1">
+                        <button
+                            onClick={handleSaveRound}
+                            disabled={isSavingRound}
+                            className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md active:scale-95 flex justify-center items-center gap-2"
+                        >
+                            {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Auditoría"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* PANEL IZQUIERDO: ROSTER & TURNOS */}
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
@@ -278,9 +371,9 @@ export default function SupervisorDashboardPage() {
                         </div>
                         <h3 className="font-black text-slate-800 text-lg mb-2">Planificador Semanal & Zonas</h3>
                         <p className="text-slate-500 text-sm mb-6">
-                            Accede a la nueva interfaz avanzada para planificar turnos por bloques semanales (Mañana, Tarde, Noche, Oficina) y asignar colores de zona para el equipo clínico.
+                            Accede a la interfaz avanzada para planificar turnos por bloques semanales y asignar áreas físicas a tus cuidadores.
                         </p>
-                        <a href="/corporate/supervisor/shifts" className="w-full bg-slate-900 hover:bg-black text-white py-3.5 rounded-xl font-bold shadow-md transition-colors flex justify-center items-center gap-2">
+                        <a href="/care/supervisor/shifts" className="w-full bg-slate-900 hover:bg-black text-white py-3.5 rounded-xl font-bold shadow-md transition-colors flex justify-center items-center gap-2">
                             Abrir Planificador Avanzado
                         </a>
                     </div>

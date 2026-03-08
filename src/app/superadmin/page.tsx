@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Link from 'next/link';
 import CreateHqAction from './CreateHqAction';
 
 const prisma = new PrismaClient();
@@ -94,8 +95,8 @@ export default async function SuperAdminDashboard() {
                                         </td>
                                         <td className="p-4">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${hq.licenseActive
-                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
                                                 }`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${hq.licenseActive ? 'bg-emerald-400' : 'bg-red-500'}`}></span>
                                                 {hq.licenseActive ? 'ACTIVA' : 'SUSPENDIDA'}
@@ -110,9 +111,9 @@ export default async function SuperAdminDashboard() {
                                             )}
                                         </td>
                                         <td className="p-4 pr-6 text-right">
-                                            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-sm">
+                                            <Link href={`/superadmin/billing?hqId=${hq.id}`} className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-sm">
                                                 🧾 Ver {hq._count.saasInvoices} Docs
-                                            </button>
+                                            </Link>
                                         </td>
                                     </tr>
                                 ))}
