@@ -54,6 +54,9 @@ model Headquarters {
 
   // FASE 39: Super Admin B2B SaaS Billing
   saasInvoices   SaaSInvoice[]
+
+  // FASE 43 Integrations
+  legalDocs      LegalDocument[]
 }
 
 // =======================
@@ -67,7 +70,7 @@ model User {
   email           String   @unique
   pinCode         String? // PIN de 4-6 dígitos para inicio de sesión rápido en clínicas
   role            Role // e.g. Gerente, Enfermero, SocialWorker
-  complianceScore Int      @default(100) // Para automatizar academia
+  complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
   createdAt       DateTime @default(now())
 
   headquarters     Headquarters               @relation(fields: [headquartersId], references: [id])
@@ -208,6 +211,9 @@ model Patient {
   mealLogs      MealLog[]
   serviceVisits ServiceVisit[]
   complaints    Complaint[]
+
+  // FASE 43 Integrations
+  legalDocs     LegalDocument[]
 }
 
 // =======================
@@ -327,6 +333,9 @@ model FamilyMember {
   patient      Patient        @relation(fields: [patientId], references: [id])
   surveys      FamilySurvey[]
   complaints   Complaint[]
+
+  // FASE 43 Integrations
+  legalDocs    LegalDocument[]
 }
 
 model WellnessDiary {
@@ -1145,4 +1154,33 @@ model SaaSInvoiceItem {
   totalPrice     Float
 
   saasInvoice    SaaSInvoice @relation(fields: [saasInvoiceId], references: [id], onDelete: Cascade)
+}
+
+// =======================
+// FASE 43: LEGAL e-SIGNATURES & CONTRACTS
+// =======================
+
+model LegalDocument {
+  id             String   @id @default(uuid())
+  headquartersId String
+  title          String
+  content        String   @db.Text
+  signatureData  String?  @db.Text // Base64 DE LA FIRMA
+  ipAddress      String?
+  status         DocumentStatus @default(PENDING)
+  patientId      String?
+  familyMemberId String?
+  
+  signedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id])
+}
+
+enum DocumentStatus {
+  PENDING
+  SIGNED
+  VOIDED
 }
