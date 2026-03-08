@@ -29,12 +29,21 @@ export async function POST(request: Request) {
             messages: [
                 {
                     role: "system",
-                    content: "Eres el Jefe de Farmacia Clínica. Lee la siguiente imagen de una caja de medicinas o receta médica. Tu única tarea es devolver un JSON estricto con un arreglo 'medications' que contenga el nombre de cada droga encontrada, su 'dosage' (dosis, ej: 50mg) y su 'route' (vía, ej: ORAL). No digas NADA más. NUNCA respondas con comillas de Markdown (` ```json `)."
+                    content: `Eres el Jefe de Farmacia Clínica. Lee esta imagen de una caja de medicinas o receta médica. Tu única tarea es devolver un JSON estricto con un arreglo 'medications'. Cada medicina debe tener:
+1. 'name': Nombre del fármaco
+2. 'dosage': Dosis (ej: 50mg)
+3. 'route': Vía (ej: Oral, Tópica)
+4. 'category': Sólo UNA de estas opciones exactas ["Analgésicos", "Antihipertensivos", "Antibióticos", "Psicotrópicos", "Suplementos", "Tópicos", "Otros"]
+5. 'isControlled': Boolean (Si es un narcótico o medicamento altamente regulado)
+6. 'requiresFridge': Boolean (Si debe refrigerarse, ej: insulina, amoxicilina líquida)
+7. 'withFood': Boolean (Si indica explícitamente "Take with food" o equivalente)
+
+Devuelve *únicamente* JSON, sin backticks de Markdown (\`\`\`json).`
                 },
                 {
                     role: "user",
                     content: [
-                        { type: "text", text: "Extrae las medicinas de esta imagen en el JSON requerido:" },
+                        { type: "text", text: "Extrae las medicinas y sus alertas de seguridad clínica de esta imagen:" },
                         {
                             type: "image_url",
                             image_url: {
@@ -44,7 +53,7 @@ export async function POST(request: Request) {
                     ]
                 }
             ],
-            max_tokens: 500,
+            max_tokens: 800,
         });
 
         const aiText = response.choices[0].message.content?.trim();
@@ -81,6 +90,10 @@ export async function POST(request: Request) {
                         name: cleanName,
                         dosage: med.dosage,
                         route: med.route || "Oral",
+                        category: med.category || "Otros",
+                        isControlled: med.isControlled || false,
+                        requiresFridge: med.requiresFridge || false,
+                        withFood: med.withFood || false,
                     }
                 });
                 results.push({ ...newMed, isNew: true });

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 export async function GET(request: NextRequest) {
     try {
         // En un escenario real, extraeríamos el familyMemberId de la sesión (ej. JWT).
-        // Usaremos un "hardcode" para demostracion tomando el primer paciente.
+        // Usaremos un "hardcode" para demostracion tomando el primer residente.
         const firstPatient = await prisma.patient.findFirst({
             include: {
                 wellnessNotes: {

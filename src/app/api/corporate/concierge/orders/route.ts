@@ -60,7 +60,7 @@ export async function PATCH(request: Request) {
                 data: { status }
             });
 
-            // 2. Si se CANCELA y estaba pendiente, devolver los fondos al paciente B2C
+            // 2. Si se CANCELA y estaba pendiente, devolver los fondos al residente B2C
             if (status === 'CANCELLED' && order.status === 'PENDING') {
                 await tx.patient.update({
                     where: { id: order.patientId },

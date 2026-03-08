@@ -12,7 +12,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Datos insuficientes (Color, Autor, Sede)" }, { status: 400 });
         }
 
-        // Buscar todos los pacientes de este grupo
+        // Buscar todos los residentes de este grupo
         const patients = await prisma.patient.findMany({
             where: { colorGroup, headquartersId: hqId },
             include: { medications: true }
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "No hay medicamentos pendientes para firmar en este grupo." }, { status: 400 });
         }
 
-        // Crear logs de auditoría por paciente
+        // Crear logs de auditoría por residente
         for (const p of patients) {
             if (p.medications.length > 0) {
                 for (const med of p.medications) {

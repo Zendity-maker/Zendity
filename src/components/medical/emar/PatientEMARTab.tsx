@@ -112,7 +112,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
 
                 {medications.length === 0 ? (
                     <div className="p-8 text-center">
-                        <p className="text-slate-500 font-medium">El paciente no figura con tratamientos farmacológicos activos.</p>
+                        <p className="text-slate-500 font-medium">El residente no figura con tratamientos farmacológicos activos.</p>
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-100">

@@ -14,11 +14,11 @@ export async function POST(req: Request) {
             if (defaultHq) {
                 finalHqId = defaultHq.id;
             } else {
-                return NextResponse.json({ success: false, error: "No existe Sede válida en la base de datos para asignar al paciente." }, { status: 400 });
+                return NextResponse.json({ success: false, error: "No existe Sede válida en la base de datos para asignar al residente." }, { status: 400 });
             }
         }
 
-        // 1. Crear el Perfil Demográfico base del Paciente
+        // 1. Crear el Perfil Demográfico base del Residente
         const patient = await prisma.patient.create({
             data: {
                 name,

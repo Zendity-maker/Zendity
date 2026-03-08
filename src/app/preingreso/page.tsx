@@ -118,7 +118,7 @@ export default function ZendityPreingresoPage() {
                                 ✅
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-2">Ingreso Listo para Aprobar</h3>
-                            <p className="text-gray-500 max-w-md mx-auto mb-6">El paciente está listo para ser ingresado. Se le asignará la habitación recomendada según nivel de AVD.</p>
+                            <p className="text-gray-500 max-w-md mx-auto mb-6">El residente está listo para ser ingresado. Se le asignará la habitación recomendada según nivel de AVD.</p>
 
                             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-w-md mx-auto flex justify-between items-center mb-6">
                                 <div className="text-left">

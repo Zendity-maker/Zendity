@@ -47,7 +47,7 @@ export default function HandoversPage() {
     // -- FASE 24: FALL RISK LOCK --
     const [hasFallRiskWarning, setHasFallRiskWarning] = useState(false);
     const [recentFallsWithoutNotes, setRecentFallsWithoutNotes] = useState<{ id: string, name: string, time: string }[]>([
-        // Mock de datos para prueba de Phase 24. Pacientes con incidentes en las últimas 8 hrs.
+        // Mock de datos para prueba de Phase 24. Residentes con incidentes en las últimas 8 hrs.
         { id: "p-roberto", name: "Roberto González", time: "Hace 4 horas (Baño)" }
     ]);
 
@@ -80,7 +80,7 @@ export default function HandoversPage() {
         if (!activeHqId) return alert("Falta Contexto HQ.");
         setIsModalOpen(true);
         try {
-            // Llenar Lista de Pacientes (Asignables)
+            // Llenar Lista de Residentes (Asignables)
             const pRes = await fetch(`/api/patients?headquartersId=${activeHqId}`);
             if (pRes.ok) setPatients(await pRes.json());
 
@@ -128,7 +128,7 @@ export default function HandoversPage() {
             return alert("Requerido: Una enfermera entrante y al menos 1 nota clínica.");
         }
 
-        // FASE 23 COMPLIANCE: Validar si hay pacientes en rojo antes de submitear
+        // FASE 23 COMPLIANCE: Validar si hay residentes en rojo antes de submitear
         if (patientsWithOverdueRotations.length > 0 && !hasNegligenceWarning) {
             setHasNegligenceWarning(true);
             return; // Bloquea la entrega de guardia (No-Code Lock)
@@ -385,7 +385,7 @@ export default function HandoversPage() {
                                                     setFormNotes(newNotes);
                                                 }}
                                             >
-                                                <option value="">Seleccionar Paciente</option>
+                                                <option value="">Seleccionar Residente</option>
                                                 <option value="p-roberto">Roberto González (H. 101)</option>
                                                 {patients.map(p => <option key={p.id} value={p.id}>{p.name} (H. {p.roomNumber})</option>)}
                                             </select>
@@ -445,7 +445,7 @@ export default function HandoversPage() {
                         </div>
                         <h3 className="text-2xl font-black text-slate-800 mb-2">¡Alto! Reloj Cutáneo Vencido</h3>
                         <p className="text-slate-600 mb-6">
-                            El sistema detectó que estás intentando hacer el traspaso de mando pero dejaste pacientes encamados con su reloj de rotación postural expirado (Rojo).
+                            El sistema detectó que estás intentando hacer el traspaso de mando pero dejaste residentes encamados con su reloj de rotación postural expirado (Rojo).
                         </p>
 
                         <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-left mb-8 space-y-2">
@@ -486,7 +486,7 @@ export default function HandoversPage() {
                         </div>
                         <h3 className="text-2xl font-black text-amber-800 mb-2">¡Alto! Hubo una Caída en tu turno</h3>
                         <p className="text-slate-600 mb-6">
-                            Zendity Engine interceptó el traspaso. Tienes pacientes que sufrieron Incidentes de Caída recientemente, pero **no redactaste Notas Clínicas** aclarando su estado actual para la enfermera entrante.
+                            Zendity Engine interceptó el traspaso. Tienes residentes que sufrieron Incidentes de Caída recientemente, pero **no redactaste Notas Clínicas** aclarando su estado actual para la enfermera entrante.
                         </p>
 
                         <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-left mb-8 space-y-2">

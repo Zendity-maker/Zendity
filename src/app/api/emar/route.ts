@@ -15,7 +15,7 @@ export async function GET(req: Request) {
         const todayStart = startOfDay(new Date());
         const todayEnd = endOfDay(new Date());
 
-        // 1. Obtener todos los pacientes de la HQ que tengan medicación activa
+        // 1. Obtener todos los residentes de la HQ que tengan medicación activa
         const patients = await prisma.patient.findMany({
             where: { headquartersId: hqId },
             include: {
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
             };
         });
 
-        // Filtrar pacientes que no tienen medicaciones para no ensuciar el dashboard
+        // Filtrar residentes que no tienen medicaciones para no ensuciar el dashboard
         const activePayload = payload.filter((p: any) => p.medications.length > 0);
 
         return NextResponse.json({ success: true, patients: activePayload });

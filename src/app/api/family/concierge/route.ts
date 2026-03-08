@@ -101,7 +101,7 @@ export async function POST(request: Request) {
             // CASO A: RECARGA DE SALDO (COMPRA DE GIFT CARD)
             if (type === 'product' && itemCategory === 'GiftCards') {
 
-                // 1. Agregar el saldo ficticio al paciente
+                // 1. Agregar el saldo ficticio al residente
                 await tx.patient.update({
                     where: { id: familyMember.patientId },
                     data: { conciergeBalance: { increment: price } }

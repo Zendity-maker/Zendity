@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
-        // 1. Obtener los medicamentos activos del paciente
+        // 1. Obtener los medicamentos activos del residente
         const patientMeds = await prisma.patientMedication.findMany({
             where: {
                 patientId: id,

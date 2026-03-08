@@ -18,7 +18,7 @@ export async function GET(req: Request) {
         const now = new Date();
         const limitTime = new Date(now.getTime() - TWO_HOURS_MS);
 
-        // 1. Localizar pacientes marcados como "Riesgo UPP / Encamados" 
+        // 1. Localizar residentes marcados como "Riesgo UPP / Encamados" 
         // y recuperar su último cambio postural.
         const atRiskPatients = await prisma.patient.findMany({
             where: {
@@ -70,7 +70,7 @@ export async function GET(req: Request) {
 
     } catch (error) {
         console.error("CRON UPP Error:", error);
-        return NextResponse.json({ error: 'Fallo interno al auditar pacientes.' }, { status: 500 });
+        return NextResponse.json({ error: 'Fallo interno al auditar residentes.' }, { status: 500 });
     } finally {
         await prisma.$disconnect();
     }

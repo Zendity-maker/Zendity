@@ -100,7 +100,7 @@ export default function ConciergePage() {
                             <FaSpa className="text-xl" />
                             <h2 className="text-sm font-black uppercase tracking-widest">Zendity Concierge</h2>
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Marketplace Clínico</h1>
+                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Marketplace de Servicios Adicionales en Vivid</h1>
                         <p className="text-indigo-200/70 font-medium max-w-md">Productos de higiene, terapias especializadas y servicios de estética directo a la habitación.</p>
                     </div>
 

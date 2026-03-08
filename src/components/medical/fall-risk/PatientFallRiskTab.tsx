@@ -12,7 +12,7 @@ const MOCK_TIMELINE = [
         nurse: "Lucía F. (RN)",
         riskLevel: "HIGH",
         morseScore: 55,
-        notes: "Paciente con debilidad muscular severa en piernas post-operatorio. Anda con andadera."
+        notes: "Residente con debilidad muscular severa en piernas post-operatorio. Anda con andadera."
     },
     {
         id: "ev2",

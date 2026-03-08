@@ -11,7 +11,7 @@ export default function PatientUlcersTab() {
             nurse: "Camila Torres (RN)",
             woundSize: "3x4 cm",
             treatment: "Limpieza con Salina + Vendaje Hidrocoloide + Barrera de Zinc",
-            notes: "El tejido presenta leve mejoría en los bordes. Paciente reportó dolor 3/10 durante la curación.",
+            notes: "El tejido presenta leve mejoría en los bordes. Residente reportó dolor 3/10 durante la curación.",
             hasPhoto: true,
             stage: 2,
         },

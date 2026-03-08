@@ -184,7 +184,7 @@ export default function HREvaluatePage() {
                                             />
                                             <QuestionRow
                                                 id="empatia"
-                                                label="Trato y Empatía al Paciente"
+                                                label="Trato y Empatía al Residente"
                                                 desc="Comunicación asertiva con el envejeciente durante los cambios posturales/baños."
                                                 value={scores['empatia'] || 100}
                                                 onChange={(val) => handleScoreChange('empatia', val)}

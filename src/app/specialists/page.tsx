@@ -145,7 +145,7 @@ export default function SpecialistsPortal() {
                                             <textarea
                                                 className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                                 rows={3}
-                                                placeholder="Ej. El paciente mostró mejoría en la movilidad del brazo..."
+                                                placeholder="Ej. El residente mostró mejoría en la movilidad del brazo..."
                                                 value={notes}
                                                 onChange={e => setNotes(e.target.value)}
                                             ></textarea>

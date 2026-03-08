@@ -212,6 +212,15 @@ model Medication {
   name        String // Ej: "Losartan"
   dosage      String // Ej: "50mg"
   route       String              @default("Oral") // Vía: Oral, Tópica, Intravenosa
+  description String? // Descripcion de la medicina (añadido para Catálogo)
+  
+  // Categorización y Alertas de Seguridad
+  category       String              @default("General") // Ej: "Analgésicos", "Antihipertensivos", "Antibióticos"
+  isControlled   Boolean             @default(false)     // Narcóticos / Psicotrópicos
+  requiresFridge Boolean             @default(false)     // Requiere Refrigeración
+  withFood       Boolean             @default(false)     // Tomar con Comida
+  
+  createdAt   DateTime            @default(now()) // Fecha de adición al catálogo
   patientMeds PatientMedication[]
 }
 
@@ -570,6 +579,8 @@ model DailyLog {
   foodIntake      Int // % de ingesta (0, 25, 50, 75, 100)
   notes           String?
   isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
+  isResolved      Boolean  @default(false) // FASE 33: Triage Flag
+  photoUrl        String?  // FASE 37: Image Uploads
   createdAt       DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
@@ -927,9 +938,11 @@ model HeadquartersEvent {
   title          String
   description    String?
   type           EventType @default(OTHER)
+  status         String    @default("PENDING") // FASE 33: Triage Flag
   startTime      DateTime
   endTime        DateTime
   patientId      String?
+  photoUrl       String?   // FASE 37: Image Uploads
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1046,16 +1059,17 @@ enum ComplaintStatus {
 model Complaint {
   id             String          @id @default(uuid())
   headquartersId String
-  familyMemberId String
+  familyMemberId String?
   patientId      String
   description    String
+  photoUrl       String?         // FASE 37: Image Uploads
   status         ComplaintStatus @default(PENDING)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id])
-  patient      Patient      @relation(fields: [patientId], references: [id])
+  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
+  familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
 }
 
 // =======================

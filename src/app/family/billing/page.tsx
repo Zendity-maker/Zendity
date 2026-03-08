@@ -70,7 +70,7 @@ export default function FamilyBilling() {
                             <FaFileInvoiceDollar className="text-2xl text-slate-300" />
                         </div>
                         <h4 className="font-bold text-slate-700">Sin Facturas Pendientes</h4>
-                        <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Actualmente no existen registros de facturación asociados al paciente.</p>
+                        <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Actualmente no existen registros de facturación asociados al residente.</p>
                     </div>
                 ) : (
                     <div className="space-y-4">

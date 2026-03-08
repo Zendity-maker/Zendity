@@ -82,7 +82,7 @@ export default function ReferralPortalPage() {
 
                     <h1 className="text-4xl font-black tracking-tight mb-4">Portal Médico de Referidos</h1>
                     <p className="text-indigo-200 text-lg leading-relaxed font-light">
-                        Estás refiriendo un paciente al pipeline de ingresos de <strong className="text-white font-bold">{hqName}</strong>. Completa este formulario seguro para iniciar la transferencia de cuidado (Transitions of Care).
+                        Estás refiriendo un residente al pipeline de ingresos de <strong className="text-white font-bold">{hqName}</strong>. Completa este formulario seguro para iniciar la transferencia de cuidado (Transitions of Care).
                     </p>
 
                     <div className="mt-12 p-6 bg-indigo-800/50 rounded-2xl border border-indigo-700 backdrop-blur-md">
@@ -103,7 +103,7 @@ export default function ReferralPortalPage() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre del Paciente</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre del Residente</label>
                                 <input required type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="Ej. Doña María" />
                             </div>
                             <div>
@@ -130,7 +130,7 @@ export default function ReferralPortalPage() {
                                 value={formData.notes}
                                 onChange={e => setFormData({ ...formData, notes: e.target.value })}
                                 className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition h-32 resize-none"
-                                placeholder="Indique la razón clínica por la que el Trabajador Social refiere a este paciente a nuestras facilidades. Ej: Alta de hospitalización por fractura de cadera, requiere asistencia diaria..."
+                                placeholder="Indique la razón clínica por la que el Trabajador Social refiere a este residente a nuestras facilidades. Ej: Alta de hospitalización por fractura de cadera, requiere asistencia diaria..."
                             />
                         </div>
 

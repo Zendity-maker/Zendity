@@ -103,7 +103,7 @@ export default function ZenditySandboxPage() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-sm font-bold text-slate-700 block mb-1">Paciente</label>
+                                    <label className="text-sm font-bold text-slate-700 block mb-1">Residente</label>
                                     <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} disabled={step !== 2} className="w-full border border-slate-200 p-2.5 rounded-xl bg-slate-50 font-semibold" />
                                 </div>
                                 <div>

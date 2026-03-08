@@ -162,7 +162,7 @@ export default function ConciergeFulfillment() {
 
                                             <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100 mb-6">
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Paciente Entregar a</p>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Residente Entregar a</p>
                                                     <p className="font-bold text-slate-700">{order.patient.name}</p>
                                                 </div>
                                                 <div className="text-right">

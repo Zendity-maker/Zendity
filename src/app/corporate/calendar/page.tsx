@@ -231,7 +231,7 @@ export default function CorporateCalendarPage() {
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Instrucciones a Cuidadores (Opcional)</label>
-                                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al paciente en ayunas..." className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
+                                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al residente en ayunas..." className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
                             </div>
 
                             <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg mt-6 flex justify-center items-center gap-2">

@@ -10,7 +10,9 @@ import {
     XCircleIcon,
     ExclamationTriangleIcon,
     MoonIcon,
-    SunIcon
+    SunIcon,
+    ChevronDownIcon,
+    ChevronUpIcon
 } from "@heroicons/react/24/outline";
 
 export default function EMARDashboardPage() {
@@ -18,6 +20,7 @@ export default function EMARDashboardPage() {
     const [patients, setPatients] = useState<any[]>([]);
     const [activeFilter, setActiveFilter] = useState("8AM"); // 8AM, 5PM, 8PM, PRN
     const [loadingData, setLoadingData] = useState(true);
+    const [expandedPatientId, setExpandedPatientId] = useState<string | null>(null);
 
     const fetchPatients = async () => {
         try {
@@ -164,10 +167,15 @@ export default function EMARDashboardPage() {
                             const filteredMeds = patient.medications.filter(filterFn);
                             if (filteredMeds.length === 0) return null; // No renderizar si no tiene prescipciones en este turno
 
-                            return (
-                                <div key={patient.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                            const isExpanded = expandedPatientId === patient.id;
 
-                                    <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
+                            return (
+                                <div key={patient.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden transition-all">
+
+                                    <div
+                                        className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+                                        onClick={() => setExpandedPatientId(isExpanded ? null : patient.id)}
+                                    >
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 font-black flex items-center justify-center border-2 border-white shadow-sm">
                                                 {patient.room}
@@ -177,80 +185,89 @@ export default function EMARDashboardPage() {
                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{filteredMeds.length} Fármacos Asignados</p>
                                             </div>
                                         </div>
-                                        <Link href={`/corporate/medical/patients/${patient.id}`} className="text-teal-600 font-bold text-sm hover:underline">
-                                            Ver Historial Clínico
-                                        </Link>
+                                        <div className="flex items-center gap-4">
+                                            <Link href={`/corporate/medical/patients/${patient.id}`} className="text-teal-600 font-bold text-sm hover:underline" onClick={(e) => e.stopPropagation()}>
+                                                Ver Historial
+                                            </Link>
+                                            {isExpanded ? (
+                                                <ChevronUpIcon className="w-6 h-6 text-slate-400" />
+                                            ) : (
+                                                <ChevronDownIcon className="w-6 h-6 text-slate-400" />
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <div className="divide-y divide-slate-100">
-                                        {filteredMeds.map((med: any) => (
-                                            <div key={med.id} className={`p-6 flex justify-between items-center transition-colors ${med.status !== 'PENDING' ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
+                                    {isExpanded && (
+                                        <div className="divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2">
+                                            {filteredMeds.map((med: any) => (
+                                                <div key={med.id} className={`p-6 flex justify-between items-center transition-colors ${med.status !== 'PENDING' ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
 
-                                                <div className="flex gap-5">
-                                                    {/* Status Indicator Icon */}
-                                                    <div className="mt-1">
-                                                        {med.status === 'PENDING' && <ClockIcon className="w-6 h-6 text-slate-300" />}
-                                                        {med.status === 'ADMINISTERED' && <CheckCircleIcon className="w-6 h-6 text-emerald-500" />}
-                                                        {med.status === 'REFUSED' && <XCircleIcon className="w-6 h-6 text-rose-500" />}
-                                                        {med.status === 'OMITTED' && <ExclamationTriangleIcon className="w-6 h-6 text-amber-500" />}
-                                                    </div>
-
-                                                    <div>
-                                                        <div className="flex items-center gap-3">
-                                                            <h3 className={`font-black text-lg ${med.status !== 'PENDING' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
-                                                                {med.name}
-                                                            </h3>
-                                                            {med.time === 'PRN' ? (
-                                                                <span className="bg-rose-100 text-rose-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">SOS / PRN</span>
-                                                            ) : (
-                                                                <span className="bg-slate-100 text-slate-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">{med.time}</span>
-                                                            )}
+                                                    <div className="flex gap-5">
+                                                        {/* Status Indicator Icon */}
+                                                        <div className="mt-1">
+                                                            {med.status === 'PENDING' && <ClockIcon className="w-6 h-6 text-slate-300" />}
+                                                            {med.status === 'ADMINISTERED' && <CheckCircleIcon className="w-6 h-6 text-emerald-500" />}
+                                                            {med.status === 'REFUSED' && <XCircleIcon className="w-6 h-6 text-rose-500" />}
+                                                            {med.status === 'OMITTED' && <ExclamationTriangleIcon className="w-6 h-6 text-amber-500" />}
                                                         </div>
 
-                                                        <div className="flex gap-4 mt-2">
-                                                            <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                                                                <span className="inline-block w-2 h-2 rounded-full bg-teal-400"></span>
-                                                                Vía {med.route}
-                                                            </p>
-                                                            <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                                                                <span className="inline-block w-2 h-2 rounded-full bg-indigo-400"></span>
-                                                                Nota: {med.instructions}
-                                                            </p>
+                                                        <div>
+                                                            <div className="flex items-center gap-3">
+                                                                <h3 className={`font-black text-lg ${med.status !== 'PENDING' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
+                                                                    {med.name}
+                                                                </h3>
+                                                                {med.time === 'PRN' ? (
+                                                                    <span className="bg-rose-100 text-rose-700 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">SOS / PRN</span>
+                                                                ) : (
+                                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">{med.time}</span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="flex gap-4 mt-2">
+                                                                <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                                                    <span className="inline-block w-2 h-2 rounded-full bg-teal-400"></span>
+                                                                    Vía {med.route}
+                                                                </p>
+                                                                <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                                                    <span className="inline-block w-2 h-2 rounded-full bg-indigo-400"></span>
+                                                                    Nota: {med.instructions}
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </div>
+
+                                                    {/* Action Buttons (Firma Electrónica) */}
+                                                    {med.status === 'PENDING' ? (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => openActionModal(med, patient, 'ADMINISTERED')}
+                                                                className="bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
+                                                            >
+                                                                Suministrar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openActionModal(med, patient, 'REFUSED')}
+                                                                className="bg-white text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
+                                                            >
+                                                                Rechazó
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openActionModal(med, patient, 'OMITTED')}
+                                                                className="bg-white text-amber-600 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
+                                                            >
+                                                                Omitir
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                                                            Registrado ✓
+                                                        </div>
+                                                    )}
+
                                                 </div>
-
-                                                {/* Action Buttons (Firma Electrónica) */}
-                                                {med.status === 'PENDING' ? (
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => openActionModal(med, patient, 'ADMINISTERED')}
-                                                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
-                                                        >
-                                                            Suministrar
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openActionModal(med, patient, 'REFUSED')}
-                                                            className="bg-white text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
-                                                        >
-                                                            Rechazó
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openActionModal(med, patient, 'OMITTED')}
-                                                            className="bg-white text-amber-600 hover:bg-amber-50 border border-slate-200 hover:border-amber-200 px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-all"
-                                                        >
-                                                            Omitir
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                                                        Registrado ✓
-                                                    </div>
-                                                )}
-
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -278,7 +295,7 @@ export default function EMARDashboardPage() {
                                     {actionType === 'ADMINISTERED' ? 'Confirmar Suministro' :
                                         actionType === 'REFUSED' ? 'Registrar Rechazo' : 'Omitir Dosis'}
                                 </h3>
-                                <p className="text-slate-500 text-sm font-medium mb-6">Paciente: <span className="font-bold text-slate-700">{selectedMed.patientName} (Hab. {selectedMed.room})</span></p>
+                                <p className="text-slate-500 text-sm font-medium mb-6">Residente: <span className="font-bold text-slate-700">{selectedMed.patientName} (Hab. {selectedMed.room})</span></p>
 
                                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
                                     <p className="font-black text-lg text-slate-800">{selectedMed.name}</p>
@@ -291,7 +308,7 @@ export default function EMARDashboardPage() {
                                         <textarea
                                             value={actionNotes}
                                             onChange={(e) => setActionNotes(e.target.value)}
-                                            placeholder={actionType === 'REFUSED' ? "Ej. Paciente escupió la pastilla..." : "Ej. Médico ordenó suspender por fiebre..."}
+                                            placeholder={actionType === 'REFUSED' ? "Ej. Residente escupió la pastilla..." : "Ej. Médico ordenó suspender por fiebre..."}
                                             className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none min-h-[100px]"
                                         />
                                     </div>

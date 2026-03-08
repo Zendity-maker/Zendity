@@ -45,7 +45,7 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients }: Declare
                 {/* Formulario Clínico */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Paciente Afectado</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Residente Afectado</label>
                         <select
                             required
                             value={selectedPatient}
@@ -91,7 +91,7 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients }: Declare
 
                     <div className="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm border border-blue-100 flex gap-3 mt-6">
                         <DocumentCheckIcon className="w-6 h-6 flex-shrink-0 text-blue-600" />
-                        <p>Al declarar esta úlcera, el sistema iniciará una <b>Bitácora de Curación ("UlcerLog")</b> oficial vinculada al expediente del paciente para seguimiento del Departamento de Salud.</p>
+                        <p>Al declarar esta úlcera, el sistema iniciará una <b>Bitácora de Curación ("UlcerLog")</b> oficial vinculada al expediente del residente para seguimiento del Departamento de Salud.</p>
                     </div>
 
                     <div className="pt-4 flex gap-3 border-t border-neutral-100">

@@ -80,7 +80,7 @@ export default function UPPsDashboard() {
                 {/* Analíticas Globales */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 flex flex-col">
-                        <span className="text-sm font-medium text-neutral-500">Pacientes Encamados</span>
+                        <span className="text-sm font-medium text-neutral-500">Residentes Encamados</span>
                         <span className="text-3xl font-bold text-slate-800 mt-2">{patients.length}</span>
                     </div>
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 flex flex-col">
@@ -100,7 +100,7 @@ export default function UPPsDashboard() {
 
                 <h2 className="text-xl font-semibold text-slate-800 mt-8 mb-4">Relojes de Riesgo Cutáneo (En Vivo)</h2>
 
-                {/* Grid de Pacientes */}
+                {/* Grid de Residentes */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {patients.map((patient) => {
                         const status = getRiskStatus(patient.lastRotation);

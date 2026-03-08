@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function ZendityCareTabletPage() {
     const { user } = useAuth();
@@ -26,7 +28,9 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | null>(null);
+    const [hospitalReason, setHospitalReason] = useState("");
+    const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
 
     const [zendiToast, setZendiToast] = useState("");
@@ -35,7 +39,9 @@ export default function ZendityCareTabletPage() {
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "" });
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
-    const [medPin, setMedPin] = useState("");
+    const [prnNote, setPrnNote] = useState("");
+    const [omissionNote, setOmissionNote] = useState("");
+    const [activeMedAction, setActiveMedAction] = useState<'ADMINISTER_ALL' | 'PRN' | 'OMISSION' | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
     const [formattingNotes, setFormattingNotes] = useState(false);
@@ -43,6 +49,18 @@ export default function ZendityCareTabletPage() {
     // Action Hub States
     const [hubPatientId, setHubPatientId] = useState("");
     const [hubDescription, setHubDescription] = useState("");
+    const [hubPhotoBase64, setHubPhotoBase64] = useState<string | null>(null);
+
+    const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setHubPhotoBase64(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
 
     // ==========================================
     // FASE 30: CLOCK-IN & CENSUS VERIFICATION
@@ -304,11 +322,17 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitBulkMeds = async (action: 'ADMINISTER_ALL' | 'PRN' | 'OMISSION') => {
-        if (!medPin || medPin.length < 4) return alert("Ingrese PIN para firmar dosis.");
+        if (action === 'PRN' && !prnNote.trim()) return alert("Especifique qué medicamento PRN se administra.");
+        if (action === 'OMISSION' && !omissionNote.trim()) return alert("Debe especificar la razón clínica de descontinuar/omitir.");
+
         setSubmitting(true);
         try {
             const medicationIds = activePatient.medications.map((m: any) => m.id);
             if (medicationIds.length === 0) return alert("No hay medicamentos para procesar.");
+
+            let finalNotes = "Administrado de manera rutinaria";
+            if (action === 'PRN') finalNotes = `SOS/PRN Aplicado: ${prnNote}`;
+            if (action === 'OMISSION') finalNotes = `Omitido/Rechazado: ${omissionNote}`;
 
             const res = await fetch("/api/care/meds/bulk", {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -316,7 +340,7 @@ export default function ZendityCareTabletPage() {
                     action,
                     medicationIds,
                     administeredById: user?.id,
-                    notes: `Validado con PIN: ${medPin}`
+                    notes: finalNotes
                 })
             });
             const data = await res.json();
@@ -325,7 +349,9 @@ export default function ZendityCareTabletPage() {
                     ...activePatient,
                     medications: []
                 });
-                setMedPin("");
+                setPrnNote("");
+                setOmissionNote("");
+                setActiveMedAction(null);
                 setModalType(null);
                 alert(`✅ Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
             } else {
@@ -381,7 +407,7 @@ export default function ZendityCareTabletPage() {
                     headquartersId: user?.hqId || user?.headquartersId || "hq-demo-1",
                     type: 'FALL',
                     severity: 'HIGH',
-                    description: `Paciente sufrió caída. Consciente: ${fallProtocol.consciousness}, Sangrado: ${fallProtocol.bleeding}, Dolor Escala 1-10: ${fallProtocol.painLevel}`,
+                    description: `Residente sufrió caída. Consciente: ${fallProtocol.consciousness}, Sangrado: ${fallProtocol.bleeding}, Dolor Escala 1-10: ${fallProtocol.painLevel}`,
                     biometricSignature: user?.id || "emergency-bypass"
                 })
             });
@@ -393,6 +419,41 @@ export default function ZendityCareTabletPage() {
             }
         } catch (e) {
             console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const submitHospitalTransfer = async () => {
+        setSubmitting(true);
+        try {
+            const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/care/hospitalize", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: activePatient.id,
+                    reason: hospitalReason,
+                    headquartersId: hqId,
+                    caregiverId: user?.id
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert("🚑 Traslado registrado. Abriendo Nota de Progreso Médica para impresión...");
+                setPdfNoteData({ ...data.patient, transferReason: hospitalReason, printDate: new Date() });
+                setHospitalReason("");
+                setModalType('PROGRESS_NOTE_PDF');
+
+                // Fetch de nuevo para que el residente se vea deshabilitado con status TEMPORARY_LEAVE
+                fetchPatients(selectedColor!);
+            } else {
+                alert(`⚠️ Error: ${data.error}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión al procesar el traslado.");
         } finally {
             setSubmitting(false);
         }
@@ -424,7 +485,7 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitHubReport = async () => {
-        if (!hubPatientId || !hubDescription) return alert("Seleccione paciente y agregue descripción.");
+        if (!hubPatientId || !hubDescription) return alert("Seleccione residente y agregue descripción.");
         setSubmitting(true);
         try {
             const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
@@ -438,13 +499,14 @@ export default function ZendityCareTabletPage() {
             if (hubAction === "COMPLAINT") {
                 endpoint = "/api/care/reports/complaint";
                 payload.type = "COMPLAINT";
+                payload.photoUrl = hubPhotoBase64;
             } else if (hubAction === "CLINICAL") {
                 endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog pero con flag isAlert true
                 payload = {
                     patientId: hubPatientId,
                     authorId: user?.id,
                     type: 'LOG',
-                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true }
+                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
                 };
             } else if (hubAction === "MAINTENANCE") {
                 endpoint = "/api/care/incidents"; // Endpoint de eventos generales
@@ -454,7 +516,8 @@ export default function ZendityCareTabletPage() {
                     type: 'OTHER',
                     severity: 'LOW',
                     description: "[MANTENIMIENTO] " + hubDescription,
-                    biometricSignature: user?.id || "N/A"
+                    biometricSignature: user?.id || "N/A",
+                    photoUrl: hubPhotoBase64
                 };
             }
 
@@ -469,6 +532,7 @@ export default function ZendityCareTabletPage() {
                 setHubAction(null);
                 setModalType(null);
                 setHubDescription("");
+                setHubPhotoBase64(null);
             } else {
                 alert("Error al enviar reporte: " + data.error);
             }
@@ -694,7 +758,7 @@ export default function ZendityCareTabletPage() {
                                         <div>
                                             <p className="font-bold text-amber-900 leading-tight">Calendario: {e.title}</p>
                                             <p className="text-sm font-medium text-amber-700">
-                                                Hoy a las {timeStr} {e.patient ? `• Paciente: ${e.patient.name}` : '• Actividad Global'}
+                                                Hoy a las {timeStr} {e.patient ? `• Residente: ${e.patient.name}` : '• Actividad Global'}
                                             </p>
                                         </div>
                                     </div>
@@ -745,8 +809,13 @@ export default function ZendityCareTabletPage() {
                                             <span className="text-4xl pr-1">💊</span><span className="text-xs font-black text-teal-700 uppercase">Medicamentos</span>
                                         </button>
                                     </div>
-                                    <div className={`p-4 bg-white border-t border-slate-100 ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-2"><span className="text-xl">⚠️</span> Reportar Caída</button>
+                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-white border-t border-slate-100 ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors">
+                                            <span className="text-xl">⚠️</span> Reportar Caída
+                                        </button>
+                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors">
+                                            <span className="text-xl">🚑</span> Traslado a Hospital
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -837,19 +906,51 @@ export default function ZendityCareTabletPage() {
 
                                 {activePatient?.medications?.length > 0 && (
                                     <div className="pt-2">
-                                        <label className="text-xs font-bold text-slate-400 block mb-1">PIN Electrónico del Cuidador / Enfermera *</label>
-                                        <input type="password" maxLength={4} value={medPin} onChange={e => setMedPin(e.target.value)} placeholder="****" className="w-full bg-slate-100 p-4 rounded-xl text-center text-3xl font-black tracking-widest outline-none border-2 focus:border-indigo-400 mb-4" />
+
+                                        <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl mb-4 text-center">
+                                            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Firma electrónica activa</p>
+                                            <p className="text-indigo-900 font-black">{user?.name}</p>
+                                            <p className="text-[10px] text-indigo-600 font-bold mt-1">Tu sesión sirve como firma válida para suministrar.</p>
+                                        </div>
+
+                                        {activeMedAction === 'PRN' && (
+                                            <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-xs font-bold text-amber-600 block mb-1">Escribe qué medicamento S.O.S (PRN) se administra:</label>
+                                                <input type="text" value={prnNote} onChange={e => setPrnNote(e.target.value)} placeholder="Ej. Tylenol 500mg" className="w-full bg-amber-50 p-4 rounded-xl font-bold outline-none border-2 border-amber-200 focus:border-amber-400 text-amber-900" />
+                                            </div>
+                                        )}
+
+                                        {activeMedAction === 'OMISSION' && (
+                                            <div className="mb-4 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-xs font-bold text-rose-600 block mb-1">Razón para Descontinuar / Omitir:</label>
+                                                <input type="text" value={omissionNote} onChange={e => setOmissionNote(e.target.value)} placeholder="Ej. Residente vomitando, orden del dr. X" className="w-full bg-rose-50 p-4 rounded-xl font-bold outline-none border-2 border-rose-200 focus:border-rose-400 text-rose-900" />
+                                            </div>
+                                        )}
 
                                         <div className="grid grid-cols-2 gap-3">
-                                            <button onClick={() => submitBulkMeds('ADMINISTER_ALL')} disabled={submitting} className="col-span-2 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all text-white font-black text-xl rounded-2xl shadow-lg shadow-emerald-500/30">
-                                                ✅ Administrar Todos
-                                            </button>
-                                            <button onClick={() => submitBulkMeds('PRN')} disabled={submitting} className="py-4 bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md">
-                                                💊 PRN
-                                            </button>
-                                            <button onClick={() => submitBulkMeds('OMISSION')} disabled={submitting} className="py-4 bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md">
-                                                🛑 Descontinuar
-                                            </button>
+                                            {(!activeMedAction || activeMedAction === 'ADMINISTER_ALL') && (
+                                                <button onClick={() => submitBulkMeds('ADMINISTER_ALL')} disabled={submitting} className="col-span-2 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all text-white font-black text-xl rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
+                                                    ✅ Registrar Administración
+                                                </button>
+                                            )}
+
+                                            {(!activeMedAction || activeMedAction === 'PRN') && (
+                                                <button onClick={() => activeMedAction === 'PRN' ? submitBulkMeds('PRN') : setActiveMedAction('PRN')} disabled={submitting} className={`${activeMedAction === 'PRN' ? 'col-span-2' : ''} py-4 bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md flex justify-center items-center gap-2`}>
+                                                    💊 {activeMedAction === 'PRN' ? 'Confirmar PRN' : 'Dar dosis PRN'}
+                                                </button>
+                                            )}
+
+                                            {(!activeMedAction || activeMedAction === 'OMISSION') && (
+                                                <button onClick={() => activeMedAction === 'OMISSION' ? submitBulkMeds('OMISSION') : setActiveMedAction('OMISSION')} disabled={submitting} className={`${activeMedAction === 'OMISSION' ? 'col-span-2' : ''} py-4 bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md flex justify-center items-center gap-2`}>
+                                                    🛑 {activeMedAction === 'OMISSION' ? 'Confirmar Omisión' : 'Descontinuar'}
+                                                </button>
+                                            )}
+
+                                            {activeMedAction && (
+                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); setOmissionNote(""); }} className="col-span-2 py-3 mt-2 text-slate-400 font-bold hover:text-slate-600 transition-colors">
+                                                    Cancelar
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -861,7 +962,7 @@ export default function ZendityCareTabletPage() {
                                 <p className="font-black text-rose-600 uppercase text-lg border-b-2 border-rose-100 pb-2 flex items-center gap-2"><span>⚠️</span> Protocolo de Caída</p>
                                 <div className="bg-rose-50 p-5 rounded-2xl border border-rose-200 space-y-4 shadow-inner">
                                     <label className="flex items-center justify-between font-bold text-rose-900 cursor-pointer">
-                                        ¿El paciente reacciona y está consciente?
+                                        ¿El residente reacciona y está consciente?
                                         <input type="checkbox" checked={fallProtocol.consciousness} onChange={e => setFallProtocol({ ...fallProtocol, consciousness: e.target.checked })} className="w-6 h-6 accent-rose-600" />
                                     </label>
                                     <label className="flex items-center justify-between font-bold text-rose-900 cursor-pointer">
@@ -874,6 +975,110 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                 </div>
                                 <button onClick={submitFall} disabled={submitting} className="w-full py-5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl mt-4 shadow-rose-500/30">Evaluar Riesgo y Enviar Alerta Roja</button>
+                            </div>
+                        )}
+
+                        {modalType === 'HOSPITAL_TRANSFER' && (
+                            <div className="space-y-4 mt-2">
+                                <p className="font-black text-red-600 uppercase text-lg border-b-2 border-red-100 pb-2 flex items-center gap-2"><span>🚑</span> Traslado a Hospital / ER</p>
+                                <div className="bg-red-50 p-5 rounded-2xl border border-red-200 shadow-inner">
+                                    <p className="text-red-900 font-bold mb-4 text-sm leading-relaxed">
+                                        Al presionar este botón, se modificará el estatus clínico del residente y se generará instantáneamente una <strong>Nota de Progreso Clínica (Handover)</strong> en PDF lista para imprimir y entregar a los paramédicos de turno.
+                                    </p>
+                                    <label className="text-sm font-black text-red-800 uppercase block mb-2">Motivo del Traslado de Emergencia:</label>
+                                    <textarea
+                                        value={hospitalReason}
+                                        onChange={e => setHospitalReason(e.target.value)}
+                                        placeholder="Ej. Residente presenta fuerte dolor en el pecho y dificultad respiratoria (Desaturando a 85%). Activado protocolo emergencia."
+                                        className="w-full bg-white border border-red-200 p-4 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-red-500 outline-none placeholder-slate-400"
+                                    />
+                                </div>
+                                <button onClick={submitHospitalTransfer} disabled={submitting || !hospitalReason} className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black text-lg rounded-2xl mt-4 shadow-lg shadow-red-600/30 active:scale-95 transition-all flex items-center justify-center gap-3">
+                                    {submitting ? "Procesando..." : <><span>⚡️</span> Empezar Traslado e Imprimir Nota</>}
+                                </button>
+                            </div>
+                        )}
+
+                        {modalType === 'PROGRESS_NOTE_PDF' && pdfNoteData && (
+                            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                                <div className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
+                                    <div className="p-5 bg-slate-800 text-white flex justify-between items-center">
+                                        <h3 className="font-bold flex items-center gap-2 text-xl"><span>📄</span> Documento Handover (Vivid)</h3>
+                                        <div className="flex gap-4">
+                                            <button className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white font-black px-6 py-2 rounded-xl text-sm shadow-lg shadow-emerald-500/20" onClick={() => window.print()}>🖨️ Imprimir Progress Note</button>
+                                            <button onClick={() => { setModalType(null); setPdfNoteData(null); }} className="text-slate-300 hover:text-white font-bold px-4">✕ Cerrar</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center">
+                                        {/* Hoja Blanca Imprimible */}
+                                        <div className="bg-white p-12 w-full shadow-sm border border-slate-200">
+                                            <div className="flex justify-between items-start mb-8 border-b-4 border-slate-800 pb-6">
+                                                <div>
+                                                    <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">Emergency Handover Form</h1>
+                                                    <p className="text-slate-500 font-bold mt-1 text-lg">Zendity Care Platform • {pdfNoteData.headquarters?.name || "Vivid Senior Living Cupey"}</p>
+                                                </div>
+                                                <div className="text-right text-sm text-slate-600">
+                                                    <p><span className="font-bold text-slate-800">Fecha de Traslado:</span> {format(new Date(pdfNoteData.printDate), "d 'de' MMMM yyyy, h:mm a", { locale: es })}</p>
+                                                    <p><span className="font-bold text-slate-800">Generado Por:</span> Zendi A.I. System</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-8 mb-8 border-b-2 border-slate-100 pb-8">
+                                                <div>
+                                                    <p className="text-sm font-black text-indigo-500 uppercase tracking-widest mb-2">Información del Residente</p>
+                                                    <p className="text-3xl font-black text-slate-900 leading-tight mb-2">{pdfNoteData.name}</p>
+                                                    <div className="space-y-1 text-slate-700 font-medium">
+                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Habitación:</span> {pdfNoteData.roomNumber || 'N/A'}</p>
+                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Condición:</span> {pdfNoteData.lifePlan?.medicalCondition || 'No especificada en PAI'}</p>
+                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Dieta / TR:</span> {pdfNoteData.diet || pdfNoteData.lifePlan?.feeding || 'Normal'}</p>
+                                                        <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {pdfNoteData.lifePlan?.allergies || 'NKA (No Known Allergies)'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-rose-50 border-2 border-rose-200 p-5 rounded-2xl">
+                                                    <p className="text-sm font-black text-rose-600 uppercase tracking-widest mb-2 flex items-center gap-2"><span>🚨</span> Motivo de Ingreso a Sala de Emergencias</p>
+                                                    <p className="text-rose-900 font-bold leading-relaxed">{pdfNoteData.transferReason}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="mb-8">
+                                                <p className="text-sm font-black text-teal-600 uppercase tracking-widest mb-4">Medication List (eMAR Centralizado)</p>
+                                                <table className="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+                                                    <thead className="bg-slate-100">
+                                                        <tr className="text-left">
+                                                            <th className="py-3 px-4 font-black text-slate-700 uppercase">Medicamento</th>
+                                                            <th className="py-3 px-4 font-black text-slate-700 uppercase">Dosis</th>
+                                                            <th className="py-3 px-4 font-black text-slate-700 uppercase">Categoría</th>
+                                                            <th className="py-3 px-4 font-black text-slate-700 uppercase">Frecuencia / Vía</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {pdfNoteData.medications?.length > 0 ? (
+                                                            pdfNoteData.medications.map((m: any) => (
+                                                                <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                                                                    <td className="py-3 px-4 font-bold text-slate-800">{m.medication?.name}</td>
+                                                                    <td className="py-3 px-4 text-slate-600 font-medium">{m.medication?.dosage}</td>
+                                                                    <td className="py-3 px-4">
+                                                                        <span className="bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold text-xs">{m.medication?.category || 'General'}</span>
+                                                                        {m.medication?.isControlled && <span className="text-rose-600 font-black ml-2 text-xs border border-rose-200 px-1 rounded">Controlado</span>}
+                                                                    </td>
+                                                                    <td className="py-3 px-4 text-slate-600 font-medium">{m.scheduleTime} • {m.medication?.route}</td>
+                                                                </tr>
+                                                            ))
+                                                        ) : (
+                                                            <tr>
+                                                                <td colSpan={4} className="py-6 text-center text-slate-400 font-bold">Sin medicamentos registrados</td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div className="mt-16 text-center text-sm text-slate-400 border-t-2 border-dashed border-slate-200 pt-8">
+                                                Este documento oficial es un resumen generado por inteligencia clínica del eMAR de la institución. No debe considerarse una prescripción médica final sino un historial de transición.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
@@ -923,11 +1128,38 @@ export default function ZendityCareTabletPage() {
                                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                                             <label className="text-sm font-bold text-slate-500 block mb-2">Descripción del Evento</label>
                                             <textarea
-                                                className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-32 resize-none focus:border-indigo-500 outline-none"
+                                                className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
                                                 placeholder="Describe detalladamente qué sucedió, quién estuvo involucrado y si requiere atención inmediata..."
                                                 value={hubDescription}
                                                 onChange={e => setHubDescription(e.target.value)}
                                             />
+                                        </div>
+
+                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                            <label className="text-sm font-bold text-slate-500 block mb-2">📸 Evidencia Fotográfica (Opcional)</label>
+                                            <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-6 bg-white hover:bg-slate-50 transition-colors relative cursor-pointer">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    onChange={handlePhotoCapture}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                />
+                                                {hubPhotoBase64 ? (
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="w-24 h-24 rounded-lg overflow-hidden shadow-md">
+                                                            <img src={hubPhotoBase64} alt="Evidencia" className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">✓ Foto Adjunta</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                                                        <span className="text-4xl">📷</span>
+                                                        <span className="font-bold text-sm">Tocar para tomar foto</span>
+                                                        <span className="text-xs text-slate-500 text-center">Abrirá la cámara o galería</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <button

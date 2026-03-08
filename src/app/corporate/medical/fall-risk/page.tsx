@@ -8,11 +8,11 @@ const prisma = new PrismaClient();
 
 // FASE 24: Tablero B2B de Riesgo de Caídas e Incidentes
 export default async function FallRiskDashboard() {
-    // 1. Obtener Pacientes de la Sede Activa y Agrupar por Fall Risk Level
+    // 1. Obtener Residentes de la Sede Activa y Agrupar por Fall Risk Level
     // Mock Sede B2B
     const hqId = "0f5ed479-05db-442c-a226-eb6f0edc4069";
 
-    // Traer a todos los pacientes y su última evaluación de caída
+    // Traer a todos los residentes y su última evaluación de caída
     const patients = await prisma.patient.findMany({
         where: { headquartersId: hqId },
         include: {

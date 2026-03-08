@@ -40,7 +40,7 @@ export async function POST(req: Request) {
                 where: { headquartersId: hqId, reportedAt: { gte: new Date(new Date().getTime() - 24 * 60 * 60 * 1000) } }
             });
 
-            clinicalContext = `Métricas actuales de la clínica: ${redPatients} pacientes en estado ROJO (alta urgencia), ${yellowPatients} en AMARILLO (precaución), ${greenPatients} en VERDE (estables). Incidentes reportados en las últimas 24h: ${recentIncidents}.`;
+            clinicalContext = `Métricas actuales de la clínica: ${redPatients} residentes en estado ROJO (alta urgencia), ${yellowPatients} en AMARILLO (precaución), ${greenPatients} en VERDE (estables). Incidentes reportados en las últimas 24h: ${recentIncidents}.`;
         }
 
         // 3. MANUAL OPERATIVO (Inyección de Conocimiento)
@@ -51,8 +51,8 @@ REGLA DE ORO DE VOZ: Hablas a través de un motor neuronal de Voz (TTS). TUS RES
 
 CONOCIMIENTO OPERATIVO (Vivid Day 1 Manual):
 1. Protocolo de Caídas (Morse): Evaluar signos vitales inmediatamente, no mover si hay dolor de cuello/espalda, notificar al médico de guardia y registrar el "Fall Incident" en el sistema.
-2. Prevención de Úlceras (Norton): Todo paciente en alto riesgo o en ZONA ROJA debe recibir cambios posturales cada 2 HORAS.
-3. Administración eMAR: Los medicamentos deben darse en la hora exacta. Si el paciente se niega (Rechazado), el personal debe registrar en el eMAR como "Rechazado" y añadir notas justificando.
+2. Prevención de Úlceras (Norton): Todo residente en alto riesgo o en ZONA ROJA debe recibir cambios posturales cada 2 HORAS.
+3. Administración eMAR: Los medicamentos deben darse en la hora exacta. Si el residente se niega (Rechazado), el personal debe registrar en el eMAR como "Rechazado" y añadir notas justificando.
 4. Cambio de Turno (Handover): El sistema exige dejar notas estructuradas en la sección 'Handovers' con las novedades rojas del turno antes de salir.
 5. Ingesta de Datos Automatizada: Si el usuario te narra un incidente en voz alta o te cuenta lo que hizo, felicítalo y confírmale que estás tomando nota (aunque solo lo guíes en el uso del sistema).
 
@@ -63,7 +63,7 @@ Estado Clínico actual de la facilidad: ${clinicalContext}
 
 INSTRUCCIONES FINALES:
 - Analiza lo que el usuario te dice. 
-- Si hace una pregunta sobre un paciente, estado de la clínica o protocolos, usa el CONTEXTO EN TIEMPO REAL y el CONOCIMIENTO OPERATIVO para responder.
+- Si hace una pregunta sobre un residente, estado de la clínica o protocolos, usa el CONTEXTO EN TIEMPO REAL y el CONOCIMIENTO OPERATIVO para responder.
 - Si parece estresado/a, ofrécele una breve palabra de aliento maternal (Ej: "Respira profundo, lo estás haciendo excelente...").
 - Mantén la respuesta conversacional y breve en español.
 `;

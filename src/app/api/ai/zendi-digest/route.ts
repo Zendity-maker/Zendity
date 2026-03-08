@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         // Rango: Últimas 8 horas
         const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
 
-        // Extraer pacientes del HQ con signos vitales o logs recientes
+        // Extraer residentes del HQ con signos vitales o logs recientes
         const patients = await prisma.patient.findMany({
             where: { headquartersId },
             include: {
@@ -45,10 +45,10 @@ export async function POST(req: Request) {
         }
 
         // Ensamblar contexto clínico para el Prompt
-        let promptData = "Analiza los siguientes datos clínicos de las últimas 8 horas y genera notas de relevo de guardia concisas y profesionales. Para cada paciente, determina si la nota es crítica (isCritical: true/false) basado en signos vitales anormales (ej. presión > 140/90, temp > 38C) o alertas en log.\n\nPacientes:\n";
+        let promptData = "Analiza los siguientes datos clínicos de las últimas 8 horas y genera notas de relevo de guardia concisas y profesionales. Para cada residente, determina si la nota es crítica (isCritical: true/false) basado en signos vitales anormales (ej. presión > 140/90, temp > 38C) o alertas en log.\n\nResidentes:\n";
 
         for (const p of activePatients) {
-            promptData += `Paciente ID: ${p.id}, Nombre: ${p.name}, Cuarto: ${p.roomNumber}\n`;
+            promptData += `Residente ID: ${p.id}, Nombre: ${p.name}, Cuarto: ${p.roomNumber}\n`;
             if (p.vitalSigns.length > 0) {
                 const latest = p.vitalSigns[0]; // El más reciente
                 promptData += `- Últimos Vitales: PA ${latest.systolic}/${latest.diastolic} mmHg, Temp ${latest.temperature}°C, FC ${latest.heartRate} lpm.\n`;
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 { 
   "notes": [ 
     { 
-      "patientId": "ID del paciente", 
+      "patientId": "ID del residente", 
       "clinicalNotes": "Resumen conciso y profesional del estado para la enfermera entrante (Máximo 2 oraciones)", 
       "isCritical": boolean 
     } 

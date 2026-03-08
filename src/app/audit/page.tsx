@@ -94,7 +94,7 @@ export default function ZendityAuditPage() {
                                             </span>
                                         </div>
                                         <h4 className="text-lg font-bold text-gray-900">{inc.type}</h4>
-                                        <p className="text-sm text-gray-600">Paciente: <span className="font-semibold text-gray-900">{inc.patient}</span> • Fecha: {inc.date}</p>
+                                        <p className="text-sm text-gray-600">Residente: <span className="font-semibold text-gray-900">{inc.patient}</span> • Fecha: {inc.date}</p>
                                     </div>
                                 </div>
 

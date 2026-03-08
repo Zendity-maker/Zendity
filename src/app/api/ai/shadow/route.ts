@@ -25,7 +25,7 @@ export async function POST(req: Request) {
                 formattedText = "Rechazo ingesta alimentaria PO (Per Os) en el turno actual. Se orienta verbalmente sin éxito. Notificar a Nutricionista.";
             }
             else if (lowerText.includes("le duele") || lowerText.includes("dolor")) {
-                formattedText = `El paciente refiere experimentar episodio de dolor localizado. Escala de dolor reportada subjetivamente. Se monitoriza y se consulta PRN.`;
+                formattedText = `El residente refiere experimentar episodio de dolor localizado. Escala de dolor reportada subjetivamente. Se monitoriza y se consulta PRN.`;
             }
             else {
                 // Formatting general

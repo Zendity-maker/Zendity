@@ -122,7 +122,7 @@ export default function CorporateDashboardPage() {
                         onClick={() => { setShowInbox(true); setActiveThread(null); }}
                         className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
                     >
-                        <span>📨</span> Mensajes Familiares
+                        <span>📨</span> Chats Familiares
                         {inboxThreads.some(t => t.unreadCount > 0) && (
                             <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
                                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
@@ -130,10 +130,10 @@ export default function CorporateDashboardPage() {
                         )}
                     </button>
 
-                    <button onClick={() => alert("Asistente de Expansión de Nuevas Sedes: Disponible en Próximas Fases.")} className="bg-gradient-to-r from-teal-600 to-teal-800 hover:from-teal-700 hover:to-teal-900 text-white font-bold py-2.5 px-5 rounded-xl text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                        Añadir Sede
-                    </button>
+                    <Link href="/corporate/triage" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Centro de Triage
+                    </Link>
                 </div>
             </div>
 

@@ -158,7 +158,7 @@ export default function CRMDashboardPage() {
                         <span>🤝</span> Admisiones y CRM
                     </h1>
                     <p className="text-slate-500 text-sm max-w-xl">
-                        Acelerador B2B de Admisiones. Arrastre pacientes a "Admisión" para auto-generar su Ficha Clínica PAI.
+                        Acelerador B2B de Admisiones. Arrastre residentes a "Admisión" para auto-generar su Ficha Clínica PAI.
                     </p>
                 </div>
                 <div className="flex gap-3">
