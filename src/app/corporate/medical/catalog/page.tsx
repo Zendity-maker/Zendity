@@ -137,13 +137,7 @@ export default function MedicalCatalogPage() {
                         Escáner IA
                         <Sparkles className="w-3 h-3 text-fuchsia-200" />
                     </button>
-                    <button
-                        onClick={() => alert("La adición manual pronto estará habilitada. ¡Usa el Escáner IA mientras tanto!")}
-                        className="bg-white border text-gray-700 hover:bg-gray-50 px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 transition-colors"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Añadir Manual
-                    </button>
+
                 </div>
             </div>
 
