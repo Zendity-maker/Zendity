@@ -35,6 +35,31 @@ export async function POST(req: Request) {
             }
         });
 
+        // --- FASE 44: Verificar Relevos Pendientes (Clock-In Lock) ---
+        const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
+        const pendingHandover = await prisma.shiftHandover.findFirst({
+            where: {
+                headquartersId,
+                status: 'PENDING',
+                createdAt: { gte: eightHoursAgo }
+            },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                outgoingNurse: { select: { name: true } },
+                notes: true
+            }
+        });
+
+        if (pendingHandover) {
+            return NextResponse.json({
+                success: true,
+                shiftSession: newSession,
+                requireHandoverAccept: true,
+                pendingHandover
+            });
+        }
+        // -------------------------------------------------------------
+
         return NextResponse.json({ success: true, shiftSession: newSession });
 
     } catch (error) {

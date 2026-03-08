@@ -786,6 +786,9 @@ model ShiftHandover {
   outgoingNurse User           @relation("OutgoingNurse", fields: [outgoingNurseId], references: [id])
   incomingNurse User?          @relation("IncomingNurse", fields: [incomingNurseId], references: [id])
   notes         HandoverNote[]
+  
+  // Enlace a la Sesión de Turno (Fase 44)
+  shiftSession  ShiftSession?
 }
 
 model HandoverNote {
@@ -1002,8 +1005,13 @@ model ShiftSession {
   leaveCensus     Int       @default(0) // Residentes del turno ausentes (Hospital/Familia)
   aiSummaryReport String?
 
+  // FASE 44: Shift Handover Enforcement
+  handoverCompleted Boolean @default(false)
+  shiftHandoverId   String? @unique
+
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   caregiver    User         @relation(fields: [caregiverId], references: [id])
+  shiftHandover ShiftHandover? @relation(fields: [shiftHandoverId], references: [id])
   bathLogs     BathLog[]
   mealLogs     MealLog[]
   serviceLogs  ServiceVisit[]

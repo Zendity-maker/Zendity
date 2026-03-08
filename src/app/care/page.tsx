@@ -28,10 +28,11 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
+    const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
 
     const [zendiToast, setZendiToast] = useState("");
 
@@ -127,6 +128,12 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setActiveSession(data.shiftSession);
                 setVerifyingCensus(false);
+
+                // FASE 44: Intercepción de lectura obligatoria
+                if (data.requireHandoverAccept) {
+                    alert(`🚨 ALERTA ROJA: Tienes un Relevo de Guardia pendiente de ${data.pendingHandover?.outgoingNurse?.name || 'Turno Previo'}. Léelo y acéptalo inmediatamente para tomar responsabilidad del piso.`);
+                }
+
                 continueToBriefing(selectedColor!);
             } else {
                 alert("Error de Inicio de Turno: " + data.error);
@@ -472,10 +479,25 @@ export default function ZendityCareTabletPage() {
         }
 
         try {
-            await fetch("/api/care/shift/end", {
+            const res = await fetch("/api/care/shift/end", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ shiftSessionId: activeSession.id })
             });
+            const data = await res.json();
+
+            // FASE 44: Intercepción de Relevo de Guardia 
+            if (!res.ok && data.requireHandover) {
+                alert(`🛑 ALTO: ${data.error}`);
+                setPendingShiftType(data.shiftType);
+                setModalType('HANDOVER_DRAFT');
+                return;
+            }
+
+            if (!data.success) {
+                alert(data.error || "Error finalizando turno.");
+                return;
+            }
+
             alert("✅ Turno Finalizado. Has protegido tus registros para auditoría (AI Shift Report Autogenerado).");
             router.push('/login');
         } catch (e) {
@@ -1173,6 +1195,74 @@ export default function ZendityCareTabletPage() {
                                 )}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* FASE 44: HANDOVER DRAFT MODAL (Auto-Enforcement) */}
+            {modalType === 'HANDOVER_DRAFT' && (
+                <div className="fixed inset-0 bg-red-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 bg-red-600 flex justify-between items-center text-white">
+                            <div>
+                                <h3 className="font-black text-xl flex items-center gap-2"><span>🛑</span> Relevo de Guardia Requerido</h3>
+                                <p className="text-red-100 text-sm font-medium mt-1">Bloque {pendingShiftType}</p>
+                            </div>
+                        </div>
+                        <div className="p-8">
+                            <div className="bg-red-50 p-5 rounded-2xl border border-red-200 mb-6 flex gap-4 items-start">
+                                <span className="text-3xl">⚠️</span>
+                                <div>
+                                    <p className="text-red-900 font-bold leading-relaxed">
+                                        Zendity no te permite hacer Clock-Out hasta que generes el Relevo de Guardia oficial de este bloque horario.
+                                        Por favor aprueba este borrador generado por inteligencia clínica para poder irte a casa.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Firmar Documento Final</p>
+
+                            <div className="space-y-4 mb-6">
+                                <label className="flex items-center gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" className="w-6 h-6 rounded text-red-600 focus:ring-red-500" required id="certifyData" />
+                                    <span className="font-bold text-slate-700 select-none">Certifico que la información documentada en mi turno es correcta y asumo responsabilidad clínica del reporte al siguiente turno.</span>
+                                </label>
+                            </div>
+
+                            <div className="flex gap-4 pt-4 border-t-2 border-slate-100">
+                                <button
+                                    onClick={() => setModalType(null)}
+                                    className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                                >
+                                    Volver al Piso Clínico
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        const checkbox = document.getElementById("certifyData") as HTMLInputElement;
+                                        if (!checkbox.checked) return alert("Debes marcar la casilla para certificar tu relevo.");
+
+                                        try {
+                                            const res = await fetch("/api/medical/handovers/draft", {
+                                                method: "POST", headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ shiftSessionId: activeSession.id, shiftType: pendingShiftType })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                                // Reintenta cerrar el turno ahora que handoverCompleted es true
+                                                handleLogoutAttempt();
+                                            } else {
+                                                alert("Error: " + data.error);
+                                            }
+                                        } catch (e) {
+                                            console.error("Error generando draft", e);
+                                        }
+                                    }}
+                                    className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2"
+                                >
+                                    <span>⚡️</span> Firmar y Salir
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
