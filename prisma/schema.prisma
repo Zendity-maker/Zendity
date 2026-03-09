@@ -456,6 +456,7 @@ model Course {
   headquartersId  String
   title           String
   description     String
+  content         String   @default("")
   durationMins    Int
   bonusCompliance Int // Puntos que suma al complianceScore (e.g. 5, 10, 20)
   videoUrl        String?

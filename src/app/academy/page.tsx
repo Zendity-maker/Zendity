@@ -73,7 +73,7 @@ export default function ZendityAcademyPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Resumen de IA */}
-                <div className="md:col-span-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="md:col-span-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
                     <div className="flex items-center space-x-2 mb-4">
                         <span className="text-2xl">🤖</span>
                         <h3 className="text-lg font-bold text-gray-900">Zendity AI Coach</h3>
@@ -99,28 +99,29 @@ export default function ZendityAcademyPage() {
                     {courses.map(course => {
                         const status = getCourseStatus(course.id);
                         return (
-                            <div key={course.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow">
-                                <div className="flex-1">
-                                    <div className="flex items-center space-x-3 mb-1">
-                                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-1">⏱️ {course.durationMins} MINS</span>
-                                        <span className="text-xs text-teal-700 font-bold bg-teal-50 border border-teal-100 px-2 py-0.5 rounded flex items-center gap-1">🚀 +{course.bonusCompliance} PTS</span>
+                            <div key={course.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition-shadow">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center space-x-3 mb-2">
+                                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-1">⏱️ {course.durationMins} MINS</span>
+                                            <span className="text-xs text-teal-700 font-bold bg-teal-50 border border-teal-100 px-2 py-0.5 rounded flex items-center gap-1">🚀 +{course.bonusCompliance} PTS</span>
+                                            {status === 'COMPLETED' && <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">✅ APROBADO</span>}
+                                        </div>
+                                        <h4 className="text-xl font-bold text-gray-900">{course.title}</h4>
+                                        <p className="text-sm text-gray-500 mt-1">{course.description}</p>
                                     </div>
-                                    <h4 className="text-lg font-bold text-gray-900 mt-1">{course.title}</h4>
-                                    <p className="text-sm text-gray-500 mt-0.5">{course.description}</p>
                                 </div>
 
-                                <div className="flex items-center space-x-4">
-                                    <div className="text-right">
-                                        {status === 'COMPLETED' && <span className="text-green-600 font-semibold text-sm flex items-center gap-1">✅ Aprobado</span>}
-                                        {status === 'IN_PROGRESS' && <span className="text-orange-500 font-semibold text-sm flex items-center gap-1">🔄 En Progreso</span>}
-                                        {status === 'PENDING' && <span className="text-gray-500 font-semibold text-sm flex items-center gap-1">⏳ Pendiente</span>}
-                                    </div>
+                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 max-h-[250px] overflow-y-auto mb-4 text-sm text-slate-700 whitespace-pre-wrap font-mono custom-scrollbar">
+                                    {course.content || "Material de estudio no disponible."}
+                                </div>
 
-                                    {status !== 'COMPLETED' && (
+                                <div className="flex justify-end border-t border-slate-100 pt-4 mt-auto">
+                                    {status !== 'COMPLETED' ? (
                                         <button
                                             disabled={loading}
                                             onClick={async () => {
-                                                if (confirm(`¿Deseas iniciar la certificación rápida de "${course.title}"?`)) {
+                                                if (confirm(`¿Has terminado de leer y deseas iniciar la evaluación de "${course.title}"?`)) {
                                                     setLoading(true);
                                                     const hqId = user?.hqId || user?.headquartersId;
                                                     const res = await fetch('/api/academy', {
@@ -141,14 +142,13 @@ export default function ZendityAcademyPage() {
                                                     await fetchCoursesData();
                                                 }
                                             }}
-                                            className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-teal-600 hover:bg-teal-700 hover:scale-105 active:scale-95 text-white shadow-md flex items-center gap-2"
+                                            className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all bg-teal-600 hover:bg-teal-700 hover:scale-105 active:scale-95 text-white shadow-md flex items-center gap-2"
                                         >
-                                            <span>🎓</span> Cursar Evaluación
+                                            <span>✍️</span> Tomar Examen de Certificación
                                         </button>
-                                    )}
-                                    {status === 'COMPLETED' && (
-                                        <button className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all bg-slate-100 text-slate-500 shadow-inner flex items-center gap-2 cursor-not-allowed">
-                                            <span>📜</span> Certificado
+                                    ) : (
+                                        <button className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all bg-slate-100 text-slate-500 flex items-center gap-2 cursor-not-allowed">
+                                            <span>📜</span> Certificado Guardado en Expediente
                                         </button>
                                     )}
                                 </div>
@@ -156,7 +156,7 @@ export default function ZendityAcademyPage() {
                         )
                     })}
                     {courses.length === 0 && (
-                        <div className="p-12 text-center text-slate-400 font-medium">El Directorio de Academia no tiene cursos en desarrollo.</div>
+                        <div className="p-12 text-center text-slate-400 font-medium bg-white rounded-2xl border border-dashed border-slate-200">El Directorio de Academia no tiene cursos en desarrollo.</div>
                     )}
                 </div>
             </div>
