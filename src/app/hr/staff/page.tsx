@@ -15,7 +15,9 @@ export default function ZendityStaffDirectoryPage() {
                 const hqId = user.hqId || user.headquartersId;
                 const res = await fetch(`/api/hr/staff?hqId=${hqId}`);
                 const data = await res.json();
-                if (data.success) {
+                if (Array.isArray(data)) {
+                    setStaff(data);
+                } else if (data.success && Array.isArray(data.staff)) {
                     setStaff(data.staff);
                 }
             } catch (err) {

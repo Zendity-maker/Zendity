@@ -18,9 +18,10 @@ export default function HRScorecardPage() {
         const hqId = user.hqId || user.headquartersId;
         const res = await fetch(`/api/hr/staff?hqId=${hqId}`);
         const data = await res.json();
-        if (data.success) {
-          const sorted = data.staff.sort((a: any, b: any) => b.complianceScore - a.complianceScore);
-          setRankedStaff(sorted);
+        if (Array.isArray(data)) {
+          setRankedStaff(data.sort((a: any, b: any) => b.complianceScore - a.complianceScore));
+        } else if (data.success && Array.isArray(data.staff)) {
+          setRankedStaff(data.staff.sort((a: any, b: any) => b.complianceScore - a.complianceScore));
         }
       } catch (e) {
         console.error(e);

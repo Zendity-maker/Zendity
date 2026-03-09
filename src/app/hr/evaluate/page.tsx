@@ -31,7 +31,9 @@ export default function HREvaluatePage() {
                 const res = await fetch(`/api/hr/staff?hqId=${hqId}`);
                 const data = await res.json();
 
-                if (data.success) {
+                if (Array.isArray(data)) {
+                    setEmployees(data);
+                } else if (data.success && Array.isArray(data.staff)) {
                     setEmployees(data.staff);
                 }
             } catch (err) {
