@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
     ArrowLeft, Award, Activity, ShieldCheck, Clock, CheckCircle2,
-    AlertTriangle, FileText, HeartPulse, Stethoscope, Wrench
+    AlertTriangle, FileText, HeartPulse, Stethoscope, Wrench, Mail, CalendarDays, Phone
 } from "lucide-react";
 
 export default function EmployeePerformanceDashboard() {
@@ -190,16 +190,27 @@ export default function EmployeePerformanceDashboard() {
             <div className="bg-white rounded-[2rem] p-10 border-2 border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row items-center gap-12">
                 {/* Avatar & Info */}
                 <div className="flex items-center gap-8 flex-1">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white text-5xl font-black shadow-lg shadow-indigo-500/30">
-                        {staffData.name.charAt(0)}
+                    <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white text-5xl font-black shadow-lg shadow-indigo-500/30 shrink-0">
+                        {staffData.photoUrl ? (
+                            <img src={staffData.photoUrl} alt={staffData.name} className="w-full h-full object-cover" />
+                        ) : (
+                            staffData.name.charAt(0)
+                        )}
                     </div>
                     <div>
                         <h2 className="text-4xl font-black text-slate-900 leading-tight">{staffData.name}</h2>
-                        <div className="flex items-center gap-3 mt-3">
-                            <span className="bg-slate-100 text-slate-700 font-black px-4 py-1.5 rounded-full text-sm border border-slate-200">
+                        <div className="flex items-center gap-3 mt-3 flex-wrap">
+                            <span className="bg-slate-100 text-slate-700 font-black px-4 py-1.5 rounded-full text-sm border border-slate-200 shadow-sm">
                                 {staffData.role}
                             </span>
-                            <span className="text-slate-500 font-medium text-sm">ID: {staffData.id.split("-")[0].toUpperCase()}</span>
+                            <span className="text-slate-500 font-medium text-sm flex items-center gap-1">
+                                <Mail className="w-4 h-4" /> {staffData.email}
+                            </span>
+                            {staffData.createdAt && (
+                                <span className="text-slate-500 font-medium text-sm flex items-center gap-1 ml-2">
+                                    <CalendarDays className="w-4 h-4" /> Ingreso: {new Date(staffData.createdAt).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AddStaffModal from "./AddStaffModal";
+import SendEmailModal from "./SendEmailModal";
 
 export default function ZendityStaffDirectoryPage() {
     const { user } = useAuth();
@@ -56,9 +57,12 @@ export default function ZendityStaffDirectoryPage() {
             <p className="text-slate-500 mt-1">Gestión Centralizada de Permisos, Evaluaciones y Compliance de Zendity Academy.</p>
 
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mt-6 animate-in slide-in-from-bottom-4">
-                <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center flex-wrap gap-4">
                     <h3 className="font-bold text-slate-800 text-lg">Staff Clínico Autorizado</h3>
-                    <AddStaffModal />
+                    <div className="flex items-center gap-3">
+                        <SendEmailModal employees={staff} />
+                        <AddStaffModal />
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -138,6 +142,6 @@ export default function ZendityStaffDirectoryPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
