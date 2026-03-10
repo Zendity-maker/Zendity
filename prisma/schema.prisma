@@ -165,6 +165,7 @@ model Patient {
   leaveDate        DateTime?
   dischargeDate    DateTime?
   dischargeReason  String?
+  photoUrl         String? // FASE 48: URL de foto de perfil
 
   createdAt        DateTime      @default(now())
 

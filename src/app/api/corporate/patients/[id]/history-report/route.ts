@@ -17,6 +17,7 @@ export async function GET(
         const patientHistory = await prisma.patient.findUnique({
             where: { id: patientId },
             include: {
+                headquarters: true,
                 medications: {
                     include: {
                         medication: true,

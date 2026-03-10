@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 
 export default function ZendityCareTabletPage() {
     const { user } = useAuth();
@@ -74,6 +75,20 @@ export default function ZendityCareTabletPage() {
                 const data = await res.json();
                 if (data.success && data.activeSession) {
                     setActiveSession(data.activeSession);
+
+                    // Recuperar estado previo (localStorage)
+                    const storedColor = localStorage.getItem('zendityCareShiftColor');
+                    if (storedColor) {
+                        setSelectedColor(storedColor);
+
+                        const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+                        const patientRes = await fetch(`/api/care?color=${storedColor}&hqId=${hq}`);
+                        const patientData = await patientRes.json();
+                        if (patientData.success) {
+                            setPatients(patientData.patients || []);
+                            setEvents(patientData.events || []);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("Session check error", error);
@@ -86,6 +101,7 @@ export default function ZendityCareTabletPage() {
 
     const startTurnAndBriefing = async (color: string) => {
         setSelectedColor(color);
+        localStorage.setItem('zendityCareShiftColor', color);
         if (!activeSession) {
             setLoading(true);
             try {
@@ -404,6 +420,21 @@ export default function ZendityCareTabletPage() {
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
+    const handleLaundryLog = () => {
+        setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + "🧺 Lavado de ropa e higienización completado." }));
+        alert("🧺 Tarea de lavandería añadida a la bitácora.");
+    };
+
+    const handleRoomCleaningLog = () => {
+        setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + "🧹 Aseo de habitación y áreas adyacentes completado." }));
+        alert("🧹 Aseo de habitación añadido a la bitácora.");
+    };
+
+    const handleSecurityRound = () => {
+        setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + "🔦 Ronda de seguridad sin novedades, residente descansando." }));
+        alert("🔦 Ronda de Noche añadida a la bitácora.");
+    };
+
     const submitFall = async () => {
         setSubmitting(true);
         try {
@@ -497,6 +528,8 @@ export default function ZendityCareTabletPage() {
                 alert(data.error || "Error finalizando turno.");
                 return;
             }
+
+            localStorage.removeItem('zendityCareShiftColor');
 
             alert("✅ Turno Finalizado. Has protegido tus registros para auditoría (AI Shift Report Autogenerado).");
             router.push('/login');
@@ -836,7 +869,7 @@ export default function ZendityCareTabletPage() {
                                             <span className="text-xl">⚠️</span> Reportar Caída
                                         </button>
                                         <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors">
-                                            <span className="text-xl">🚑</span> Traslado a Hospital
+                                            <span className="text-xl">🚑</span> Trasladar
                                         </button>
                                     </div>
                                 </div>
@@ -871,33 +904,59 @@ export default function ZendityCareTabletPage() {
                             <div className="space-y-6">
                                 <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Actividades Diarias y Comidas (ADL)</p>
 
-                                {/* Baños */}
-                                <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl">
-                                    <h4 className="font-black text-sky-800 text-lg mb-2">🚿 Higiene Matutina</h4>
-                                    <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-4 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 active:scale-95'}`}>
-                                        {dailyLog.bathCompleted ? "Baño Registrado ✓" : "Completar Baño de 6AM - 10AM"}
-                                    </button>
-                                    <p className="text-xs font-bold text-sky-600/60 mt-2 text-center">Protegido por 10-Min Cooldown</p>
-                                </div>
-
-                                {/* Comidas */}
-                                <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
-                                    <h4 className="font-black text-orange-800 text-lg mb-2">🍽️ Registro Nutricional</h4>
-                                    <div className="grid grid-cols-3 gap-2 mb-3">
-                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'BREAKFAST' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'BREAKFAST' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Desayuno</button>
-                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'LUNCH' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'LUNCH' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Almuerzo</button>
-                                        <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'DINNER' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'DINNER' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Cena</button>
+                                {/* Tareas de Cuidado Personal (AM) */}
+                                {selectedColor === 'RED' && (
+                                    <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl">
+                                        <h4 className="font-black text-sky-800 text-lg mb-2">🚿 Higiene Matutina</h4>
+                                        <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-4 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 active:scale-95'}`}>
+                                            {dailyLog.bathCompleted ? "Baño Registrado ✓" : "Completar Baño de 6AM - 10AM"}
+                                        </button>
+                                        <p className="text-xs font-bold text-sky-600/60 mt-2 text-center">Protegido por 10-Min Cooldown</p>
                                     </div>
+                                )}
 
-                                    {dailyLog.selectedMeal && (
-                                        <div className="grid grid-cols-4 gap-2 animate-in fade-in zoom-in-95">
-                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg text-xs">Todo</button>
-                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs">Mitad</button>
-                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'LITTLE')} className="py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs">Poco</button>
-                                            <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'NONE')} className="py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs">Nada</button>
+                                {/* Comidas (AM y PM) */}
+                                {selectedColor !== 'GREEN' && (
+                                    <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
+                                        <h4 className="font-black text-orange-800 text-lg mb-2">🍽️ Registro Nutricional</h4>
+                                        <div className="grid grid-cols-3 gap-2 mb-3">
+                                            <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'BREAKFAST' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'BREAKFAST' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Desayuno</button>
+                                            <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'LUNCH' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'LUNCH' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Almuerzo</button>
+                                            <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'DINNER' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'DINNER' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Cena</button>
                                         </div>
-                                    )}
-                                </div>
+
+                                        {dailyLog.selectedMeal && (
+                                            <div className="grid grid-cols-4 gap-2 animate-in fade-in zoom-in-95">
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg text-xs">Todo</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs">Mitad</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'LITTLE')} className="py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs">Poco</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'NONE')} className="py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs">Nada</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Logística Interna (AM y PM) */}
+                                {(selectedColor === 'RED' || selectedColor === 'BLUE') && (
+                                    <div className="p-4 grid grid-cols-2 gap-3">
+                                        <button onClick={handleLaundryLog} className="py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm">
+                                            <span className="text-xl">🧺</span> Lavar Ropa
+                                        </button>
+                                        <button onClick={handleRoomCleaningLog} className="py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm">
+                                            <span className="text-xl">🧹</span> Aseo Habitación
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Tareas de Noche (VERDE) */}
+                                {selectedColor === 'GREEN' && (
+                                    <div className="bg-slate-800 p-4 rounded-2xl">
+                                        <h4 className="font-black text-white text-lg mb-2 flex items-center gap-2"><span>🔦</span> Control de Noche</h4>
+                                        <button onClick={handleSecurityRound} type="button" className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold rounded-xl transition-all shadow-inner">
+                                            Registrar Ronda Cumplida
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Bitacora General */}
                                 <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl relative">
@@ -1015,9 +1074,18 @@ export default function ZendityCareTabletPage() {
                                         className="w-full bg-white border border-red-200 p-4 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-red-500 outline-none placeholder-slate-400"
                                     />
                                 </div>
-                                <button onClick={submitHospitalTransfer} disabled={submitting || !hospitalReason} className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black text-lg rounded-2xl mt-4 shadow-lg shadow-red-600/30 active:scale-95 transition-all flex items-center justify-center gap-3">
-                                    {submitting ? "Procesando..." : <><span>⚡️</span> Empezar Traslado e Imprimir Nota</>}
-                                </button>
+                                <div className="space-y-3 mt-4">
+                                    <button onClick={submitHospitalTransfer} disabled={submitting || !hospitalReason} className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-red-600/30 active:scale-95 transition-all flex items-center justify-center gap-3">
+                                        {submitting ? "Procesando..." : <><span>⚡️</span> Empezar Traslado e Imprimir Nota Corta</>}
+                                    </button>
+
+                                    <EmergencyPdfButton
+                                        patientId={activePatient.id}
+                                        className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-black text-md rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <span>�️</span> Imprimir Expediente Clínico Completo (PDF)
+                                    </EmergencyPdfButton>
+                                </div>
                             </div>
                         )}
 

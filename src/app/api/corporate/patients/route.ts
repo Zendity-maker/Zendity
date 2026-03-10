@@ -34,6 +34,7 @@ export async function GET(req: Request) {
             colorGroup: 'UNASSIGNED',
             clinicalRisk: p.downtonRisk ? 'HIGH' : 'MODERATE',
             leaveType: p.leaveType || null,
+            photoUrl: p.photoUrl || null,
             joinDate: p.createdAt
         }));
 

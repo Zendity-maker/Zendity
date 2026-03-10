@@ -139,8 +139,12 @@ export default function MasterPatientDirectory() {
                                         <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                        <UserIcon className="w-6 h-6" />
+                                                    <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black overflow-hidden relative ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        {patient.photoUrl ? (
+                                                            <img src={patient.photoUrl} alt={patient.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <UserIcon className="w-6 h-6" />
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="font-black text-slate-800 text-base">{patient.name}</p>

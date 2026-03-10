@@ -6,10 +6,11 @@ import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
 import PatientEMARTab from "@/components/medical/emar/PatientEMARTab";
+import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClinicalSummaryTab";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
-    const [activeTab, setActiveTab] = useState("upps");
+    const [activeTab, setActiveTab] = useState("clinical");
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -132,7 +133,10 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 {/* Simulador de Pestañas de Historial */}
                 <div className="border-b border-neutral-200">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                        <button className="border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition cursor-not-allowed">
+                        <button
+                            onClick={() => setActiveTab("clinical")}
+                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'clinical' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                        >
                             Resumen Clínico
                         </button>
                         <button
@@ -158,6 +162,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
 
                 {/* Contenido (Lazy Loading de la Fase 23 & 24) */}
                 <div className="mt-6">
+                    {activeTab === "clinical" && <PatientClinicalSummaryTab patientData={patientData} onRefresh={fetchPatientData} />}
                     {activeTab === "upps" && <PatientUlcersTab />}
                     {activeTab === "falls" && <PatientFallRiskTab />}
                     {activeTab === "meds" && <PatientEMARTab patientId={params.id} />}

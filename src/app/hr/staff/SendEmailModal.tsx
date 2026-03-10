@@ -86,8 +86,8 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                     <Send className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-white">Zendity Corporate Comms</h2>
-                                    <p className="text-indigo-200 text-xs">Comunicación Oficial Interna</p>
+                                    <h2 className="text-xl font-bold text-white">Central de Comunicados</h2>
+                                    <p className="text-indigo-200 text-xs">Avisos Oficiales B2B</p>
                                 </div>
                             </div>
                             <button
