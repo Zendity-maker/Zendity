@@ -82,7 +82,7 @@ export default function ZendityAcademyPage() {
                         Hola {user?.name?.split(' ')[0]}. Tu métrica de Certificación Continua es de <span className="font-bold">{complianceScore}/100</span> PTS.
                         {complianceScore < 80 ? ' Hemos detectado áreas obligatorias de refuerzo clínico. Completa los cursos para restaurar tus accesos operacionales.' : ' ¡Excelente trabajo! Mantienes un récord perfecto y tu turno se encuentra activo.'}
                     </p>
-                    <button className="w-full bg-slate-50 text-slate-800 font-semibold py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-sm">
+                    <button onClick={() => alert("🗂️ Políticas y Procedimientos Operativos en proceso de sincronización con la Sede Central (HQ).")} className="w-full bg-slate-50 text-slate-800 font-semibold py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-sm">
                         Ver Políticas de Zendity HQ
                     </button>
 
