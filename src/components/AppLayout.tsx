@@ -167,6 +167,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         ))
                     ) : (
                         clinicalNavigation.map((item) => {
+                            // FASE 30: Hide Cabina Supervisor from ordinary Caregivers
+                            if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
+
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             return (
                                 <Link
