@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         (pathname.startsWith("/corporate") && !pathname.startsWith("/corporate/medical/handovers")))) {
                     router.replace("/");
                 }
-                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers")) {
+                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy")) {
                     router.replace("/care");
                 }
                 else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance")) {
