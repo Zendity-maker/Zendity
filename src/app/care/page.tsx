@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
+import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 
 export default function ZendityCareTabletPage() {
     const { user } = useAuth();
@@ -802,6 +803,8 @@ export default function ZendityCareTabletPage() {
             </div>
 
             <div className="max-w-7xl mx-auto p-8">
+                <ZendiMomentsWidget />
+
                 {events.length > 0 && (
                     <div className="mb-8 flex flex-col gap-3">
                         {events.map((e: any) => {
@@ -853,23 +856,21 @@ export default function ZendityCareTabletPage() {
                                         {p.lifePlan && <p className="mt-2 text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg inline-block">PAI: {p.lifePlan.feeding}</p>}
                                     </div>
 
-                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setModalType('VITALS'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
-                                            <span className="text-4xl pr-1">🩺</span><span className="text-xs font-black text-slate-500 uppercase">Vitales</span>
+                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <button onClick={() => { setActivePatient(p); setModalType('VITALS'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
+                                            <span className="text-2xl drop-shadow-sm">🩺</span><span className="text-[11px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Vitales</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-8 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all">
-                                            <span className="text-4xl pr-1">📝</span><span className="text-xs font-black text-slate-500 uppercase">Bitácora</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
+                                            <span className="text-2xl drop-shadow-sm">📝</span><span className="text-[11px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Bitácora</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-8 bg-teal-50 border border-teal-100 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-teal-100 col-span-2">
-                                            <span className="text-4xl pr-1">💊</span><span className="text-xs font-black text-teal-700 uppercase">Medicamentos</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-4 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-2xl flex items-center justify-center gap-2 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-2 focus:ring-teal-300">
+                                            <span className="text-2xl drop-shadow-sm relative bottom-0.5">💊</span><span className="text-xs font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
                                         </button>
-                                    </div>
-                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-white border-t border-slate-100 ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors">
-                                            <span className="text-xl">⚠️</span> Reportar Caída
+                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm mt-1">
+                                            <span className="text-lg">⚠️</span> <span className="text-[10px] uppercase tracking-widest mt-0.5">Alerta Caída</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors">
-                                            <span className="text-xl">🚑</span> Trasladar
+                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors mt-1">
+                                            <span className="text-lg">🚑</span> <span className="text-[10px] uppercase tracking-widest mt-0.5">Trasladar ER</span>
                                         </button>
                                     </div>
                                 </div>

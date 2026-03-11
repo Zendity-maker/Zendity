@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FaUserPlus, FaTrashAlt, FaKey, FaEnvelope, FaUserTag, FaUserCircle } from "react-icons/fa";
+import SendFamilyEmailModal from "@/components/medical/patient/SendFamilyEmailModal";
 
 export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
@@ -129,13 +130,19 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             </p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => handleRevokeAccess(member.id)}
-                                        className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 border border-rose-100 w-full sm:w-auto justify-center shadow-sm"
-                                        title="Revocar Acceso"
-                                    >
-                                        <FaTrashAlt /> Revocar
-                                    </button>
+                                    <div className="flex flex-col gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+                                        <SendFamilyEmailModal
+                                            defaultMode="INDIVIDUAL"
+                                            familyMembers={[member]}
+                                        />
+                                        <button
+                                            onClick={() => handleRevokeAccess(member.id)}
+                                            className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 border border-rose-100 justify-center shadow-sm"
+                                            title="Revocar Acceso"
+                                        >
+                                            <FaTrashAlt /> Revocar
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

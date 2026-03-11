@@ -10,6 +10,7 @@ import {
     ExclamationTriangleIcon,
     BuildingOffice2Icon
 } from "@heroicons/react/24/outline";
+import SendFamilyEmailModal from "@/components/medical/patient/SendFamilyEmailModal";
 
 export default function MasterPatientDirectory() {
     const [patients, setPatients] = useState<any[]>([]);
@@ -96,6 +97,11 @@ export default function MasterPatientDirectory() {
 
                 {/* Filters & Search */}
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+
+                    <div className="flex gap-3 w-full md:w-auto">
+                        <SendFamilyEmailModal defaultMode="BROADCAST" />
+                    </div>
+
                     <div className="relative w-full md:w-96">
                         <MagnifyingGlassIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input

@@ -95,6 +95,7 @@ model User {
   // FASE 9 Integrations
   medicationAudits  MedicationAuditLog[]
   zendiInteractions ZendiInteractionLog[]
+  zendiFamilyMoments ZendiFamilyMoment[]
 
   // FASE 18 Integrations
   specialistAppointments ConciergeAppointment[] @relation("SpecialistAppointments")
@@ -194,6 +195,7 @@ model Patient {
 
   // FASE 9 Integrations
   healthAppointments HealthAppointment[]
+  zendiFamilyMoments ZendiFamilyMoment[]
 
   // FASE 18 Integrations
   conciergeOrders       ConciergeOrder[]
@@ -642,6 +644,25 @@ model HealthAppointment {
   createdAt       DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
+}
+
+model ZendiFamilyMoment {
+  id             String   @id @default(uuid())
+  patientId      String
+  authorId       String
+  headquartersId String
+
+  status         String   @default("PENDING")
+  optionGen1     String
+  optionGen2     String
+  selectedOption String?
+  photoUrl       String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  patient        Patient  @relation(fields: [patientId], references: [id])
+  author         User     @relation(fields: [authorId], references: [id])
 }
 
 model ZendiInteractionLog {

@@ -81,6 +81,10 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         return <div className="min-h-screen bg-neutral-50 p-6 flex items-center justify-center font-bold text-slate-500">Cargando expediente corporativo...</div>;
     }
 
+    if (!patientData) {
+        return <div className="min-h-screen bg-neutral-50 p-6 flex items-center justify-center font-bold text-rose-500">Error: No se pudo cargar el expediente corporativo del residente. Verifica tus permisos o si el paciente existe.</div>;
+    }
+
     return (
         <div className="min-h-screen bg-neutral-50 p-6 font-sans">
             <div className="max-w-6xl mx-auto space-y-6">
