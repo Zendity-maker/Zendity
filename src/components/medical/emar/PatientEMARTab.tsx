@@ -8,36 +8,89 @@ import {
     XCircleIcon,
     ExclamationTriangleIcon,
     ChartPieIcon,
-    ClockIcon
+    ClockIcon,
+    PencilSquareIcon
 } from "@heroicons/react/24/outline";
+import { useAuth } from "@/context/AuthContext";
+
+const AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM"];
 
 export default function PatientEMARTab({ patientId }: { patientId: string }) {
+    const { user } = useAuth();
     const [medications, setMedications] = useState<any[]>([]);
     const [adherenceRate, setAdherenceRate] = useState<number>(0);
     const [weeklyLogsCount, setWeeklyLogsCount] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const res = await fetch(`/api/emar/patient/${patientId}`);
-                const data = await res.json();
-                if (data.success) {
-                    setMedications(data.medications);
-                    setAdherenceRate(data.adherenceRate);
-                    setWeeklyLogsCount(data.weeklyLogsCount);
-                }
-            } catch (error) {
-                console.error("Error fetching patient eMAR data:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    // Manual Schedule Edit State
+    const [editingMedId, setEditingMedId] = useState<string | null>(null);
+    const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+    const [submitting, setSubmitting] = useState(false);
 
+    const fetchData = async () => {
+        try {
+            const res = await fetch(`/api/emar/patient/${patientId}`);
+            const data = await res.json();
+            if (data.success) {
+                setMedications(data.medications);
+                setAdherenceRate(data.adherenceRate);
+                setWeeklyLogsCount(data.weeklyLogsCount);
+            }
+        } catch (error) {
+            console.error("Error fetching patient eMAR data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         if (patientId) {
             fetchData();
         }
     }, [patientId]);
+
+    const openEditModal = (pm: any) => {
+        setEditingMedId(pm.id);
+        const existing = pm.scheduleTimes ? pm.scheduleTimes.split(',').map((t: string) => t.trim()) : [];
+        setSelectedTimes(existing);
+    };
+
+    const toggleTime = (time: string) => {
+        setSelectedTimes(prev =>
+            prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
+        );
+    };
+
+    const saveSchedule = async () => {
+        if (!editingMedId) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/med/crud", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "MODIFIED",
+                    patientMedicationId: editingMedId,
+                    scheduleTimes: selectedTimes.length > 0 ? selectedTimes.join(", ") : "PRN",
+                    authorId: user?.id,
+                    reason: "Reasignación clínica de horarios (Enfermería)"
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEditingMedId(null);
+                setLoading(true);
+                fetchData();
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de red");
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -125,9 +178,17 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                                             {pm.medication.name}
                                             {pm.frequency === 'PRN' && <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded uppercase tracking-widest">S.O.S</span>}
                                         </h4>
-                                        <p className="text-sm font-bold text-slate-500 mt-1">
-                                            Dosis: {pm.medication.dosage} • Vía: {pm.medication.route} • Freq: {pm.frequency === 'PRN' ? 'A demanda' : pm.scheduleTimes}
-                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <p className="text-sm font-bold text-slate-500 mt-1">
+                                                Dosis: {pm.medication.dosage} • Vía: {pm.medication.route} • Freq: {pm.frequency === 'PRN' ? 'A demanda' : pm.scheduleTimes}
+                                            </p>
+                                            <button
+                                                onClick={() => openEditModal(pm)}
+                                                className="bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 font-bold px-3 py-1 rounded-lg text-xs mt-1 transition-colors flex items-center gap-1 border border-slate-200"
+                                            >
+                                                <PencilSquareIcon className="w-3 h-3" /> Asignar Horario
+                                            </button>
+                                        </div>
                                         <p className="text-xs text-slate-400 mt-1 italic">"{pm.instructions}"</p>
                                     </div>
                                     <div className="text-right">
@@ -172,6 +233,46 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Reasignación Manual de Horarios */}
+            {editingMedId && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 leading-relaxed">
+                        <h3 className="text-2xl font-black text-slate-800 mb-2">Asignar Horarios</h3>
+                        <p className="text-sm font-medium text-slate-500 mb-6">Selecciona en qué recuento del Carrito debe aparecer este medicamento de forma recurrente.</p>
+
+                        <div className="space-y-3 mb-8">
+                            {AVAILABLE_TIMES.map(time => (
+                                <label key={time} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedTimes.includes(time) ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedTimes.includes(time)}
+                                        onChange={() => toggleTime(time)}
+                                        className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500 focus:ring-2 focus:ring-offset-2"
+                                    />
+                                    <span className="font-bold">{time}</span>
+                                </label>
+                            ))}
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setEditingMedId(null)}
+                                className="flex-1 py-3 text-slate-500 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={saveSchedule}
+                                disabled={submitting}
+                                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 disabled:opacity-50"
+                            >
+                                {submitting ? 'Guardando...' : 'Aplicar Horarios'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
