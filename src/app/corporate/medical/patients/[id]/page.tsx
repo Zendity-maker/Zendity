@@ -7,6 +7,7 @@ import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
 import PatientEMARTab from "@/components/medical/emar/PatientEMARTab";
 import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClinicalSummaryTab";
+import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
@@ -149,7 +150,13 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             onClick={() => setActiveTab("upps")}
                             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'upps' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
                         >
-                            Integridad Cutánea / UPPs
+                            Registro UPPs (24h)
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("family")}
+                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'family' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                        >
+                            Familiares y Accesos
                         </button>
                         <button
                             onClick={() => setActiveTab("falls")}
@@ -160,12 +167,13 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                     </nav>
                 </div>
 
-                {/* Contenido (Lazy Loading de la Fase 23 & 24) */}
+                {/* Contenido Dinámico */}
                 <div className="mt-6">
                     {activeTab === "clinical" && <PatientClinicalSummaryTab patientData={patientData} onRefresh={fetchPatientData} />}
+                    {activeTab === "meds" && <PatientEMARTab patientId={params.id as string} />}
                     {activeTab === "upps" && <PatientUlcersTab />}
                     {activeTab === "falls" && <PatientFallRiskTab />}
-                    {activeTab === "meds" && <PatientEMARTab patientId={params.id} />}
+                    {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
                 </div>
             </div>
 

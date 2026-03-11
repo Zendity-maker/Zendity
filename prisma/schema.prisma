@@ -476,6 +476,9 @@ model UserCourse {
   headquartersId String
   status         CourseStatus @default(IN_PROGRESS)
   score          Int? // Si incluye exámen final
+  attemptsCount  Int          @default(0) // FASE 46: 3-Strikes
+  lockedUntil    DateTime?    // FASE 46: Bloqueo de 24h
+  lastAttemptAt  DateTime?
   completedAt    DateTime?
   certificateUrl String?
 

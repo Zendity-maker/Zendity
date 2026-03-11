@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import InteractiveCourseCard from "@/components/academy/InteractiveCourseCard";
 
 export default function ZendityAcademyPage() {
     const { user } = useAuth();
@@ -20,11 +21,9 @@ export default function ZendityAcademyPage() {
     const fetchCoursesData = async () => {
         try {
             const hqId = user?.hqId || user?.headquartersId;
-            // 1. Cargar el Catálogo de la Sede
             const catRes = await fetch(`/api/academy?hqId=${hqId}`);
             const catData = await catRes.json();
 
-            // 2. Cargar el Progreso del Empleado Activo
             const histRes = await fetch(`/api/academy?hqId=${hqId}&employeeId=${user?.id}`);
             const histData = await histRes.json();
 
@@ -39,127 +38,88 @@ export default function ZendityAcademyPage() {
         }
     };
 
-    // Helper para determinar el estatus visual del curso
     const getCourseStatus = (courseId: string) => {
         const enrollment = userCourses.find(uc => uc.courseId === courseId);
         return enrollment ? enrollment.status : 'PENDING';
     };
 
-    if (!user) return <div className="p-8 text-center text-teal-600 font-bold animate-pulse">Cargando Plataforma Educativa...</div>;
+    if (!user) return <div className="p-8 text-center text-indigo-600 font-bold animate-pulse">Cargando Plataforma Educativa...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent">
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-xl shadow-md">Z</span>
                         Zendity Academy
                     </h2>
-                    <p className="text-gray-500 mt-1">
-                        LMS para Capacitación Continua Inteligente
+                    <p className="text-slate-500 mt-1 font-medium">
+                        Centro Oficial de Certificación y Capacitación Operativa
                     </p>
                 </div>
                 <div>
-                    <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-800 font-bold border border-teal-200">
+                    <div className="bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-800 font-bold border border-indigo-100">
                             {user?.name?.substring(0, 2).toUpperCase() || 'HQ'}
                         </div>
                         <div>
-                            <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-                            <p className="text-xs text-gray-500">{user?.role}</p>
+                            <p className="text-sm font-bold text-slate-900">{user?.name}</p>
+                            <p className="text-xs uppercase font-bold tracking-wider text-indigo-500">{user?.role}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Resumen de IA */}
-                <div className="md:col-span-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
-                    <div className="flex items-center space-x-2 mb-4">
-                        <span className="text-2xl">🤖</span>
-                        <h3 className="text-lg font-bold text-gray-900">Zendity AI Coach</h3>
+                <div className="md:col-span-1 bg-gradient-to-b from-white to-slate-50 rounded-2xl p-6 shadow-sm border border-slate-200 h-fit">
+                    <div className="flex items-center space-x-3 mb-5">
+                        <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-2xl shadow-inner shadow-indigo-200/50">🤖</div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-900 leading-tight">Zendi AI</h3>
+                            <p className="text-xs font-bold text-indigo-600 tracking-wide uppercase">Coach Académico</p>
+                        </div>
                     </div>
-                    <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                        Hola {user?.name?.split(' ')[0]}. Tu métrica de Certificación Continua es de <span className="font-bold">{complianceScore}/100</span> PTS.
-                        {complianceScore < 80 ? ' Hemos detectado áreas obligatorias de refuerzo clínico. Completa los cursos para restaurar tus accesos operacionales.' : ' ¡Excelente trabajo! Mantienes un récord perfecto y tu turno se encuentra activo.'}
+                    <p className="text-sm text-slate-600 leading-relaxed mb-6 font-medium">
+                        Hola {user?.name?.split(' ')[0]}. Tu métrica de Certificación Oficial Zendity es de <span className={`font-black ${complianceScore < 80 ? 'text-red-600' : 'text-emerald-600'}`}>{complianceScore}/100</span> PTS.
+                        {complianceScore < 80 ? ' Tienes certificaciones críticas pendientes. Completa los módulos para evitar bloqueos operativos.' : ' ¡Excelente ritmo! Mantienes tus certificaciones al día.'}
                     </p>
-                    <button onClick={() => alert("🗂️ Políticas y Procedimientos Operativos en proceso de sincronización con la Sede Central (HQ).")} className="w-full bg-slate-50 text-slate-800 font-semibold py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors text-sm">
-                        Ver Políticas de Zendity HQ
+                    <button onClick={() => alert("🗂️ Políticas y Procedimientos Operativos en proceso de sincronización con la central.")} className="w-full bg-white text-slate-700 font-bold py-3 rounded-xl border-2 border-slate-200 hover:border-indigo-300 hover:text-indigo-700 transition-all text-sm mb-4">
+                        Leer Políticas Corporativas Mínimas
                     </button>
 
                     {complianceScore < 80 && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl">
-                            <p className="text-xs font-bold text-red-800 flex gap-2"><span>⚠️</span> Suspensión Activa</p>
-                            <p className="text-xs text-red-700 mt-1">Acaba los módulos pendientes para poder marcar tu entrada (Punch-In).</p>
+                        <div className="mt-2 p-4 bg-red-50 border border-red-200 rounded-xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-red-100 rounded-bl-full -z-10 opacity-50"></div>
+                            <p className="text-xs font-black text-red-800 flex items-center gap-2 tracking-wide uppercase mb-1">
+                                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                                Riesgo de Operación
+                            </p>
+                            <p className="text-xs text-red-900/80 font-medium">Si tu puntaje baja de 80, no podrás hacer Punch-In en tus turnos clínicos.</p>
                         </div>
                     )}
                 </div>
 
-                {/* Lista de Cursos */}
-                <div className="md:col-span-2 space-y-4">
-                    {courses.map(course => {
-                        const status = getCourseStatus(course.id);
-                        return (
-                            <div key={course.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col hover:shadow-md transition-shadow">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-2">
-                                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-1">⏱️ {course.durationMins} MINS</span>
-                                            <span className="text-xs text-teal-700 font-bold bg-teal-50 border border-teal-100 px-2 py-0.5 rounded flex items-center gap-1">🚀 +{course.bonusCompliance} PTS</span>
-                                            {status === 'COMPLETED' && <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">✅ APROBADO</span>}
-                                        </div>
-                                        <h4 className="text-xl font-bold text-gray-900">{course.title}</h4>
-                                        <p className="text-sm text-gray-500 mt-1">{course.description}</p>
-                                    </div>
-                                </div>
-
-                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 max-h-[250px] overflow-y-auto mb-4 text-sm text-slate-700 whitespace-pre-wrap font-mono custom-scrollbar">
-                                    {course.content || "Material de estudio no disponible."}
-                                </div>
-
-                                <div className="flex justify-end border-t border-slate-100 pt-4 mt-auto">
-                                    {status !== 'COMPLETED' ? (
-                                        <button
-                                            disabled={loading}
-                                            onClick={async () => {
-                                                if (confirm(`¿Has terminado de leer y deseas iniciar la evaluación de "${course.title}"?`)) {
-                                                    setLoading(true);
-                                                    const hqId = user?.hqId || user?.headquartersId;
-                                                    const res = await fetch('/api/academy', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ employeeId: user?.id, hqId, courseId: course.id, examScore: 100 })
-                                                    });
-                                                    const data = await res.json();
-
-                                                    if (data.success) {
-                                                        setComplianceScore(data.newComplianceScore);
-                                                        if (data.newComplianceScore >= 80) {
-                                                            alert("🎉 ¡Felicidades! Has aprobado el curso. Tu nivel volvió a estado 'Safe' y tus credenciales de turno fueron restauradas.");
-                                                        } else {
-                                                            alert(`✅ Curso Aprobado. Puntaje actual mejorado a: ${data.newComplianceScore} PTS.`);
-                                                        }
-                                                    }
-                                                    await fetchCoursesData();
-                                                }
-                                            }}
-                                            className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all bg-teal-600 hover:bg-teal-700 hover:scale-105 active:scale-95 text-white shadow-md flex items-center gap-2"
-                                        >
-                                            <span>✍️</span> Tomar Examen de Certificación
-                                        </button>
-                                    ) : (
-                                        <button className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all bg-slate-100 text-slate-500 flex items-center gap-2 cursor-not-allowed">
-                                            <span>📜</span> Certificado Guardado en Expediente
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )
-                    })}
+                {/* Lista de Cursos Interactivos */}
+                <div className="md:col-span-2 space-y-5">
+                    {courses.map(course => (
+                        <InteractiveCourseCard
+                            key={course.id}
+                            course={course}
+                            user={user}
+                            initialStatus={getCourseStatus(course.id)}
+                            onCourseCompleted={fetchCoursesData}
+                        />
+                    ))}
                     {courses.length === 0 && (
-                        <div className="p-12 text-center text-slate-400 font-medium bg-white rounded-2xl border border-dashed border-slate-200">El Directorio de Academia no tiene cursos en desarrollo.</div>
+                        <div className="p-12 text-center text-slate-400 font-medium bg-white rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
+                            <span className="text-4xl mb-3">🎓</span>
+                            <p>El Directorio de Certificaciones Oficiales está al día.</p>
+                        </div>
                     )}
                 </div>
             </div>
         </div>
     );
 }
+
