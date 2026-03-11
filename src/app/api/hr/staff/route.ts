@@ -117,3 +117,43 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Failed to update employee' }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'Falta el ID del empleado' }, { status: 400 });
+        }
+
+        // Bloqueo de seguridad: No puede eliminarse a sí mismo
+        if (id === session.user.id) {
+            return NextResponse.json({ error: 'No te puedes eliminar a ti mismo.' }, { status: 403 });
+        }
+
+        const userToDelete = await prisma.user.findUnique({ where: { id } });
+        if (!userToDelete || userToDelete.headquartersId !== session.user.headquartersId) {
+            return NextResponse.json({ error: 'Empleado no encontrado o de otra sede.' }, { status: 404 });
+        }
+
+        await prisma.user.delete({
+            where: { id }
+        });
+
+        return NextResponse.json({ success: true }, { status: 200 });
+
+    } catch (error: any) {
+        console.error('API Error:', error);
+        // Error común de Prisma cuando el empleado ya tiene registros (eMAR, Vitamines) que bloquean la eliminación dura:
+        if (error.code === 'P2003') {
+            return NextResponse.json({ error: 'No se puede eliminar porque este empleado ya tiene registros clínicos o turnos asociados en la base de datos. Por favor, utilice el botón "Suspender Turno" (🛑) en su lugar para revocar su acceso seguro al sistema.' }, { status: 400 });
+        }
+        return NextResponse.json({ error: 'Falló la eliminación del empleado' }, { status: 500 });
+    }
+}

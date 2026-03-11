@@ -51,6 +51,25 @@ export default function ZendityStaffDirectoryPage() {
         }
     };
 
+    const handleDelete = async (empId: string, empName: string) => {
+        if (!confirm(`¿Está seguro que desea eliminar a ${empName} PERMANENTEMENTE?\nEsta acción es irreversible y eliminará su acceso al sistema Zendity.`)) return;
+
+        try {
+            const res = await fetch(`/api/hr/staff?id=${empId}`, {
+                method: "DELETE"
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setStaff(prev => prev.filter(emp => emp.id !== empId));
+            } else {
+                alert(data.error || "Fallo al intentar eliminar al empleado.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de red al intentar eliminar.");
+        }
+    };
+
     if (loading) return <div className="p-20 text-center font-bold text-slate-400 animate-pulse text-xl">Cargando Staff HR...</div>;
 
     return (
@@ -137,6 +156,13 @@ export default function ZendityStaffDirectoryPage() {
                                                 title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
                                             >
                                                 {emp.isShiftBlocked ? "🔓" : "🛑"}
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                                title="Eliminar Empleado Permanentemente"
+                                            >
+                                                🗑️
                                             </button>
                                         </div>
                                     </td>
