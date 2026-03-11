@@ -60,6 +60,9 @@ model Headquarters {
 
   // FASE 50 Kitchen Module
   kitchenObservations KitchenObservation[]
+
+  // FASE 60 Zendi AI Broadcast
+  globalAnnouncements GlobalAnnouncement[]
 }
 
 // =======================
@@ -1237,4 +1240,18 @@ model KitchenObservation {
 
   headquarters      Headquarters @relation(fields: [headquartersId], references: [id])
   supervisor        User         @relation("SupervisorObservations", fields: [supervisorId], references: [id])
+}
+
+// =======================
+// FASE 60: ZENDI AI BROADCAST
+// =======================
+
+model GlobalAnnouncement {
+  id             String       @id @default(uuid())
+  headquartersId String
+  message        String       @db.Text
+  authorId       String?      // Si Zendi lo disparó a nombre de alguien
+  createdAt      DateTime     @default(now())
+
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
 }

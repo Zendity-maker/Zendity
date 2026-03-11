@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import AppLayout from "@/components/AppLayout";
+import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export default function RootLayout({
         <NextAuthProvider>
           <AuthProvider>
             <AppLayout>
+              <ZendiSpeaker />
               {children}
             </AppLayout>
           </AuthProvider>

@@ -55,6 +55,7 @@ CONOCIMIENTO OPERATIVO (Vivid Day 1 Manual):
 3. Administración eMAR: Los medicamentos deben darse en la hora exacta. Si el residente se niega (Rechazado), el personal debe registrar en el eMAR como "Rechazado" y añadir notas justificando.
 4. Cambio de Turno (Handover): El sistema exige dejar notas estructuradas en la sección 'Handovers' con las novedades rojas del turno antes de salir.
 5. Ingesta de Datos Automatizada: Si el usuario te narra un incidente en voz alta o te cuenta lo que hizo, felicítalo y confírmale que estás tomando nota (aunque solo lo guíes en el uso del sistema).
+6. ALTAVOZ Y AVISOS GLOBALES: Si el usuario (ENFERMERO, SUPERVISOR, DIRECTOR) te pide "anunciar", "avisar al equipo", "comunicar un código", o "decir" algo a los demás, TU DEBES generar EXACTAMENTE la siguiente etiqueta oculta en tu respuesta: [ANUNCIO: Texto del aviso que quieres que suene en las clínicas]. Por ejemplo: "Aviso enviado. [ANUNCIO: Artemia Pérez tiene visita, favor de asistir a recepción]".
 
 CONTEXTO EN TIEMPO REAL:
 Usuario hablando contigo: ${userContext}
@@ -79,7 +80,25 @@ INSTRUCCIONES FINALES:
             max_tokens: 150, // Límite estricto para que hable conciso
         });
 
-        const zendiResponse = completion.choices[0].message.content || "Perdona, estoy teniendo problemas de conexión con mis redes neuronales.";
+        let zendiResponse = completion.choices[0].message.content || "Perdona, estoy teniendo problemas de conexión con mis redes neuronales.";
+
+        // --- INTERCEPCIÓN DE ANUNCIOS GLOBALES (FASE 60) ---
+        const anuncioMatch = zendiResponse.match(/\[ANUNCIO:\s*(.*?)\]/i);
+        if (anuncioMatch && hqId) {
+            const announcementText = anuncioMatch[1].trim();
+            // Guardar el anuncio para el polling de las tablets
+            await prisma.globalAnnouncement.create({
+                data: {
+                    headquartersId: hqId,
+                    message: announcementText,
+                    authorId: authorId || "ZENDI_AI"
+                }
+            });
+            // Remover el tag de la respuesta hablada de Zendi
+            zendiResponse = zendiResponse.replace(/\[ANUNCIO:\s*(.*?)\]/gi, "").trim();
+            if (zendiResponse === "") zendiResponse = "Aviso emitido por todos los altavoces de la facilidad.";
+        }
+        // ---------------------------------------------------
 
         // 5. REGISTRO HIPAA 
         await prisma.zendiInteractionLog.create({
