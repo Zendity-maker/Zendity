@@ -20,7 +20,7 @@ export default function KitchenDashboard() {
         if (!user) return;
 
         // Prevent non-kitchen/admin access
-        if (user.role !== "KITCHEN" && user.role !== "ADMIN" && user.role !== "DIRECTOR") {
+        if (user.role !== "KITCHEN" && user.role !== "ADMIN" && user.role !== "DIRECTOR" && !user.secondaryRoles?.includes("KITCHEN")) {
             router.replace("/");
             return;
         }
@@ -147,8 +147,8 @@ export default function KitchenDashboard() {
                                         </div>
                                         <div className="text-right">
                                             <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${(patient.diet || '').toLowerCase().includes('peg') ? 'bg-purple-100 text-purple-700' :
-                                                    (patient.diet || '').toLowerCase().includes('mojado') || (patient.diet || '').toLowerCase().includes('puré') ? 'bg-sky-100 text-sky-700' :
-                                                        'bg-slate-100 text-slate-600'
+                                                (patient.diet || '').toLowerCase().includes('mojado') || (patient.diet || '').toLowerCase().includes('puré') ? 'bg-sky-100 text-sky-700' :
+                                                    'bg-slate-100 text-slate-600'
                                                 }`}>
                                                 {patient.diet || 'Regular (Sólida)'}
                                             </span>

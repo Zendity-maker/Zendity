@@ -85,9 +85,11 @@ model User {
   evalsReceived    EmployeeEvaluation[]       @relation("Employee")
   evalsGiven       EmployeeEvaluation[]       @relation("Evaluator")
 
-  // RRHH FASE 4 Integrations
+  // RRHH FASE 4 Administracion y Bajas
   isShiftBlocked Boolean @default(false)
   blockReason    String?
+  isDeleted      Boolean @default(false) // Permite soft-delete (Baja Definitiva) sin romper historiales eMAR
+  secondaryRoles Role[]  // FASE 51: Permite combinar puestos (ej. CAREGIVER + KITCHEN)
 
   // FASE 6 Integrations
   signedLifePlans LifePlan[] @relation("LifePlanSigner")

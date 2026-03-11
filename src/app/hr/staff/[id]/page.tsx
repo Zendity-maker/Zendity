@@ -11,6 +11,7 @@ import {
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
+import EditStaffRolesModal from "./EditStaffRolesModal";
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -111,7 +112,22 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     {/* Basic Info */}
                     <div className="flex-1 text-center md:text-left z-10">
                         <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight">{employee.name}</h1>
-                        <p className="text-xl text-indigo-600 font-bold mt-1 tracking-wide">{employee.role}</p>
+                        <div className="flex items-center justify-center md:justify-start gap-4 mt-2">
+                            <p className="text-xl text-indigo-600 font-bold tracking-wide flex items-center gap-2">
+                                {employee.role}
+                                {employee.secondaryRoles?.length > 0 && (
+                                    <span className="text-sm bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 mt-0.5">
+                                        +{employee.secondaryRoles.join(", ")}
+                                    </span>
+                                )}
+                            </p>
+                            {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
+                                <EditStaffRolesModal
+                                    employee={employee}
+                                    onUpdate={(data) => setEmployee({ ...employee, ...data })}
+                                />
+                            )}
+                        </div>
 
                         <div className="mt-6 flex flex-wrap gap-4 justify-center md:justify-start">
                             <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 font-medium text-sm">

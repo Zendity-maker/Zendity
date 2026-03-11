@@ -19,9 +19,11 @@ export async function GET(request: Request) {
                 name: true,
                 email: true,
                 role: true,
+                secondaryRoles: true,
                 pinCode: true,
                 complianceScore: true,
                 isShiftBlocked: true,
+                isDeleted: true,
                 createdAt: true
             },
             orderBy: { name: 'asc' }
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, email, role, pinCode } = body;
+        const { name, email, role, secondaryRoles, pinCode } = body;
         const hqId = session.user.headquartersId;
 
         if (!name || !email || !role) {
@@ -64,6 +66,7 @@ export async function POST(request: Request) {
                 name,
                 email: cleanEmail,
                 role: role,
+                secondaryRoles: secondaryRoles || [],
                 pinCode: pinCode || null,
                 headquartersId: hqId
             }
@@ -85,7 +88,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, role, pinCode, isShiftBlocked } = body;
+        const { id, role, secondaryRoles, pinCode, isShiftBlocked, isDeleted } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
@@ -98,7 +101,9 @@ export async function PATCH(request: Request) {
 
         const updateData: any = {};
         if (role !== undefined) updateData.role = role;
+        if (secondaryRoles !== undefined) updateData.secondaryRoles = secondaryRoles;
         if (pinCode !== undefined) updateData.pinCode = pinCode;
+        if (isDeleted !== undefined) updateData.isDeleted = isDeleted;
         if (isShiftBlocked !== undefined) {
             updateData.isShiftBlocked = isShiftBlocked;
             if (isShiftBlocked) updateData.blockReason = "Management suspension";
@@ -142,18 +147,15 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Empleado no encontrado o de otra sede.' }, { status: 404 });
         }
 
-        await prisma.user.delete({
-            where: { id }
+        await prisma.user.update({
+            where: { id },
+            data: { isDeleted: true }
         });
 
         return NextResponse.json({ success: true }, { status: 200 });
 
     } catch (error: any) {
         console.error('API Error:', error);
-        // Error común de Prisma cuando el empleado ya tiene registros (eMAR, Vitamines) que bloquean la eliminación dura:
-        if (error.code === 'P2003') {
-            return NextResponse.json({ error: 'No se puede eliminar porque este empleado ya tiene registros clínicos o turnos asociados en la base de datos. Por favor, utilice el botón "Suspender Turno" (🛑) en su lugar para revocar su acceso seguro al sistema.' }, { status: 400 });
-        }
         return NextResponse.json({ error: 'Falló la eliminación del empleado' }, { status: 500 });
     }
 }

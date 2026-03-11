@@ -30,8 +30,9 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "DIET_CHANGE" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
+    const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
@@ -63,6 +64,32 @@ export default function ZendityCareTabletPage() {
             setHubPhotoBase64(reader.result as string);
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleDietUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch(`/api/corporate/patients/${activePatient.id}/diet`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ diet: dietFormValue })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setModalType(null);
+                setZendiToast(`Dieta del residente sincronizada a ${dietFormValue}.`);
+                setPatients(patients.map(p => p.id === activePatient.id ? { ...p, diet: dietFormValue } : p));
+                setTimeout(() => setZendiToast(""), 3500);
+            } else {
+                alert("Error al actualizar la dieta.");
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     // ==========================================
@@ -859,7 +886,22 @@ export default function ZendityCareTabletPage() {
                                             <h2 className="text-2xl font-black text-slate-800 leading-tight">{p.name}</h2>
                                             <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl font-bold">{p.name.charAt(0)}</div>
                                         </div>
-                                        {p.lifePlan && <p className="mt-2 text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg inline-block">PAI: {p.lifePlan.feeding}</p>}
+                                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                                            {p.lifePlan && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.feeding}</p>}
+                                            <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md shadow-sm pl-2 overflow-hidden">
+                                                <span className="text-xs font-bold text-indigo-700">Dieta: {p.diet || 'Regular (Sólida)'}</span>
+                                                {(user?.role === "SUPERVISOR" || user?.role === "NURSE" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
+                                                    <button onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setActivePatient(p);
+                                                        setDietFormValue(p.diet || "Regular (Sólida)");
+                                                        setModalType('DIET_CHANGE');
+                                                    }} className="ml-2 text-[10px] bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-2.5 py-1.5 font-bold transition-colors uppercase tracking-wider active:scale-95 border-l border-indigo-200">
+                                                        Editar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
@@ -890,8 +932,43 @@ export default function ZendityCareTabletPage() {
             {modalType && (
                 <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
                     <div className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative">
-                        <button onClick={() => setModalType(null)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold">X</button>
+                        <button onClick={() => setModalType(null)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors">X</button>
                         <h3 className="text-3xl font-black text-slate-900 mb-6">{activePatient?.name}</h3>
+
+                        {modalType === 'DIET_CHANGE' && (
+                            <form onSubmit={handleDietUpdate} className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div>
+                                    <p className="font-bold text-slate-400 uppercase tracking-widest text-xs border-b pb-2">Modificar Dieta / Nutrición</p>
+                                    <p className="text-slate-600 text-sm mt-3 font-medium">Asigna un plan de alimentación específico para este residente.</p>
+                                </div>
+                                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 text-sm font-bold flex items-start gap-4">
+                                    <span className="text-2xl mt-0.5">🍲</span>
+                                    <div className="leading-relaxed">
+                                        Los cambios realizados aquí se sincronizarán inmediatamente con la pantalla central del equipo de <span className="underline decoration-2 underline-offset-2">Cocina y Nutrición</span>.
+                                    </div>
+                                </div>
+                                <div>
+                                    <select
+                                        value={dietFormValue}
+                                        onChange={(e) => setDietFormValue(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-xl font-black text-slate-800 text-base focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none cursor-pointer"
+                                    >
+                                        <option value="Regular (Sólida)">Regular (Sólida)</option>
+                                        <option value="Blanda / Semisólida">Blanda / Semisólida</option>
+                                        <option value="Líquidos Claros">Líquidos Claros</option>
+                                        <option value="Puré / Mojado">Puré / Mojado (Disfagia)</option>
+                                        <option value="PEG (Sonda)">PEG (Alimentación por Sonda)</option>
+                                        <option value="Diabética">Diabética</option>
+                                        <option value="Baja en Sodio">Baja en Sodio</option>
+                                        <option value="Renal">Renal</option>
+                                        <option value="Vegetariana">Vegetariana</option>
+                                    </select>
+                                </div>
+                                <button type="submit" disabled={submitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black rounded-xl text-base transition-all active:scale-95 shadow-md flex items-center justify-center gap-3">
+                                    {submitting ? 'Sincronizando Plataforma...' : 'Confirmar Nueva Dieta'}
+                                </button>
+                            </form>
+                        )}
 
                         {modalType === 'VITALS' && (
                             <div className="space-y-4">

@@ -10,6 +10,7 @@ export default function ZendityStaffDirectoryPage() {
     const router = useRouter();
     const [staff, setStaff] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
 
     useEffect(() => {
         if (!user) return;
@@ -70,7 +71,30 @@ export default function ZendityStaffDirectoryPage() {
         }
     };
 
+    const handleRestore = async (empId: string, empName: string) => {
+        if (!confirm(`¿Restaurar a ${empName} del archivo de bajas definitivas y reincorporarlo al sistema?`)) return;
+        try {
+            const res = await fetch("/api/hr/staff", {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: empId, isDeleted: false })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStaff(prev => prev.map(emp => emp.id === empId ? { ...emp, isDeleted: false } : emp));
+            } else {
+                alert(data.error || "Fallo al restaurar empleado.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de red.");
+        }
+    };
+
     if (loading) return <div className="p-20 text-center font-bold text-slate-400 animate-pulse text-xl">Cargando Staff HR...</div>;
+
+    const activeStaff = staff.filter(e => !e.isDeleted);
+    const inactiveStaff = staff.filter(e => e.isDeleted);
+    const displayedStaff = activeTab === 'ACTIVE' ? activeStaff : inactiveStaff;
 
     return (
         <div className="space-y-6">
@@ -79,9 +103,22 @@ export default function ZendityStaffDirectoryPage() {
 
             <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mt-6 animate-in slide-in-from-bottom-4">
                 <div className="px-6 py-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center flex-wrap gap-4">
-                    <h3 className="font-bold text-slate-800 text-lg">Staff Clínico Autorizado</h3>
+                    <div className="flex gap-2 bg-slate-200/50 p-1 rounded-xl">
+                        <button
+                            onClick={() => setActiveTab('ACTIVE')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'ACTIVE' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Personal Activo ({activeStaff.length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('INACTIVE')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'INACTIVE' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Archivo / Bajas ({inactiveStaff.length})
+                        </button>
+                    </div>
                     <div className="flex items-center gap-3">
-                        <SendEmailModal employees={staff} />
+                        <SendEmailModal employees={activeStaff} />
                         <AddStaffModal />
                     </div>
                 </div>
@@ -98,7 +135,7 @@ export default function ZendityStaffDirectoryPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {staff.map((emp) => (
+                            {displayedStaff.map((emp) => (
                                 <tr
                                     key={emp.id}
                                     onClick={() => router.push(`/hr/staff/${emp.id}`)}
@@ -116,9 +153,16 @@ export default function ZendityStaffDirectoryPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-xs font-bold border border-slate-200">
-                                            {emp.role}
-                                        </span>
+                                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                            <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-xs font-bold border border-slate-200">
+                                                {emp.role}
+                                            </span>
+                                            {emp.secondaryRoles?.map((sr: string) => (
+                                                <span key={sr} className="bg-teal-50 text-teal-700 px-2 py-1 rounded-md text-[10px] font-bold border border-teal-100">
+                                                    +{sr}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex flex-col items-center">
@@ -150,20 +194,31 @@ export default function ZendityStaffDirectoryPage() {
                                             >
                                                 👁️
                                             </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleBlockToggle(emp.id, emp.isShiftBlocked); }}
-                                                className={`p-2 rounded-lg transition-colors shadow-sm border ${emp.isShiftBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}
-                                                title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
-                                            >
-                                                {emp.isShiftBlocked ? "🔓" : "🛑"}
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
-                                                title="Eliminar Empleado Permanentemente"
-                                            >
-                                                🗑️
-                                            </button>
+                                            {activeTab === 'ACTIVE' ? (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleBlockToggle(emp.id, emp.isShiftBlocked); }}
+                                                        className={`p-2 rounded-lg transition-colors shadow-sm border ${emp.isShiftBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}
+                                                        title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
+                                                    >
+                                                        {emp.isShiftBlocked ? "🔓" : "🛑"}
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                                        title="Eliminar Empleado Permanentemente"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleRestore(emp.id, emp.name); }}
+                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200 font-bold text-xs px-3"
+                                                >
+                                                    ♻️ Restaurar Empleado
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -171,9 +226,9 @@ export default function ZendityStaffDirectoryPage() {
                         </tbody>
                     </table>
 
-                    {staff.length === 0 && (
+                    {displayedStaff.length === 0 && (
                         <div className="p-10 text-center text-slate-500 font-medium">
-                            No se encontraron empleados registrados en la Sede.
+                            No se encontraron empleados en esta sección.
                         </div>
                     )}
                 </div>

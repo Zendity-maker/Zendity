@@ -14,7 +14,12 @@ export default function AddStaffModal() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("CAREGIVER");
+    const [secondaryRoles, setSecondaryRoles] = useState<string[]>([]);
     const [pinCode, setPinCode] = useState("");
+
+    const toggleSecondaryRole = (r: string) => {
+        setSecondaryRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,14 +30,14 @@ export default function AddStaffModal() {
             const res = await fetch('/api/hr/staff', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, role, pinCode })
+                body: JSON.stringify({ name, email, role, secondaryRoles, pinCode })
             });
 
             const data = await res.json();
             if (data.success) {
                 setIsOpen(false);
                 // Reset form
-                setName(""); setEmail(""); setRole("CAREGIVER"); setPinCode("");
+                setName(""); setEmail(""); setRole("CAREGIVER"); setSecondaryRoles([]); setPinCode("");
                 router.refresh();
             } else {
                 setError(data.error || "Error al registrar al empleado.");
@@ -108,7 +113,7 @@ export default function AddStaffModal() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Rol Operativo</label>
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Rol Operativo Principal</label>
                                         <select
                                             value={role}
                                             onChange={e => setRole(e.target.value)}
@@ -122,6 +127,8 @@ export default function AddStaffModal() {
                                             <option value="SUPERVISOR">Supervisor(a)</option>
                                             <option value="DIRECTOR">Director Ejecutivo</option>
                                             <option value="ADMIN">Administrador de Red</option>
+                                            <option value="KITCHEN">Cocina y Nutrición</option>
+                                            <option value="MAINTENANCE">Mantenimiento</option>
                                         </select>
                                     </div>
                                     <div>
@@ -136,6 +143,29 @@ export default function AddStaffModal() {
                                             maxLength={6}
                                         />
                                         <p className="text-[10px] text-slate-400 mt-1 ml-1 font-semibold leading-tight">Clave numérica para firmas biométricas rápidas.</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-indigo-500 uppercase tracking-widest mb-2 ml-1">Doble Rol (Accesos Simultáneos)</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { id: 'CAREGIVER', label: 'Cuidador(a)' },
+                                            { id: 'NURSE', label: 'Enfermería' },
+                                            { id: 'KITCHEN', label: 'Cocina' },
+                                            { id: 'MAINTENANCE', label: 'Mantenimiento' },
+                                            { id: 'SOCIAL_WORKER', label: 'Social' },
+                                            { id: 'SUPERVISOR', label: 'Supervisor' }
+                                        ].map(r => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                onClick={() => toggleSecondaryRole(r.id)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${secondaryRoles.includes(r.id) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                            >
+                                                {secondaryRoles.includes(r.id) && '✓ '} {r.label}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
