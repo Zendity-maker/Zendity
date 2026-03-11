@@ -19,6 +19,7 @@ const clinicalNavigation = [
     { name: 'Zendity Care (Tablets)', href: '/care', icon: '📱' },
     { name: 'Cabina Supervisor', href: '/care/supervisor', icon: '🔭' },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: '🪪' },
+    { name: 'Cocina y Nutrición', href: '/kitchen', icon: '🍳' },
     { name: 'Academy', href: '/academy', icon: '🎓' },
 ];
 
