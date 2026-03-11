@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon } from "@heroicons/react/24/outline";
+import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
@@ -18,10 +18,12 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     // Modal States
     const [showDischargeModal, setShowDischargeModal] = useState(false);
     const [showLeaveModal, setShowLeaveModal] = useState(false);
+    const [showDietModal, setShowDietModal] = useState(false);
 
     // Form States
     const [actionReason, setActionReason] = useState("");
     const [leaveType, setLeaveType] = useState("HOSPITAL");
+    const [newDiet, setNewDiet] = useState("Regular (Sólida)");
 
     useEffect(() => {
         fetchPatientData();
@@ -59,6 +61,25 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 setShowDischargeModal(false);
                 setShowLeaveModal(false);
                 fetchPatientData(); // Refresh to see new status
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleUpdateDiet = async () => {
+        try {
+            const res = await fetch(`/api/corporate/patients/${params.id}/diet`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ diet: newDiet })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShowDietModal(false);
+                fetchPatientData();
             } else {
                 alert("Error: " + data.error);
             }
@@ -107,7 +128,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
                                 {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && <span className="bg-slate-200 text-slate-600 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">EGRESADO / INACTIVO</span>}
                             </div>
-                            <p className="text-slate-500 mt-1 font-medium">ID: {patientData?.id.split('-')[0]} | Cuarto: {patientData?.roomNumber || 'Liberado'} | Dieta: {patientData?.diet || 'N/A'}</p>
+                            <div className="text-slate-500 mt-1 font-medium flex items-center gap-2">
+                                ID: {patientData?.id.split('-')[0]} | Cuarto: {patientData?.roomNumber || 'Liberado'} | Dieta: {patientData?.diet || 'Regular (Sólida)'}
+                                {patientData?.status === 'ACTIVE' && (
+                                    <button onClick={() => { setNewDiet(patientData?.diet || "Regular (Sólida)"); setShowDietModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors ml-1" title="Editar Dieta">
+                                        <PencilIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -250,6 +278,37 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         <div className="flex gap-3">
                             <button onClick={() => setShowLeaveModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">Cancelar</button>
                             <button onClick={() => handlePatientAction('TEMPORARY_LEAVE')} className="flex-1 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/30 transition-colors">Autorizar Permiso</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: CAMBIAR DIETA */}
+            {showDietModal && (
+                <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+                        <h3 className="text-2xl font-black text-slate-800 mb-2">Prescripción de Dieta</h3>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                            Ajusta el tipo de alimentación para el expediente clínico de <strong className="text-indigo-600">{patientData?.name}</strong>. Esto impactará de inmediato en el Módulo de Cocina.
+                        </p>
+
+                        <div className="space-y-4 mb-8">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Clasificación Nutricional</label>
+                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={newDiet} onChange={(e) => setNewDiet(e.target.value)}>
+                                    <option value="Regular (Sólida)">Regular (Sólida)</option>
+                                    <option value="Puré (Mojada)">Puré (Mojada)</option>
+                                    <option value="Tubo PEG (1.5 Cal)">Alimentación por Sonda PEG</option>
+                                    <option value="Diabética / Baja en Azúcar">Diabética / Baja en Azúcar (Sólida)</option>
+                                    <option value="Baja en Sal">Baja en Sal (Sólida)</option>
+                                    <option value="Líquidos Claros">Líquidos Claros</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowDietModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={handleUpdateDiet} className="flex-1 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors">Actualizar Dieta</button>
                         </div>
                     </div>
                 </div>
