@@ -15,6 +15,13 @@ import { useAuth } from "@/context/AuthContext";
 
 const AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM"];
 
+const FREQUENCY_PRESETS = [
+    { label: "PRN (A demanda)", times: ["PRN"], color: "rose" },
+    { label: "BID (2x al día)", times: ["08:00 AM", "08:00 PM"], color: "indigo" },
+    { label: "TID (3x al día)", times: ["08:00 AM", "02:00 PM", "08:00 PM"], color: "emerald" },
+    { label: "QID (4x al día)", times: ["06:00 AM", "02:00 PM", "05:00 PM", "08:00 PM"], color: "amber" },
+];
+
 export default function PatientEMARTab({ patientId }: { patientId: string }) {
     const { user } = useAuth();
     const [medications, setMedications] = useState<any[]>([]);
@@ -56,9 +63,15 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
     };
 
     const toggleTime = (time: string) => {
-        setSelectedTimes(prev =>
-            prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
-        );
+        setSelectedTimes(prev => {
+            if (time === "PRN") return ["PRN"];
+            const newTimes = prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time];
+            return newTimes.filter(t => t !== "PRN");
+        });
+    };
+
+    const applyPreset = (times: string[]) => {
+        setSelectedTimes(times);
     };
 
     const saveSchedule = async () => {
@@ -237,25 +250,46 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
             {/* Modal de Reasignación Manual de Horarios */}
             {editingMedId && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 leading-relaxed">
+                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 leading-relaxed">
                         <h3 className="text-2xl font-black text-slate-800 mb-2">Asignar Horarios</h3>
-                        <p className="text-sm font-medium text-slate-500 mb-6">Selecciona en qué recuento del Carrito debe aparecer este medicamento de forma recurrente.</p>
+                        <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Define en qué carritos aparecerá este medicamento para las cuidadoras.</p>
 
-                        <div className="space-y-3 mb-8">
-                            {AVAILABLE_TIMES.map(time => (
-                                <label key={time} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedTimes.includes(time) ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedTimes.includes(time)}
-                                        onChange={() => toggleTime(time)}
-                                        className="w-5 h-5 text-teal-600 rounded focus:ring-teal-500 focus:ring-2 focus:ring-offset-2"
-                                    />
-                                    <span className="font-bold">{time}</span>
-                                </label>
-                            ))}
+                        <div className="mb-6">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Accesos Rápidos (Frecuencia)</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                {FREQUENCY_PRESETS.map(preset => (
+                                    <button
+                                        key={preset.label}
+                                        onClick={() => applyPreset(preset.times)}
+                                        className={`py-2 px-3 rounded-xl font-bold text-sm border-2 transition-all text-left ${JSON.stringify(selectedTimes) === JSON.stringify(preset.times)
+                                                ? `border-${preset.color}-500 bg-${preset.color}-50 text-${preset.color}-700 shadow-sm ring-2 ring-${preset.color}-500/20 ring-offset-1`
+                                                : `border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50`
+                                            }`}
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="mb-8">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Distribución Manual (Recuentos)</h4>
+                            <div className="grid grid-cols-2 gap-3">
+                                {AVAILABLE_TIMES.map(time => (
+                                    <label key={time} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedTimes.includes(time) ? 'border-teal-500 bg-teal-50 text-teal-900 shadow-sm' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTimes.includes(time)}
+                                            onChange={() => toggleTime(time)}
+                                            className="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-500 focus:ring-2 focus:ring-offset-1"
+                                        />
+                                        <span className="font-bold text-sm">{time}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4 border-t border-slate-100">
                             <button
                                 onClick={() => setEditingMedId(null)}
                                 className="flex-1 py-3 text-slate-500 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
@@ -264,7 +298,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                             </button>
                             <button
                                 onClick={saveSchedule}
-                                disabled={submitting}
+                                disabled={submitting || selectedTimes.length === 0}
                                 className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl shadow-md transition-transform active:scale-95 disabled:opacity-50"
                             >
                                 {submitting ? 'Guardando...' : 'Aplicar Horarios'}
