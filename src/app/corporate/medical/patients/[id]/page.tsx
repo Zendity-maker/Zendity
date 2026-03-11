@@ -209,9 +209,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowDischargeModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={() => handlePatientAction(leaveType === 'DECEASED' ? 'DECEASED' : 'DISCHARGE')} className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-colors">Confirmar Baja</button>
+                        <div className="flex gap-4 pt-4 border-t border-slate-100">
+                            <button onClick={() => setShowDischargeModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={() => handlePatientAction(leaveType === 'DECEASED' ? 'DECEASED' : 'DISCHARGED')} className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-colors">Confirmar Baja</button>
                         </div>
                     </div>
                 </div>

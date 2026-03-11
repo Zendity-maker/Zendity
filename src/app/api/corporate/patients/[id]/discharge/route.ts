@@ -42,7 +42,7 @@ export async function POST(
                 };
                 break;
 
-            case "DISCHARGE":
+            case "DISCHARGED":
             case "DECEASED":
                 updateData = {
                     status: action,
