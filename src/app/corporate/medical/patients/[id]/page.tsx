@@ -128,11 +128,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
                                 {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && <span className="bg-slate-200 text-slate-600 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">EGRESADO / INACTIVO</span>}
                             </div>
-                            <div className="text-slate-500 mt-1 font-medium flex items-center gap-2">
-                                ID: {patientData?.id.split('-')[0]} | Cuarto: {patientData?.roomNumber || 'Liberado'} | Dieta: {patientData?.diet || 'Regular (Sólida)'}
-                                {patientData?.status === 'ACTIVE' && (
-                                    <button onClick={() => { setNewDiet(patientData?.diet || "Regular (Sólida)"); setShowDietModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors ml-1" title="Editar Dieta">
-                                        <PencilIcon className="w-4 h-4" />
+                            <div className="text-slate-500 mt-1 font-medium flex-wrap flex items-center gap-2">
+                                <span>ID: {patientData?.id?.split('-')[0]}</span> |
+                                <span>Cuarto: {patientData?.roomNumber || 'Liberado'}</span> |
+                                <span className="flex items-center bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 text-slate-700">
+                                    Dieta: {patientData?.diet || 'Regular (Sólida)'}
+                                </span>
+                                {patientData?.status !== 'DISCHARGED' && patientData?.status !== 'DECEASED' && (
+                                    <button onClick={() => { setNewDiet(patientData?.diet || "Regular (Sólida)"); setShowDietModal(true); }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
+                                        <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
                                     </button>
                                 )}
                             </div>
