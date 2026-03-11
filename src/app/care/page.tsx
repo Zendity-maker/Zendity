@@ -9,7 +9,7 @@ import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton"
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 
 export default function ZendityCareTabletPage() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const router = useRouter();
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
@@ -634,10 +634,16 @@ export default function ZendityCareTabletPage() {
     if (!selectedColor && !briefingMode && !verifyingCensus) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-                <div className="bg-white rounded-[3rem] p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95">
+                <div className="bg-white rounded-[3rem] p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center">
+                    <button
+                        onClick={() => logout()}
+                        className="absolute top-6 right-8 text-slate-400 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
+                    >
+                        <span>Cerrar Sesión / Salir</span>
+                    </button>
                     <h1 className="text-4xl font-black text-slate-800 mb-4">{activeSession ? "Continúa tu Turno Activo" : "¿Cuál es tu color de Turno?"}</h1>
                     <p className="text-xl text-slate-500 mb-10 font-medium">Zonificación de Cuidadores (Zendity Care)</p>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-2 gap-6 w-full">
                         <button onClick={() => startTurnAndBriefing("RED")} className="h-40 rounded-3xl bg-red-500 hover:bg-red-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">ROJO</button>
                         <button onClick={() => startTurnAndBriefing("YELLOW")} className="h-40 rounded-3xl bg-amber-400 hover:bg-amber-500 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">AMARILLO</button>
                         <button onClick={() => startTurnAndBriefing("GREEN")} className="h-40 rounded-3xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">VERDE</button>
