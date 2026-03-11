@@ -73,7 +73,7 @@ export default function LoginPage() {
                 )}
 
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2 line-clamp-1">{hqName}</h1>
+                    <h1 className="text-3xl font-bold text-white mb-2">{hqName}</h1>
                     <p className="text-teal-100/70 text-sm">Powered by Zendity OS</p>
                 </div>
 
