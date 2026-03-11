@@ -6,7 +6,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // GET: Obtain the list of family members for a patient
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id: patientId } = await params;
         const session = await getServerSession(authOptions);
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // POST: Register a new family member
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id: patientId } = await params;
         const session = await getServerSession(authOptions);
@@ -77,7 +77,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 }
 
 // DELETE: Revoke a family member's access
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id: patientId } = await params;
         const session = await getServerSession(authOptions);

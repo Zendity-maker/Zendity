@@ -11,6 +11,7 @@ import {
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, Building2, Stethoscope, Search, Bell
 } from 'lucide-react';
+import { UserIcon } from "@heroicons/react/24/outline";
 
 const clinicalNavigation = [
     { name: 'Insights', href: '/', icon: '📈' },
@@ -197,6 +198,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider truncate">{user?.role || 'Staff'}</p>
                         </div>
                     </div>
+                    <Link href={`/hr/staff/${user?.id}`} className="w-full mb-2 flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
+                        <UserIcon className="w-4 h-4" /> Mi Perfil
+                    </Link>
                     <button
                         onClick={logout}
                         className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-rose-900/50 hover:text-rose-400 hover:border-rose-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'}`}

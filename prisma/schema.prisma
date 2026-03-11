@@ -73,6 +73,7 @@ model User {
   email           String   @unique
   pinCode         String? // PIN de 4-6 dígitos para inicio de sesión rápido en clínicas
   photoUrl        String? // FASE 47: URL de la foto de perfil del usuario/empleado
+  image           String? // FASE 51: Standalone Profile Image (Para NextAuth / RRHH)
   role            Role // e.g. Gerente, Enfermero, SocialWorker
   complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
   createdAt       DateTime @default(now())

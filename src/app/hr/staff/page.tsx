@@ -1,11 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 import AddStaffModal from "./AddStaffModal";
 import SendEmailModal from "./SendEmailModal";
 
 export default function ZendityStaffDirectoryPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const [staff, setStaff] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -78,7 +80,11 @@ export default function ZendityStaffDirectoryPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {staff.map((emp) => (
-                                <tr key={emp.id} className={`hover:bg-slate-50 transition-colors ${emp.isShiftBlocked ? 'bg-rose-50/50' : ''}`}>
+                                <tr
+                                    key={emp.id}
+                                    onClick={() => router.push(`/hr/staff/${emp.id}`)}
+                                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${emp.isShiftBlocked ? 'bg-rose-50/50' : ''}`}
+                                >
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black shadow-sm ${emp.isShiftBlocked ? 'bg-rose-100 text-rose-700' : 'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}>
@@ -118,11 +124,15 @@ export default function ZendityStaffDirectoryPage() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors" title="Evaluar Desempeño">
-                                                📝
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); router.push(`/hr/staff/${emp.id}`); }}
+                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                                title="Ver Perfil"
+                                            >
+                                                👁️
                                             </button>
                                             <button
-                                                onClick={() => handleBlockToggle(emp.id, emp.isShiftBlocked)}
+                                                onClick={(e) => { e.stopPropagation(); handleBlockToggle(emp.id, emp.isShiftBlocked); }}
                                                 className={`p-2 rounded-lg transition-colors shadow-sm border ${emp.isShiftBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}
                                                 title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
                                             >
