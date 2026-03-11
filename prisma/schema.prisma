@@ -57,6 +57,9 @@ model Headquarters {
 
   // FASE 43 Integrations
   legalDocs      LegalDocument[]
+
+  // FASE 50 Kitchen Module
+  kitchenObservations KitchenObservation[]
 }
 
 // =======================
@@ -119,6 +122,7 @@ model User {
   bathLogs      BathLog[]
   mealLogs      MealLog[]
   serviceVisits ServiceVisit[]
+  kitchenObservations KitchenObservation[] @relation("SupervisorObservations")
 
   // FASE 42: Maintenance Tickets Assigned
   maintenanceTickets HeadquartersEvent[] @relation("MaintenanceTickets")
@@ -134,6 +138,7 @@ enum Role {
   BEAUTY_SPECIALIST
   SUPERVISOR
   MAINTENANCE
+  KITCHEN
 }
 
 enum ColorGroup {
@@ -1210,4 +1215,23 @@ enum DocumentStatus {
   PENDING
   SIGNED
   VOIDED
+}
+
+// =======================
+// FASE 50: KITCHEN MODULE
+// =======================
+
+model KitchenObservation {
+  id                String       @id @default(uuid())
+  headquartersId    String
+  supervisorId      String
+  
+  satisfactionScore Int          // 1 to 5 stars
+  comments          String       @db.Text
+  photoUrl          String?
+  
+  createdAt         DateTime     @default(now())
+
+  headquarters      Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor        User         @relation("SupervisorObservations", fields: [supervisorId], references: [id])
 }

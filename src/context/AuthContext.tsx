@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
-export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | null;
+export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | null;
 
 export interface AuthUser {
     id: string;
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "CAREGIVER") router.replace("/care");
                 else if (user.role === "THERAPIST" || user.role === "BEAUTY_SPECIALIST") router.replace("/specialists");
                 else if (user.role === "MAINTENANCE") router.replace("/maintenance");
+                else if (user.role === "KITCHEN") router.replace("/kitchen");
                 else router.replace("/"); // NURSE, SUPERVISOR, DIRECTOR 
             } else {
                 // Protección de Rutas (Básico)
@@ -80,6 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance")) {
                     router.replace("/maintenance");
+                }
+                else if (user.role === "KITCHEN" && !pathname.startsWith("/kitchen")) {
+                    router.replace("/kitchen");
                 }
             }
         }

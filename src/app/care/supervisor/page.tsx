@@ -26,6 +26,10 @@ export default function SupervisorDashboardPage() {
     const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
     const [isSavingRound, setIsSavingRound] = useState(false);
 
+    // FASE 50: Kitchen Quality Monitoring
+    const [kitchenObservation, setKitchenObservation] = useState({ satisfactionScore: 5, comments: "" });
+    const [isSavingKitchenObs, setIsSavingKitchenObs] = useState(false);
+
     useEffect(() => {
         if (user) {
             fetchSupervisorData();
@@ -166,6 +170,37 @@ export default function SupervisorDashboardPage() {
             console.error(error);
         } finally {
             setIsSavingRound(false);
+        }
+    };
+
+    const handleSaveKitchenObs = async () => {
+        if (!user) return;
+        if (!kitchenObservation.comments.trim()) return alert("Debe escribir un comentario para la cocina.");
+
+        setIsSavingKitchenObs(true);
+        try {
+            const hqId = user.hqId || user.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/kitchen/observations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    headquartersId: hqId,
+                    supervisorId: user.id,
+                    satisfactionScore: kitchenObservation.satisfactionScore,
+                    comments: kitchenObservation.comments
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("✅ Observación enviada exitosamente a la Cocina.");
+                setKitchenObservation({ satisfactionScore: 5, comments: "" });
+            } else {
+                alert("Error enviando reporte a cocina: " + data.error);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingKitchenObs(false);
         }
     };
 
