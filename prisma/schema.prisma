@@ -63,6 +63,9 @@ model Headquarters {
 
   // FASE 60 Zendi AI Broadcast
   globalAnnouncements GlobalAnnouncement[]
+
+  // FASE 8: Zendity Kitchen Menu Sync
+  dailyMenus          DailyMenu[]
 }
 
 // =======================
@@ -1254,4 +1257,24 @@ model GlobalAnnouncement {
   createdAt      DateTime     @default(now())
 
   headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+}
+
+// =======================
+// FASE 8: ZENDITY KITCHEN MENU SYNC
+// =======================
+
+model DailyMenu {
+  id             String       @id @default(uuid())
+  headquartersId String
+  date           DateTime     // The day this menu applies to
+  breakfast      String?
+  lunch          String?
+  dinner         String?
+  snacks         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@unique([headquartersId, date]) // Only one menu per day per HQ
 }

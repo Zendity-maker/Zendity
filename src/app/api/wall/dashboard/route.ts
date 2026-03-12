@@ -67,6 +67,19 @@ export async function GET(req: Request) {
             }
         });
 
+        // 4. Fetch Today's Kitchen Menu
+        const todayMenu = await prisma.dailyMenu.findFirst({
+            where: {
+                headquartersId,
+                date: {
+                    gte: todayStart,
+                    lte: todayEnd
+                }
+            }
+        });
+
+        const fallbackMenu = { breakfast: 'Avena y Frutas', lunch: 'Sopa de Pollo y Arroz', dinner: 'Pescado al Horno', snacks: 'Yogurt' };
+
         return NextResponse.json({
             success: true,
             data: {
@@ -76,7 +89,12 @@ export async function GET(req: Request) {
                     medsAdministeredToday,
                     activeAlerts: activeIncidents + activeUlcers
                 },
-                menu: { breakfast: 'Avena y Frutas', lunch: 'Sopa de Pollo y Arroz', dinner: 'Pescado al Horno', snacks: 'Yogurt' }
+                menu: {
+                    breakfast: todayMenu?.breakfast || fallbackMenu.breakfast,
+                    lunch: todayMenu?.lunch || fallbackMenu.lunch,
+                    dinner: todayMenu?.dinner || fallbackMenu.dinner,
+                    snacks: todayMenu?.snacks || fallbackMenu.snacks
+                }
             }
         });
 
