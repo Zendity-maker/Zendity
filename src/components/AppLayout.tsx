@@ -74,9 +74,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     const isAuthRoute = pathname === "/login";
     const isFamilyRoute = pathname.startsWith("/family");
+    const isWallRoute = pathname.startsWith("/wall");
 
-    // Si estamos en auth o family, renderizamos sin sidebar unificado (tienen su propio layout)
-    if (isAuthRoute || isFamilyRoute) {
+    // Si estamos en auth, family o wall, renderizamos sin sidebar unificado (tienen su propio layout)
+    if (isAuthRoute || isFamilyRoute || isWallRoute) {
         return <div className="w-full h-full">{children}</div>;
     }
 

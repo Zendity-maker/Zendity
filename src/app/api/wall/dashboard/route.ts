@@ -1,0 +1,87 @@
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export async function GET(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const headquartersId = searchParams.get('hqId');
+
+        if (!headquartersId) {
+            return NextResponse.json({ success: false, error: "Headquarters ID Required" }, { status: 400 });
+        }
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        // 1. Fetch All Active Patients (Room Map Data)
+        const activePatients = await prisma.patient.findMany({
+            where: {
+                headquartersId,
+                status: 'ACTIVE'
+            },
+            select: {
+                id: true,
+                name: true,
+                roomNumber: true,
+                colorGroup: true,
+                photoUrl: true,
+            },
+            orderBy: { roomNumber: 'asc' }
+        });
+
+        // 2. Fetch Today's Medication Logs
+        const medsAdministeredToday = await prisma.medicationAdministration.count({
+            where: {
+                status: 'ADMINISTERED',
+                administeredAt: {
+                    gte: todayStart,
+                    lte: todayEnd
+                },
+                patientMedication: {
+                    patient: {
+                        headquartersId
+                    }
+                }
+            }
+        });
+
+        // 3. Fetch Active Clinical Alerts / Incidents
+        const activeIncidents = await prisma.complaint.count({
+            where: {
+                headquartersId,
+                status: {
+                    in: ['PENDING', 'ROUTED_NURSING']
+                }
+            }
+        });
+
+        const activeUlcers = await prisma.pressureUlcer.count({
+            where: {
+                status: 'ACTIVE',
+                patient: { headquartersId }
+            }
+        });
+
+        return NextResponse.json({
+            success: true,
+            data: {
+                patients: activePatients,
+                stats: {
+                    totalActivePatients: activePatients.length,
+                    medsAdministeredToday,
+                    activeAlerts: activeIncidents + activeUlcers
+                },
+                menu: { breakfast: 'Avena y Frutas', lunch: 'Sopa de Pollo y Arroz', dinner: 'Pescado al Horno', snacks: 'Yogurt' }
+            }
+        });
+
+    } catch (error) {
+        console.error("WALL OF CARE AGGREGATION Error:", error);
+        return NextResponse.json({ success: false, error: "Fallo en la sincronización del Wall of Care" }, { status: 500 });
+    }
+}
