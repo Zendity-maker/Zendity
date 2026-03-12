@@ -75,7 +75,12 @@ ${masterMaterial}
     const generatedText = result.response.text();
 
     // 4. Validar JSON y enviar al Frontend
-    const parsedJson = JSON.parse(generatedText.trim());
+    let cleanText = generatedText.trim();
+    if (cleanText.startsWith("```json")) cleanText = cleanText.substring(7);
+    else if (cleanText.startsWith("```")) cleanText = cleanText.substring(3);
+    if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
+
+    const parsedJson = JSON.parse(cleanText.trim());
 
     return NextResponse.json({ success: true, data: parsedJson });
   } catch (error: any) {
