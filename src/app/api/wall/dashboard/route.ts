@@ -18,6 +18,12 @@ export async function GET(req: Request) {
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
 
+        // 0. Fetch Headquarters Info
+        const hqInfo = await prisma.headquarters.findUnique({
+            where: { id: headquartersId },
+            select: { name: true, logoUrl: true }
+        });
+
         // 1. Fetch All Active Patients (Room Map Data)
         const activePatients = await prisma.patient.findMany({
             where: {
@@ -83,6 +89,10 @@ export async function GET(req: Request) {
         return NextResponse.json({
             success: true,
             data: {
+                hqInfo: {
+                    name: hqInfo?.name || "Vivid Senior Living",
+                    logoUrl: hqInfo?.logoUrl || null
+                },
                 patients: activePatients,
                 stats: {
                     totalActivePatients: activePatients.length,

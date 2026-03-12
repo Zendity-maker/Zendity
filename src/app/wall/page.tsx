@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 
 type WallData = {
+    hqInfo: {
+        name: string;
+        logoUrl: string | null;
+    };
     patients: any[];
     stats: {
         totalActivePatients: number;
@@ -92,13 +96,17 @@ export default function WallOfCarePage() {
             {/* 1. Header Premium TV */}
             <header className="flex items-center justify-between bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 mb-8 shadow-2xl relative z-10">
                 <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] rounded-2xl flex items-center justify-center text-4xl font-display font-black text-white shadow-[0_0_30px_rgba(15,107,120,0.6)] border border-[#3CC6C4]/30">
-                        Z
+                    <div className="w-16 h-16 bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] rounded-2xl flex items-center justify-center text-4xl font-display font-black text-white shadow-[0_0_30px_rgba(15,107,120,0.6)] border border-[#3CC6C4]/30 overflow-hidden">
+                        {data.hqInfo.logoUrl ? (
+                            <img src={data.hqInfo.logoUrl} alt="HQ Logo" className="w-full h-full object-cover bg-white" />
+                        ) : (
+                            "Z"
+                        )}
                     </div>
                     <div>
                         <h1 className="text-4xl font-display font-black text-white tracking-tight drop-shadow-md">Wall of Care <span className="text-[#3CC6C4]">Dashboard</span></h1>
                         <p className="text-lg font-bold text-[#EAF4F5]/70 flex items-center gap-2 mt-1 uppercase tracking-widest">
-                            Control Operativo en Vivo • Sede: {user?.hqName || "Vivid Senior Living"}
+                            Control Operativo en Vivo • Sede: {data.hqInfo.name}
                         </p>
                     </div>
                 </div>
