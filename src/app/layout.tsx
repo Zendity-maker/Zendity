@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import AppLayout from "@/components/AppLayout";
 import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -53,7 +53,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen`}
+        className={`${manrope.variable} ${inter.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
       >
         <NextAuthProvider>
           <AuthProvider>

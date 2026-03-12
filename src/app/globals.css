@@ -2,25 +2,49 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1F2D3A; 
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Zendity Brand Typography */
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-manrope);
+
+  /* Zendity Core Colors */
+  --color-zendity-teal: #0F6B78;
+  --color-deep-slate: #1F2D3A;
+  --color-soft-mist: #EAF4F5;
+  --color-digital-aqua: #3CC6C4;
+  --color-cloud-gray: #C9D4D8;
+
+  /* Zendity Functional Colors */
+  --color-success-green: #22A06B;
+  --color-alert-amber: #E5A93D;
+  --color-critical-red: #D9534F;
+  --color-info-blue: #3B82F6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1F2D3A; /* Deep Slate mode */
+    --foreground: #EAF4F5; /* Soft Mist for text */
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Zendity Headings Standard */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-manrope), sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
