@@ -21,7 +21,8 @@ export default function KitchenMenuSync() {
         breakfast: "",
         lunch: "",
         dinner: "",
-        snacks: ""
+        snacks: "",
+        supervisorNotes: ""
     });
 
     useEffect(() => {
@@ -47,11 +48,12 @@ export default function KitchenMenuSync() {
                     breakfast: data.menu.breakfast || "",
                     lunch: data.menu.lunch || "",
                     dinner: data.menu.dinner || "",
-                    snacks: data.menu.snacks || ""
+                    snacks: data.menu.snacks || "",
+                    supervisorNotes: data.menu.supervisorNotes || ""
                 });
             } else {
                 // Not found for this day, clear inputs
-                setMenu({ breakfast: "", lunch: "", dinner: "", snacks: "" });
+                setMenu({ breakfast: "", lunch: "", dinner: "", snacks: "", supervisorNotes: "" });
             }
         } catch (err) {
             console.error(err);
@@ -73,6 +75,7 @@ export default function KitchenMenuSync() {
                 body: JSON.stringify({
                     hqId,
                     date: dateStr,
+                    supervisorId: user?.id,
                     ...menu
                 })
             });
@@ -203,6 +206,19 @@ export default function KitchenMenuSync() {
                                     onChange={(e) => setMenu({ ...menu, snacks: e.target.value })}
                                 />
                             </div>
+                        </div>
+
+                        {/* Supervisor Observations Section */}
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-6 focus-within:ring-2 focus-within:ring-slate-300 transition-all">
+                            <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-slate-500"></span> Observaciones de Supervisor
+                            </label>
+                            <textarea
+                                className="w-full bg-transparent border-none p-0 text-slate-800 text-[15px] font-medium focus:ring-0 resize-none h-24 placeholder:text-slate-400"
+                                placeholder="Ej. Dieta líquida para Hab. 12, restricciones de sodio en cena..."
+                                value={menu.supervisorNotes}
+                                onChange={(e) => setMenu({ ...menu, supervisorNotes: e.target.value })}
+                            />
                         </div>
 
                         {message.text && (

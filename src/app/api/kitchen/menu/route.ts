@@ -25,6 +25,11 @@ export async function GET(req: Request) {
                     headquartersId: headquartersId,
                     date: date
                 }
+            },
+            include: {
+                supervisor: {
+                    select: { name: true }
+                }
             }
         });
 
@@ -40,7 +45,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { hqId, date: dateParam, breakfast, lunch, dinner, snacks } = body;
+        const { hqId, date: dateParam, breakfast, lunch, dinner, snacks, supervisorNotes, supervisorId } = body;
 
         if (!hqId || !dateParam) {
             return NextResponse.json({ success: false, error: "hqId y date son obligatorios" }, { status: 400 });
@@ -63,7 +68,9 @@ export async function POST(req: Request) {
                 breakfast,
                 lunch,
                 dinner,
-                snacks
+                snacks,
+                supervisorNotes,
+                supervisorId
             },
             create: {
                 headquartersId: hqId,
@@ -71,7 +78,9 @@ export async function POST(req: Request) {
                 breakfast,
                 lunch,
                 dinner,
-                snacks
+                snacks,
+                supervisorNotes,
+                supervisorId
             }
         });
 

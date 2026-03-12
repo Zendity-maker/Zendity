@@ -132,6 +132,7 @@ model User {
   mealLogs      MealLog[]
   serviceVisits ServiceVisit[]
   kitchenObservations KitchenObservation[] @relation("SupervisorObservations")
+  menuObservations DailyMenu[] @relation("MenuSupervisor")
 
   // FASE 42: Maintenance Tickets Assigned
   maintenanceTickets HeadquartersEvent[] @relation("MaintenanceTickets")
@@ -1271,10 +1272,13 @@ model DailyMenu {
   lunch          String?
   dinner         String?
   snacks         String?
+  supervisorNotes String?    @db.Text
+  supervisorId   String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor     User?        @relation("MenuSupervisor", fields: [supervisorId], references: [id])
 
   @@unique([headquartersId, date]) // Only one menu per day per HQ
 }
