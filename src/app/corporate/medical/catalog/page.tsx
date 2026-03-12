@@ -5,8 +5,9 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
     Pill, Plus, Scan, Loader2, Sparkles, ImageDown,
-    CheckCircle2, AlertCircle, Database
+    CheckCircle2, AlertCircle, Database, Edit2
 } from "lucide-react";
+import EditMedicationModal from "@/components/medical/catalog/EditMedicationModal";
 
 type Medication = {
     id: string;
@@ -39,6 +40,9 @@ export default function MedicalCatalogPage() {
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState<{ message: string, count: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Edit Modal State
+    const [editingMed, setEditingMed] = useState<Medication | null>(null);
 
     useEffect(() => {
         fetchMedications();
@@ -179,6 +183,7 @@ export default function MedicalCatalogPage() {
                                 <th className="p-4 text-sm font-semibold text-gray-600">Nombre y Dosis</th>
                                 <th className="p-4 text-sm font-semibold text-gray-600">Alertas de Seguridad</th>
                                 <th className="p-4 text-sm font-semibold text-gray-600">Agregado el</th>
+                                <th className="p-4 text-sm font-semibold text-gray-600 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -227,6 +232,15 @@ export default function MedicalCatalogPage() {
                                         </td>
                                         <td className="p-4 text-sm text-gray-500">
                                             {format(new Date(med.createdAt), 'dd MMM yyyy', { locale: es })}
+                                        </td>
+                                        <td className="p-4 text-center text-sm font-medium">
+                                            <button
+                                                onClick={() => setEditingMed(med)}
+                                                className="text-gray-400 hover:text-zendity-teal hover:bg-teal-50 p-2 rounded-xl transition-all"
+                                                title="Editar Molécula"
+                                            >
+                                                <Edit2 className="w-5 h-5 mx-auto" />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -335,6 +349,16 @@ export default function MedicalCatalogPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Medication Modal */}
+            {editingMed && (
+                <EditMedicationModal
+                    medication={editingMed}
+                    isOpen={!!editingMed}
+                    onClose={() => setEditingMed(null)}
+                    onSaved={() => fetchMedications()}
+                />
             )}
         </div>
     );
