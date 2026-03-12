@@ -989,7 +989,7 @@ export default function ZendityCareTabletPage() {
                                 <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Actividades Diarias y Comidas (ADL)</p>
 
                                 {/* Tareas de Cuidado Personal (AM) */}
-                                {selectedColor === 'RED' && (
+                                {selectedColor && (
                                     <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl">
                                         <h4 className="font-black text-sky-800 text-lg mb-2">🚿 Higiene Matutina</h4>
                                         <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-4 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 active:scale-95'}`}>
@@ -1021,7 +1021,7 @@ export default function ZendityCareTabletPage() {
                                 )}
 
                                 {/* Logística Interna (AM y PM) */}
-                                {(selectedColor === 'RED' || selectedColor === 'BLUE') && (
+                                {selectedColor && (
                                     <div className="p-4 grid grid-cols-2 gap-3">
                                         <button onClick={handleLaundryLog} className="py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm">
                                             <span className="text-xl">🧺</span> Lavar Ropa
@@ -1032,8 +1032,8 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                 )}
 
-                                {/* Tareas de Noche (VERDE) */}
-                                {selectedColor === 'GREEN' && (
+                                {/* Tareas de Noche */}
+                                {selectedColor && (
                                     <div className="bg-slate-800 p-4 rounded-2xl">
                                         <h4 className="font-black text-white text-lg mb-2 flex items-center gap-2"><span>🔦</span> Control de Noche</h4>
                                         <button onClick={handleSecurityRound} type="button" className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold rounded-xl transition-all shadow-inner">
