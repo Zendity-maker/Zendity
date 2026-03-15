@@ -186,8 +186,8 @@ export default function ZendiWidget() {
                     className={`group relative w-16 h-16 rounded-full bg-slate-900 border-2 shadow-2xl flex items-center justify-center transition-all hover:scale-105 hover:rotate-3 ${isSpeaking ? 'border-teal-400 shadow-teal-500/30' : 'border-slate-700'}`}
                 >
                     {/* Orbe Zendi */}
-                    <div className={`absolute w-12 h-12 rounded-full blur-md opacity-60 transition-colors ${isSpeaking ? 'bg-teal-400 animate-ping' : 'bg-indigo-500 group-hover:bg-teal-400'}`}></div>
-                    <img src="/zendi_logo.png" alt="Zendi AI" className="relative w-10 h-10 object-contain drop-shadow-lg z-10" />
+                    <div className={`absolute w-8 h-8 rounded-full blur-md opacity-60 transition-colors ${isSpeaking ? 'bg-teal-400 animate-ping' : 'bg-indigo-500 group-hover:bg-teal-400'}`}></div>
+                    <span className="relative text-2xl drop-shadow-lg">✨</span>
 
                     {/* Badge Tooltip */}
                     <div className="absolute right-20 bg-black text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">

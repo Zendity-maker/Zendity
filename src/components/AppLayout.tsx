@@ -99,8 +99,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-5 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-md overflow-hidden ${isCorporateWorkspace ? 'bg-gradient-to-br from-teal-500 to-teal-700' : 'bg-gradient-to-br from-teal-100 to-teal-200'}`}>
-                            <img src="/zendity_logo.png" alt="Zendity" className="w-full h-full object-cover" />
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-md ${isCorporateWorkspace ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white' : 'bg-gradient-to-br from-teal-100 to-teal-200 text-teal-800'}`}>
+                            Z
                         </div>
                         <div className="flex flex-col">
                             <h1 className={`text-xl font-black tracking-tight leading-tight ${sidebarLogoText}`}>Zendity</h1>

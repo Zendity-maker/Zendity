@@ -67,8 +67,8 @@ export default function LoginPage() {
                         <img src={logoUrl} alt={hqName} className="max-h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
                     </div>
                 ) : (
-                    <div className="mx-auto h-32 flex items-center justify-center mb-8">
-                        <img src="/zendity_logo.png" alt="Zendity" className="max-h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
+                    <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-black text-3xl shadow-[0_0_30px_rgba(20,184,166,0.5)] mb-6">
+                        {hqName.charAt(0).toUpperCase()}
                     </div>
                 )}
 
