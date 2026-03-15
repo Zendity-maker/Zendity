@@ -76,9 +76,19 @@ ${masterMaterial}
 
     // 4. Validar JSON y enviar al Frontend
     let cleanText = generatedText.trim();
-    if (cleanText.startsWith("```json")) cleanText = cleanText.substring(7);
-    else if (cleanText.startsWith("```")) cleanText = cleanText.substring(3);
-    if (cleanText.endsWith("```")) cleanText = cleanText.slice(0, -3);
+
+    // Robust JSON extraction using regex to find content between { and } or [ and ]
+    const jsonMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      cleanText = jsonMatch[1];
+    } else {
+      // Fallback: strip any leading/trailing non-json characters if markdown ticks were omitted
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+      }
+    }
 
     const parsedJson = JSON.parse(cleanText.trim());
 
