@@ -79,6 +79,8 @@ export async function GET(req: Request) {
                 // @ts-ignore
                 capacity: hq.capacity,
                 // @ts-ignore
+                logoUrl: hq.logoUrl,
+                // @ts-ignore
                 isOpen: hq.isActive,
                 occupancyRate: Math.round(occupancyRate),
                 monthlyRevenue: monthlyRevenue,

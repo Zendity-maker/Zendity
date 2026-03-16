@@ -15,6 +15,7 @@ interface VividKPI {
     clinicalComplianceRate: number;
     activePatients: number;
     staffCount: number;
+    logoUrl?: string | null;
 }
 
 export default function VividInvestorsDashboard() {
@@ -113,9 +114,15 @@ export default function VividInvestorsDashboard() {
                                     </div>
                                     <p className="text-slate-400 text-sm font-medium">Capacidad Total Restringida: {hq.capacity} Camas Autorizadas</p>
                                 </div>
-                                <div className="hidden sm:flex h-12 w-12 rounded-full bg-slate-700 items-center justify-center text-slate-400 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors">
-                                    <Activity className="w-6 h-6" />
-                                </div>
+                                {hq.logoUrl ? (
+                                    <div className="hidden sm:flex h-12 w-32 items-center justify-end">
+                                        <img src={hq.logoUrl} alt="Logo" className="max-h-12 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] grayscale hover:grayscale-0 transition-all duration-500" />
+                                    </div>
+                                ) : (
+                                    <div className="hidden sm:flex h-12 w-12 rounded-full bg-slate-700 items-center justify-center text-slate-400 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors">
+                                        <Activity className="w-6 h-6" />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Card Body - Telemetry Grid */}
