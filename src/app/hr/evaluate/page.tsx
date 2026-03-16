@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
+import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
 interface Employee {
     id: string;
@@ -20,6 +22,7 @@ export default function HREvaluatePage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState<{ title: string, msg: string, isPenalized: boolean } | null>(null);
+    const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
     // Carga inicial de empleados desde Prisma
     useEffect(() => {
@@ -161,7 +164,14 @@ export default function HREvaluatePage() {
                                             <h2 className="text-xl font-bold">Rúbrica: {selectedEmp.role === 'NURSE' || selectedEmp.role === 'CAREGIVER' ? 'Métricas Clínicas' : selectedEmp.role === 'MAINTENANCE' ? 'SLA Infraestructura' : 'Métricas Directivas'}</h2>
                                             <p className="text-slate-400 text-sm mt-1">Evaluando a: <span className="text-white font-medium">{selectedEmp.name}</span></p>
                                         </div>
-                                        <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '⚕️' : selectedEmp.role === 'MAINTENANCE' ? '🔧' : '📋'}</div>
+                                        <div className="flex items-center gap-3 relative z-10">
+                                            {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                                <button onClick={() => setIsIncidentModalOpen(true)} className="bg-rose-500/20 hover:bg-rose-500 text-rose-100 font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 border border-rose-500/50 transition-colors text-xs">
+                                                    <ShieldAlert className="w-4 h-4" /> Sancionar
+                                                </button>
+                                            )}
+                                            <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '⚕️' : selectedEmp.role === 'MAINTENANCE' ? '🔧' : '📋'}</div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -248,6 +258,16 @@ export default function HREvaluatePage() {
 
                 </div>
 
+            )}
+
+            {isIncidentModalOpen && user && selectedEmp && (
+                <WriteIncidentModal
+                    isOpen={isIncidentModalOpen}
+                    onClose={() => setIsIncidentModalOpen(false)}
+                    hqId={user?.hqId || user?.headquartersId || ''}
+                    supervisorId={user?.id || ''}
+                    employees={[selectedEmp]}
+                />
             )}
         </div>
     );
