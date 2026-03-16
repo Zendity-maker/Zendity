@@ -40,7 +40,7 @@ export default function ZendityCareTabletPage() {
     const [zendiToast, setZendiToast] = useState("");
 
     // Form States & Shadow AI
-    const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "" });
+    const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
     const [fastActions, setFastActions] = useState<any[]>([]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
@@ -268,10 +268,12 @@ export default function ZendityCareTabletPage() {
             setAiSuggestion("💡 Zendity AI: Temperatura liminal. Se recomienda ofrecer aumento de ingesta hídrica preventiva y reassesment en 4 horas.");
         } else if (Number(vitals.sys) >= 140) {
             setAiSuggestion("💡 Zendity AI: Presión Sistólica > 140. Considere un lapso de relajación y volver a tomar la lectura.");
+        } else if (Number(vitals.spo2) > 0 && Number(vitals.spo2) < 92) {
+            setAiSuggestion("💡 Zendity AI: Alerta de Oxigenación (SpO2 < 92%). Evaluar dificultad respiratoria y notificar a la Enfermera a Cargo inmediatamente.");
         } else {
             setAiSuggestion(null);
         }
-    }, [vitals.temp, vitals.sys, modalType]);
+    }, [vitals.temp, vitals.sys, vitals.spo2, modalType]);
 
     // FASE 30: Zendi Time-Based Operational Notifier
     useEffect(() => {
@@ -419,7 +421,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "" });
+                setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
                 setModalType(null);
             } else {
                 alert("Error interno: " + data.error);
@@ -1013,7 +1015,7 @@ export default function ZendityCareTabletPage() {
                                     </div>
 
                                     <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "" }); setModalType('VITALS'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
+                                        <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
                                             <span className="text-2xl drop-shadow-sm">🩺</span><span className="text-[11px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Vitales</span>
                                         </button>
                                         <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
@@ -1085,8 +1087,9 @@ export default function ZendityCareTabletPage() {
                                     <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => setVitals({ ...vitals, sys: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
                                     <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => setVitals({ ...vitals, dia: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
                                     <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => setVitals({ ...vitals, hr: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
-                                    <input type="number" placeholder="Temp °F (Ej 98.6)" value={vitals.temp} onChange={e => setVitals({ ...vitals, temp: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-2" />
-                                    <input type="number" placeholder="Glucosa mg/dL (Opcional)" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
+                                    <input type="number" placeholder="Temp °F (Ej 98.6)" value={vitals.temp} onChange={e => setVitals({ ...vitals, temp: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
+                                    <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
+                                    <input type="number" placeholder="Glucosa mg/dL (Opcional)" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
                                 </div>
                                 {aiSuggestion && (<div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl text-teal-800 text-sm font-bold shadow-inner">{aiSuggestion}</div>)}
                                 <button onClick={submitVitals} disabled={submitting} className="w-full py-5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl mt-4">Guardar y Analizar</button>

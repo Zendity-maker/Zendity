@@ -392,6 +392,55 @@ export default function SupervisorDashboardPage() {
                 </div>
             </div>
 
+            {/* EVALUACIÓN DE COCINA Y NUTRICIÓN FASE 50 */}
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                        <Coffee className="w-7 h-7 text-orange-500" />
+                        Evaluación del Servicio de Alimentos
+                    </h2>
+                </div>
+                
+                <div className="bg-orange-50 border border-orange-100 p-6 rounded-3xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-3 block">Nivel de Satisfacción (Basado en feedback de residentes)</label>
+                            <div className="flex gap-2 mb-6">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button
+                                        key={star}
+                                        onClick={() => setKitchenObservation({ ...kitchenObservation, satisfactionScore: star })}
+                                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all ${kitchenObservation.satisfactionScore >= star ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20 scale-110' : 'bg-white text-slate-300 border border-slate-200 hover:border-orange-300'}`}
+                                    >
+                                        ★
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="text-xs font-bold text-orange-600/80 bg-orange-100/50 p-3 rounded-xl border border-orange-100">
+                                💡 Este reporte se envía directamente a la pantalla del Chef Principal para corrección de dietas y temperatura.
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                            <label className="block text-sm font-bold text-slate-700">Observaciones (Temperatura, Presentación, Sabor)</label>
+                            <textarea
+                                value={kitchenObservation.comments}
+                                onChange={(e) => setKitchenObservation({ ...kitchenObservation, comments: e.target.value })}
+                                placeholder="Ej. La sopa de la mesa 3 llegó fría. Los purés tienen buena consistencia hoy."
+                                className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none h-24"
+                            ></textarea>
+                            <button
+                                onClick={handleSaveKitchenObs}
+                                disabled={isSavingKitchenObs || !kitchenObservation.comments.trim()}
+                                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                {isSavingKitchenObs ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Feedback a Cocina"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* PANEL IZQUIERDO: ROSTER & TURNOS */}
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
