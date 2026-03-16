@@ -30,7 +30,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "DIET_CHANGE" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
@@ -41,6 +41,7 @@ export default function ZendityCareTabletPage() {
 
     // Form States & Shadow AI
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "" });
+    const [fastActions, setFastActions] = useState<any[]>([]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
     const [prnNote, setPrnNote] = useState("");
@@ -54,6 +55,10 @@ export default function ZendityCareTabletPage() {
     const [hubPatientId, setHubPatientId] = useState("");
     const [hubDescription, setHubDescription] = useState("");
     const [hubPhotoBase64, setHubPhotoBase64] = useState<string | null>(null);
+
+    // Fast Action Dispatch (Supervisor)
+    const [hubCaregiverId, setHubCaregiverId] = useState("");
+    const [hubCaregiversList, setHubCaregiversList] = useState<any[]>([]);
 
     const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -316,6 +321,84 @@ export default function ZendityCareTabletPage() {
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // FASE 11: Fast Actions & 15-Min SLAs Polling
+    const fetchFastActions = async () => {
+        if (!user) return;
+        try {
+            const res = await fetch(`/api/care/fast-actions?caregiverId=${user.id}`);
+            const data = await res.json();
+            if (data.success) {
+                setFastActions(data.tasks);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const completeFastAction = async (taskId: string) => {
+        try {
+            const res = await fetch(`/api/care/fast-actions`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setZendiToast("Asignación de Supervisor competada a tiempo. ¡Excelente!");
+                fetchFastActions();
+            } else {
+                setZendiToast(`Alerta: ${data.error}`);
+                fetchFastActions();
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => {
+        if (activeSession) {
+            fetchFastActions();
+            const interval = setInterval(fetchFastActions, 15000); // 15 seconds polling
+            return () => clearInterval(interval);
+        }
+    }, [activeSession]);
+
+    const fetchCaregiversTarget = async () => {
+        try {
+            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch(`/api/corporate/hr/staff?hqId=${hq}`); // We use the HR endpoint
+            const data = await res.json();
+            if (data.success) {
+                // Filter only clinical staff
+                const validStaff = data.staff.filter((u: any) => u.role === 'CAREGIVER' || u.role === 'NURSE' || u.role === 'SUPERVISOR');
+                setHubCaregiversList(validStaff);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const submitSupervisorFastAction = async () => {
+        if (!hubCaregiverId || !hubDescription) return;
+        setSubmitting(true);
+        try {
+            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch(`/api/care/fast-actions`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headquartersId: hq,
+                    supervisorId: user?.id || "unknown",
+                    caregiverId: hubCaregiverId,
+                    description: hubDescription
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setModalType(null);
+                setZendiToast("Asignación de SLA (15 min) ha sido disparada al tablet del cuidador exitosamente.");
+                setHubDescription("");
+                setHubCaregiverId("");
+            } else {
+                alert(data.error);
+            }
+        } catch (e) { console.error(e); } finally {
+            setSubmitting(false);
         }
     };
 
@@ -830,11 +913,35 @@ export default function ZendityCareTabletPage() {
                     📱 Zendity Care
                     <span className="text-base font-bold uppercase tracking-widest bg-white/20 px-4 py-1.5 rounded-full">Grupo {selectedColor}</span>
                 </h1>
-                <div className="flex gap-4">
-                    <button onClick={() => router.push('/cuidadores')} className="px-6 py-3 font-bold bg-white/10 hover:bg-white/20 rounded-xl transition-colors">Mirar Life Plans (PAI)</button>
+                <div className="flex items-center gap-4">
+                    {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
+                        <button onClick={() => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); }} className="px-5 py-3 font-black bg-white text-indigo-700 rounded-xl shadow-lg border border-indigo-200 hover:scale-105 transition-all flex items-center gap-2">
+                            <span>🎯</span> Asignar Tarea
+                        </button>
+                    )}
+                    <button onClick={() => { setHubAction(null); setModalType('HUB'); }} className="px-5 py-3 font-black bg-slate-900 text-white rounded-xl shadow-lg hover:scale-105 transition-all flex items-center gap-2">
+                        <span>⚡️</span> Acciones Rápidas
+                    </button>
+                    <button onClick={() => router.push('/cuidadores')} className="px-6 py-3 font-bold bg-white/10 hover:bg-white/20 rounded-xl transition-colors hidden md:block">Life Plans (PAI)</button>
                     <button onClick={handleLogoutAttempt} className="px-6 py-3 font-black bg-white text-slate-900 rounded-xl shadow-lg hover:scale-105 transition-all">Finalizar Turno</button>
                 </div>
             </div>
+
+            {/* FASE 11: 15-Minute SLA Active Assignments Banner */}
+            {fastActions.length > 0 && (
+                <div className="bg-red-600 text-white px-8 py-3 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4">
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        <span className="text-3xl animate-pulse drop-shadow-md">🚨</span>
+                        <div className="flex-1">
+                            <p className="text-sm uppercase tracking-wider text-red-100 font-black">Asignación del Supervisor ({fastActions.length} Pendiente{fastActions.length !== 1 && 's'})</p>
+                            <p className="text-base font-bold text-white mt-0.5">{fastActions[0].description}</p>
+                        </div>
+                    </div>
+                    <button onClick={() => completeFastAction(fastActions[0].id)} className="bg-white text-red-700 px-6 py-2.5 rounded-xl font-black active:scale-95 shadow-sm transform hover:-translate-y-0.5 transition w-full md:w-auto text-sm">
+                        Realizado (Cumplir SLA)
+                    </button>
+                </div>
+            )}
 
             <div className="max-w-7xl mx-auto p-8">
                 <ZendiMomentsWidget />
@@ -891,7 +998,7 @@ export default function ZendityCareTabletPage() {
                                             {p.lifePlan && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.feeding}</p>}
                                             <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md shadow-sm pl-2 overflow-hidden">
                                                 <span className="text-xs font-bold text-indigo-700">Dieta: {p.diet || 'Regular (Sólida)'}</span>
-                                                {(user?.role === "SUPERVISOR" || user?.role === "NURSE" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
+                                                {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
                                                     <button onClick={(e) => {
                                                         e.stopPropagation();
                                                         setActivePatient(p);
@@ -1349,6 +1456,44 @@ export default function ZendityCareTabletPage() {
                                 )}
                             </div>
                         )}
+
+                        {/* FASE 11: DISPATCHER FAST ACTION 15-MIN (SUPERVISOR) */}
+                        {modalType === 'FAST_ACTION_DISPATCH' && (
+                            <div className="space-y-4">
+                                <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-100 pb-2 flex items-center gap-2"><span>🎯</span> Asignación de Tarea SLA (15-Min)</p>
+                                <p className="text-slate-500 font-medium text-sm">El cuidador seleccionado recibirá la alerta In-App y tendrá 15 minutos exactos para cumplirla o se penalizará su Score de Cumplimiento.</p>
+
+                                <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-right-4">
+                                    <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200">
+                                        <label className="text-sm font-bold text-indigo-900 block mb-2">Empleado Destino (Cuidador)</label>
+                                        <select value={hubCaregiverId} onChange={e => setHubCaregiverId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-indigo-200 bg-white font-bold text-slate-800 outline-none focus:border-indigo-500">
+                                            <option value="">-- Seleccionar Personal Activo --</option>
+                                            {hubCaregiversList.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                        <label className="text-sm font-bold text-slate-500 block mb-2">Mandato u Orden (Obligatorio)</label>
+                                        <textarea
+                                            className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
+                                            placeholder="Ej. Realizar reporte del residente Artemia por cambio de salud..."
+                                            value={hubDescription}
+                                            onChange={e => setHubDescription(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={submitSupervisorFastAction}
+                                        disabled={submitting || !hubCaregiverId || !hubDescription}
+                                        className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 transition-all flex justify-center items-center gap-2"
+                                    >
+                                        {submitting ? "Despachando..." : "Despachar Asignación (15 minutos reloj)"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1421,7 +1566,8 @@ export default function ZendityCareTabletPage() {
                 </div>
             )}
 
-            {/* FASE 32: Floating Action Hub Trigger */}
+            {/* FASE 32: Floating Action Hub Trigger (REMOVED to Header) */}
+            {/*
             {!briefingMode && activeSession && (
                 <button
                     onClick={() => { setHubAction(null); setModalType('HUB'); }}
@@ -1431,6 +1577,7 @@ export default function ZendityCareTabletPage() {
                     <span className="text-xl tracking-tight">Acciones Rápidas</span>
                 </button>
             )}
+            */}
 
             {/* Zendi Contextual Toast Notification */}
             {zendiToast && (

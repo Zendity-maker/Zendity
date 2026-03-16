@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
-    ChevronDown, Building2, Stethoscope, Search, Bell
+    ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -69,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { user, logout, loading } = useAuth();
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     if (loading) return null;
 
@@ -95,19 +96,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ZendiWidget />
 
             {/* Unified Sidebar */}
-            <aside className={`w-64 border-r flex flex-col shadow-sm transition-colors duration-300 flex-shrink-0 z-50 ${sidebarBg}`}>
+            <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} border-r flex flex-col shadow-sm transition-all duration-300 flex-shrink-0 z-50 ${sidebarBg}`}>
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-5 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-md ${isCorporateWorkspace ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white' : 'bg-gradient-to-br from-teal-100 to-teal-200 text-teal-800'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex shrink-0 items-center justify-center font-black text-xl shadow-md ${isCorporateWorkspace ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white' : 'bg-gradient-to-br from-teal-100 to-teal-200 text-teal-800'}`}>
                             Z
                         </div>
-                        <div className="flex flex-col">
-                            <h1 className={`text-xl font-black tracking-tight leading-tight ${sidebarLogoText}`}>Zendity</h1>
-                            <span className="text-[10px] uppercase font-black tracking-widest text-teal-500">
-                                {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
-                            </span>
-                        </div>
+                        {!isSidebarCollapsed && (
+                            <div className="flex flex-col whitespace-nowrap overflow-hidden">
+                                <h1 className={`text-xl font-black tracking-tight leading-tight ${sidebarLogoText}`}>Zendity</h1>
+                                <span className="text-[10px] uppercase font-black tracking-widest text-teal-500">
+                                    {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Workspace Selector (Solo para roles compatibles) */}
@@ -140,13 +143,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Navigation Links */}
-                <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar">
+                <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
                     {isCorporateWorkspace ? (
                         corporateNavigationSections.map((section, idx) => (
                             <div key={idx} className="mb-6">
-                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-3">
-                                    {section.title}
-                                </h3>
+                                {!isSidebarCollapsed && (
+                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-3">
+                                        {section.title}
+                                    </h3>
+                                )}
                                 <ul className="space-y-1">
                                     {section.links.map((link) => {
                                         const isExact = pathname === link.href;
@@ -157,10 +162,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             <li key={link.name}>
                                                 <Link
                                                     href={link.href}
-                                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}
+                                                    title={isSidebarCollapsed ? link.name : undefined}
+                                                    className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
                                                 >
-                                                    <Icon className="w-[18px] h-[18px]" strokeWidth={isCurrent ? 2.5 : 2} />
-                                                    {link.name}
+                                                    <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
+                                                    {!isSidebarCollapsed && <span className="truncate">{link.name}</span>}
                                                 </Link>
                                             </li>
                                         );
@@ -178,10 +184,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    className={`flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}
+                                    title={isSidebarCollapsed ? item.name : undefined}
+                                    className={`flex items-center py-3 text-sm font-medium rounded-xl transition-colors duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
                                 >
-                                    <span className="mr-3 text-lg">{item.icon}</span>
-                                    {item.name}
+                                    <span className={`${isSidebarCollapsed ? 'mr-0' : 'mr-3'} shrink-0 text-lg`}>{item.icon}</span>
+                                    {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                                 </Link>
                             )
                         })
@@ -189,25 +196,50 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </nav>
 
                 {/* User Profile / Logout */}
-                <div className="p-4 border-t border-opacity-20 border-current">
-                    <div className="flex items-center space-x-3 mb-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${isCorporateWorkspace ? 'bg-slate-800 text-teal-400' : 'bg-teal-100 text-teal-700'}`}>
-                            {user?.name.substring(0, 2).toUpperCase() || 'HQ'}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-bold truncate">{user?.name || 'Clínico'}</p>
-                            <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider truncate">{user?.role || 'Staff'}</p>
-                        </div>
-                    </div>
-                    <Link href={`/hr/staff/${user?.id}`} className="w-full mb-2 flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
-                        <UserIcon className="w-4 h-4" /> Mi Perfil
-                    </Link>
+                <div className="p-4 border-t border-opacity-20 border-current flex flex-col gap-2">
                     <button
-                        onClick={logout}
-                        className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-rose-900/50 hover:text-rose-400 hover:border-rose-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'}`}
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        className={`hidden md:flex items-center justify-center p-2 rounded-lg transition-colors border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                        title={isSidebarCollapsed ? "Expandir Menú" : "Contraer Menú"}
                     >
-                        <span>⏻</span> Cerrar Sesión
+                        {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                     </button>
+                    {!isSidebarCollapsed && (
+                        <>
+                            <div className="flex items-center space-x-3 mb-2 px-1 text-left">
+                                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-bold shadow-sm ${isCorporateWorkspace ? 'bg-slate-800 text-teal-400' : 'bg-teal-100 text-teal-700'}`}>
+                                    {user?.name.substring(0, 2).toUpperCase() || 'HQ'}
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <p className="text-sm font-bold truncate">{user?.name || 'Clínico'}</p>
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider truncate">{user?.role || 'Staff'}</p>
+                                </div>
+                            </div>
+                            <Link href={`/hr/staff/${user?.id}`} className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
+                                <UserIcon className="w-4 h-4 shrink-0" /> Mi Perfil
+                            </Link>
+                            <button
+                                onClick={logout}
+                                className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-rose-900/50 hover:text-rose-400 hover:border-rose-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'}`}
+                            >
+                                <span>⏻</span> Cerrar Sesión
+                            </button>
+                        </>
+                    )}
+                    {isSidebarCollapsed && (
+                        <>
+                            <Link href={`/hr/staff/${user?.id}`} title="Mi Perfil" className="w-full flex justify-center py-2 text-xs font-bold rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
+                                <UserIcon className="w-5 h-5" />
+                            </Link>
+                            <button
+                                onClick={logout}
+                                title="Cerrar Sesión"
+                                className={`w-full flex justify-center py-2 text-xs font-bold rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-rose-400 hover:bg-rose-900/50 hover:border-rose-900' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-200'}`}
+                            >
+                                <span>⏻</span>
+                            </button>
+                        </>
+                    )}
                 </div>
             </aside>
 

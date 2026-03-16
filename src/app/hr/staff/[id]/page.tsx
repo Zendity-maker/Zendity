@@ -12,6 +12,7 @@ import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import EditStaffRolesModal from "./EditStaffRolesModal";
+import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -21,6 +22,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [employee, setEmployee] = useState<any>(null);
     const [performanceData, setPerformanceData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [incidents, setIncidents] = useState<any[]>([]);
+    const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
     useEffect(() => {
         if (!authLoading) {
@@ -42,6 +45,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             if (data.success) {
                 setEmployee(data.employee);
                 setPerformanceData(data.performanceHistory);
+                fetchIncidents(data.employee.headquartersId);
             } else {
                 alert("Error cargando perfil: " + data.error);
                 router.push("/hr/staff");
@@ -50,6 +54,18 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             console.error("Error al obtener perfil", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchIncidents = async (hqId: string) => {
+        try {
+            const res = await fetch(`/api/hr/incidents?employeeId=${id}&hqId=${hqId}`);
+            const data = await res.json();
+            if (data.success) {
+                setIncidents(data.incidents);
+            }
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -126,6 +142,14 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                     employee={employee}
                                     onUpdate={(data) => setEmployee({ ...employee, ...data })}
                                 />
+                            )}
+                            {(user?.role === "ADMIN" || user?.role === "DIRECTOR" || user?.role === "SUPERVISOR") && (
+                                <button
+                                    onClick={() => setIsIncidentModalOpen(true)}
+                                    className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-xl hover:bg-red-100 transition shadow-sm"
+                                >
+                                    Emitir Falta/Reporte
+                                </button>
                             )}
                         </div>
 
@@ -233,6 +257,68 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     </div>
 
                 </div>
+
+                {/* Incidents Section */}
+                <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mt-6">
+                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-6">
+                        <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Historial de Faltas y Reportes Disciplinarios
+                    </h3>
+
+                    {incidents.length === 0 ? (
+                        <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                            <p className="text-slate-500 font-medium">Este empleado tiene un expediente disciplinario limpio. 🎉</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {incidents.map((incident: any) => (
+                                <div key={incident.id} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl flex flex-col md:flex-row gap-6">
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className={`px-3 py-1 text-xs font-bold rounded-md uppercase tracking-wider ${incident.type === 'WARNING' ? 'bg-amber-100 text-amber-800' :
+                                                incident.type === 'SUSPENSION' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                {incident.type}
+                                            </span>
+                                            <span className="text-sm font-bold text-slate-400">
+                                                {new Date(incident.createdAt).toLocaleDateString('es-ES')}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-700 text-sm whitespace-pre-wrap pt-2">
+                                            {incident.description}
+                                        </p>
+                                        <p className="text-xs text-slate-500 font-medium mt-2">
+                                            Emitido por: <span className="text-slate-700">{incident.supervisor?.name || 'Supervisor'}</span>
+                                        </p>
+                                    </div>
+                                    <div className="shrink-0 md:w-48 bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Firma de Enterado</p>
+                                        {incident.signatureBase64 ? (
+                                            <img src={incident.signatureBase64} alt="Firma del empleado" className="w-full object-contain h-20 opacity-80" />
+                                        ) : (
+                                            <span className="text-xs text-rose-500 font-bold">Sin firmar</span>
+                                        )}
+                                        {incident.signedAt && (
+                                            <p className="text-[10px] text-slate-400 mt-2">{new Date(incident.signedAt).toLocaleString('es-ES')}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <WriteIncidentModal
+                    isOpen={isIncidentModalOpen}
+                    onClose={() => setIsIncidentModalOpen(false)}
+                    hqId={user?.headquartersId || user?.hqId || ""}
+                    supervisorId={user?.id || ""}
+                    employees={[employee]}
+                    onSuccess={() => fetchIncidents(employee.headquartersId)}
+                />
+
             </div>
         </div>
     );

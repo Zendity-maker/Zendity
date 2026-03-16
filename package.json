@@ -23,6 +23,7 @@
     "date-fns": "^4.1.0",
     "docusign-esign": "^8.6.0",
     "dotenv": "^17.3.1",
+    "framer-motion": "^12.37.0",
     "googleapis": "^171.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",

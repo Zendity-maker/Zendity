@@ -66,6 +66,12 @@ model Headquarters {
 
   // FASE 8: Zendity Kitchen Menu Sync
   dailyMenus          DailyMenu[]
+
+  // FASE 10: HR Employee Incidents
+  incidentReports     IncidentReport[]
+
+  // FASE 11: Fast Actions (15-Min)
+  fastActionAssignments FastActionAssignment[]
 }
 
 // =======================
@@ -136,6 +142,14 @@ model User {
 
   // FASE 42: Maintenance Tickets Assigned
   maintenanceTickets HeadquartersEvent[] @relation("MaintenanceTickets")
+
+  // FASE 10: HR Employee Incidents
+  incidentsSupervisor IncidentReport[] @relation("SupervisorIncidents")
+  incidentsEmployee   IncidentReport[] @relation("EmployeeIncidents")
+
+  // FASE 11: Fast Actions (15-Min)
+  fastActionsGiven    FastActionAssignment[] @relation("SupervisorTasks")
+  fastActionsReceived FastActionAssignment[] @relation("CaregiverTasks")
 }
 
 enum Role {
@@ -1283,3 +1297,50 @@ model DailyMenu {
 
   @@unique([headquartersId, date]) // Only one menu per day per HQ
 }
+
+// =======================
+// FASE 10: HR EMPLOYEE INCIDENT REPORTS
+// =======================
+
+model IncidentReport {
+  id              String   @id @default(uuid())
+  employeeId      String
+  supervisorId    String
+  headquartersId  String
+  type            String   // 'WARNING', 'SUSPENSION', 'TERMINATION'
+  description     String   @db.Text
+  signedAt        DateTime?
+  signatureBase64 String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  employee   User         @relation("EmployeeIncidents", fields: [employeeId], references: [id])
+  supervisor User         @relation("SupervisorIncidents", fields: [supervisorId], references: [id])
+  hq         Headquarters @relation(fields: [headquartersId], references: [id])
+}
+
+// =======================
+// FASE 11: FAST ACTIONS & 15-MIN TASKS
+// =======================
+
+model FastActionAssignment {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  supervisorId    String
+  caregiverId     String
+  description     String   @db.Text
+  status          AssignmentStatus @default(PENDING) // PENDING, COMPLETED, FAILED
+  expiresAt       DateTime
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  supervisor      User         @relation("SupervisorTasks", fields: [supervisorId], references: [id])
+  caregiver       User         @relation("CaregiverTasks", fields: [caregiverId], references: [id])
+  hq              Headquarters @relation(fields: [headquartersId], references: [id])
+}
+
+enum AssignmentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
