@@ -9,6 +9,8 @@ interface Employee {
     id: string;
     name: string;
     role: string;
+    preferredShift?: string;
+    offDays?: string[];
 }
 
 interface Shift {
@@ -60,8 +62,15 @@ export default function ShiftSchedulerPage() {
     const [activeCell, setActiveCell] = useState<{ employeeId: string, date: Date, blockId?: string, zoneId?: string } | null>(null);
     const [isSavingGrid, setIsSavingGrid] = useState(false);
 
-    // AI Generation State
+    // AI Generation Data & State
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [aiRuleAM, setAiRuleAM] = useState(3);
+    const [aiRulePM, setAiRulePM] = useState(3);
+    const [aiRuleNight, setAiRuleNight] = useState(2);
+    const [configEmployee, setConfigEmployee] = useState<Employee | null>(null);
+    const [tempPrefShift, setTempPrefShift] = useState("");
+    const [tempOffDays, setTempOffDays] = useState<string[]>([]);
+    
     // SendGrid Publisher State
     const [isPublishing, setIsPublishing] = useState(false);
 
@@ -110,7 +119,7 @@ export default function ShiftSchedulerPage() {
     };
 
     const handleAIGenerate = async () => {
-        if (!confirm("⚠️ ¿Estás seguro? Esto usará Inteligencia Artificial para sobreescribir los turnos de la semana mostrada y distribuirlos de manera equitativa. Los turnos actuales se borrarán.")) return;
+        if (!confirm(`⚠️ ¿Estás seguro? Esto usará Inteligencia Artificial para sobreescribir los turnos de la semana mostrada.\n\nReglas a aplicar:\n- MORNING (AM): ${aiRuleAM}\n- EVENING (PM): ${aiRulePM}\n- NIGHT (Noche): ${aiRuleNight}\n\nLos turnos actuales se borrarán y se respetarán los días libres fijos del personal.`)) return;
         
         setIsGeneratingAI(true);
         try {
@@ -120,7 +129,12 @@ export default function ShiftSchedulerPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     weekStartDate: startDateLocal,
-                    employees: employees.map(e => ({ id: e.id, name: e.name, role: e.role }))
+                    employees: employees,
+                    rules: {
+                        countAM: aiRuleAM,
+                        countPM: aiRulePM,
+                        countNight: aiRuleNight
+                    }
                 })
             });
 
@@ -171,7 +185,7 @@ export default function ShiftSchedulerPage() {
 
             const data = await res.json();
             if (res.ok) {
-                alert(`✅ Roster aprobado. PDF generado y enviado a ${data.count} empleados.`);
+                alert(`✅ Roster aprobado. PDF generado y enviado a ${data.count} empleados activos.`);
             } else {
                 alert("Error técnico en envío: " + data.error);
             }
@@ -180,6 +194,29 @@ export default function ShiftSchedulerPage() {
             alert("Excepción local: revisa la consola.");
         } finally {
             setIsPublishing(false);
+        }
+    };
+
+    const handleSaveUserRules = async () => {
+        if (!configEmployee) return;
+        setIsSavingGrid(true);
+        try {
+            const res = await fetch(`/api/corporate/users/${configEmployee.id}/preferences`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    preferredShift: tempPrefShift || null,
+                    offDays: tempOffDays
+                })
+            });
+            if (!res.ok) throw new Error("Fallo");
+            // Refresh
+            fetchData();
+            setConfigEmployee(null);
+        } catch (error) {
+            alert("Error guardando preferencias del cuidador.");
+        } finally {
+            setIsSavingGrid(false);
         }
     };
 
@@ -323,29 +360,30 @@ export default function ShiftSchedulerPage() {
                 </div>
             </div>
 
-            <div className="flex gap-4">
-                <button
-                    onClick={handleAIGenerate}
-                    disabled={isGeneratingAI || employees.length === 0}
-                    className="ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50"
-                >
-                    {isGeneratingAI ? (
-                        <span className="animate-pulse">✨ Zendity IA Procesando...</span>
-                    ) : (
-                        <>✨ Automatizar con IA</>
-                    )}
-                </button>
-                <button
-                    onClick={handlePublishPDF}
-                    disabled={isPublishing || shifts.length === 0}
-                    className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 border border-slate-700 hover:border-slate-500"
-                >
-                    {isPublishing ? (
-                        <span className="animate-pulse">📩 Generando PDF y Enviando...</span>
-                    ) : (
-                        <>📩 Aprobar y Enviar (PDF)</>
-                    )}
-                </button>
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="font-bold border-r pr-4 text-slate-700">⚙️ Motor Ocupacional AI</span>
+                    <label className="text-sm font-medium flex items-center gap-2">AM (6a-2p): <input type="number" value={aiRuleAM} onChange={e => setAiRuleAM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
+                    <label className="text-sm font-medium flex items-center gap-2">PM (2p-10p): <input type="number" value={aiRulePM} onChange={e => setAiRulePM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
+                    <label className="text-sm font-medium flex items-center gap-2">Noche (10p-6a): <input type="number" value={aiRuleNight} onChange={e => setAiRuleNight(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
+                </div>
+
+                <div className="flex gap-4">
+                    <button
+                        onClick={handleAIGenerate}
+                        disabled={isGeneratingAI || employees.length === 0}
+                        className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
+                    >
+                        {isGeneratingAI ? <span className="animate-pulse">✨ Generando...</span> : <>✨ Automatizar con IA</>}
+                    </button>
+                    <button
+                        onClick={handlePublishPDF}
+                        disabled={isPublishing || shifts.length === 0}
+                        className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
+                    >
+                        {isPublishing ? <span className="animate-pulse">📩 Enviando...</span> : <>📩 Aprobar y Enviar (PDF)</>}
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -578,6 +616,70 @@ export default function ShiftSchedulerPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal AI Configurations */}
+            {configEmployee && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                            Reglas IA: {configEmployee.name}
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-6">Restricciones fijas para la automatización de horarios. Si se dejan en blanco, la IA rotará al usuario según su propio cálculo equitativo para cumplir los KPIs del Dashboard.</p>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Turno Fijo Requerido</label>
+                                <select 
+                                    value={tempPrefShift} 
+                                    onChange={(e) => setTempPrefShift(e.target.value)}
+                                    className="w-full border-slate-200 rounded-xl p-3 bg-slate-50"
+                                >
+                                    <option value="">Rotación Flexible (Dejar que Zendi elija)</option>
+                                    <option value="MORNING">Siempre AM (Mañana)</option>
+                                    <option value="EVENING">Siempre PM (Tarde)</option>
+                                    <option value="NIGHT">Siempre NIGHT (Guardias Nocturnas)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Días Libres Fijos (Off Days)</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                                        <label key={day} className="flex items-center gap-2 p-2 border rounded-lg bg-slate-50 hover:bg-slate-100 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={tempOffDays.includes(day)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setTempOffDays([...tempOffDays, day]);
+                                                    else setTempOffDays(tempOffDays.filter(d => d !== day));
+                                                }}
+                                                className="rounded text-indigo-600"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700">{day}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex gap-3">
+                            <button 
+                                onClick={() => setConfigEmployee(null)}
+                                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleSaveUserRules}
+                                disabled={isSavingGrid}
+                                className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-colors"
+                            >
+                                Guardar Reglas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

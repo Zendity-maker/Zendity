@@ -18,6 +18,11 @@ model Headquarters {
   isActive      Boolean  @default(true) // FASE 12: Operating Status
   licenseActive Boolean  @default(true)
   licenseExpiry DateTime
+  
+  // FASE 51: AI Shift Rule Targets
+  shiftRuleMorning Int @default(3)
+  shiftRuleEvening Int @default(3)
+  shiftRuleNight   Int @default(2)
   createdAt     DateTime @default(now())
 
   users         User[]
@@ -90,6 +95,11 @@ model User {
   image           String? // FASE 51: Standalone Profile Image (Para NextAuth / RRHH)
   role            Role // e.g. Gerente, Enfermero, SocialWorker
   isActive        Boolean  @default(true) // FASE 51: Disable Employee filtering
+  
+  // FASE 51: Advanced AI Shift Rules
+  preferredShift  String?  // nullable string "MORNING", "EVENING", "NIGHT"
+  offDays         String[] // String Array of weekdays e.g. ["Wednesday", "Sunday"]
+  
   complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
   createdAt       DateTime @default(now())
 

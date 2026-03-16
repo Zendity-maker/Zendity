@@ -18,11 +18,15 @@ export async function POST(req: Request) {
 
         const hqId = session.user.headquartersId;
         const body = await req.json();
-        const { weekStartDate, employees } = body;
+        const { weekStartDate, employees, rules } = body;
 
         if (!weekStartDate || !employees || employees.length === 0) {
             return NextResponse.json({ error: 'Missing week data or active employees' }, { status: 400 });
         }
+
+        const countAM = rules?.countAM || 3;
+        const countPM = rules?.countPM || 3;
+        const countNight = rules?.countNight || 2;
 
         // Create prompt context
         const weekStart = new Date(weekStartDate);
@@ -32,28 +36,38 @@ export async function POST(req: Request) {
             return d.toISOString().split('T')[0];
         });
 
-        const empContext = employees.map((e: any) => `- ${e.name} (ID: ${e.id}, Role: ${e.role})`).join('\n');
+        const empContext = employees.map((e: any) => {
+            let desc = `- ${e.name} (ID: ${e.id}, Role: ${e.role})`;
+            const restrictions = [];
+            if (e.preferredShift) restrictions.push(`DEBE SER TURNO FIJO EN: ${e.preferredShift}`);
+            if (e.offDays && e.offDays.length > 0) restrictions.push(`DÍAS LIBRES FIJOS QUE NO TRABAJA: ${e.offDays.join(", ")}`);
+            if (restrictions.length > 0) desc += ` [RESTRICCIONES ESTRICTAS: ${restrictions.join(" | ")}]`;
+            return desc;
+        }).join('\n');
 
-        const systemPrompt = `Eres un planificador experto de turnos médicos en una clínica geriátrica.
-Misión: Asignar de manera equitativa e inteligente los turnos semanales para el personal activo de enfermería y cuidadores.
+        const systemPrompt = `Eres un motor matemático estricto de Inteligencia Artificial para Rosterización de Clínicas Geriátricas.
+Misión: Cumplir matemáticamente con las cuotas requeridas de personal por turno, acatando CIENTÍFICAMENTE las restricciones de días y turnos fijos de cada individuo.
+
 Días a planificar: ${days.join(", ")}
+El formato de los días libres está en Inglés (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday), cerciórate de cruzar bien las fechas.
+
 Personal Disponible:
 ${empContext}
 
-Bloques fijos de Turnos:
-- MORNING (Mañana): 06:00 a 14:00
-- EVENING (Tarde): 14:00 a 22:00
-- NIGHT (Noche): 22:00 a 06:00 (Termina al día siguiente)
+Bloques de Turnos Y SUS METAS (ESTO ES OBLIGATORIO Y NO NEGOCIABLE PARA CADA DÍA):
+- MORNING (AM): EXACTAMENTE ${countAM} empleados cada día.
+- EVENING (PM): EXACTAMENTE ${countPM} empleados cada día.
+- NIGHT (Noche): EXACTAMENTE ${countNight} empleados cada día.
 
-Reglas:
-1. Asegura que cada turno de Mañana, Tarde y Noche tenga cobertura todos los días.
-2. Evita asignar turnos dobles (16h seguidas) al mismo empleado el mismo día.
-3. Asegura 1 o 2 días libres por empleado a la semana.
-4. Devuelve una lista JSON plana de turnos asignados sin comentarios adicionales.
+Reglas Científicas:
+1. SI UN EMPLEADO TIENE RESTRICCIONES ESTRICTAS, SUS TURNOS DEBEN OBEDECERLAS CIEGAMENTE (ej. Si su Turno Fijo es MORNING, no lo puedes mandar a PM ni a NIGHT, NUNCA. Si su día libre es Wednesday, no le asignas turno para el día Wednesday).
+2. Cumple las METAS NUMÉRICAS (${countAM} AM, ${countPM} PM, ${countNight} Noche).
+3. Evita turnos dobles o seguidos que violen el descanso humano de 8-12 horas.
+4. Para los empleados sin "Turno Fijo" asignado, rótalos matemáticamente para tapar los huecos y lograr las Metas Numéricas asegurándoles al menos de 1 a 2 días libres aleatorios a la semana.
 
 Responde ÚNICAMENTE con un array JSON válido bajo la clave "shifts". Cada objeto debe tener:
 - employeeId: (ID string del empleado)
-- date: (YYYY-MM-DD)
+- date: (YYYY-MM-DD coincidiendo con los Días a planificar)
 - block: ("MORNING", "EVENING", "NIGHT")
 
 EJEMPLO DE RESPUESTA:

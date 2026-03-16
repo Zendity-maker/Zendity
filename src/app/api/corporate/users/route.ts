@@ -23,7 +23,9 @@ export async function GET(request: Request) {
             select: {
                 id: true,
                 name: true,
-                role: true
+                role: true,
+                preferredShift: true,
+                offDays: true
             }
         });
 
