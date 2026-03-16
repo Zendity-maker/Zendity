@@ -9,7 +9,19 @@ export async function POST(req: Request) {
 
     // 1. Leer Master Material Básico (Se alimentará de base de datos en el futuro)
     const masterMaterialPath = path.join(process.cwd(), 'src/data/academy_master_material.txt');
-    const masterMaterial = fs.readFileSync(masterMaterialPath, 'utf8');
+
+    let masterMaterial = "No master material found";
+    try {
+      masterMaterial = fs.readFileSync(masterMaterialPath, 'utf8');
+    } catch (e) {
+      console.warn("Could not read master material from cwd. Trying __dirname fallback.", e);
+      try {
+        const fallbackPath = path.join(__dirname, '../../../../src/data/academy_master_material.txt');
+        masterMaterial = fs.readFileSync(fallbackPath, 'utf8');
+      } catch (e2) {
+        console.error("Failed to load master material completely.", e2);
+      }
+    }
 
     // 2. Preparar el Prompt para Gemini
     let prompt = "";
