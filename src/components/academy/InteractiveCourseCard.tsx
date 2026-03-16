@@ -306,7 +306,7 @@ export default function InteractiveCourseCard({
 
             <div className="flex flex-col md:flex-row justify-end items-center gap-3 pt-6 mt-auto">
                 {status !== 'COMPLETED' ? (
-                    <>
+                    <div className="flex gap-2 w-full md:w-auto">
                         {aiLoading ? (
                             <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm bg-indigo-50 px-6 py-2.5 rounded-xl border border-indigo-100 w-full md:w-auto justify-center">
                                 <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -328,7 +328,7 @@ export default function InteractiveCourseCard({
                                 </button>
                             </>
                         )}
-                    </>
+                    </div>
                 ) : (
                     <div className="flex items-center gap-3 w-full">
                         <button

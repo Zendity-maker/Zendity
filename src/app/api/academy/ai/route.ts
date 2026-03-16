@@ -23,6 +23,23 @@ export async function POST(req: Request) {
       }
     }
 
+    // Inyectar un poco de contexto dinámico para que Gemini varíe el contenido según el curso clickeado
+    let courseContext = "";
+    if (body.courseId) {
+      if (body.courseId === 'cls2') {
+        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 2: Manual de Cuidadores. Debes enfocarte exclusivamente en técnicas de cuidado diario, empatía, alimentación asistida y manejo de higiene. NO hables de prevención de caídas.";
+      } else if (body.courseId === 'cls3') {
+        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 3: Guía del Director Administrativo. Debes enfocarte en gestión de personal (RRHH), control de calidad, presupuestos y atención a quejas de familiares. NO hables de temas clínicos directos.";
+      } else if (body.courseId === 'cls4') {
+        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 4: Control de Medicación (eMAR). Debes enfocarte en la regla de los 5 correctos, registro en la tablet, diferencias entre PRN y medicamentos fijos, y prevención de errores de dispensación.";
+      } else if (body.courseId === 'cls5') {
+        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 5: Protocolos de Mantenimiento y Planta Física. Debes enfocarte en el uso del SLA, reparación de averías comunes, limpieza de filtros HVAC, y control de suministros.";
+      } else {
+        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso Base de Prevención de Caídas y protocolos generales de baño. Enfócate en seguridad del paciente, transferencias y evaluación de riesgos.";
+      }
+    }
+
+
     // 2. Preparar el Prompt para Gemini
     let prompt = "";
     if (requestType === 'flashcards') {
@@ -30,6 +47,9 @@ export async function POST(req: Request) {
 Eres la Profesora Zendi, líder educativa de Zendity Academy.
 Lee el siguiente material oficial (Master Material) y extrae exactamente 4 tarjetas de estudio interactivas (Flashcards) resumiendo los conceptos clave.
 Usa un tono profesional, motivador y directo (tipo Duolingo).
+
+REGLAS DE CONTEXTO ESTRICTO DE ESTE CURSO ESPECÍFICO:
+${courseContext}
 
 OUTPUT OBLIGATORIO: Genera ÚNICAMENTE un JSON válido con esta estructura, sin bloques de markdown:
 {
@@ -46,6 +66,9 @@ ${masterMaterial}
 Eres la Profesora Zendi, líder educativa de Zendity Academy.
 Lee el siguiente material oficial (Master Material) y genera exactamente 5 preguntas de selección múltiple altamente rigurosas basadas estrictamente en la lectura.
 Asegúrate de que haya solo 1 respuesta correcta obvia, y 3 distractores plausibles.
+
+REGLAS DE CONTEXTO ESTRICTO DE ESTE CURSO ESPECÍFICO:
+${courseContext}
 
 OUTPUT OBLIGATORIO: Genera ÚNICAMENTE un JSON válido con esta estructura, sin bloques de markdown:
 {
