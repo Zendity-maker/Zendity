@@ -73,8 +73,8 @@ export default function VividInvestorsDashboard() {
                             V
                         </div>
                         <div className="flex flex-col">
-                            <h1 className="text-2xl font-serif text-white tracking-tight leading-none uppercase">Vivid <span className="text-amber-500 font-light">Senior Living</span></h1>
-                            <p className="text-slate-400 font-medium text-xs tracking-[0.2em] uppercase mt-1">Partners & Investor Dashboard</p>
+                            <h1 className="text-2xl font-serif text-white tracking-tight uppercase pb-1">Vivid <span className="text-amber-500 font-light">Senior Living</span></h1>
+                            <p className="text-slate-400 font-medium text-xs tracking-[0.2em] uppercase leading-relaxed">Partners & Investor Dashboard</p>
                         </div>
                     </div>
 
