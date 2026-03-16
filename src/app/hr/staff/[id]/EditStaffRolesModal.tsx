@@ -99,6 +99,7 @@ export default function EditStaffRolesModal({ employee, onUpdate }: EditRolesPro
                                         <option value="SUPERVISOR">Supervisor(a)</option>
                                         <option value="DIRECTOR">Director Ejecutivo</option>
                                         <option value="ADMIN">Administrador de Red</option>
+                                        <option value="INVESTOR">Socio / Inversor</option>
                                         <option value="KITCHEN">Cocina y Nutrición</option>
                                         <option value="MAINTENANCE">Mantenimiento</option>
                                     </select>
