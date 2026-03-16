@@ -14,6 +14,8 @@ datasource db {
 model Headquarters {
   id            String   @id @default(uuid())
   name          String
+  capacity      Int      @default(50) // FASE 12: Occupancy Denominator
+  isActive      Boolean  @default(true) // FASE 12: Operating Status
   licenseActive Boolean  @default(true)
   licenseExpiry DateTime
   createdAt     DateTime @default(now())
@@ -163,6 +165,7 @@ enum Role {
   SUPERVISOR
   MAINTENANCE
   KITCHEN
+  INVESTOR // FASE 12: Read-Only Partners Dashboard
 }
 
 enum ColorGroup {
