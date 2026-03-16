@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
-export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | null;
+export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | "INVESTOR" | null;
 
 export interface AuthUser {
     id: string;
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "FAMILY") router.replace("/family");
                 else if (user.role === "CAREGIVER") router.replace("/care");
                 else if (user.role === "THERAPIST" || user.role === "BEAUTY_SPECIALIST") router.replace("/specialists");
+                else if (user.role === "INVESTOR") router.replace("/corporate/investors");
                 else if (user.role === "MAINTENANCE") router.replace("/maintenance");
                 else if (user.role === "KITCHEN") router.replace("/kitchen");
                 else router.replace("/"); // NURSE, SUPERVISOR, DIRECTOR 
@@ -84,6 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 else if (user.role === "KITCHEN" && !pathname.startsWith("/kitchen")) {
                     router.replace("/kitchen");
+                }
+                else if (user.role === "INVESTOR" && !pathname.startsWith("/corporate/investors")) {
+                    router.replace("/corporate/investors");
                 }
             }
         }
