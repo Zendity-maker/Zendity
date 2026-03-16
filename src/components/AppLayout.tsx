@@ -30,6 +30,7 @@ const corporateNavigationSections = [
         links: [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
+            { name: "Vivid Partners", href: "/corporate/investors", icon: Activity },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
