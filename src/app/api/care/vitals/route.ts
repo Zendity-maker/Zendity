@@ -13,12 +13,16 @@ export async function POST(req: Request) {
         }
 
         if (type === 'VITALS') {
+            if (!data.sys || !data.dia || !data.hr || !data.temp) {
+                return NextResponse.json({ success: false, error: "Datos vitales incompletos" }, { status: 400 });
+            }
+
             await prisma.vitalSigns.create({
                 data: {
                     patientId,
                     measuredById: authorId,
-                    systolic: parseInt(data.systole),
-                    diastolic: parseInt(data.diastole),
+                    systolic: parseInt(data.sys),
+                    diastolic: parseInt(data.dia),
                     heartRate: parseInt(data.hr),
                     temperature: parseFloat(data.temp),
                     glucose: data.glucose ? parseInt(data.glucose) : null,
