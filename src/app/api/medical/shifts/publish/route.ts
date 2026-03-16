@@ -33,7 +33,8 @@ export async function POST(req: Request) {
         const employees = await prisma.user.findMany({
             where: {
                 headquartersId: hqId,
-                isActive: true,
+                isDeleted: false,
+                isShiftBlocked: false,
                 role: { in: ['NURSE', 'CAREGIVER', 'SUPERVISOR'] }
             },
             select: { email: true, name: true }

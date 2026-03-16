@@ -18,7 +18,8 @@ export async function GET(request: Request) {
             where: {
                 ...(hqId && { headquartersId: hqId }),
                 ...(rolesFilter && { role: rolesFilter }),
-                isActive: true
+                isDeleted: false,
+                isShiftBlocked: false
             },
             select: {
                 id: true,

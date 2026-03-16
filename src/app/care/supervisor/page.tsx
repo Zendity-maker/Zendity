@@ -27,7 +27,7 @@ export default function SupervisorDashboardPage() {
     const [isSavingRound, setIsSavingRound] = useState(false);
 
     // FASE 50: Kitchen Quality Monitoring
-    const [kitchenObservation, setKitchenObservation] = useState({ satisfactionScore: 5, comments: "" });
+    const [kitchenObservation, setKitchenObservation] = useState<{ satisfactionScore: number, comments: string, photoUrl?: string }>({ satisfactionScore: 5, comments: "", photoUrl: "" });
     const [isSavingKitchenObs, setIsSavingKitchenObs] = useState(false);
 
     useEffect(() => {
@@ -173,6 +173,41 @@ export default function SupervisorDashboardPage() {
         }
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // 70% quality JPEG
+                    setKitchenObservation({ ...kitchenObservation, photoUrl: dataUrl });
+                }
+            };
+            if (typeof event.target?.result === 'string') {
+                img.src = event.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleSaveKitchenObs = async () => {
         if (!user) return;
         if (!kitchenObservation.comments.trim()) return alert("Debe escribir un comentario para la cocina.");
@@ -187,13 +222,14 @@ export default function SupervisorDashboardPage() {
                     headquartersId: hqId,
                     supervisorId: user.id,
                     satisfactionScore: kitchenObservation.satisfactionScore,
-                    comments: kitchenObservation.comments
+                    comments: kitchenObservation.comments,
+                    photoUrl: kitchenObservation.photoUrl || null
                 })
             });
             const data = await res.json();
             if (data.success) {
                 alert("✅ Observación enviada exitosamente a la Cocina.");
-                setKitchenObservation({ satisfactionScore: 5, comments: "" });
+                setKitchenObservation({ satisfactionScore: 5, comments: "", photoUrl: "" });
             } else {
                 alert("Error enviando reporte a cocina: " + data.error);
             }
@@ -429,6 +465,30 @@ export default function SupervisorDashboardPage() {
                                 placeholder="Ej. La sopa de la mesa 3 llegó fría. Los purés tienen buena consistencia hoy."
                                 className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none h-24"
                             ></textarea>
+                            
+                            <div className="flex flex-col gap-2">
+                                <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-orange-200 hover:border-orange-400 bg-orange-50/50 hover:bg-orange-50 text-orange-600 font-bold py-3 px-4 rounded-xl cursor-pointer transition-all">
+                                    <span>📸</span> {kitchenObservation.photoUrl ? "Cambiar Foto Adjunta" : "Tomar/Subir Foto de la Comida"}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        capture="environment" 
+                                        className="hidden" 
+                                        onChange={handleImageUpload} 
+                                    />
+                                </label>
+                                {kitchenObservation.photoUrl && (
+                                    <div className="relative w-fit">
+                                        <img src={kitchenObservation.photoUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg shadow-sm border border-slate-200" />
+                                        <button 
+                                            onClick={() => setKitchenObservation({ ...kitchenObservation, photoUrl: "" })}
+                                            className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-rose-600 shadow-md"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 onClick={handleSaveKitchenObs}
                                 disabled={isSavingKitchenObs || !kitchenObservation.comments.trim()}
