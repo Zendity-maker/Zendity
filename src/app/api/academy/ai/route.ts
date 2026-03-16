@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 
 export async function POST(req: Request) {
   try {
@@ -110,7 +110,6 @@ ${masterMaterial}
       throw new Error("La integración de Zendity Academy está inactiva: Falta la GEMINI_API_KEY");
     }
 
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
