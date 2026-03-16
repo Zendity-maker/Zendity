@@ -70,8 +70,8 @@ export default function VividInvestorsDashboard() {
             <div className="bg-black/40 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 lg:px-12 py-6 flex flex-col md:flex-row items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-white font-serif text-3xl italic shadow-lg shadow-amber-500/20">
-                            V
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-white/10 p-1">
+                            <img src="/logo-vivid.png" alt="Vivid Senior Living Logo" className="max-h-full object-contain" />
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-2xl font-serif text-white tracking-tight uppercase pb-1">Vivid <span className="text-amber-500 font-light">Senior Living</span></h1>
