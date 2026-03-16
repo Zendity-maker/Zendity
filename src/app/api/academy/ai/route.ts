@@ -7,21 +7,36 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { requestType } = body; // 'flashcards' o 'quiz'
 
-    // 1. Leer Master Material Básico (Se alimentará de base de datos en el futuro)
-    const masterMaterialPath = path.join(process.cwd(), 'src/data/academy_master_material.txt');
+    // 1. Master Material Básico (Hardcoded para compatibilidad Serverless en Vercel)
+    const masterMaterial = `
+Descripción del curso:
+Este curso práctico y educativo está diseñado para capacitar al personal y cuidadores en la prevención de caídas, una de las principales preocupaciones en el cuidado de adultos mayores. A través de módulos interactivos, aprenderás a identificar factores de riesgo, implementar estrategias efectivas y diseñar entornos seguros que promuevan la movilidad y reduzcan accidentes.
 
-    let masterMaterial = "No master material found";
-    try {
-      masterMaterial = fs.readFileSync(masterMaterialPath, 'utf8');
-    } catch (e) {
-      console.warn("Could not read master material from cwd. Trying __dirname fallback.", e);
-      try {
-        const fallbackPath = path.join(__dirname, '../../../../src/data/academy_master_material.txt');
-        masterMaterial = fs.readFileSync(fallbackPath, 'utf8');
-      } catch (e2) {
-        console.error("Failed to load master material completely.", e2);
-      }
-    }
+¿Qué aprenderás?
+Identificación de factores de riesgo intrínsecos y extrínsecos.
+Diseño de planes personalizados de prevención de caídas.
+Estrategias para mejorar la seguridad en los entornos del hogar.
+Ejercicios y actividades físicas para fortalecer el equilibrio y la fuerza de los residentes.
+Educación y concienciación para empoderar a los cuidadores y residentes.
+
+Protocolo de Baños para Residentes con Alto Nivel de Independencia
+Objetivo del Protocolo
+Establecer un procedimiento claro y seguro para asistir a residentes con alto nivel de independencia durante su rutina de baño, fomentando su autosuficiencia mientras se aseguran condiciones óptimas de seguridad y bienestar.
+
+Preparación del área de baño:
+Asegurarse de que el baño esté limpio, libre de obstáculos y con superficies antideslizantes.
+Comprobar que la iluminación sea adecuada.
+Ajustar la temperatura del agua a un nivel seguro y cómodo (entre 37°C y 40°C).
+
+Procedimiento en caso de caída:
+Asistir al residente sin intentar levantarlo directamente.
+Liamar al equipo de enfermería o emergencias según sea necesario.
+Permanecer con el residente, proporcionando calma y apoyo emocional.
+
+Revisión periódica del protocolo:
+Evaluar la efectividad del protocolo cada seis meses.
+Incorporar sugerencias de los cuidadores y residentes para mejorar el proceso.
+`;
 
     // Inyectar un poco de contexto dinámico para que Gemini varíe el contenido según el curso clickeado
     let courseContext = "";
