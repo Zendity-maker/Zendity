@@ -64,6 +64,31 @@ export async function POST(req: Request) {
             });
         });
 
+        // 2. Obtener Eventos Institucionales del Calendario para HOY aplicables a este grupo
+        const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+        const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
+        
+        const hqEvents = await prisma.headquartersEvent.findMany({
+            where: {
+                startTime: { gte: todayStart, lt: todayEnd }
+            }
+        });
+
+        // Filtrar Eventos que le tocan a este Cuidador (según la lógica "ALL", "GROUP", "SPECIFIC")
+        const assignedPatientIds = patients.map(p => p.id);
+        const relevantEvents = hqEvents.filter(ev => {
+            if (ev.targetPopulation === 'ALL') return true;
+            if (ev.targetPopulation === 'GROUP' && ev.targetGroups.includes(colorGroup)) return true;
+            if (ev.targetPopulation === 'SPECIFIC' && ev.targetPatients.some(id => assignedPatientIds.includes(id))) return true;
+            return false;
+        });
+
+        if (relevantEvents.length > 0) {
+            hasIssues = true;
+            const eventDescriptions = relevantEvents.map(e => `${e.title} a las ${new Date(e.startTime).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}`).join(", ");
+            ttsMessage += `Además, toma nota del calendario general: hoy tenemos ${eventDescriptions}. `;
+        }
+
         if (!hasIssues) {
             ttsMessage += "Los signos vitales de nuestros residentes se encuentran estables en este momento. Estoy a tu disposición cuando desees iniciar nuestro recorrido.";
         } else {

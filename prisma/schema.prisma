@@ -1023,6 +1023,12 @@ model HeadquartersEvent {
   patientId      String?
   photoUrl       String?   // FASE 37: Image Uploads
 
+  // FASE 51: Advanced Audience Targeting (Zendi Sync)
+  targetPopulation String    @default("ALL") // "ALL", "GROUP", "SPECIFIC"
+  targetGroups     String[]  // Array of ColorGroups e.g. ["RED", "BLUE"]
+  targetPatients   String[]  // Array of Patient IDs
+
+
   // FASE 42: SLA Maintenance Resolution tracking
   assignedToId          String? // User ID del Técnico
   resolutionTimeMinutes Int? 

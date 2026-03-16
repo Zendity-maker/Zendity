@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
         const hqId = session.user.headquartersId;
         const body = await request.json();
-        const { title, description, type, startTime, endTime, patientId } = body;
+        const { title, description, type, startTime, endTime, patientId, targetPopulation, targetGroups, targetPatients } = body;
 
         if (!title || !startTime || !endTime) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -51,7 +51,10 @@ export async function POST(request: Request) {
                 type: type || 'OTHER',
                 startTime: new Date(startTime),
                 endTime: new Date(endTime),
-                patientId: patientId || null
+                patientId: patientId || null,
+                targetPopulation: targetPopulation || 'ALL',
+                targetGroups: targetGroups || [],
+                targetPatients: targetPatients || []
             },
             include: {
                 patient: { select: { id: true, name: true } }

@@ -5,7 +5,7 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Calendar, dateFnsLocalizer, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Calendar as CalendarIcon, Loader2, Plus, Trash2, Clock, MapPin, UserSquare2, CheckCircle2 } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Plus, Trash2, Clock, MapPin, UserSquare2, CheckCircle2, Users, User, Palette } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const locales = { es };
@@ -42,9 +42,28 @@ export default function CorporateCalendarPage() {
     const [endTime, setEndTime] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Advanced Audience Targeting States
+    const [patientsList, setPatientsList] = useState<any[]>([]);
+    const [targetPopulation, setTargetPopulation] = useState("ALL"); // ALL, GROUP, SPECIFIC
+    const [targetGroups, setTargetGroups] = useState<string[]>([]);
+    const [targetPatients, setTargetPatients] = useState<string[]>([]);
+
     useEffect(() => {
         fetchEvents();
+        fetchPatients();
     }, []);
+
+    const fetchPatients = async () => {
+        try {
+            const res = await fetch("/api/corporate/medical/patients");
+            if (res.ok) {
+                const data = await res.json();
+                setPatientsList(data.patients || []);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     const fetchEvents = async () => {
         try {
@@ -86,7 +105,10 @@ export default function CorporateCalendarPage() {
                 description: desc,
                 type,
                 startTime: startDateTime.toISOString(),
-                endTime: endDateTime.toISOString()
+                endTime: endDateTime.toISOString(),
+                targetPopulation,
+                targetGroups: targetPopulation === "GROUP" ? targetGroups : [],
+                targetPatients: targetPopulation === "SPECIFIC" ? targetPatients : []
             };
 
             const res = await fetch("/api/corporate/calendar", {
@@ -99,6 +121,9 @@ export default function CorporateCalendarPage() {
                 setIsModalOpen(false);
                 setTitle("");
                 setDesc("");
+                setTargetPopulation("ALL");
+                setTargetGroups([]);
+                setTargetPatients([]);
                 fetchEvents();
             } else {
                 alert("Ocurrió un error guardando la cita.");
@@ -198,13 +223,13 @@ export default function CorporateCalendarPage() {
                         <form onSubmit={handleCreate} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Título del Evento</label>
-                                <input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ej. Laboratorios Clínicos en Ayunas" className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none" />
+                                <input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ej. Laboratorios Clínicos en Ayunas" className="w-full font-bold text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none" />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1">Categoría</label>
-                                    <select value={type} onChange={e => setType(e.target.value)} className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none font-medium">
+                                    <select value={type} onChange={e => setType(e.target.value)} className="w-full font-bold text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none">
                                         <option value="LABORATORY">🩸 Laboratorio (Rojo)</option>
                                         <option value="MEDICAL_VISIT">🩺 Visita Médica (Azul)</option>
                                         <option value="FAMILY_VISIT">👪 Visita Familiar (Ambar)</option>
@@ -231,7 +256,56 @@ export default function CorporateCalendarPage() {
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Instrucciones a Cuidadores (Opcional)</label>
-                                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al residente en ayunas..." className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
+                                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al residente en ayunas..." className="w-full font-medium text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
+                            </div>
+
+                            {/* AUDIENCE SELECTORS (FASE 51) */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+                                <label className="block text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-500" />
+                                    Audiencia del Evento (Sincronización Zendi)
+                                </label>
+                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                    <button type="button" onClick={() => setTargetPopulation('ALL')} className={`py-2 px-3 text-xs font-bold rounded-lg border ${targetPopulation === 'ALL' ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>Toda la Población</button>
+                                    <button type="button" onClick={() => setTargetPopulation('GROUP')} className={`py-2 px-3 text-xs font-bold rounded-lg border ${targetPopulation === 'GROUP' ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>Grupos de Color</button>
+                                    <button type="button" onClick={() => setTargetPopulation('SPECIFIC')} className={`py-2 px-3 text-xs font-bold rounded-lg border ${targetPopulation === 'SPECIFIC' ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}>Residentes Específicos</button>
+                                </div>
+
+                                {targetPopulation === 'GROUP' && (
+                                    <div className="grid grid-cols-2 gap-2 animate-in fade-in zoom-in-95">
+                                        {['RED', 'YELLOW', 'GREEN', 'BLUE'].map(color => (
+                                            <label key={color} className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                                <input type="checkbox" checked={targetGroups.includes(color)} onChange={(e) => {
+                                                    if (e.target.checked) setTargetGroups([...targetGroups, color]);
+                                                    else setTargetGroups(targetGroups.filter(c => c !== color));
+                                                }} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-3 h-3 rounded-full bg-${color.toLowerCase()}-500`}></div>
+                                                    <span className="text-sm font-bold text-slate-700 uppercase">{color}</span>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {targetPopulation === 'SPECIFIC' && (
+                                    <div className="max-h-40 overflow-y-auto space-y-1 bg-white border border-slate-200 rounded-lg p-2 animate-in fade-in zoom-in-95">
+                                        {patientsList.length > 0 ? patientsList.map(patient => (
+                                            <label key={patient.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-md cursor-pointer transition-colors">
+                                                <input type="checkbox" checked={targetPatients.includes(patient.id)} onChange={(e) => {
+                                                    if (e.target.checked) setTargetPatients([...targetPatients, patient.id]);
+                                                    else setTargetPatients(targetPatients.filter(id => id !== patient.id));
+                                                }} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-slate-800">{patient.name}</span>
+                                                    <span className="text-[10px] font-bold text-slate-400">Piso / Cuarto: {patient.roomNumber || 'N/A'}</span>
+                                                </div>
+                                            </label>
+                                        )) : (
+                                            <p className="text-xs text-center text-slate-500 py-4 font-medium">Cargando residentes...</p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg mt-6 flex justify-center items-center gap-2">
