@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface Employee {
     id: string;
@@ -58,6 +60,11 @@ export default function ShiftSchedulerPage() {
     const [activeCell, setActiveCell] = useState<{ employeeId: string, date: Date, blockId?: string, zoneId?: string } | null>(null);
     const [isSavingGrid, setIsSavingGrid] = useState(false);
 
+    // AI Generation State
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    // SendGrid Publisher State
+    const [isPublishing, setIsPublishing] = useState(false);
+
     useEffect(() => {
         if (activeHqId) {
             fetchData();
@@ -99,6 +106,80 @@ export default function ShiftSchedulerPage() {
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAIGenerate = async () => {
+        if (!confirm("⚠️ ¿Estás seguro? Esto usará Inteligencia Artificial para sobreescribir los turnos de la semana mostrada y distribuirlos de manera equitativa. Los turnos actuales se borrarán.")) return;
+        
+        setIsGeneratingAI(true);
+        try {
+            const startDateLocal = new Date(currentWeekStart.getTime() - currentWeekStart.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+            const res = await fetch("/api/medical/shifts/ai-generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    weekStartDate: startDateLocal,
+                    employees: employees.map(e => ({ id: e.id, name: e.name, role: e.role }))
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(`✨ ¡Zendi AI generó y organizó ${data.count} turnos equitativamente para esta semana! Revisa el tablero.`);
+                fetchData();
+            } else {
+                alert("Error generando horario: " + data.error);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Ocurrió un error consultando a Zendi AI.");
+        } finally {
+            setIsGeneratingAI(false);
+        }
+    };
+
+    const handlePublishPDF = async () => {
+        if (!confirm("📩 ¿Deseas aprobar este roster y enviarlo en PDF por correo a todos los empleados activos de la sede?")) return;
+        setIsPublishing(true);
+
+        try {
+            const tableElement = document.getElementById("roster-table");
+            if (!tableElement) throw new Error("No se encontró la tabla de turnos para convertir.");
+
+            // 1. Snapshot HTML
+            const canvas = await html2canvas(tableElement, { scale: 2 });
+            const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+            // 2. Build PDF (A4 Landscape)
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'JPEG', 0, 10, pdfWidth, pdfHeight);
+            
+            // 3. Obtain Base64
+            const pdfBase64 = pdf.output('datauristring');
+
+            // 4. Send to Webhook
+            const weekLabel = `${currentWeekStart.toLocaleDateString()} al ${addDays(currentWeekStart, 6).toLocaleDateString()}`;
+            
+            const res = await fetch("/api/medical/shifts/publish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pdfBase64, weekLabel })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(`✅ Roster aprobado. PDF generado y enviado a ${data.count} empleados.`);
+            } else {
+                alert("Error técnico en envío: " + data.error);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Excepción local: revisa la consola.");
+        } finally {
+            setIsPublishing(false);
         }
     };
 
@@ -242,6 +323,31 @@ export default function ShiftSchedulerPage() {
                 </div>
             </div>
 
+            <div className="flex gap-4">
+                <button
+                    onClick={handleAIGenerate}
+                    disabled={isGeneratingAI || employees.length === 0}
+                    className="ml-auto bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50"
+                >
+                    {isGeneratingAI ? (
+                        <span className="animate-pulse">✨ Zendity IA Procesando...</span>
+                    ) : (
+                        <>✨ Automatizar con IA</>
+                    )}
+                </button>
+                <button
+                    onClick={handlePublishPDF}
+                    disabled={isPublishing || shifts.length === 0}
+                    className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold shadow-md flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 border border-slate-700 hover:border-slate-500"
+                >
+                    {isPublishing ? (
+                        <span className="animate-pulse">📩 Generando PDF y Enviando...</span>
+                    ) : (
+                        <>📩 Aprobar y Enviar (PDF)</>
+                    )}
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 
                 {/* Columna Izquierda: Asignadores */}
@@ -303,7 +409,10 @@ export default function ShiftSchedulerPage() {
                 </div>
 
                 {/* Tablero Semanal Visual (Grid) */}
-                <div className="lg:col-span-3 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                <div id="roster-table" className="lg:col-span-3 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col pt-2 pb-2">
+                    <div className="px-4 py-2 border-b border-slate-100 hidden print:block text-slate-400 font-bold mb-4">
+                        Zendity Institutional Shift Planner - Generado el {new Date().toLocaleDateString()}
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>

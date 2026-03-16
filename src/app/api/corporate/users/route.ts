@@ -18,6 +18,7 @@ export async function GET(request: Request) {
             where: {
                 ...(hqId && { headquartersId: hqId }),
                 ...(rolesFilter && { role: rolesFilter }),
+                isActive: true
             },
             select: {
                 id: true,
