@@ -331,7 +331,8 @@ export default function ZendityCareTabletPage() {
             };
             const res = await fetch("/api/care/vitals", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                cache: "no-store"
             });
             const data = await res.json();
             if (data.success) {
