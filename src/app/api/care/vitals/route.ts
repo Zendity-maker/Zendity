@@ -21,6 +21,7 @@ export async function POST(req: Request) {
                     diastolic: parseInt(data.diastole),
                     heartRate: parseInt(data.hr),
                     temperature: parseFloat(data.temp),
+                    glucose: data.glucose ? parseInt(data.glucose) : null,
                 }
             });
         } else if (type === 'LOG') {

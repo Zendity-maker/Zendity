@@ -604,6 +604,7 @@ model VitalSigns {
   diastolic    Int
   temperature  Float
   heartRate    Int
+  glucose      Int?
   createdAt    DateTime @default(now())
 
   patient    Patient @relation(fields: [patientId], references: [id])
