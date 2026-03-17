@@ -187,28 +187,47 @@ export default function InteractiveCourseCard({
     if (mode === "LEARNING") {
         const card = flashcards[activeCardIndex];
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 min-h-[300px] flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Tarjeta {activeCardIndex + 1} de {flashcards.length}</span>
-                    <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-slate-600">✕ Cerrar</button>
-                </div>
-                <div className="flex-1 flex flex-col justify-center items-center text-center px-4 md:px-12 py-8 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border border-blue-100">
-                    <h3 className="text-2xl font-black text-slate-800 mb-4">{card.title}</h3>
-                    <p className="text-lg text-slate-600 leading-relaxed font-medium">{card.content}</p>
-                </div>
-                <div className="flex justify-between items-center mt-6">
-                    <button
-                        onClick={() => setActiveCardIndex(Math.max(0, activeCardIndex - 1))}
-                        disabled={activeCardIndex === 0}
-                        className="px-4 py-2 text-sm font-bold text-slate-500 disabled:opacity-30 hover:text-indigo-600"
-                    >
-                        ← Anterior
-                    </button>
-                    {activeCardIndex + 1 === flashcards.length ? (
-                        <button onClick={() => setMode("IDLE")} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-200 hover:bg-indigo-700">Entendido 🎓</button>
-                    ) : (
-                        <button onClick={() => setActiveCardIndex(activeCardIndex + 1)} className="px-6 py-2 bg-indigo-100 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-200">Siguiente →</button>
-                    )}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+                <div className="bg-white rounded-3xl p-8 shadow-2xl border border-slate-200 w-full max-w-4xl min-h-[500px] flex flex-col animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex justify-between items-center mb-8">
+                        <span className="text-sm font-bold uppercase tracking-widest text-indigo-500 bg-indigo-50 px-4 py-1.5 rounded-full">
+                            Material de Estudio • Tarjeta {activeCardIndex + 1} de {flashcards.length}
+                        </span>
+                        <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors bg-slate-100 hover:bg-rose-50 px-4 py-2 rounded-xl">
+                            ✕ Cerrar Sesión
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center items-center text-center px-4 md:px-16 py-12 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 rounded-2xl border border-indigo-100 mb-8">
+                        <h3 className="text-4xl md:text-5xl font-black text-slate-800 mb-8 leading-tight tracking-tight">{card.title}</h3>
+                        <p className="text-xl md:text-2xl text-slate-600 leading-relaxed font-medium max-w-2xl">{card.content}</p>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-auto border-t border-slate-100 pt-6">
+                        <button
+                            onClick={() => setActiveCardIndex(Math.max(0, activeCardIndex - 1))}
+                            disabled={activeCardIndex === 0}
+                            className="px-8 py-3.5 text-base font-bold text-slate-600 bg-slate-100 disabled:opacity-30 disabled:hover:bg-slate-100 hover:bg-slate-200 hover:text-indigo-700 rounded-2xl transition-all"
+                        >
+                            ← Anterior
+                        </button>
+                        
+                        <div className="flex gap-2">
+                            {flashcards.map((_, idx) => (
+                                <div key={idx} className={`h-2 rounded-full transition-all duration-300 ${idx === activeCardIndex ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-200'}`} />
+                            ))}
+                        </div>
+
+                        {activeCardIndex + 1 === flashcards.length ? (
+                            <button onClick={() => setMode("IDLE")} className="px-8 py-3.5 bg-indigo-600 text-white rounded-2xl text-base font-bold shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 transition-all">
+                                Entendido 🎓
+                            </button>
+                        ) : (
+                            <button onClick={() => setActiveCardIndex(activeCardIndex + 1)} className="px-8 py-3.5 bg-indigo-100 text-indigo-700 rounded-2xl text-base font-bold hover:bg-indigo-200 hover:scale-105 transition-all">
+                                Siguiente →
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -217,71 +236,95 @@ export default function InteractiveCourseCard({
     if (mode === "QUIZ") {
         const q = quizQuestions[currentQuestionIndex];
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border-2 border-indigo-100 min-h-[300px] flex flex-col animate-in fade-in zoom-in-95">
-                <div className="flex justify-between items-center mb-6">
-                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Examen Oficial • Pregunta {currentQuestionIndex + 1} de {quizQuestions.length}</span>
-                    <button onClick={() => { if (confirm("¿Abandonar el examen contará como intento nulo. Seguro?")) setMode("IDLE") }} className="text-sm font-bold text-slate-400 hover:text-red-500">Abandonar</button>
-                </div>
-
-                <h3 className="text-xl font-bold text-slate-900 mb-6">{q.question}</h3>
-
-                <div className="space-y-3 flex-1">
-                    {q.options.map((opt: string, i: number) => {
-                        let btnClass = "w-full text-left px-5 py-4 rounded-xl border-2 transition-all font-medium text-slate-700 ";
-
-                        if (isAnswerRevealed) {
-                            if (opt === q.correctAnswer) {
-                                btnClass += "bg-green-50 border-green-500 text-green-800";
-                            } else if (opt === selectedAnswer && opt !== q.correctAnswer) {
-                                btnClass += "bg-red-50 border-red-500 text-red-800";
-                            } else {
-                                btnClass += "border-slate-100 opacity-50";
-                            }
-                        } else {
-                            if (opt === selectedAnswer) btnClass += "border-indigo-600 bg-indigo-50 shadow-sm";
-                            else btnClass += "border-slate-200 hover:border-indigo-300 hover:bg-slate-50";
-                        }
-
-                        return (
-                            <button
-                                key={i}
-                                disabled={isAnswerRevealed}
-                                onClick={() => setSelectedAnswer(opt)}
-                                className={btnClass}
-                            >
-                                {opt}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {isAnswerRevealed && (
-                    <div className={"mt-6 p-4 rounded-xl flex items-start gap-3 " + (selectedAnswer === q.correctAnswer ? "bg-green-100 text-green-900" : "bg-red-100 text-red-900")}>
-                        <span className="text-2xl">{selectedAnswer === q.correctAnswer ? '✅' : '❌'}</span>
-                        <div>
-                            <p className="font-bold mb-1">Zendi AI Coach:</p>
-                            <p className="text-sm opacity-90">{q.explanation}</p>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-lg overflow-y-auto">
+                <div className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border-2 border-indigo-100 w-full max-w-4xl min-h-[600px] flex flex-col animate-in fade-in zoom-in-95 duration-500">
+                    <div className="flex justify-between items-center mb-10 pb-6 border-b border-slate-100">
+                        <div className="flex flex-col gap-2">
+                            <span className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full w-fit">
+                                Examen Oficial de Certificación
+                            </span>
+                            <span className="text-slate-500 font-bold text-sm">
+                                Pregunta {currentQuestionIndex + 1} de {quizQuestions.length}
+                            </span>
                         </div>
+                        <button onClick={() => { if (confirm("¿Abandonar el examen contará como intento nulo. Seguro?")) setMode("IDLE") }} className="text-sm font-bold text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 px-4 py-2 rounded-xl transition-colors">
+                            Abandonar Examen
+                        </button>
                     </div>
-                )}
 
-                <div className="mt-8 flex justify-end">
-                    {!isAnswerRevealed ? (
-                        <button
-                            disabled={!selectedAnswer}
-                            onClick={handleAnswerSubmit}
-                            className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all"
-                        >
-                            Comprobar Respuesta
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleNextQuestion}
-                            className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition-all"
-                        >
-                            {currentQuestionIndex + 1 === quizQuestions.length ? "Finalizar Examen y Ver Resultados" : "Siguiente Pregunta →"}
-                        </button>
+                    <div className="mb-10 text-center">
+                        <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight tracking-tight">{q.question}</h3>
+                    </div>
+
+                    <div className="space-y-4 flex-1 max-w-2xl w-full mx-auto">
+                        {q.options.map((opt: string, i: number) => {
+                            let btnClass = "w-full text-left px-6 py-5 rounded-2xl border-2 transition-all font-semibold text-lg text-slate-700 ";
+
+                            if (isAnswerRevealed) {
+                                if (opt === q.correctAnswer) {
+                                    btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-md";
+                                } else if (opt === selectedAnswer && opt !== q.correctAnswer) {
+                                    btnClass += "bg-rose-50 border-rose-500 text-rose-800";
+                                } else {
+                                    btnClass += "border-slate-100 opacity-40";
+                                }
+                            } else {
+                                if (opt === selectedAnswer) btnClass += "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-lg scale-[1.02] translate-x-2";
+                                else btnClass += "border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:translate-x-1";
+                            }
+
+                            return (
+                                <button
+                                    key={i}
+                                    disabled={isAnswerRevealed}
+                                    onClick={() => setSelectedAnswer(opt)}
+                                    className={btnClass}
+                                >
+                                    <span className="mr-3 text-slate-400 font-bold opacity-50">{String.fromCharCode(65 + i)}.</span>
+                                    {opt}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {isAnswerRevealed && (
+                        <div className={"mt-8 p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-bottom-4 " + (selectedAnswer === q.correctAnswer ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200")}>
+                            <div className="text-4xl">{selectedAnswer === q.correctAnswer ? '✅' : '❌'}</div>
+                            <div>
+                                <p className={"font-black text-lg mb-1 " + (selectedAnswer === q.correctAnswer ? "text-emerald-800" : "text-rose-800")}>
+                                    {selectedAnswer === q.correctAnswer ? '¡Respuesta Correcta!' : 'Respuesta Incorrecta'}
+                                </p>
+                                <p className="text-base text-slate-700 font-medium leading-relaxed">
+                                    <strong className="text-slate-900">Zendi AI Coach:</strong> {q.explanation}
+                                </p>
+                            </div>
+                        </div>
                     )}
+
+                    <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center">
+                        <div className="flex gap-2">
+                            {quizQuestions.map((_, idx) => (
+                                <div key={idx} className={`h-2 rounded-full transition-all duration-300 ${idx === currentQuestionIndex ? 'w-8 bg-indigo-600' : idx < currentQuestionIndex ? 'w-2 bg-indigo-300' : 'w-2 bg-slate-200'}`} />
+                            ))}
+                        </div>
+
+                        {!isAnswerRevealed ? (
+                            <button
+                                disabled={!selectedAnswer}
+                                onClick={handleAnswerSubmit}
+                                className="px-8 py-4 bg-indigo-600 text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100 transition-all"
+                            >
+                                Comprobar Respuesta
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleNextQuestion}
+                                className="px-8 py-4 bg-slate-900 text-white text-lg font-black rounded-2xl shadow-xl shadow-slate-900/30 hover:bg-black hover:scale-105 transition-all"
+                            >
+                                {currentQuestionIndex + 1 === quizQuestions.length ? "Finalizar Examen y Ver Resultados" : "Siguiente Pregunta →"}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         );

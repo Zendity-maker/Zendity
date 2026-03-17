@@ -8,6 +8,7 @@ import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTa
 import PatientEMARTab from "@/components/medical/emar/PatientEMARTab";
 import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClinicalSummaryTab";
 import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
+import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
@@ -200,6 +201,12 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         >
                             Riesgo de Caídas / Incidentes
                         </button>
+                        <button
+                            onClick={() => setActiveTab("billing")}
+                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'billing' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                        >
+                            Facturación y Cuotas
+                        </button>
                     </nav>
                 </div>
 
@@ -210,6 +217,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                     {activeTab === "upps" && <PatientUlcersTab />}
                     {activeTab === "falls" && <PatientFallRiskTab />}
                     {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
+                    {activeTab === "billing" && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}
                 </div>
             </div>
 

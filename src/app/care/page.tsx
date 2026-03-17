@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
+import SignatureCanvas from "react-signature-canvas";
 
 export default function ZendityCareTabletPage() {
     const { user, logout } = useAuth();
@@ -47,6 +48,7 @@ export default function ZendityCareTabletPage() {
     const [prnNote, setPrnNote] = useState("");
     const [omissionNote, setOmissionNote] = useState("");
     const [activeMedAction, setActiveMedAction] = useState<'ADMINISTER_ALL' | 'PRN' | 'OMISSION' | null>(null);
+    const sigCanvas = useRef<any>(null); // FASE 60: eMAR Digital Signature
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
     const [formattingNotes, setFormattingNotes] = useState(false);
@@ -462,6 +464,14 @@ export default function ZendityCareTabletPage() {
         if (action === 'PRN' && !prnNote.trim()) return alert("Especifique qué medicamento PRN se administra.");
         if (action === 'OMISSION' && !omissionNote.trim()) return alert("Debe especificar la razón clínica de descontinuar/omitir.");
 
+        let signatureBase64 = null;
+        if ((action === 'ADMINISTER_ALL' || action === 'PRN') && sigCanvas.current) {
+            if (sigCanvas.current.isEmpty()) {
+                return alert("⚠️ Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
+            }
+            signatureBase64 = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+        }
+
         setSubmitting(true);
         try {
             const medicationIds = activePatient.medications.map((m: any) => m.id);
@@ -477,7 +487,8 @@ export default function ZendityCareTabletPage() {
                     action,
                     medicationIds,
                     administeredById: user?.id,
-                    notes: finalNotes
+                    notes: finalNotes,
+                    signatureBase64
                 })
             });
             const data = await res.json();
@@ -1165,7 +1176,12 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'MEDS' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">eMAR: Entrega de Fármacos</p>
+                                <div className="flex justify-between items-center border-b pb-2">
+                                    <p className="font-bold text-slate-400 uppercase text-sm">eMAR: Entrega de Fármacos</p>
+                                    <a href={`/care/patient/emar-print?patientId=${activePatient?.id}`} target="_blank" className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-colors">
+                                        <span>🖨️</span> Imprimir Cardex
+                                    </a>
+                                </div>
                                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-inner max-h-40 overflow-y-auto">
                                     {activePatient?.medications?.length > 0 ? (
                                         activePatient.medications.map((m: any) => (
@@ -1201,6 +1217,25 @@ export default function ZendityCareTabletPage() {
                                             <div className="mb-4 animate-in fade-in slide-in-from-top-2">
                                                 <label className="text-xs font-bold text-rose-600 block mb-1">Razón para Descontinuar / Omitir:</label>
                                                 <input type="text" value={omissionNote} onChange={e => setOmissionNote(e.target.value)} placeholder="Ej. Residente vomitando, orden del dr. X" className="w-full bg-rose-50 p-4 rounded-xl font-bold outline-none border-2 border-rose-200 focus:border-rose-400 text-rose-900" />
+                                            </div>
+                                        )}
+
+                                        {/* FASE 60: eMAR Digital Signature Canvas */}
+                                        {(activeMedAction === 'ADMINISTER_ALL' || activeMedAction === 'PRN' || !activeMedAction) && (
+                                            <div className="mb-5 animate-in fade-in">
+                                                <div className="flex justify-between items-end mb-2">
+                                                    <label className="text-sm font-black text-slate-700 block">Firma Clínica (Requerida)</label>
+                                                    <button onClick={() => sigCanvas.current?.clear()} className="text-xs font-bold text-slate-400 hover:text-slate-600 underline">Limpiar Trazo</button>
+                                                </div>
+                                                <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden touch-none relative">
+                                                    <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-200 pointer-events-none"></div>
+                                                    <SignatureCanvas 
+                                                        ref={sigCanvas} 
+                                                        penColor="#334155"
+                                                        canvasProps={{className: 'signature-canvas w-full h-32 cursor-crosshair'}} 
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-center font-bold text-slate-400 mt-2 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
                                             </div>
                                         )}
 

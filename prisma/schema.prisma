@@ -203,6 +203,11 @@ model Patient {
   colorGroup       ColorGroup    @default(UNASSIGNED) // FASE 7: Zonificación
   conciergeBalance Float         @default(0.0) // FASE 18: Saldo Gift Cards B2C
   
+  // FASE 7: Facturación y Cuotas
+  monthlyFee          Float         @default(0.0)
+  adfContribution     Float         @default(0.0)
+  privateContribution Float         @default(0.0)
+
   // FASE 31: Gestión de Egresos y Permisos Temporales
   status           PatientStatus @default(ACTIVE)
   leaveType        LeaveType?
@@ -315,6 +320,7 @@ model MedicationAdministration {
 
   status MedStatus
   notes  String? // Obligatorio si el Status es REFUSED o MISSED
+  signatureBase64 String? @db.Text // FASE 60: Cardex Signature
 
   patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
   administeredBy    User              @relation(fields: [administeredById], references: [id])
@@ -815,6 +821,7 @@ model Invoice {
   subtotal    Float @default(0.0)
   taxRate     Float @default(0.0)
   totalAmount Float @default(0.0)
+  amountPaid  Float @default(0.0) // FASE 7: Abonos parciales
 
   status InvoiceStatus @default(PENDING)
   notes  String? // Notas para la familia
@@ -825,6 +832,7 @@ model Invoice {
   headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
   patient      Patient       @relation(fields: [patientId], references: [id])
   items        InvoiceItem[]
+  payments     InvoicePayment[] // FASE 7: Abonos parciales
 }
 
 model InvoiceItem {
@@ -844,6 +852,25 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+model InvoicePayment {
+  id        String        @id @default(uuid())
+  invoiceId String
+  amount    Float
+  source    PaymentSource @default(PRIVATE)
+  date      DateTime      @default(now())
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentSource {
+  ADF
+  PRIVATE
+  OTHER
 }
 
 // =======================
