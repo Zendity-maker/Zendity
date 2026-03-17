@@ -33,6 +33,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
     // Manual Schedule Edit State
     const [editingMedId, setEditingMedId] = useState<string | null>(null);
     const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+    const [prepDuration, setPrepDuration] = useState<string>("1_SEMANA");
     const [submitting, setSubmitting] = useState(false);
 
     const fetchData = async () => {
@@ -61,6 +62,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
         setEditingMedId(pm.id);
         const existing = pm.scheduleTimes ? pm.scheduleTimes.split(',').map((t: string) => t.trim()) : [];
         setSelectedTimes(existing);
+        setPrepDuration(pm.prepDuration || "1_SEMANA");
     };
 
     const toggleTime = (time: string) => {
@@ -86,6 +88,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                     action: "MODIFIED",
                     patientMedicationId: editingMedId,
                     scheduleTimes: selectedTimes.length > 0 ? selectedTimes.join(", ") : "PRN",
+                    prepDuration: prepDuration,
                     authorId: user?.id,
                     reason: "Reasignación clínica de horarios (Enfermería)"
                 })
@@ -196,6 +199,13 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                                             <p className="text-sm font-bold text-slate-500 mt-1">
                                                 Dosis: {pm.medication.dosage} • Vía: {pm.medication.route} • Freq: {pm.frequency === 'PRN' ? 'A demanda' : pm.scheduleTimes}
                                             </p>
+                                            {pm.prepDuration === '2_SEMANAS' && (
+                                                <span className="text-[10px] mt-1 bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded uppercase tracking-widest border border-violet-200">Carrito 14 Días</span>
+                                            )}
+                                            {pm.prepDuration === '1_SEMANA' && (
+                                                <span className="text-[10px] mt-1 bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded uppercase tracking-widest border border-blue-200">Carrito 7 Días</span>
+                                            )}
+                                            
                                             <button
                                                 onClick={() => openEditModal(pm)}
                                                 className="bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-700 font-bold px-3 py-1 rounded-lg text-xs mt-1 transition-colors flex items-center gap-1 border border-slate-200"
@@ -254,6 +264,22 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                     <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 leading-relaxed">
                         <h3 className="text-2xl font-black text-slate-800 mb-2">Asignar Horarios</h3>
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Define en qué carritos aparecerá este medicamento para las cuidadoras.</p>
+
+                        <div className="mb-6 p-4 bg-teal-50 border border-teal-100 rounded-xl">
+                            <h4 className="text-sm font-black text-teal-900 mb-3 flex items-center gap-2">📦 Preparación de Carrito (Blíster)</h4>
+                            <div className="flex gap-4">
+                                <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all ${prepDuration === '1_SEMANA' ? 'border-teal-500 bg-teal-600 text-white shadow-md' : 'border-teal-200 text-teal-700 bg-white hover:border-teal-300'}`}>
+                                    <input type="radio" value="1_SEMANA" checked={prepDuration === '1_SEMANA'} onChange={(e) => setPrepDuration(e.target.value)} className="hidden" />
+                                    <span className="font-bold text-sm">1 Semana</span>
+                                    <span className={`text-[10px] uppercase font-bold mt-1 ${prepDuration === '1_SEMANA' ? 'text-teal-200' : 'text-teal-400'}`}>7 Días</span>
+                                </label>
+                                <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all ${prepDuration === '2_SEMANAS' ? 'border-teal-500 bg-teal-600 text-white shadow-md' : 'border-teal-200 text-teal-700 bg-white hover:border-teal-300'}`}>
+                                    <input type="radio" value="2_SEMANAS" checked={prepDuration === '2_SEMANAS'} onChange={(e) => setPrepDuration(e.target.value)} className="hidden" />
+                                    <span className="font-bold text-sm">2 Semanas</span>
+                                    <span className={`text-[10px] uppercase font-bold mt-1 ${prepDuration === '2_SEMANAS' ? 'text-teal-200' : 'text-teal-400'}`}>14 Días</span>
+                                </label>
+                            </div>
+                        </div>
 
                         <div className="mb-6">
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Accesos Rápidos (Frecuencia)</h4>

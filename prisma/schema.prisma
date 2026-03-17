@@ -281,6 +281,7 @@ model Medication {
   
   // Categorización y Alertas de Seguridad
   category       String              @default("General") // Ej: "Analgésicos", "Antihipertensivos", "Antibióticos"
+  condition      String?             @default("General") // Ej: "Ansiedad", "Insomnio" (FASE 9)
   isControlled   Boolean             @default(false)     // Narcóticos / Psicotrópicos
   requiresFridge Boolean             @default(false)     // Requiere Refrigeración
   withFood       Boolean             @default(false)     // Tomar con Comida
@@ -297,6 +298,7 @@ model PatientMedication {
   // Reglas del eMAR
   frequency     String  @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
   scheduleTimes String // JSON Array Estructurado o CSV: "08:00, 14:00, 20:00"
+  prepDuration  String  @default("1_SEMANA") // 1_SEMANA o 2_SEMANAS (FASE 9 Carrito)
   instructions  String? // Ej: "Tomar con alimentos"
   prescribedBy  String? // Nombre del médico externo o interno
 

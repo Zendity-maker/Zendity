@@ -1,273 +1,223 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
-import {
-    ArrowLeft, Award, Activity, ShieldCheck, Clock, CheckCircle2,
-    AlertTriangle, FileText, HeartPulse, Stethoscope, Wrench, Mail, CalendarDays, Phone
-} from "lucide-react";
+import { useState, useEffect, use } from "react";
+import Link from 'next/link';
 
-export default function EmployeePerformanceDashboard() {
-    const { user } = useAuth();
-    const router = useRouter();
-    const params = useParams();
-    const staffId = params.id as string;
-
+export default function StaffPerformanceProfile({ params }: { params: Promise<{ id: string }> }) {
+    const rawParams = use(params);
+    const [staff, setStaff] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [staffData, setStaffData] = useState<any>(null);
-    const [kpis, setKpis] = useState<any>(null);
-    const [error, setError] = useState("");
 
     useEffect(() => {
-        if (!staffId) return;
-        const fetchPerformance = async () => {
+        const fetchStaffProfile = async () => {
             try {
-                const res = await fetch(`/api/hr/performance/${staffId}`);
+                const res = await fetch(`/api/corporate/hr/staff/${rawParams.id}`);
                 const data = await res.json();
                 if (data.success) {
-                    setStaffData(data.user);
-                    setKpis(data.kpis);
-                } else {
-                    setError(data.error);
+                    setStaff(data.staff);
                 }
-            } catch (e) {
-                console.error(e);
-                setError("Error de conexión al extraer la telemetría");
+            } catch (error) {
+                console.error("Failed to fetch staff profile", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchPerformance();
-    }, [staffId]);
+        fetchStaffProfile();
+    }, [rawParams.id]);
 
-    if (loading) {
-        return (
-            <div className="flex-1 min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <p className="mt-4 font-bold text-slate-500">Compilando Análisis Clínico...</p>
-            </div>
-        );
-    }
+    const getScoreColor = (score: number) => {
+        if (score >= 90) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+        if (score >= 75) return "bg-amber-100 text-amber-700 border-amber-200";
+        return "bg-rose-100 text-rose-700 border-rose-200";
+    };
 
-    if (error || !staffData) {
-        return (
-            <div className="p-8">
-                <button onClick={() => router.back()} className="flex items-center gap-2 text-indigo-600 font-bold mb-6 hover:text-indigo-800">
-                    <ArrowLeft className="w-5 h-5" /> Volver a Directorio
-                </button>
-                <div className="bg-red-50 text-red-600 p-6 rounded-2xl font-bold flex items-center gap-4">
-                    <AlertTriangle className="w-8 h-8" />
-                    {error || "No se encontró el perfil de empleado."}
-                </div>
-            </div>
-        );
-    }
+    const getRoleName = (role: string) => {
+        const roles: Record<string, string> = {
+            "NURSE": "Enfermera",
+            "CAREGIVER": "Cuidadora",
+            "DIRECTOR": "Directora",
+            "SOCIAL_WORKER": "Trabajo Social",
+            "KITCHEN": "Cocina"
+        };
+        return roles[role] || role;
+    };
 
-    // Role-Based KPI Rendering
-    const renderCaregiverKPIs = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
-            <MetricCard
-                title="ADL Completion Rate"
-                value={`${kpis.adlCompletionRate}%`}
-                subtext={`Volumen Total: ${kpis.adlVolume} actividades`}
-                icon={<HeartPulse className="w-6 h-6 text-rose-500" />}
-                color="bg-rose-50 border-rose-200"
-            />
-            <MetricCard
-                title="Puntualidad de Handover"
-                value={`${kpis.handoverRate}%`}
-                subtext="Entregas de guardia cero retrasos"
-                icon={<Clock className="w-6 h-6 text-amber-500" />}
-                color="bg-amber-50 border-amber-200"
-            />
-            <MetricCard
-                title="Early Warning Rate"
-                value={`${kpis.earlyWarnings}`}
-                subtext="Alertas clínicas levantadas a tiempo"
-                icon={<AlertTriangle className="w-6 h-6 text-purple-500" />}
-                color="bg-purple-50 border-purple-200"
-            />
-            <MetricCard
-                title="Status General"
-                value="ÓPTIMO"
-                subtext="Supera el promedio del piso"
-                icon={<CheckCircle2 className="w-6 h-6 text-emerald-500" />}
-                color="bg-emerald-50 border-emerald-200"
-            />
+    if (loading) return (
+        <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
         </div>
     );
 
-    const renderNurseKPIs = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
-            <MetricCard
-                title="eMAR Accuracy Score"
-                value={`${kpis.emarAccuracy}%`}
-                subtext="Precisión en rutas de medicación"
-                icon={<Stethoscope className="w-6 h-6 text-teal-500" />}
-                color="bg-teal-50 border-teal-200"
-            />
-            <MetricCard
-                title="Clinical Notes Consistency"
-                value={`${kpis.clinicalNotesVolume}`}
-                subtext="Volumen documental generado"
-                icon={<FileText className="w-6 h-6 text-indigo-500" />}
-                color="bg-indigo-50 border-indigo-200"
-            />
-            <MetricCard
-                title="Handovers Libres de Error"
-                value={`${kpis.handoverVolume}`}
-                subtext="Turnarounds de relevo oficial"
-                icon={<ShieldCheck className="w-6 h-6 text-sky-500" />}
-                color="bg-sky-50 border-sky-200"
-            />
-            <MetricCard
-                title="Respuesta a Triage (Mins)"
-                value={`${kpis.triageResponseMins}m`}
-                subtext="Promedio de respuesta a alertas de piso"
-                icon={<Activity className="w-6 h-6 text-rose-500" />}
-                color="bg-rose-50 border-rose-200"
-            />
+    if (!staff) return (
+        <div className="p-8 max-w-4xl mx-auto text-center space-y-4">
+            <h1 className="text-3xl font-black text-slate-800">Empleado no encontrado</h1>
+            <p className="text-slate-500">El empleado que intentas auditar no existe o ha sido dado de baja permanentemente.</p>
+            <Link href="/corporate/hr" className="inline-block mt-4 text-teal-600 font-bold hover:underline">← Volver al Directorio RRHH</Link>
         </div>
     );
 
-    const renderMaintenanceKPIs = () => (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
-            <MetricCard
-                title="Volume of Work Orders"
-                value={`${kpis.workOrdersVolume}`}
-                subtext="Tickets resueltos satisfactoriamente"
-                icon={<Wrench className="w-6 h-6 text-slate-500" />}
-                color="bg-slate-50 border-slate-200"
-            />
-            <MetricCard
-                title="SLA Resolution Time"
-                value={`${kpis.resolutionTimeHours}hrs`}
-                subtext="Horas promedio por ticket"
-                icon={<Clock className="w-6 h-6 text-amber-500" />}
-                color="bg-amber-50 border-amber-200"
-            />
-            <MetricCard
-                title="Quality Check"
-                value={`${kpis.qualityCheckRate}%`}
-                subtext="0 Quejas reiteradas sobre la misma reparación"
-                icon={<CheckCircle2 className="w-6 h-6 text-emerald-500" />}
-                color="bg-emerald-50 border-emerald-200"
-            />
-            <MetricCard
-                title="Preventive Compliance"
-                value={`${kpis.preventiveCompliance}%`}
-                subtext="Mantenimientos preventivos al día"
-                icon={<ShieldCheck className="w-6 h-6 text-indigo-500" />}
-                color="bg-indigo-50 border-indigo-200"
-            />
-        </div>
-    );
+    const isMedicalStaff = staff.role === "NURSE" || staff.role === "CAREGIVER";
 
     return (
-        <div className="flex-1 min-h-screen bg-slate-50 p-8">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-400 font-bold mb-4 hover:text-slate-600 transition-colors">
-                        <ArrowLeft className="w-5 h-5" /> Volver al Staff Directory
-                    </button>
-                    <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <Award className="w-8 h-8 text-indigo-600" /> Profiling & Rendimiento B2B
-                    </h1>
-                    <p className="text-slate-500 font-medium mt-2">Visor Analítico en Vivo (Últimos 30 Días)</p>
-                </div>
-                <div className="bg-white px-6 py-3 rounded-2xl border-2 border-slate-200 shadow-sm flex items-center gap-4">
-                    <span className="flex h-3 w-3 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                    <span className="font-bold text-slate-700 text-sm">Motor Algorítmico Activo</span>
-                </div>
-            </div>
+        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Nav */}
+            <Link href="/corporate/hr" className="inline-flex items-center text-sm font-bold text-slate-400 hover:text-teal-600 transition-colors">
+                <span>← Volver al Directorio de RRHH</span>
+            </Link>
 
-            {/* Hero Profile Board */}
-            <div className="bg-white rounded-[2rem] p-10 border-2 border-slate-100 shadow-xl shadow-slate-200/50 flex flex-col lg:flex-row items-center gap-12">
-                {/* Avatar & Info */}
-                <div className="flex items-center gap-8 flex-1">
-                    <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center text-white text-5xl font-black shadow-lg shadow-indigo-500/30 shrink-0">
-                        {staffData.photoUrl ? (
-                            <img src={staffData.photoUrl} alt={staffData.name} className="w-full h-full object-cover" />
-                        ) : (
-                            staffData.name.charAt(0)
+            {/* Header Profile */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 items-start relative overflow-hidden">
+                {/* Status Indicator */}
+                <div className={`absolute top-0 left-0 w-full h-2 ${staff.isActive ? (staff.isShiftBlocked ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-red-500'}`}></div>
+
+                <div className="flex-shrink-0">
+                    {staff.photoUrl ? (
+                        <img className="h-32 w-32 rounded-full border-4 border-slate-50 object-cover shadow-sm" src={staff.photoUrl} alt={staff.name} />
+                    ) : (
+                        <div className="h-32 w-32 rounded-full bg-slate-100 border-4 border-slate-50 shadow-sm flex items-center justify-center">
+                            <span className="text-slate-400 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
+                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            {getRoleName(staff.role)}
+                        </span>
+                        {!staff.isActive && (
+                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1">
+                                🛑 BAJA ADMINISTRATIVA
+                            </span>
+                        )}
+                        {staff.isShiftBlocked && staff.isActive && (
+                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                🔒 Turnos Bloqueados
+                            </span>
                         )}
                     </div>
-                    <div>
-                        <h2 className="text-4xl font-black text-slate-900 leading-tight">{staffData.name}</h2>
-                        <div className="flex items-center gap-3 mt-3 flex-wrap">
-                            <span className="bg-slate-100 text-slate-700 font-black px-4 py-1.5 rounded-full text-sm border border-slate-200 shadow-sm">
-                                {staffData.role}
-                            </span>
-                            <span className="text-slate-500 font-medium text-sm flex items-center gap-1">
-                                <Mail className="w-4 h-4" /> {staffData.email}
-                            </span>
-                            {staffData.createdAt && (
-                                <span className="text-slate-500 font-medium text-sm flex items-center gap-1 ml-2">
-                                    <CalendarDays className="w-4 h-4" /> Ingreso: {new Date(staffData.createdAt).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}
-                                </span>
-                            )}
-                        </div>
+                    <div className="flex items-center gap-6 text-slate-500 font-medium text-sm">
+                        <span className="flex items-center gap-1.5">📧 {staff.email}</span>
+                        <span className="flex items-center gap-1.5">🏢 Sede: {staff.facility}</span>
                     </div>
-                </div>
 
-                {/* Score Gauge (Zendity Trust Score) */}
-                <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 flex items-center gap-8 w-full max-w-sm">
-                    <div className="relative w-28 h-28 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90">
-                            <circle cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-200" />
-                            <circle
-                                cx="56" cy="56" r="48" stroke="currentColor" strokeWidth="12" fill="transparent"
-                                className={`${kpis.trustScore >= 90 ? 'text-emerald-500' : kpis.trustScore >= 70 ? 'text-amber-500' : 'text-rose-500'}`}
-                                strokeDasharray="301"
-                                strokeDashoffset={301 - (301 * kpis.trustScore) / 100}
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-3xl font-black text-slate-800">{kpis.trustScore}</span>
+                    {staff.blockReason && (
+                        <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
+                            <span className="text-amber-500 text-xl font-black">!</span>
+                            <div>
+                                <h4 className="font-bold text-amber-900 text-sm">Motivo de Bloqueo/Baja</h4>
+                                <p className="text-amber-700 text-sm mt-0.5">{staff.blockReason}</p>
+                            </div>
                         </div>
+                    )}
+                </div>
+                
+                {/* Global Score Card */}
+                <div className="w-full md:w-auto bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col items-center justify-center text-center">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Desempeño Consolidado</p>
+                    <div className={`text-5xl font-black mb-1 ${getScoreColor(staff.performanceScore).split(' ')[1]}`}>
+                        {staff.performanceScore}
                     </div>
-                    <div>
-                        <p className="text-sm font-black text-indigo-600 uppercase tracking-widest mb-1">Zendity Trust Score</p>
-                        <p className="text-slate-400 font-medium text-sm leading-snug">Calificación algorítmica de confiabilidad y cero omisiones.</p>
-                    </div>
+                    <p className="text-sm font-bold text-slate-500 mt-1">Suma de Academia + Clínico</p>
                 </div>
             </div>
 
-            {/* Role-Specific KPIs */}
-            {staffData.role === 'CAREGIVER' && renderCaregiverKPIs()}
-            {(staffData.role === 'NURSE' || staffData.role === 'SUPERVISOR' || staffData.role === 'DIRECTOR') && renderNurseKPIs()}
-            {staffData.role === 'MAINTENANCE' && renderMaintenanceKPIs()}
-
-            {!['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'MAINTENANCE'].includes(staffData.role) && (
-                <div className="bg-white p-8 mt-8 rounded-3xl border border-slate-200 text-center">
-                    <p className="text-slate-500 font-bold mb-2">Este colaborador forma parte del personal administrativo o no cuenta con KPIs clínicos estructurados.</p>
-                    <p className="text-sm text-slate-400">Su Zendity Trust Score base se mantiene estable al no registrar penalizaciones operativas directas.</p>
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Evaluaciones Clínicas Metric */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Evaluaciones (HR)</h3>
+                            <div className="text-3xl font-black text-slate-800">
+                                {staff.avgEvalScore || 'N/A'}<span className="text-lg text-slate-400">/100</span>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-blue-50 text-blue-500 rounded-xl rounded-tr-sm">📋</div>
+                    </div>
+                    <div className="mt-4 text-sm font-medium text-slate-500">
+                        Promedio de <span className="font-bold text-slate-700">{staff.evaluationsCount}</span> inspecciones
+                    </div>
                 </div>
-            )}
 
-        </div>
-    );
-}
+                {/* Academy Metric */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Compliance Academy</h3>
+                            <div className="text-3xl font-black text-slate-800">
+                                {staff.complianceScore}<span className="text-lg text-slate-400">/100</span>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-violet-50 text-violet-500 rounded-xl rounded-tr-sm">🎓</div>
+                    </div>
+                    <div className="mt-4 text-sm font-medium text-slate-500">
+                        Cursos completados: <span className="font-bold text-slate-700">{staff.courseEnrolls?.filter((c: any) => c.status === 'COMPLETED').length || 0}</span>
+                    </div>
+                </div>
 
-// Subcomponente de Tarjeta de Métrica
-function MetricCard({ title, value, subtext, icon, color }: { title: string, value: string, subtext: string, icon: any, color: string }) {
-    return (
-        <div className={`p-6 rounded-[2rem] border-2 transition-transform hover:-translate-y-1 duration-300 ${color} shadow-sm`}>
-            <div className="flex justify-between items-start mb-6">
-                <div className="p-3 bg-white/60 backdrop-blur rounded-xl shadow-sm">
-                    {icon}
+                {/* Clinical eMAR Metric (Only Nurse/Caregiver) */}
+                 <div className={`bg-white p-6 rounded-2xl border border-slate-100 shadow-sm ${!isMedicalStaff ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Cumplimiento eMAR</h3>
+                            <div className="flex items-baseline gap-1">
+                                <div className="text-3xl font-black text-slate-800">
+                                    {staff.emarCompliance !== null ? staff.emarCompliance : 'N/A'}<span className="text-lg text-slate-400">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-emerald-50 text-emerald-500 rounded-xl rounded-tr-sm">💊</div>
+                    </div>
+                    <div className="mt-4 text-sm font-medium text-slate-500 flex justify-between">
+                        <span>Exitosas: <span className="font-bold text-emerald-600">{staff.medsGivenRecord || 0}</span></span>
+                        <span>Omitidas: <span className="font-bold text-rose-600">{staff.medsMissedRecord || 0}</span></span>
+                    </div>
+                    {!isMedicalStaff && <p className="text-xs text-slate-400 mt-2 italic">*Métrica exclusiva del área clínica.</p>}
                 </div>
             </div>
-            <div>
-                <h4 className="text-4xl font-black text-slate-800 mb-2">{value}</h4>
-                <p className="font-bold text-slate-700 leading-tight mb-2">{title}</p>
-                <p className="text-sm text-slate-500 font-medium">{subtext}</p>
+
+            {/* Evaluaciones Historial */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 className="text-lg font-black text-slate-800">Historial de Evaluaciones HR</h3>
+                </div>
+                
+                {staff.evalsReceived?.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400">
+                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50">📋</p>
+                        <h4 className="font-bold text-lg text-slate-600">Sin Historico</h4>
+                        <p className="text-sm mt-1">Este empleado aún no cuenta con evaluaciones u observaciones estructuradas del gerente.</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {staff.evalsReceived?.map((eva: any) => (
+                            <div key={eva.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`px-3 py-1.5 rounded-lg border font-black text-sm flex items-center gap-1.5 ${getScoreColor(eva.score)}`}>
+                                            {eva.score} / 100
+                                        </div>
+                                        <span className="text-sm font-medium text-slate-500">
+                                            {new Date(eva.createdAt).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                        Por ID: {eva.evaluatorId.substring(0,8)}...
+                                    </div>
+                                </div>
+                                
+                                {eva.feedback && (
+                                    <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 italic border border-slate-100">
+                                        "{eva.feedback}"
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -12,6 +12,7 @@ export async function PUT(req: Request) {
             dosage,
             route,
             category,
+            condition,
             isControlled,
             requiresFridge,
             withFood
@@ -31,6 +32,7 @@ export async function PUT(req: Request) {
                 dosage,
                 route,
                 category,
+                condition,
                 isControlled,
                 requiresFridge,
                 withFood

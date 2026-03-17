@@ -16,6 +16,7 @@ type Medication = {
     route: string;
     description: string | null;
     category: string;
+    condition: string | null;
     isControlled: boolean;
     requiresFridge: boolean;
     withFood: boolean;
@@ -26,14 +27,14 @@ export default function MedicalCatalogPage() {
     const [medications, setMedications] = useState<Medication[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeCategory, setActiveCategory] = useState("TODOS");
+    const [activeCondition, setActiveCondition] = useState("TODOS");
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 15;
 
     // Reset pagination when searching or changing tabs
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, activeCategory]);
+    }, [searchQuery, activeCondition]);
 
     // OCR State
     const [isOcrOpen, setIsOcrOpen] = useState(false);
@@ -109,14 +110,15 @@ export default function MedicalCatalogPage() {
 
     const filteredMeds = medications.filter(m => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = activeCategory === "TODOS" || m.category === activeCategory;
-        return matchesSearch && matchesCategory;
+        const cond = m.condition || "Otros";
+        const matchesCondition = activeCondition === "TODOS" || cond === activeCondition;
+        return matchesSearch && matchesCondition;
     });
 
     const totalPages = Math.ceil(filteredMeds.length / ITEMS_PER_PAGE);
     const paginatedMeds = filteredMeds.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const categories = ["TODOS", ...Array.from(new Set(medications.map(m => m.category)))];
+    const conditions = ["TODOS", ...Array.from(new Set(medications.map(m => m.condition || "Otros")))];
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -148,18 +150,19 @@ export default function MedicalCatalogPage() {
             {/* Catalog Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
 
-                {/* Categorías (Navegación Horizontal) */}
-                <div className="flex overflow-x-auto p-4 gap-2 border-b border-gray-100 bg-gray-50/50 scrollbar-hide">
-                    {categories.map((cat) => (
+                {/* Condiciones Médicas (Navegación Horizontal) */}
+                <div className="flex overflow-x-auto p-4 gap-2 border-b border-gray-100 bg-gray-50/50 scrollbar-hide items-center">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2 flex-shrink-0">Filtrar Condición:</span>
+                    {conditions.map((cond) => (
                         <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${activeCategory === cat
-                                ? "bg-teal-600 text-white shadow-md shadow-teal-200"
+                            key={cond}
+                            onClick={() => setActiveCondition(cond)}
+                            className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${activeCondition === cond
+                                ? "bg-zendity-teal text-white shadow-md shadow-teal-200"
                                 : "bg-white text-gray-500 border border-gray-200 hover:bg-gray-50"
                                 }`}
                         >
-                            {cat}
+                            {cond}
                         </button>
                     ))}
                 </div>

@@ -9,6 +9,7 @@ type Medication = {
     dosage: string;
     route: string;
     category: string;
+    condition: string | null;
     isControlled: boolean;
     requiresFridge: boolean;
     withFood: boolean;
@@ -116,8 +117,8 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                             </select>
                         </div>
 
-                        <div className="col-span-2">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Categoría</label>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Categoría General</label>
                             <input
                                 required
                                 type="text"
@@ -125,6 +126,26 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                                 value={formData.category}
                                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                             />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Condición Clínica (Tabs)</label>
+                            <select
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-zendity-teal focus:border-zendity-teal outline-none bg-white text-deep-slate transition font-medium text-sm"
+                                value={formData.condition || "Otros"}
+                                onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+                            >
+                                <option value="Ansiedad">Ansiedad</option>
+                                <option value="Insomnio">Insomnio</option>
+                                <option value="Dolor Físico">Dolor Físico</option>
+                                <option value="Infección">Infección</option>
+                                <option value="Cardiovascular">Cardiovascular</option>
+                                <option value="Depresión">Depresión</option>
+                                <option value="Gastrointestinal">Gastrointestinal</option>
+                                <option value="Respiratorio">Respiratorio</option>
+                                <option value="Convulsiones">Convulsiones</option>
+                                <option value="Otros">Otros</option>
+                            </select>
                         </div>
                     </div>
 

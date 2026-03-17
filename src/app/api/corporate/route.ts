@@ -8,7 +8,13 @@ export async function GET(request: NextRequest) {
     // 1. Obtener todas las sedes activas
     const hqs = await prisma.headquarters.findMany({
       include: {
-        patients: true,
+        patients: {
+          include: {
+            medications: {
+              include: { administrations: true }
+            }
+          }
+        },
         incidents: true,
         evals: true,
         surveys: true,
@@ -18,9 +24,14 @@ export async function GET(request: NextRequest) {
     // 2. Procesar los datos para las tarjetas de KPIs
     let totalPatients = 0;
     let totalCriticalIncidents = 0;
+    let totalGlobalMedsGiven = 0;
+    let totalGlobalMedsScheduled = 0;
+    let totalCapacity = 0;
 
     // 3. Generar el arreglo para la tabla Ranking de Desempeño
     const rankingData = hqs.map(hq => {
+      totalCapacity += hq.capacity || 50;
+
       const hqPatients = hq.patients.length;
       totalPatients += hqPatients;
 
@@ -36,12 +47,34 @@ export async function GET(request: NextRequest) {
         ? Math.round((hq.surveys.reduce((acc, sv) => acc + sv.ratingCare + sv.ratingClean + sv.ratingHealth, 0) / (hq.surveys.length * 3)) * 20) // a escala de 100
         : 90; // Default score si no hay encuestas completadas
 
+      // Calcular cumplimiento eMAR (FASE 10)
+      let hqMedsGiven = 0;
+      let hqMedsScheduled = 0;
+
+      hq.patients.forEach(patient => {
+        patient.medications.forEach(pm => {
+          pm.administrations.forEach(admin => {
+            hqMedsScheduled++;
+            if (admin.status === 'ADMINISTERED') {
+              hqMedsGiven++;
+            }
+          });
+        });
+      });
+
+      totalGlobalMedsGiven += hqMedsGiven;
+      totalGlobalMedsScheduled += hqMedsScheduled;
+
+      const medsCompliance = hqMedsScheduled > 0 
+        ? Math.round((hqMedsGiven / hqMedsScheduled) * 100)
+        : 100; // Por defecto 100% si no hay medicaciones
+
       return {
         id: hq.id,
         facility: hq.name,
         empScore: avgEmpScore,
         famSatisfaction: avgFamSat,
-        medsCompliance: 100 // Hardcoded temporal hasta crear tracking estricto ratio tiempo/dosis
+        medsCompliance: medsCompliance
       };
     });
 
@@ -50,12 +83,16 @@ export async function GET(request: NextRequest) {
     const rankedDataWithPosition = rankingData.map((data, index) => ({ ...data, rank: index + 1 }));
 
     // 4. Formatear la Respuesta
+    const globalMedCompliance = totalGlobalMedsScheduled > 0 
+      ? Number(((totalGlobalMedsGiven / totalGlobalMedsScheduled) * 100).toFixed(1))
+      : 100;
+
     const kpis = {
       activeHqs: hqs.length,
-      totalCapacity: hqs.length * 50, // asumido 50 por hogar en MVP
+      totalCapacity: totalCapacity,
       totalPatients,
       totalCriticalIncidents,
-      globalMedCompliance: 98.5 // Simulación temporal de eficacia general
+      globalMedCompliance: globalMedCompliance
     };
 
     return NextResponse.json({

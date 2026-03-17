@@ -34,9 +34,10 @@ export async function POST(request: Request) {
 2. 'dosage': Dosis (ej: 50mg)
 3. 'route': Vía (ej: Oral, Tópica)
 4. 'category': Sólo UNA de estas opciones exactas ["Analgésicos", "Antihipertensivos", "Antibióticos", "Psicotrópicos", "Suplementos", "Tópicos", "Otros"]
-5. 'isControlled': Boolean (Si es un narcótico o medicamento altamente regulado)
-6. 'requiresFridge': Boolean (Si debe refrigerarse, ej: insulina, amoxicilina líquida)
-7. 'withFood': Boolean (Si indica explícitamente "Take with food" o equivalente)
+5. 'condition': Condición clínica que trata este fármaco, escoge UNA de: ["Ansiedad", "Insomnio", "Dolor Físico", "Infección", "Cardiovascular", "Depresión", "Gastrointestinal", "Respiratorio", "Convulsiones", "Otros"]
+6. 'isControlled': Boolean (Si es un narcótico o medicamento altamente regulado)
+7. 'requiresFridge': Boolean (Si debe refrigerarse, ej: insulina, amoxicilina líquida)
+8. 'withFood': Boolean (Si indica explícitamente "Take with food" o equivalente)
 
 Devuelve *únicamente* JSON, sin backticks de Markdown (\`\`\`json).`
                 },
@@ -91,6 +92,7 @@ Devuelve *únicamente* JSON, sin backticks de Markdown (\`\`\`json).`
                         dosage: med.dosage,
                         route: med.route || "Oral",
                         category: med.category || "Otros",
+                        condition: med.condition || "Otros",
                         isControlled: med.isControlled || false,
                         requiresFridge: med.requiresFridge || false,
                         withFood: med.withFood || false,
