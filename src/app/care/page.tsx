@@ -283,9 +283,10 @@ export default function ZendityCareTabletPage() {
         const interval = setInterval(() => {
             const h = new Date().getHours();
             const m = new Date().getMinutes();
-            if (h === 8 && m === 30) setZendiToast("Zendity: Recuerda que la ventana de desayunos cierra en 90 minutos.");
+            if (h === 10 && m === 0) setZendiToast("Zendity: Recuerda que la ventana de desayunos cierra en 60 minutos.");
             if (h === 9 && m === 30) setZendiToast("Zendity: Últimos 30 minutos para registrar baños del turno AM. Recuerda el cooldown de 10 minutos.");
-            if (h === 12 && m === 0) setZendiToast("Zendity: La ventana de almuerzos está oficialmente abierta.");
+            if (h === 11 && m === 0) setZendiToast("Zendity: La ventana de almuerzos está oficialmente abierta.");
+            if (h === 16 && m === 0) setZendiToast("Zendity: La ventana de cenas está oficialmente abierta.");
 
             if (zendiToast !== "") {
                 setTimeout(() => setZendiToast(""), 12000);

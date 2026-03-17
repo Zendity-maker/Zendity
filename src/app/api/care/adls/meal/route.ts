@@ -15,9 +15,9 @@ export async function POST(req: Request) {
         const hour = new Date().getHours();
         let isValidWindow = false;
 
-        if (mealType === 'BREAKFAST' && hour >= 8 && hour <= 10) isValidWindow = true; // 8am - 10am
-        if (mealType === 'LUNCH' && hour >= 11 && hour <= 13) isValidWindow = true;    // 11am - 1pm
-        if (mealType === 'DINNER' && hour >= 16 && hour < 20) isValidWindow = true;    // 4:30pm(16) - 7pm(19)
+        if (mealType === 'BREAKFAST' && hour >= 7 && hour <= 10) isValidWindow = true; // 7am - 10:59am
+        if (mealType === 'LUNCH' && hour >= 11 && hour <= 13) isValidWindow = true;    // 11am - 1:59pm
+        if (mealType === 'DINNER' && hour >= 16 && hour <= 18) isValidWindow = true;   // 4pm - 6:59pm
 
         if (!isValidWindow) {
             return NextResponse.json({
