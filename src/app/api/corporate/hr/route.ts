@@ -9,7 +9,7 @@ export async function GET() {
             where: {
                 isDeleted: false,
                 role: {
-                    in: ['DIRECTOR', 'NURSE', 'CAREGIVER', 'SOCIAL_WORKER', 'KITCHEN']
+                    in: ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'NURSE', 'CAREGIVER', 'SOCIAL_WORKER', 'KITCHEN', 'MAINTENANCE']
                 }
             },
             include: {
