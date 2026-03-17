@@ -12,12 +12,14 @@ export async function POST(req: Request) {
         }
 
         // Validar Ventanas de Tiempo Estrictas (Huso Horario Local del Servidor)
-        const hour = new Date().getHours();
+        const now = new Date();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
         let isValidWindow = false;
 
-        if (mealType === 'BREAKFAST' && hour >= 7 && hour <= 10) isValidWindow = true; // 7am - 10:59am
-        if (mealType === 'LUNCH' && hour >= 11 && hour <= 13) isValidWindow = true;    // 11am - 1:59pm
-        if (mealType === 'DINNER' && hour >= 16 && hour <= 18) isValidWindow = true;   // 4pm - 6:59pm
+        if (mealType === 'BREAKFAST' && (hour >= 7 && (hour < 10 || (hour === 10 && minute === 0)))) isValidWindow = true; 
+        if (mealType === 'LUNCH' && (hour >= 11 && (hour < 13 || (hour === 13 && minute === 0)))) isValidWindow = true;    
+        if (mealType === 'DINNER' && (hour >= 16 && (hour < 18 || (hour === 18 && minute <= 45)))) isValidWindow = true;   
 
         if (!isValidWindow) {
             return NextResponse.json({
