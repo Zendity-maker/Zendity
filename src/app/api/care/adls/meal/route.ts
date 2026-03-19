@@ -11,15 +11,28 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Todos los campos de la comida son requeridos." }, { status: 400 });
         }
 
-        // Validar Ventanas de Tiempo Estrictas (Huso Horario Local del Servidor)
+        // Validar Ventanas de Tiempo Estrictas (Huso Horario America/Puerto_Rico)
         const now = new Date();
-        const hour = now.getHours();
-        const minute = now.getMinutes();
+        const prTimeString = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Puerto_Rico',
+            hour12: false,
+            hour: 'numeric',
+            minute: 'numeric'
+        }).format(now);
+        
+        // Manejamos el factor "24h" format "13:05"
+        const [hourStr, minuteStr] = prTimeString.split(':');
+        const hour = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
         let isValidWindow = false;
 
-        if (mealType === 'BREAKFAST' && (hour >= 7 && (hour < 10 || (hour === 10 && minute === 0)))) isValidWindow = true; 
-        if (mealType === 'LUNCH' && (hour >= 11 && (hour < 13 || (hour === 13 && minute === 0)))) isValidWindow = true;    
-        if (mealType === 'DINNER' && (hour >= 16 && (hour < 18 || (hour === 18 && minute <= 45)))) isValidWindow = true;   
+        // Ampliar ventanas para evitar bloqueos drásticos al staff de piso:
+        // Desayuno: de 6:00 AM a 10:59 AM 
+        if (mealType === 'BREAKFAST' && (hour >= 6 && hour < 11)) isValidWindow = true; 
+        // Almuerzo: de 11:00 AM a 3:59 PM
+        if (mealType === 'LUNCH' && (hour >= 11 && hour < 16)) isValidWindow = true;    
+        // Cena: de 4:00 PM a 8:59 PM
+        if (mealType === 'DINNER' && (hour >= 16 && hour < 21)) isValidWindow = true;   
 
         if (!isValidWindow) {
             return NextResponse.json({
