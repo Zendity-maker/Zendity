@@ -7,7 +7,6 @@ export default function FamilyMessages() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
-    const [isPolishing, setIsPolishing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const loadMessages = () => {
@@ -51,31 +50,6 @@ export default function FamilyMessages() {
             body: JSON.stringify({ content: optimisticMsg.content })
         });
         loadMessages();
-    };
-
-    const handleZendiPolish = async () => {
-        if (!newMessage.trim()) return;
-        setIsPolishing(true);
-        try {
-            const res = await fetch("/api/ai/shadow", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "CORPORATE_COMMS_POLISH",
-                    payload: { text: newMessage }
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setNewMessage(data.suggestion);
-            } else {
-                alert("Error de Zendi AI: " + data.error);
-            }
-        } catch (e) {
-            alert("Error de conexión con Zendi AI.");
-        } finally {
-            setIsPolishing(false);
-        }
     };
 
     return (
@@ -138,17 +112,8 @@ export default function FamilyMessages() {
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Escribe un mensaje..."
-                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-28 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-14 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
                         />
-                        <button
-                            type="button"
-                            onClick={handleZendiPolish}
-                            disabled={!newMessage.trim() || isPolishing}
-                            className={`absolute right-16 top-2 bottom-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-xl flex items-center gap-1 transition-all ${isPolishing ? 'animate-pulse cursor-not-allowed opacity-50' : 'active:scale-95 shadow-sm'}`}
-                            title="Pulir y Mejorar Escrito con Zendi AI"
-                        >
-                            {isPolishing ? "✨..." : "✨ Zendi"}
-                        </button>
                         <button
                             type="submit"
                             disabled={!newMessage.trim()}
