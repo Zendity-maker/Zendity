@@ -152,12 +152,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             }
         } catch (emailError: any) {
             console.error("[ONBOARDING] Error sending Welcome Email to family member:", emailError);
-            // Non-blocking error. Continue registering the user, but inform the UI.
+            const attemptedSender = process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com';
             return NextResponse.json({ 
                 success: true, 
                 familyMember: newFamilyMember, 
                 emailFailed: true, 
-                emailError: emailError.response ? JSON.stringify(emailError.response.body) : emailError.message 
+                emailError: `[Remitente intentado: "${attemptedSender}"] -> ` + (emailError.response ? JSON.stringify(emailError.response.body) : emailError.message)
             });
         }
 
