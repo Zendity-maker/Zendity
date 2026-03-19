@@ -52,6 +52,26 @@ export async function POST(req: Request) {
             });
 
             formattedText = completion.choices[0].message.content || rawText;
+        } else if (type === 'CORPORATE_COMMS_POLISH' && rawText) {
+            // FASE 67: Zendi AI para Pulir Comunicados Masivos
+            const prompt = `
+            Eres Zendi AI, la inteligencia corporativa de la red Vivid Senior Living.
+            Tu función actual es perfeccionar y pulir borradores de correos electrónicos.
+            El Director o Administrador ha escrito este borrador, pero necesita que sea re-escrito a un tono institucional, empático, claro, profesional y de excelente ortografía.
+            Mantén la intención e información original intacta.
+            Devuelve ÚNICAMENTE el texto mejorado en HTML puro si el borrador contenía formato, o en texto plano estructurado, listo para ser copiado. Evita usar markdown tags tipo "\`\`\`html".
+            
+            BORRADOR ORIGINAL:
+            "${rawText}"
+            `;
+
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [{ role: "user", content: prompt }]
+            });
+
+            const content = completion.choices[0].message.content || rawText;
+            formattedText = content.replace(/^```html\n?/, '').replace(/\n?```$/, '').trim();
         }
 
         return NextResponse.json({ success: true, formattedText });

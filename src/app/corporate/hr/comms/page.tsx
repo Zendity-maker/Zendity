@@ -8,6 +8,7 @@ export default function HRCommsPage() {
     const [htmlBody, setHtmlBody] = useState("");
     const [selectedRoles, setSelectedRoles] = useState<string[]>(['ALL']);
     const [submitting, setSubmitting] = useState(false);
+    const [isPolishing, setIsPolishing] = useState(false);
     const [successMsg, setSuccessMsg] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
 
@@ -67,6 +68,34 @@ export default function HRCommsPage() {
             setErrorMsg("Error de conexión. Intente de nuevo.");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleZendiPolish = async () => {
+        if (!htmlBody.trim()) {
+            setErrorMsg("Escribe al menos un borrador para que Zendi AI pueda pulirlo.");
+            return;
+        }
+        setIsPolishing(true);
+        setErrorMsg("");
+        
+        try {
+            const res = await fetch("/api/ai/shadow", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "CORPORATE_COMMS_POLISH", rawText: htmlBody })
+            });
+            const data = await res.json();
+            if (data.success && data.formattedText) {
+                setHtmlBody(data.formattedText);
+                setSuccessMsg("✨ Zendi AI ha perfeccionado tu comunicado al formato corporativo.");
+                setTimeout(() => setSuccessMsg(""), 4000);
+            } else {
+                setErrorMsg("El asistente inteligente no pudo procesar el borrador.");
+            }
+        } catch (e) {
+            setErrorMsg("Error al conectar con Zendi AI.");
+        } finally {
+            setIsPolishing(false);
         }
     };
 
@@ -155,13 +184,27 @@ export default function HRCommsPage() {
                                 />
                             </div>
 
-                            <div className="flex-1 flex flex-col">
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Cuerpo del Mensaje</label>
+                            <div className="flex-1 flex flex-col relative">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-bold text-slate-700">Cuerpo del Mensaje</label>
+                                    <button
+                                        onClick={handleZendiPolish}
+                                        disabled={isPolishing || htmlBody.trim().length === 0}
+                                        className="text-xs font-bold px-3 py-1.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white rounded-lg shadow-sm transition-all shadow-emerald-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                                    >
+                                        {isPolishing ? (
+                                            <><div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"></div> Pulimentando...</>
+                                        ) : (
+                                            <><span>✨</span> Zendi AI Polish (Mejorar Tono)</>
+                                        )}
+                                    </button>
+                                </div>
                                 <textarea 
                                     value={htmlBody}
                                     onChange={e => setHtmlBody(e.target.value)}
-                                    placeholder="Escribe el comunicado aquí. Zendity inyectará la firma y diseño estético en torno a este texto de manera automática..."
-                                    className="w-full h-64 p-4 rounded-xl border border-slate-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none resize-none font-medium text-slate-700"
+                                    placeholder="Escribe el comunicado aquí en lenguaje natural. Luego presiona Zendi AI Polish para inyectar estética y tono corporativo..."
+                                    className={`w-full h-64 p-4 rounded-xl border ${isPolishing ? 'border-teal-400 bg-teal-50/30' : 'border-slate-300'} focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none resize-none font-medium text-slate-700 transition-colors`}
+                                    disabled={isPolishing}
                                 />
                             </div>
                         </div>
