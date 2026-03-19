@@ -26,13 +26,13 @@ export async function POST(req: Request) {
         const minute = parseInt(minuteStr, 10);
         let isValidWindow = false;
 
-        // Ampliar ventanas para evitar bloqueos drásticos al staff de piso:
-        // Desayuno: de 6:00 AM a 10:59 AM 
-        if (mealType === 'BREAKFAST' && (hour >= 6 && hour < 11)) isValidWindow = true; 
-        // Almuerzo: de 11:00 AM a 3:59 PM
-        if (mealType === 'LUNCH' && (hour >= 11 && hour < 16)) isValidWindow = true;    
-        // Cena: de 4:00 PM a 8:59 PM
-        if (mealType === 'DINNER' && (hour >= 16 && hour < 21)) isValidWindow = true;   
+        // Ajuste estricto solicitado por el usuario:
+        // Desayuno: de 7:00 AM a 9:59 AM 
+        if (mealType === 'BREAKFAST' && (hour >= 7 && hour < 10)) isValidWindow = true; 
+        // Almuerzo: de 11:00 AM a 1:59 PM
+        if (mealType === 'LUNCH' && (hour >= 11 && hour < 14)) isValidWindow = true;    
+        // Cena: de 4:00 PM a 6:59 PM
+        if (mealType === 'DINNER' && (hour >= 16 && hour < 19)) isValidWindow = true;   
 
         if (!isValidWindow) {
             return NextResponse.json({
