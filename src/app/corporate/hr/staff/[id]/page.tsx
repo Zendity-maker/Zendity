@@ -8,6 +8,10 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
     const [staff, setStaff] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ name: "", email: "" });
+    const [isSaving, setIsSaving] = useState(false);
+
     useEffect(() => {
         const fetchStaffProfile = async () => {
             try {
@@ -15,6 +19,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 const data = await res.json();
                 if (data.success) {
                     setStaff(data.staff);
+                    setEditForm({ name: data.staff.name, email: data.staff.email });
                 }
             } catch (error) {
                 console.error("Failed to fetch staff profile", error);
@@ -24,6 +29,28 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
         };
         fetchStaffProfile();
     }, [rawParams.id]);
+
+    const handleSaveProfile = async () => {
+        setIsSaving(true);
+        try {
+            const res = await fetch("/api/hr/staff", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: staff.id, name: editForm.name, email: editForm.email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStaff({ ...staff, name: editForm.name, email: editForm.email });
+                setIsEditing(false);
+            } else {
+                alert(data.error || "No se pudo actualizar el perfil.");
+            }
+        } catch (e) {
+            alert("Error de conexión intentando guardar el perfil.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const getScoreColor = (score: number) => {
         if (score >= 90) return "bg-emerald-100 text-emerald-700 border-emerald-200";
@@ -81,26 +108,52 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 </div>
 
                 <div className="flex-1 space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
-                        <span className="px-3 py-1 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                            {getRoleName(staff.role)}
-                        </span>
-                        {!staff.isActive && (
-                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1">
-                                🛑 BAJA ADMINISTRATIVA
-                            </span>
-                        )}
-                        {staff.isShiftBlocked && staff.isActive && (
-                            <span className="px-3 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                                🔒 Turnos Bloqueados
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-6 text-slate-500 font-medium text-sm">
-                        <span className="flex items-center gap-1.5">📧 {staff.email}</span>
-                        <span className="flex items-center gap-1.5">🏢 Sede: {staff.facility}</span>
-                    </div>
+                    {isEditing ? (
+                        <div className="space-y-4 max-w-lg bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nombre del Empleado</label>
+                                <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Correo Electrónico Oficial</label>
+                                <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" />
+                            </div>
+                            <div className="flex gap-2 justify-end pt-2">
+                                <button onClick={() => { setIsEditing(false); setEditForm({ name: staff.name, email: staff.email }); }} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancelar</button>
+                                <button onClick={handleSaveProfile} disabled={isSaving} className="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm shadow-sm hover:bg-slate-800 transition-colors disabled:opacity-50">
+                                    {isSaving ? "Guardando..." : "Guardar Cambios"}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
+                                <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-lg font-bold transition-colors">
+                                    ✏️ Editar
+                                </button>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 mt-1">
+                                <span className="px-3 py-1 rounded-lg text-sm font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                    {getRoleName(staff.role)}
+                                </span>
+                                {!staff.isActive && (
+                                    <span className="px-3 py-1 rounded-lg text-sm font-bold bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1">
+                                        🛑 BAJA ADMINISTRATIVA
+                                    </span>
+                                )}
+                                {staff.isShiftBlocked && staff.isActive && (
+                                    <span className="px-3 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                                        🔒 Turnos Bloqueados
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-6 text-slate-500 font-medium text-sm mt-3">
+                                <span className="flex items-center gap-1.5">📧 {staff.email}</span>
+                                <span className="flex items-center gap-1.5">🏢 Sede: {staff.facility}</span>
+                            </div>
+                        </>
+                    )}
 
                     {staff.blockReason && (
                         <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">

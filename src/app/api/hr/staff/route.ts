@@ -169,7 +169,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, role, secondaryRoles, pinCode, isShiftBlocked, isDeleted } = body;
+        const { id, role, secondaryRoles, pinCode, isShiftBlocked, isDeleted, name, email } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
@@ -181,6 +181,19 @@ export async function PATCH(request: Request) {
         }
 
         const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        
+        if (email !== undefined) {
+            const cleanEmail = email.toLowerCase().trim();
+            const existing = await prisma.user.findFirst({
+                where: { email: cleanEmail, id: { not: id } }
+            });
+            if (existing) {
+                return NextResponse.json({ error: 'El correo ya está en uso por otro empleado.' }, { status: 400 });
+            }
+            updateData.email = cleanEmail;
+        }
+
         if (role !== undefined) updateData.role = role;
         if (secondaryRoles !== undefined) updateData.secondaryRoles = secondaryRoles;
         if (pinCode !== undefined) updateData.pinCode = pinCode;
