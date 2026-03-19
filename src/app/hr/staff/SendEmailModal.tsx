@@ -6,6 +6,7 @@ import { Mail, Send, X, AlertCircle, CheckCircle2 } from "lucide-react";
 export default function SendEmailModal({ employees }: { employees: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [isPolishing, setIsPolishing] = useState(false);
 
     // Configuración del correo
     const [sendMode, setSendMode] = useState<'INDIVIDUAL' | 'BROADCAST'>('INDIVIDUAL');
@@ -62,6 +63,33 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
             setStatus({ type: 'error', msg: "Error conectando con el hub de comunicaciones." });
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleZendiPolish = async () => {
+        if (!message.trim()) {
+            setStatus({ type: 'error', msg: "Escribe al menos un borrador para que Zendi AI pueda pulirlo." });
+            return;
+        }
+        setIsPolishing(true);
+        setStatus(null);
+        
+        try {
+            const res = await fetch("/api/ai/shadow", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ type: "CORPORATE_COMMS_POLISH", rawText: message })
+            });
+            const data = await res.json();
+            if (data.success && data.formattedText) {
+                setMessage(data.formattedText);
+                setStatus({ type: 'success', msg: "✨ Zendi AI ha perfeccionado tu comunicado al formato corporativo y empático." });
+            } else {
+                setStatus({ type: 'error', msg: "El asistente inteligente no pudo procesar este borrador." });
+            }
+        } catch (e) {
+            setStatus({ type: 'error', msg: "Error de red al conectar con Zendi AI." });
+        } finally {
+            setIsPolishing(false);
         }
     };
 
@@ -156,16 +184,27 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                     />
                                 </div>
 
-                                <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
-                                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-xs font-bold text-slate-500 flex items-center gap-2">
-                                        Cuerpo del Email Corporativo (HTML/Markdown support)
+                                <div className={`border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all ${isPolishing ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200'}`}>
+                                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between gap-2">
+                                        <span>Cuerpo del Menu Corporativo (HTML/Markdown)</span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleZendiPolish}
+                                                disabled={isPolishing || message.trim().length === 0}
+                                                className="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-md text-[9px] shadow-sm disabled:opacity-50 transition-all flex items-center gap-1"
+                                            >
+                                                {isPolishing ? 'Pulimentando...' : '✨ Zendi Polish'}
+                                            </button>
+                                        </div>
                                     </div>
                                     <textarea
                                         placeholder={`Hola colaborador...\n\nPor este medio Zendity HR informa que...`}
                                         value={message}
                                         onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full px-4 py-3 h-48 bg-white outline-none font-medium text-slate-800 placeholder:text-slate-400 resize-none custom-scrollbar"
+                                        className="w-full px-4 py-3 h-48 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-400 resize-none custom-scrollbar"
                                         required
+                                        disabled={isPolishing}
                                     />
                                 </div>
 
