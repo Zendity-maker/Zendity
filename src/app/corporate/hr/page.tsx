@@ -82,8 +82,13 @@ export default function HRDirectoryPage() {
                         Auditoría de cumplimiento y puntuación (*Scorecard*) de empleados de todas las sedes.
                     </p>
                 </div>
-                <div className="bg-teal-50 text-teal-700 px-4 py-2 rounded-xl border border-teal-100 font-bold shadow-sm">
-                    {filteredStaff.length} Empleados Activos
+                <div className="flex items-center gap-3">
+                    <Link href="/corporate/hr/comms" className="bg-slate-900 border border-slate-700 text-white hover:bg-slate-800 px-4 py-2 rounded-xl font-black shadow-sm flex items-center gap-2 transition-colors">
+                        <span>📢</span> Broadcast RRHH
+                    </Link>
+                    <div className="bg-teal-50 text-teal-700 px-4 py-2 rounded-xl border border-teal-100 font-bold shadow-sm">
+                        {filteredStaff.length} Empleados Activos
+                    </div>
                 </div>
             </div>
 
