@@ -17,6 +17,9 @@ export async function GET(req: Request) {
 
         console.log("CARE API CALLED WITH:", { color, hqId });
 
+        const todayStart = startOfDay(new Date());
+        const todayEnd = endOfDay(new Date());
+
         const patients = await prisma.patient.findMany({
             where: {
                 colorGroup: color as any,
@@ -25,13 +28,24 @@ export async function GET(req: Request) {
             },
             include: {
                 medications: { include: { medication: true } },
-                lifePlan: true
+                lifePlan: true,
+                mealLogs: {
+                    where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                    select: { id: true, mealType: true }
+                },
+                vitalSigns: {
+                    where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                    select: { id: true },
+                    take: 1
+                },
+                bathLogs: {
+                    where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                    select: { id: true },
+                    take: 1
+                }
             },
             orderBy: { name: 'asc' }
         });
-
-        const todayStart = startOfDay(new Date());
-        const todayEnd = endOfDay(new Date());
 
         const events = await prisma.headquartersEvent.findMany({
             where: {

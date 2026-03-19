@@ -1024,6 +1024,19 @@ export default function ZendityCareTabletPage() {
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* FASE 66: AT-A-GLANCE DAILY PROGRESS BADGES */}
+                                        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50">
+                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                                <span className="text-sm">🚿</span> Baño
+                                            </div>
+                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                                <span className="text-sm">🍽️</span> {p.mealLogs?.length || 0}/3 Comidas
+                                            </div>
+                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.vitalSigns?.length > 0 ? 'bg-teal-100 text-teal-700 border border-teal-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                                <span className="text-sm">🩺</span> Vitales
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
