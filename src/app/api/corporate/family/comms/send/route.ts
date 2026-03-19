@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
         const msg = {
             to: targetEmail,
-            from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
+            from: process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com',
             subject: `[${hqName}] ${subject}`,
             html: corporateTemplate,
         };

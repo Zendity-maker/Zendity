@@ -135,7 +135,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             if (process.env.SENDGRID_API_KEY) {
                 const msg = {
                     to: email,
-                    from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
+                    from: process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com',
                     subject: emailSubject,
                     html: corporateTemplate,
                 };
