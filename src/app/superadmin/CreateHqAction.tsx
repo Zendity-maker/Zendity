@@ -12,6 +12,9 @@ export default function CreateHqAction() {
     const [hqName, setHqName] = useState("");
     const [directorName, setDirectorName] = useState("");
     const [directorEmail, setDirectorEmail] = useState("");
+    const [ownerPhone, setOwnerPhone] = useState("");
+    const [taxId, setTaxId] = useState("");
+    const [billingAddress, setBillingAddress] = useState("");
     const [directorPinCode, setDirectorPinCode] = useState("");
     const [licenseMonths, setLicenseMonths] = useState("12");
     const [saasMonthlyFee, setSaasMonthlyFee] = useState("500");
@@ -29,6 +32,9 @@ export default function CreateHqAction() {
                     hqName,
                     directorName,
                     directorEmail,
+                    ownerPhone,
+                    taxId,
+                    billingAddress,
                     directorPinCode,
                     licenseMonths: parseInt(licenseMonths),
                     saasMonthlyFee: parseFloat(saasMonthlyFee)
@@ -40,6 +46,7 @@ export default function CreateHqAction() {
                 setIsOpen(false);
                 // Reset form
                 setHqName(""); setDirectorName(""); setDirectorEmail("");
+                setOwnerPhone(""); setTaxId(""); setBillingAddress("");
                 setDirectorPinCode(""); setLicenseMonths("12"); setSaasMonthlyFee("500");
                 router.refresh();
             } else {
@@ -123,10 +130,41 @@ export default function CreateHqAction() {
                                                 placeholder="juan@lasvioletas.com"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Teléfono Institucional</label>
+                                            <input
+                                                type="tel"
+                                                required
+                                                value={ownerPhone}
+                                                onChange={e => setOwnerPhone(e.target.value)}
+                                                className="w-full bg-slate-950/50 border-2 border-slate-800 focus:border-teal-500 rounded-xl p-3 text-white outline-none"
+                                                placeholder="(787) 555-0100"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Dirección de Facturación</label>
+                                            <textarea
+                                                required
+                                                value={billingAddress}
+                                                onChange={e => setBillingAddress(e.target.value)}
+                                                className="w-full bg-slate-950/50 border-2 border-slate-800 focus:border-teal-500 rounded-xl p-3 text-white outline-none h-20 resize-none opacity-80"
+                                                placeholder="Calle Principal #123, San Juan, PR 00901"
+                                            />
+                                        </div>
                                     </div>
 
                                     {/* Col 2 */}
                                     <div className="space-y-5">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Tax ID / EIN</label>
+                                            <input
+                                                type="text"
+                                                value={taxId}
+                                                onChange={e => setTaxId(e.target.value)}
+                                                className="w-full bg-slate-950/50 border-2 border-slate-800 focus:border-teal-500 rounded-xl p-3 text-white outline-none font-mono"
+                                                placeholder="XX-XXXXXXX"
+                                            />
+                                        </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">PIN Clínico Raíz</label>
                                             <input

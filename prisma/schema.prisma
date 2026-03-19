@@ -25,6 +25,15 @@ model Headquarters {
   shiftRuleNight   Int @default(2)
   createdAt     DateTime @default(now())
 
+  // FASE 65: Zendity SaaS CRM (B2B Billing & Ownership)
+  ownerName          String?
+  ownerEmail         String?
+  ownerPhone         String?
+  taxId              String?
+  billingAddress     String?
+  subscriptionStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELED
+  subscriptionPlan   String   @default("PRO")    // LITE, PRO, ENTERPRISE
+
   users         User[]
   patients      Patient[]
   courses       Course[]

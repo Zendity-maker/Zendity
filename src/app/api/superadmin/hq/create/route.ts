@@ -12,6 +12,9 @@ export async function POST(request: Request) {
             directorName,
             directorEmail,
             directorPinCode,
+            ownerPhone,
+            taxId,
+            billingAddress,
             licenseMonths,
             saasMonthlyFee
         } = data;
@@ -35,6 +38,11 @@ export async function POST(request: Request) {
                     name: hqName,
                     licenseActive: true,
                     licenseExpiry: licenseExpiry,
+                    ownerName: directorName,
+                    ownerEmail: directorEmail,
+                    ownerPhone: ownerPhone,
+                    taxId: taxId,
+                    billingAddress: billingAddress,
                 }
             });
 
