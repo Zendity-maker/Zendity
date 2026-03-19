@@ -143,6 +143,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 console.log(`[ONBOARDING] Welcome Email dispatched to FamilyMember: ${email}`);
             } else {
                 console.log(`[ONBOARDING - MOCK] Missing SENDGRID_API_KEY. Ignored Welcome Email to ${email}`);
+                return NextResponse.json({ 
+                    success: true, 
+                    familyMember: newFamilyMember, 
+                    emailFailed: true, 
+                    emailError: "Falta configurar la variable global 'SENDGRID_API_KEY' en Vercel. Modo de simulación activo." 
+                });
             }
         } catch (emailError: any) {
             console.error("[ONBOARDING] Error sending Welcome Email to family member:", emailError);
