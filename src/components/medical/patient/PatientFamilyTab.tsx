@@ -47,7 +47,12 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
             const data = await res.json();
 
             if (data.success) {
-                alert("Familiar asignado correctamente. Ya puede acceder al Portal.");
+                if (data.emailFailed) {
+                    alert(`✅ Familiar asignado en el portal interno, pero hubo un ERROR al despachar su Email de Bienvenida.\n\nServidor de Correos dice:\n"${data.emailError}"\n\nTendrás que dárselo manual por ahora.`);
+                } else {
+                    alert("✅ Familiar asignado correctamente y Correo de Bienvenida enviado al instante. Ya puede acceder al Portal.");
+                }
+                
                 // Reset form
                 setName("");
                 setEmail("");
