@@ -25,13 +25,18 @@ export default function IntakeGeneratorPage() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
 
+    const hqId = (session?.user as any)?.headquartersId;
+
     useEffect(() => {
         async function fetchPatients() {
+            setLoading(true);
             try {
-                const res = await fetch("/api/medical/patients");
+                const res = await fetch("/api/corporate/patients");
                 if (res.ok) {
                     const data = await res.json();
-                    setPatients(data);
+                    if (data.success) {
+                        setPatients(data.patients);
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching patients:", err);
@@ -39,8 +44,10 @@ export default function IntakeGeneratorPage() {
                 setLoading(false);
             }
         }
-        fetchPatients();
-    }, []);
+        if (hqId) {
+            fetchPatients();
+        }
+    }, [hqId]);
 
     const handleGenerate = async () => {
         if (!selectedPatientId) {

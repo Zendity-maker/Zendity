@@ -25,8 +25,13 @@ export default function CorporateDashboardPage() {
 
     useEffect(() => {
         async function loadDashboard() {
+            setLoading(true);
             try {
-                const res = await fetch('/api/corporate');
+                // Agregar timestamp y cache: 'no-store' para forzar a Next.js a no usar cache de App Router
+                const timestamp = new Date().getTime();
+                const res = await fetch(`/api/corporate?hqId=${selectedFacility}&t=${timestamp}`, { 
+                    cache: 'no-store' 
+                });
                 const data = await res.json();
 
                 if (data.facilities) {
@@ -44,7 +49,7 @@ export default function CorporateDashboardPage() {
             }
         }
         loadDashboard();
-    }, []);
+    }, [selectedFacility]);
 
     // --- Family Link Polling ---
     useEffect(() => {

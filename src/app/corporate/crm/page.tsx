@@ -35,9 +35,13 @@ export default function CRMDashboardPage() {
     const [newLead, setNewLead] = useState({ firstName: "", lastName: "", email: "", phone: "" });
     const [saving, setSaving] = useState(false);
 
+    const hqId = user?.hqId || user?.headquartersId;
+
     useEffect(() => {
-        fetchLeads();
-    }, []);
+        if (hqId) {
+            fetchLeads();
+        }
+    }, [hqId]);
 
     const fetchLeads = async () => {
         setLoading(true);

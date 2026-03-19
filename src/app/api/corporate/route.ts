@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
+    const hqId = request.nextUrl.searchParams.get('hqId');
+
     // 1. Obtener todas las sedes activas
-    const hqs = await prisma.headquarters.findMany({
+    const allHqs = await prisma.headquarters.findMany({
       include: {
         patients: {
           include: {
@@ -28,32 +32,35 @@ export async function GET(request: NextRequest) {
     let totalGlobalMedsScheduled = 0;
     let totalCapacity = 0;
 
+    // Filtrar sedes para cálculos
+    const hqs = (hqId && hqId !== 'ALL') ? allHqs.filter((h: any) => h.id === hqId) : allHqs;
+
     // 3. Generar el arreglo para la tabla Ranking de Desempeño
-    const rankingData = hqs.map(hq => {
+    const rankingData = hqs.map((hq: any) => {
       totalCapacity += hq.capacity || 50;
 
       const hqPatients = hq.patients.length;
       totalPatients += hqPatients;
 
-      const hqCriticalIncidents = hq.incidents.filter(inc => inc.severity === 'CRITICAL' || inc.severity === 'HIGH').length;
+      const hqCriticalIncidents = hq.incidents.filter((inc: any) => inc.severity === 'CRITICAL' || inc.severity === 'HIGH').length;
       totalCriticalIncidents += hqCriticalIncidents;
 
       // Calcular promedios (Dummy logic si no hay datos)
       const avgEmpScore = hq.evals.length > 0
-        ? Math.round(hq.evals.reduce((acc, ev) => acc + ev.score, 0) / hq.evals.length)
+        ? Math.round(hq.evals.reduce((acc: any, ev: any) => acc + ev.score, 0) / hq.evals.length)
         : 85; // Default score si no hay evaluaciones
 
       const avgFamSat = hq.surveys.length > 0
-        ? Math.round((hq.surveys.reduce((acc, sv) => acc + sv.ratingCare + sv.ratingClean + sv.ratingHealth, 0) / (hq.surveys.length * 3)) * 20) // a escala de 100
+        ? Math.round((hq.surveys.reduce((acc: any, sv: any) => acc + sv.ratingCare + sv.ratingClean + sv.ratingHealth, 0) / (hq.surveys.length * 3)) * 20) // a escala de 100
         : 90; // Default score si no hay encuestas completadas
 
       // Calcular cumplimiento eMAR (FASE 10)
       let hqMedsGiven = 0;
       let hqMedsScheduled = 0;
 
-      hq.patients.forEach(patient => {
-        patient.medications.forEach(pm => {
-          pm.administrations.forEach(admin => {
+      hq.patients.forEach((patient: any) => {
+        patient.medications.forEach((pm: any) => {
+          pm.administrations.forEach((admin: any) => {
             hqMedsScheduled++;
             if (admin.status === 'ADMINISTERED') {
               hqMedsGiven++;
@@ -98,7 +105,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       kpis,
       ranking: rankedDataWithPosition,
-      facilities: hqs.map(hq => ({ id: hq.id, name: hq.name }))
+      facilities: allHqs.map((hq: any) => ({ id: hq.id, name: hq.name }))
     });
 
   } catch (error) {
