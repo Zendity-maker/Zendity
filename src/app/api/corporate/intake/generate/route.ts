@@ -16,17 +16,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // 1. Fetch Patient Info to inject into the template
+        // 1. Fetch Patient \u0026 Headquarters Info
         const patient = await prisma.patient.findUnique({
             where: { id: patientId },
-            include: {
-                familyMembers: true
-            }
+            include: { familyMembers: true, headquarters: true }
         });
 
         if (!patient) {
             return NextResponse.json({ error: "Patient not found" }, { status: 404 });
         }
+
+        const hqLogo = patient.headquarters?.logoUrl;
+        const hqName = patient.headquarters?.name || 'Zendity Care Center';
 
         // We assume the Primary Family Member is the first one, or null if there is none
         const primaryFamilyMember = patient.familyMembers.length > 0 ? patient.familyMembers[0] : null;
@@ -36,7 +37,8 @@ export async function POST(req: Request) {
 
         let htmlContent = `
       <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px;">
-        <h1 style="text-align: center; color: #1e3a8a;">${title}</h1>
+        ${hqLogo ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${hqLogo}" alt="${hqName}" style="max-height: 80px; object-fit: contain;" /></div>` : ``}
+        <h1 style="text-align: center; color: #1e3a8a; margin-top: 0;">${title}</h1>
         <p style="text-align: right; color: #666;">Fecha: <strong>${currentDate}</strong></p>
         
         <hr style="border: 1px solid #eee; margin: 20px 0;" />
