@@ -25,6 +25,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [incidents, setIncidents] = useState<any[]>([]);
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ name: "", email: "" });
+    const [isSaving, setIsSaving] = useState(false);
+
     useEffect(() => {
         if (!authLoading) {
             // RBAC Check: Un cuidador solo puede ver SU PROPIO PERFIL
@@ -44,6 +48,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             const data = await res.json();
             if (data.success) {
                 setEmployee(data.employee);
+                setEditForm({ name: data.employee.name, email: data.employee.email });
                 setPerformanceData(data.performanceHistory);
                 fetchIncidents(data.employee.headquartersId);
             } else {
@@ -54,6 +59,28 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             console.error("Error al obtener perfil", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        setIsSaving(true);
+        try {
+            const res = await fetch("/api/hr/staff", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: employee.id, name: editForm.name, email: editForm.email })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEmployee({ ...employee, name: editForm.name, email: editForm.email });
+                setIsEditing(false);
+            } else {
+                alert(data.error || "No se pudo actualizar el perfil.");
+            }
+        } catch (e) {
+            alert("Error de conexión intentando guardar el perfil.");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -126,8 +153,34 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     </div>
 
                     {/* Basic Info */}
-                    <div className="flex-1 text-center md:text-left z-10">
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight">{employee.name}</h1>
+                    <div className="flex-1 text-center md:text-left z-10 w-full">
+                        {isEditing ? (
+                            <div className="space-y-4 max-w-lg bg-slate-50/80 p-5 rounded-2xl border border-indigo-100 shadow-sm mx-auto md:mx-0">
+                                <div>
+                                    <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1.5 block">Modificar Nombre</label>
+                                    <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1.5 block">Modificar Correo (Login ID)</label>
+                                    <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                                </div>
+                                <div className="flex gap-2 justify-end pt-3 border-t border-slate-200/60 mt-2">
+                                    <button onClick={() => { setIsEditing(false); setEditForm({ name: employee.name, email: employee.email }); }} className="px-5 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-xl transition-all shadow-sm">Cancelar</button>
+                                    <button onClick={handleSaveProfile} disabled={isSaving} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-500/20 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50">
+                                        {isSaving ? "Guardando..." : "Guardar Cambios"}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center justify-center md:justify-start gap-4">
+                                    <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight">{employee.name}</h1>
+                                    {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
+                                        <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5">
+                                            ✏️ Editar
+                                        </button>
+                                    )}
+                                </div>
                         <div className="flex items-center justify-center md:justify-start gap-4 mt-2">
                             <p className="text-xl text-indigo-600 font-bold tracking-wide flex items-center gap-2">
                                 {employee.role}
@@ -164,6 +217,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 <MapPinIcon className="w-4 h-4" /> {employee.headquarters?.name || 'Sede Principal'}
                             </div>
                         </div>
+                        </>
+                        )}
                     </div>
 
                     {/* Score Highlight */}

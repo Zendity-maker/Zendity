@@ -7,6 +7,7 @@ export default function FamilyMessages() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
+    const [isPolishing, setIsPolishing] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const loadMessages = () => {
@@ -50,6 +51,31 @@ export default function FamilyMessages() {
             body: JSON.stringify({ content: optimisticMsg.content })
         });
         loadMessages();
+    };
+
+    const handleZendiPolish = async () => {
+        if (!newMessage.trim()) return;
+        setIsPolishing(true);
+        try {
+            const res = await fetch("/api/ai/shadow", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "CORPORATE_COMMS_POLISH",
+                    payload: { text: newMessage }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNewMessage(data.suggestion);
+            } else {
+                alert("Error de Zendi AI: " + data.error);
+            }
+        } catch (e) {
+            alert("Error de conexión con Zendi AI.");
+        } finally {
+            setIsPolishing(false);
+        }
     };
 
     return (
@@ -105,21 +131,32 @@ export default function FamilyMessages() {
 
             {/* Input Area */}
             <div className="p-4 sm:p-6 border-t border-slate-100 bg-white">
-                <form onSubmit={handleSend} className="flex gap-3 relative">
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Escribe un mensaje..."
-                        className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-14 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!newMessage.trim()}
-                        className="absolute right-2 top-2 bottom-2 aspect-square bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:hover:bg-rose-500 text-white rounded-xl flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-rose-200"
-                    >
+                <form onSubmit={handleSend} className="flex flex-col gap-2 relative">
+                    <div className="flex gap-3 relative">
+                        <input
+                            type="text"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Escribe un mensaje..."
+                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-28 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleZendiPolish}
+                            disabled={!newMessage.trim() || isPolishing}
+                            className={`absolute right-16 top-2 bottom-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 text-xs font-bold rounded-xl flex items-center gap-1 transition-all ${isPolishing ? 'animate-pulse cursor-not-allowed opacity-50' : 'active:scale-95 shadow-sm'}`}
+                            title="Pulir y Mejorar Escrito con Zendi AI"
+                        >
+                            {isPolishing ? "✨..." : "✨ Zendi"}
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={!newMessage.trim()}
+                            className="absolute right-2 top-2 bottom-2 aspect-square bg-rose-500 hover:bg-rose-600 disabled:opacity-50 disabled:hover:bg-rose-500 text-white rounded-xl flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-rose-200"
+                        >
                         <FaPaperPlane className="text-sm ml-1" />
                     </button>
+                    </div>
                 </form>
             </div>
         </div>
