@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
+import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 
 export default function ZendityCareTabletPage() {
@@ -923,10 +924,20 @@ export default function ZendityCareTabletPage() {
     return (
         <div className="min-h-screen bg-slate-100 pb-20">
             <div className={`w-full ${hexColor} py-6 px-8 shadow-md flex justify-between items-center text-white sticky top-0 z-40`}>
-                <h1 className="text-3xl font-black flex items-center gap-3">
-                    📱 Zendity Care
-                    <span className="text-base font-bold uppercase tracking-widest bg-white/20 px-4 py-1.5 rounded-full">Grupo {selectedColor}</span>
-                </h1>
+                <div className="flex items-center gap-4">
+                    {user && (
+                        <ZendiCameraEnhancer 
+                            targetId={user.id} 
+                            isStaff={true} 
+                            currentPhotoUrl={user?.photoUrl} 
+                            placeholderInitials={user.name?.charAt(0) || "?"}
+                        />
+                    )}
+                    <h1 className="text-3xl font-black flex items-center gap-3">
+                        📱 Zendity Care
+                        <span className="text-base font-bold uppercase tracking-widest bg-white/20 px-4 py-1.5 rounded-full">Grupo {selectedColor}</span>
+                    </h1>
+                </div>
                 <div className="flex items-center gap-4">
                     {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
                         <button onClick={() => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); }} className="px-5 py-3 font-black bg-white text-indigo-700 rounded-xl shadow-lg border border-indigo-200 hover:scale-105 transition-all flex items-center gap-2">
@@ -1006,7 +1017,13 @@ export default function ZendityCareTabletPage() {
                                     <div className="p-6 pb-4 border-b border-slate-100">
                                         <div className="flex justify-between items-start">
                                             <h2 className="text-2xl font-black text-slate-800 leading-tight">{p.name}</h2>
-                                            <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl font-bold">{p.name.charAt(0)}</div>
+                                            <ZendiCameraEnhancer 
+                                                targetId={p.id} 
+                                                isStaff={false} 
+                                                currentPhotoUrl={p.photoUrl} 
+                                                placeholderInitials={p.name.charAt(0)} 
+                                                onUploadSuccess={() => fetchPatients(selectedColor!)}
+                                            />
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {p.lifePlan && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.feeding}</p>}

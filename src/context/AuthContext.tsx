@@ -14,6 +14,7 @@ export interface AuthUser {
     headquartersId?: string; // Real
     hqName?: string;
     email?: string;
+    photoUrl?: string | null;
     complianceScore?: number;
 }
 
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: (session.user as any).role as Role,
         hqId: (session.user as any).headquartersId,
         hqName: (session.user as any).headquartersName,
+        photoUrl: (session.user as any).photoUrl || null,
     } : null;
 
     useEffect(() => {
