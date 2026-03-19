@@ -9,7 +9,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
     const [loading, setLoading] = useState(true);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ name: "", email: "" });
+    const [editForm, setEditForm] = useState({ name: "", email: "", pinCode: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
 
@@ -20,7 +20,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 const data = await res.json();
                 if (data.success) {
                     setStaff(data.staff);
-                    setEditForm({ name: data.staff.name, email: data.staff.email });
+                    setEditForm({ name: data.staff.name, email: data.staff.email, pinCode: data.staff.pinCode || "" });
                 }
             } catch (error) {
                 console.error("Failed to fetch staff profile", error);
@@ -37,11 +37,11 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
             const res = await fetch("/api/hr/staff", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: staff.id, name: editForm.name, email: editForm.email })
+                body: JSON.stringify({ id: staff.id, name: editForm.name, email: editForm.email, pinCode: editForm.pinCode })
             });
             const data = await res.json();
             if (data.success) {
-                setStaff({ ...staff, name: editForm.name, email: editForm.email });
+                setStaff({ ...staff, name: editForm.name, email: editForm.email, pinCode: editForm.pinCode });
                 setIsEditing(false);
             } else {
                 alert(data.error || "No se pudo actualizar el perfil.");
@@ -133,12 +133,18 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nombre del Empleado</label>
                                 <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" />
                             </div>
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Correo Electrónico Oficial</label>
-                                <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Correo Electrónico Oficial</label>
+                                    <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">PIN de Acceso</label>
+                                    <input type="text" value={editForm.pinCode} onChange={e => setEditForm({...editForm, pinCode: e.target.value})} placeholder="Ej: 1234" className="w-full px-4 py-2 rounded-xl border border-slate-300 font-mono tracking-widest font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none" maxLength={6} />
+                                </div>
                             </div>
                             <div className="flex gap-2 justify-end pt-2">
-                                <button onClick={() => { setIsEditing(false); setEditForm({ name: staff.name, email: staff.email }); }} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancelar</button>
+                                <button onClick={() => { setIsEditing(false); setEditForm({ name: staff.name, email: staff.email, pinCode: staff.pinCode || "" }); }} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors">Cancelar</button>
                                 <button onClick={handleSaveProfile} disabled={isSaving} className="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl text-sm shadow-sm hover:bg-slate-800 transition-colors disabled:opacity-50">
                                     {isSaving ? "Guardando..." : "Guardar Cambios"}
                                 </button>
