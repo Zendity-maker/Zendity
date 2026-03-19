@@ -11,6 +11,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: "", email: "" });
     const [isSaving, setIsSaving] = useState(false);
+    const [isResending, setIsResending] = useState(false);
 
     useEffect(() => {
         const fetchStaffProfile = async () => {
@@ -49,6 +50,24 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
             alert("Error de conexión intentando guardar el perfil.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleResendWelcome = async () => {
+        if (!confirm(`¿Estás seguro de que deseas reenviar el correo de credenciales a ${staff.email}?`)) return;
+        setIsResending(true);
+        try {
+            const res = await fetch(`/api/hr/staff/${staff.id}/welcome`, { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+                alert("✅ Correo de credenciales reenviado exitosamente.");
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            alert("Error de conexión intentando reenviar.");
+        } finally {
+            setIsResending(false);
         }
     };
 
@@ -131,6 +150,9 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
                                 <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-lg font-bold transition-colors">
                                     ✏️ Editar
+                                </button>
+                                <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-700 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                                    {isResending ? "⏳..." : "✉️ Reenviar Credenciales"}
                                 </button>
                             </div>
                             <div className="flex flex-wrap items-center gap-3 mt-1">

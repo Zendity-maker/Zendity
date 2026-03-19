@@ -28,6 +28,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: "", email: "" });
     const [isSaving, setIsSaving] = useState(false);
+    const [isResending, setIsResending] = useState(false);
 
     useEffect(() => {
         if (!authLoading) {
@@ -81,6 +82,24 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             alert("Error de conexión intentando guardar el perfil.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleResendWelcome = async () => {
+        if (!confirm(`¿Estás seguro de que deseas reenviar el correo de credenciales a ${employee.email}?`)) return;
+        setIsResending(true);
+        try {
+            const res = await fetch(`/api/hr/staff/${employee.id}/welcome`, { method: "POST" });
+            const data = await res.json();
+            if (data.success) {
+                alert("✅ Correo de credenciales reenviado exitosamente.");
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            alert("Error de conexión intentando reenviar.");
+        } finally {
+            setIsResending(false);
         }
     };
 
@@ -176,9 +195,14 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 <div className="flex items-center justify-center md:justify-start gap-4">
                                     <h1 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-tight">{employee.name}</h1>
                                     {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
-                                        <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5">
-                                            ✏️ Editar
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5">
+                                                ✏️ Editar
+                                            </button>
+                                            <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50">
+                                                {isResending ? "⏳ Enviando..." : "✉️ Reenviar Credenciales"}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                         <div className="flex items-center justify-center md:justify-start gap-4 mt-2">

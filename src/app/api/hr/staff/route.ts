@@ -106,8 +106,6 @@ export async function POST(request: Request) {
                 };
                 const friendlyRole = roleNames[role] || role;
 
-                const loginUrl = 'https://app.zendity.com/login';
-
                 const msg = {
                     to: cleanEmail,
                     from: {
@@ -131,10 +129,6 @@ export async function POST(request: Request) {
                                 <li style="margin-bottom: 10px; font-size: 15px; color: #475569;">👤 <strong>Usuario (Correo):</strong> <span style="font-family: monospace; font-size: 16px;">${cleanEmail}</span></li>
                                 <li style="margin-bottom: 20px; font-size: 15px; color: #475569;">🔑 <strong>PIN Codificado:</strong> <span style="background-color: #f1f5f9; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: bold; color: #0f172a; border: 1px solid #cbd5e1; letter-spacing: 2px;">${pinCode || 'No asignado'}</span></li>
                             </ul>
-                            
-                            <div style="text-align: center; margin-top: 35px; margin-bottom: 20px;">
-                                <a href="${loginUrl}" style="background-color: #0f172a; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">Ingresar al Panel y Tablet de Trabajo</a>
-                            </div>
                         </div>
                         
                         <div style="text-align: center; margin-top: 25px; color: #64748b; font-size: 13px;">
