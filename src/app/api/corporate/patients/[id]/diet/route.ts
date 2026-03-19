@@ -5,9 +5,10 @@ const prisma = new PrismaClient();
 
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const { diet } = await req.json();
 
         if (!diet) {
@@ -15,7 +16,7 @@ export async function PUT(
         }
 
         const patient = await prisma.patient.update({
-            where: { id: params.id },
+            where: { id },
             data: { diet }
         });
 

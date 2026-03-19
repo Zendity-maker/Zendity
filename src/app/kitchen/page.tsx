@@ -20,7 +20,8 @@ export default function KitchenDashboard() {
         if (!user) return;
 
         // Prevent non-kitchen/admin access
-        if (user.role !== "KITCHEN" && user.role !== "ADMIN" && user.role !== "DIRECTOR" && !user.secondaryRoles?.includes("KITCHEN")) {
+        const extendedUser = user as any;
+        if (extendedUser.role !== "KITCHEN" && extendedUser.role !== "ADMIN" && extendedUser.role !== "DIRECTOR" && !extendedUser.secondaryRoles?.includes("KITCHEN")) {
             router.replace("/");
             return;
         }
