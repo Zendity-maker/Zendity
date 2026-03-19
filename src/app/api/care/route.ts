@@ -30,7 +30,7 @@ export async function GET(req: Request) {
                 medications: { include: { medication: true } },
                 lifePlan: true,
                 mealLogs: {
-                    where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                    where: { timeLogged: { gte: todayStart, lte: todayEnd } },
                     select: { id: true, mealType: true }
                 },
                 vitalSigns: {
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
                     take: 1
                 },
                 bathLogs: {
-                    where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                    where: { timeLogged: { gte: todayStart, lte: todayEnd } },
                     select: { id: true },
                     take: 1
                 }
