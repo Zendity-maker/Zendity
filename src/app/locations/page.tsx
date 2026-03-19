@@ -1,6 +1,15 @@
-"use client";
 import React from "react";
-export default function LocationsDirectoryPage() {
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export const dynamic = "force-dynamic";
+
+export default async function LocationsDirectoryPage() {
+  const hqs = await prisma.headquarters.findMany({
+    orderBy: { createdAt: "desc" }
+  });
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Directorio de Sedes (Hogares)</h1>
@@ -17,24 +26,37 @@ export default function LocationsDirectoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            <tr>
-              <td className="px-6 py-4 font-bold text-slate-800">Sede San Juan</td>
-              <td className="px-6 py-4 text-slate-600">San Juan, PR</td>
-              <td className="px-6 py-4 text-slate-600">60 Camas</td>
-              <td className="px-6 py-4 text-right"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Vigente (2027)</span></td>
-            </tr>
-            <tr>
-              <td className="px-6 py-4 font-bold text-slate-800">Sede Ponce</td>
-              <td className="px-6 py-4 text-slate-600">Ponce, PR</td>
-              <td className="px-6 py-4 text-slate-600">45 Camas</td>
-              <td className="px-6 py-4 text-right"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Vigente (2028)</span></td>
-            </tr>
-            <tr>
-              <td className="px-6 py-4 font-bold text-slate-800">Sede Mayagüez</td>
-              <td className="px-6 py-4 text-slate-600">Mayagüez, PR</td>
-              <td className="px-6 py-4 text-slate-600">40 Camas</td>
-              <td className="px-6 py-4 text-right"><span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">Renovación Pend.</span></td>
-            </tr>
+            {hqs.map((hq) => {
+              // Extract a simplistic location from the name or billing address
+              const location = hq.billingAddress || (hq.name.includes('Cupey') ? 'Cupey, PR' : hq.name.includes('Mayag') ? 'Mayagüez, PR' : 'San Juan, PR');
+              const expYear = new Date(hq.licenseExpiry).getFullYear();
+
+              return (
+                <tr key={hq.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-bold text-slate-800">{hq.name}</td>
+                  <td className="px-6 py-4 text-slate-600">{location}</td>
+                  <td className="px-6 py-4 text-slate-600">{hq.capacity} Camas</td>
+                  <td className="px-6 py-4 text-right">
+                    {hq.licenseActive ? (
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                        Vigente ({expYear})
+                      </span>
+                    ) : (
+                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">
+                        Suspendida
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {hqs.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                  No hay sedes registradas en la base de datos de Zendity.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
