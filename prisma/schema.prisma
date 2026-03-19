@@ -617,18 +617,41 @@ model LifePlan {
   patientId String         @unique
   status    LifePlanStatus @default(DRAFT)
 
-  // PAI Técnico traducido por IA
-  criticalAlerts String?
-  feeding        String?
-  mobility       String?
-  customs        String?
+  // 1. Identificación y perfil (Mayormente en Patient, pero guardamos metadatos adicionales si es necesario)
+  supportSource String? // "Hija y sobrino"
+
+  // 2. Resumen Clínico Actual
+  clinicalSummary String? @db.Text
+  continence      String?
+  cognitiveLevel  String?
+  mobility        String?
+  dietDetails     String? // Para expandir el Patient.diet
+
+  // 3. Riesgos y prioridades de atención (Matrix)
+  risks           Json?   // [{ area: '', finding: '', priority: 'Alta/Media/Baja' }]
+  interdisciplinarySummary String? @db.Text
+
+  // 4. Objetivos del PAI y plan de intervención (Matrix)
+  goals           Json?   // [{ objective: '', action: '', responsible: '', frequency: '', indicator: '' }]
+
+  // 5. Seguimiento, educación y preferencias
+  familyEducation String? @db.Text
+  preferences     String? @db.Text
+  monitoringMethod String? @db.Text
+  revisionCriteria String? @db.Text
+
+  // 6. Integración Comercial Zendity
+  recommendedServices Json? // [{ serviceName: '', description: '', price: '', category: 'Marketplace' }]
+
+  startDate  DateTime?
+  nextReview DateTime?
 
   signedById String?
   signedAt   DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  patient  Patient @relation(fields: [patientId], references: [id])
+  patient  Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   signedBy User?   @relation("LifePlanSigner", fields: [signedById], references: [id])
 }
 

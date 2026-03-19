@@ -1026,7 +1026,7 @@ export default function ZendityCareTabletPage() {
                                             />
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
-                                            {p.lifePlan && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.feeding}</p>}
+                                            {p.lifePlan && p.lifePlan.dietDetails && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.dietDetails}</p>}
                                             <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md shadow-sm pl-2 overflow-hidden">
                                                 <span className="text-xs font-bold text-indigo-700">Dieta: {p.diet || 'Regular (Sólida)'}</span>
                                                 {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (

@@ -71,10 +71,11 @@ export async function POST(req: Request) {
         await prisma.lifePlan.create({
             data: {
                 patientId: patient.id,
-                criticalAlerts,
-                feeding,
+                dietDetails: feeding,
                 mobility,
-                customs,
+                cognitiveLevel: customs,
+                clinicalSummary: diagnoses,
+                risks: criticalAlerts ? [{ area: 'Admisión', finding: criticalAlerts, priority: 'Alta' }] : [],
                 status: 'DRAFT'
             }
         });

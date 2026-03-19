@@ -22,7 +22,7 @@ export async function GET(request: Request) {
         }
 
         // Obtener todos los productos y servicios activos de la misma sede
-        const [products, services] = await Promise.all([
+        let [products, services] = await Promise.all([
             prisma.conciergeProduct.findMany({
                 where: { headquartersId: familyMember.headquartersId, isActive: true },
                 orderBy: { category: 'asc' }
@@ -32,6 +32,24 @@ export async function GET(request: Request) {
                 orderBy: { category: 'asc' }
             })
         ]);
+
+        // Auto-Seeder: Si está vacío, inyectamos el Premium Marketplace Starter Pack
+        if (services.length === 0) {
+            await prisma.conciergeService.createMany({
+                data: [
+                    { headquartersId: familyMember.headquartersId, name: 'Masaje Terapéutico Relajante (1 Sesión)', price: 60.00, category: 'Terapias', providerType: 'THERAPIST', isActive: true },
+                    { headquartersId: familyMember.headquartersId, name: 'Paquete Mensual: Masajes (4 Sesiones)', price: 200.00, category: 'Terapias VIP', providerType: 'THERAPIST', isActive: true },
+                    { headquartersId: familyMember.headquartersId, name: 'Paquete Mensual: Fisioterapia (8 Sesiones)', price: 400.00, category: 'Fisioterapia', providerType: 'THERAPIST', isActive: true },
+                    { headquartersId: familyMember.headquartersId, name: 'Acompañamiento Externo (Citas/Paseo - 4 hrs)', price: 90.00, category: 'Asistencia', providerType: 'CAREGIVER', isActive: true },
+                    { headquartersId: familyMember.headquartersId, name: 'Corte y Estilismo Premium en Habitación', price: 45.00, category: 'Belleza', providerType: 'BEAUTY_SPECIALIST', isActive: true }
+                ]
+            });
+            // Recargarlos
+            services = await prisma.conciergeService.findMany({
+                where: { headquartersId: familyMember.headquartersId, isActive: true },
+                orderBy: { category: 'asc' }
+            });
+        }
 
         return NextResponse.json({
             success: true,

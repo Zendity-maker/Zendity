@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { FaRegCalendarCheck, FaRegUser, FaNotesMedical } from "react-icons/fa";
+import Link from "next/link";
 
 export default function FamilyDashboard() {
     const [resident, setResident] = useState<any>(null);
+    const [hqLogo, setHqLogo] = useState<string | null>(null);
+    const [hqName, setHqName] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -12,7 +15,11 @@ export default function FamilyDashboard() {
         fetch('/api/family/dashboard')
             .then(res => res.json())
             .then(data => {
-                if (data.success) setResident(data.resident);
+                if (data.success) {
+                    setResident(data.resident);
+                    setHqLogo(data.resident?.headquarters?.logoUrl || null);
+                    setHqName(data.resident?.headquarters?.name || "Zendity Partner");
+                }
                 else setError(data.error || "No se encontraron datos");
                 setLoading(false);
             })
@@ -41,8 +48,20 @@ export default function FamilyDashboard() {
 
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700">
+            
+            {/* Massive Headquarters Logo Branding Spotlight */}
+            <div className="flex flex-col items-center justify-center pt-2 pb-6 text-center">
+                {hqLogo ? (
+                    <img src={hqLogo} alt={hqName} className="h-28 object-contain drop-shadow-lg mb-4" />
+                ) : (
+                    <div className="text-4xl font-black tracking-tighter text-slate-900 mb-2">{hqName}</div>
+                )}
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Portal Oficial Exclusivo para Familiares</p>
+                <div className="w-12 h-1 bg-rose-500 rounded-full mt-4"></div>
+            </div>
+
             {/* Header / Profile */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 flex items-center sm:items-start gap-6 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 flex items-center sm:items-start gap-6 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden mt-2">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-bl-full -z-0 opacity-50"></div>
                 <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-slate-100 to-slate-200 border-4 border-white shadow-xl shadow-slate-200/50 flex flex-shrink-0 items-center justify-center z-10 relative overflow-hidden">
                     <FaRegUser className="text-4xl text-slate-400" />
@@ -118,10 +137,16 @@ export default function FamilyDashboard() {
                             <h3 className="font-black text-2xl text-white tracking-tight">Plan de Vida (LifePlan™)</h3>
                         </div>
 
-                        <div className="bg-teal-900/30 rounded-2xl p-6 backdrop-blur-sm border border-white/10 mb-6">
-                            <p className="text-teal-50 font-medium leading-relaxed italic">
-                                "{resident.lifePlan.aiAnalysis || "El análisis de IA está en proceso."}"
+                        <div className="bg-teal-900/30 rounded-2xl p-6 backdrop-blur-sm border border-white/10 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <p className="text-teal-50 font-medium leading-relaxed italic flex-1">
+                                El Plan Asistencial de {resident.name} se divide en categorías clínicas estructurales diseñadas por el equipo de enfermería y gerencia interdisciplinaria.
                             </p>
+                            {resident.lifePlan.status === 'APPROVED' && (
+                                <Link href={`/family/pai/print/${resident.id}`} className="bg-white text-teal-700 px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all w-full md:w-auto text-center flex items-center justify-center gap-2">
+                                    <FaNotesMedical />
+                                    Descargar PAI
+                                </Link>
+                            )}
                         </div>
 
                         <div>
