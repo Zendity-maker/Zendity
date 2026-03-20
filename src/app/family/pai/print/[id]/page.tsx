@@ -63,10 +63,10 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
             </div>
 
             {/* A4 Document Container */}
-            <div className="w-full max-w-[850px] bg-white shadow-2xl print:shadow-none p-12 md:p-16 text-slate-900 border border-slate-300 print:border-none">
+            <div className="w-full max-w-[850px] bg-white shadow-2xl print:shadow-none p-12 md:p-16 text-slate-900 border border-slate-600 print:border-b border-slate-500 print:border-blacklack print:border-none">
                 
                 {/* HEADERS & LOGO */}
-                <div className="flex flex-col items-center text-center pb-8 border-b-2 border-slate-800 mb-8">
+                <div className="flex flex-col items-center text-center pb-8 border-b border-slate-500 print:border-black-2 border-slate-800 mb-8">
                     {hqInfo?.logoUrl ? (
                         <img src={hqInfo.logoUrl} alt={hqInfo.name} className="h-28 object-contain mb-4" />
                     ) : (
@@ -78,7 +78,7 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                 </div>
 
                 {/* Top Quick Attributes */}
-                <div className="grid grid-cols-4 gap-4 text-sm font-medium mb-10 bg-slate-50 border border-slate-200 p-4 rounded-lg print:border-none print:p-2">
+                <div className="grid grid-cols-4 gap-4 text-sm font-medium mb-10 bg-slate-100 print:bg-slate-100 border border-slate-500 print:border-b border-slate-500 print:border-blacklack p-4 rounded-lg print:border-none print:p-2">
                     <div><span className="font-bold text-slate-900 text-black font-black uppercase text-[10px] block">Residente</span> <span className="font-black text-base">{patientInfo?.name}</span></div>
                     <div><span className="font-bold text-slate-900 text-black font-black uppercase text-[10px] block">Fecha de Inicio</span> {pai.startDate ? new Date(pai.startDate).toLocaleDateString() : 'N/D'}</div>
                     <div><span className="font-bold text-slate-900 text-black font-black uppercase text-[10px] block">Próxima Revisión</span> {pai.nextReview ? new Date(pai.nextReview).toLocaleDateString() : 'N/D'}</div>
@@ -93,9 +93,9 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">1. Identificación y Perfil del Residente</h2>
                     <table className="w-full text-sm border-collapse">
                         <tbody>
-                            <tr className="border-b"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{patientInfo?.dateOfBirth ? `${new Date().getFullYear() - new Date(patientInfo.dateOfBirth).getFullYear()} años` : 'N/D'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Habitación</th><td className="py-2 font-medium">{patientInfo?.roomNumber || 'N/A'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Fuente de Apoyo</th><td className="py-2 font-medium">{pai.supportSource || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{patientInfo?.dateOfBirth ? `${new Date().getFullYear() - new Date(patientInfo.dateOfBirth).getFullYear()} años` : 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Habitación</th><td className="py-2 font-medium">{patientInfo?.roomNumber || 'N/A'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Fuente de Apoyo</th><td className="py-2 font-medium">{pai.supportSource || 'N/D'}</td></tr>
                         </tbody>
                     </table>
                 </section>
@@ -105,11 +105,11 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">2. Resumen Clínico Actual</h2>
                     <table className="w-full text-sm border-collapse">
                         <tbody>
-                            <tr className="border-b"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Diagnósticos</th><td className="py-2 font-medium">{pai.clinicalSummary || 'N/D'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Dieta</th><td className="py-2 font-medium">{pai.dietDetails || patientInfo?.diet || 'N/D'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Movilidad</th><td className="py-2 font-medium">{pai.mobility || 'N/D'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Continencia</th><td className="py-2 font-medium">{pai.continence || 'N/D'}</td></tr>
-                            <tr className="border-b"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Nivel Cognitivo</th><td className="py-2 font-medium">{pai.cognitiveLevel || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Diagnósticos</th><td className="py-2 font-medium">{pai.clinicalSummary || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Dieta</th><td className="py-2 font-medium">{pai.dietDetails || patientInfo?.diet || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Movilidad</th><td className="py-2 font-medium">{pai.mobility || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Continencia</th><td className="py-2 font-medium">{pai.continence || 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Nivel Cognitivo</th><td className="py-2 font-medium">{pai.cognitiveLevel || 'N/D'}</td></tr>
                         </tbody>
                     </table>
                 </section>
@@ -117,46 +117,46 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                 {/* 3. Riesgos */}
                 <section className="mb-8 break-inside-avoid">
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">3. Riesgos y Prioridades de Atención</h2>
-                    <table className="w-full text-sm border border-slate-300">
+                    <table className="w-full text-sm border border-slate-600 print:border-b border-slate-500 print:border-blacklack">
                         <thead className="bg-slate-100">
                             <tr>
-                                <th className="p-2 border border-slate-300 font-bold text-left">Área Prioritaria</th>
-                                <th className="p-2 border border-slate-300 font-bold text-left">Hallazgo / Necesidad</th>
-                                <th className="p-2 border border-slate-300 font-bold text-center">Prioridad</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-left">Área Prioritaria</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-left">Hallazgo / Necesidad</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-center">Prioridad</th>
                             </tr>
                         </thead>
                         <tbody>
                             {risks.length > 0 ? risks.map((r: any, i: number) => (
                                 <tr key={i}>
-                                    <td className="p-2 border border-slate-300 font-bold">{r.area}</td>
-                                    <td className="p-2 border border-slate-300">{r.finding}</td>
-                                    <td className="p-2 border border-slate-300 text-center font-bold">{r.priority}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold">{r.area}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack">{r.finding}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack text-center font-bold">{r.priority}</td>
                                 </tr>
                             )) : <tr><td colSpan={3} className="p-4 text-center text-slate-700">Sin riesgos registrados</td></tr>}
                         </tbody>
                     </table>
-                    <div className="mt-3 text-sm p-3 bg-slate-50 border border-slate-200"><span className="font-bold">Resumen Interdisciplinario:</span> {pai.interdisciplinarySummary || 'N/D'}</div>
+                    <div className="mt-3 text-sm p-3 bg-slate-100 print:bg-slate-100 border border-slate-500 print:border-b border-slate-500 print:border-blacklack"><span className="font-bold">Resumen Interdisciplinario:</span> {pai.interdisciplinarySummary || 'N/D'}</div>
                 </section>
 
                 {/* 4. Objetivos */}
                 <section className="mb-8 break-inside-avoid">
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">4. Objetivos del PAI y Plan de Intervención</h2>
-                    <table className="w-full text-sm border border-slate-300">
+                    <table className="w-full text-sm border border-slate-600 print:border-b border-slate-500 print:border-blacklack">
                         <thead className="bg-slate-100">
                             <tr>
-                                <th className="p-2 border border-slate-300 font-bold text-left w-1/4">Objetivo</th>
-                                <th className="p-2 border border-slate-300 font-bold text-left">Acción / Intervención</th>
-                                <th className="p-2 border border-slate-300 font-bold text-center">Responsable</th>
-                                <th className="p-2 border border-slate-300 font-bold text-center">Frecuencia</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-left w-1/4">Objetivo</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-left">Acción / Intervención</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-center">Responsable</th>
+                                <th className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold text-center">Frecuencia</th>
                             </tr>
                         </thead>
                         <tbody>
                             {goals.length > 0 ? goals.map((g: any, i: number) => (
                                 <tr key={i}>
-                                    <td className="p-2 border border-slate-300 font-bold">{g.objective}</td>
-                                    <td className="p-2 border border-slate-300">{g.action}</td>
-                                    <td className="p-2 border border-slate-300 text-center text-xs">{g.responsible}</td>
-                                    <td className="p-2 border border-slate-300 text-center text-xs">{g.frequency}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack font-bold">{g.objective}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack">{g.action}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack text-center text-xs">{g.responsible}</td>
+                                    <td className="p-2 border border-slate-600 print:border-b border-slate-500 print:border-blacklack text-center text-xs">{g.frequency}</td>
                                 </tr>
                             )) : <tr><td colSpan={4} className="p-4 text-center text-slate-700">Sin intervenciones registradas</td></tr>}
                         </tbody>
@@ -166,10 +166,10 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                 {/* Marketplace / Commercial Extension */}
                 {recommendedServices.length > 0 && (
                     <section className="mb-8 break-inside-avoid print:bg-orange-50/50 p-4 border-2 border-orange-200">
-                        <h2 className="text-lg font-black text-orange-900 mb-3 border-b border-orange-200 pb-2 uppercase tracking-wider">Servicios Adicionales Recomendados para este PAI</h2>
+                        <h2 className="text-lg font-black text-orange-900 mb-3 border-b border-slate-500 print:border-black border-orange-200 pb-2 uppercase tracking-wider">Servicios Adicionales Recomendados para este PAI</h2>
                         <ul className="space-y-3">
                             {recommendedServices.map((rs: any, i: number) => (
-                                <li key={i} className="text-sm flex flex-col md:flex-row md:justify-between border-b border-orange-100 pb-2">
+                                <li key={i} className="text-sm flex flex-col md:flex-row md:justify-between border-b border-slate-500 print:border-black border-orange-100 pb-2">
                                     <div className="flex-1">
                                         <div className="font-black text-slate-800">{rs.serviceName}</div>
                                         <div className="text-slate-900 text-black font-black mt-1">{rs.description}</div>
@@ -183,7 +183,7 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
 
                 {/* SIGNATURES */}
                 <section className="flex justify-between items-end mt-20 pt-10 break-inside-avoid">
-                    <div className="text-center w-1/3 border-t-2 border-slate-400 pt-2">
+                    <div className="text-center w-1/3 border-t border-slate-500 print:border-black-2 border-slate-400 pt-2">
                         <p className="font-black text-sm uppercase">Firma del Personal Clínico</p>
                         <p className="text-xs text-slate-800 text-black mt-1">Plan diseñado y avalado por Enfermería / Trabajo Social</p>
                     </div>
