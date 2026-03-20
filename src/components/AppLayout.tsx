@@ -101,13 +101,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-5 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex shrink-0 items-center justify-center font-black text-xl shadow-md ${isCorporateWorkspace ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white' : 'bg-gradient-to-br from-teal-100 to-teal-200 text-teal-800'}`}>
-                            Z
-                        </div>
-                        {!isSidebarCollapsed && (
+                        {isSidebarCollapsed ? (
+                            <img 
+                                src={isCorporateWorkspace ? "/brand/zendity_icon_white.svg" : "/brand/zendity_icon_primary.svg"} 
+                                alt="Zendity Icon" 
+                                className="w-9 h-9 object-contain drop-shadow-sm" 
+                            />
+                        ) : (
                             <div className="flex flex-col whitespace-nowrap overflow-hidden">
-                                <h1 className={`text-xl font-black tracking-tight leading-tight ${sidebarLogoText}`}>Zendity</h1>
-                                <span className="text-[10px] uppercase font-black tracking-widest text-teal-500">
+                                <img 
+                                    src={isCorporateWorkspace ? "/brand/zendity_logo_white.svg" : "/brand/zendity_logo_primary.svg"} 
+                                    alt="Zendity Logo" 
+                                    className="h-7 w-auto object-contain mb-1" 
+                                />
+                                <span className="text-[9px] uppercase font-black tracking-widest text-teal-500 pl-1">
                                     {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
                                 </span>
                             </div>

@@ -100,7 +100,7 @@ export default function WallOfCarePage() {
                         {data.hqInfo.logoUrl ? (
                             <img src={data.hqInfo.logoUrl} alt="HQ Logo" className="w-full h-full object-cover bg-white" />
                         ) : (
-                            "Z"
+                            <img src="/brand/zendity_icon_white.svg" className="w-10 h-10 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" alt="Zendity OS" />
                         )}
                     </div>
                     <div>
