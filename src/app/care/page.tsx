@@ -436,7 +436,14 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
-                setModalType(null);
+                
+                if (data.criticalAlert) {
+                    alert(data.message);
+                    setDailyLog({ bathCompleted: false, foodIntake: 100, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
+                    setModalType('LOG');
+                } else {
+                    setModalType(null);
+                }
             } else {
                 alert("Error interno: " + data.error);
             }

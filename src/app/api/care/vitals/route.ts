@@ -17,17 +17,45 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: "Datos vitales incompletos" }, { status: 400 });
             }
 
+            const sys = parseInt(data.sys);
+            const dia = parseInt(data.dia);
+            const temp = parseFloat(data.temp);
+
+            let isCritical = false;
+            let criticalMessage = "";
+
+            if (sys > 140 || dia > 90) { isCritical = true; criticalMessage = "Posible crisis hipertensiva detectada."; }
+            else if (sys < 90) { isCritical = true; criticalMessage = "Posible cuadro de hipotensión."; }
+            else if (temp > 100.4) { isCritical = true; criticalMessage = "Fiebre sistémica detectada."; }
+
             await prisma.vitalSigns.create({
                 data: {
                     patientId,
                     measuredById: authorId,
-                    systolic: parseInt(data.sys),
-                    diastolic: parseInt(data.dia),
+                    systolic: sys,
+                    diastolic: dia,
                     heartRate: parseInt(data.hr),
-                    temperature: parseFloat(data.temp),
+                    temperature: temp,
                     glucose: data.glucose ? parseInt(data.glucose) : null,
                 }
             });
+
+            if (isCritical) {
+                // Auto-queue 45-min observation SLA
+                await prisma.healthAppointment.create({
+                    data: {
+                        patientId,
+                        type: "OBSERVATION",
+                        title: "Toma de Vitales (Observación Continua)",
+                        appointmentDate: new Date(Date.now() + 45 * 60 * 1000)
+                    }
+                });
+                return NextResponse.json({ 
+                    success: true, 
+                    criticalAlert: true, 
+                    message: `🚨 ${criticalMessage} Zendity colocó al residente bajo protocolo de observación. Se agendó una revisión mandatoria en 45 minutos. Por favor, documente la incidencia.` 
+                });
+            }
         } else if (type === 'LOG') {
             await prisma.dailyLog.create({
                 data: {
