@@ -579,6 +579,56 @@ export default function ZendityCareTabletPage() {
         alert("🔦 Ronda de Noche añadida a la bitácora.");
     };
 
+    const handlePressurePointAlert = async () => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/incidents", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: activePatient.id,
+                    headquartersId: user?.hqId || user?.headquartersId || "hq-demo-1",
+                    type: 'ULCER',
+                    severity: 'MEDIUM',
+                    description: `Punto de Presión detectado durante el aseo. Se requiere inspección dermatológica preventiva de Úlcera.`,
+                    biometricSignature: user?.id || "emergency-bypass"
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("🟡 Alerta médica preventiva enviada a Enfermería.");
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
+    const handlePosturalChange = async (position: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/postural", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: activePatient.id,
+                    caregiverId: user?.id,
+                    shiftSessionId: activeSession?.id,
+                    position
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                let gamifiedMsg = "";
+                if (data.pointsDelta > 0) gamifiedMsg = `🏆 ¡Excelente tiempo clínico! +${data.pointsDelta} Puntos Zendity.`;
+                else if (data.pointsDelta < 0) gamifiedMsg = `⚠️ Rotación atrasada. Zendity HR dedujo ${data.pointsDelta} Puntos por incumplimiento.`;
+
+                alert(`🛏 Cambio Postural (${position}) registrado exitosamente.\n${gamifiedMsg}`);
+                setActivePatient({
+                    ...activePatient,
+                    posturalChanges: [data.rotation, ...(activePatient.posturalChanges || [])]
+                });
+            } else {
+                alert(`⚠️ Error Clínico: ${data.error}`);
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
     const submitFall = async () => {
         setSubmitting(true);
         try {
@@ -1178,6 +1228,33 @@ export default function ZendityCareTabletPage() {
                                             {dailyLog.bathCompleted ? "Baño Registrado ✓" : "Completar Baño de 6AM - 10AM"}
                                         </button>
                                         <p className="text-xs font-bold text-sky-600/60 mt-2 text-center">Protegido por 10-Min Cooldown</p>
+                                    </div>
+                                )}
+
+                                {/* Protocolo UPP (Fase Dual) */}
+                                {selectedColor && (
+                                    <div className={`p-4 rounded-2xl border ${activePatient.requiresPosturalChanges ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
+                                        <h4 className={`font-black text-lg mb-2 ${activePatient.requiresPosturalChanges ? 'text-rose-800' : 'text-amber-800'}`}>
+                                            {activePatient.requiresPosturalChanges ? '🛏️ Protocolo UPP Activo' : '🟡 Vigilancia Dermatológica'}
+                                        </h4>
+                                        
+                                        {!activePatient.requiresPosturalChanges ? (
+                                            <>
+                                                <button onClick={handlePressurePointAlert} disabled={submitting} className="w-full py-4 text-amber-700 bg-amber-100/50 hover:bg-amber-200 border border-amber-300 font-bold rounded-xl transition-all shadow-sm">
+                                                    Reportar Punto de Presión
+                                                </button>
+                                                <p className="text-xs font-bold text-amber-600/60 mt-2 text-center">Fase Preventiva: Notifica a la Enfermera para diagnóstico.</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-3 gap-2 mb-2">
+                                                    <button onClick={() => handlePosturalChange('IZQUIERDA')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Izquie.</button>
+                                                    <button onClick={() => handlePosturalChange('SUPINO')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Supino</button>
+                                                    <button onClick={() => handlePosturalChange('DERECHA')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Derecha</button>
+                                                </div>
+                                                <p className="text-xs font-bold text-rose-600/60 mt-2 text-center">Fase Prescriptiva: Reloj de 2-Horas Activo</p>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 
