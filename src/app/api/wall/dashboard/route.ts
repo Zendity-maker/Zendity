@@ -86,6 +86,17 @@ export async function GET(req: Request) {
 
         const fallbackMenu = { breakfast: 'Avena y Frutas', lunch: 'Sopa de Pollo y Arroz', dinner: 'Pescado al Horno', snacks: 'Yogurt' };
 
+        // 5. Fetch Top 5 Staff for Leaderboard (Phase 29)
+        const leaderboard = await prisma.user.findMany({
+            where: {
+                headquartersId,
+                role: { in: ['CAREGIVER', 'NURSE'] }
+            },
+            orderBy: { complianceScore: 'desc' },
+            take: 5,
+            select: { id: true, name: true, role: true, complianceScore: true, photoUrl: true }
+        });
+
         return NextResponse.json({
             success: true,
             data: {
@@ -104,7 +115,8 @@ export async function GET(req: Request) {
                     lunch: todayMenu?.lunch || fallbackMenu.lunch,
                     dinner: todayMenu?.dinner || fallbackMenu.dinner,
                     snacks: todayMenu?.snacks || fallbackMenu.snacks
-                }
+                },
+                leaderboard
             }
         });
 

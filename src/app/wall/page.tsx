@@ -7,8 +7,9 @@ import { es } from "date-fns/locale";
 import {
     Activity, ShieldAlert, Pill, Users,
     Clock, Calendar as CalendarIcon, Loader2,
-    UtensilsCrossed, AlertTriangle, CheckCircle2
+    UtensilsCrossed, AlertTriangle, CheckCircle2, Trophy
 } from "lucide-react";
+
 
 type WallData = {
     hqInfo: {
@@ -27,6 +28,7 @@ type WallData = {
         dinner: string;
         snacks: string;
     };
+    leaderboard?: any[];
 };
 
 export default function WallOfCarePage() {
@@ -126,8 +128,8 @@ export default function WallOfCarePage() {
             {/* Main Content Grid */}
             <div className="grid grid-cols-12 gap-8 flex-1 h-full min-h-0 relative z-10">
 
-                {/* Izquierda: Métricas + Cocina (4 Columnas) */}
-                <div className="col-span-4 flex flex-col gap-8">
+                {/* Izquierda: Métricas + Cocina (3 Columnas) */}
+                <div className="col-span-3 flex flex-col gap-8">
 
                     {/* Vital Heartbeat Cards */}
                     <div className="grid grid-cols-2 gap-6">
@@ -189,8 +191,8 @@ export default function WallOfCarePage() {
                     </div>
                 </div>
 
-                {/* Derecha: Mapa de Habitaciones (8 Columnas) */}
-                <div className="col-span-8 bg-black/20 rounded-3xl p-8 border border-white/10 shadow-[inner_0_0_50px_rgba(0,0,0,0.5)] overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-xl relative">
+                {/* Centro: Mapa de Habitaciones (6 Columnas) */}
+                <div className="col-span-6 bg-black/20 rounded-3xl p-8 border border-white/10 shadow-[inner_0_0_50px_rgba(0,0,0,0.5)] overflow-y-auto custom-scrollbar flex flex-col backdrop-blur-xl relative">
                     <div className="flex items-center justify-between gap-4 mb-8 pb-6 border-b border-white/10 sticky top-0 bg-[#1F2D3A]/95 backdrop-blur-2xl z-20 pt-2 -mt-4 -mx-4 px-4 shadow-sm">
                         <div className="flex items-center gap-4">
                             <span className="p-4 bg-indigo-500/20 text-indigo-300 rounded-2xl border border-indigo-500/30 shadow-inner"><Activity className="w-8 h-8" /></span>
@@ -217,6 +219,35 @@ export default function WallOfCarePage() {
                         ))}
                     </div>
                 </div>
+
+                {/* Derecha: Leaderboard Gamificado (3 Columnas) */}
+                <div className="col-span-3 flex flex-col gap-8">
+                    <div className="bg-gradient-to-br from-[#0F6B78]/30 to-black/20 rounded-3xl p-8 border border-[#3CC6C4]/30 flex-1 shadow-[0_8px_30px_rgba(15,107,120,0.3)] backdrop-blur-md flex flex-col relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#3CC6C4]/20 rounded-bl-full -z-10 blur-xl"></div>
+                        <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/10">
+                            <span className="p-4 bg-yellow-500/20 text-yellow-300 rounded-2xl border border-yellow-500/30 shadow-inner group-hover:scale-110 transition-transform"><Trophy className="w-8 h-8" /></span>
+                            <span className="font-bold text-xl text-white uppercase tracking-widest drop-shadow-md">Top Excellence</span>
+                        </div>
+                        <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
+                            {data.leaderboard?.map((staff: any, idx: number) => (
+                                <div key={staff.id} className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5 hover:bg-white/10 hover:border-[#3CC6C4]/30 transition-all">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] text-white border border-[#3CC6C4]/40 shadow-md">
+                                        #{idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white font-bold tracking-wide truncate">{staff.name}</p>
+                                        <p className="text-[#3CC6C4] text-[10px] font-bold uppercase tracking-widest truncate">{staff.role}</p>
+                                    </div>
+                                    <div className="text-2xl font-black text-emerald-400 drop-shadow-sm">{staff.complianceScore} <span className="text-xs text-emerald-600">pts</span></div>
+                                </div>
+                            ))}
+                            {(!data.leaderboard || data.leaderboard.length === 0) && (
+                                <p className="text-slate-500 text-sm font-bold text-center mt-8 uppercase tracking-widest">Sin Data Operacional</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         </div>
