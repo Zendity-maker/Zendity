@@ -22,7 +22,31 @@ export async function POST(req: Request) {
             }
         });
 
-        return NextResponse.json({ success: true, log, alert: isClinicalAlert ? "Notificación de Riesgo Nutricional/Dolor enviada a Enfermería." : null });
+        // FASE 28: Zendity Triggered Reactive Learning
+        if (isClinicalAlert) {
+            try {
+                const caregiver = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
+                if (caregiver && caregiver.headquartersId) {
+                    const reactiveCourse = await prisma.course.findFirst({
+                        where: { headquartersId: caregiver.headquartersId, isActive: true },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (reactiveCourse) {
+                        await prisma.userCourse.upsert({
+                            where: { employeeId_courseId: { employeeId: authorId, courseId: reactiveCourse.id } },
+                            create: { employeeId: authorId, courseId: reactiveCourse.id, headquartersId: caregiver.headquartersId, status: 'ASSIGNED' },
+                            update: { status: 'ASSIGNED' }
+                        });
+                        console.log(`[Zendi Academy] Curso Reactivo Asignado a ${authorId}`);
+                    }
+                }
+            } catch (e) {
+                console.error("Reactive Learning DailyLog Error:", e);
+            }
+        }
+
+        return NextResponse.json({ success: true, log, alert: isClinicalAlert ? "Notificación de Riesgo Operativo y Asignación de Curso Activa." : null });
 
     } catch (error) {
         console.error("Log POST Error:", error);

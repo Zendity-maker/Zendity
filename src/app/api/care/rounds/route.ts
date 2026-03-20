@@ -50,6 +50,8 @@ export async function POST(req: Request) {
             data: {
                 patientId,
                 authorId: caregiverId,
+                foodIntake: 100,
+                bathCompleted: false,
                 notes: finalNote,
                 isClinicalAlert
             }
@@ -60,6 +62,30 @@ export async function POST(req: Request) {
             where: { id: caregiverId },
             data: { complianceScore: { increment: 2 } }
         });
+
+        // FASE 28: Zendity Triggered Reactive Learning
+        if (isClinicalAlert) {
+            try {
+                const caregiver = await prisma.user.findUnique({ where: { id: caregiverId }, select: { headquartersId: true } });
+                if (caregiver && caregiver.headquartersId) {
+                    const reactiveCourse = await prisma.course.findFirst({
+                        where: { headquartersId: caregiver.headquartersId, isActive: true },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (reactiveCourse) {
+                        await prisma.userCourse.upsert({
+                            where: { employeeId_courseId: { employeeId: caregiverId, courseId: reactiveCourse.id } },
+                            create: { employeeId: caregiverId, courseId: reactiveCourse.id, headquartersId: caregiver.headquartersId, status: 'ASSIGNED' },
+                            update: { status: 'ASSIGNED' }
+                        });
+                        console.log(`[Zendi Academy] Curso Reactivo Nocturno Asignado a ${caregiverId}`);
+                    }
+                }
+            } catch (e) {
+                console.error("Reactive Learning NightRound Error:", e);
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (e: any) {
