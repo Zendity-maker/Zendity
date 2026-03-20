@@ -48,7 +48,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No se encontraron empleados con correos válidos para los roles seleccionados.' }, { status: 404 });
         }
 
-        const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com';
+        const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
 
         // Fake SendGrid test Si no hay API Key
         if (!process.env.SENDGRID_API_KEY) {

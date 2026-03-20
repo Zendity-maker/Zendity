@@ -84,7 +84,7 @@ export async function POST(request: Request) {
         // ==========================================
         try {
             if (SENDGRID_API_KEY && cleanEmail) {
-                const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com';
+                const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
                 
                 // Fetch de detalles de la sede para inyectar al correo
                 const hqData = await prisma.headquarters.findUnique({

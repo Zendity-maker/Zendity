@@ -135,7 +135,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             if (process.env.SENDGRID_API_KEY) {
                 const msg = {
                     to: email,
-                    from: process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com',
+                    from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
                     subject: emailSubject,
                     html: corporateTemplate,
                 };
@@ -152,7 +152,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             }
         } catch (emailError: any) {
             console.error("[ONBOARDING] Error sending Welcome Email to family member:", emailError);
-            const attemptedSender = process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com';
+            const attemptedSender = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
             return NextResponse.json({ 
                 success: true, 
                 familyMember: newFamilyMember, 

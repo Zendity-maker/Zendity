@@ -30,7 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ error: 'SendGrid no está configurado o empleado no tiene email.' }, { status: 400 });
         }
 
-        const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'vividseniorliving@gmail.com';
+        const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
         const facilityName = employee.headquarters?.name || 'Zendity Care Center';
         const logoHtml = employee.headquarters?.logoUrl ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${employee.headquarters.logoUrl}" alt="${facilityName}" style="max-height: 80px; object-fit: contain;" /></div>` : '';
 
