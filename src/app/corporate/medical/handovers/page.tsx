@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { FileSignature, Users, AlertOctagon, ActivitySquare } from 'lucide-react';
 
 interface PatientNote {
     patient: { name: string; roomNumber: string };
@@ -207,26 +208,84 @@ export default function HandoversPage() {
         return <div className="p-8 text-center text-red-500 font-bold">No tienes permiso para acceder al registro de Relevos de Guardia.</div>;
     }
 
+    // -- KPIs DE AUDITORIA CORPORATIVA --
+    const pendingHandovers = handovers.filter(h => h.status === 'PENDING').length;
+    const criticalNotesCount = handovers.reduce((acc, h) => acc + h.notes.filter(n => n.isCritical).length, 0);
+    const uniqueStaff = new Set();
+    handovers.forEach(h => {
+        if (h.outgoingNurse) uniqueStaff.add(h.outgoingNurse.name);
+        if (h.incomingNurse) uniqueStaff.add(h.incomingNurse.name);
+    });
+    const staffCount = uniqueStaff.size;
+
     return (
         <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200/60 mb-8">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight">Relevos de Guardia (Shift Handovers)</h1>
-                    <p className="text-slate-500 text-sm mt-1">
-                        Transparencia Clínica: Entrega y asume tus turnos firmando el recibo del estado de los Residentes.
+                    <h1 className="text-3xl font-black bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent tracking-tight flex items-center gap-3">
+                        <ActivitySquare className="w-8 h-8 text-teal-600" />
+                        Auditoría de Relevos de Guardia
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm mt-2">
+                        Dashboard Directivo: Monitorea la continuidad clínica y firmas de responsabilidad (Shift Handovers).
                     </p>
                 </div>
                 <button
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center gap-2"
+                    className="mt-4 md:mt-0 bg-slate-900 hover:bg-black text-white px-6 py-3.5 rounded-2xl font-bold shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
                     onClick={handleOpenModal}
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    Entregar Mi Guardia
+                    Nuevo Reporte Mixto
                 </button>
             </div>
 
+            {/* FASE 68: KPI CARDS DIRECTIVAS */}
+            {!isLoading && handovers.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-amber-300 transition-colors">
+                        <div className="flex justify-between items-start">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Pendientes de Firma</h3>
+                            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl"><FileSignature className="w-5 h-5" /></div>
+                        </div>
+                        <div className="mt-4 flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-slate-800">{pendingHandovers}</span>
+                            <span className="text-sm font-bold text-amber-500 uppercase">Sin Autorizar</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-rose-300 transition-colors">
+                        <div className="flex justify-between items-start">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Alertas Críticas Activas</h3>
+                            <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl"><AlertOctagon className="w-5 h-5" /></div>
+                        </div>
+                        <div className="mt-4 flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-slate-800">{criticalNotesCount}</span>
+                            <span className="text-sm font-bold text-rose-500 uppercase">Avisos Zendi</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-teal-300 transition-colors">
+                        <div className="flex justify-between items-start">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Staff Involucrado</h3>
+                            <div className="p-2.5 bg-teal-50 text-teal-600 rounded-xl"><Users className="w-5 h-5" /></div>
+                        </div>
+                        <div className="mt-4 flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-slate-800">{staffCount}</span>
+                            <span className="text-sm font-bold text-teal-500 uppercase">Enfermeros</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isLoading ? (
-                <div className="text-center text-slate-400 p-10 animate-pulse">Cargando Bitácoras de Relevo...</div>
+                <div className="flex h-40 items-center justify-center">
+                    <div className="flex flex-col items-center gap-4 animate-pulse">
+                        <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
+                            <ActivitySquare className="w-6 h-6" />
+                        </div>
+                        <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Recuperando Bitácoras...</p>
+                    </div>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
                     {handovers.length === 0 ? (
@@ -362,11 +421,15 @@ export default function HandoversPage() {
                                         <button
                                             onClick={autoCompleteWithZendi}
                                             disabled={isGeneratingDigest}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="bg-slate-900 hover:bg-black text-white border border-indigo-500/30 hover:border-indigo-400 px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                                         >
                                             {isGeneratingDigest ? (
-                                                <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                            ) : "✨ Zendi AI Auto-Completar"}
+                                                <svg className="animate-spin h-3.5 w-3.5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            ) : (
+                                                <>
+                                                    <span className="text-indigo-400 group-hover:text-indigo-300 transition-colors">✨</span> Zendi AI Auto-Completar
+                                                </>
+                                            )}
                                         </button>
                                         <button onClick={addNoteField} className="text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-indigo-200 bg-white">+ Añadir Manual</button>
                                     </div>

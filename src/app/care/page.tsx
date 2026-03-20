@@ -40,12 +40,13 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
+    const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
     const [zendiToast, setZendiToast] = useState("");
 
@@ -190,11 +191,12 @@ export default function ZendityCareTabletPage() {
                 setVerifyingCensus(false);
 
                 // FASE 44: Intercepción de lectura obligatoria
-                if (data.requireHandoverAccept) {
-                    alert(`🚨 ALERTA ROJA: Tienes un Relevo de Guardia pendiente de ${data.pendingHandover?.outgoingNurse?.name || 'Turno Previo'}. Léelo y acéptalo inmediatamente para tomar responsabilidad del piso.`);
+                if (data.requireHandoverAccept && data.pendingHandover) {
+                    setPendingHandoverToAccept(data.pendingHandover);
+                    setModalType('ACCEPT_HANDOVER');
+                } else {
+                    continueToBriefing(selectedColor!);
                 }
-
-                continueToBriefing(selectedColor!);
             } else {
                 alert("Error de Inicio de Turno: " + data.error);
             }
