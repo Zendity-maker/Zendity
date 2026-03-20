@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   MessageSquare, Download, TrendingUp, TrendingDown, Minus,
-  ArrowRight, Activity, Users, Building, X
+  ArrowRight, Activity, Users, Building, X, AlertOctagon, BarChart3, MapPin
 } from 'lucide-react';
 
 interface LeaderboardItem {
@@ -23,6 +23,8 @@ export default function InsightsDashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [headquarters, setHeadquarters] = useState<string[]>([]);
+  const [occupancyData, setOccupancyData] = useState<any[]>([]);
+  const [clinicalRisk, setClinicalRisk] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -47,6 +49,8 @@ export default function InsightsDashboard() {
           setChartData(data.chartData);
           setLeaderboard(data.leaderboard);
           setHeadquarters(data.headquarters);
+          setOccupancyData(data.occupancyData || []);
+          setClinicalRisk(data.clinicalRisk || []);
         }
       } catch (err) {
         console.error("Error loading insights:", err);
@@ -306,6 +310,81 @@ export default function InsightsDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* FASE 67: Predictive Analytics & Clinical Heatmap */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Occupancy Projection */}
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+            <div className="mb-6">
+              <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-indigo-600" /> Proyección de Ocupación
+              </h3>
+              <p className="text-sm text-slate-500 font-medium mt-1">Capacidad Instalada vs Disponible por Sede</p>
+            </div>
+            
+            <div className="space-y-5">
+              {occupancyData.map((hq, idx) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-slate-700">{hq.hqName}</span>
+                    <span className={hq.rate >= 90 ? 'text-rose-600' : 'text-slate-500'}>
+                      {hq.installed} / {hq.capacity} ({hq.rate}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200/50">
+                    <div 
+                      className={`h-3 rounded-full transition-all duration-1000 ${hq.rate >= 90 ? 'bg-gradient-to-r from-rose-500 to-rose-400' : hq.rate >= 75 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-teal-500 to-teal-400'}`} 
+                      style={{ width: `${hq.rate}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Clinical Risk Heatmap */}
+          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+            <div className="mb-6 flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                  <AlertOctagon className="w-5 h-5 text-rose-600" /> Mapa de Calor Clínico
+                </h3>
+                <p className="text-sm text-slate-500 font-medium mt-1">Riesgo Inminente de Caídas (Downton Hotspots)</p>
+              </div>
+              <span className="bg-rose-100 text-rose-700 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-rose-200 animate-pulse">
+                {clinicalRisk.length} Alertas
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
+              {clinicalRisk.map((pt, idx) => (
+                <div key={idx} className="p-4 bg-rose-50 border border-rose-100 hover:border-rose-300 rounded-xl transition-all group">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black shadow-inner">
+                      {pt.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm group-hover:text-rose-700 transition-colors leading-tight">{pt.name}</h4>
+                      <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-slate-400" /> Cuarto {pt.room || 'N/A'}
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] uppercase tracking-widest font-bold bg-white text-rose-600 px-2 py-0.5 rounded border border-rose-200">
+                        {pt.hqName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {clinicalRisk.length === 0 && (
+                <div className="col-span-2 text-center py-10 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 border-dashed rounded-xl">
+                  ✓ Riesgo Cero Reportado Globalmente
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>

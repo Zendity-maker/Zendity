@@ -91,7 +91,46 @@ export async function GET() {
             return b.currentScore - a.currentScore;
         });
 
-        return NextResponse.json({ success: true, chartData, leaderboard, headquarters: Array.from(headquartersSet) });
+        // 3. Occupancy & Clinical Risk Heatmap (FASE 67 Predictive Analytics)
+        const headquartersAll = await prisma.headquarters.findMany({ select: { id: true, name: true, capacity: true } });
+        const activePatients = await prisma.patient.findMany({
+            where: { status: { not: "DISCHARGED" } },
+            select: { id: true, name: true, roomNumber: true, downtonRisk: true, headquartersId: true }
+        });
+
+        const occupancyData = headquartersAll.map(hq => {
+            const installed = activePatients.filter(p => p.headquartersId === hq.id).length;
+            const rate = hq.capacity > 0 ? Math.round((installed / hq.capacity) * 100) : 0;
+            return {
+                hqId: hq.id,
+                hqName: hq.name,
+                capacity: hq.capacity,
+                installed,
+                rate
+            };
+        });
+
+        // Heatmap: Patients with High Fall Risk
+        const clinicalRisk = activePatients
+            .filter(p => p.downtonRisk)
+            .map(p => {
+                const hq = headquartersAll.find(h => h.id === p.headquartersId);
+                return {
+                    id: p.id,
+                    name: p.name,
+                    room: p.roomNumber,
+                    hqName: hq ? hq.name : "Desconocido"
+                };
+            });
+
+        return NextResponse.json({ 
+            success: true, 
+            chartData, 
+            leaderboard, 
+            headquarters: Array.from(headquartersSet),
+            occupancyData,
+            clinicalRisk
+        });
 
     } catch (error) {
         console.error("Error generating insights:", error);
