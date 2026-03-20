@@ -40,7 +40,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
@@ -62,6 +62,10 @@ export default function ZendityCareTabletPage() {
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
     const [formattingNotes, setFormattingNotes] = useState(false);
+    
+    // Preventive Hub
+    const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
+    const [preventiveNote, setPreventiveNote] = useState("");
 
     // Action Hub States
     const [hubPatientId, setHubPatientId] = useState("");
@@ -623,6 +627,39 @@ export default function ZendityCareTabletPage() {
                     ...activePatient,
                     posturalChanges: [data.rotation, ...(activePatient.posturalChanges || [])]
                 });
+            } else {
+                alert(`⚠️ Error Clínico: ${data.error}`);
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
+    const SYMPTOM_CATEGORIES = {
+        "Gastrointestinal / Nutricional": ["Diarrea", "Vómito", "Sangre en excreta", "Estreñimiento", "Poco apetito", "Dificultad de tragado o ahogamiento"],
+        "Respiratorio / Motor": ["Tos", "Mareos o desbalances", "Temblores", "Debilidad muscular", "Vaso vagal"],
+        "Urinario / Piel": ["Fetidez en la orina", "Sangre en la orina", "Retención de líquido o edema", "Punto de presión o área roja", "Cambios en la piel", "Picor", "Laceraciones"],
+        "Neurológico / Cognitivo": ["Somnolencia", "Alucinaciones", "Desorientación", "Pérdida de la memoria", "Sordera", "Ceguera"],
+        "Psiquiátrico / Emocional": ["Agresividad", "Llanto sin razón aparente", "Insomnio", "Ansiedad", "Pensamientos suicidas", "Depresión o tristeza constante"]
+    };
+
+    const handlePreventiveSubmit = async () => {
+        if (!selectedSymptom) return alert("Selecciona un síntoma de la lista.");
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/preventive", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: activePatient.id,
+                    caregiverId: user?.id,
+                    symptom: selectedSymptom,
+                    aiNote: preventiveNote
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`🛡️ Acción Preventiva reportada exitosamente.\n🏆 +${data.pointsDelta} Puntos Zendity añadidos a tu perfil.`);
+                setModalType(null);
+                setSelectedSymptom(null);
+                setPreventiveNote("");
             } else {
                 alert(`⚠️ Error Clínico: ${data.error}`);
             }
@@ -1200,6 +1237,61 @@ export default function ZendityCareTabletPage() {
                             </form>
                         )}
 
+                        {modalType === 'PREVENTIVE' && (
+                            <div className="space-y-4">
+                                <p className="font-bold text-slate-400 uppercase tracking-widest text-xs border-b pb-2 flex items-center justify-between">
+                                    <span>🛡️ Motor de Salud Preventiva</span>
+                                    {selectedSymptom && (
+                                        <button onClick={() => setSelectedSymptom(null)} className="text-indigo-500 font-bold text-xs hover:text-indigo-600">← Volver al Menú</button>
+                                    )}
+                                </p>
+                                
+                                {!selectedSymptom ? (
+                                    <div className="space-y-4 h-[55vh] overflow-y-auto pr-2 pb-10 custom-scrollbar">
+                                        <p className="text-xs font-bold text-slate-500 text-center mb-2 px-4 shadow-sm py-2 bg-slate-100 rounded-lg">Selecciona el signo clínico o conductual observado para reportar al Mando de Enfermería.</p>
+                                        
+                                        {Object.entries(SYMPTOM_CATEGORIES).map(([category, symptoms]) => (
+                                            <div key={category} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                                <h4 className="font-black text-slate-700 mb-3 text-sm">{category}</h4>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {symptoms.map(sym => (
+                                                        <button 
+                                                            key={sym} 
+                                                            onClick={() => setSelectedSymptom(sym)}
+                                                            className="text-left p-3 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 hover:shadow-md rounded-xl text-xs font-black text-indigo-900 transition-all active:scale-95 flex items-center"
+                                                        >
+                                                            {sym}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl shadow-inner">
+                                            <p className="text-emerald-800 font-black mb-1 uppercase tracking-wide text-xs">Síntoma Detectado:</p>
+                                            <p className="text-emerald-700 font-black text-lg">{selectedSymptom}</p>
+                                        </div>
+                                        <textarea
+                                            placeholder="Detalla lo que observaste (Ej. Cuándo comenzó, severidad, si el residente se queja...)"
+                                            value={preventiveNote}
+                                            onChange={e => setPreventiveNote(e.target.value)}
+                                            className="w-full h-40 p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none resize-none"
+                                        />
+                                        <div className="flex justify-end -mt-2">
+                                            <button className="text-xs font-black text-indigo-600 bg-indigo-100/50 px-4 py-2 rounded-xl hover:bg-indigo-100 flex items-center gap-2 border border-indigo-200 shadow-sm transition-all active:scale-95">
+                                                <span className="text-base">✨</span> Mejorar con Zendi AI
+                                            </button>
+                                        </div>
+                                        <button onClick={handlePreventiveSubmit} disabled={submitting} className="w-full py-5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-[0_8px_30px_rgb(5,150,105,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 text-lg">
+                                            {submitting ? "Sincronizando..." : "Enviar Reporte (+5 Pts)"}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {modalType === 'VITALS' && (
                             <div className="space-y-4">
                                 <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Vitales</p>
@@ -1240,10 +1332,10 @@ export default function ZendityCareTabletPage() {
                                         
                                         {!activePatient.requiresPosturalChanges ? (
                                             <>
-                                                <button onClick={handlePressurePointAlert} disabled={submitting} className="w-full py-4 text-amber-700 bg-amber-100/50 hover:bg-amber-200 border border-amber-300 font-bold rounded-xl transition-all shadow-sm">
-                                                    Reportar Punto de Presión
+                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-4 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                                                    <span className="text-xl">🛡️</span> Abrir Panel de Prevención
                                                 </button>
-                                                <p className="text-xs font-bold text-amber-600/60 mt-2 text-center">Fase Preventiva: Notifica a la Enfermera para diagnóstico.</p>
+                                                <p className="text-xs font-bold text-emerald-600/60 mt-2 text-center">Fase Preventiva: +5 Pts Zendity por detección temprana.</p>
                                             </>
                                         ) : (
                                             <>
@@ -1258,7 +1350,7 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                 )}
 
-                                {/* Comidas (AM y PM) */}
+                                {/* Logística Interna (AM y PM) */}
                                 {selectedColor !== 'GREEN' && (
                                     <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
                                         <h4 className="font-black text-orange-800 text-lg mb-2">🍽️ Registro Nutricional</h4>
