@@ -89,8 +89,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // Sidebar colors and styles based on workspace
     const sidebarBg = isCorporateWorkspace ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-white border-slate-200 text-slate-600";
     const sidebarLogoText = isCorporateWorkspace ? "text-white" : "text-teal-900";
-    const sidebarHoverItem = isCorporateWorkspace ? "hover:bg-slate-800 hover:text-white" : "hover:bg-teal-50 hover:text-teal-800";
-    const sidebarActiveItem = isCorporateWorkspace ? "bg-slate-800 text-teal-400 font-bold border border-slate-700/50 shadow-sm" : "bg-teal-50 text-teal-800 border border-teal-100 font-bold shadow-sm";
+    const sidebarHoverItem = isCorporateWorkspace ? "hover:bg-slate-800 hover:text-white" : "hover:bg-soft-mist hover:text-zendity-teal";
+    const sidebarActiveItem = isCorporateWorkspace ? "bg-slate-800 text-digital-aqua font-bold border border-slate-700/50 shadow-sm" : "bg-soft-mist text-zendity-teal border border-cloud-gray font-bold shadow-sm";
 
     return (
         <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
@@ -114,7 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     alt="Zendity Logo" 
                                     className="h-7 w-auto object-contain mb-1" 
                                 />
-                                <span className="text-[9px] uppercase font-black tracking-widest text-teal-500 pl-1">
+                                <span className="text-[9px] uppercase font-black tracking-widest text-digital-aqua pl-1">
                                     {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
                                 </span>
                             </div>
@@ -136,7 +136,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2 mt-1">Cambiar Entorno</p>
                             <button
                                 onClick={() => { router.push("/"); setWorkspaceMenuOpen(false); }}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${!isCorporateWorkspace ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${!isCorporateWorkspace ? 'bg-soft-mist text-zendity-teal' : 'hover:bg-slate-50 text-slate-600'}`}
                             >
                                 <Stethoscope className="w-4 h-4" /> Entorno Clínico
                             </button>
@@ -215,7 +215,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     {!isSidebarCollapsed && (
                         <>
                             <div className="flex items-center space-x-3 mb-2 px-1 text-left">
-                                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-bold shadow-sm ${isCorporateWorkspace ? 'bg-slate-800 text-teal-400' : 'bg-teal-100 text-teal-700'}`}>
+                                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-bold shadow-sm ${isCorporateWorkspace ? 'bg-slate-800 text-digital-aqua' : 'bg-soft-mist text-zendity-teal'}`}>
                                     {user?.name.substring(0, 2).toUpperCase() || 'HQ'}
                                 </div>
                                 <div className="flex-1 overflow-hidden">
@@ -262,7 +262,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <input
                                     type="text"
                                     placeholder="Buscar residentes, métricas, reportes..."
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 border border-slate-200 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-400 text-slate-700"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 border border-slate-200 rounded-full text-sm font-medium focus:outline-none focus:ring-2 focus:ring-digital-aqua/20 focus:border-digital-aqua transition-all placeholder:text-slate-400 text-slate-700"
                                 />
                             </div>
                         ) : (
@@ -274,7 +274,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
 
                     <div className="flex items-center space-x-6">
-                        <button className="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-full transition-all focus:outline-none">
+                        <button className="relative p-2 text-slate-400 hover:text-zendity-teal hover:bg-soft-mist rounded-full transition-all focus:outline-none">
                             <Bell className="w-5 h-5" />
                             <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
                         </button>

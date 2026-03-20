@@ -55,9 +55,9 @@ export default function LoginPage() {
 
 
     return (
-        <div className="w-full flex items-center justify-center min-h-screen bg-gradient-to-br from-teal-900 via-slate-900 to-black p-4 fixed inset-0 z-50">
+        <div className="w-full flex items-center justify-center min-h-screen bg-gradient-to-br from-deep-slate via-slate-900 to-black p-4 fixed inset-0 z-50">
             {/* Decorative Blur */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-teal-500/20 rounded-full blur-[100px] pointer-events-none"></div>
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-digital-aqua/20 rounded-full blur-[100px] pointer-events-none"></div>
 
             <div className="relative w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-10 shadow-2xl">
 
@@ -74,7 +74,7 @@ export default function LoginPage() {
 
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">{hqName}</h1>
-                    <p className="text-teal-100/70 text-sm">Powered by Zendity OS</p>
+                    <p className="text-soft-mist/70 text-sm">Powered by Zendity OS</p>
                 </div>
 
                 {error && (
@@ -91,7 +91,7 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="ej. admin@vividcupey.com o hija@vividcupey.com"
-                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-600"
+                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-600"
                             required
                         />
                     </div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
                             value={pinCode}
                             onChange={(e) => setPinCode(e.target.value)}
                             placeholder="****"
-                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-600 tracking-[0.5em] text-center font-black text-xl"
+                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-600 tracking-[0.5em] text-center font-black text-xl"
                             maxLength={6}
                             required
                         />
@@ -112,7 +112,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-4 mt-4 bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-slate-900 font-black rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.2)] hover:shadow-[0_0_30px_rgba(20,184,166,0.4)] transition-all active:scale-95"
+                        className="w-full py-4 mt-4 bg-zendity-teal hover:bg-digital-aqua text-white disabled:opacity-50 font-black rounded-xl shadow-[0_0_20px_rgba(15,107,120,0.5)] hover:shadow-[0_0_30px_rgba(60,198,196,0.6)] transition-all active:scale-95"
                     >
                         {loading ? 'Verificando Credenciales...' : 'Iniciar Turno'}
                     </button>

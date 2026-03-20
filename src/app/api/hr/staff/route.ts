@@ -131,9 +131,9 @@ export async function POST(request: Request) {
                             </ul>
                         </div>
                         
-                        <div style="text-align: center; margin-top: 25px; color: #64748b; font-size: 13px;">
-                            <p style="margin: 0; font-weight: 600;">Este es un mensaje institucional generado por el Sistema Zendity.</p>
-                            <p style="margin: 5px 0 0 0;">Si tienes dificultades técnicas, contacta a tu director/a supervisor.</p>
+                        <div style="text-align: center; margin-top: 25px; color: #1F2D3A; font-size: 13px; padding-top: 15px; border-top: 1px dashed #C9D4D8;">
+                            <p style="margin: 0; font-weight: 800; color: #0F6B78; text-transform: uppercase; letter-spacing: 1px;">Powered by Zendity OS</p>
+                            <p style="margin: 5px 0 0 0; color: #64748b;">Healthcare Operations Platform</p>
                         </div>
                     </div>
                     `,

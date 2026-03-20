@@ -51,21 +51,21 @@ export async function POST(request: Request) {
 
         // Diseño básico de correo corporativo inyectando el cuerpo HTML
         const corporateTemplate = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-            <div style="background-color: #4f46e5; padding: 24px; text-align: center;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #C9D4D8; border-radius: 12px; overflow: hidden;">
+            <div style="background-color: #1F2D3A; padding: 24px; text-align: center; border-bottom: 4px solid #0F6B78;">
                 ${hq?.logoUrl ? `<img src="${hq.logoUrl}" alt="${hqName}" style="max-height: 50px; margin-bottom: 12px; border-radius: 8px;" />` : `<h2 style="color: white; margin: 0; font-size: 24px;">${hqName}</h2>`}
-                <p style="color: #c7d2fe; margin: 5px 0 0 0; font-size: 14px;">Aviso Oficial de Recursos Humanos</p>
+                <p style="color: #3CC6C4; margin: 5px 0 0 0; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Aviso Oficial de Recursos Humanos</p>
             </div>
-            <div style="padding: 32px; background-color: #ffffff; color: #334155; line-height: 1.6;">
+            <div style="padding: 32px; background-color: #ffffff; color: #1F2D3A; line-height: 1.6;">
                 <p style="margin-bottom: 24px;">Estimado(a) <strong>${employee.name}</strong>,</p>
-                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #4f46e5; white-space: pre-wrap;">
+                <div style="background-color: #EAF4F5; padding: 20px; border-radius: 8px; border-left: 4px solid #0F6B78; white-space: pre-wrap;">
                     ${html}
                 </div>
             </div>
-            <div style="background-color: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b;">
+            <div style="background-color: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #1F2D3A;">
                 <p style="margin: 0;">Este es un mensaje autogenerado por la gerencia administrativa de ${hqName}.</p>
                 <p style="margin: 4px 0 0 0;">Por favor no responda directamente a este correo.</p>
-                <p style="margin: 12px 0 0 0; font-size: 10px; color: #94a3b8;">Tecnología Impulsada por Zendity OS</p>
+                <p style="margin: 12px 0 0 0; font-size: 10px; font-weight: bold; color: #0F6B78; text-transform: uppercase;">Tecnología Impulsada por Zendity OS</p>
             </div>
         </div>
         `;

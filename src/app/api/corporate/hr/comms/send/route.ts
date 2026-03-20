@@ -64,29 +64,29 @@ export async function POST(request: Request) {
         const logoHtml = hq?.logoUrl ? `<img src="${hq.logoUrl}" alt="${hqName}" style="max-height: 80px; margin-bottom: 20px; object-fit: contain;" />` : '';
 
         const memoTemplate = `
-        <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #f8fafc; padding: 30px;">
-            <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px;">
+        <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #C9D4D8; border-radius: 8px; background-color: #f8fafc; padding: 30px;">
+            <div style="text-align: center; border-bottom: 2px solid #0F6B78; padding-bottom: 20px; margin-bottom: 30px;">
                 ${logoHtml}
-                <div style="font-size: 13px; font-weight: bold; color: #64748b; text-transform: uppercase; letter-spacing: 2px;">Memorándum Oficial de Personal</div>
+                <div style="font-size: 13px; font-weight: bold; color: #1F2D3A; text-transform: uppercase; letter-spacing: 2px;">Memorándum Oficial de Personal</div>
             </div>
             
-            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #334155; line-height: 1.6; font-size: 15px;">
-                <h3 style="color: #0f172a; margin-top: 0; font-size: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">Comunicado Corporativo</h3>
+            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1F2D3A; line-height: 1.6; font-size: 15px;">
+                <h3 style="color: #0F6B78; margin-top: 0; font-size: 20px; border-bottom: 1px solid #EAF4F5; padding-bottom: 10px;">Comunicado Corporativo</h3>
                 
                 <div style="white-space: pre-wrap; margin-top: 20px;">
                     ${html}
                 </div>
                 
-                <div style="margin-top: 40px; border-top: 1px dashed #cbd5e1; padding-top: 20px;">
-                    <p style="margin: 0; font-weight: bold; color: #0f172a;">Atentamente,</p>
-                    <p style="margin: 5px 0 0 0; color: #64748b;">La Dirección de RRHH y Operaciones</p>
-                    <p style="margin: 0; color: #64748b; font-weight: bold;">${hqName}</p>
+                <div style="margin-top: 40px; border-top: 1px dashed #C9D4D8; padding-top: 20px;">
+                    <p style="margin: 0; font-weight: bold; color: #0F6B78;">Atentamente,</p>
+                    <p style="margin: 5px 0 0 0; color: #1F2D3A;">La Dirección de RRHH y Operaciones</p>
+                    <p style="margin: 0; color: #1F2D3A; font-weight: bold;">${hqName}</p>
                 </div>
             </div>
             
-            <div style="text-align: center; margin-top: 30px; font-size: 11px; color: #94a3b8;">
+            <div style="text-align: center; margin-top: 30px; font-size: 11px; color: #1F2D3A;">
                 <p style="margin: 0;">Has recibido este correo electrónico porque eres personal acreditado de ${hqName}.</p>
-                <p style="margin: 5px 0 0 0; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">A Zendity Powered Facility</p>
+                <p style="margin: 5px 0 0 0; font-weight: 800; color: #0F6B78; letter-spacing: 1px; text-transform: uppercase;">A Zendity Powered Facility</p>
             </div>
         </div>
         `;
