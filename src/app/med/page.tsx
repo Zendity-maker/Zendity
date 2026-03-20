@@ -163,7 +163,10 @@ export default function ZendityMedPage() {
                     <button onClick={() => setActiveTab('OCR')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'OCR' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
                         ✨ Escáner OCR
                     </button>
-                    <button onClick={() => setActiveTab('CART')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'CART' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Validar Carrito (Turnos)</button>
+                    <button onClick={() => setActiveTab('CART')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'CART' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Validar Carrito (Turnos)</button>
+                    <a href="/med/briefing" className="px-6 py-2.5 rounded-xl font-black text-sm text-indigo-700 bg-indigo-100 hover:bg-indigo-200 border border-indigo-200 shadow-sm transition-all flex items-center gap-2 ml-4">
+                        <span className="text-xl">🖨️</span> Prep. Visita Médica
+                    </a>
                 </div>
             </div>
 
