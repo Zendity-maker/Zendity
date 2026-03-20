@@ -10,8 +10,8 @@
   --color-foreground: var(--foreground);
 
   /* Zendity Brand Typography */
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-manrope);
+  --font-sans: var(--font-plus-jakarta);
+  --font-display: var(--font-outfit);
 
   /* Zendity Core Colors */
   --color-zendity-teal: #0F6B78;
@@ -37,14 +37,14 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), sans-serif;
+  font-family: var(--font-plus-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Zendity Headings Standard */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-manrope), sans-serif;
+  font-family: var(--font-outfit), sans-serif;
   font-weight: 600;
   letter-spacing: -0.02em;
 }

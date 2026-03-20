@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
                 }
             });
 
-            // B. Buscar el curso penalizador en Academy
+            // 5B. Buscar el curso penalizador en Academy
             let reinforcementCourse = await prisma.course.findFirst({
                 where: { title: { contains: "Protocolos de Seguridad" } }
             });
@@ -93,6 +93,22 @@ export async function POST(request: NextRequest) {
                     await prisma.userCourse.update({
                         where: { id: existingEnroll.id },
                         data: { status: "ASSIGNED" }
+                    });
+                }
+            }
+        } else {
+            // FASE 66: Gamification Points for Positive Evaluation
+            let bonus = 0;
+            if (globalScore >= 95) bonus = 5;
+            else if (globalScore >= 80) bonus = 3;
+            else if (globalScore >= 60) bonus = 1;
+
+            if (bonus > 0) {
+                const targetUser = await prisma.user.findUnique({ where: { id: employeeId }, select: { complianceScore: true } });
+                if (targetUser) {
+                    await prisma.user.update({
+                        where: { id: employeeId },
+                        data: { complianceScore: Math.min(100, (targetUser.complianceScore || 50) + bonus) }
                     });
                 }
             }

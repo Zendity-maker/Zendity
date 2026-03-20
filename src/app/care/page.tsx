@@ -18,6 +18,14 @@ export default function ZendityCareTabletPage() {
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Gamification Logic
+    const getZendityRank = (score: number) => {
+        if (score >= 95) return { label: 'Maestro Clínico', badge: 'bg-gradient-to-r from-slate-200 to-white text-slate-800 shadow-[0_0_15px_rgba(255,255,255,0.8)]', icon: '💎' };
+        if (score >= 80) return { label: 'Élite', badge: 'bg-gradient-to-r from-amber-300 to-yellow-400 text-amber-900 shadow-[0_0_15px_rgba(251,191,36,0.8)]', icon: '🥇' };
+        if (score >= 60) return { label: 'Especialista', badge: 'bg-gradient-to-r from-slate-300 to-slate-400 text-slate-900 shadow-[0_0_10px_rgba(148,163,184,0.5)]', icon: '🥈' };
+        return { label: 'Novato', badge: 'bg-gradient-to-r from-orange-300 to-orange-400 text-orange-900', icon: '🥉' };
+    };
+
     // Shift Session (Clock-In) Core
     const [activeSession, setActiveSession] = useState<any>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
@@ -926,12 +934,23 @@ export default function ZendityCareTabletPage() {
             <div className={`w-full ${hexColor} py-6 px-8 shadow-md flex justify-between items-center text-white sticky top-0 z-40`}>
                 <div className="flex items-center gap-4">
                     {user && (
-                        <ZendiCameraEnhancer 
-                            targetId={user.id} 
-                            isStaff={true} 
-                            currentPhotoUrl={user?.photoUrl} 
-                            placeholderInitials={user.name?.charAt(0) || "?"}
-                        />
+                        <div className="flex items-center gap-3">
+                            <ZendiCameraEnhancer 
+                                targetId={user.id} 
+                                isStaff={true} 
+                                currentPhotoUrl={user?.photoUrl} 
+                                placeholderInitials={user.name?.charAt(0) || "?"}
+                            />
+                            {user.complianceScore !== undefined && (
+                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-xs uppercase tracking-widest border border-white/30 ${getZendityRank(user.complianceScore).badge}`}>
+                                    <span className="text-lg">{getZendityRank(user.complianceScore).icon}</span>
+                                    <div className="flex flex-col">
+                                        <span className="leading-none">{getZendityRank(user.complianceScore).label}</span>
+                                        <span className="text-[9px] opacity-80 mt-0.5">{user.complianceScore} Pts</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                     <h1 className="text-3xl font-black flex items-center gap-3">
                         📱 Zendity Care

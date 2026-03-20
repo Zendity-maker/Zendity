@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Manrope, Inter } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import AppLayout from "@/components/AppLayout";
 import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
   subsets: ["latin"],
 });
 
@@ -53,7 +53,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${manrope.variable} ${inter.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
+        className={`${outfit.variable} ${plusJakartaSans.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
       >
         <NextAuthProvider>
           <AuthProvider>
