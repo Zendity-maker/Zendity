@@ -21,9 +21,12 @@ export const generateZendityCertificate = async (userName: string, courseTitle: 
             
             <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: linear-gradient(90deg, #4f46e5, #06b6d4);"></div>
             
-            <div style="margin-top: 40px;">
-                <h1 style="font-size: 50px; font-weight: 900; color: #1e1b4b; margin: 0; letter-spacing: -1px;">ZENDITY ACADEMY</h1>
-                <p style="font-size: 16px; color: #64748b; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; margin-top: 5px;">Centro Oficial de Excelencia Operativa</p>
+            <div style="margin-top: 40px; display: flex; flex-direction: column; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 15px; justify-content: center;">
+                    <img src="/brand/zendity_icon_primary.svg" style="height: 55px; width: auto;" crossorigin="anonymous" />
+                    <h1 style="font-size: 55px; font-weight: 900; color: #1e1b4b; margin: 0; letter-spacing: -1px;">ZENDITY ACADEMY</h1>
+                </div>
+                <p style="font-size: 16px; color: #64748b; text-transform: uppercase; letter-spacing: 4px; font-weight: bold; margin-top: 10px;">Centro Oficial de Excelencia Operativa</p>
             </div>
 
             <div style="margin-top: 80px;">
