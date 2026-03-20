@@ -67,6 +67,11 @@ export default function ZendityCareTabletPage() {
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [preventiveNote, setPreventiveNote] = useState("");
 
+    // Night Rounds Engine 2-Hour SLA
+    const [nightRoundStatus, setNightRoundStatus] = useState<'SLEEPING' | 'AWAKE' | 'ANOMALY' | null>(null);
+    const [nightRoundNote, setNightRoundNote] = useState("");
+    const [nightRoundSLA, setNightRoundSLA] = useState<number | null>(null);
+
     // Action Hub States
     const [hubPatientId, setHubPatientId] = useState("");
     const [hubDescription, setHubDescription] = useState("");
@@ -116,6 +121,9 @@ export default function ZendityCareTabletPage() {
     // ==========================================
     // FASE 30: CLOCK-IN & CENSUS VERIFICATION
     // ==========================================
+    const currentHour = new Date().getHours();
+    const isNightShift = currentHour >= 22 || currentHour < 6;
+
     useEffect(() => {
         if (!user) return;
         const checkSession = async () => {
@@ -580,7 +588,51 @@ export default function ZendityCareTabletPage() {
 
     const handleSecurityRound = () => {
         setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + "🔦 Ronda de seguridad sin novedades, residente descansando." }));
-        alert("🔦 Ronda de Noche añadida a la bitácora.");
+        // Old manual night round string push replaced by 2-Hour SLA engine
+    };
+
+    // FASE 110: 2-Hour SLA Night Rounds Engine
+    useEffect(() => {
+        if (modalType === 'LOG' && activePatient && isNightShift) {
+            fetch(`/api/care/rounds/check?patientId=${activePatient.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        setNightRoundSLA(data.minutesSinceLastRound);
+                    }
+                }).catch(e => console.error(e));
+        }
+    }, [activePatient, modalType, isNightShift]);
+
+    const handleNightRoundSubmit = async () => {
+        if (!nightRoundStatus) return alert("Selecciona el estado del residente (😴, 👁️, ⚠️).");
+        if (nightRoundStatus === 'ANOMALY' && !nightRoundNote) return alert("Debes documentar la anomalía detectada.");
+        
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/rounds", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: activePatient.id,
+                    caregiverId: user?.id,
+                    status: nightRoundStatus,
+                    note: nightRoundNote
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("🔦 Ronda de Noche sincronizada exitosamente.\\nSLA de 2 Horas reactivado (No podrás reportar a este residente hasta las próximas 2h).");
+                setNightRoundStatus(null);
+                setNightRoundNote("");
+                setNightRoundSLA(0); // Lock it immediately
+            } else {
+                alert(`⚠️ Error Clínico: ${data.error}`);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handlePressurePointAlert = async () => {
@@ -1142,18 +1194,8 @@ export default function ZendityCareTabletPage() {
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {p.lifePlan && p.lifePlan.dietDetails && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.dietDetails}</p>}
-                                            <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md shadow-sm pl-2 overflow-hidden">
+                                            <div className="flex items-center bg-indigo-50 border border-indigo-100 rounded-md shadow-sm px-3 py-1.5 overflow-hidden">
                                                 <span className="text-xs font-bold text-indigo-700">Dieta: {p.diet || 'Regular (Sólida)'}</span>
-                                                {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
-                                                    <button onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setActivePatient(p);
-                                                        setDietFormValue(p.diet || "Regular (Sólida)");
-                                                        setModalType('DIET_CHANGE');
-                                                    }} className="ml-2 text-[10px] bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-2.5 py-1.5 font-bold transition-colors uppercase tracking-wider active:scale-95 border-l border-indigo-200">
-                                                        Editar
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
 
@@ -1197,12 +1239,13 @@ export default function ZendityCareTabletPage() {
 
             {/* RESTO DE MODALES FASE 7 y 8... (Conservados por simplicidad) */}
             {modalType && (
-                <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
-                    <div className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative">
-                        <button onClick={() => setModalType(null)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors">X</button>
-                        <h3 className="text-3xl font-black text-slate-900 mb-6">{activePatient?.name}</h3>
-
-                        {modalType === 'DIET_CHANGE' && (
+                <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] flex flex-col">
+                        <button onClick={() => setModalType(null)} className="absolute top-4 right-4 w-10 h-10 md:w-12 md:h-12 bg-slate-100 text-slate-500 rounded-full font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors z-20">X</button>
+                        <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 pr-12">{activePatient?.name}</h3>
+                        
+                        <div className="overflow-y-auto custom-scrollbar pr-2 pb-4 flex-1">
+                            {modalType === 'DIET_CHANGE' && (
                             <form onSubmit={handleDietUpdate} className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div>
                                     <p className="font-bold text-slate-400 uppercase tracking-widest text-xs border-b pb-2">Modificar Dieta / Nutrición</p>
@@ -1309,42 +1352,42 @@ export default function ZendityCareTabletPage() {
                         )}
 
                         {modalType === 'LOG' && (
-                            <div className="space-y-6">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Actividades Diarias y Comidas (ADL)</p>
+                            <div className="space-y-4">
+                                <p className="font-bold text-slate-400 uppercase text-xs border-b pb-2 sticky top-0 bg-white z-10 pt-1">Actividades Diarias y Comidas</p>
 
                                 {/* Tareas de Cuidado Personal (AM) */}
                                 {selectedColor && (
-                                    <div className="bg-sky-50 border border-sky-100 p-4 rounded-2xl">
-                                        <h4 className="font-black text-sky-800 text-lg mb-2">🚿 Higiene Matutina</h4>
-                                        <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-4 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/30 active:scale-95'}`}>
+                                    <div className="bg-sky-50 border border-sky-100 p-3 rounded-2xl">
+                                        <h4 className="font-black text-sky-800 text-base mb-2">🚿 Higiene Matutina</h4>
+                                        <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-3 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/30 active:scale-95'}`}>
                                             {dailyLog.bathCompleted ? "Baño Registrado ✓" : "Completar Baño de 6AM - 10AM"}
                                         </button>
-                                        <p className="text-xs font-bold text-sky-600/60 mt-2 text-center">Protegido por 10-Min Cooldown</p>
+                                        <p className="text-[10px] font-bold text-sky-600/60 mt-1.5 text-center uppercase tracking-wider">Protegido por 10-Min Cooldown</p>
                                     </div>
                                 )}
 
                                 {/* Protocolo UPP (Fase Dual) */}
                                 {selectedColor && (
-                                    <div className={`p-4 rounded-2xl border ${activePatient.requiresPosturalChanges ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
-                                        <h4 className={`font-black text-lg mb-2 ${activePatient.requiresPosturalChanges ? 'text-rose-800' : 'text-amber-800'}`}>
+                                    <div className={`p-3 rounded-2xl border ${activePatient.requiresPosturalChanges ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
+                                        <h4 className={`font-black text-base mb-2 ${activePatient.requiresPosturalChanges ? 'text-rose-800' : 'text-amber-800'}`}>
                                             {activePatient.requiresPosturalChanges ? '🛏️ Protocolo UPP Activo' : '🟡 Vigilancia Dermatológica'}
                                         </h4>
                                         
                                         {!activePatient.requiresPosturalChanges ? (
                                             <>
-                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-4 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
-                                                    <span className="text-xl">🛡️</span> Abrir Panel de Prevención
+                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-3 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-lg transition-all shadow-sm flex items-center justify-center gap-2">
+                                                    <span className="text-lg">🛡️</span> Abrir Panel de Prevención
                                                 </button>
-                                                <p className="text-xs font-bold text-emerald-600/60 mt-2 text-center">Fase Preventiva: +5 Pts Zendity por detección temprana.</p>
+                                                <p className="text-[10px] font-bold text-emerald-600/60 mt-1.5 text-center uppercase tracking-wider">Fase Preventiva: +5 Pts Zendity</p>
                                             </>
                                         ) : (
                                             <>
-                                                <div className="grid grid-cols-3 gap-2 mb-2">
-                                                    <button onClick={() => handlePosturalChange('IZQUIERDA')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Izquie.</button>
-                                                    <button onClick={() => handlePosturalChange('SUPINO')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Supino</button>
-                                                    <button onClick={() => handlePosturalChange('DERECHA')} className="py-3 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-md active:scale-95">Derecha</button>
+                                                <div className="grid grid-cols-3 gap-2 mb-1">
+                                                    <button onClick={() => handlePosturalChange('IZQUIERDA')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Izquie.</button>
+                                                    <button onClick={() => handlePosturalChange('SUPINO')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Supino</button>
+                                                    <button onClick={() => handlePosturalChange('DERECHA')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Derecha</button>
                                                 </div>
-                                                <p className="text-xs font-bold text-rose-600/60 mt-2 text-center">Fase Prescriptiva: Reloj de 2-Horas Activo</p>
+                                                <p className="text-[10px] uppercase tracking-wider font-bold text-rose-600/60 mt-1.5 text-center">Reloj de 2-Horas Activo</p>
                                             </>
                                         )}
                                     </div>
@@ -1373,32 +1416,63 @@ export default function ZendityCareTabletPage() {
 
                                 {/* Logística Interna (AM y PM) */}
                                 {selectedColor && (
-                                    <div className="p-4 grid grid-cols-2 gap-3">
-                                        <button onClick={handleLaundryLog} className="py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm">
-                                            <span className="text-xl">🧺</span> Lavar Ropa
+                                    <div className="p-3 grid grid-cols-2 gap-2">
+                                        <button onClick={handleLaundryLog} className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm text-sm">
+                                            <span className="text-lg">🧺</span> Lavar Ropa
                                         </button>
-                                        <button onClick={handleRoomCleaningLog} className="py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm">
-                                            <span className="text-xl">🧹</span> Aseo Habitación
+                                        <button onClick={handleRoomCleaningLog} className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm text-sm">
+                                            <span className="text-lg">🧹</span> Aseo Habitación
                                         </button>
                                     </div>
                                 )}
 
-                                {/* Tareas de Noche */}
-                                {selectedColor && (
-                                    <div className="bg-slate-800 p-4 rounded-2xl">
-                                        <h4 className="font-black text-white text-lg mb-2 flex items-center gap-2"><span>🔦</span> Control de Noche</h4>
-                                        <button onClick={handleSecurityRound} type="button" className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold rounded-xl transition-all shadow-inner">
-                                            Registrar Ronda Cumplida
-                                        </button>
+                                {/* Tareas de Noche (SLA de 120 Minutos) */}
+                                {isNightShift && selectedColor && (
+                                    <div className="bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-md">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="font-black text-white text-base flex items-center gap-1.5"><span>🔦</span> Control de Noche</h4>
+                                            {nightRoundSLA !== null && nightRoundSLA < 120 && (
+                                                <span className="text-[10px] font-bold bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">
+                                                    ⏱️ Faltan {120 - nightRoundSLA} min
+                                                </span>
+                                            )}
+                                        </div>
+                                        
+                                        {nightRoundSLA !== null && nightRoundSLA < 120 ? (
+                                            <div className="bg-slate-900/50 p-4 rounded-xl text-center border border-white/5">
+                                                <p className="text-xs font-bold text-slate-300">Ronda bloqueada (SLA 2-Hrs).</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <div className="grid grid-cols-3 gap-1">
+                                                    <button onClick={() => setNightRoundStatus('SLEEPING')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'SLEEPING' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}>😴 Profundo</button>
+                                                    <button onClick={() => setNightRoundStatus('AWAKE')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'AWAKE' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}>👁️ Despierto</button>
+                                                    <button onClick={() => setNightRoundStatus('ANOMALY')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'ANOMALY' ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}>⚠️ Anomalía</button>
+                                                </div>
+                                                
+                                                {nightRoundStatus === 'ANOMALY' && (
+                                                    <textarea 
+                                                        placeholder="Describe anomalía..." 
+                                                        value={nightRoundNote}
+                                                        onChange={(e) => setNightRoundNote(e.target.value)}
+                                                        className="w-full bg-slate-900/80 border border-slate-600 text-white p-3 rounded-xl text-xs outline-none h-16 resize-none" 
+                                                    />
+                                                )}
+                                                
+                                                <button onClick={handleNightRoundSubmit} disabled={!nightRoundStatus || submitting} className="w-full py-3 mt-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500/50 text-white font-bold rounded-lg text-sm shadow-md active:scale-95">
+                                                    {submitting ? 'Sellando...' : 'Sellar Ronda (Huella)'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
                                 {/* Bitacora General */}
-                                <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl relative">
-                                    <textarea placeholder="Notas clínicas adicionales..." value={dailyLog.notes} onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-24 resize-none focus:border-indigo-400 outline-none" />
-                                    <button type="button" onClick={formatDailyLogWithAI} disabled={formattingNotes || !dailyLog.notes} className="absolute bottom-5 right-5 text-2xl drop-shadow-md hover:scale-110 active:scale-95 transition-all text-indigo-500">✨</button>
+                                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl relative">
+                                    <textarea placeholder="Notas clínicas adicionales..." value={dailyLog.notes} onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-16 resize-none focus:border-indigo-400 outline-none" />
+                                    <button type="button" onClick={formatDailyLogWithAI} disabled={formattingNotes || !dailyLog.notes} className="absolute bottom-4 right-4 text-xl drop-shadow-md hover:scale-110 active:scale-95 transition-all text-indigo-500">✨</button>
                                 </div>
-                                <button onClick={submitLog} disabled={submitting} className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl shadow-lg">Guardar Notas Clínicas</button>
+                                <button onClick={submitLog} disabled={submitting} className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-md text-sm mt-3">Guardar y Sincronizar Logs</button>
                             </div>
                         )}
 
@@ -1760,9 +1834,11 @@ export default function ZendityCareTabletPage() {
                                 </div>
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
             )}
+
 
             {/* FASE 44: HANDOVER DRAFT MODAL (Auto-Enforcement) */}
             {modalType === 'HANDOVER_DRAFT' && (
