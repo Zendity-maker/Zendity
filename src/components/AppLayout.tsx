@@ -52,7 +52,8 @@ const corporateNavigationSections = [
             { name: "Alertas Zendi AI", href: "/hr/insights", icon: ShieldAlert },
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
-            { name: "Zendity Academy", href: "/academy", icon: GraduationCap },
+            { name: "Academy Builder", href: "/corporate/hr/academy", icon: GraduationCap },
+            { name: "Tomar Academy", href: "/academy", icon: UserCheck },
         ]
     },
     {

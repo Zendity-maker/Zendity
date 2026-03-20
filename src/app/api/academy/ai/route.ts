@@ -1,59 +1,38 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { requestType } = body; // 'flashcards' o 'quiz'
+    const { requestType, courseId } = body; // 'flashcards' o 'quiz'
 
-    // 1. Master Material Básico (Hardcoded para compatibilidad Serverless en Vercel)
-    const masterMaterial = `
-Descripción del curso:
-Este curso práctico y educativo está diseñado para capacitar al personal y cuidadores en la prevención de caídas, una de las principales preocupaciones en el cuidado de adultos mayores. A través de módulos interactivos, aprenderás a identificar factores de riesgo, implementar estrategias efectivas y diseñar entornos seguros que promuevan la movilidad y reduzcan accidentes.
-
-¿Qué aprenderás?
-Identificación de factores de riesgo intrínsecos y extrínsecos.
-Diseño de planes personalizados de prevención de caídas.
-Estrategias para mejorar la seguridad en los entornos del hogar.
-Ejercicios y actividades físicas para fortalecer el equilibrio y la fuerza de los residentes.
-Educación y concienciación para empoderar a los cuidadores y residentes.
-
-Protocolo de Baños para Residentes con Alto Nivel de Independencia
-Objetivo del Protocolo
-Establecer un procedimiento claro y seguro para asistir a residentes con alto nivel de independencia durante su rutina de baño, fomentando su autosuficiencia mientras se aseguran condiciones óptimas de seguridad y bienestar.
-
-Preparación del área de baño:
-Asegurarse de que el baño esté limpio, libre de obstáculos y con superficies antideslizantes.
-Comprobar que la iluminación sea adecuada.
-Ajustar la temperatura del agua a un nivel seguro y cómodo (entre 37°C y 40°C).
-
-Procedimiento en caso de caída:
-Asistir al residente sin intentar levantarlo directamente.
-Liamar al equipo de enfermería o emergencias según sea necesario.
-Permanecer con el residente, proporcionando calma y apoyo emocional.
-
-Revisión periódica del protocolo:
-Evaluar la efectividad del protocolo cada seis meses.
-Incorporar sugerencias de los cuidadores y residentes para mejorar el proceso.
-`;
-
-    // Inyectar un poco de contexto dinámico para que Gemini varíe el contenido según el curso clickeado
-    let courseContext = "";
-    if (body.courseId) {
-      if (body.courseId === 'cls2') {
-        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 2: Manual de Cuidadores. Debes enfocarte exclusivamente en técnicas de cuidado diario, empatía, alimentación asistida y manejo de higiene. NO hables de prevención de caídas.";
-      } else if (body.courseId === 'cls3') {
-        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 3: Guía del Director Administrativo. Debes enfocarte en gestión de personal (RRHH), control de calidad, presupuestos y atención a quejas de familiares. NO hables de temas clínicos directos.";
-      } else if (body.courseId === 'cls4') {
-        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 4: Control de Medicación (eMAR). Debes enfocarte en la regla de los 5 correctos, registro en la tablet, diferencias entre PRN y medicamentos fijos, y prevención de errores de dispensación.";
-      } else if (body.courseId === 'cls5') {
-        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso 5: Protocolos de Mantenimiento y Planta Física. Debes enfocarte en el uso del SLA, reparación de averías comunes, limpieza de filtros HVAC, y control de suministros.";
-      } else {
-        courseContext = "ENFOQUE PRINCIPAL: Este es el Curso Base de Prevención de Caídas y protocolos generales de baño. Enfócate en seguridad del paciente, transferencias y evaluación de riesgos.";
-      }
+    if (!courseId) {
+      return NextResponse.json({ success: false, error: "Course ID missing." }, { status: 400 });
     }
 
+    // 1. Fetch Course Content from Database
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) {
+        return NextResponse.json({ success: false, error: "Curso oficial no encontrado en el directorio." }, { status: 404 });
+    }
+
+    // Master Material: Use dynamic DB content. Fallback to a core clinical string if empty (for legacy FASE 1 courses)
+    const masterMaterial = course.content && course.content.trim().length > 50
+        ? course.content
+        : `
+Descripción del curso:
+Este curso práctico y educativo está diseñado para capacitar al personal y cuidadores en la prevención de caídas y protocolos de baño, una de las principales preocupaciones en el cuidado de adultos mayores. A través de módulos interactivos, aprenderás a identificar factores de riesgo, implementar estrategias efectivas y diseñar entornos seguros que promuevan la movilidad y reduzcan accidentes.
+
+Procedimiento en caso de caída:
+- Asistir al residente sin intentar levantarlo directamente.
+- Llamar al equipo de enfermería o emergencias según sea necesario.
+- Permanecer con el residente, proporcionando calma y apoyo emocional.
+`;
+
+    // Dynamic Context for Gemini based on Title and Description
+    const courseContext = `ENFOQUE PRINCIPAL: Este es el Curso Oficial: "${course.title}". Contexto Adicional: ${course.description}. DEBES extraer todo el contenido educativo única y exclusivamente basado en el MASTER MATERIAL provisto a continuación.`;
 
     // 2. Preparar el Prompt para Gemini
     let prompt = "";
