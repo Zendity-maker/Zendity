@@ -50,7 +50,11 @@ export default function ZendityAcademyPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-xl shadow-md">Z</span>
+                        <img 
+                            src="/brand/zendity_icon_primary.svg" 
+                            alt="Zendity Logo" 
+                            className="w-12 h-12 object-contain drop-shadow-sm" 
+                        />
                         Zendity Academy
                     </h2>
                     <p className="text-slate-500 mt-1 font-medium">
