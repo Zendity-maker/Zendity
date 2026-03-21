@@ -166,21 +166,28 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 {/* Status Indicator */}
                 <div className={`absolute top-0 left-0 w-full h-2 ${staff.isActive ? (staff.isShiftBlocked ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-red-500'}`}></div>
 
-                <div 
-                    onClick={() => isEditing && fileInputRef.current?.click()}
-                    className={`flex-shrink-0 relative group ${isEditing ? 'cursor-pointer' : ''}`}
-                >
-                    {staff.photoUrl ? (
-                        <img className="h-32 w-32 rounded-full border-4 border-slate-50 object-cover shadow-sm" src={staff.photoUrl} alt={staff.name} />
-                    ) : (
-                        <div className="h-32 w-32 rounded-full bg-slate-100 border-4 border-slate-50 shadow-sm flex items-center justify-center">
-                            <span className="text-slate-400 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
-                        </div>
-                    )}
+                <div className="flex-shrink-0 flex flex-col items-center gap-3">
+                    <div 
+                        onClick={() => isEditing && fileInputRef.current?.click()}
+                        className={`relative group ${isEditing ? 'cursor-pointer' : ''}`}
+                    >
+                        {staff.photoUrl ? (
+                            <img className="h-32 w-32 rounded-full border-4 border-slate-50 object-cover shadow-sm" src={staff.photoUrl} alt={staff.name} />
+                        ) : (
+                            <div className="h-32 w-32 rounded-full bg-slate-100 border-4 border-slate-50 shadow-sm flex items-center justify-center">
+                                <span className="text-slate-400 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
+                            </div>
+                        )}
+                        {isEditing && (
+                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
+                            </div>
+                        )}
+                    </div>
                     {isEditing && (
-                        <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
-                        </div>
+                        <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
+                            📸 Cambiar Foto
+                        </button>
                     )}
                 </div>
 

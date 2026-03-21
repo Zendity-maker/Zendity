@@ -169,18 +169,23 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 {/* Cabecera del Expediente */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-100 flex flex-col md:flex-row md:justify-between items-start md:items-center gap-5">
                     <div className="flex items-start gap-4">
-                        <div 
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`relative group cursor-pointer w-20 h-20 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-white shadow-sm ${patientData?.status === 'ACTIVE' ? 'bg-indigo-50' : patientData?.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50' : 'bg-slate-100'}`}
-                        >
-                            {patientData?.photoUrl ? (
-                                <img src={patientData.photoUrl} alt={patientData.name} className="w-full h-full object-cover" />
-                            ) : (
-                                <UserIcon className={`w-8 h-8 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-400'}`} />
-                            )}
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <CameraIcon className="w-6 h-6 text-white" />
+                        <div className="flex flex-col items-center gap-2">
+                            <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`relative group cursor-pointer w-20 h-20 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-white shadow-sm ${patientData?.status === 'ACTIVE' ? 'bg-indigo-50' : patientData?.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50' : 'bg-slate-100'}`}
+                            >
+                                {patientData?.photoUrl ? (
+                                    <img src={patientData.photoUrl} alt={patientData.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon className={`w-8 h-8 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-400'}`} />
+                                )}
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <CameraIcon className="w-6 h-6 text-white" />
+                                </div>
                             </div>
+                            <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 px-3 py-1 rounded-full shadow-sm transition-colors flex items-center gap-1">
+                                <CameraIcon className="w-3 h-3" /> Subir Foto
+                            </button>
                         </div>
                         <div>
                             <div className="flex items-center gap-3">
