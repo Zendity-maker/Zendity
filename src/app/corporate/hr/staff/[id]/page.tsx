@@ -361,6 +361,67 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                     </div>
                 )}
             </div>
+
+            {/* Incidencias / Acciones Disciplinarias Historial */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-8 py-5 border-b border-rose-100 flex justify-between items-center bg-rose-50/50">
+                    <h3 className="text-lg font-black text-rose-800">Historial de Reportes Disciplinarios</h3>
+                </div>
+                
+                {!staff.incidents || staff.incidents.length === 0 ? (
+                    <div className="p-12 text-center text-slate-400">
+                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50">⚖️</p>
+                        <h4 className="font-bold text-lg text-slate-600">Expediente Limpio</h4>
+                        <p className="text-sm mt-1">Este empleado no tiene reportes disciplinarios ni observaciones formales en su perfil.</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100">
+                        {staff.incidents.map((incident: any) => (
+                            <div key={incident.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`px-3 py-1.5 rounded-lg border font-black text-xs flex items-center gap-1.5 ${
+                                            incident.type === 'WARNING' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                            incident.type === 'SUSPENSION' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                            'bg-rose-100 text-rose-700 border-rose-200'
+                                        }`}>
+                                            {incident.type === 'WARNING' ? 'AMONESTACIÓN' : incident.type === 'SUSPENSION' ? 'SUSPENSIÓN' : 'DESPIDO'}
+                                        </div>
+                                        <span className="text-sm font-medium text-slate-500">
+                                            {new Date(incident.createdAt).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                            Por: {incident.supervisor?.name || 'Supervisor'} ({incident.supervisor?.role || 'RRHH'})
+                                        </div>
+                                        {incident.signatureBase64 ? (
+                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">
+                                                ✅ Firmado de Aceptación
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
+                                                ⏳ Falta Firma
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 whitespace-pre-wrap border border-slate-100">
+                                    {incident.description}
+                                </div>
+                                
+                                {incident.signatureBase64 && (
+                                    <div className="mt-3 bg-white p-3 border border-gray-100 rounded-lg inline-block shadow-sm">
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Firma Digital del Empleado</p>
+                                        <img src={incident.signatureBase64} alt="Firma Empleado" className="h-12 object-contain filter contrast-125" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

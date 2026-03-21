@@ -31,6 +31,11 @@ export async function GET(
                             include: { medication: true, patient: true }
                         }
                     }
+                },
+                // Fetch HR Incident Reports (Disciplinarios)
+                incidentsEmployee: {
+                    include: { supervisor: { select: { name: true, role: true } } },
+                    orderBy: { createdAt: 'desc' }
                 }
             }
         });
@@ -82,6 +87,7 @@ export async function GET(
                 // Detailed Arrays
                 evalsReceived: staff.evalsReceived,
                 courseEnrolls: staff.courseEnrolls,
+                incidents: staff.incidentsEmployee,
 
                 // EMAR Clinical Metrics
                 emarCompliance: emarCompliance,

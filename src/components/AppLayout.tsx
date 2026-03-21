@@ -100,22 +100,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Unified Sidebar */}
             <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} border-r flex flex-col shadow-sm transition-all duration-300 flex-shrink-0 z-50 ${sidebarBg}`}>
                 {/* Workspace Switcher / Logo */}
-                <div className="h-20 flex items-center justify-between px-5 border-b border-opacity-20 border-current relative">
-                    <div className="flex items-center gap-3">
+                <div className="h-20 flex items-center justify-between px-4 border-b border-opacity-20 border-current relative">
+                    <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
                         {isSidebarCollapsed ? (
                             <img 
                                 src={isCorporateWorkspace ? "/brand/zendity_icon_white.svg" : "/brand/zendity_icon_primary.svg"} 
                                 alt="Zendity Icon" 
-                                className="w-11 h-11 object-contain drop-shadow-sm" 
+                                className="w-11 h-11 object-contain drop-shadow-sm shrink-0" 
                             />
                         ) : (
-                            <div className="flex flex-col whitespace-nowrap overflow-hidden">
+                            <div className="flex flex-col whitespace-nowrap overflow-hidden min-w-0">
                                 <img 
                                     src={isCorporateWorkspace ? "/brand/zendity_logo_white.svg" : "/brand/zendity_logo_primary.svg"} 
                                     alt="Zendity Logo" 
-                                    className="h-10 w-auto object-contain mb-1" 
+                                    className="h-10 w-auto max-w-[140px] object-contain mb-1 shrink-0" 
                                 />
-                                <span className="text-[10px] uppercase font-black tracking-widest text-digital-aqua pl-1">
+                                <span className="text-[10px] uppercase font-black tracking-widest text-digital-aqua pl-1 truncate">
                                     {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
                                 </span>
                             </div>
@@ -123,10 +123,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
 
                     {/* Workspace Selector (Solo para roles compatibles) */}
-                    {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
+                    {(user?.role === "ADMIN" || user?.role === "DIRECTOR" || user?.role === "SUPERVISOR") && !isSidebarCollapsed && (
                         <button
                             onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
-                            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
                         >
                             <ChevronDown className="w-4 h-4 opacity-70" />
                         </button>

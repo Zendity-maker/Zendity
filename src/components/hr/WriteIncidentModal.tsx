@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from "@/context/AuthContext";
+import { SparklesIcon } from '@heroicons/react/24/solid';
 
 interface WriteIncidentModalProps {
     isOpen: boolean;
@@ -17,9 +19,44 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     const [type, setType] = useState('WARNING');
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [generatingAI, setGeneratingAI] = useState(false);
+    const { user } = useAuth(); // To get supervisor name
 
     // Signature reference
     const sigCanvas = useRef<any>(null);
+
+    const handleAIGenerate = async () => {
+        if (!employeeId) return alert("Seleccione un empleado primero.");
+        if (description.trim().length < 5) return alert("Escriba un borrador breve (ej: 'llegó tarde hoy y ayer sin avisar') antes de generar con IA.");
+        
+        const emp = employees.find(e => e.id === employeeId);
+        
+        setGeneratingAI(true);
+        try {
+            const res = await fetch("/api/hr/incidents/ai-generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    employeeName: emp?.name,
+                    employeeRole: emp?.role,
+                    supervisorName: user?.name || "Representante de RRHH",
+                    type,
+                    briefing: description
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDescription(data.generatedText);
+            } else {
+                alert("Error de IA: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión con la IA.");
+        } finally {
+            setGeneratingAI(false);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!employeeId || !description) return alert("Faltan datos por llenar.");
@@ -136,12 +173,22 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Descripción de los Hechos</label>
+                                    <div className="flex justify-between items-end mb-1">
+                                        <label className="block text-sm font-medium text-gray-700">Descripción de los Hechos</label>
+                                        <button 
+                                            onClick={handleAIGenerate} 
+                                            disabled={generatingAI}
+                                            className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                                        >
+                                            <SparklesIcon className="w-3.5 h-3.5" />
+                                            {generatingAI ? 'Generando acta...' : 'Redactar Profesionalmente'}
+                                        </button>
+                                    </div>
                                     <textarea
                                         rows={6}
                                         value={description}
                                         onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Describa detalladamente el incidente, fechas, horas y testigos si los hay..."
+                                        placeholder="Escriba un borrador breve o los puntos clave, y luego presione 'Redactar Profesionalmente'..."
                                         className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
                                     />
                                 </div>
