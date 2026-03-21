@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -29,6 +29,61 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [editForm, setEditForm] = useState({ name: "", email: "", pinCode: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingPhoto(true);
+        try {
+            if (file.size > 5 * 1024 * 1024) {
+                alert("La imagen es muy grande. El tamaño máximo es 5MB.");
+                return;
+            }
+
+            const resizedPhotoUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const MAX_WIDTH = 400; 
+                        if (width > MAX_WIDTH) { height = height * (MAX_WIDTH / width); width = MAX_WIDTH; }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx?.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.85));
+                    };
+                    img.src = event.target?.result as string;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            const res = await fetch(`/api/hr/staff/${employee.id}/photo`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ photoUrl: resizedPhotoUrl })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setEmployee((prev: any) => ({ ...prev, photoUrl: data.photoUrl }));
+            } else {
+                alert(data.error || "No se pudo actualizar la foto");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Ocurrió un error al subir la foto");
+        } finally {
+            setIsUploadingPhoto(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
 
     useEffect(() => {
         if (!authLoading) {
@@ -159,16 +214,28 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
 
                     {/* Avatar / Photo */}
-                    <div className="relative group shrink-0">
-                        {employee.image ? (
-                            <img src={employee.image} alt={employee.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-xl bg-slate-100" />
-                        ) : (
-                            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-4 border-white shadow-xl flex items-center justify-center text-indigo-400 text-5xl font-black">
-                                {employee.name.charAt(0)}
+                    <div className="flex-shrink-0 flex flex-col items-center gap-3 relative">
+                        <input type="file" accept="image/jpeg, image/png, image/webp" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="relative group cursor-pointer"
+                        >
+                            {employee.photoUrl || employee.image ? (
+                                <img src={employee.photoUrl || employee.image} alt={employee.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-xl bg-slate-100" />
+                            ) : (
+                                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-4 border-white shadow-xl flex items-center justify-center text-indigo-400 text-5xl font-black">
+                                    {employee.name.charAt(0)}
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
                             </div>
-                        )}
-                        {/* Status Dot */}
-                        <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 border-4 border-white rounded-full shadow-sm" title="Activo"></div>
+                            {/* Status Dot */}
+                            <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 border-4 border-white rounded-full shadow-sm" title="Activo"></div>
+                        </div>
+                        <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
+                            {isUploadingPhoto ? "⏳ Subiendo..." : "📸 Cambiar Foto"}
+                        </button>
                     </div>
 
                     {/* Basic Info */}

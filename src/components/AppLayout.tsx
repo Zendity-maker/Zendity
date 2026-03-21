@@ -224,7 +224,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider truncate">{user?.role || 'Staff'}</p>
                                 </div>
                             </div>
-                            <Link href={`/hr/staff/${user?.id}`} className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
+                            <Link href={isCorporateWorkspace ? `/corporate/hr/staff/${user?.id}` : `/hr/staff/${user?.id}`} className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
                                 <UserIcon className="w-4 h-4 shrink-0" /> Mi Perfil
                             </Link>
                             <button
@@ -237,7 +237,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     )}
                     {isSidebarCollapsed && (
                         <>
-                            <Link href={`/hr/staff/${user?.id}`} title="Mi Perfil" className="w-full flex justify-center py-2 text-xs font-bold rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
+                            <Link href={isCorporateWorkspace ? `/corporate/hr/staff/${user?.id}` : `/hr/staff/${user?.id}`} title="Mi Perfil" className="w-full flex justify-center py-2 text-xs font-bold rounded-xl transition shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800">
                                 <UserIcon className="w-5 h-5" />
                             </Link>
                             <button
