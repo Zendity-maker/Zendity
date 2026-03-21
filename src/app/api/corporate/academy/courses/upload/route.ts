@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-// @ts-expect-error
-import pdfParse from 'pdf-parse';
+// Fallback a CommonJS require para evadir el error estricto de Turbopack/Vercel (No default export)
+const pdfParse = require('pdf-parse');
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Allow enough time for parsing large PDFs
