@@ -26,7 +26,7 @@ async function main() {
                     isOffer: true,
                     category: 'Salud Holística',
                     providerType: 'THERAPIST',
-                    imageUrl: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/fisioterapia_senior_1774112845841.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -35,7 +35,7 @@ async function main() {
                     price: 80.0,
                     category: 'Salud Holística',
                     providerType: 'THERAPIST',
-                    imageUrl: 'https://images.unsplash.com/photo-1600334129128-685c5582fd35?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/masaje_senior_1774112862519.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -46,7 +46,7 @@ async function main() {
                     isOffer: true,
                     category: 'Salud Holística',
                     providerType: 'THERAPIST',
-                    imageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/masaje_senior_1774112862519.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -55,7 +55,7 @@ async function main() {
                     price: 150.0,
                     category: 'Estimulación Cognitiva',
                     providerType: 'SOCIAL_WORKER',
-                    imageUrl: 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/taller_cognitivo_senior_1774112875316.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -64,7 +64,7 @@ async function main() {
                     price: 35.0,
                     category: 'Estimulación Cognitiva',
                     providerType: 'CAREGIVER',
-                    imageUrl: 'https://images.unsplash.com/photo-1588196749597-9ff0464b2805?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/asistencia_tecnologica_senior_1774112924893.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -73,7 +73,7 @@ async function main() {
                     price: 90.0,
                     category: 'Estética y Cuidado',
                     providerType: 'BEAUTY_SPECIALIST',
-                    imageUrl: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/estilismo_senior_1774112895688.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -82,7 +82,7 @@ async function main() {
                     price: 65.0,
                     category: 'Estética y Cuidado',
                     providerType: 'BEAUTY_SPECIALIST',
-                    imageUrl: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/spa_facial_senior_1774112939450.png'
                 },
                 {
                     headquartersId: hq.id,
@@ -91,7 +91,7 @@ async function main() {
                     price: 120.0,
                     category: 'Gourmet y Celebraciones',
                     providerType: 'KITCHEN',
-                    imageUrl: 'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/chef_suite_1774112910701.png'
                 }
             ]
         });
@@ -113,7 +113,7 @@ async function main() {
                     isOffer: true,
                     category: 'Gourmet y Celebraciones',
                     stock: 10,
-                    imageUrl: 'https://images.unsplash.com/photo-1608660897701-d779f06ce2a1?auto=format&fit=crop&q=80&w=800'
+                    imageUrl: '/images/market/canasta_bienestar_1774112952708.png'
                 }
             });
         }
