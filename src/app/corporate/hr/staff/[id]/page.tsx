@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
 import Link from 'next/link';
 
 export default function StaffPerformanceProfile({ params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +12,8 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
     const [editForm, setEditForm] = useState({ name: "", email: "", pinCode: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const fetchStaffProfile = async () => {
@@ -30,6 +32,53 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
         };
         fetchStaffProfile();
     }, [rawParams.id]);
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 400;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64Photo = canvas.toDataURL("image/jpeg", 0.7);
+
+                    try {
+                        const res = await fetch(`/api/corporate/hr/staff/${rawParams.id}/photo`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ photoUrl: base64Photo })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            setStaff((prev: any) => ({ ...prev, photoUrl: base64Photo }));
+                        } else {
+                            alert("Error subiendo foto: " + data.error);
+                        }
+                    } catch (err) {
+                        alert("Error de conexión al subir la foto.");
+                    }
+                }
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
 
     const handleSaveProfile = async () => {
         setIsSaving(true);
@@ -106,6 +155,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
             {/* Nav */}
             <Link href="/corporate/hr" className="inline-flex items-center text-sm font-bold text-slate-400 hover:text-teal-600 transition-colors">
                 <span>← Volver al Directorio de RRHH</span>
@@ -116,12 +166,20 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 {/* Status Indicator */}
                 <div className={`absolute top-0 left-0 w-full h-2 ${staff.isActive ? (staff.isShiftBlocked ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-red-500'}`}></div>
 
-                <div className="flex-shrink-0">
+                <div 
+                    onClick={() => isEditing && fileInputRef.current?.click()}
+                    className={`flex-shrink-0 relative group ${isEditing ? 'cursor-pointer' : ''}`}
+                >
                     {staff.photoUrl ? (
                         <img className="h-32 w-32 rounded-full border-4 border-slate-50 object-cover shadow-sm" src={staff.photoUrl} alt={staff.name} />
                     ) : (
                         <div className="h-32 w-32 rounded-full bg-slate-100 border-4 border-slate-50 shadow-sm flex items-center justify-center">
                             <span className="text-slate-400 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
+                        </div>
+                    )}
+                    {isEditing && (
+                        <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
                         </div>
                     )}
                 </div>

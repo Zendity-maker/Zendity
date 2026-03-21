@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, use, useRef } from "react";
+import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
@@ -15,6 +15,8 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [activeTab, setActiveTab] = useState("clinical");
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Modal States
     const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -42,6 +44,53 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             console.error("Failed to load patient data:", e);
             setIsLoading(false);
         }
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 400; // Compresión optima para la base de datos Text/String 
+                let width = img.width;
+                let height = img.height;
+
+                if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64Photo = canvas.toDataURL("image/jpeg", 0.7); // 70% quality
+
+                    try {
+                        const res = await fetch(`/api/corporate/patients/${params.id}/photo`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ photoUrl: base64Photo })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            setPatientData((prev: any) => ({ ...prev, photoUrl: base64Photo }));
+                        } else {
+                            alert("Error subiendo foto: " + data.error);
+                        }
+                    } catch (err) {
+                        alert("Error de conexión al subir la foto.");
+                    }
+                }
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
     };
 
     const handlePatientAction = async (action: string) => {
@@ -109,18 +158,29 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
 
     return (
         <div className="min-h-screen bg-neutral-50 p-6 font-sans">
+            <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
             <div className="max-w-6xl mx-auto space-y-6">
 
                 {/* Nav de Retorno */}
                 <Link href="/corporate/medical/upp-dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition">
-                    <ArrowLeftIcon className="w-4 h-4" /> Volver al Tablero de UPPs
+                    <ArrowLeftIcon className="w-4 h-4" /> Volver al Tablero Clínico
                 </Link>
 
                 {/* Cabecera del Expediente */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-100 flex flex-col md:flex-row md:justify-between items-start md:items-center gap-5">
                     <div className="flex items-start gap-4">
-                        <div className={`p-4 rounded-full flex-shrink-0 ${patientData?.status === 'ACTIVE' ? 'bg-indigo-50' : patientData?.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50' : 'bg-slate-100'}`}>
-                            <UserIcon className={`w-12 h-12 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-400'}`} />
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`relative group cursor-pointer w-20 h-20 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-4 border-white shadow-sm ${patientData?.status === 'ACTIVE' ? 'bg-indigo-50' : patientData?.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50' : 'bg-slate-100'}`}
+                        >
+                            {patientData?.photoUrl ? (
+                                <img src={patientData.photoUrl} alt={patientData.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <UserIcon className={`w-8 h-8 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-400'}`} />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <CameraIcon className="w-6 h-6 text-white" />
+                            </div>
                         </div>
                         <div>
                             <div className="flex items-center gap-3">
