@@ -30,7 +30,7 @@ async function main() {
                 },
                 {
                     headquartersId: hq.id,
-                    name: 'Masaje Terapéutico Zendity Relax',
+                    name: 'Masaje Terapéutico Vivid Relax',
                     description: 'Un respiro de calma profunda. Alivie tensiones musculares y mejore su calidad de descanso en un entorno de paz absoluta.',
                     price: 80.0,
                     category: 'Salud Holística',
@@ -39,7 +39,7 @@ async function main() {
                 },
                 {
                     headquartersId: hq.id,
-                    name: 'Masaje Zendity Relax (Mensual - 4 Sesiones)',
+                    name: 'Masaje Vivid Relax (Mensual - 4 Sesiones)',
                     description: 'Un respiro de calma profunda. Alivie tensiones musculares (4 sesiones mensuales).',
                     price: 260.0,
                     originalPrice: 320.0,
@@ -99,14 +99,14 @@ async function main() {
         // Seed Product
         // Ensure "Canasta Bienestar Zendity" exists
         const existsCanasta = await prisma.conciergeProduct.findFirst({
-            where: { headquartersId: hq.id, name: 'Canasta de Bienestar Zendity' }
+            where: { headquartersId: hq.id, name: 'Canasta de Bienestar Vivid' }
         });
 
         if (!existsCanasta) {
             await prisma.conciergeProduct.create({
                 data: {
                     headquartersId: hq.id,
-                    name: 'Canasta de Bienestar Zendity',
+                    name: 'Canasta de Bienestar Vivid',
                     description: 'El regalo perfecto para uno mismo o un ser querido. Incluye tés finos, snacks y cremas.',
                     price: 45.0,
                     originalPrice: 55.0,

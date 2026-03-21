@@ -38,7 +38,7 @@ export async function GET(request: Request) {
             await prisma.conciergeService.createMany({
                 data: [
                     { headquartersId: familyMember.headquartersId, name: 'Fisioterapia Preventiva (8 Sesiones/mes)', price: 320.0, originalPrice: 400.0, isOffer: true, category: 'Salud Holística', providerType: 'THERAPIST', imageUrl: '/images/market/fisioterapia_senior_1774112845841.png' },
-                    { headquartersId: familyMember.headquartersId, name: 'Masaje Terapéutico Zendity Relax', price: 80.0, category: 'Salud Holística', providerType: 'THERAPIST', imageUrl: '/images/market/masaje_senior_1774112862519.png' },
+                    { headquartersId: familyMember.headquartersId, name: 'Masaje Terapéutico Vivid Relax', price: 80.0, category: 'Salud Holística', providerType: 'THERAPIST', imageUrl: '/images/market/masaje_senior_1774112862519.png' },
                     { headquartersId: familyMember.headquartersId, name: 'Taller Mente Activa (Mensual)', price: 150.0, category: 'Estimulación Cognitiva', providerType: 'SOCIAL_WORKER', imageUrl: '/images/market/taller_cognitivo_senior_1774112875316.png' },
                     { headquartersId: familyMember.headquartersId, name: 'Club Estilismo y Barbería (Mensual)', price: 90.0, category: 'Estética y Cuidado', providerType: 'BEAUTY_SPECIALIST', imageUrl: '/images/market/estilismo_senior_1774112895688.png' },
                     { headquartersId: familyMember.headquartersId, name: 'Experiencia Chef en tu Suite', price: 120.0, category: 'Gourmet y Celebraciones', providerType: 'KITCHEN', imageUrl: '/images/market/chef_suite_1774112910701.png' }
