@@ -42,7 +42,7 @@ export default function CorporateAcademyBuilder() {
         try {
             const formData = new FormData();
             formData.append("file", file);
-            formData.append("hqId", user?.hqId || user?.headquartersId);
+            formData.append("hqId", user?.hqId || user?.headquartersId || "");
             formData.append("title", title);
             formData.append("description", description);
             formData.append("durationMins", durationMins);
