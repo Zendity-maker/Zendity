@@ -774,6 +774,8 @@ model ConciergeProduct {
   category       String // Ej: "Higiene", "Nutrición", "GiftCards"
   stock          Int      @default(0)
   isActive       Boolean  @default(true)
+  isOffer        Boolean  @default(false)
+  originalPrice  Float?
   createdAt      DateTime @default(now())
 
   headquarters Headquarters     @relation(fields: [headquartersId], references: [id])
@@ -807,9 +809,12 @@ model ConciergeService {
   name           String
   description    String?
   price          Float
+  imageUrl       String?
   category       String // Ej: "Terapia", "Belleza"
   providerType   Role // THERAPIST o BEAUTY_SPECIALIST
   isActive       Boolean  @default(true)
+  isOffer        Boolean  @default(false)
+  originalPrice  Float?
   createdAt      DateTime @default(now())
 
   headquarters Headquarters           @relation(fields: [headquartersId], references: [id])

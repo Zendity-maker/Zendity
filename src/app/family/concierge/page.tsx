@@ -6,9 +6,13 @@ import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat } f
 interface MarketplaceItem {
     id: string;
     name: string;
+    description?: string;
     price: number;
     category: string;
     stock?: number;
+    isOffer?: boolean;
+    originalPrice?: number;
+    imageUrl?: string;
 }
 
 export default function ConciergePage() {
@@ -122,29 +126,57 @@ export default function ConciergePage() {
 
             {/* Tratamientos Especiales (Servicios) */}
             <div>
-                <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                     <FaHeartbeat className="text-rose-500" /> Especialidades y Terapias
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {data.services.map((service) => (
-                        <div key={service.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all group flex flex-col justify-between h-full">
-                            <div>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`p-3 rounded-xl ${service.category === 'Belleza' ? 'bg-pink-100 text-pink-500' : 'bg-blue-100 text-blue-500'}`}>
-                                        {service.category === 'Belleza' ? <FaSpa className="text-xl" /> : <FaHeartbeat className="text-xl" />}
-                                    </div>
-                                    <span className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100">{service.category}</span>
+                        <div key={service.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between h-full relative">
+                            {service.isOffer && (
+                                <div className="absolute top-4 right-4 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                                    <FaGift /> Oferta
                                 </div>
-                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-1">{service.name}</h4>
-                                <p className="text-sm font-black text-indigo-600 mb-4">${service.price.toFixed(2)}</p>
+                            )}
+                            {service.imageUrl && (
+                                <div className="h-48 w-full relative overflow-hidden bg-slate-100">
+                                    <img src={service.imageUrl} alt={service.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                    <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20">
+                                            {service.category}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="p-6 flex-1 flex flex-col">
+                                {!service.imageUrl && (
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`p-3 rounded-xl ${service.category === 'Estética y Cuidado' ? 'bg-pink-100 text-pink-500' : 'bg-blue-100 text-blue-500'}`}>
+                                            {service.category === 'Estética y Cuidado' ? <FaSpa className="text-xl" /> : <FaHeartbeat className="text-xl" />}
+                                        </div>
+                                        <span className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100">{service.category}</span>
+                                    </div>
+                                )}
+                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-2 mt-2">{service.name}</h4>
+                                {service.description && (
+                                    <p className="text-xs text-slate-500 mb-4 line-clamp-2">{service.description}</p>
+                                )}
+                                <div className="mt-auto flex justify-between items-end mb-4">
+                                    <div>
+                                        {service.isOffer && service.originalPrice && (
+                                            <p className="text-xs text-slate-400 line-through mb-0.5">${service.originalPrice.toFixed(2)}</p>
+                                        )}
+                                        <p className="text-xl font-black text-indigo-600">${service.price.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handlePurchase(service, 'service')}
+                                    disabled={buying === service.id || (data.balance < service.price)}
+                                    className="w-full py-3 bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-slate-100 disabled:hover:text-slate-600 active:scale-95"
+                                >
+                                    {buying === service.id ? 'Reservando...' : 'Reservar Cita'}
+                                </button>
                             </div>
-                            <button
-                                onClick={() => handlePurchase(service, 'service')}
-                                disabled={buying === service.id || (data.balance < service.price)}
-                                className="w-full py-3 bg-slate-100 hover:bg-indigo-500 text-slate-600 hover:text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-slate-100 disabled:hover:text-slate-600 active:scale-95"
-                            >
-                                {buying === service.id ? 'Reservando...' : 'Reservar Cita'}
-                            </button>
                         </div>
                     ))}
                 </div>
@@ -152,34 +184,62 @@ export default function ConciergePage() {
 
             {/* Productos de Farmacia (Gift Cards) */}
             <div>
-                <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
-                    <FaShoppingCart className="text-sky-500" /> Productos e Insumos
+                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                    <FaShoppingCart className="text-sky-500" /> Tienda y Gourmet
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {data.products.map((product) => (
-                        <div key={product.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md hover:border-sky-100 transition-all flex flex-col justify-between h-full">
-                            <div>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`p-3 rounded-xl ${product.category === 'GiftCards' ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-400'}`}>
-                                        {product.category === 'GiftCards' ? <FaGift className="text-xl" /> : <FaShoppingCart className="text-xl" />}
-                                    </div>
-                                    {product.category === 'GiftCards' && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>}
+                        <div key={product.id} className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full relative">
+                            {product.isOffer && (
+                                <div className="absolute top-4 right-4 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                                    <FaGift /> Oferta Especial
                                 </div>
-                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-1">{product.name}</h4>
-                                <p className="text-sm font-bold text-slate-500 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
-                            </div>
+                            )}
+                            {product.imageUrl && (
+                                <div className="h-48 w-full relative overflow-hidden bg-slate-100">
+                                    <img src={product.imageUrl} alt={product.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                    <div className="absolute bottom-4 left-4">
+                                        {product.category === 'GiftCards' ? (
+                                            <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>
+                                        ) : (
+                                            <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20">{product.category}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="p-6 flex-1 flex flex-col">
+                                {!product.imageUrl && (
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`p-3 rounded-xl ${product.category === 'GiftCards' ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-400'}`}>
+                                            {product.category === 'GiftCards' ? <FaGift className="text-xl" /> : <FaShoppingCart className="text-xl" />}
+                                        </div>
+                                        {product.category === 'GiftCards' && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>}
+                                    </div>
+                                )}
+                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-2 mt-2">{product.name}</h4>
+                                {product.description && (
+                                    <p className="text-xs text-slate-500 mb-4 line-clamp-2">{product.description}</p>
+                                )}
+                                <p className="text-xs font-bold text-slate-400 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
 
-                            <div className="flex items-center gap-3">
-                                <div className="text-xl font-black text-slate-800">${product.price.toFixed(2)}</div>
+                                <div className="mt-auto flex justify-between items-end mb-4">
+                                    <div>
+                                        {product.isOffer && product.originalPrice && (
+                                            <p className="text-xs text-slate-400 line-through mb-0.5">${product.originalPrice.toFixed(2)}</p>
+                                        )}
+                                        <div className="text-xl font-black text-slate-800">${product.price.toFixed(2)}</div>
+                                    </div>
+                                </div>
                                 <button
                                     onClick={() => handlePurchase(product, 'product')}
-                                    disabled={buying === product.id}
-                                    className={`flex-1 py-3 font-bold rounded-xl transition-all active:scale-95 ${product.category === 'GiftCards'
+                                    disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
+                                    className={`w-full py-3 font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:text-slate-600 disabled:hover:bg-slate-100 ${product.category === 'GiftCards'
                                         ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
-                                        : 'bg-sky-100 hover:bg-sky-500 text-sky-700 hover:text-white'
+                                        : 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100'
                                         }`}
                                 >
-                                    {buying === product.id ? 'Procesando...' : (product.category === 'GiftCards' ? 'Añadir Fondo' : 'Comprar')}
+                                    {buying === product.id ? 'Procesando...' : (product.category === 'GiftCards' ? 'Añadir Fondo' : 'Comprar Ahora')}
                                 </button>
                             </div>
                         </div>
