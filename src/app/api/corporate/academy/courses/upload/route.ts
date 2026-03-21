@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 // @ts-expect-error
 import pdfParse from 'pdf-parse';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60; // Allow enough time for parsing large PDFs
+
 export async function POST(req: Request) {
     try {
         const formData = await req.formData();
