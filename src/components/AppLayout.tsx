@@ -106,16 +106,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <img 
                                 src={isCorporateWorkspace ? "/brand/zendity_icon_white.svg" : "/brand/zendity_icon_primary.svg"} 
                                 alt="Zendity Icon" 
-                                className="w-9 h-9 object-contain drop-shadow-sm" 
+                                className="w-11 h-11 object-contain drop-shadow-sm" 
                             />
                         ) : (
                             <div className="flex flex-col whitespace-nowrap overflow-hidden">
                                 <img 
                                     src={isCorporateWorkspace ? "/brand/zendity_logo_white.svg" : "/brand/zendity_logo_primary.svg"} 
                                     alt="Zendity Logo" 
-                                    className="h-7 w-auto object-contain mb-1" 
+                                    className="h-10 w-auto object-contain mb-1" 
                                 />
-                                <span className="text-[9px] uppercase font-black tracking-widest text-digital-aqua pl-1">
+                                <span className="text-[10px] uppercase font-black tracking-widest text-digital-aqua pl-1">
                                     {isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}
                                 </span>
                             </div>
