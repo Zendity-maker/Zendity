@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-export async function PATCH(
+export async function POST(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -24,12 +24,12 @@ export async function PATCH(
 
         // Limit Base64 size if needed, though for avatars it's usually small.
 
-        await prisma.patient.update({
+        const updatedPatient = await prisma.patient.update({
             where: { id: patientId },
             data: { photoUrl }
         });
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, photoUrl: updatedPatient.photoUrl });
     } catch (error: any) {
         console.error('Error updating patient photo:', error);
         return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
