@@ -9,19 +9,20 @@ import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
-    ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell
+    ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell,
+    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
 const clinicalNavigation = [
-    { name: 'Insights', href: '/', icon: '📈' },
-    { name: 'Intake (Admitir)', href: '/intake', icon: '📥' },
-    { name: 'Med & Zoning', href: '/med', icon: '💊' },
-    { name: 'Zendity Care (Tablets)', href: '/care', icon: '📱' },
-    { name: 'Cabina Supervisor', href: '/care/supervisor', icon: '🔭' },
-    { name: 'Life Plan (PAI)', href: '/cuidadores', icon: '🪪' },
-    { name: 'Cocina y Nutrición', href: '/kitchen', icon: '🍳' },
-    { name: 'Academy', href: '/academy', icon: '🎓' },
+    { name: 'Insights', href: '/', icon: LineChart },
+    { name: 'Intake (Admitir)', href: '/intake', icon: UserPlus },
+    { name: 'Med & Zoning', href: '/med', icon: Pill },
+    { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
+    { name: 'Cabina Supervisor', href: '/care/supervisor', icon: Eye },
+    { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
+    { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
+    { name: 'Academy', href: '/academy', icon: GraduationCap },
 ];
 
 const corporateNavigationSections = [
@@ -189,14 +190,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
 
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                            const Icon = item.icon;
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     title={isSidebarCollapsed ? item.name : undefined}
-                                    className={`flex items-center py-3 text-sm font-medium rounded-xl transition-colors duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
+                                    className={`flex items-center gap-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
                                 >
-                                    <span className={`${isSidebarCollapsed ? 'mr-0' : 'mr-3'} shrink-0 text-lg`}>{item.icon}</span>
+                                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isSidebarCollapsed ? 'mr-0' : ''}`} strokeWidth={isCurrent ? 2.5 : 2} />
                                     {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                                 </Link>
                             )

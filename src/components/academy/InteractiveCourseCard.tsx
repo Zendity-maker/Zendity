@@ -256,7 +256,7 @@ export default function InteractiveCourseCard({
                             {/* Reflexión y Evaluación Interactiva */}
                             <div className="mt-12 bg-white rounded-3xl p-6 md:p-8 border-2 border-indigo-100 shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
-                                <h4 className="text-xl font-black text-slate-900 mb-2 flex items-center gap-2"><span>🧠</span> Dinámica de Reflexión Práctica</h4>
+                                <h4 className="text-xl font-black text-slate-900 mb-2 flex items-center gap-2">Dinámica de Reflexión Práctica</h4>
                                 <p className="text-slate-600 mb-6 text-base font-medium">
                                     Busca el bloque de "Dinámica de Reflexión" o "Ejercicio Práctico" en el material superior y redacta tu respuesta profesional. Tu Coordinadora (Zendi AI) evaluará éticamente tus decisiones.
                                 </p>
@@ -282,7 +282,7 @@ export default function InteractiveCourseCard({
                                 ) : (
                                     <div className={`p-6 rounded-2xl border shadow-sm ${reflectionFeedback.approved ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
                                         <div className="flex items-start gap-4">
-                                            <div className="text-3xl">{reflectionFeedback.approved ? '✅' : '❌'}</div>
+                                            <div className="text-3xl">{reflectionFeedback.approved ? 'Aprobado' : 'Rechazado'}</div>
                                             <div>
                                                 <p className={`font-black text-lg mb-2 ${reflectionFeedback.approved ? 'text-emerald-800' : 'text-rose-800'}`}>
                                                     {reflectionFeedback.approved ? '¡Reflexión Aprobada!' : 'Respuesta No Apta'}
@@ -311,7 +311,7 @@ export default function InteractiveCourseCard({
                                 disabled={!reflectionFeedback?.approved}
                                 className="px-10 py-4 bg-indigo-600 text-white rounded-2xl text-lg font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 transition-all disabled:bg-slate-300 disabled:shadow-none disabled:hover:scale-100 disabled:cursor-not-allowed"
                             >
-                                {reflectionFeedback?.approved ? 'Terminar Lectura y Volver 🎓' : 'Debes Aprobar la Reflexión 🔒'}
+                                {reflectionFeedback?.approved ? 'Terminar Lectura y Volver' : 'Debes Aprobar la Reflexión'}
                             </button>
                         </div>
 
@@ -355,7 +355,7 @@ export default function InteractiveCourseCard({
 
                         {activeCardIndex + 1 === flashcards.length ? (
                             <button onClick={() => setMode("IDLE")} className="px-8 py-3.5 bg-indigo-600 text-white rounded-2xl text-base font-bold shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 transition-all">
-                                Entendido 🎓
+                                Entendido
                             </button>
                         ) : (
                             <button onClick={() => setActiveCardIndex(activeCardIndex + 1)} className="px-8 py-3.5 bg-indigo-100 text-indigo-700 rounded-2xl text-base font-bold hover:bg-indigo-200 hover:scale-105 transition-all">
@@ -424,10 +424,10 @@ export default function InteractiveCourseCard({
 
                     {isAnswerRevealed && (
                         <div className={"mt-8 p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-bottom-4 " + (selectedAnswer === q.correctAnswer ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200")}>
-                            <div className="text-4xl">{selectedAnswer === q.correctAnswer ? '✅' : '❌'}</div>
+                            <div className="text-4xl font-bold">{selectedAnswer === q.correctAnswer ? 'Aprobado' : 'Fallido'}</div>
                             <div>
                                 <p className={"font-black text-lg mb-1 " + (selectedAnswer === q.correctAnswer ? "text-emerald-800" : "text-rose-800")}>
-                                    {selectedAnswer === q.correctAnswer ? '¡Respuesta Correcta!' : 'Respuesta Incorrecta'}
+                                    {selectedAnswer === q.correctAnswer ? 'Respuesta Correcta' : 'Respuesta Incorrecta'}
                                 </p>
                                 <p className="text-base text-slate-700 font-medium leading-relaxed">
                                     <strong className="text-slate-900">Zendi AI Coach:</strong> {q.explanation}
@@ -470,7 +470,7 @@ export default function InteractiveCourseCard({
             {/* Status Tags On Image / Header */}
             {status === 'COMPLETED' && (
                 <div className="absolute top-4 right-4 z-10 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                    ✅ Aprobado
+                    APROBADO
                 </div>
             )}
             
@@ -479,17 +479,16 @@ export default function InteractiveCourseCard({
                     <img src={course.imageUrl} alt={course.title} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                     <div className="absolute bottom-4 left-4 flex gap-2">
-                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">⏱️ {course.durationMins} MINS</span>
-                        <span className="bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg shadow-sm flex items-center gap-1">🚀 +{course.bonusCompliance} PTS</span>
+                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">{course.durationMins} MINS</span>
+                        <span className="bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg shadow-sm flex items-center gap-1">+{course.bonusCompliance} PTS</span>
                     </div>
                 </div>
             ) : (
                 <div className="h-40 w-full relative overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                    <span className="text-5xl drop-shadow-lg z-10 relative">🎓</span>
                     <div className="absolute bottom-4 left-4 flex gap-2 z-10">
-                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">⏱️ {course.durationMins} MINS</span>
-                        <span className="bg-black/30 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-black/20 flex items-center gap-1">🚀 +{course.bonusCompliance} PTS</span>
+                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">{course.durationMins} MINS</span>
+                        <span className="bg-black/30 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-black/20 flex items-center gap-1">+{course.bonusCompliance} PTS</span>
                     </div>
                 </div>
             )}
@@ -498,7 +497,7 @@ export default function InteractiveCourseCard({
                 <div className="flex justify-between items-start mb-2">
                     <span className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100">{course.category || "General"}</span>
                     {strikes > 0 && status !== 'COMPLETED' && strikes < 3 && (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded flex items-center gap-1">⚠️ STRIKES: {strikes}/3</span>
+                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded flex items-center gap-1">STRIKES: {strikes}/3</span>
                     )}
                 </div>
                 
@@ -520,13 +519,13 @@ export default function InteractiveCourseCard({
                                         onClick={handleStartLearning}
                                         className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:scale-[1.02] border border-indigo-100 flex justify-center items-center gap-2 active:scale-95"
                                     >
-                                        <span>🧠</span> Estudiar Material
+                                        Estudiar Material
                                     </button>
                                     <button
                                         onClick={handleStartQuiz}
                                         className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] text-white shadow-md shadow-indigo-200 flex justify-center items-center gap-2 active:scale-95"
                                     >
-                                        <span>✍️</span> Iniciar Examen Oficial
+                                        Iniciar Examen Oficial
                                     </button>
                                 </>
                             )}
@@ -537,7 +536,7 @@ export default function InteractiveCourseCard({
                                 onClick={() => generateZendityCertificate(user?.name || 'Usuario', course.title, new Date().toLocaleDateString())}
                                 className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex justify-center items-center gap-2 hover:scale-[1.02] active:scale-95"
                             >
-                                <span>📜</span> Imprimir Certificado Zendity
+                                Imprimir Certificado Zendity
                             </button>
                         </div>
                     )}

@@ -86,7 +86,6 @@ export default function ZendityAcademyPage() {
             {complianceScore < 80 && (
                 <div className="bg-red-50 border border-red-200 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden shadow-sm">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-100 rounded-bl-full -z-10 opacity-50"></div>
-                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-2xl flex-shrink-0 animate-pulse">⚠️</div>
                     <div>
                         <p className="font-black text-red-800 text-sm tracking-wide uppercase">Riesgo de Operación Clínica</p>
                         <p className="text-sm text-red-900/80 font-medium mt-1">Tu puntaje de certificación está bajo lo requerido. Completa los cursos pendientes para evitar bloqueos de Punch-In en tus siguientes turnos.</p>
@@ -99,9 +98,6 @@ export default function ZendityAcademyPage() {
                 Object.keys(groupedCourses).map(category => (
                     <div key={category} className="space-y-6">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
-                                {category === 'NURSE' ? '🩺' : category === 'CAREGIVER' ? '❤️' : category === 'MAINTENANCE' ? '🔧' : category === 'KITCHEN' ? '🍳' : '📚'}
-                            </div>
                             <h3 className="text-2xl font-black text-slate-800 capitalize">
                                 Certificaciones: {category.toLowerCase()}
                             </h3>
@@ -121,7 +117,6 @@ export default function ZendityAcademyPage() {
                 ))
             ) : (
                 <div className="p-16 text-center text-slate-400 font-medium bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
-                    <span className="text-5xl mb-4 grayscale opacity-50">🎓</span>
                     <h3 className="text-xl font-bold text-slate-700">El Directorio está al día</h3>
                     <p className="mt-2 text-slate-500">No hay certificaciones nuevas requeridas para tu rol en este momento.</p>
                 </div>
