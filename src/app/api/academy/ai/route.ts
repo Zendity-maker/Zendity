@@ -56,11 +56,21 @@ MASTER MATERIAL:
 ${masterMaterial}
 `;
     } else if (requestType === 'quiz') {
+      let customInstructions = "";
+      if (course.title.includes('Fase 1')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas 5 preguntas exactas: 1. ¿Cuál es el rango de puntuación del principio de Autonomía según el estudio Gerokomos? 2. Defina Anciano Frágil en términos de reserva fisiológica. 3. Nombre las 4 etapas del agotamiento del cuidador. 4. ¿Qué es el paternalismo beneficente? 5. ¿Camuflar medicación es una práctica ética aceptada si el paciente tiene demencia? Convierte estas preguntas a formato opción múltiple con la respuesta correcta basada en el texto.";
+      } else if (course.title.includes('Fase 2')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas preguntas y los escenarios clínicos del material: 1. Calcule el estado anímico si en el GDS obtiene 11 puntos. 2. Mencione señales de alerta para detectar un posible Ictus. 3. ¿Por qué las UPP se consideran un fallo en la seguridad del paciente?. Completa hasta tener 5 preguntas.";
+      } else if (course.title.includes('Fase 3')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas preguntas: 1. ¿Cuál es el porcentaje de profesionales que detectan problemas éticos? 2. Defina Ludoterapia y su importancia en el envejecimiento activo. 3. Ante un conflicto sobre alimentación forzada, ¿qué órgano debe asesorar al equipo?. Completa hasta tener 5 preguntas de alto rigor clínico.";
+      }
+
       prompt = `
 Eres la Profesora Zendi, líder educativa de Zendity Academy.
 Lee el siguiente material oficial (Master Material) y genera exactamente 5 preguntas de selección múltiple altamente rigurosas basadas estrictamente en la lectura.
 Asegúrate de que haya solo 1 respuesta correcta obvia, y 3 distractores plausibles.
 
+${customInstructions}
 REGLAS DE CONTEXTO ESTRICTO DE ESTE CURSO ESPECÍFICO:
 ${courseContext}
 
@@ -77,6 +87,27 @@ OUTPUT OBLIGATORIO: Genera ÚNICAMENTE un JSON válido con esta estructura, sin 
 }
 
 MASTER MATERIAL:
+${masterMaterial}
+`;
+    } else if (requestType === 'reflection') {
+      const { userResponse } = body;
+      prompt = `
+Eres la Profesora Zendi, líder de ética clínica de Zendity Academy.
+El alumno acaba de leer el MASTER MATERIAL y respondió a una "Dinámica de Reflexión".
+Su respuesta fue: "${userResponse}"
+
+TUS INSTRUCCIONES:
+1. Evalúa si la respuesta del alumno es empática, profesional y respeta los principios biomédicos (Autonomía, Beneficencia, No Maleficencia, Justicia) aprendidos en la lectura.
+2. Genera un feedback corto (2 párrafos máximo) constructivo y alentador.
+3. Determina si la respuesta es "Aprobada" (apta profesionalmente) o "Rechazada" (peligrosa, antiética o irrelevante).
+
+OUTPUT OBLIGATORIO: Genera ÚNICAMENTE este JSON:
+{
+  "approved": true/false,
+  "feedback": "Tu evaluación escrita como Zendi AI..."
+}
+
+MASTER MATERIAL PARA REFERENCIA:
 ${masterMaterial}
 `;
     } else {

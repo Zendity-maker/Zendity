@@ -100,23 +100,30 @@ async function main() {
         console.log(`Family Member already exists: ${familyMember.name}`);
     }
 
-    // 4. Crear un curso en Academy
-    let course = await prisma.course.findFirst({
-        where: { title: 'Protocolo de Emergencias (Caídas)' }
-    })
+    // 4. Crear cursos en Academy con Imágenes y Categorías (Programa Integral de Formación)
+    const fs = require('fs');
+    const path = require('path');
+    
+    let coursesToSeed = [];
+    try {
+        const rawdata = fs.readFileSync(path.join(__dirname, 'academyData.json'));
+        coursesToSeed = JSON.parse(rawdata);
+    } catch(e) {
+        console.error("Error reading academyData.json", e);
+    }
 
-    if (!course) {
-        course = await prisma.course.create({
-            data: {
-                title: 'Protocolo de Emergencias (Caídas)',
-                description: 'Aprende el protocolo estricto ante caídas y el uso del sistema de reportes en eMAR.',
-                durationMins: 45,
-                bonusCompliance: 15, // Puntos para desbloquear turnos
-                headquartersId: hq.id,
-                isActive: true
-            }
-        })
-        console.log(`Created Course: ${course.title}`)
+    // Inyectar headquartersId para todos los cursos del JSON
+    coursesToSeed = coursesToSeed.map((c: any) => ({...c, headquartersId: hq.id}));
+
+    for (const c of coursesToSeed) {
+        let existingCourse = await prisma.course.findFirst({ where: { title: c.title, headquartersId: hq.id } });
+        if (!existingCourse) {
+            await prisma.course.create({ data: c });
+            console.log(`Created Certified Course: ${c.title}`);
+        } else {
+            await prisma.course.update({ where: { id: existingCourse.id }, data: c });
+            console.log(`Updated Certified Course: ${c.title}`);
+        }
     }
 
     // 5. Crear Mensaje Familiar de Prueba (Family Link)

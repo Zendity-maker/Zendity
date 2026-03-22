@@ -524,6 +524,8 @@ model Course {
   durationMins    Int
   bonusCompliance Int // Puntos que suma al complianceScore (e.g. 5, 10, 20)
   videoUrl        String?
+  category        String   @default("General") // Puesto o Categoría
+  imageUrl        String?  // Fotografía del curso
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
 
