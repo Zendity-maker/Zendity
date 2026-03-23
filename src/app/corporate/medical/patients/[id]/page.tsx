@@ -215,6 +215,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <Link href={`/corporate/medical/patients/${patientData.id}/pai`} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Expediente PAI
                                 </Link>
+                                <Link href={`/care/patient/emar-print?patientId=${patientData.id}`} target="_blank" className="flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                    <DocumentTextIcon className="w-5 h-5" /> Auditoría eMAR
+                                </Link>
                                 <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal
                                 </button>
