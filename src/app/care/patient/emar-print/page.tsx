@@ -40,7 +40,10 @@ function EmarPrintContent() {
     if (!patient) return <div className="p-10 text-center font-bold text-slate-500">Paciente no encontrado.</div>;
 
     const headquarters = patient.headquarters;
-    const now = new Date();
+    
+    // Fix Hydration Mismatch: Evaluar la fecha solo en el cliente
+    const [now, setNow] = useState<Date | null>(null);
+    useEffect(() => { setNow(new Date()); }, []);
 
     // Collect all medications logic
     const allAdministrations: any[] = [];
@@ -89,7 +92,7 @@ function EmarPrintContent() {
                         <div>
                             <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Historial Clínico (eMAR)</h1>
                             <p className="text-slate-500 text-lg font-bold mt-1">{headquarters?.name || "Zendity Medical"}</p>
-                            <p className="text-sm text-slate-400 font-medium">Impreso: {format(now, "PPpp", { locale: es })}</p>
+                            <p className="text-sm text-slate-400 font-medium">Impreso: {now ? format(now, "PPpp", { locale: es }) : "Cargando fecha..."}</p>
                         </div>
                     </div>
                 </div>
