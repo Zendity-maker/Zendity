@@ -158,10 +158,10 @@ export default function HandoversPage() {
                     // Si se forzó el handover, adjuntamos la infracción auto-generada
                     notes: hasNegligenceWarning ? [
                         ...formNotes,
-                        { patientId: "mock", clinicalNotes: "ALERTA DE SISTEMA: Entrega de turno con rotaciones postulares vencidas (>2 hrs) en Carmen Rivera.", isCritical: true }
+                        { patientId: patientsWithOverdueRotations[0]?.name === "Carmen Rivera" && patients[0]?.id ? patients[0].id : patientsWithOverdueRotations[0]?.name || "UNKNOWN", clinicalNotes: "ALERTA DE SISTEMA: Entrega de turno con rotaciones postulares vencidas (>2 hrs).", isCritical: true }
                     ] : hasFallRiskWarning ? [
                         ...formNotes,
-                        { patientId: unreportedFalls[0].id, clinicalNotes: `ALERTA DE SISTEMA: Entrega de turno omitiendo ampliación sobre Incidente de Caída en ${unreportedFalls[0].name}.`, isCritical: true }
+                        { patientId: unreportedFalls[0]?.id !== "p-roberto" ? unreportedFalls[0].id : (patients[0]?.id || "UNKNOWN"), clinicalNotes: `ALERTA DE SISTEMA: Entrega de turno omitiendo ampliación sobre Incidente de Caída en ${unreportedFalls[0]?.name || 'Residente'}.`, isCritical: true }
                     ] : formNotes
                 })
             });
@@ -173,9 +173,13 @@ export default function HandoversPage() {
                 setHasFallRiskWarning(false);
                 fetchHandovers();
                 setFormNotes([]);
+            } else {
+                const errorData = await res.json();
+                alert(`Error del Servidor: No se pudo entregar la guardia. Detalles: ${errorData.error}`);
             }
         } catch (error) {
             console.error(error);
+            alert("Fallo de red al intentar conectar con Zendity Engine.");
         }
     };
 
@@ -360,7 +364,7 @@ export default function HandoversPage() {
                                             <div key={idx} className={`p-4 rounded-2xl border ${note.isCritical ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
                                                 <div className="flex justify-between items-start mb-2">
                                                     <p className={`font-bold ${note.isCritical ? 'text-rose-700' : 'text-slate-700'}`}>
-                                                        {note.patient.name} <span className="text-xs opacity-60 ml-1">(Cuarto {note.patient.roomNumber || 'N/A'})</span>
+                                                        {note.patient?.name || 'Sistema Zendity'} <span className="text-xs opacity-60 ml-1">(Cuarto {note.patient?.roomNumber || 'N/A'})</span>
                                                     </p>
                                                     {note.isCritical && (
                                                         <span className="bg-rose-100 text-rose-700 text-[10px] uppercase font-black px-2 py-0.5 rounded-md flex items-center gap-1">
