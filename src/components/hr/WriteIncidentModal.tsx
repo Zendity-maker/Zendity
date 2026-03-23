@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "@/context/AuthContext";
@@ -16,20 +16,58 @@ interface WriteIncidentModalProps {
 export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId, employees, onSuccess }: WriteIncidentModalProps) {
     const [step, setStep] = useState<1 | 2>(1);
     const [employeeId, setEmployeeId] = useState('');
+    const [selectedSupervisorId, setSelectedSupervisorId] = useState(supervisorId);
     const [type, setType] = useState('WARNING');
     const [description, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [generatingAI, setGeneratingAI] = useState(false);
     const { user } = useAuth(); // To get supervisor name
 
+    const [fullRoster, setFullRoster] = useState<any[]>(employees);
+    const [loadingRoster, setLoadingRoster] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && hqId && fullRoster.length <= 1) {
+            const fetchRoster = async () => {
+                setLoadingRoster(true);
+                try {
+                    const res = await fetch(`/api/hr/staff?headquartersId=${hqId}`);
+                    const data = await res.json();
+                    if (data.success && data.staff) {
+                        setFullRoster(data.staff);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch full roster");
+                } finally {
+                    setLoadingRoster(false);
+                }
+            };
+            fetchRoster();
+        }
+    }, [isOpen, hqId]);
+
+    // Role-based filtering
+    const isDirectorView = user?.role === 'DIRECTOR';
+    const administrativeStaff = fullRoster.filter(e => e.role === 'DIRECTOR' || e.role === 'ADMIN' || e.role === 'HR');
+    const availableEmployees = isDirectorView ? fullRoster : fullRoster.filter(e => e.role === 'NURSE' || e.role === 'CAREGIVER' || e.role === 'MAINTENANCE');
+
+    useEffect(() => {
+        if (isOpen) {
+            if (employees.length === 1 && !employeeId) setEmployeeId(employees[0].id);
+            if (!selectedSupervisorId && user?.id) setSelectedSupervisorId(user.id);
+        }
+    }, [isOpen, employees, user]);
+
     // Signature reference
     const sigCanvas = useRef<any>(null);
 
     const handleAIGenerate = async () => {
+        if (!selectedSupervisorId) return alert("Seleccione el Supervisor Emisor primero.");
         if (!employeeId) return alert("Seleccione un empleado primero.");
         if (description.trim().length < 5) return alert("Escriba un borrador breve (ej: 'llegó tarde hoy y ayer sin avisar') antes de generar con IA.");
         
-        const emp = employees.find(e => e.id === employeeId);
+        const emp = fullRoster.find(e => e.id === employeeId);
+        const sup = fullRoster.find(s => s.id === selectedSupervisorId);
         
         setGeneratingAI(true);
         try {
@@ -39,7 +77,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                 body: JSON.stringify({
                     employeeName: emp?.name,
                     employeeRole: emp?.role,
-                    supervisorName: user?.name || "Representante de RRHH",
+                    supervisorName: sup?.name || user?.name || "Representante de RRHH",
                     type,
                     briefing: description
                 })
@@ -59,7 +97,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     };
 
     const handleSubmit = async () => {
-        if (!employeeId || !description) return alert("Faltan datos por llenar.");
+        if (!employeeId || !description || !selectedSupervisorId) return alert("Faltan datos por llenar.");
         if (step === 1) {
             setStep(2);
             return;
@@ -79,7 +117,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     headquartersId: hqId,
-                    supervisorId,
+                    supervisorId: selectedSupervisorId,
                     employeeId,
                     type,
                     description,
@@ -112,7 +150,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
 
     if (!isOpen) return null;
 
-    const selectedEmployee = employees.find(e => e.id === employeeId);
+    const selectedEmployee = fullRoster.find(e => e.id === employeeId);
 
     return (
         <AnimatePresence>
@@ -142,18 +180,33 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                     <div className="p-6 overflow-y-auto flex-1">
                         {step === 1 ? (
                             <div className="space-y-5">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Empleado Involucrado</label>
-                                    <select
-                                        value={employeeId}
-                                        onChange={(e) => setEmployeeId(e.target.value)}
-                                        className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
-                                    >
-                                        <option value="">Seleccione un empleado...</option>
-                                        {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
-                                        ))}
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Emisor</label>
+                                        <select
+                                            value={selectedSupervisorId}
+                                            onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                                            className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                        >
+                                            <option value="">Seleccione el emisor...</option>
+                                            {administrativeStaff.map(sup => (
+                                                <option key={sup.id} value={sup.id}>{sup.name} ({sup.role})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Empleado Involucrado</label>
+                                        <select
+                                            value={employeeId}
+                                            onChange={(e) => setEmployeeId(e.target.value)}
+                                            className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                        >
+                                            <option value="">Seleccione al empleado...</option>
+                                            {availableEmployees.map(emp => (
+                                                <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>

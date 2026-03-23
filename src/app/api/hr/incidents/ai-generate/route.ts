@@ -15,22 +15,23 @@ export async function POST(req: Request) {
 
         const prompt = `Actúa como Director de Recursos Humanos. Se requiere redactar un documento formal disciplinario oficial listo para firmar.
 
-EMPLEADO INVOLUCRADO: ${employeeName} (${employeeRole || "Staff"})
-SUPERVISOR QUE REPORTA: ${supervisorName}
-FECHA DEL INCIDENTE/REPORTE: ${dateStr}
-TIPO DE ACCIÓN DISCIPLINARIA: ${type === 'WARNING' ? 'Amonestación Escrita' : type === 'SUSPENSION' ? 'Suspensión Temporal' : 'Despido Justificado'}
+### PARÁMETROS DEL DOCUMENTO
+- **EMPLEADO INVOLUCRADO:** ${employeeName} (${employeeRole || "Staff"})
+- **SUPERVISOR QUE REPORTA:** ${supervisorName}
+- **FECHA DEL INCIDENTE/REPORTE:** ${dateStr}
+- **TIPO DE ACCIÓN DISCIPLINARIA:** ${type === 'WARNING' ? 'Amonestación Escrita' : type === 'SUSPENSION' ? 'Suspensión Temporal' : 'Despido Justificado'}
 
-HECHOS DECLARADOS POR EL SUPERVISOR:
+### HECHOS DECLARADOS POR EL SUPERVISOR
 "${briefing}"
 
-INSTRUCCIONES:
-1. Redacta el cuerpo completo del documento disciplinario en tono profesional, legal y objetivo.
-2. NO uses ningún marcador de posición como [Nombre del Empleado], {insertar fecha}, etc. DEBES usar los nombres exactos y la fecha provistos arriba.
-3. El documento debe exponer claramente la falta cometida, las expectativas de mejora y las consecuencias futuras.
-4. Finaliza el documento indicando que la firma del empleado es requerida para confirmar que ha sido notificado, no necesariamente que está de acuerdo.
-5. NO incluyas líneas para firma ("Firma: ______") al final, ya que se firmará digitalmente en el sistema.
+### INSTRUCCIONES ESTRICTAS (NO DESVIARSE)
+1. El documento DEBE comenzar con un "MEMORANDO OFICIAL" que incluya textualmente la Fecha, De (Supervisor), Para (Empleado) y Asunto. NO uses "marcadores de posición" [ ]. Usa los nombres exactos provistos en los parámetros.
+2. Redacta el cuerpo completo del documento disciplinario en un tono corporativo, legal y altamente profesional.
+3. El documento debe exponer claramente la falta cometida, las expectativas de mejora y las consecuencias futuras en caso de reincidencia.
+4. Finaliza el documento indicando que la firma digital del empleado en el sistema Zendity sirve como acuse de recibo y entendimiento de las políticas corporativas, no necesariamente como acuerdo mutuo.
+5. NO incluyas líneas de firma ("Firma: ______") al final, el sistema captura esto biométricamente.
 
-Devuelve EXCLUSIVAMENTE el texto del documento.`;
+Devuelve EXCLUSIVAMENTE el texto del documento listo para revisión, sin preámbulos ni saludos de inteligencia artificial.`;
 
         const { text } = await generateText({
             model: openai('gpt-4o'),
