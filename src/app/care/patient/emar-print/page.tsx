@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 
-export default function EmarPrintPage() {
+function EmarPrintContent() {
     const searchParams = useSearchParams();
     const patientId = searchParams?.get("patientId");
     
@@ -176,5 +176,13 @@ export default function EmarPrintPage() {
 
             </div>
         </div>
+    );
+}
+
+export default function EmarPrintPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex flex-col justify-center items-center bg-slate-100 text-slate-500"><Loader2 className="w-10 h-10 animate-spin mb-4" /> Cargando Módulo de Impresión eMAR...</div>}>
+            <EmarPrintContent />
+        </Suspense>
     );
 }
