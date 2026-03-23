@@ -8,6 +8,7 @@ interface Patient {
     id: string;
     name: string;
     colorGroup: string;
+    photoUrl?: string;
 }
 
 export default function NursingZoningPage() {
@@ -129,9 +130,18 @@ export default function NursingZoningPage() {
                                     </div>
                                 ) : (
                                     group.map((p) => (
-                                        <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
-                                            <p className="font-bold text-slate-800 text-sm truncate pr-2">{p.name}</p>
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all h-full">
+                                            <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                                {p.photoUrl ? (
+                                                    <img src={p.photoUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-slate-200" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">
+                                                        {p.name.substring(0, 2).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <p className="font-bold text-slate-800 text-sm truncate">{p.name}</p>
+                                            </div>
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                                 {updating === p.id ? (
                                                     <span className="text-xs text-slate-400 font-bold uppercase">...</span>
                                                 ) : (

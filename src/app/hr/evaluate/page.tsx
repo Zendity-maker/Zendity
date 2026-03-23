@@ -10,6 +10,7 @@ interface Employee {
     id: string;
     name: string;
     role: string;
+    photoUrl?: string;
 }
 
 export default function HREvaluatePage() {
@@ -138,7 +139,11 @@ export default function HREvaluatePage() {
                                         onClick={() => { setSelectedEmp(emp); setScores({}); }}
                                         className={`w-full flex items-center p-3 rounded-xl border transition-all text-left ${selectedEmp?.id === emp.id ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20' : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50'}`}
                                     >
-                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 mr-3">{emp.name.substring(0, 2).toUpperCase()}</div>
+                                        {emp.photoUrl ? (
+                                            <img src={emp.photoUrl} alt={emp.name} className="w-10 h-10 rounded-full object-cover mr-3 shrink-0 ring-2 ring-slate-100" />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 mr-3 shrink-0">{emp.name.substring(0, 2).toUpperCase()}</div>
+                                        )}
                                         <div>
                                             <p className="font-bold text-sm text-slate-900">{emp.name}</p>
                                             <p className="text-xs text-slate-500 font-mono mt-0.5">{emp.role}</p>

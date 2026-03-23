@@ -31,7 +31,8 @@ export async function GET(request: Request) {
                 complianceScore: true,
                 isShiftBlocked: true,
                 isDeleted: true,
-                createdAt: true
+                createdAt: true,
+                photoUrl: true
             },
             orderBy: { name: 'asc' }
         });
