@@ -57,12 +57,12 @@ ${masterMaterial}
 `;
     } else if (requestType === 'quiz') {
       let customInstructions = "";
-      if (course.title.includes('Fase 1')) {
-         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas 5 preguntas exactas: 1. ¿Cuál es el rango de puntuación del principio de Autonomía según el estudio Gerokomos? 2. Defina Anciano Frágil en términos de reserva fisiológica. 3. Nombre las 4 etapas del agotamiento del cuidador. 4. ¿Qué es el paternalismo beneficente? 5. ¿Camuflar medicación es una práctica ética aceptada si el paciente tiene demencia? Convierte estas preguntas a formato opción múltiple con la respuesta correcta basada en el texto.";
-      } else if (course.title.includes('Fase 2')) {
-         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas preguntas y los escenarios clínicos del material: 1. Calcule el estado anímico si en el GDS obtiene 11 puntos. 2. Mencione señales de alerta para detectar un posible Ictus. 3. ¿Por qué las UPP se consideran un fallo en la seguridad del paciente?. Completa hasta tener 5 preguntas.";
-      } else if (course.title.includes('Fase 3')) {
-         customInstructions = "OBLIGATORIO: Tu examen DEBE estar basado en estas preguntas: 1. ¿Cuál es el porcentaje de profesionales que detectan problemas éticos? 2. Defina Ludoterapia y su importancia en el envejecimiento activo. 3. Ante un conflicto sobre alimentación forzada, ¿qué órgano debe asesorar al equipo?. Completa hasta tener 5 preguntas de alto rigor clínico.";
+      if (course.title.includes('Certificación 1')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE evaluar la integración de datos y seguridad. Incluye: 1. La importancia de HIPAA en la confidencialidad de la información del paciente. 2. Qué rol juegan los modelos predictivos en el cuidado preventivo. 3. Cómo la visualización de datos ayuda a la administración clínica. Completa hasta 5 preguntas de opción múltiple.";
+      } else if (course.title.includes('Certificación 2')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE evaluar el Liderazgo Transformador sobre el reactivo. Incluye: 1. La diferencia entre el lenguaje de un Supervisor-Jefe ('No hay nada que hacer') vs Supervisor-Líder ('Veremos qué podemos hacer'). 2. El propósito de Mindfulness bajo estrés. 3. Identificación del Burnout y cómo mitigarlo para proteger la seguridad del paciente. Completa hasta 5 preguntas.";
+      } else if (course.title.includes('Certificación 3')) {
+         customInstructions = "OBLIGATORIO: Tu examen DEBE evaluar la Metodología de Resolución. Incluye: 1. Los 5 criterios de la metodología MATER y su definición. 2. En qué consiste el Modelo del Reto (en lugar de enfocarse solo en los problemas). 3. Cómo identificar las causas mediante los Cinco Porqués o Espina de Pescado. Completa hasta 5 preguntas.";
       }
 
       prompt = `
@@ -92,14 +92,14 @@ ${masterMaterial}
     } else if (requestType === 'reflection') {
       const { userResponse } = body;
       prompt = `
-Eres la Profesora Zendi, líder de ética clínica de Zendity Academy.
-El alumno acaba de leer el MASTER MATERIAL y respondió a una "Dinámica de Reflexión".
+Eres la Profesora Zendi, líder de transformación institucional de Zendity Academy.
+El alumno acaba de leer el MASTER MATERIAL y respondió a una "Dinámica de Reflexión" basada en el Plan Estratégico de DECEP.
 Su respuesta fue: "${userResponse}"
 
 TUS INSTRUCCIONES:
-1. Evalúa si la respuesta del alumno es empática, profesional y respeta los principios biomédicos (Autonomía, Beneficencia, No Maleficencia, Justicia) aprendidos en la lectura.
-2. Genera un feedback corto (2 párrafos máximo) constructivo y alentador.
-3. Determina si la respuesta es "Aprobada" (apta profesionalmente) o "Rechazada" (peligrosa, antiética o irrelevante).
+1. Evalúa si la respuesta demuestra mentalidad de Liderazgo Transformador (y no de "Supervisor-Jefe" reactivo), profesionalismo, y si incorpora herramientas sistémicas (como Criterios MATER o uso de datos).
+2. Genera un feedback corto (2 párrafos máximo) con críticas constructivas, felicitándolo si evidencia mentalidad proactiva y orientada a la resolución.
+3. Determina si la respuesta es "Aprobada" (apta profesionalmente y estratégica) o "Rechazada" (reactiva, antiética o inespecífica).
 
 OUTPUT OBLIGATORIO: Genera ÚNICAMENTE este JSON:
 {
