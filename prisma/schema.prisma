@@ -934,6 +934,10 @@ model ShiftHandover {
   outgoingNurse User           @relation("OutgoingNurse", fields: [outgoingNurseId], references: [id])
   incomingNurse User?          @relation("IncomingNurse", fields: [incomingNurseId], references: [id])
   notes         HandoverNote[]
+
+  // FASE 61: Zendi AI Handovers (5:45 AM Digest)
+  aiSummaryReport String? @db.Text
+  audioUrl        String?
   
   // Enlace a la Sesión de Turno (Fase 44)
   shiftSession  ShiftSession?

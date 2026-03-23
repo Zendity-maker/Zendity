@@ -64,6 +64,17 @@ export async function GET(req: Request) {
             orderBy: { createdAt: 'asc' }
         });
 
+        // 6. Último Zendi Morning Briefing (De hoy)
+        const briefing = await prisma.shiftHandover.findFirst({
+            where: {
+                headquartersId: hqId,
+                shiftType: 'MORNING',
+                createdAt: { gte: todayStart },
+                aiSummaryReport: { not: null }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
         return NextResponse.json({
             success: true,
             activeCaregivers: activeSessions.length,
@@ -74,7 +85,8 @@ export async function GET(req: Request) {
                 triageInbox: pendingComplaintsList.length
             },
             activeSessions,
-            pendingComplaints: pendingComplaintsList
+            pendingComplaints: pendingComplaintsList,
+            morningBriefing: briefing?.aiSummaryReport || null
         });
 
     } catch (error) {

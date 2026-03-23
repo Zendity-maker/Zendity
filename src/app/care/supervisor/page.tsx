@@ -2,8 +2,73 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
+import ReactMarkdown from 'react-markdown';
+
+// --- SUB-COMPONENT: Zendi Morning Briefing ---
+const ZendiMorningBriefing = ({ text }: { text: string }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    useEffect(() => {
+        return () => window.speechSynthesis.cancel();
+    }, []);
+
+    const handlePlayPause = () => {
+        if (isPlaying) {
+            window.speechSynthesis.cancel();
+            setIsPlaying(false);
+        } else {
+            // Eliminar markdown para la lectura en voz alta
+            const plainText = text.replace(/[*_#]/g, '');
+            const utterance = new SpeechSynthesisUtterance(plainText);
+            utterance.lang = 'es-ES';
+            utterance.rate = 1.05;
+            utterance.pitch = 1.0;
+            utterance.onend = () => setIsPlaying(false);
+            window.speechSynthesis.speak(utterance);
+            setIsPlaying(true);
+        }
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl p-8 shadow-xl border border-indigo-700/50 mb-8 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-widest mb-1">
+                            <Sparkles className="w-4 h-4" /> Zendi AI Engine
+                        </div>
+                        <h2 className="text-2xl font-black text-white">Morning Briefing (05:45 AM)</h2>
+                        <p className="text-slate-400 text-sm mt-1">Resumen Ejecutivo del Turno Nocturno.</p>
+                    </div>
+                    <button 
+                        onClick={handlePlayPause}
+                        className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all ${isPlaying ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' : 'bg-white hover:bg-indigo-50 text-indigo-900'}`}
+                    >
+                        {isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}
+                    </button>
+                </div>
+                
+                {/* Audio Waves Animation */}
+                {isPlaying && (
+                    <div className="flex items-end gap-1 h-6 mb-6">
+                        {[...Array(20)].map((_, i) => (
+                            <div key={i} className="w-1.5 bg-indigo-400 rounded-t-sm animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.05}s` }}></div>
+                        ))}
+                        <span className="text-xs text-indigo-300 ml-2 font-bold animate-pulse">Reproduciendo...</span>
+                    </div>
+                )}
+
+                <div className="prose prose-invert prose-indigo max-w-none prose-p:leading-relaxed prose-li:marker:text-indigo-400">
+                    <ReactMarkdown>{text}</ReactMarkdown>
+                </div>
+            </div>
+        </div>
+    );
+};
+// ----------------------------------------------
 
 export default function SupervisorDashboardPage() {
     const { user } = useAuth();
@@ -269,6 +334,11 @@ export default function SupervisorDashboardPage() {
                     <TaskAssignmentButton user={user} buttonLabel="Despachar Tarea (SLA 15m)" buttonStyle="px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-900 font-black rounded-2xl shadow-xl shadow-teal-500/20 active:scale-95 transition-all w-fit flex items-center gap-3 text-lg" />
                 </div>
             </div>
+
+            {/* FASE 61: ZENDI MORNING BRIEFING */}
+            {liveData?.morningBriefing && (
+                <ZendiMorningBriefing text={liveData.morningBriefing} />
+            )}
 
             {/* MISSION MONITOR FASE 41 */}
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">

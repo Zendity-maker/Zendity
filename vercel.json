@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/ai/zendi/handovers/cron",
+      "schedule": "45 5 * * *" 
+    }
+  ]
+}
