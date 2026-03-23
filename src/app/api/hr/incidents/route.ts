@@ -39,10 +39,14 @@ export async function GET(req: Request) {
         const employeeId = searchParams.get('employeeId');
         const hqId = searchParams.get('hqId');
 
-        if (!hqId) return NextResponse.json({ success: false, error: 'Falta HQ ID' }, { status: 400 });
+        if (!hqId && !employeeId) return NextResponse.json({ success: false, error: 'Faltan parámetros' }, { status: 400 });
 
-        const whereClause: any = { headquartersId: hqId };
-        if (employeeId) whereClause.employeeId = employeeId;
+        const whereClause: any = {};
+        if (employeeId) {
+            whereClause.employeeId = employeeId;
+        } else {
+            whereClause.headquartersId = hqId;
+        }
 
         const incidents = await prisma.incidentReport.findMany({
             where: whereClause,
