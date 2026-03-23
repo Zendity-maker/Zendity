@@ -916,7 +916,7 @@ export default function ZendityCareTabletPage() {
     if (!selectedColor && !briefingMode && !verifyingCensus) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-                <div className="bg-white rounded-[3rem] p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center">
+                <div className="bg-white rounded-2xl p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center">
                     <button
                         onClick={() => logout()}
                         className="absolute top-6 right-8 text-slate-400 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
@@ -942,7 +942,7 @@ export default function ZendityCareTabletPage() {
     if (verifyingCensus && selectedColor) {
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-                <div className="bg-white rounded-[3rem] p-10 max-w-4xl w-full text-center shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+                <div className="bg-white rounded-2xl p-10 max-w-4xl w-full text-center shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
                     <h1 className="text-4xl font-black text-slate-800 mb-2">Verificación de Censo</h1>
                     <p className="text-lg text-slate-500 mb-6 font-medium">
                         Confirma el estatus actual de cada residente en el <span className="font-bold text-slate-800">Grupo {selectedColor}</span>.
@@ -1026,7 +1026,7 @@ export default function ZendityCareTabletPage() {
 
                         {/* Text Narration (Simulating CC) */}
                         {!showQuickRead && (
-                            <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-[2rem] backdrop-blur-md mb-8">
+                            <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl backdrop-blur-md mb-8">
                                 <p className="text-xl leading-relaxed text-teal-100 font-medium">"{briefingData.ttsMessage}"</p>
                             </div>
                         )}
@@ -1034,17 +1034,17 @@ export default function ZendityCareTabletPage() {
                         {/* Visual Quick Read Dashboard */}
                         {showQuickRead && (
                             <div className="grid grid-cols-3 gap-6 mb-10 animate-in zoom-in-95">
-                                <div className="bg-slate-800/80 border border-slate-700 rounded-[2rem] p-6 backdrop-blur-sm">
+                                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.vitalsAlerts}</h3>
                                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Alertas Viales Recientes</p>
                                 </div>
-                                <div className="bg-slate-800/80 border border-slate-700 rounded-[2rem] p-6 backdrop-blur-sm">
+                                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.foodAlerts}</h3>
                                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Inapetencias 8Hrs</p>
                                 </div>
-                                <div className="bg-slate-800/80 border border-slate-700 rounded-[2rem] p-6 backdrop-blur-sm">
+                                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.appointments}</h3>
                                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Citas Hoy</p>
@@ -1167,7 +1167,7 @@ export default function ZendityCareTabletPage() {
                         {patients.map(p => {
                             const isAbsent = p.status === 'TEMPORARY_LEAVE';
                             return (
-                                <div key={p.id} className={`bg-white rounded-[2.5rem] overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
+                                <div key={p.id} className={`bg-white rounded-2xl overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
                                     {isAbsent && (
                                         <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
                                             <div className="bg-amber-100 border border-amber-300 text-amber-800 px-6 py-2 rounded-full font-black flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105">
@@ -1237,7 +1237,7 @@ export default function ZendityCareTabletPage() {
             {/* RESTO DE MODALES FASE 7 y 8... (Conservados por simplicidad) */}
             {modalType && (
                 <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-[2rem] p-6 md:p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] flex flex-col">
+                    <div className="bg-white rounded-xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] flex flex-col">
                         <button onClick={() => setModalType(null)} className="absolute top-4 right-4 w-10 h-10 md:w-12 md:h-12 bg-slate-100 text-slate-500 rounded-full font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors z-20">X</button>
                         <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 pr-12">{activePatient?.name}</h3>
                         
@@ -1621,7 +1621,7 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'PROGRESS_NOTE_PDF' && pdfNoteData && (
                             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                                <div className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
+                                <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
                                     <div className="p-5 bg-slate-800 text-white flex justify-between items-center">
                                         <h3 className="font-bold flex items-center gap-2 text-xl"><span></span> Documento Handover (Vivid)</h3>
                                         <div className="flex gap-4">
@@ -1840,7 +1840,7 @@ export default function ZendityCareTabletPage() {
             {/* FASE 44: HANDOVER DRAFT MODAL (Auto-Enforcement) */}
             {modalType === 'HANDOVER_DRAFT' && (
                 <div className="fixed inset-0 bg-red-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-6 bg-red-600 flex justify-between items-center text-white">
                             <div>
                                 <h3 className="font-black text-xl flex items-center gap-2"><span></span> Relevo de Guardia Requerido</h3>
@@ -1910,7 +1910,7 @@ export default function ZendityCareTabletPage() {
             {!briefingMode && activeSession && (
                 <button
                     onClick={() => { setHubAction(null); setModalType('HUB'); }}
-                    className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 hover:bg-slate-800 text-white font-black px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-3 active:scale-95 transition-all z-40 border-4 border-slate-800 hover:border-slate-700 group hover:pr-6"
+                    className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 hover:bg-slate-800 text-white font-black px-8 py-5 rounded-xl shadow-2xl flex items-center gap-3 active:scale-95 transition-all z-40 border-4 border-slate-800 hover:border-slate-700 group hover:pr-6"
                 >
                     <span className="text-3xl group-hover:rotate-12 transition-transform"></span>
                     <span className="text-xl tracking-tight">Acciones Rápidas</span>

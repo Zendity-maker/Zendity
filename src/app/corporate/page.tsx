@@ -94,7 +94,33 @@ export default function CorporateDashboardPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-teal-600 font-bold animate-pulse">Sincronizando Mando Central...</div>;
+    if (loading) return (
+        <div className="space-y-8 animate-pulse p-4 md:p-0">
+            {/* Header Skeleton */}
+            <div className="flex justify-between items-center">
+                <div className="space-y-3">
+                    <div className="h-8 w-64 bg-slate-200 rounded-lg"></div>
+                    <div className="h-4 w-48 bg-slate-100 rounded-md"></div>
+                </div>
+                <div className="h-12 w-48 bg-slate-200 rounded-xl hidden md:block"></div>
+            </div>
+            {/* KPI Cards Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="h-32 bg-slate-100 rounded-2xl border border-slate-200/60 p-5">
+                       <div className="h-4 w-24 bg-slate-200 rounded-md mb-4"></div>
+                       <div className="h-8 w-16 bg-slate-200 rounded-lg"></div>
+                    </div>
+                ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Table Skeleton */}
+                <div className="lg:col-span-2 h-96 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
+                {/* Modules Skeleton */}
+                <div className="h-96 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -251,7 +277,7 @@ export default function CorporateDashboardPage() {
             {/* INBOX MODAL (Family Link) FASE 13 */}
             {showInbox && (
                 <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
-                    <div className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl relative">
                         <button onClick={() => setShowInbox(false)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold">X</button>
                         <h3 className="text-3xl font-black text-slate-900 mb-6 flex items-center gap-3"> Centro de Mensajes</h3>
 

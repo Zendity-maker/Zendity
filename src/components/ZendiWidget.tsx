@@ -134,7 +134,7 @@ export default function ZendiWidget() {
 
             {/* Panel de Chat Activo */}
             {isOpen && (
-                <div className="w-80 bg-slate-900 border border-slate-700/50 rounded-[2rem] shadow-2xl overflow-hidden backdrop-blur-xl mb-2 origin-bottom-right transition-transform">
+                <div className="w-80 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl mb-2 origin-bottom-right transition-transform">
                     <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-white/5">
                         <div className="flex items-center gap-3">
                             <div className={`w-3 h-3 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : (isSpeaking ? 'bg-teal-400 animate-pulse' : 'bg-slate-600')}`}></div>

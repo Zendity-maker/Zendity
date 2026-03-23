@@ -209,7 +209,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 </div>
 
                 {/* Profile Header Card */}
-                <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 items-center md:items-start relative overflow-hidden">
+                <div className="bg-white rounded-2xl p-8 md:p-10 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 items-center md:items-start relative overflow-hidden">
                     {/* Decorative Background Blur */}
                     <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
 

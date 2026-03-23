@@ -220,7 +220,7 @@ export default function InteractiveCourseCard({
         if (course.content && flashcards.length === 0) {
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-900/90 backdrop-blur-md overflow-hidden">
-                    <div className="bg-white rounded-[2.5rem] p-0 shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
+                    <div className="bg-white rounded-2xl p-0 shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
                         
                         {/* Header Sticky */}
                         <div className="flex justify-between items-center p-6 md:px-10 md:py-8 bg-white border-b border-slate-100 sticky top-0 z-10">
@@ -466,7 +466,7 @@ export default function InteractiveCourseCard({
     }
 
     return (
-        <div className="bg-white rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between h-full relative">
+        <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between h-full relative">
             {/* Status Tags On Image / Header */}
             {status === 'COMPLETED' && (
                 <div className="absolute top-4 right-4 z-10 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">

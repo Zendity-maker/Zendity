@@ -64,7 +64,7 @@ export default function ZenditySandboxPage() {
                     <div className="lg:col-span-1 space-y-6">
 
                         {/* Zendity People Form (Paso 1) */}
-                        <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 transition-all duration-300 ${step === 1 ? 'border-teal-500 shadow-teal-500/20 shadow-xl' : 'border-slate-200 opacity-60'}`}>
+                        <div className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-all duration-300 ${step === 1 ? 'border-teal-500 shadow-teal-500/20 shadow-xl' : 'border-slate-200 opacity-60'}`}>
                             <div className="flex items-center gap-3 mb-4">
                                 <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black ${step === 1 ? 'bg-teal-500 text-white' : 'bg-slate-200 text-slate-500'}`}>1</span>
                                 <h2 className="text-xl font-black">Zendity People</h2>
@@ -92,7 +92,7 @@ export default function ZenditySandboxPage() {
                         </div>
 
                         {/* Zendity Intake Form (Paso 2) */}
-                        <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 transition-all duration-300 ${step === 2 ? 'border-indigo-500 shadow-indigo-500/20 shadow-xl' : 'border-slate-200 opacity-60'}`}>
+                        <div className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-all duration-300 ${step === 2 ? 'border-indigo-500 shadow-indigo-500/20 shadow-xl' : 'border-slate-200 opacity-60'}`}>
                             <div className="flex items-center gap-3 mb-4">
                                 <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black ${step === 2 ? 'bg-indigo-500 text-white' : 'bg-slate-200 text-slate-500'}`}>2</span>
                                 <h2 className="text-xl font-black">Zendity Intake</h2>
@@ -121,7 +121,7 @@ export default function ZenditySandboxPage() {
                         </div>
 
                         {/* Ejecutar Simulación (Paso 3) */}
-                        <div className={`bg-slate-900 rounded-[2rem] p-6 shadow-xl border-2 transition-all duration-300 ${step === 3 ? 'border-teal-400 scale-105' : 'border-slate-800 opacity-60'}`}>
+                        <div className={`bg-slate-900 rounded-xl p-6 shadow-xl border-2 transition-all duration-300 ${step === 3 ? 'border-teal-400 scale-105' : 'border-slate-800 opacity-60'}`}>
                             <div className="flex items-center gap-3 mb-4 text-white">
                                 <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black ${step === 3 ? 'bg-teal-500' : 'bg-slate-700'}`}>3</span>
                                 <h2 className="text-xl font-black">Orquestar Operación</h2>
@@ -150,7 +150,7 @@ export default function ZenditySandboxPage() {
                     {/* Right Column: AI Results (Paso 4) */}
                     <div className="lg:col-span-2">
                         {step < 4 ? (
-                            <div className="h-full bg-slate-200/50 rounded-[3rem] border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-12 text-center animate-pulse">
+                            <div className="h-full bg-slate-200/50 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-12 text-center animate-pulse">
                                 <span className="text-6xl mb-4 grayscale opacity-50"></span>
                                 <h3 className="text-2xl font-black text-slate-400">Motor AI en Espera</h3>
                                 <p className="text-slate-500 mt-2 max-w-sm">Completa los pasos en el panel izquierdo para simular el procesamiento de un nuevo residente.</p>
@@ -159,7 +159,7 @@ export default function ZenditySandboxPage() {
                             <div className="space-y-6 animate-in slide-in-from-right-8 duration-500">
 
                                 {/* Life Plan Result */}
-                                <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-200 relative overflow-hidden">
+                                <div className="bg-white rounded-xl p-8 shadow-xl border border-slate-200 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-4 border-b border-l border-emerald-100 rounded-bl-3xl bg-emerald-50 text-xs font-black text-emerald-600 uppercase tracking-widest">
                                         Generado en Intake
                                     </div>
@@ -174,7 +174,7 @@ export default function ZenditySandboxPage() {
                                 </div>
 
                                 {/* Zendi Briefing Result */}
-                                <div className="bg-[#1e293b] text-white rounded-[2rem] p-8 shadow-2xl relative overflow-hidden border border-slate-700">
+                                <div className="bg-[#1e293b] text-white rounded-xl p-8 shadow-2xl relative overflow-hidden border border-slate-700">
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px]"></div>
                                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px]"></div>
 

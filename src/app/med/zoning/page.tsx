@@ -111,7 +111,7 @@ export default function NursingZoningPage() {
                     const isOverloaded = group.length > 10;
 
                     return (
-                        <div key={c.key} className={`rounded-[2rem] border-2 shadow-lg overflow-hidden flex flex-col ${c.bg} ${c.border} ${isOverloaded ? 'border-red-500 ring-4 ring-red-500/20' : ''}`}>
+                        <div key={c.key} className={`rounded-xl border-2 shadow-lg overflow-hidden flex flex-col ${c.bg} ${c.border} ${isOverloaded ? 'border-red-500 ring-4 ring-red-500/20' : ''}`}>
                             {/* Resumen de Zona */}
                             <div className="p-5 border-b border-black/5 flex justify-between items-center bg-white/40 backdrop-blur-md">
                                 <h2 className={`text-lg font-black ${c.title}`}>{c.name}</h2>

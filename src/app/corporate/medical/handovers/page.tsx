@@ -220,7 +220,7 @@ export default function HandoversPage() {
 
     return (
         <div className="p-8 space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200/60 mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200/60 mb-8">
                 <div>
                     <h1 className="text-3xl font-black bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent tracking-tight flex items-center gap-3">
                         <ActivitySquare className="w-8 h-8 text-teal-600" />
@@ -242,7 +242,7 @@ export default function HandoversPage() {
             {/* FASE 68: KPI CARDS DIRECTIVAS */}
             {!isLoading && handovers.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4">
-                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-amber-300 transition-colors">
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-amber-300 transition-colors">
                         <div className="flex justify-between items-start">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Pendientes de Firma</h3>
                             <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl"><FileSignature className="w-5 h-5" /></div>
@@ -253,7 +253,7 @@ export default function HandoversPage() {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-rose-300 transition-colors">
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-rose-300 transition-colors">
                         <div className="flex justify-between items-start">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Alertas Críticas Activas</h3>
                             <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl"><AlertOctagon className="w-5 h-5" /></div>
@@ -264,7 +264,7 @@ export default function HandoversPage() {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 hover:border-teal-300 transition-colors">
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-teal-300 transition-colors">
                         <div className="flex justify-between items-start">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Staff Involucrado</h3>
                             <div className="p-2.5 bg-teal-50 text-teal-600 rounded-xl"><Users className="w-5 h-5" /></div>

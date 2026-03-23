@@ -63,7 +63,7 @@ export default function FamilyDashboard() {
             {/* Header / Profile */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 flex items-center sm:items-start gap-6 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden mt-2">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-bl-full -z-0 opacity-50"></div>
-                <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-slate-100 to-slate-200 border-4 border-white shadow-xl shadow-slate-200/50 flex flex-shrink-0 items-center justify-center z-10 relative overflow-hidden">
+                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 border-4 border-white shadow-xl shadow-slate-200/50 flex flex-shrink-0 items-center justify-center z-10 relative overflow-hidden">
                     <FaRegUser className="text-4xl text-slate-400" />
                 </div>
                 <div className="text-left flex-1 z-10">

@@ -122,7 +122,7 @@ export default function TriageDashboardPage() {
                         <h1 className="text-5xl font-black text-slate-900 tracking-tight">Centro de Triage</h1>
                         <p className="text-slate-500 font-medium mt-2 text-lg">Bandeja de Entrada Administrativa (Reportes Diarios de Cuidadores en Tiempo Real)</p>
                     </div>
-                    <div className="bg-white px-8 py-5 rounded-[2rem] shadow-xl border border-slate-100 flex items-center gap-5">
+                    <div className="bg-white px-8 py-5 rounded-xl shadow-xl border border-slate-100 flex items-center gap-5">
                         <div className="w-16 h-16 bg-indigo-50 border-4 border-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-black text-2xl">
                             {tickets.length}
                         </div>
@@ -147,7 +147,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><ExclamationTriangleIcon className="w-7 h-7" /> Alertas Clínicas</h3>
                                 <span className="bg-white text-rose-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{clinicalTickets.length}</span>
                             </div>
-                            {clinicalTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
+                            {clinicalTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {clinicalTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>
@@ -159,7 +159,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><ChatBubbleBottomCenterTextIcon className="w-7 h-7" /> Familiares</h3>
                                 <span className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{complaintTickets.length}</span>
                             </div>
-                            {complaintTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
+                            {complaintTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {complaintTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>
@@ -171,7 +171,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><WrenchScrewdriverIcon className="w-7 h-7" /> Operaciones</h3>
                                 <span className="bg-white text-slate-800 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{maintenanceTickets.length}</span>
                             </div>
-                            {maintenanceTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
+                            {maintenanceTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {maintenanceTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>

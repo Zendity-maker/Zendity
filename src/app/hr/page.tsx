@@ -63,7 +63,7 @@ export default function HRScorecardPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-[1.5rem] shadow-sm border border-slate-200/80 overflow-hidden mt-6">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden mt-6">
         <div className="px-6 py-5 bg-slate-50/50 border-b border-slate-100/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-200 border border-amber-300 shadow-sm flex items-center justify-center text-amber-700">

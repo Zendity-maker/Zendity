@@ -221,10 +221,10 @@ export default function ZendityMedPage() {
             {/* ========================================================= */}
             {activeTab === 'OCR' && (
                 <div className="max-w-3xl mx-auto">
-                    <div className="bg-indigo-900 rounded-[3rem] p-1 shadow-2xl overflow-hidden relative">
+                    <div className="bg-indigo-900 rounded-2xl p-1 shadow-2xl overflow-hidden relative">
                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
 
-                        <div className="bg-white m-1 rounded-[2.5rem] p-10 relative z-10">
+                        <div className="bg-white m-1 rounded-2xl p-10 relative z-10">
 
                             <div className="text-center mb-8">
                                 <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 border-4 border-indigo-100 shadow-inner">
@@ -234,7 +234,7 @@ export default function ZendityMedPage() {
                                 <p className="text-slate-500 font-medium mt-2">Sube una foto de la receta médica. Zendity AI leerá la posología y generará las instrucciones operativas estándar para tu sede.</p>
                             </div>
 
-                            <div className="border-4 border-dashed border-slate-200 rounded-[2rem] p-12 text-center bg-slate-50 hover:bg-slate-100 hover:border-indigo-300 transition-colors cursor-pointer relative group">
+                            <div className="border-4 border-dashed border-slate-200 rounded-xl p-12 text-center bg-slate-50 hover:bg-slate-100 hover:border-indigo-300 transition-colors cursor-pointer relative group">
                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50" onChange={handleOcrUpload} accept="image/*" />
                                 <div className="text-5xl mb-4 group-hover:scale-110 transition-transform"></div>
                                 <p className="font-bold text-slate-700 text-lg">Toca para Tomar Foto a la Receta</p>
@@ -252,7 +252,7 @@ export default function ZendityMedPage() {
                             )}
 
                             {ocrResult && (
-                                <div className="mt-8 bg-slate-900 text-white rounded-[2rem] shadow-xl overflow-hidden animate-in zoom-in-95">
+                                <div className="mt-8 bg-slate-900 text-white rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95">
                                     <div className="p-4 bg-teal-500/20 border-b border-white/10 flex items-center gap-3">
                                         <span className="text-xl"></span>
                                         <h3 className="font-bold text-teal-400 tracking-widest uppercase text-sm">Extracción NLP Completada</h3>
@@ -298,7 +298,7 @@ export default function ZendityMedPage() {
             {/* PESTAÑA 3: CART VALIDATOR (Retén de Turnos)                 */}
             {/* ========================================================= */}
             {activeTab === 'CART' && (
-                <div className="bg-white rounded-[3rem] p-8 shadow-sm border border-slate-200">
+                <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
                     <div className="mb-8">
                         <h2 className="text-2xl font-black text-slate-900">Validación de Carrito de Medicamentos</h2>
                         <p className="text-slate-500 font-medium">Firme electrónicamente los "Platos de Dosis" preparados divididos por Grupo de Color (Balance de Carga) antes de entregar la responsabilidad de los carritos rodantes al personal del piso de Cuidadores del turno entrante.</p>
@@ -346,7 +346,7 @@ export default function ZendityMedPage() {
             {/* ========================================================= */}
             {modalOpen && selectedMed && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-                    <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
                         <h3 className="text-2xl font-black text-slate-900 mb-1">
                             {crudAction === 'MODIFIED' ? 'Modificar Horario' : 'Descontinuar Récord'}
                         </h3>

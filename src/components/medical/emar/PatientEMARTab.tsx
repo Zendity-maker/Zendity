@@ -261,7 +261,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
             {/* Modal de Reasignación Manual de Horarios */}
             {editingMedId && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 leading-relaxed">
+                    <div className="bg-white rounded-xl p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 leading-relaxed">
                         <h3 className="text-2xl font-black text-slate-800 mb-2">Asignar Horarios</h3>
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Define en qué carritos aparecerá este medicamento para las cuidadoras.</p>
 

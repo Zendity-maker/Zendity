@@ -152,7 +152,7 @@ export default function SupervisorDashboardPage() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-8">
-            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-teal-500 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
                 <div className="relative z-10">
                     <h1 className="text-4xl md:text-5xl font-black mb-4 flex items-center gap-4">
@@ -166,7 +166,7 @@ export default function SupervisorDashboardPage() {
             </div>
 
             {/* MISSION MONITOR FASE 30 */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
                         <Activity className="w-8 h-8 text-rose-500 animate-pulse" />
@@ -222,7 +222,7 @@ export default function SupervisorDashboardPage() {
             </div>
 
             {/* BANDEJA DE TRIAJE (QUEJAS) FASE 30 */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
                 <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 mb-6">
                     <Send className="w-7 h-7 text-indigo-500" />
                     Bandeja de Triaje (Ruteo Pendiente)

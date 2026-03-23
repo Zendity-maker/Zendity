@@ -114,18 +114,34 @@ export default function InsightsDashboard() {
     return <Minus className="text-amber-500 w-5 h-5 mx-auto" />;
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
-            <Activity className="w-6 h-6" />
-          </div>
-          <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Compilando Métricas...</p>
-        </div>
-      </div>
-    );
-  }
+    if (loading) {
+        return (
+            <div className="space-y-6 animate-pulse pb-12">
+                {/* Header Skeleton */}
+                <div className="flex justify-between items-end border-b border-slate-100 pb-6">
+                    <div className="space-y-3">
+                        <div className="h-8 w-56 bg-slate-200 rounded-lg"></div>
+                        <div className="h-4 w-72 bg-slate-100 rounded-md"></div>
+                    </div>
+                    <div className="h-10 w-32 bg-slate-200 rounded-xl hidden md:block"></div>
+                </div>
+                {/* Top Metrics Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="h-32 bg-slate-100/80 rounded-[1.5rem] border border-slate-200/60 p-6">
+                            <div className="flex justify-between">
+                                <div className="h-3 w-20 bg-slate-200 rounded-md"></div>
+                                <div className="h-8 w-8 bg-slate-200 rounded-lg"></div>
+                            </div>
+                            <div className="h-10 w-16 bg-slate-200 rounded-xl mt-4"></div>
+                        </div>
+                    ))}
+                </div>
+                {/* Master Chart Skeleton */}
+                <div className="h-96 w-full bg-slate-100/80 rounded-[1.5rem] border border-slate-200/60 p-6"></div>
+            </div>
+        );
+    }
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-[0.99] duration-500 print:m-0 print:p-0 pb-12">
@@ -170,7 +186,7 @@ export default function InsightsDashboard() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-teal-200 transition-colors">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-teal-200 transition-colors">
             <div className="flex justify-between items-start">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Promedio Global</h3>
               <div className="p-2 bg-teal-50 text-teal-600 rounded-lg"><Activity className="w-4 h-4" /></div>
@@ -184,7 +200,7 @@ export default function InsightsDashboard() {
               <span className="text-xs font-bold text-slate-400 uppercase">Pts</span>
             </div>
           </div>
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-indigo-200 transition-colors">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-indigo-200 transition-colors">
             <div className="flex justify-between items-start">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sedes Evaluadas</h3>
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Building className="w-4 h-4" /></div>
@@ -194,7 +210,7 @@ export default function InsightsDashboard() {
               <span className="text-xs font-bold text-slate-400 uppercase">HQs</span>
             </div>
           </div>
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-amber-200 transition-colors">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-amber-200 transition-colors">
             <div className="flex justify-between items-start">
               <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Empleados Auditados</h3>
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Users className="w-4 h-4" /></div>
@@ -207,7 +223,7 @@ export default function InsightsDashboard() {
         </div>
 
         {/* Master Chart - Recharts */}
-        <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
           <div className="mb-8">
             <h3 className="text-xl font-black text-slate-800 tracking-tight">Crecimiento Histórico Comparativo</h3>
             <p className="text-sm text-slate-500 font-medium mt-1">Evaluación de desempeño RRHH mes a mes.</p>
@@ -263,7 +279,7 @@ export default function InsightsDashboard() {
         </div>
 
         {/* Leaderboard y Tendencias */}
-        <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
           <div className="mb-6">
             <h3 className="text-xl font-black text-slate-800 tracking-tight">Leaderboard de Personal & Tendencias</h3>
             <p className="text-sm text-slate-500 font-medium mt-1">Métricas de desempeño clínico y administrativo del mes actual.</p>
@@ -316,7 +332,7 @@ export default function InsightsDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Occupancy Projection */}
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
             <div className="mb-6">
               <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-indigo-600" /> Proyección de Ocupación
@@ -345,7 +361,7 @@ export default function InsightsDashboard() {
           </div>
 
           {/* Clinical Risk Heatmap */}
-          <div className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-200/80">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
             <div className="mb-6 flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">

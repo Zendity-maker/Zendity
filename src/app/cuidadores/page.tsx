@@ -109,7 +109,7 @@ export default function CaregiversLifePlanPage() {
                 )}
 
                 {plans.map((plan) => (
-                    <div key={plan.id} className="bg-white rounded-[1.5rem] border border-slate-200/80 overflow-hidden flex flex-col group hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-teal-200 transition-all duration-300">
+                    <div key={plan.id} className="bg-white rounded-xl border border-slate-200/80 overflow-hidden flex flex-col group hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-teal-200 transition-all duration-300">
 
                         {/* Cabecera / Estatus */}
                         <div className="p-5 flex justify-between items-start border-b border-slate-100/50 bg-slate-50/30">
