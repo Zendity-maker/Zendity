@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+// @ts-ignore
+import pdfParse from 'pdf-parse';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // Allow enough time for parsing large PDFs
@@ -18,12 +20,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Datos de formulario incompletos." }, { status: 400 });
         }
 
-        // Convert file to Buffer for pdf-parse
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-
-        // Importación Dinámica en Tiempo de Ejecución (Evitar crash DOMMatrix en Vercel Build)
-        const pdfParse = require('pdf-parse');
 
         // Extract Text from PDF
         const data = await pdfParse(buffer);
