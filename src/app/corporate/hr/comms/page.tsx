@@ -13,11 +13,11 @@ export default function HRCommsPage() {
     const [errorMsg, setErrorMsg] = useState("");
 
     const ALL_ROLES = [
-        { id: "ALL", label: "Toda la Plantilla (Todos los Empleados)", icon: "🌍" },
-        { id: "NURSE", label: "Solo Enfermeras (LPN/RN)", icon: "🩺" },
-        { id: "CAREGIVER", label: "Solo Cuidadoras", icon: "👩‍⚕️" },
-        { id: "KITCHEN", label: "Solo Cocina y Dietas", icon: "🍳" },
-        { id: "MAINTENANCE", label: "Solo Mantenimiento", icon: "🔧" }
+        { id: "ALL", label: "Toda la Plantilla (Todos los Empleados)", icon: "" },
+        { id: "NURSE", label: "Solo Enfermeras (LPN/RN)", icon: "" },
+        { id: "CAREGIVER", label: "Solo Cuidadoras", icon: "" },
+        { id: "KITCHEN", label: "Solo Cocina y Dietas", icon: "" },
+        { id: "MAINTENANCE", label: "Solo Mantenimiento", icon: "" }
     ];
 
     const handleRoleToggle = (roleId: string) => {
@@ -56,7 +56,7 @@ export default function HRCommsPage() {
 
             const data = await res.json();
             if (data.success) {
-                setSuccessMsg(`✅ ¡Éxito! El Comunicado Oficial fue enviado a ${data.count} empleados de forma segura.`);
+                setSuccessMsg(` ¡Éxito! El Comunicado Oficial fue enviado a ${data.count} empleados de forma segura.`);
                 setSubject("");
                 setHtmlBody("");
                 setSelectedRoles(['ALL']);
@@ -87,7 +87,7 @@ export default function HRCommsPage() {
             const data = await res.json();
             if (data.success && data.formattedText) {
                 setHtmlBody(data.formattedText);
-                setSuccessMsg("✨ Zendi AI ha perfeccionado tu comunicado al formato corporativo.");
+                setSuccessMsg(" Zendi AI ha perfeccionado tu comunicado al formato corporativo.");
                 setTimeout(() => setSuccessMsg(""), 4000);
             } else {
                 setErrorMsg("El asistente inteligente no pudo procesar el borrador.");
@@ -119,7 +119,7 @@ export default function HRCommsPage() {
 
             {errorMsg && (
                 <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-xl shadow-sm animate-in fade-in">
-                    <p className="text-rose-800 font-bold flex items-center gap-2">⚠️ {errorMsg}</p>
+                    <p className="text-rose-800 font-bold flex items-center gap-2"> {errorMsg}</p>
                 </div>
             )}
             {successMsg && (
@@ -133,7 +133,7 @@ export default function HRCommsPage() {
                 <div className="md:col-span-4 space-y-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h2 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                            <span>🎯</span> Destinatarios
+                            <span></span> Destinatarios
                         </h2>
                         <div className="space-y-3">
                             {ALL_ROLES.map(role => (
@@ -148,7 +148,7 @@ export default function HRCommsPage() {
                                 >
                                     <span className="text-xl">{role.icon}</span>
                                     {role.label}
-                                    {selectedRoles.includes(role.id) && <span className="ml-auto text-teal-600">✓</span>}
+                                    {selectedRoles.includes(role.id) && <span className="ml-auto text-teal-600"></span>}
                                 </button>
                             ))}
                         </div>
@@ -157,7 +157,7 @@ export default function HRCommsPage() {
 
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                          <h2 className="text-lg font-black text-slate-800 mb-2 flex items-center gap-2">
-                            <span>🛡️</span> White-Label Security
+                            <span></span> White-Label Security
                         </h2>
                         <p className="text-sm text-slate-500 leading-relaxed">
                             Los comunicados serán procesados integrando automáticamente el escudo oficial y nombre de facturación de esta sede para validación visual de los empleados.
@@ -169,7 +169,7 @@ export default function HRCommsPage() {
                 <div className="md:col-span-8">
                     <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col">
                         <h2 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                            <span>✍️</span> Redactar Memorándum Oficial
+                            <span></span> Redactar Memorándum Oficial
                         </h2>
                         
                         <div className="space-y-6 flex-1 flex flex-col">
@@ -195,7 +195,7 @@ export default function HRCommsPage() {
                                         {isPolishing ? (
                                             <><div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"></div> Pulimentando...</>
                                         ) : (
-                                            <><span>✨</span> Zendi AI Polish (Mejorar Tono)</>
+                                            <><span></span> Zendi AI Polish (Mejorar Tono)</>
                                         )}
                                     </button>
                                 </div>
@@ -222,7 +222,7 @@ export default function HRCommsPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <span>🚀</span>
+                                        <span></span>
                                         <span>Despachar Broadcast Oficial</span>
                                     </>
                                 )}

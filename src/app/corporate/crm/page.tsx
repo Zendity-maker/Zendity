@@ -17,11 +17,11 @@ interface CRMLead {
 }
 
 const STAGES: { key: LeadStage; label: string; icon: string; color: string }[] = [
-    { key: "PROSPECT", label: "Prospecto", icon: "👀", color: "bg-slate-100 border-slate-200" },
-    { key: "TOUR", label: "Tour Programado", icon: "🏛️", color: "bg-blue-50 border-blue-200" },
-    { key: "EVALUATION", label: "Evaluación Médica", icon: "🩺", color: "bg-amber-50 border-amber-200" },
-    { key: "CONTRACT", label: "Contrato", icon: "✍️", color: "bg-indigo-50 border-indigo-200" },
-    { key: "ADMISSION", label: "Admisión Ofical", icon: "🎉", color: "bg-emerald-50 border-emerald-200" },
+    { key: "PROSPECT", label: "Prospecto", icon: "", color: "bg-slate-100 border-slate-200" },
+    { key: "TOUR", label: "Tour Programado", icon: "", color: "bg-blue-50 border-blue-200" },
+    { key: "EVALUATION", label: "Evaluación Médica", icon: "", color: "bg-amber-50 border-amber-200" },
+    { key: "CONTRACT", label: "Contrato", icon: "", color: "bg-indigo-50 border-indigo-200" },
+    { key: "ADMISSION", label: "Admisión Ofical", icon: "", color: "bg-emerald-50 border-emerald-200" },
 ];
 
 export default function CRMDashboardPage() {
@@ -106,7 +106,7 @@ export default function CRMDashboardPage() {
                 alert("Error actualizando lead: " + data.error);
                 setLeads(originalLeads); // Revert on error
             } else if (newStage === "ADMISSION") {
-                alert("🎉 ¡Admisión Exitosa! El expediente clínico ha sido auto-generado. Enfermería ya puede visualizarlo en el sistema.");
+                alert(" ¡Admisión Exitosa! El expediente clínico ha sido auto-generado. Enfermería ya puede visualizarlo en el sistema.");
             }
         } catch (error) {
             console.error("Error updating lead:", error);
@@ -159,7 +159,7 @@ export default function CRMDashboardPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-4 gap-4 flex-shrink-0">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                        <span>🤝</span> Admisiones y CRM
+                        <span></span> Admisiones y CRM
                     </h1>
                     <p className="text-slate-500 text-sm max-w-xl">
                         Acelerador B2B de Admisiones. Arrastre residentes a "Admisión" para auto-generar su Ficha Clínica PAI.
@@ -225,13 +225,13 @@ export default function CRMDashboardPage() {
                                             </div>
 
                                             <div className="text-xs text-slate-500 space-y-1">
-                                                {lead.email && <div className="truncate pointer-events-none">📧 {lead.email}</div>}
-                                                {lead.phone && <div className="pointer-events-none">📞 {lead.phone}</div>}
+                                                {lead.email && <div className="truncate pointer-events-none"> {lead.email}</div>}
+                                                {lead.phone && <div className="pointer-events-none"> {lead.phone}</div>}
                                             </div>
 
                                             {/* Action Hints */}
                                             {stage.key === "PROSPECT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-slate-400 pointer-events-none">→ Programar Tour familiar</div>}
-                                            {stage.key === "EVALUATION" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-amber-600 pointer-events-none">⚠ Recabar Firma Médica</div>}
+                                            {stage.key === "EVALUATION" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-amber-600 pointer-events-none"> Recabar Firma Médica</div>}
                                             {stage.key === "CONTRACT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-center pointer-events-none">¡Listo para Mover a Admisión!</div>}
                                         </div>
                                     ))}
@@ -254,7 +254,7 @@ export default function CRMDashboardPage() {
                         <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
                             <h2 className="text-2xl font-black text-slate-800">Crear Prospecto</h2>
                             <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">
-                                ✕
+                                
                             </button>
                         </div>
 

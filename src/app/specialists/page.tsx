@@ -103,7 +103,7 @@ export default function SpecialistsPortal() {
 
                 {appointments.filter(a => a.status === 'SCHEDULED' || a.status === 'PENDING').length === 0 ? (
                     <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 flex flex-col items-center">
-                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-3xl mb-4">🙌</div>
+                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-3xl mb-4"></div>
                         <h3 className="text-xl font-bold text-slate-800">No hay citas pendientes</h3>
                         <p className="text-slate-500 mt-2">Has completado todos los servicios o no tienes nuevas reservas en esta Clínica.</p>
                     </div>

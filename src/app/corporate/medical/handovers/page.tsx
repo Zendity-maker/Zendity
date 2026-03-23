@@ -389,10 +389,10 @@ export default function HandoversPage() {
                     <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <span className="bg-indigo-100 text-indigo-600 p-2 rounded-xl">✍️</span>
+                                <span className="bg-indigo-100 text-indigo-600 p-2 rounded-xl"></span>
                                 Redactar Relevo de Guardia
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">✕</button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"></button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
@@ -427,7 +427,7 @@ export default function HandoversPage() {
                                                 <svg className="animate-spin h-3.5 w-3.5 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                             ) : (
                                                 <>
-                                                    <span className="text-indigo-400 group-hover:text-indigo-300 transition-colors">✨</span> Zendi AI Auto-Completar
+                                                    <span className="text-indigo-400 group-hover:text-indigo-300 transition-colors"></span> Zendi AI Auto-Completar
                                                 </>
                                             )}
                                         </button>
@@ -438,7 +438,7 @@ export default function HandoversPage() {
                                 <div className="space-y-4">
                                     {formNotes.map((note, idx) => (
                                         <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 grid gap-3 relative">
-                                            <button onClick={() => setFormNotes(formNotes.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-rose-400 hover:text-rose-600">✕</button>
+                                            <button onClick={() => setFormNotes(formNotes.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-rose-400 hover:text-rose-600"></button>
                                             <select
                                                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-medium pr-8"
                                                 value={note.patientId}
@@ -475,7 +475,7 @@ export default function HandoversPage() {
                                                         setFormNotes(newNotes);
                                                     }}
                                                 />
-                                                Marcar como Riesgo Crítico 🚨
+                                                Marcar como Riesgo Crítico 
                                             </label>
                                         </div>
                                     ))}

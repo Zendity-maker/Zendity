@@ -33,13 +33,13 @@ export async function POST(req: Request) {
         }
 
         // Determinar Prefix Visual
-        let prefix = "😴 [RONDA NOCTURNA] Durmiendo";
+        let prefix = " [RONDA NOCTURNA] Durmiendo";
         let isClinicalAlert = false;
 
         if (status === 'AWAKE') {
-            prefix = "👁️ [RONDA NOCTURNA] Despierto";
+            prefix = " [RONDA NOCTURNA] Despierto";
         } else if (status === 'ANOMALY') {
-            prefix = "⚠️ [RONDA NOCTURNA] ANOMALÍA";
+            prefix = " [RONDA NOCTURNA] ANOMALÍA";
             isClinicalAlert = true;
         }
 

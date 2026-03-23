@@ -126,9 +126,9 @@ export default function ZendityMedPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(`✅ ` + data.message);
+                alert(` ` + data.message);
             } else {
-                alert(`⚠️ ` + data.error);
+                alert(` ` + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -153,7 +153,7 @@ export default function ZendityMedPage() {
             <div className="flex justify-between items-center border-b border-slate-200 pb-6">
                 <div>
                     <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
-                        💊 Zendity Med <span className="text-base text-teal-600 font-bold bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest border border-teal-100">Inteligencia Clínica</span>
+                         Zendity Med <span className="text-base text-teal-600 font-bold bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest border border-teal-100">Inteligencia Clínica</span>
                     </h1>
                     <p className="text-slate-500 mt-2 max-w-2xl font-medium">Gestión del Historial de Vida de Fármacos, Cumplimiento de Auditoría HIPAA y Panel de Preparación de Retén para Cuidadores por Grupo de Color.</p>
                 </div>
@@ -162,11 +162,11 @@ export default function ZendityMedPage() {
                 <div className="flex bg-slate-200 p-1.5 rounded-2xl shadow-inner gap-1">
                     <button onClick={() => setActiveTab('MAR')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'MAR' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>e-MAR Central</button>
                     <button onClick={() => setActiveTab('OCR')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'OCR' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
-                        ✨ Escáner OCR
+                         Escáner OCR
                     </button>
                     <button onClick={() => setActiveTab('CART')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'CART' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Validar Carrito (Turnos)</button>
                     <a href="/med/briefing" className="px-6 py-2.5 rounded-xl font-black text-sm text-indigo-700 bg-indigo-100 hover:bg-indigo-200 border border-indigo-200 shadow-sm transition-all flex items-center gap-2 ml-4">
-                        <span className="text-xl">🖨️</span> Prep. Visita Médica
+                        <span className="text-xl"></span> Prep. Visita Médica
                     </a>
                     <TaskAssignmentButton user={user} buttonStyle="px-6 py-2.5 rounded-xl font-black text-sm text-white bg-teal-600 hover:bg-teal-700 shadow-sm transition-all flex items-center gap-2 border border-teal-500 ml-2" />
                 </div>
@@ -228,7 +228,7 @@ export default function ZendityMedPage() {
 
                             <div className="text-center mb-8">
                                 <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 border-4 border-indigo-100 shadow-inner">
-                                    👁️
+                                    
                                 </div>
                                 <h2 className="text-3xl font-black text-slate-800">Cero Papel Médico</h2>
                                 <p className="text-slate-500 font-medium mt-2">Sube una foto de la receta médica. Zendity AI leerá la posología y generará las instrucciones operativas estándar para tu sede.</p>
@@ -236,7 +236,7 @@ export default function ZendityMedPage() {
 
                             <div className="border-4 border-dashed border-slate-200 rounded-[2rem] p-12 text-center bg-slate-50 hover:bg-slate-100 hover:border-indigo-300 transition-colors cursor-pointer relative group">
                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50" onChange={handleOcrUpload} accept="image/*" />
-                                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">📸</div>
+                                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform"></div>
                                 <p className="font-bold text-slate-700 text-lg">Toca para Tomar Foto a la Receta</p>
                                 <p className="text-sm font-medium text-slate-400 mt-1">Soporta prescripciones a mano alzada o impresas.</p>
                             </div>
@@ -254,7 +254,7 @@ export default function ZendityMedPage() {
                             {ocrResult && (
                                 <div className="mt-8 bg-slate-900 text-white rounded-[2rem] shadow-xl overflow-hidden animate-in zoom-in-95">
                                     <div className="p-4 bg-teal-500/20 border-b border-white/10 flex items-center gap-3">
-                                        <span className="text-xl">✨</span>
+                                        <span className="text-xl"></span>
                                         <h3 className="font-bold text-teal-400 tracking-widest uppercase text-sm">Extracción NLP Completada</h3>
                                     </div>
                                     <div className="p-6 space-y-6">
@@ -277,7 +277,7 @@ export default function ZendityMedPage() {
                                         </div>
 
                                         <div className="pt-4 border-t border-white/10">
-                                            <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-2">⚠️ Instrucción Traducida para Cuidadores (Piso)</p>
+                                            <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-2"> Instrucción Traducida para Cuidadores (Piso)</p>
                                             <p className="text-lg font-medium leading-relaxed bg-amber-500/10 p-4 border border-amber-500/20 rounded-xl text-amber-100">
                                                 {ocrResult.instructions}
                                             </p>
@@ -313,7 +313,7 @@ export default function ZendityMedPage() {
                                 <div key={color} className={`rounded-3xl border-2 p-5 flex flex-col justify-between ${colorMapping[color]}`}>
                                     <div>
                                         <h3 className="font-black text-xl mb-1">Coche {color}</h3>
-                                        <p className="text-sm font-bold opacity-80 mb-6">{inZone.length} Residentes • {medCount} Dosis Previstas</p>
+                                        <p className="text-sm font-bold opacity-80 mb-6">{inZone.length} Residentes  {medCount} Dosis Previstas</p>
 
                                         <div className="space-y-2 mb-6">
                                             <div className="flex items-center gap-2 text-sm font-medium">
@@ -361,7 +361,7 @@ export default function ZendityMedPage() {
                             )}
 
                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                <label className="block text-sm font-bold text-amber-900 mb-1 flex items-center gap-2"><span>⚠️</span> Razón Obligatoria (HIPAA)</label>
+                                <label className="block text-sm font-bold text-amber-900 mb-1 flex items-center gap-2"><span></span> Razón Obligatoria (HIPAA)</label>
                                 <textarea value={crudReason} onChange={e => setCrudReason(e.target.value)} placeholder="Ej. Por orden médica verbal de Dr. Smith al teléfono 8:00pm." className="w-full p-2 bg-white/50 border border-amber-200 focus:border-amber-400 rounded-lg text-sm font-medium text-amber-900 min-h-[80px]"></textarea>
                             </div>
                         </div>

@@ -119,7 +119,7 @@ export default function ShiftSchedulerPage() {
     };
 
     const handleAIGenerate = async () => {
-        if (!confirm(`⚠️ ¿Estás seguro? Esto usará Inteligencia Artificial para sobreescribir los turnos de la semana mostrada.\n\nReglas a aplicar:\n- MORNING (AM): ${aiRuleAM}\n- EVENING (PM): ${aiRulePM}\n- NIGHT (Noche): ${aiRuleNight}\n\nLos turnos actuales se borrarán y se respetarán los días libres fijos del personal.`)) return;
+        if (!confirm(` ¿Estás seguro? Esto usará Inteligencia Artificial para sobreescribir los turnos de la semana mostrada.\n\nReglas a aplicar:\n- MORNING (AM): ${aiRuleAM}\n- EVENING (PM): ${aiRulePM}\n- NIGHT (Noche): ${aiRuleNight}\n\nLos turnos actuales se borrarán y se respetarán los días libres fijos del personal.`)) return;
         
         setIsGeneratingAI(true);
         try {
@@ -140,7 +140,7 @@ export default function ShiftSchedulerPage() {
 
             const data = await res.json();
             if (res.ok) {
-                alert(`✨ ¡Zendi AI generó y organizó ${data.count} turnos equitativamente para esta semana! Revisa el tablero.`);
+                alert(` ¡Zendi AI generó y organizó ${data.count} turnos equitativamente para esta semana! Revisa el tablero.`);
                 fetchData();
             } else {
                 alert("Error generando horario: " + data.error);
@@ -154,7 +154,7 @@ export default function ShiftSchedulerPage() {
     };
 
     const handlePublishPDF = async () => {
-        if (!confirm("📩 ¿Deseas aprobar este roster y enviarlo en PDF por correo a todos los empleados activos de la sede?")) return;
+        if (!confirm(" ¿Deseas aprobar este roster y enviarlo en PDF por correo a todos los empleados activos de la sede?")) return;
         setIsPublishing(true);
 
         try {
@@ -185,7 +185,7 @@ export default function ShiftSchedulerPage() {
 
             const data = await res.json();
             if (res.ok) {
-                alert(`✅ Roster aprobado. PDF generado y enviado a ${data.count} empleados activos.`);
+                alert(` Roster aprobado. PDF generado y enviado a ${data.count} empleados activos.`);
             } else {
                 alert("Error técnico en envío: " + data.error);
             }
@@ -345,7 +345,7 @@ export default function ShiftSchedulerPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100 gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                        <span>🗓️</span> Gestor de Turnos (Scheduler)
+                        <span></span> Gestor de Turnos (Scheduler)
                     </h1>
                     <p className="text-slate-500 text-sm">
                         Asigna de manera rápida los turnos pre-definidos que interactúan con el sistema de Handovers Clínicos.
@@ -362,7 +362,7 @@ export default function ShiftSchedulerPage() {
 
             <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex flex-wrap items-center gap-4">
-                    <span className="font-bold border-r pr-4 text-slate-700">⚙️ Motor Ocupacional AI</span>
+                    <span className="font-bold border-r pr-4 text-slate-700"> Motor Ocupacional AI</span>
                     <label className="text-sm font-medium flex items-center gap-2">AM (6a-2p): <input type="number" value={aiRuleAM} onChange={e => setAiRuleAM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
                     <label className="text-sm font-medium flex items-center gap-2">PM (2p-10p): <input type="number" value={aiRulePM} onChange={e => setAiRulePM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
                     <label className="text-sm font-medium flex items-center gap-2">Noche (10p-6a): <input type="number" value={aiRuleNight} onChange={e => setAiRuleNight(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
@@ -374,14 +374,14 @@ export default function ShiftSchedulerPage() {
                         disabled={isGeneratingAI || employees.length === 0}
                         className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
                     >
-                        {isGeneratingAI ? <span className="animate-pulse">✨ Generando...</span> : <>✨ Automatizar con IA</>}
+                        {isGeneratingAI ? <span className="animate-pulse"> Generando...</span> : <> Automatizar con IA</>}
                     </button>
                     <button
                         onClick={handlePublishPDF}
                         disabled={isPublishing || shifts.length === 0}
                         className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
                     >
-                        {isPublishing ? <span className="animate-pulse">📩 Enviando...</span> : <>📩 Aprobar y Enviar (PDF)</>}
+                        {isPublishing ? <span className="animate-pulse"> Enviando...</span> : <> Aprobar y Enviar (PDF)</>}
                     </button>
                 </div>
             </div>
@@ -396,7 +396,7 @@ export default function ShiftSchedulerPage() {
                     {/* Panel de Asignación Manual */}
                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                         <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2 uppercase tracking-widest">
-                            <span>⚡</span> Asignación Manual
+                            <span></span> Asignación Manual
                         </h3>
                         <form onSubmit={handleAssignShift} className="space-y-4">
                             <div>
@@ -433,7 +433,7 @@ export default function ShiftSchedulerPage() {
                                             className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${color.bgClass} ${color.borderClass} ${selectedZone === color.id ? 'ring-2 ring-offset-2 ring-slate-800 scale-110' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
                                             title={`Zona ${color.label}`}
                                         >
-                                            {selectedZone === color.id && <span className="text-white text-[10px] font-black">✓</span>}
+                                            {selectedZone === color.id && <span className="text-white text-[10px] font-black"></span>}
                                         </button>
                                     ))}
                                 </div>
@@ -518,7 +518,7 @@ export default function ShiftSchedulerPage() {
                                                                             className="absolute -top-2 -right-2 bg-rose-500 text-white w-5 h-5 rounded-full opacity-0 group-hover/shift:opacity-100 transition-opacity shadow-sm flex items-center justify-center font-black z-20"
                                                                             title="Remover Turno"
                                                                         >
-                                                                            ✕
+                                                                            
                                                                         </button>
                                                                     </div>
                                                                 );
@@ -539,7 +539,7 @@ export default function ShiftSchedulerPage() {
                                                                 <div className="absolute top-0 left-0 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 p-3 transform translate-x-4 translate-y-4">
                                                                     <div className="flex justify-between items-center mb-3">
                                                                         <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Nuevo Turno</span>
-                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-400 hover:text-rose-500 transition-colors">✕</button>
+                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-400 hover:text-rose-500 transition-colors"></button>
                                                                     </div>
 
                                                                     {isSavingGrid ? (

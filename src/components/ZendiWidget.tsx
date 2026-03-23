@@ -37,11 +37,11 @@ export default function ZendiWidget() {
             recognition.onerror = (event: any) => {
                 console.error("Speech Recognition Error:", event.error);
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    setResponseMsg("⚠️ Necesito permiso de micrófono para escucharte.");
+                    setResponseMsg(" Necesito permiso de micrófono para escucharte.");
                 } else if (event.error === 'network') {
-                    setResponseMsg("⚠️ Error de red. Revisa tu conexión.");
+                    setResponseMsg(" Error de red. Revisa tu conexión.");
                 } else {
-                    setResponseMsg("⚠️ No te escuché bien. ¿Puedes repetir?");
+                    setResponseMsg(" No te escuché bien. ¿Puedes repetir?");
                 }
                 setIsListening(false);
             };
@@ -140,7 +140,7 @@ export default function ZendiWidget() {
                             <div className={`w-3 h-3 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : (isSpeaking ? 'bg-teal-400 animate-pulse' : 'bg-slate-600')}`}></div>
                             <h3 className="font-black text-white text-sm tracking-widest uppercase">ZENDI AI</h3>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white font-bold opacity-50">✕</button>
+                        <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white font-bold opacity-50"></button>
                     </div>
 
                     <div className="p-5 space-y-4 min-h-[150px] max-h-[300px] overflow-y-auto">
@@ -187,7 +187,7 @@ export default function ZendiWidget() {
                 >
                     {/* Orbe Zendi */}
                     <div className={`absolute w-8 h-8 rounded-full blur-md opacity-60 transition-colors ${isSpeaking ? 'bg-teal-400 animate-ping' : 'bg-indigo-500 group-hover:bg-teal-400'}`}></div>
-                    <span className="relative text-2xl drop-shadow-lg">✨</span>
+                    <span className="relative text-2xl drop-shadow-lg"></span>
 
                     {/* Badge Tooltip */}
                     <div className="absolute right-20 bg-black text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">

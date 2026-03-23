@@ -120,7 +120,7 @@ async function createGoogleCalendarEvent(prospectName: string, phone: string, ra
         const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Tour de 1 hora
 
         const event = {
-            summary: `🏢 Zendi Tour Admisiones: ${prospectName}`,
+            summary: ` Zendi Tour Admisiones: ${prospectName}`,
             description: `Residente Referido Telefónico.\nContacto: ${phone}\nExtraído por IA: ${rawDate}`,
             start: { dateTime: startDate.toISOString(), timeZone: 'America/Puerto_Rico' },
             end: { dateTime: endDate.toISOString(), timeZone: 'America/Puerto_Rico' },
@@ -134,7 +134,7 @@ async function createGoogleCalendarEvent(prospectName: string, phone: string, ra
             requestBody: event,
         });
 
-        console.log(`[Google Calendar] ✅ Cita Reservada en Calendario: ${response.data.htmlLink}`);
+        console.log(`[Google Calendar]  Cita Reservada en Calendario: ${response.data.htmlLink}`);
         return response.data.htmlLink;
     } catch (e: any) {
         console.error("[Google Calendar] Error Insertando Bloque (Credenciales Ausentes):", e.message);

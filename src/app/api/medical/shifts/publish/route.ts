@@ -54,7 +54,7 @@ export async function POST(req: Request) {
                 email: senderEmail,
                 name: 'Zendity RH System'
             },
-            subject: `🩺 Tu Horario Semanal Zendity (${weekLabel})`,
+            subject: ` Tu Horario Semanal Zendity (${weekLabel})`,
             html: `
                 <div style="font-family: sans-serif; color: #334155; padding: 20px;">
                     <h2 style="color: #0f766e;">Horario Clínico Semanal</h2>

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
                 return NextResponse.json({ 
                     success: true, 
                     criticalAlert: true, 
-                    message: `🚨 ${criticalMessage} Zendity colocó al residente bajo protocolo de observación. Se agendó una revisión mandatoria en 45 minutos. Por favor, documente la incidencia.` 
+                    message: ` ${criticalMessage} Zendity colocó al residente bajo protocolo de observación. Se agendó una revisión mandatoria en 45 minutos. Por favor, documente la incidencia.` 
                 });
             }
         } else if (type === 'LOG') {

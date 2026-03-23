@@ -78,7 +78,7 @@ export default function TriageDashboardPage() {
                         <div className="bg-white/80 p-2 rounded-xl shadow-sm backdrop-blur-sm">{icon}</div>
                         <div>
                             <h4 className="font-bold text-slate-800 leading-tight">{ticket.title}</h4>
-                            <p className="text-xs font-black text-slate-500 uppercase mt-0.5">{ticket.patientName} • Cuarto {ticket.roomNumber}</p>
+                            <p className="text-xs font-black text-slate-500 uppercase mt-0.5">{ticket.patientName}  Cuarto {ticket.roomNumber}</p>
                         </div>
                     </div>
                 </div>
@@ -87,7 +87,7 @@ export default function TriageDashboardPage() {
                     "{ticket.description}"
                     {ticket.photoUrl && (
                         <div className="mt-4 border-t border-slate-200/50 pt-4">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2"><span>📷</span> Evidencia Fotográfica Adjunta</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2"><span></span> Evidencia Fotográfica Adjunta</p>
                             <a href={ticket.photoUrl} target="_blank" rel="noopener noreferrer" className="block w-full max-h-48 rounded-xl overflow-hidden shadow-sm hover:shadow-md hover:ring-2 hover:ring-indigo-400 transition-all cursor-zoom-in group">
                                 <img src={ticket.photoUrl} alt="Reporte Evidencia" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             </a>
@@ -147,7 +147,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><ExclamationTriangleIcon className="w-7 h-7" /> Alertas Clínicas</h3>
                                 <span className="bg-white text-rose-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{clinicalTickets.length}</span>
                             </div>
-                            {clinicalTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia ✨</div>}
+                            {clinicalTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {clinicalTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>
@@ -159,7 +159,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><ChatBubbleBottomCenterTextIcon className="w-7 h-7" /> Familiares</h3>
                                 <span className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{complaintTickets.length}</span>
                             </div>
-                            {complaintTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia ✨</div>}
+                            {complaintTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {complaintTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>
@@ -171,7 +171,7 @@ export default function TriageDashboardPage() {
                                 <h3 className="font-black text-xl flex items-center gap-3"><WrenchScrewdriverIcon className="w-7 h-7" /> Operaciones</h3>
                                 <span className="bg-white text-slate-800 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{maintenanceTickets.length}</span>
                             </div>
-                            {maintenanceTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia ✨</div>}
+                            {maintenanceTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-[2rem] text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
                             <div className="space-y-4">
                                 {maintenanceTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
                             </div>

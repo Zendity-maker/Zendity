@@ -75,7 +75,7 @@ export default function SupervisorDashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(`✅ Queja ruteada exitosamente.`);
+                alert(` Queja ruteada exitosamente.`);
                 fetchLiveData(); // Refresh list immediately
             } else {
                 alert("Error de Triaje: " + data.error);
@@ -184,7 +184,7 @@ export default function SupervisorDashboardPage() {
                             <Users className="w-10 h-10 text-indigo-500 mb-2" />
                             <p className="text-4xl font-black text-indigo-900 mb-1">{liveData.activeCaregivers}</p>
                             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Cuidadores Activos</p>
-                            {liveData.activeCaregivers === 0 && <span className="absolute top-2 right-2 text-xl" title="Piso vacío">⚠️</span>}
+                            {liveData.activeCaregivers === 0 && <span className="absolute top-2 right-2 text-xl" title="Piso vacío"></span>}
                         </div>
                         {/* KPI 2: Baths */}
                         <div className="bg-sky-50 p-6 rounded-3xl border border-sky-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-sky-200">
@@ -235,8 +235,8 @@ export default function SupervisorDashboardPage() {
                                     <div className="pr-4">
                                         <p className="font-black text-slate-800 text-lg mb-1 leading-tight">{complaint.subject}</p>
                                         <p className="text-xs font-bold text-slate-500 flex flex-col gap-1 mt-2">
-                                            <span>👤 Familiar: {complaint.familyMemberName}</span>
-                                            <span>🛏️ Px: {complaint.patient?.name || 'General'}</span>
+                                            <span> Familiar: {complaint.familyMemberName}</span>
+                                            <span> Px: {complaint.patient?.name || 'General'}</span>
                                         </p>
                                     </div>
                                     <span className="bg-amber-100 text-amber-700 font-black px-3 py-1 rounded-full text-xs shrink-0">PENDIENTE</span>

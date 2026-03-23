@@ -96,7 +96,7 @@ export default function ZendityPreingresoPage() {
                                     onClick={() => setFormData({ ...formData, diet: 'Regular' })}
                                     className={`p-5 border rounded-xl cursor-pointer transition-all ${formData.diet === 'Regular' ? 'border-teal-400 bg-teal-50 shadow-md ring-2 ring-teal-100' : 'border-gray-200 bg-white hover:border-teal-300'}`}
                                 >
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-3 shadow-sm ${formData.diet === 'Regular' ? 'bg-white' : 'bg-gray-100'}`}>🍲</div>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-3 shadow-sm ${formData.diet === 'Regular' ? 'bg-white' : 'bg-gray-100'}`}></div>
                                     <h4 className={`font-bold ${formData.diet === 'Regular' ? 'text-teal-900' : 'text-gray-900'}`}>Dieta Regular</h4>
                                     <p className={`text-xs mt-1 ${formData.diet === 'Regular' ? 'text-teal-800' : 'text-gray-500'}`}>Sin restricciones alimentarias detectadas en la importación AI.</p>
                                 </div>
@@ -104,7 +104,7 @@ export default function ZendityPreingresoPage() {
                                     onClick={() => setFormData({ ...formData, diet: 'Blanda' })}
                                     className={`p-5 border rounded-xl cursor-pointer transition-all ${formData.diet === 'Blanda' ? 'border-teal-400 bg-teal-50 shadow-md ring-2 ring-teal-100' : 'border-gray-200 bg-white hover:border-teal-300'}`}
                                 >
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-3 shadow-sm ${formData.diet === 'Blanda' ? 'bg-white' : 'bg-gray-100'}`}>💧</div>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-3 shadow-sm ${formData.diet === 'Blanda' ? 'bg-white' : 'bg-gray-100'}`}></div>
                                     <h4 className={`font-bold ${formData.diet === 'Blanda' ? 'text-teal-900' : 'text-gray-900'}`}>Dieta Blanda/Líquida</h4>
                                     <p className={`text-xs mt-1 ${formData.diet === 'Blanda' ? 'text-teal-800' : 'text-gray-500'}`}>Recomendado para casos de disfagia documentada.</p>
                                 </div>
@@ -115,7 +115,7 @@ export default function ZendityPreingresoPage() {
                     {step === 4 && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 text-center">
                             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4 animate-bounce">
-                                ✅
+                                
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-2">Ingreso Listo para Aprobar</h3>
                             <p className="text-gray-500 max-w-md mx-auto mb-6">El residente está listo para ser ingresado. Se le asignará la habitación recomendada según nivel de AVD.</p>
@@ -134,13 +134,13 @@ export default function ZendityPreingresoPage() {
                             >
                                 {isSigned ? (
                                     <>
-                                        <span className="text-teal-600 text-2xl mb-1">🖋️</span>
+                                        <span className="text-teal-600 text-2xl mb-1"></span>
                                         <p className="text-teal-800 text-sm font-bold">Firma Digital Estampada Correctamente</p>
                                         <p className="text-teal-600/70 text-xs">ID: SIG-849204-TR-AB</p>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="text-gray-400 mb-2 text-2xl">✍️</span>
+                                        <span className="text-gray-400 mb-2 text-2xl"></span>
                                         <p className="text-gray-500 text-sm font-medium">Toque aquí para estampar firma digital del Trabajador Social</p>
                                     </>
                                 )}

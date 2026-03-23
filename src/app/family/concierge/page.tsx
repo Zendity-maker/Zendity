@@ -85,7 +85,7 @@ export default function ConciergePage() {
 
     if (errorMsg) return (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-rose-100 flex flex-col items-center mt-10">
-            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl mb-4 text-rose-500">⚠️</div>
+            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl mb-4 text-rose-500"></div>
             <h3 className="text-xl font-bold text-slate-800">Error al cargar el Marketplace</h3>
             <p className="text-slate-500 mt-2">{errorMsg}</p>
         </div>

@@ -103,7 +103,7 @@ export default function HRScorecardPage() {
                   </td>
                   <td className="px-6 py-4 text-slate-600 font-semibold">{emp.role}</td>
                   <td className="px-6 py-4 text-center text-slate-400 font-medium">
-                    <span className="bg-slate-100 px-3 py-1 rounded-md text-xs border border-slate-200/60">—</span>
+                    <span className="bg-slate-100 px-3 py-1 rounded-md text-xs border border-slate-200/60"></span>
                   </td>
                   <td className="px-6 py-4 text-center">
                     {emp.complianceScore >= 90 ? (

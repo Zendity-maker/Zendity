@@ -27,7 +27,7 @@ export default async function SuperAdminDashboard() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
                     <div>
                         <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
-                            <span className="text-teal-400">⚡️</span> Zendity OS
+                            <span className="text-teal-400"></span> Zendity OS
                             <span className="text-xl font-medium text-slate-500 tracking-normal ml-2">Master Console</span>
                         </h1>
                         <p className="text-slate-400 mt-2">B2B SaaS Multi-Tenant Management</p>
@@ -37,17 +37,17 @@ export default async function SuperAdminDashboard() {
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">🏢</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
                         <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Tenants (HQs)</p>
                         <p className="text-4xl font-black text-white mt-2">{hqs.length}</p>
                     </div>
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">🔐</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
                         <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Active Licenses</p>
                         <p className="text-4xl font-black text-teal-400 mt-2">{hqs.filter(h => h.licenseActive).length}</p>
                     </div>
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">👨‍⚕️</div>
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
                         <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total End-Users</p>
                         <p className="text-4xl font-black text-indigo-400 mt-2">
                             {hqs.reduce((acc, curr) => acc + curr._count.users, 0)}
@@ -59,7 +59,7 @@ export default async function SuperAdminDashboard() {
                 <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
                     <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            🏢 Clientes Institucionales (Asilos)
+                             Clientes Institucionales (Asilos)
                         </h2>
                         {/* Interactive Client Component for the "New HQ" modal */}
                         <CreateHqAction />
@@ -86,10 +86,10 @@ export default async function SuperAdminDashboard() {
                                         <td className="p-4">
                                             <div className="flex gap-3 text-sm">
                                                 <span className="flex items-center gap-1 text-teal-400/80 bg-teal-400/10 px-2 py-0.5 rounded-md">
-                                                    👥 {hq._count.users}
+                                                     {hq._count.users}
                                                 </span>
                                                 <span className="flex items-center gap-1 text-indigo-400/80 bg-indigo-400/10 px-2 py-0.5 rounded-md">
-                                                    🛏️ {hq._count.patients}
+                                                     {hq._count.patients}
                                                 </span>
                                             </div>
                                         </td>
@@ -112,7 +112,7 @@ export default async function SuperAdminDashboard() {
                                         </td>
                                         <td className="p-4 pr-6 text-right">
                                             <Link href={`/superadmin/billing?hqId=${hq.id}`} className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-sm">
-                                                🧾 Ver {hq._count.saasInvoices} Docs
+                                                 Ver {hq._count.saasInvoices} Docs
                                             </Link>
                                         </td>
                                     </tr>

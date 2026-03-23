@@ -97,7 +97,7 @@ export async function PATCH(request: Request) {
                         patientId: appt.patientId,
                         senderType: 'SYSTEM',
                         senderId: 'SYSTEM',
-                        content: `🩺 ¡Excelentes noticias!\n${specName} (${sType}) va en camino a la habitación para comenzar la sesión de ${appt.service.name}.`
+                        content: ` ¡Excelentes noticias!\n${specName} (${sType}) va en camino a la habitación para comenzar la sesión de ${appt.service.name}.`
                     }
                 });
             }

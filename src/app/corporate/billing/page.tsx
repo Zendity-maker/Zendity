@@ -302,7 +302,7 @@ export default function BillingDashboard() {
                                 <FileText className="w-6 h-6 text-emerald-600" />
                                 Emitir Nuevo Recibo
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-2">✕</button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-2"></button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
@@ -375,7 +375,7 @@ export default function BillingDashboard() {
                                                 />
                                             </div>
                                             {items.length > 1 && (
-                                                <button onClick={() => handleRemoveItem(index)} className="p-2 text-rose-400 hover:bg-rose-50 rounded-lg transition-colors">✕</button>
+                                                <button onClick={() => handleRemoveItem(index)} className="p-2 text-rose-400 hover:bg-rose-50 rounded-lg transition-colors"></button>
                                             )}
                                         </div>
                                     ))}
@@ -408,8 +408,8 @@ export default function BillingDashboard() {
                         <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2"><FileText className="w-4 h-4" /> Visor de Recibo PDF</h3>
                             <div className="flex gap-4">
-                                <button className="text-slate-300 hover:text-white font-bold text-sm" onClick={() => window.print()}>🖨️ Imprimir</button>
-                                <button onClick={() => setViewPdfInvoice(null)} className="text-slate-300 hover:text-white font-bold">✕ Cerrar</button>
+                                <button className="text-slate-300 hover:text-white font-bold text-sm" onClick={() => window.print()}> Imprimir</button>
+                                <button onClick={() => setViewPdfInvoice(null)} className="text-slate-300 hover:text-white font-bold"> Cerrar</button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center">

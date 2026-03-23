@@ -55,7 +55,7 @@ export default function CorporateAcademyBuilder() {
 
             const data = await res.json();
             if (data.success) {
-                alert("🎉 ¡Curso generado exitosamente por Zendi AI!");
+                alert(" ¡Curso generado exitosamente por Zendi AI!");
                 setFile(null);
                 setTitle("");
                 setDescription("");
@@ -113,14 +113,14 @@ export default function CorporateAcademyBuilder() {
                         <div className="border-2 border-dashed border-indigo-200 bg-indigo-50 rounded-xl p-6 text-center hover:bg-indigo-100 transition-colors">
                             <input type="file" accept="application/pdf" id="pdfUpload" className="hidden" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} />
                             <label htmlFor="pdfUpload" className="cursor-pointer flex flex-col items-center justify-center">
-                                <span className="text-4xl mb-2">📑</span>
+                                <span className="text-4xl mb-2"></span>
                                 <span className="text-indigo-700 font-bold mb-1">Haz clic para adjuntar PDF</span>
                                 <span className="text-xs text-indigo-500/80 font-medium">{file ? file.name : "Formatos soportados: .pdf (Documentos con texto)"}</span>
                             </label>
                         </div>
                         
                         <button type="submit" disabled={submitting || !file} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:shadow-none transition-all flex justify-center items-center gap-2">
-                            {submitting ? "🤖 Zendi Extrayendo PDFs..." : "Generar Curso Oficial"}
+                            {submitting ? " Zendi Extrayendo PDFs..." : "Generar Curso Oficial"}
                         </button>
                     </form>
                 </div>
@@ -150,10 +150,10 @@ export default function CorporateAcademyBuilder() {
                                         </span>
                                     </div>
                                     <div className="flex gap-4 mt-3 pt-3 border-t border-slate-200">
-                                        <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">⏱️ {course.durationMins}m</span>
-                                        <span className="text-[10px] text-indigo-500 font-bold flex items-center gap-1">✨ +{course.bonusCompliance} Pts</span>
+                                        <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1"> {course.durationMins}m</span>
+                                        <span className="text-[10px] text-indigo-500 font-bold flex items-center gap-1"> +{course.bonusCompliance} Pts</span>
                                         {course.content?.length > 50 && (
-                                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">📄 PDF Extraído</span>
+                                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1"> PDF Extraído</span>
                                         )}
                                     </div>
                                 </div>

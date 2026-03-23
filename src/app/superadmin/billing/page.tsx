@@ -10,7 +10,7 @@ export default function SuperAdminBillingPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
                     <div>
                         <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
-                            <span className="text-teal-400">⚡️</span> Zendity OS
+                            <span className="text-teal-400"></span> Zendity OS
                             <span className="text-xl font-medium text-slate-500 tracking-normal ml-2">SaaS Billing Console</span>
                         </h1>
                         <p className="text-slate-400 mt-2">Gestión Financiera B2B - Recibos por Uso de Plataforma</p>

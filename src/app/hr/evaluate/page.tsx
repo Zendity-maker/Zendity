@@ -153,7 +153,7 @@ export default function HREvaluatePage() {
                     <div className="md:col-span-2">
                         {!selectedEmp ? (
                             <div className="h-full min-h-[400px] border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center text-slate-400 bg-white/50">
-                                <p className="font-medium flex flex-col items-center gap-2"><span>👈</span> Selecciona un empleado del padrón para cargar su rúbrica específica.</p>
+                                <p className="font-medium flex flex-col items-center gap-2"><span></span> Selecciona un empleado del padrón para cargar su rúbrica específica.</p>
                             </div>
                         ) : (
                             <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in zoom-in-95">
@@ -170,7 +170,7 @@ export default function HREvaluatePage() {
                                                     <ShieldAlert className="w-4 h-4" /> Sancionar
                                                 </button>
                                             )}
-                                            <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '⚕️' : selectedEmp.role === 'MAINTENANCE' ? '🔧' : '📋'}</div>
+                                            <div className="text-3xl opacity-80">{selectedEmp.role === 'NURSE' ? '' : selectedEmp.role === 'MAINTENANCE' ? '' : ''}</div>
                                         </div>
                                     </div>
                                 </div>

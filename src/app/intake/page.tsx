@@ -54,7 +54,7 @@ export default function ZendityIntakePage() {
     if (success) {
         return (
             <div className="max-w-2xl mx-auto mt-20 p-10 bg-white rounded-3xl shadow-xl border border-emerald-100 text-center animate-in zoom-in-95 duration-500">
-                <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">✅</div>
+                <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-6"></div>
                 <h2 className="text-3xl font-black text-slate-800 mb-2">Ingreso Procesado Exitosamente</h2>
                 <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
                     El <strong>Motor de Cascada</strong> ha distribuido los datos: El perfil fue creado en la base de datos, los medicamentos se despacharon a <strong>Zendity Med (eMAR)</strong> y la IA generó el borrador del <strong>Life Plan</strong> para Cuidadores.
@@ -71,7 +71,7 @@ export default function ZendityIntakePage() {
         <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="mb-8 border-b-2 border-slate-900 pb-4">
                 <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
-                    <span className="text-teal-600">📥</span> Zendity Intake
+                    <span className="text-teal-600"></span> Zendity Intake
                 </h1>
                 <p className="text-slate-500 mt-2 text-lg font-medium">Unidad Única de Admisiones y Procesamiento de Residentes.</p>
             </div>
@@ -103,10 +103,10 @@ export default function ZendityIntakePage() {
                                     value={colorGroup} onChange={e => setColorGroup(e.target.value)} required
                                 >
                                     <option value="UNASSIGNED">Sin Asignar</option>
-                                    <option value="RED">🔴 Grupo Rojo (Alta Dependencia)</option>
-                                    <option value="YELLOW">🟡 Grupo Amarillo (Cuidados Medios)</option>
-                                    <option value="GREEN">🟢 Grupo Verde (Autónomos)</option>
-                                    <option value="BLUE">🔵 Grupo Azul (Especializados)</option>
+                                    <option value="RED"> Grupo Rojo (Alta Dependencia)</option>
+                                    <option value="YELLOW"> Grupo Amarillo (Cuidados Medios)</option>
+                                    <option value="GREEN"> Grupo Verde (Autónomos)</option>
+                                    <option value="BLUE"> Grupo Azul (Especializados)</option>
                                 </select>
                                 <p className="text-[11px] text-slate-400 mt-1 font-medium">Asigna un color para balancear la carga de los Cuidadores.</p>
                             </div>

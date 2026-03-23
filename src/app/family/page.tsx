@@ -37,7 +37,7 @@ export default function FamilyDashboard() {
 
     if (error || !resident) return (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-3xl mb-4">🏠</div>
+            <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-3xl mb-4"></div>
             <h3 className="text-xl font-bold text-slate-800">Bienvenido al Portal Familiar</h3>
             <p className="text-slate-500 mt-2">{error || "Esta cuenta no tiene residentes asignados. Contacta a Gerencia."}</p>
         </div>
@@ -134,7 +134,7 @@ export default function FamilyDashboard() {
                             <div className="bg-white/20 p-3 rounded-2xl text-white backdrop-blur-md shadow-inner">
                                 <FaNotesMedical className="text-2xl" />
                             </div>
-                            <h3 className="font-black text-2xl text-white tracking-tight">Plan de Vida (LifePlan™)</h3>
+                            <h3 className="font-black text-2xl text-white tracking-tight">Plan de Vida (LifePlan)</h3>
                         </div>
 
                         <div className="bg-teal-900/30 rounded-2xl p-6 backdrop-blur-sm border border-white/10 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">

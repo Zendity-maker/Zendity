@@ -230,11 +230,11 @@ export default function CorporateCalendarPage() {
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1">Categoría</label>
                                     <select value={type} onChange={e => setType(e.target.value)} className="w-full font-bold text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none">
-                                        <option value="LABORATORY">🩸 Laboratorio (Rojo)</option>
-                                        <option value="MEDICAL_VISIT">🩺 Visita Médica (Azul)</option>
-                                        <option value="FAMILY_VISIT">👪 Visita Familiar (Ambar)</option>
-                                        <option value="ACTIVITY">🎨 Recreación (Verde)</option>
-                                        <option value="OTHER">📁 Otro / Administrativo</option>
+                                        <option value="LABORATORY"> Laboratorio (Rojo)</option>
+                                        <option value="MEDICAL_VISIT"> Visita Médica (Azul)</option>
+                                        <option value="FAMILY_VISIT"> Visita Familiar (Ambar)</option>
+                                        <option value="ACTIVITY"> Recreación (Verde)</option>
+                                        <option value="OTHER"> Otro / Administrativo</option>
                                     </select>
                                 </div>
                                 <div>

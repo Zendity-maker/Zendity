@@ -82,7 +82,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
             const data = await res.json();
             if (data.success && data.formattedText) {
                 setMessage(data.formattedText);
-                setStatus({ type: 'success', msg: "✨ Zendi AI ha perfeccionado tu comunicado al formato corporativo y empático." });
+                setStatus({ type: 'success', msg: " Zendi AI ha perfeccionado tu comunicado al formato corporativo y empático." });
             } else {
                 setStatus({ type: 'error', msg: "El asistente inteligente no pudo procesar este borrador." });
             }
@@ -194,7 +194,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                                 disabled={isPolishing || message.trim().length === 0}
                                                 className="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-md text-[9px] shadow-sm disabled:opacity-50 transition-all flex items-center gap-1"
                                             >
-                                                {isPolishing ? 'Pulimentando...' : '✨ Zendi Polish'}
+                                                {isPolishing ? 'Pulimentando...' : ' Zendi Polish'}
                                             </button>
                                         </div>
                                     </div>

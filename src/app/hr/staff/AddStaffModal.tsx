@@ -74,7 +74,7 @@ export default function AddStaffModal() {
                                 onClick={() => setIsOpen(false)}
                                 className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors font-bold"
                             >
-                                ✕
+                                
                             </button>
                         </div>
 
@@ -164,7 +164,7 @@ export default function AddStaffModal() {
                                                 onClick={() => toggleSecondaryRole(r.id)}
                                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${secondaryRoles.includes(r.id) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
                                             >
-                                                {secondaryRoles.includes(r.id) && '✓ '} {r.label}
+                                                {secondaryRoles.includes(r.id) && ' '} {r.label}
                                             </button>
                                         ))}
                                     </div>

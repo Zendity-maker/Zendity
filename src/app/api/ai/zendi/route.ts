@@ -116,7 +116,7 @@ INSTRUCCIONES FINALES:
 
         let errorMessage = "Conexión neuronal caída.";
         if (error?.status === 429) {
-            errorMessage = "⚠️ Tu cuenta de OpenAI se ha quedado sin saldo (Quota Exceeded). Por favor revisa la tarjeta de crédito en tu cuenta Plus.";
+            errorMessage = " Tu cuenta de OpenAI se ha quedado sin saldo (Quota Exceeded). Por favor revisa la tarjeta de crédito en tu cuenta Plus.";
         }
 
         return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });

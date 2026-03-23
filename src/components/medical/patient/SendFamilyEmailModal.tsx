@@ -111,7 +111,7 @@ export default function SendFamilyEmailModal({ familyMembers, defaultMode = 'BRO
             const data = await res.json();
             if (data.success && data.formattedText) {
                 setMessage(data.formattedText);
-                setStatus({ type: 'success', msg: "✨ Zendi AI ha perfeccionado tu comunicado al formato corporativo y empático." });
+                setStatus({ type: 'success', msg: " Zendi AI ha perfeccionado tu comunicado al formato corporativo y empático." });
             } else {
                 setStatus({ type: 'error', msg: "El asistente inteligente no pudo procesar este borrador." });
             }
@@ -215,7 +215,7 @@ export default function SendFamilyEmailModal({ familyMembers, defaultMode = 'BRO
                                                 disabled={isPolishing || message.trim().length === 0}
                                                 className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white px-2 py-0.5 rounded text-[9px] shadow-sm disabled:opacity-50 transition-all flex items-center gap-1"
                                             >
-                                                {isPolishing ? 'Pulimentando...' : '✨ Zendi Polish'}
+                                                {isPolishing ? 'Pulimentando...' : ' Zendi Polish'}
                                             </button>
                                             <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded text-[9px]">Branded Template</span>
                                         </div>
@@ -229,7 +229,7 @@ export default function SendFamilyEmailModal({ familyMembers, defaultMode = 'BRO
                                         disabled={isPolishing}
                                     />
                                 </div>
-                                <p className="text-[11px] text-slate-400 font-medium">✨ El logo de la Sede y los datos corporativos se adjuntarán automáticamente al envío.</p>
+                                <p className="text-[11px] text-slate-400 font-medium"> El logo de la Sede y los datos corporativos se adjuntarán automáticamente al envío.</p>
 
                                 <div className="pt-4 flex justify-end gap-3 mt-8 border-t border-slate-100">
                                     <button

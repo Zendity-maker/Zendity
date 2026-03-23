@@ -105,11 +105,11 @@ export default function ZendityHQPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "ACTIVE":
-                return <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200">✅ Vigente</span>;
+                return <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold border border-emerald-200"> Vigente</span>;
             case "WARNING":
-                return <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-200 animate-pulse">⚠️ Próximo a Vencer (&lt;30 días)</span>;
+                return <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold border border-amber-200 animate-pulse"> Próximo a Vencer (&lt;30 días)</span>;
             case "EXPIRED":
-                return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold border border-red-200">❌ Expirado</span>;
+                return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold border border-red-200"> Expirado</span>;
             default:
                 return <span>{status}</span>;
         }
@@ -124,7 +124,7 @@ export default function ZendityHQPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-                        <span className="text-4xl">🏛️</span> Zendity HQ
+                        <span className="text-4xl"></span> Zendity HQ
                     </h1>
                     <p className="text-slate-500 mt-1 max-w-xl">
                         Bóveda de Cumplimiento Legal y Corporativo. Gestione las licencias del Departamento de la Familia, permisos de bomberos y seguros corporativos.
@@ -182,7 +182,7 @@ export default function ZendityHQPage() {
 
                             {/* Fake File Input UI */}
                             <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 cursor-pointer transition-colors">
-                                <p className="text-2xl mb-1">📄</p>
+                                <p className="text-2xl mb-1"></p>
                                 <p className="text-xs font-bold text-teal-600">Click para adjuntar PDF</p>
                                 <p className="text-[10px] text-slate-400 mt-1">Soporta PDF, JPG (Max 5MB)</p>
                             </div>
@@ -200,7 +200,7 @@ export default function ZendityHQPage() {
                     {/* Branding Panel */}
                     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl">
                         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3 flex items-center gap-2">
-                            🎨 Zendity Branding
+                             Zendity Branding
                         </h2>
                         <div className="space-y-4">
                             <div>
@@ -264,7 +264,7 @@ export default function ZendityHQPage() {
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-3">
                                                         <div className="text-2xl">
-                                                            {doc.type === 'LICENSE' ? '📜' : doc.type === 'INSURANCE' ? '🛡️' : '📁'}
+                                                            {doc.type === 'LICENSE' ? '' : doc.type === 'INSURANCE' ? '' : ''}
                                                         </div>
                                                         <div>
                                                             <p className="font-bold text-slate-800">{doc.name}</p>

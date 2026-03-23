@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 export default function CorporateDashboardPage() {
     const [selectedFacility, setSelectedFacility] = useState("ALL");
-    const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([{ id: "ALL", name: "🌍 Consolidado Global (Todas las Sedes)" }]);
+    const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([{ id: "ALL", name: " Consolidado Global (Todas las Sedes)" }]);
     const [rankingData, setRankingData] = useState<any[]>([]);
     const [kpis, setKpis] = useState({
         activeHqs: 0,
@@ -36,8 +36,8 @@ export default function CorporateDashboardPage() {
 
                 if (data.facilities) {
                     setFacilities([
-                        { id: "ALL", name: "🌍 Consolidado Global (Todas las Sedes)" },
-                        ...data.facilities.map((f: any) => ({ id: f.id, name: `🏥 ${f.name}` }))
+                        { id: "ALL", name: " Consolidado Global (Todas las Sedes)" },
+                        ...data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` }))
                     ]);
                 }
                 if (data.ranking) setRankingData(data.ranking);
@@ -127,7 +127,7 @@ export default function CorporateDashboardPage() {
                         onClick={() => { setShowInbox(true); setActiveThread(null); }}
                         className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
                     >
-                        <span>📨</span> Chats Familiares
+                        <span></span> Chats Familiares
                         {inboxThreads.some(t => t.unreadCount > 0) && (
                             <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
                                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
@@ -150,10 +150,10 @@ export default function CorporateDashboardPage() {
             {/* 2. Top-Level KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Sedes Activas", value: kpis.activeHqs.toString(), sub: `Capacidad Total: ${kpis.totalCapacity} camas`, icon: "🏢", color: "bg-blue-50 text-blue-700 border-blue-100" },
-                    { label: "Residentes Actuales", value: kpis.totalPatients.toString(), sub: `${kpis.totalCapacity > 0 ? Math.round((kpis.totalPatients / kpis.totalCapacity) * 100) : 0}% Ocupación`, icon: "👥", color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
-                    { label: "Incidentes Críticos", value: kpis.totalCriticalIncidents.toString(), sub: "Consolidado total", icon: "⚠️", color: "bg-red-50 text-red-700 border-red-100" },
-                    { label: "Cumplimiento Salud", value: `${kpis.globalMedCompliance}%`, sub: "Global eMAR", icon: "⚕️", color: "bg-purple-50 text-purple-700 border-purple-100" }
+                    { label: "Sedes Activas", value: kpis.activeHqs.toString(), sub: `Capacidad Total: ${kpis.totalCapacity} camas`, icon: "", color: "bg-blue-50 text-blue-700 border-blue-100" },
+                    { label: "Residentes Actuales", value: kpis.totalPatients.toString(), sub: `${kpis.totalCapacity > 0 ? Math.round((kpis.totalPatients / kpis.totalCapacity) * 100) : 0}% Ocupación`, icon: "", color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+                    { label: "Incidentes Críticos", value: kpis.totalCriticalIncidents.toString(), sub: "Consolidado total", icon: "", color: "bg-red-50 text-red-700 border-red-100" },
+                    { label: "Cumplimiento Salud", value: `${kpis.globalMedCompliance}%`, sub: "Global eMAR", icon: "", color: "bg-purple-50 text-purple-700 border-purple-100" }
                 ].map((kpi, i) => (
                     <div key={i} className={`rounded-2xl p-5 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
                         <div className="flex justify-between items-start">
@@ -174,7 +174,7 @@ export default function CorporateDashboardPage() {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                🏆 Ranking de Desempeño por Sede
+                                 Ranking de Desempeño por Sede
                             </h3>
                             <span className="text-xs font-semibold bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md">Tiempo Real</span>
                         </div>
@@ -204,7 +204,7 @@ export default function CorporateDashboardPage() {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex items-center justify-center gap-1">
-                                                    <span className="text-amber-400 text-base">★</span>
+                                                    <span className="text-amber-400 text-base"></span>
                                                     <span className="font-bold text-slate-700">{row.famSatisfaction}%</span>
                                                 </div>
                                             </td>
@@ -230,9 +230,9 @@ export default function CorporateDashboardPage() {
                         <h3 className="text-lg font-bold text-slate-800 mb-4">Módulos Corporativos</h3>
                         <div className="space-y-3">
                             {[
-                                { title: 'Portal de Familiares', desc: 'Gestionar diarios y encuestas.', icon: '👨‍👩‍👧‍👦', active: true, href: '/family' },
-                                { title: 'Evaluaciones RRHH', desc: 'Scorecard de empleados.', icon: '📋', active: true, href: '/hr' },
-                                { title: 'Auditorías Dept. Familia', desc: 'Reportes regulatorios PR.', icon: '⚖️', active: true, href: '/corporate/hq' }
+                                { title: 'Portal de Familiares', desc: 'Gestionar diarios y encuestas.', icon: '', active: true, href: '/family' },
+                                { title: 'Evaluaciones RRHH', desc: 'Scorecard de empleados.', icon: '', active: true, href: '/hr' },
+                                { title: 'Auditorías Dept. Familia', desc: 'Reportes regulatorios PR.', icon: '', active: true, href: '/corporate/hq' }
                             ].map((mod, i) => (
                                 <Link href={mod.href} key={i} className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer ${mod.active ? 'border-slate-200 hover:border-teal-400 hover:shadow-sm bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
                                     <div className="text-2xl mr-3">{mod.icon}</div>
@@ -240,7 +240,7 @@ export default function CorporateDashboardPage() {
                                         <h4 className="text-sm font-bold text-slate-800">{mod.title}</h4>
                                         <p className="text-xs text-slate-500">{mod.desc}</p>
                                     </div>
-                                    <div className="text-slate-300">›</div>
+                                    <div className="text-slate-300"></div>
                                 </Link>
                             ))}
                         </div>
@@ -253,20 +253,20 @@ export default function CorporateDashboardPage() {
                 <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
                     <div className="bg-white rounded-[3rem] p-8 w-full max-w-lg shadow-2xl relative">
                         <button onClick={() => setShowInbox(false)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold">X</button>
-                        <h3 className="text-3xl font-black text-slate-900 mb-6 flex items-center gap-3">📨 Centro de Mensajes</h3>
+                        <h3 className="text-3xl font-black text-slate-900 mb-6 flex items-center gap-3"> Centro de Mensajes</h3>
 
                         <div className="flex flex-col h-[600px] -mt-4">
                             {!activeThread ? (
                                 <div className="flex-1 overflow-y-auto pr-2 space-y-3">
                                     <p className="text-sm font-bold text-slate-400 mb-4 px-1">Consultas y Requerimientos de Familiares</p>
                                     {inboxThreads.length === 0 ? (
-                                        <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">Sin mensajes hoy. 😊</div>
+                                        <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">Sin mensajes hoy. </div>
                                     ) : (
                                         inboxThreads.map((thread: any, idx) => (
                                             <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                                                 <div>
                                                     <h4 className="font-black text-slate-800 text-lg group-hover:text-teal-600">{thread.patient.name}</h4>
-                                                    <p className="text-xs text-slate-400 font-bold uppercase">Cuarto {thread.patient.room} • {thread.messages.length} Mensajes Totales</p>
+                                                    <p className="text-xs text-slate-400 font-bold uppercase">Cuarto {thread.patient.room}  {thread.messages.length} Mensajes Totales</p>
                                                 </div>
                                                 {thread.unreadCount > 0 && (
                                                     <span className="bg-rose-500 text-white font-black text-sm px-3 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
@@ -290,7 +290,7 @@ export default function CorporateDashboardPage() {
                                                 <div key={msg.id} className={`max-w-[85%] p-4 rounded-2xl ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-none shadow-md' : 'bg-white border border-slate-200 text-slate-800 self-start rounded-bl-none shadow-sm'}`}>
                                                     <p className="text-sm font-medium">{msg.content}</p>
                                                     <div className={`text-[10px] mt-2 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
-                                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {isStaff && '✓'}
+                                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {isStaff && ''}
                                                     </div>
                                                 </div>
                                             );

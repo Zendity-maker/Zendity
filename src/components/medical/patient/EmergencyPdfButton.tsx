@@ -93,7 +93,7 @@ export default function EmergencyPdfButton({ patientId, className, children }: E
                         {isExporting ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                         ) : (
-                            <span className="text-xl">🖨️</span>
+                            <span className="text-xl"></span>
                         )}
                         {isExporting ? 'Procesando...' : 'Imprimir Dossier PDF'}
                     </>
@@ -166,7 +166,7 @@ export default function EmergencyPdfButton({ patientId, className, children }: E
                         {intake?.diagnoses ? (
                             <div className="text-base leading-relaxed font-medium" style={{ color: '#334155' }}>
                                 {intake.diagnoses.split('\n').map((line: string, i: number) => (
-                                    <p key={i} className="mb-2">✓ {line.replace(/^- /, '')}</p>
+                                    <p key={i} className="mb-2"> {line.replace(/^- /, '')}</p>
                                 ))}
                             </div>
                         ) : (

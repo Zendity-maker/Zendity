@@ -89,7 +89,7 @@ export default function ZendiMomentsWidget() {
 
             <div className="bg-white rounded-xl p-5 sm:p-6 relative z-10 flex flex-col items-center text-center">
                 <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-2xl mb-3 shadow-inner">
-                    ✨
+                    
                 </div>
 
                 <h3 className="font-black text-slate-800 text-lg sm:text-xl">Misión Zendi: Actualización Familiar</h3>

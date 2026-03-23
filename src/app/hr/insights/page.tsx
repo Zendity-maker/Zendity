@@ -106,7 +106,7 @@ export default function ZendiInsightsPage() {
                 {insights.length === 0 ? (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-12 text-center">
                         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-4xl">✨</span>
+                            <span className="text-4xl"></span>
                         </div>
                         <h3 className="text-2xl font-black text-emerald-800 mb-2">Operación 100% Saludable</h3>
                         <p className="text-emerald-600 font-medium">Zendi no ha detectado ninguna anomalía disciplinaria o de bajo rendimiento en el panel de control.</p>
@@ -142,7 +142,7 @@ export default function ZendiInsightsPage() {
                                                 {insight.employeeName} <span className="text-indigo-400 font-medium">({insight.employeeRole})</span>
                                             </div>
                                             <div className="flex items-center gap-1 text-slate-500 font-medium">
-                                                <span>⏱️</span> Generado: {new Date(insight.timestamp).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                <span></span> Generado: {new Date(insight.timestamp).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </div>
                                     </div>

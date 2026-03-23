@@ -379,7 +379,7 @@ export default function InsightsDashboard() {
               ))}
               {clinicalRisk.length === 0 && (
                 <div className="col-span-2 text-center py-10 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 border-dashed rounded-xl">
-                  ✓ Riesgo Cero Reportado Globalmente
+                   Riesgo Cero Reportado Globalmente
                 </div>
               )}
             </div>
@@ -418,7 +418,7 @@ export default function InsightsDashboard() {
                   {inboxThreads.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 font-bold flex flex-col items-center gap-3">
                       <MessageSquare className="w-8 h-8 opacity-40" />
-                      <span>Sin mensajes hoy. 😊</span>
+                      <span>Sin mensajes hoy. </span>
                     </div>
                   ) : (
                     inboxThreads.map((thread: any, idx) => (

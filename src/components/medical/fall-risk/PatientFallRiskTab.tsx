@@ -72,7 +72,7 @@ export default function PatientFallRiskTab() {
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <h3 className="font-bold text-slate-800">Evaluación Paramétrica (Morse)</h3>
-                                                <p className="text-xs text-slate-500 mt-0.5">{entry.date} • <span className="text-indigo-600">{entry.nurse}</span></p>
+                                                <p className="text-xs text-slate-500 mt-0.5">{entry.date}  <span className="text-indigo-600">{entry.nurse}</span></p>
                                             </div>
                                             <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider 
                                                 ${entry.riskLevel === 'HIGH' ? 'bg-rose-100 text-rose-700' :
@@ -87,7 +87,7 @@ export default function PatientFallRiskTab() {
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <h3 className="font-bold text-rose-800">Incidente Registrado: ¡Caída Fuerte!</h3>
-                                                <p className="text-xs text-rose-600 mt-0.5">{entry.date} • <span className="font-medium underline">{entry.nurse}</span></p>
+                                                <p className="text-xs text-rose-600 mt-0.5">{entry.date}  <span className="font-medium underline">{entry.nurse}</span></p>
                                             </div>
                                             <div className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-200 text-rose-800">
                                                 Lugar: {entry.location}

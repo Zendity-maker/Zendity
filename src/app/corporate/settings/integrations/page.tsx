@@ -104,7 +104,7 @@ export default function SettingsIntegrationsPage() {
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
-                    <span className="text-2xl">🏢</span> Perfil de Sede (White-Label)
+                    <span className="text-2xl"></span> Perfil de Sede (White-Label)
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -132,7 +132,7 @@ export default function SettingsIntegrationsPage() {
 
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-6">
-                    <span className="text-2xl">🔑</span> API Keys de Automatización
+                    <span className="text-2xl"></span> API Keys de Automatización
                 </h2>
                 <div className="space-y-5">
 

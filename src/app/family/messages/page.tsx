@@ -61,7 +61,7 @@ export default function FamilyMessages() {
                 </div>
                 <div>
                     <h2 className="font-bold text-slate-800 text-lg leading-tight">Estación de Enfermería</h2>
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Zendity Family Link™</p>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Zendity Family Link</p>
                 </div>
             </div>
 

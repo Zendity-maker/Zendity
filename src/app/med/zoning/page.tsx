@@ -55,10 +55,10 @@ export default function NursingZoningPage() {
     };
 
     const colors = [
-        { key: "RED", name: "🔴 Grupo Rojo", bg: "bg-red-50", border: "border-red-200", title: "text-red-800" },
-        { key: "YELLOW", name: "🟡 Grupo Amarillo", bg: "bg-yellow-50", border: "border-yellow-200", title: "text-yellow-800" },
-        { key: "GREEN", name: "🟢 Grupo Verde", bg: "bg-emerald-50", border: "border-emerald-200", title: "text-emerald-800" },
-        { key: "BLUE", name: "🔵 Grupo Azul", bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-800" },
+        { key: "RED", name: " Grupo Rojo", bg: "bg-red-50", border: "border-red-200", title: "text-red-800" },
+        { key: "YELLOW", name: " Grupo Amarillo", bg: "bg-yellow-50", border: "border-yellow-200", title: "text-yellow-800" },
+        { key: "GREEN", name: " Grupo Verde", bg: "bg-emerald-50", border: "border-emerald-200", title: "text-emerald-800" },
+        { key: "BLUE", name: " Grupo Azul", bg: "bg-blue-50", border: "border-blue-200", title: "text-blue-800" },
     ];
 
     if (loading) return <div className="p-10 font-bold text-center text-teal-600 animate-pulse">Cargando Panel de Zonificación...</div>;
@@ -69,7 +69,7 @@ export default function NursingZoningPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-6 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-                        <span className="text-4xl">🎛️</span> Panel de Control: Balance de Cargas
+                        <span className="text-4xl"></span> Panel de Control: Balance de Cargas
                     </h1>
                     <p className="text-slate-500 mt-1 max-w-xl">
                         Gestión Centralizada de Zonificación (Color Zoning). Asigne un máximo de 10 residentes por color para garantizar el cumplimiento y bienestar del personal de Piso (Zendity Care).
@@ -84,7 +84,7 @@ export default function NursingZoningPage() {
             {zoning["UNASSIGNED"] && zoning["UNASSIGNED"].length > 0 && (
                 <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl mb-8 flex items-center justify-between animate-pulse">
                     <div>
-                        <h3 className="font-bold text-lg text-amber-400">⚠️ {zoning["UNASSIGNED"].length} Residentes Recientes Sin Asignar</h3>
+                        <h3 className="font-bold text-lg text-amber-400"> {zoning["UNASSIGNED"].length} Residentes Recientes Sin Asignar</h3>
                         <p className="text-sm text-slate-400">Residentes ingeridos desde Intake requieren asignación inmediata de turno.</p>
                     </div>
                     <div>
@@ -96,10 +96,10 @@ export default function NursingZoningPage() {
                             value=""
                         >
                             <option value="" disabled>Selecciona color para el 1ro ({zoning["UNASSIGNED"][0].name})</option>
-                            <option value="RED">🔴 Grupo Rojo</option>
-                            <option value="YELLOW">🟡 Grupo Amarillo</option>
-                            <option value="GREEN">🟢 Grupo Verde</option>
-                            <option value="BLUE">🔵 Grupo Azul</option>
+                            <option value="RED"> Grupo Rojo</option>
+                            <option value="YELLOW"> Grupo Amarillo</option>
+                            <option value="GREEN"> Grupo Verde</option>
+                            <option value="BLUE"> Grupo Azul</option>
                         </select>
                     </div>
                 </div>
@@ -140,10 +140,10 @@ export default function NursingZoningPage() {
                                                         value={c.key}
                                                         onChange={(e) => handleReassign(p.id, e.target.value)}
                                                     >
-                                                        <option value="RED">🔴 ROJO</option>
-                                                        <option value="YELLOW">🟡 AMARILLO</option>
-                                                        <option value="GREEN">🟢 VERDE</option>
-                                                        <option value="BLUE">🔵 AZUL</option>
+                                                        <option value="RED"> ROJO</option>
+                                                        <option value="YELLOW"> AMARILLO</option>
+                                                        <option value="GREEN"> VERDE</option>
+                                                        <option value="BLUE"> AZUL</option>
                                                     </select>
                                                 )}
                                             </div>

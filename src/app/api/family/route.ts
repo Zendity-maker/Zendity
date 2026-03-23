@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
             date: new Date(n.createdAt).toLocaleString('es-PR', { dateStyle: 'medium', timeStyle: 'short' }),
             author: n.author.name,
             content: n.note,
-            icon: "☀️", // Por ahora, estático
+            icon: "", // Por ahora, estático
             color: "bg-teal-50 text-teal-700"
         }));
 

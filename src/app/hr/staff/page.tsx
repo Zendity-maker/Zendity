@@ -177,11 +177,11 @@ export default function ZendityStaffDirectoryPage() {
                                     <td className="px-6 py-4 text-center">
                                         {emp.isShiftBlocked ? (
                                             <span className="bg-rose-100 text-rose-700 px-3 py-1.5 rounded-full text-xs font-black flex items-center justify-center gap-1 w-fit mx-auto border border-rose-200 shadow-sm">
-                                                <span>🔒</span> Turno Suspendido
+                                                <span></span> Turno Suspendido
                                             </span>
                                         ) : (
                                             <span className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-black flex items-center justify-center gap-1 w-fit mx-auto border border-emerald-200 shadow-sm">
-                                                <span>✅</span> Activo
+                                                <span></span> Activo
                                             </span>
                                         )}
                                     </td>
@@ -192,7 +192,7 @@ export default function ZendityStaffDirectoryPage() {
                                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
                                                 title="Ver Perfil"
                                             >
-                                                👁️
+                                                
                                             </button>
                                             {activeTab === 'ACTIVE' ? (
                                                 <>
@@ -201,14 +201,14 @@ export default function ZendityStaffDirectoryPage() {
                                                         className={`p-2 rounded-lg transition-colors shadow-sm border ${emp.isShiftBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}
                                                         title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
                                                     >
-                                                        {emp.isShiftBlocked ? "🔓" : "🛑"}
+                                                        {emp.isShiftBlocked ? "" : ""}
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
                                                         title="Eliminar Empleado Permanentemente"
                                                     >
-                                                        🗑️
+                                                        
                                                     </button>
                                                 </>
                                             ) : (
@@ -216,7 +216,7 @@ export default function ZendityStaffDirectoryPage() {
                                                     onClick={(e) => { e.stopPropagation(); handleRestore(emp.id, emp.name); }}
                                                     className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200 font-bold text-xs px-3"
                                                 >
-                                                    ♻️ Restaurar Empleado
+                                                     Restaurar Empleado
                                                 </button>
                                             )}
                                         </div>

@@ -197,7 +197,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                                         </h4>
                                         <div className="flex items-center gap-3">
                                             <p className="text-sm font-bold text-slate-500 mt-1">
-                                                Dosis: {pm.medication.dosage} • Vía: {pm.medication.route} • Freq: {pm.frequency === 'PRN' ? 'A demanda' : pm.scheduleTimes}
+                                                Dosis: {pm.medication.dosage}  Vía: {pm.medication.route}  Freq: {pm.frequency === 'PRN' ? 'A demanda' : pm.scheduleTimes}
                                             </p>
                                             {pm.prepDuration === '2_SEMANAS' && (
                                                 <span className="text-[10px] mt-1 bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded uppercase tracking-widest border border-violet-200">Carrito 14 Días</span>
@@ -266,7 +266,7 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Define en qué carritos aparecerá este medicamento para las cuidadoras.</p>
 
                         <div className="mb-6 p-4 bg-teal-50 border border-teal-100 rounded-xl">
-                            <h4 className="text-sm font-black text-teal-900 mb-3 flex items-center gap-2">📦 Preparación de Carrito (Blíster)</h4>
+                            <h4 className="text-sm font-black text-teal-900 mb-3 flex items-center gap-2"> Preparación de Carrito (Blíster)</h4>
                             <div className="flex gap-4">
                                 <label className={`flex-1 flex flex-col items-center justify-center p-3 rounded-xl border-2 cursor-pointer transition-all ${prepDuration === '1_SEMANA' ? 'border-teal-500 bg-teal-600 text-white shadow-md' : 'border-teal-200 text-teal-700 bg-white hover:border-teal-300'}`}>
                                     <input type="radio" value="1_SEMANA" checked={prepDuration === '1_SEMANA'} onChange={(e) => setPrepDuration(e.target.value)} className="hidden" />

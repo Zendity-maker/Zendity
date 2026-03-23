@@ -176,7 +176,7 @@ export default function InteractiveCourseCard({
 
                 if (res.ok) {
                     setStatus('COMPLETED');
-                    alert("🎉 ¡Excelencia Zendity! Has aprobado el curso con 100%. Tu credencial oficial de Zendity Certified ha sido generada.");
+                    alert(" ¡Excelencia Zendity! Has aprobado el curso con 100%. Tu credencial oficial de Zendity Certified ha sido generada.");
                     onCourseCompleted();
                     setMode("IDLE");
                 }
@@ -192,10 +192,10 @@ export default function InteractiveCourseCard({
                 if (data.locked) {
                     setLockedUntil(data.lockedUntil);
                     setStrikes(3);
-                    alert(`❌ REPROBADO. Has alcanzado el límite de 3 intentos fallidos. Por seguridad operativa, este curso ha sido BLOQUEADO por 24 horas. Zendity HR ha sido notificado.`);
+                    alert(` REPROBADO. Has alcanzado el límite de 3 intentos fallidos. Por seguridad operativa, este curso ha sido BLOQUEADO por 24 horas. Zendity HR ha sido notificado.`);
                 } else {
                     setStrikes(data.newAttemptCount);
-                    alert(`❌ REPROBADO. Puntuación: ${finalScore}/${totalQuestions}. Intento ${data.newAttemptCount}/3. Repasa las tarjetas de estudio e inténtalo de nuevo.`);
+                    alert(` REPROBADO. Puntuación: ${finalScore}/${totalQuestions}. Intento ${data.newAttemptCount}/3. Repasa las tarjetas de estudio e inténtalo de nuevo.`);
                 }
                 setMode("IDLE");
             }
@@ -206,7 +206,7 @@ export default function InteractiveCourseCard({
     if (lockedUntil && new Date(lockedUntil) > new Date()) {
         return (
             <div className="bg-slate-50 rounded-2xl p-6 shadow-sm border border-red-200 opacity-80 relative overflow-hidden flex flex-col items-center justify-center min-h-[250px] text-center">
-                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4">🔒</div>
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4"></div>
                 <h4 className="text-xl font-bold text-gray-900 mb-2">Acceso Restringido (24 Horas)</h4>
                 <p className="text-sm text-gray-600 mb-4 max-w-sm">Has fallado la Certificación Zendity 3 veces consecutivas. Como medida de seguridad clínica, debes repasar el material con tu Supervisor antes de reintentar.</p>
                 <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold font-mono text-slate-500 shadow-sm">
@@ -231,7 +231,7 @@ export default function InteractiveCourseCard({
                                 <h3 className="text-xl md:text-2xl font-black text-slate-900">{course.title}</h3>
                             </div>
                             <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-white bg-slate-50 hover:bg-rose-500 px-6 py-3 rounded-2xl transition-all shadow-sm">
-                                ✕ Cerrar
+                                 Cerrar
                             </button>
                         </div>
                         
@@ -326,10 +326,10 @@ export default function InteractiveCourseCard({
                 <div className="bg-white rounded-3xl p-8 shadow-2xl border border-slate-200 w-full max-w-4xl min-h-[500px] flex flex-col animate-in fade-in zoom-in-95 duration-300">
                     <div className="flex justify-between items-center mb-8">
                         <span className="text-sm font-bold uppercase tracking-widest text-indigo-500 bg-indigo-50 px-4 py-1.5 rounded-full">
-                            Material de Estudio • Tarjeta {activeCardIndex + 1} de {flashcards.length}
+                            Material de Estudio  Tarjeta {activeCardIndex + 1} de {flashcards.length}
                         </span>
                         <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors bg-slate-100 hover:bg-rose-50 px-4 py-2 rounded-xl">
-                            ✕ Cerrar Sesión
+                             Cerrar Sesión
                         </button>
                     </div>
                     

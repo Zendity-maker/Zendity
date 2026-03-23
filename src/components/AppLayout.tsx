@@ -233,7 +233,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 onClick={logout}
                                 className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-rose-900/50 hover:text-rose-400 hover:border-rose-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200'}`}
                             >
-                                <span>⏻</span> Cerrar Sesión
+                                <span></span> Cerrar Sesión
                             </button>
                         </>
                     )}
@@ -247,7 +247,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 title="Cerrar Sesión"
                                 className={`w-full flex justify-center py-2 text-xs font-bold rounded-xl transition shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-rose-400 hover:bg-rose-900/50 hover:border-rose-900' : 'bg-white border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-200'}`}
                             >
-                                <span>⏻</span>
+                                <span></span>
                             </button>
                         </>
                     )}

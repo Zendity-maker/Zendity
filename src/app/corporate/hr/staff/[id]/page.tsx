@@ -109,7 +109,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
             const res = await fetch(`/api/hr/staff/${staff.id}/welcome`, { method: "POST" });
             const data = await res.json();
             if (data.success) {
-                alert("✅ Correo de credenciales reenviado exitosamente.");
+                alert(" Correo de credenciales reenviado exitosamente.");
             } else {
                 alert("Error: " + data.error);
             }
@@ -183,7 +183,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                         </div>
                     </div>
                     <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
-                        📸 Cambiar Foto
+                         Cambiar Foto
                     </button>
                 </div>
 
@@ -216,10 +216,10 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                             <div className="flex items-center gap-3">
                                 <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
                                 <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-lg font-bold transition-colors">
-                                    ✏️ Editar
+                                     Editar
                                 </button>
                                 <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-700 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5">
-                                    {isResending ? "⏳..." : "✉️ Reenviar Credenciales"}
+                                    {isResending ? "..." : " Reenviar Credenciales"}
                                 </button>
                             </div>
                             <div className="flex flex-wrap items-center gap-3 mt-1">
@@ -228,18 +228,18 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 </span>
                                 {!staff.isActive && (
                                     <span className="px-3 py-1 rounded-lg text-sm font-bold bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1">
-                                        🛑 BAJA ADMINISTRATIVA
+                                         BAJA ADMINISTRATIVA
                                     </span>
                                 )}
                                 {staff.isShiftBlocked && staff.isActive && (
                                     <span className="px-3 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
-                                        🔒 Turnos Bloqueados
+                                         Turnos Bloqueados
                                     </span>
                                 )}
                             </div>
                             <div className="flex items-center gap-6 text-slate-500 font-medium text-sm mt-3">
-                                <span className="flex items-center gap-1.5">📧 {staff.email}</span>
-                                <span className="flex items-center gap-1.5">🏢 Sede: {staff.facility}</span>
+                                <span className="flex items-center gap-1.5"> {staff.email}</span>
+                                <span className="flex items-center gap-1.5"> Sede: {staff.facility}</span>
                             </div>
                         </>
                     )}
@@ -277,7 +277,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 {staff.avgEvalScore || 'N/A'}<span className="text-lg text-slate-400">/100</span>
                             </div>
                         </div>
-                        <div className="p-3 bg-blue-50 text-blue-500 rounded-xl rounded-tr-sm">📋</div>
+                        <div className="p-3 bg-blue-50 text-blue-500 rounded-xl rounded-tr-sm"></div>
                     </div>
                     <div className="mt-4 text-sm font-medium text-slate-500">
                         Promedio de <span className="font-bold text-slate-700">{staff.evaluationsCount}</span> inspecciones
@@ -293,7 +293,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 {staff.complianceScore}<span className="text-lg text-slate-400">/100</span>
                             </div>
                         </div>
-                        <div className="p-3 bg-violet-50 text-violet-500 rounded-xl rounded-tr-sm">🎓</div>
+                        <div className="p-3 bg-violet-50 text-violet-500 rounded-xl rounded-tr-sm"></div>
                     </div>
                     <div className="mt-4 text-sm font-medium text-slate-500">
                         Cursos completados: <span className="font-bold text-slate-700">{staff.courseEnrolls?.filter((c: any) => c.status === 'COMPLETED').length || 0}</span>
@@ -311,7 +311,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 </div>
                             </div>
                         </div>
-                        <div className="p-3 bg-emerald-50 text-emerald-500 rounded-xl rounded-tr-sm">💊</div>
+                        <div className="p-3 bg-emerald-50 text-emerald-500 rounded-xl rounded-tr-sm"></div>
                     </div>
                     <div className="mt-4 text-sm font-medium text-slate-500 flex justify-between">
                         <span>Exitosas: <span className="font-bold text-emerald-600">{staff.medsGivenRecord || 0}</span></span>
@@ -329,7 +329,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 
                 {staff.evalsReceived?.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
-                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50">📋</p>
+                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50"></p>
                         <h4 className="font-bold text-lg text-slate-600">Sin Historico</h4>
                         <p className="text-sm mt-1">Este empleado aún no cuenta con evaluaciones u observaciones estructuradas del gerente.</p>
                     </div>
@@ -370,7 +370,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 
                 {!staff.incidents || staff.incidents.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
-                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50">⚖️</p>
+                        <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50"></p>
                         <h4 className="font-bold text-lg text-slate-600">Expediente Limpio</h4>
                         <p className="text-sm mt-1">Este empleado no tiene reportes disciplinarios ni observaciones formales en su perfil.</p>
                     </div>
@@ -397,11 +397,11 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                         </div>
                                         {incident.signatureBase64 ? (
                                             <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">
-                                                ✅ Firmado de Aceptación
+                                                 Firmado de Aceptación
                                             </span>
                                         ) : (
                                             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">
-                                                ⏳ Falta Firma
+                                                 Falta Firma
                                             </span>
                                         )}
                                     </div>

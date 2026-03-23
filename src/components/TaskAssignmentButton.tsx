@@ -54,10 +54,10 @@ export default function TaskAssignmentButton({
       });
       const data = await res.json();
       if (data.success) {
-        alert("🎯 Tarea asignada exitosamente con SLA de 15 minutos.");
+        alert(" Tarea asignada exitosamente con SLA de 15 minutos.");
         setIsOpen(false);
       } else {
-        alert("⚠️ Error al asignar tarea: " + data.error);
+        alert(" Error al asignar tarea: " + data.error);
       }
     } catch (e) {
       console.error(e);
@@ -70,7 +70,7 @@ export default function TaskAssignmentButton({
   return (
     <>
       <button onClick={handleOpen} className={buttonStyle}>
-        <span>🎯</span> {buttonLabel}
+        <span></span> {buttonLabel}
       </button>
 
       {isOpen && (
@@ -85,7 +85,7 @@ export default function TaskAssignmentButton({
 
             <div className="space-y-4 pr-2 pb-4 overflow-y-auto custom-scrollbar flex-1">
               <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-100 pb-2 flex items-center gap-2">
-                <span>🎯</span> Asignación de Tarea SLA (15-Min)
+                <span></span> Asignación de Tarea SLA (15-Min)
               </p>
               <p className="text-slate-500 font-medium text-sm">
                 El cuidador seleccionado recibirá la alerta In-App y tendrá 15 minutos exactos para cumplirla o se penalizará su Score de Cumplimiento.

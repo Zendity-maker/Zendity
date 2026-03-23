@@ -49,18 +49,18 @@ export async function POST(req: Request) {
 
         if (textToAnalyze.includes("disfagia") || textToAnalyze.includes("atraganta")) {
             feeding = "Dieta Puré/Triturada estricta. Líquidos espesados (Néctar/Miel).";
-            criticalAlerts += "🚨 Alto Riesgo de Aspiración (Atragantamiento). 45 grados sentado al comer. ";
+            criticalAlerts += " Alto Riesgo de Aspiración (Atragantamiento). 45 grados sentado al comer. ";
         }
         if (textToAnalyze.includes("diabetes") || textToAnalyze.includes("diabetico")) {
             feeding = "Dieta Diabética (Zero Sugar / Low Carb). Merienda Nocturna requerida.";
         }
         if (textToAnalyze.includes("alzheimer") || textToAnalyze.includes("demencia")) {
             customs = "Redirección verbal constante, validar emociones. Puede presentar agitación nocturna (Sundowning).";
-            criticalAlerts += "🚨 Riesgo de Fuga inminente (Wandering). No dejar cerca de salidas. ";
+            criticalAlerts += " Riesgo de Fuga inminente (Wandering). No dejar cerca de salidas. ";
         }
         if (textToAnalyze.includes("postrado") || textToAnalyze.includes("silla de ruedas")) {
             mobility = "Dependencia casi total. Cambios posturales q2h riguroso. Transferencia entre 2 personas mínimo.";
-            criticalAlerts += "🚨 Riesgo Piel: Desarrollo de Úlceras Activo. ";
+            criticalAlerts += " Riesgo Piel: Desarrollo de Úlceras Activo. ";
         }
         if (!criticalAlerts) {
             criticalAlerts = "Ninguna alerta aguda extraída del Intake inicial.";

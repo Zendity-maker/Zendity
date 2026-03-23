@@ -61,7 +61,7 @@ export default function KitchenDashboard() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white font-black text-xl shadow-md">
-                            🍳
+                            
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Cocina y Nutrición</h1>
@@ -99,7 +99,7 @@ export default function KitchenDashboard() {
                                 )}
                             </p>
                         </div>
-                        <div className="text-4xl opacity-80">⭐</div>
+                        <div className="text-4xl opacity-80"></div>
                     </div>
                 </div>
 
@@ -170,7 +170,7 @@ export default function KitchenDashboard() {
                         <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2">
                             {observations.length === 0 ? (
                                 <div className="text-center p-8 bg-slate-50 rounded-3xl border border-slate-200">
-                                    <p className="text-4xl mb-3">✅</p>
+                                    <p className="text-4xl mb-3"></p>
                                     <p className="font-bold text-slate-500 text-sm">No hay reportes ni observaciones recientes.</p>
                                 </div>
                             ) : (
@@ -179,7 +179,7 @@ export default function KitchenDashboard() {
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="flex gap-1">
                                                 {[...Array(5)].map((_, i) => (
-                                                    <span key={i} className={`text-lg ${i < obs.satisfactionScore ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
+                                                    <span key={i} className={`text-lg ${i < obs.satisfactionScore ? 'text-amber-400' : 'text-slate-200'}`}></span>
                                                 ))}
                                             </div>
                                             <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">

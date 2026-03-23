@@ -80,7 +80,7 @@ export default function EMARDashboardPage() {
                     )
                 }));
                 setPatients(updatedPatients);
-                setTimeout(() => alert(`✅ Transacción Exitosa: Fármaco [${actionType}] guardado irrevocablemente en el sistema.`), 100);
+                setTimeout(() => alert(` Transacción Exitosa: Fármaco [${actionType}] guardado irrevocablemente en el sistema.`), 100);
             } else {
                 alert("Error al guardar firma biométrica.");
             }
@@ -260,7 +260,7 @@ export default function EMARDashboardPage() {
                                                         </div>
                                                     ) : (
                                                         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                                                            Registrado ✓
+                                                            Registrado 
                                                         </div>
                                                     )}
 
@@ -299,12 +299,12 @@ export default function EMARDashboardPage() {
 
                                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
                                     <p className="font-black text-lg text-slate-800">{selectedMed.name}</p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">{selectedMed.route} • {selectedMed.time}</p>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">{selectedMed.route}  {selectedMed.time}</p>
                                 </div>
 
                                 {actionType !== 'ADMINISTERED' && (
                                     <div className="mb-6">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Justificación Médica (Obligatorio) 🚨</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Justificación Médica (Obligatorio) </label>
                                         <textarea
                                             value={actionNotes}
                                             onChange={(e) => setActionNotes(e.target.value)}

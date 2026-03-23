@@ -94,7 +94,7 @@ export default function CaregiversLifePlanPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end pb-6 border-b border-slate-200/60 gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3 tracking-tight">
-                        <span className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-teal-600">🪪</span>
+                        <span className="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-teal-600"></span>
                         Zendity Life Plan
                     </h1>
                     <p className="text-slate-500 mt-3 font-medium text-sm">Fichas de Cuidado Operativo (PAI) generadas por IA y validadas por Enfermería clínica.</p>
@@ -155,7 +155,7 @@ export default function CaregiversLifePlanPage() {
                         {/* Cuerpo de la Ficha Técnica */}
                         <div className="p-6 space-y-6 flex-1 bg-white">
                             <div className="flex items-start gap-4">
-                                <div className="text-2xl mt-0.5 opacity-80">🍏</div>
+                                <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
                                     <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Alimentación</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.feeding}</p>
@@ -163,7 +163,7 @@ export default function CaregiversLifePlanPage() {
                             </div>
 
                             <div className="flex items-start gap-4">
-                                <div className="text-2xl mt-0.5 opacity-80">🦽</div>
+                                <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
                                     <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Movilidad & Piel</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.mobility}</p>
@@ -171,7 +171,7 @@ export default function CaregiversLifePlanPage() {
                             </div>
 
                             <div className="flex items-start gap-4">
-                                <div className="text-2xl mt-0.5 opacity-80">🧩</div>
+                                <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
                                     <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Rutinas & Emoción</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.customs}</p>

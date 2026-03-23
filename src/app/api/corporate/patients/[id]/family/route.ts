@@ -99,9 +99,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 <div style="background-color: #f1f5f9; border-left: 4px solid #0d9488; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
                     <h3 style="margin-top: 0; color: #0f172a; font-size: 16px;">Sus Credenciales de Ingreso:</h3>
                     <ul style="list-style: none; padding-left: 0; color: #334155; margin-bottom: 0;">
-                        <li style="margin-bottom: 8px;">🌐 <strong>Portal:</strong> <a href="https://app.zendity.com" style="color: #0284c7; text-decoration: none;">app.zendity.com</a> (Seleccione <em>Login Familiares</em>)</li>
-                        <li style="margin-bottom: 8px;">📧 <strong>Usuario:</strong> ${email}</li>
-                        <li>🔑 <strong>PIN de Seguridad:</strong> <span style="background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 2px;">${passcode}</span></li>
+                        <li style="margin-bottom: 8px;"> <strong>Portal:</strong> <a href="https://app.zendity.com" style="color: #0284c7; text-decoration: none;">app.zendity.com</a> (Seleccione <em>Login Familiares</em>)</li>
+                        <li style="margin-bottom: 8px;"> <strong>Usuario:</strong> ${email}</li>
+                        <li> <strong>PIN de Seguridad:</strong> <span style="background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 2px;">${passcode}</span></li>
                     </ul>
                 </div>
                 

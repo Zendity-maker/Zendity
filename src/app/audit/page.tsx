@@ -54,7 +54,7 @@ export default function ZendityAuditPage() {
                 </div>
                 <div className="flex space-x-3">
                     <button className="bg-teal-700 hover:bg-teal-800 text-white font-medium rounded-lg text-sm px-5 py-2.5 shadow-sm transition-colors flex items-center space-x-2">
-                        <span>🖨️</span>
+                        <span></span>
                         <span>Generar Reporte Oficial</span>
                     </button>
                 </div>
@@ -84,7 +84,7 @@ export default function ZendityAuditPage() {
                             <div key={inc.id} className="p-6 border-b border-gray-50 last:border-0 hover:bg-teal-50/30 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
                                     <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center text-teal-800 text-xl border-2 border-white shadow-sm shrink-0">
-                                        📋
+                                        
                                     </div>
                                     <div>
                                         <div className="flex items-center space-x-3 mb-1">
@@ -94,13 +94,13 @@ export default function ZendityAuditPage() {
                                             </span>
                                         </div>
                                         <h4 className="text-lg font-bold text-gray-900">{inc.type}</h4>
-                                        <p className="text-sm text-gray-600">Residente: <span className="font-semibold text-gray-900">{inc.patient}</span> • Fecha: {inc.date}</p>
+                                        <p className="text-sm text-gray-600">Residente: <span className="font-semibold text-gray-900">{inc.patient}</span>  Fecha: {inc.date}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex space-x-3">
                                     <button className="bg-teal-700 text-white hover:bg-teal-800 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors shadow-sm w-full md:w-auto flex items-center justify-center space-x-2">
-                                        <span>✍️</span>
+                                        <span></span>
                                         <span>Firmar Documento</span>
                                     </button>
                                 </div>
@@ -111,7 +111,7 @@ export default function ZendityAuditPage() {
 
                 {activeTab === 'history' && (
                     <div className="p-12 text-center flex flex-col items-center justify-center">
-                        <span className="text-4xl mb-4">✅</span>
+                        <span className="text-4xl mb-4"></span>
                         <h3 className="text-xl font-bold text-gray-900">Historial 100% Digital</h3>
                         <p className="text-gray-500 mt-2 max-w-md mx-auto">
                             Todos los documentos de los últimos 30 días tienen la firma biométrica registrada cumpliendo con el estándar HIPAA y Depto. de la Familia.

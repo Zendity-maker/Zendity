@@ -51,7 +51,7 @@ export default function ReferralPortalPage() {
             <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
                 <div className="bg-white max-w-md w-full p-10 rounded-3xl shadow-xl text-center border border-slate-100">
                     <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">
-                        ✓
+                        
                     </div>
                     <h2 className="text-2xl font-black text-slate-800 mb-2">Referido Exitoso</h2>
                     <p className="text-slate-500 mb-8">El prospecto ha sido enviado directamente al CRM de Zendity. El equipo de Admisiones de {hqName} se pondrá en contacto a la brevedad.</p>

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
         // Al colgar, Vapi nos manda la grabación, la transcripción y las variables estructurales para empujar a la Base de Datos.
         if (message.type === 'end-of-call-report') {
             console.log("-----------------------------------------");
-            console.log("📞 ZENDI CALL ENDED: INJECTING INTO CRM...");
+            console.log(" ZENDI CALL ENDED: INJECTING INTO CRM...");
 
             const analysis = message.analysis; // Structured Data de Vapi
             const call = message.call;
@@ -95,7 +95,7 @@ export async function POST(req: Request) {
             // Pipeline automation
             if (extractedData.didScheduleTour) {
                 stage = "TOUR";
-                notes += `\n\n📌 ATENCIÓN: La IA acordó tentativamente un Tour para: ${extractedData.tourDate || "Pronto"}.`;
+                notes += `\n\n ATENCIÓN: La IA acordó tentativamente un Tour para: ${extractedData.tourDate || "Pronto"}.`;
             }
 
             // CREAR LEAD EN EL KANBAN ASINCRONAMENTE
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
                 }
             });
 
-            console.log(`✅ CRM LEAD CREADO -> ${firstName} ${lastName} (Fase: ${stage})`);
+            console.log(` CRM LEAD CREADO -> ${firstName} ${lastName} (Fase: ${stage})`);
             console.log("-----------------------------------------");
 
             return NextResponse.json({ success: true, message: "CRM Lead successfully injected in Zendity." });
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, event: message.type });
 
     } catch (error: any) {
-        console.error("🔥 Error in Vapi Inbound Webhook:", error);
+        console.error(" Error in Vapi Inbound Webhook:", error);
         return NextResponse.json({ success: false, error: 'Webhook processing failed.' }, { status: 500 });
     }
 }

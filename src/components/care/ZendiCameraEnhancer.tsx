@@ -80,7 +80,7 @@ export default function ZendiCameraEnhancer({ targetId, isStaff, currentPhotoUrl
                 
                 const data = await res.json();
                 if (data.success) {
-                    alert(`📸 ¡Fotografía mejorada con Zendi AI!\n\nHas ganado +3 Puntos Zendity Academy (Nuevo Score: ${data.newScore}).`);
+                    alert(` ¡Fotografía mejorada con Zendi AI!\n\nHas ganado +3 Puntos Zendity Academy (Nuevo Score: ${data.newScore}).`);
                     if (onUploadSuccess) onUploadSuccess();
                 } else {
                     alert("Error guardando fotografía procesada: " + data.error);

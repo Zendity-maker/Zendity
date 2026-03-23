@@ -65,8 +65,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     
                     <h3 style="color: #0f172a; margin-bottom: 15px; font-size: 18px;">Tus Credenciales Seguras de Acceso:</h3>
                     <ul style="list-style: none; padding: 0; margin: 0;">
-                        <li style="margin-bottom: 10px; font-size: 15px; color: #475569;">👤 <strong>Usuario (Correo):</strong> <span style="font-family: monospace; font-size: 16px;">${employee.email}</span></li>
-                        <li style="margin-bottom: 20px; font-size: 15px; color: #475569;">🔑 <strong>PIN Codificado:</strong> <span style="background-color: #f1f5f9; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: bold; color: #0f172a; border: 1px solid #cbd5e1; letter-spacing: 2px;">${employee.pinCode || 'No asignado'}</span></li>
+                        <li style="margin-bottom: 10px; font-size: 15px; color: #475569;"> <strong>Usuario (Correo):</strong> <span style="font-family: monospace; font-size: 16px;">${employee.email}</span></li>
+                        <li style="margin-bottom: 20px; font-size: 15px; color: #475569;"> <strong>PIN Codificado:</strong> <span style="background-color: #f1f5f9; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: bold; color: #0f172a; border: 1px solid #cbd5e1; letter-spacing: 2px;">${employee.pinCode || 'No asignado'}</span></li>
                     </ul>
                 </div>
                 

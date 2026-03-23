@@ -38,11 +38,11 @@ export const viewport: Viewport = {
 };
 
 const navigation = [
-  { name: 'Insights', href: '/', icon: '📊' },
-  { name: 'Preingreso', href: '/preingreso', icon: '📝' },
-  { name: 'Med (eMAR)', href: '/med', icon: '💊' },
-  { name: 'Audit & Incidents', href: '/audit', icon: '📁' },
-  { name: 'Academy', href: '/academy', icon: '🎓' },
+  { name: 'Insights', href: '/', icon: '' },
+  { name: 'Preingreso', href: '/preingreso', icon: '' },
+  { name: 'Med (eMAR)', href: '/med', icon: '' },
+  { name: 'Audit & Incidents', href: '/audit', icon: '' },
+  { name: 'Academy', href: '/academy', icon: '' },
 ];
 
 export default function RootLayout({

@@ -88,7 +88,7 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
 
                     <div className="bg-amber-50 rounded-3xl p-6 border border-amber-100 shadow-sm">
                         <h3 className="text-amber-800 font-bold mb-3 text-sm uppercase tracking-wider flex items-center gap-2">
-                            🛡️ Alergias Conocidas
+                             Alergias Conocidas
                         </h3>
                         {intake?.allergies ? (
                             <p className="text-amber-900 font-medium">{intake.allergies}</p>
@@ -103,13 +103,13 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                     {/* Condiciones Medicas */}
                     <div className="bg-white rounded-3xl p-6 shadow-sm border border-neutral-100 h-full flex flex-col">
                         <h3 className="text-slate-800 font-black text-lg mb-4 flex items-center gap-2">
-                            📋 Cuadro Clínico / Diagnósticos
+                             Cuadro Clínico / Diagnósticos
                         </h3>
 
                         {intake?.diagnoses ? (
                             <div className="prose prose-sm prose-slate max-w-none font-medium leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 {intake.diagnoses.split('\n').map((line: string, i: number) => (
-                                    <p key={i} className="mb-2 last:mb-0">✓ {line.replace(/^- /, '')}</p>
+                                    <p key={i} className="mb-2 last:mb-0"> {line.replace(/^- /, '')}</p>
                                 ))}
                             </div>
                         ) : (
@@ -123,7 +123,7 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                         )}
 
                         <h3 className="text-slate-800 font-black text-lg mb-4 mt-8 flex items-center gap-2">
-                            💊 Tratamiento Activo (eMAR Dashboard)
+                             Tratamiento Activo (eMAR Dashboard)
                         </h3>
 
                         {meds.length > 0 ? (
@@ -135,7 +135,7 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                                         </div>
                                         <div>
                                             <p className="font-bold text-slate-800 text-sm">{m.medication?.name}</p>
-                                            <p className="text-xs font-medium text-slate-500 mt-0.5">{m.medication?.dosage} • {m.frequency}</p>
+                                            <p className="text-xs font-medium text-slate-500 mt-0.5">{m.medication?.dosage}  {m.frequency}</p>
                                         </div>
                                     </div>
                                 ))}

@@ -84,7 +84,7 @@ export default function HRDirectoryPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <Link href="/corporate/hr/comms" className="bg-slate-900 border border-slate-700 text-white hover:bg-slate-800 px-4 py-2 rounded-xl font-black shadow-sm flex items-center gap-2 transition-colors">
-                        <span>📢</span> Broadcast RRHH
+                        <span></span> Broadcast RRHH
                     </Link>
                     <div className="bg-teal-50 text-teal-700 px-4 py-2 rounded-xl border border-teal-100 font-bold shadow-sm">
                         {filteredStaff.length} Empleados Activos
@@ -96,7 +96,7 @@ export default function HRDirectoryPage() {
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                        🔍
+                        
                     </span>
                     <input
                         type="text"
@@ -112,9 +112,9 @@ export default function HRDirectoryPage() {
                         onChange={(e) => setSelectedFacility(e.target.value)}
                         className="w-full appearance-none bg-white border border-slate-200 text-slate-800 rounded-xl font-bold px-4 py-3 pr-10 hover:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:border-teal-500 transition-all cursor-pointer"
                     >
-                        <option value="TODAS">🌍 Todas las Sedes</option>
+                        <option value="TODAS"> Todas las Sedes</option>
                         {facilities.map((fac, idx) => (
-                            <option key={idx} value={fac}>🏥 {fac}</option>
+                            <option key={idx} value={fac}> {fac}</option>
                         ))}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
@@ -177,7 +177,7 @@ export default function HRDirectoryPage() {
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex justify-center">
                                             <span className={`px-3 py-1.5 rounded-lg border font-black text-sm flex items-center gap-1.5 ${getScoreColor(staff.performanceScore)}`}>
-                                                {staff.performanceScore >= 90 ? '🏆' : staff.performanceScore >= 75 ? '⚠️' : '🚨'}
+                                                {staff.performanceScore >= 90 ? '' : staff.performanceScore >= 75 ? '' : ''}
                                                 {staff.performanceScore} / 100
                                             </span>
                                         </div>
@@ -195,7 +195,7 @@ export default function HRDirectoryPage() {
                             {filteredStaff.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                                        <div className="text-4xl mb-3">🔍</div>
+                                        <div className="text-4xl mb-3"></div>
                                         <div className="font-bold text-lg">No se encontraron empleados.</div>
                                         <div className="text-sm">Intenta ajustar los filtros de búsqueda o de Sede.</div>
                                     </td>

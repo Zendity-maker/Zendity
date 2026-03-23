@@ -73,7 +73,7 @@ export default function EmarPrintPage() {
                         <p className="text-xs text-slate-400">Sólo para fines de auditoría oficial.</p>
                     </div>
                     <button onClick={() => window.print()} className="bg-indigo-500 hover:bg-indigo-600 px-6 py-2 rounded-lg font-bold text-sm">
-                        🖨️ Imprimir Expediente
+                         Imprimir Expediente
                     </button>
                 </div>
 
@@ -142,7 +142,7 @@ export default function EmarPrintPage() {
                                             {format(new Date(admin.administeredAt), "MMM d, yyyy - h:mm a", { locale: es })}
                                         </td>
                                         <td className="py-4 px-4 text-slate-600 font-medium">
-                                            {admin.dosage} • {admin.route}
+                                            {admin.dosage}  {admin.route}
                                         </td>
                                         <td className="py-4 px-4">
                                             <div className="flex flex-col gap-1">

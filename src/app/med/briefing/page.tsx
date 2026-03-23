@@ -70,7 +70,7 @@ export default function MedicalBriefingPage() {
                 </div>
 
                 {loading ? (
-                    <div className="flex justify-center py-20"><span className="animate-spin text-4xl">⚕️</span></div>
+                    <div className="flex justify-center py-20"><span className="animate-spin text-4xl"></span></div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         
@@ -89,9 +89,9 @@ export default function MedicalBriefingPage() {
                                         className="py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-black rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         {generating === p.id ? (
-                                            <><span>⏳</span> Analizando 30 Días...</>
+                                            <><span></span> Analizando 30 Días...</>
                                         ) : (
-                                            <><span>✨</span> Zendi Dossier</>
+                                            <><span></span> Zendi Dossier</>
                                         )}
                                     </button>
                                 </div>
@@ -125,7 +125,7 @@ export default function MedicalBriefingPage() {
                                         {/* Botón de Imprimir (Oculto en la impresión real) */}
                                         <div className="mt-8 pt-6 border-t border-slate-200 print:hidden text-right">
                                             <button onClick={() => handlePrint(pid)} className="py-3 px-8 bg-slate-800 hover:bg-slate-900 text-white font-black rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 inline-flex">
-                                                <span>🖨️</span> Imprimir Dossier Oficial
+                                                <span></span> Imprimir Dossier Oficial
                                             </button>
                                         </div>
                                     </div>

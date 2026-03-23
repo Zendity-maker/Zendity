@@ -87,7 +87,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
             });
             const data = await res.json();
             if (data.success) {
-                alert("📝 Reporte Disciplinario guardado exitosamente.");
+                alert(" Reporte Disciplinario guardado exitosamente.");
                 if (onSuccess) onSuccess();
                 handleClose();
             } else {

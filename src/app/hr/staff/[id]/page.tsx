@@ -147,7 +147,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             const res = await fetch(`/api/hr/staff/${employee.id}/welcome`, { method: "POST" });
             const data = await res.json();
             if (data.success) {
-                alert("✅ Correo de credenciales reenviado exitosamente.");
+                alert(" Correo de credenciales reenviado exitosamente.");
             } else {
                 alert("Error: " + data.error);
             }
@@ -234,7 +234,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                             <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 border-4 border-white rounded-full shadow-sm" title="Activo"></div>
                         </div>
                         <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
-                            {isUploadingPhoto ? "⏳ Subiendo..." : "📸 Cambiar Foto"}
+                            {isUploadingPhoto ? " Subiendo..." : " Cambiar Foto"}
                         </button>
                     </div>
 
@@ -270,10 +270,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                     {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5">
-                                                ✏️ Editar
+                                                 Editar
                                             </button>
                                             <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50">
-                                                {isResending ? "⏳ Enviando..." : "✉️ Reenviar Credenciales"}
+                                                {isResending ? " Enviando..." : " Reenviar Credenciales"}
                                             </button>
                                         </div>
                                     )}
@@ -421,7 +421,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
                     {incidents.length === 0 ? (
                         <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                            <p className="text-slate-500 font-medium">Este empleado tiene un expediente disciplinario limpio. 🎉</p>
+                            <p className="text-slate-500 font-medium">Este empleado tiene un expediente disciplinario limpio. </p>
                         </div>
                     ) : (
                         <div className="space-y-4">

@@ -227,7 +227,7 @@ export default function ShiftSchedulerPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-3xl shadow-sm border border-slate-100 gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                        <span>🗓️</span> Gestor de Turnos (Scheduler)
+                        <span></span> Gestor de Turnos (Scheduler)
                     </h1>
                     <p className="text-slate-500 text-sm">
                         Asigna de manera rápida los turnos pre-definidos que interactúan con el sistema de Handovers Clínicos.
@@ -252,7 +252,7 @@ export default function ShiftSchedulerPage() {
                     {/* Panel de Asignación Manual */}
                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                         <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2 uppercase tracking-widest">
-                            <span>⚡</span> Asignación Manual
+                            <span></span> Asignación Manual
                         </h3>
                         <form onSubmit={handleAssignShift} className="space-y-4">
                             <div>
@@ -289,7 +289,7 @@ export default function ShiftSchedulerPage() {
                                             className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center ${color.bgClass} ${color.borderClass} ${selectedZone === color.id ? 'ring-2 ring-offset-2 ring-slate-800 scale-110' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
                                             title={`Zona ${color.label}`}
                                         >
-                                            {selectedZone === color.id && <span className="text-white text-[10px] font-black">✓</span>}
+                                            {selectedZone === color.id && <span className="text-white text-[10px] font-black"></span>}
                                         </button>
                                     ))}
                                 </div>
@@ -371,7 +371,7 @@ export default function ShiftSchedulerPage() {
                                                                             className="absolute -top-2 -right-2 bg-rose-500 text-white w-5 h-5 rounded-full opacity-0 group-hover/shift:opacity-100 transition-opacity shadow-sm flex items-center justify-center font-black z-20"
                                                                             title="Remover Turno"
                                                                         >
-                                                                            ✕
+                                                                            
                                                                         </button>
                                                                     </div>
                                                                 );
@@ -392,7 +392,7 @@ export default function ShiftSchedulerPage() {
                                                                 <div className="absolute top-0 left-0 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 p-3 transform translate-x-4 translate-y-4">
                                                                     <div className="flex justify-between items-center mb-3">
                                                                         <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Nuevo Turno</span>
-                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-400 hover:text-rose-500 transition-colors">✕</button>
+                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-400 hover:text-rose-500 transition-colors"></button>
                                                                     </div>
 
                                                                     {isSavingGrid ? (

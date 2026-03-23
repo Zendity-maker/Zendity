@@ -137,9 +137,9 @@ export default function ZenditySandboxPage() {
                                     className="w-full bg-teal-500 text-slate-900 font-black py-4 rounded-xl hover:bg-teal-400 transition shadow-xl shadow-teal-500/20 active:scale-95 flex items-center justify-center gap-2"
                                 >
                                     {simulating ? (
-                                        <><span>⏳</span> <span className="animate-pulse">Analizando Datos Clínicos...</span></>
+                                        <><span></span> <span className="animate-pulse">Analizando Datos Clínicos...</span></>
                                     ) : (
-                                        <><span>🚀</span> <span className="">Iniciar Pruebas</span></>
+                                        <><span></span> <span className="">Iniciar Pruebas</span></>
                                     )}
                                 </button>
                             )}
@@ -151,7 +151,7 @@ export default function ZenditySandboxPage() {
                     <div className="lg:col-span-2">
                         {step < 4 ? (
                             <div className="h-full bg-slate-200/50 rounded-[3rem] border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-12 text-center animate-pulse">
-                                <span className="text-6xl mb-4 grayscale opacity-50">🤖</span>
+                                <span className="text-6xl mb-4 grayscale opacity-50"></span>
                                 <h3 className="text-2xl font-black text-slate-400">Motor AI en Espera</h3>
                                 <p className="text-slate-500 mt-2 max-w-sm">Completa los pasos en el panel izquierdo para simular el procesamiento de un nuevo residente.</p>
                             </div>
@@ -164,7 +164,7 @@ export default function ZenditySandboxPage() {
                                         Generado en Intake
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2 mb-2">
-                                        <span className="text-emerald-500">📋</span> Life Plan Autogenerado
+                                        <span className="text-emerald-500"></span> Life Plan Autogenerado
                                     </h3>
                                     <p className="text-slate-500 text-sm font-semibold mb-6">Basado en el perfil médico de {patientName}</p>
 
@@ -183,7 +183,7 @@ export default function ZenditySandboxPage() {
                                             Zendity Care Tablet (Vista Cuidador)
                                         </div>
                                         <h3 className="text-3xl font-black flex items-center gap-3 mb-6">
-                                            <span>✨</span> Zendi Morning Briefing
+                                            <span></span> Zendi Morning Briefing
                                         </h3>
                                         <p className="text-slate-400 font-medium mb-6">
                                             Lo que escucha <strong>{employeeName}</strong> al escanear su badge para el <strong>Grupo {patientColor}</strong>:

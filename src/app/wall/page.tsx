@@ -108,7 +108,7 @@ export default function WallOfCarePage() {
                     <div>
                         <h1 className="text-4xl font-display font-black text-white tracking-tight drop-shadow-md">Wall of Care <span className="text-[#3CC6C4]">Dashboard</span></h1>
                         <p className="text-lg font-bold text-[#EAF4F5]/70 flex items-center gap-2 mt-1 uppercase tracking-widest">
-                            Control Operativo en Vivo • Sede: {data.hqInfo.name}
+                            Control Operativo en Vivo  Sede: {data.hqInfo.name}
                         </p>
                     </div>
                 </div>

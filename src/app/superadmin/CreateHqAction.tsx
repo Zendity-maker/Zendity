@@ -73,7 +73,7 @@ export default function CreateHqAction() {
                     <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative">
                         {/* Header */}
                         <div className="p-6 border-b border-white/5 bg-slate-800/20">
-                            <h2 className="text-2xl font-black text-white">🏭 Onboarding B2B (Nuevo Cliente)</h2>
+                            <h2 className="text-2xl font-black text-white"> Onboarding B2B (Nuevo Cliente)</h2>
                             <p className="text-slate-400 text-sm mt-1">
                                 Creará la Base de Datos aislada, la Suscripción y el Acceso Director en 3 segundos.
                             </p>
@@ -81,7 +81,7 @@ export default function CreateHqAction() {
                                 onClick={() => setIsOpen(false)}
                                 className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
                             >
-                                ✕
+                                
                             </button>
                         </div>
 
@@ -212,7 +212,7 @@ export default function CreateHqAction() {
                                     disabled={loading}
                                     className="w-full py-4 bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-black text-lg rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.3)] transition-all flex items-center justify-center gap-3"
                                 >
-                                    {loading ? 'Inicializando Ecosistema...' : '🚀 Lanzar Nuevo Asilo B2B'}
+                                    {loading ? 'Inicializando Ecosistema...' : ' Lanzar Nuevo Asilo B2B'}
                                 </button>
                             </form>
                         </div>

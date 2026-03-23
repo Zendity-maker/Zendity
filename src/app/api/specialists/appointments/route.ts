@@ -72,7 +72,7 @@ export async function POST(req: Request) {
                     patientId: updated.patientId,
                     senderType: 'SYSTEM',
                     senderId: 'ZENDI_AI',
-                    content: `¡Hola! Soy Zendi 🤖. Te informo que ${updated.patient.name} acaba de completar su servicio de "${updated.service.name}". El especialista reportó que todo salió excelente. ${evidenceUrl ? `(Se ha adjuntado una fotografía en nuestro sistema seguro).` : ''}`
+                    content: `¡Hola! Soy Zendi . Te informo que ${updated.patient.name} acaba de completar su servicio de "${updated.service.name}". El especialista reportó que todo salió excelente. ${evidenceUrl ? `(Se ha adjuntado una fotografía en nuestro sistema seguro).` : ''}`
                 }
             });
         }

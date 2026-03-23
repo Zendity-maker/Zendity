@@ -209,7 +209,7 @@ export default function MedicalCatalogPage() {
                                         <td className="p-4 font-mono text-xs text-gray-400">MED-{med.id.split('-')[0].toUpperCase()}</td>
                                         <td className="p-4">
                                             <p className="font-bold text-gray-900 uppercase">{med.name}</p>
-                                            <p className="text-xs text-gray-500 font-medium mt-0.5">{med.dosage} • Vía {med.route}</p>
+                                            <p className="text-xs text-gray-500 font-medium mt-0.5">{med.dosage}  Vía {med.route}</p>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex flex-wrap gap-2">
@@ -220,12 +220,12 @@ export default function MedicalCatalogPage() {
                                                 )}
                                                 {med.requiresFridge && (
                                                     <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-blue-200">
-                                                        ❄️ Refrigerar
+                                                         Refrigerar
                                                     </span>
                                                 )}
                                                 {med.withFood && (
                                                     <span className="bg-orange-50 text-orange-600 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-orange-200">
-                                                        🍔 Con Comida
+                                                         Con Comida
                                                     </span>
                                                 )}
                                                 {!med.isControlled && !med.requiresFridge && !med.withFood && (

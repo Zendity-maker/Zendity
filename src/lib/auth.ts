@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
 
                 if (user) {
                     if (user.pinCode !== credentials.pinCode) {
-                        throw new Error("⚠️ Acceso Denegado. PIN Clínico Inválido.");
+                        throw new Error(" Acceso Denegado. PIN Clínico Inválido.");
                     }
                     return {
                         id: user.id,
@@ -45,7 +45,7 @@ export const authOptions: NextAuthOptions = {
 
                 if (family) {
                     if (family.passcode !== credentials.pinCode) {
-                        throw new Error("⚠️ Acceso Denegado. PIN Familiar Inválido.");
+                        throw new Error(" Acceso Denegado. PIN Familiar Inválido.");
                     }
                     return {
                         id: family.patientId,
@@ -58,7 +58,7 @@ export const authOptions: NextAuthOptions = {
                     } as any;
                 }
 
-                throw new Error("⚠️ Acceso Denegado. Credenciales no encontradas.");
+                throw new Error(" Acceso Denegado. Credenciales no encontradas.");
             },
         }),
     ],

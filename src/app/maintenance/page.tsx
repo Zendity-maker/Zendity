@@ -104,7 +104,7 @@ export default function MaintenanceDashboardPage() {
 
                 <div className="p-4 border-t border-white/10">
                     <button onClick={logout} className="w-full bg-slate-800 hover:bg-rose-900/50 text-slate-300 hover:text-rose-400 font-bold py-3 rounded-xl transition-colors border border-slate-700 flex justify-center items-center gap-2">
-                        <span>⏻</span> Cerrar Sesión
+                        <span></span> Cerrar Sesión
                     </button>
                 </div>
             </aside>
@@ -219,7 +219,7 @@ export default function MaintenanceDashboardPage() {
                                 <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100 flex flex-col justify-between items-start gap-2 line-through decoration-slate-300 text-slate-500">
                                     <h4 className="font-bold text-sm leading-tight">{ticket.title}</h4>
                                     <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full border border-emerald-100 whitespace-nowrap">
-                                        ⏱️ TDR: {ticket.resolutionTimeMinutes || '?'} min
+                                         TDR: {ticket.resolutionTimeMinutes || '?'} min
                                     </span>
                                 </div>
                             ))}

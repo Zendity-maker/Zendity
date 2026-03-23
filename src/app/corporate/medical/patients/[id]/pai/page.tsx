@@ -171,7 +171,7 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             {isSaving ? "Guardando..." : "Guardar Borrador"}
                         </button>
                         <button onClick={() => handleSave(true)} disabled={isSaving || status === 'APPROVED'} className={`font-bold px-6 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 ${status === 'APPROVED' ? 'bg-emerald-500 text-white cursor-not-allowed opacity-80' : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'}`}>
-                            {status === 'APPROVED' ? "✅ PAI Vigente (Firmado)" : "Firmar Clínicamente"}
+                            {status === 'APPROVED' ? " PAI Vigente (Firmado)" : "Firmar Clínicamente"}
                         </button>
                     </div>
                 </div>
@@ -188,7 +188,7 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                                 {isGeneratingAI ? "Analizando Historial..." : <><SparklesIcon className="w-5 h-5 text-amber-500"/> Zendi AI: Auto-Completar PAI</>}
                             </button>
                         )}
-                        {status === 'APPROVED' && <div className="hidden md:block bg-emerald-100 text-emerald-800 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-sm border border-emerald-200 shadow-sm">PAI ACTIVO ✓</div>}
+                        {status === 'APPROVED' && <div className="hidden md:block bg-emerald-100 text-emerald-800 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-sm border border-emerald-200 shadow-sm">PAI ACTIVO </div>}
                     </div>
                 </div>
 
