@@ -150,7 +150,22 @@ export default function MedicalCatalogPage() {
     const totalPages = Math.ceil(filteredMeds.length / ITEMS_PER_PAGE);
     const paginatedMeds = filteredMeds.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const conditions = ["TODOS", ...Array.from(new Set(medications.map(m => m.condition || "Otros")))];
+    const PREDEFINED_CONDITIONS = [
+        "Diabetes",
+        "Presión Arterial",
+        "Cardiovascular",
+        "Artritis / Dolor",
+        "Psiquiatría / Ansiedad",
+        "Insomnio",
+        "Infección (Antibiótico)",
+        "Gastrointestinal",
+        "Respiratorio",
+        "Otros"
+    ];
+
+    const dbConditions = medications.map(m => m.condition || "Otros");
+    const uniqueConditions = Array.from(new Set([...PREDEFINED_CONDITIONS, ...dbConditions]));
+    const conditions = ["TODOS", ...uniqueConditions];
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -431,10 +446,12 @@ export default function MedicalCatalogPage() {
                                     <label className="block text-sm font-bold text-gray-700 mb-1">Condición</label>
                                     <select value={addMedForm.condition} onChange={e => setAddMedForm({...addMedForm, condition: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 focus:border-teal-500 outline-none">
                                         <option value="Cardiovascular">Cardiovascular</option>
-                                        <option value="Ansiedad">Ansiedad / Psiquiatría</option>
-                                        <option value="Dolor Físico">Dolor y Fiebre</option>
+                                        <option value="Presión Arterial">Presión Arterial</option>
+                                        <option value="Diabetes">Diabetes</option>
+                                        <option value="Artritis / Dolor">Artritis / Dolor</option>
+                                        <option value="Psiquiatría / Ansiedad">Psiquiatría / Ansiedad</option>
                                         <option value="Insomnio">Insomnio</option>
-                                        <option value="Infección">Infección (Antibiótico)</option>
+                                        <option value="Infección (Antibiótico)">Infección (Antibiótico)</option>
                                         <option value="Gastrointestinal">Gastrointestinal</option>
                                         <option value="Respiratorio">Respiratorio</option>
                                         <option value="Otros">Otros</option>

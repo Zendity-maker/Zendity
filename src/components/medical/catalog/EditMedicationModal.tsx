@@ -135,15 +135,15 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                                 value={formData.condition || "Otros"}
                                 onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
                             >
-                                <option value="Ansiedad">Ansiedad</option>
-                                <option value="Insomnio">Insomnio</option>
-                                <option value="Dolor Físico">Dolor Físico</option>
-                                <option value="Infección">Infección</option>
                                 <option value="Cardiovascular">Cardiovascular</option>
-                                <option value="Depresión">Depresión</option>
+                                <option value="Presión Arterial">Presión Arterial</option>
+                                <option value="Diabetes">Diabetes</option>
+                                <option value="Artritis / Dolor">Artritis / Dolor</option>
+                                <option value="Psiquiatría / Ansiedad">Psiquiatría / Ansiedad</option>
+                                <option value="Insomnio">Insomnio</option>
+                                <option value="Infección (Antibiótico)">Infección (Antibiótico)</option>
                                 <option value="Gastrointestinal">Gastrointestinal</option>
                                 <option value="Respiratorio">Respiratorio</option>
-                                <option value="Convulsiones">Convulsiones</option>
                                 <option value="Otros">Otros</option>
                             </select>
                         </div>
