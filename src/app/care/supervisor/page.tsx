@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren } from "lucide-react";
+import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 
 export default function SupervisorDashboardPage() {
     const { user } = useAuth();
@@ -262,9 +263,10 @@ export default function SupervisorDashboardPage() {
                         <Brain className="w-12 h-12 text-teal-400" />
                         Cabina del Supervisor Clínico
                     </h1>
-                    <p className="text-xl text-slate-300 font-medium max-w-2xl">
+                    <p className="text-xl text-slate-300 font-medium max-w-2xl mb-8">
                         Centro de Control Operativo B2B. Monitorea a los Cuidadores en Tiempo Real y apóyate en Zendi AI para redactar reportes disciplinarios.
                     </p>
+                    <TaskAssignmentButton user={user} buttonLabel="Despachar Tarea (SLA 15m)" buttonStyle="px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-900 font-black rounded-2xl shadow-xl shadow-teal-500/20 active:scale-95 transition-all w-fit flex items-center gap-3 text-lg" />
                 </div>
             </div>
 

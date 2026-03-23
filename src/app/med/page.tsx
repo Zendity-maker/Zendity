@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 
 interface Medication { id: string; name: string; dosage: string; }
 interface Patient { id: string; name: string; roomNumber: string; colorGroup: string; medications: any[]; }
@@ -167,6 +168,7 @@ export default function ZendityMedPage() {
                     <a href="/med/briefing" className="px-6 py-2.5 rounded-xl font-black text-sm text-indigo-700 bg-indigo-100 hover:bg-indigo-200 border border-indigo-200 shadow-sm transition-all flex items-center gap-2 ml-4">
                         <span className="text-xl">🖨️</span> Prep. Visita Médica
                     </a>
+                    <TaskAssignmentButton user={user} buttonStyle="px-6 py-2.5 rounded-xl font-black text-sm text-white bg-teal-600 hover:bg-teal-700 shadow-sm transition-all flex items-center gap-2 border border-teal-500 ml-2" />
                 </div>
             </div>
 

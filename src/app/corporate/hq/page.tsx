@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 
 interface HQDocument {
     id: string;
@@ -129,9 +130,12 @@ export default function ZendityHQPage() {
                         Bóveda de Cumplimiento Legal y Corporativo. Gestione las licencias del Departamento de la Familia, permisos de bomberos y seguros corporativos.
                     </p>
                 </div>
-                <button onClick={() => router.push('/corporate')} className="px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-teal-700 transition-colors">
-                    ← Volver al Dashboard
-                </button>
+                <div className="flex items-center gap-3">
+                    <TaskAssignmentButton user={user} buttonStyle="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md rounded-xl text-sm font-bold transition-colors flex items-center gap-2" />
+                    <button onClick={() => router.push('/corporate')} className="px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-teal-700 transition-colors">
+                        ← Volver al Dashboard
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
