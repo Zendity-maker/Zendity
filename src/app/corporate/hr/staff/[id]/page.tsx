@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, useRef } from "react";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function StaffPerformanceProfile({ params }: { params: Promise<{ id: string }> }) {
     const rawParams = use(params);
@@ -12,6 +13,8 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
     const [editForm, setEditForm] = useState({ name: "", email: "", pinCode: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,6 +123,31 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
         }
     };
 
+    const handleDeleteEmployee = async () => {
+        const confirm1 = window.confirm("¿Estás absolutamente seguro de que deseas ELIMINAR PERMANENTEMENTE a este empleado?");
+        if (!confirm1) return;
+        const confirm2 = window.confirm("ADVERTENCIA FINAL: Esto desactivará su acceso y lo removerá de las vistas activas para siempre. ¿Proceder?");
+        if (!confirm2) return;
+
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/hr/staff?id=${staff?.id}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                router.push("/corporate/hr/staff");
+                router.refresh();
+            } else {
+                const data = await res.json();
+                alert(data.error || "Ocurrió un error al eliminar.");
+            }
+        } catch (error) {
+            alert("Error de red al eliminar el empleado.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const getScoreColor = (score: number) => {
         if (score >= 90) return "bg-emerald-100 text-emerald-700 border-emerald-200";
         if (score >= 75) return "bg-amber-100 text-amber-700 border-amber-200";
@@ -213,13 +241,16 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                         </div>
                     ) : (
                         <>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <h1 className="text-4xl font-black text-slate-800 tracking-tight">{staff.name}</h1>
                                 <button onClick={() => setIsEditing(true)} className="text-xs px-3 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-lg font-bold transition-colors">
                                      Editar
                                 </button>
                                 <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-700 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5">
                                     {isResending ? "..." : " Reenviar Credenciales"}
+                                </button>
+                                <button onClick={handleDeleteEmployee} disabled={isDeleting} className="text-xs px-3 py-1 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-rose-500 hover:text-rose-700 rounded-lg font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                                    {isDeleting ? "Eliminando..." : " Eliminar Registro"}
                                 </button>
                             </div>
                             <div className="flex flex-wrap items-center gap-3 mt-1">

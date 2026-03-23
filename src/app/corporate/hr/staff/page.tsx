@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
     Users, Plus, Shield, Mail, Key, ShieldAlert,
-    MoreVertical, Ban, CheckCircle2, UserCog, Building2
+    MoreVertical, Ban, CheckCircle2, UserCog, Building2, Trash2
 } from "lucide-react";
 
 type StaffMember = {
@@ -93,6 +93,26 @@ export default function StaffManagementPage() {
             } else {
                 const err = await res.json();
                 alert(err.error || "No se pudo actualizar el estado.");
+            }
+        } catch (error) {
+            alert("Error de red.");
+        }
+    };
+
+    const handleDeleteEmployee = async (id: string, name: string) => {
+        if (!confirm(`¿Estás absolutamente seguro de que deseas ELIMINAR PERMANENTEMENTE a ${name}?`)) return;
+        if (!confirm(`ADVERTENCIA FINAL: Esto removerá su acceso y desaparecerá de todas las listas. ¿Proceder?`)) return;
+
+        try {
+            const res = await fetch(`/api/hr/staff?id=${id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchStaff();
+            } else {
+                const err = await res.json();
+                alert(err.error || "No se pudo eliminar el empleado.");
             }
         } catch (error) {
             alert("Error de red.");
@@ -227,11 +247,18 @@ export default function StaffManagementPage() {
                                                     onClick={() => toggleStaffStatus(s.id, s.isShiftBlocked)}
                                                     className={`p-2 rounded-xl border transition-colors ${s.isShiftBlocked
                                                         ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
-                                                        : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                                                        : 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100'
                                                         }`}
                                                     title={s.isShiftBlocked ? 'Reactivar Empleado' : 'Suspender Acceso'}
                                                 >
                                                     {s.isShiftBlocked ? <Shield className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteEmployee(s.id, s.name)}
+                                                    className={`p-2 rounded-xl border transition-colors bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100`}
+                                                    title="Eliminar Empleado Permanentemente"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
