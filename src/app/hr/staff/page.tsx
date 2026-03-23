@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import AddStaffModal from "./AddStaffModal";
 import SendEmailModal from "./SendEmailModal";
+import { Trash2 } from "lucide-react";
 
 export default function ZendityStaffDirectoryPage() {
     const { user } = useAuth();
@@ -208,7 +209,7 @@ export default function ZendityStaffDirectoryPage() {
                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
                                                         title="Eliminar Empleado Permanentemente"
                                                     >
-                                                        
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </>
                                             ) : (
