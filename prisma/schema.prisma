@@ -205,6 +205,7 @@ model Patient {
   headquartersId   String
   name             String
   roomNumber       String?
+  dateOfBirth      DateTime?
   diet             String? // Asignación por preingreso
   avdScore         Int? // Puntuación de Actividades Vida Diaria
   downtonRisk      Boolean       @default(false) // Escala de Caídas
@@ -224,6 +225,11 @@ model Patient {
   dischargeDate    DateTime?
   dischargeReason  String?
   photoUrl         String? // FASE 48: URL de foto de perfil
+  
+  // FASE 52: Documentos Críticos del Residente (Fotografías)
+  idCardUrl        String?
+  medicalPlanUrl   String?
+  medicareCardUrl  String?
 
   createdAt        DateTime      @default(now())
 

@@ -145,6 +145,42 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                                 <p className="text-slate-500 font-medium">No hay medicamentos activos pre-programados.</p>
                             </div>
                         )}
+
+                        <h3 className="text-slate-800 font-black text-lg mb-4 mt-8 flex items-center gap-2">
+                             Documentos Vitales
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {patientData?.idCardUrl ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                    <div className="bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-center">Identificación ID</div>
+                                    <div className="aspect-[4/3] bg-white p-2">
+                                        <img src={patientData.idCardUrl} alt="ID Oficial" className="w-full h-full object-contain rounded-lg" />
+                                    </div>
+                                </div>
+                            ) : null}
+                            {patientData?.medicalPlanUrl ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                    <div className="bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-center">Plan Médico</div>
+                                    <div className="aspect-[4/3] bg-white p-2">
+                                        <img src={patientData.medicalPlanUrl} alt="Plan Médico" className="w-full h-full object-contain rounded-lg" />
+                                    </div>
+                                </div>
+                            ) : null}
+                            {patientData?.medicareCardUrl ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                    <div className="bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 text-center">Tarjeta Medicare</div>
+                                    <div className="aspect-[4/3] bg-white p-2">
+                                        <img src={patientData.medicareCardUrl} alt="Tarjeta Medicare" className="w-full h-full object-contain rounded-lg" />
+                                    </div>
+                                </div>
+                            ) : null}
+                            {!patientData?.idCardUrl && !patientData?.medicalPlanUrl && !patientData?.medicareCardUrl && (
+                                <div className="col-span-full py-8 text-center bg-slate-50 border border-slate-200 border-dashed rounded-xl">
+                                    <p className="text-slate-500 font-bold mb-1">Sin Documentos Digitalizados</p>
+                                    <p className="text-slate-400 text-sm font-medium">Utiliza el botón "Editar Perfil" en la cabecera para subir fotos del ID y Tarjetas de Salud.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -29,6 +29,8 @@ export default function ZendityMedPage() {
     const [addMedModalOpen, setAddMedModalOpen] = useState(false);
     const [catalog, setCatalog] = useState<any[]>([]);
     const [addForm, setAddForm] = useState({ patientId: "", medicationId: "", scheduleTimes: "08:00 AM", prepDuration: "1_SEMANA", reason: "Asignación Inicial de Fármaco" });
+    const [medSearch, setMedSearch] = useState("");
+    const [showDropdown, setShowDropdown] = useState(false);
 
     useEffect(() => {
         fetchPatients();
@@ -137,6 +139,7 @@ export default function ZendityMedPage() {
             if (data.success) {
                 setAddMedModalOpen(false);
                 setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", reason: "Asignación Inicial de Fármaco" });
+                setMedSearch("");
                 fetchPatients();
             } else {
                 alert("Error: " + data.error);
@@ -248,6 +251,7 @@ export default function ZendityMedPage() {
                                 <button
                                     onClick={() => {
                                         setAddForm({ ...addForm, patientId: p.id });
+                                        setMedSearch("");
                                         setAddMedModalOpen(true);
                                         if (catalog.length === 0) {
                                             fetch("/api/med/crud").then(res => res.json()).then(data => setCatalog(data.medications || []));
@@ -433,12 +437,42 @@ export default function ZendityMedPage() {
                         <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Asignación directa (HIPAA)</p>
 
                         <div className="space-y-4">
-                            <div>
+                            <div className="relative">
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Seleccionar Fármaco</label>
-                                <select value={addForm.medicationId} onChange={e => setAddForm({...addForm, medicationId: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold bg-slate-50 outline-none focus:border-teal-500">
-                                    <option value="">-- Catálogo General --</option>
-                                    {catalog.map(c => <option key={c.id} value={c.id}>{c.name} ({c.dosage})</option>)}
-                                </select>
+                                <input 
+                                    type="text" 
+                                    value={medSearch} 
+                                    onChange={(e) => {
+                                        setMedSearch(e.target.value);
+                                        setShowDropdown(true);
+                                        setAddForm({...addForm, medicationId: ""}); 
+                                    }}
+                                    onFocus={() => setShowDropdown(true)}
+                                    placeholder="Buscar por nombre..."
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold bg-slate-50 outline-none focus:border-teal-500"
+                                />
+                                {showDropdown && (
+                                    <ul className="absolute z-10 w-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                        {catalog.filter(c => c.name.toLowerCase().includes(medSearch.toLowerCase())).length === 0 ? (
+                                            <li className="p-3 text-slate-500 font-medium text-sm">No se encontraron fármacos.</li>
+                                        ) : (
+                                            catalog.filter(c => c.name.toLowerCase().includes(medSearch.toLowerCase())).map(c => (
+                                                <li 
+                                                    key={c.id} 
+                                                    onClick={() => {
+                                                        setAddForm({...addForm, medicationId: c.id});
+                                                        setMedSearch(`${c.name} (${c.dosage})`);
+                                                        setShowDropdown(false);
+                                                    }}
+                                                    className="p-3 hover:bg-teal-50 cursor-pointer border-b border-slate-100 last:border-0"
+                                                >
+                                                    <p className="font-bold text-slate-800">{c.name}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">{c.dosage} - {c.category || 'General'}</p>
+                                                </li>
+                                            ))
+                                        )}
+                                    </ul>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Horario de Suministro</label>

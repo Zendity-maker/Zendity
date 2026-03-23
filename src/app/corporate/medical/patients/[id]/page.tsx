@@ -46,6 +46,75 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         }
     };
 
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editForm, setEditForm] = useState({
+        name: "", roomNumber: "", dateOfBirth: "", 
+        diet: "", allergies: "", diagnoses: "",
+        idCardUrl: "", medicalPlanUrl: "", medicareCardUrl: ""
+    });
+    const [isSaving, setIsSaving] = useState(false);
+    const idInputRef = useRef<HTMLInputElement>(null);
+    const medicalInputRef = useRef<HTMLInputElement>(null);
+    const medicareInputRef = useRef<HTMLInputElement>(null);
+
+    const openEditModal = () => {
+        setEditForm({
+            name: patientData?.name || "",
+            roomNumber: patientData?.roomNumber || "",
+            dateOfBirth: patientData?.dateOfBirth ? new Date(patientData.dateOfBirth).toISOString().split('T')[0] : "",
+            diet: patientData?.diet || "Regular (Sólida)",
+            allergies: patientData?.intakeData?.allergies || "",
+            diagnoses: patientData?.intakeData?.diagnoses || "",
+            idCardUrl: patientData?.idCardUrl || "",
+            medicalPlanUrl: patientData?.medicalPlanUrl || "",
+            medicareCardUrl: patientData?.medicareCardUrl || ""
+        });
+        setShowEditModal(true);
+    };
+
+    const handleSaveEdit = async () => {
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                method: "PUT", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(editForm)
+            });
+            if (res.ok) {
+                setShowEditModal(false);
+                fetchPatientData();
+            } else {
+                alert("Error guardando el perfil.");
+            }
+        } catch(e) { }
+        setIsSaving(false);
+    };
+
+    const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 800; // Optimal for readability while saving space
+                let width = img.width;
+                let height = img.height;
+                if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64Photo = canvas.toDataURL("image/jpeg", 0.7);
+                    setEditForm(prev => ({ ...prev, [fieldName]: base64Photo }));
+                }
+            };
+            img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -201,9 +270,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                     Dieta: {patientData?.diet || 'Regular (Sólida)'}
                                 </span>
                                 {patientData?.status !== 'DISCHARGED' && patientData?.status !== 'DECEASED' && (
+                                    <>
                                     <button onClick={() => { setNewDiet(patientData?.diet || "Regular (Sólida)"); setShowDietModal(true); }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
                                         <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
                                     </button>
+                                    <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
+                                        <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Perfil
+                                    </button>
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -392,6 +466,78 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         <div className="flex gap-3">
                             <button onClick={() => setShowDietModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
                             <button onClick={handleUpdateDiet} className="flex-1 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors">Actualizar Dieta</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: EDITAR PERFIL */}
+            {showEditModal && (
+                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
+                            <PencilIcon className="w-6 h-6 text-indigo-600" />
+                            Editar Perfil del Residente
+                        </h3>
+
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nombre Completo</label>
+                                    <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none" placeholder="Nombre completo" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Habitación</label>
+                                    <input type="text" value={editForm.roomNumber} onChange={e => setEditForm({...editForm, roomNumber: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none" placeholder="Ej: 104-A" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Fecha de Nacimiento</label>
+                                    <input type="date" value={editForm.dateOfBirth} onChange={e => setEditForm({...editForm, dateOfBirth: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Alergias Conocidas</label>
+                                    <input type="text" value={editForm.allergies} onChange={e => setEditForm({...editForm, allergies: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none text-rose-600 font-medium" placeholder="Ej: Penicilina, Nueces" />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Diagnósticos Principales</label>
+                                <textarea value={editForm.diagnoses} onChange={e => setEditForm({...editForm, diagnoses: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none min-h-[60px]" placeholder="Ej: Hipertensión, Diabetes Tipo 2..." />
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100">
+                                <h4 className="font-bold text-slate-800 mb-4 tracking-tight">Documentos Vitales (Fotos)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 relative group cursor-pointer hover:border-indigo-400 transition" onClick={() => idInputRef.current?.click()}>
+                                        <input type="file" accept="image/*" className="hidden" ref={idInputRef} onChange={e => handleDocumentUpload(e, 'idCardUrl')} />
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Identificación ID</p>
+                                        <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
+                                            {editForm.idCardUrl ? <img src={editForm.idCardUrl} alt="ID" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                        </div>
+                                    </div>
+                                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 relative group cursor-pointer hover:border-indigo-400 transition" onClick={() => medicalInputRef.current?.click()}>
+                                        <input type="file" accept="image/*" className="hidden" ref={medicalInputRef} onChange={e => handleDocumentUpload(e, 'medicalPlanUrl')} />
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Plan Médico</p>
+                                        <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
+                                            {editForm.medicalPlanUrl ? <img src={editForm.medicalPlanUrl} alt="Plan Medico" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                        </div>
+                                    </div>
+                                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 relative group cursor-pointer hover:border-indigo-400 transition" onClick={() => medicareInputRef.current?.click()}>
+                                        <input type="file" accept="image/*" className="hidden" ref={medicareInputRef} onChange={e => handleDocumentUpload(e, 'medicareCardUrl')} />
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Tarjeta Medicare</p>
+                                        <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
+                                            {editForm.medicareCardUrl ? <img src={editForm.medicareCardUrl} alt="Medicare" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 pt-6 mt-6 border-t border-slate-100">
+                            <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={handleSaveEdit} disabled={isSaving} className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors disabled:opacity-50">
+                                {isSaving ? "Guardando..." : "Guardar Cambios"}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -45,6 +45,14 @@ export default function MedicalCatalogPage() {
     // Edit Modal State
     const [editingMed, setEditingMed] = useState<Medication | null>(null);
 
+    // Add Manual Med State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addMedForm, setAddMedForm] = useState({
+        name: "", dosage: "", route: "Oral", description: "", category: "General", condition: "Otros",
+        isControlled: false, requiresFridge: false, withFood: false
+    });
+    const [isAdding, setIsAdding] = useState(false);
+
     useEffect(() => {
         fetchMedications();
     }, []);
@@ -108,6 +116,30 @@ export default function MedicalCatalogPage() {
         }
     };
 
+    const handleAddManualMed = async () => {
+        if (!addMedForm.name || !addMedForm.dosage) return alert("Nombre y dosis son obligatorios.");
+        setIsAdding(true);
+        try {
+            const res = await fetch("/api/med/catalog", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(addMedForm)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIsAddModalOpen(false);
+                setAddMedForm({ name: "", dosage: "", route: "Oral", description: "", category: "General", condition: "Otros", isControlled: false, requiresFridge: false, withFood: false });
+                fetchMedications();
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de red al guardar el fármaco");
+        } finally {
+            setIsAdding(false);
+        }
+    };
+
     const filteredMeds = medications.filter(m => {
         const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
         const cond = m.condition || "Otros";
@@ -135,6 +167,13 @@ export default function MedicalCatalogPage() {
                 </div>
 
                 <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="bg-white border-2 border-teal-600 text-teal-700 px-5 py-2.5 rounded-xl font-bold shadow-sm flex items-center gap-2 hover:bg-teal-50 hover:scale-105 active:scale-95 transition-all"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Registro Manual
+                    </button>
                     <button
                         onClick={() => setIsOcrOpen(true)}
                         className="bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
@@ -348,6 +387,91 @@ export default function MedicalCatalogPage() {
                                 className="text-gray-500 hover:text-gray-800 font-medium"
                             >
                                 Volver al Catálogo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Medication Manual Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl p-6 relative animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-3">
+                            <Plus className="w-7 h-7 text-teal-600" /> Nuevo Fármaco
+                        </h2>
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Nombre (Ingrediente)</label>
+                                    <input type="text" value={addMedForm.name} onChange={e => setAddMedForm({...addMedForm, name: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 uppercase focus:border-teal-500 outline-none" placeholder="Ej: LOSARTAN" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Dosis (Concentración)</label>
+                                    <input type="text" value={addMedForm.dosage} onChange={e => setAddMedForm({...addMedForm, dosage: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 focus:border-teal-500 outline-none" placeholder="Ej: 50mg" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Vía de Adm.</label>
+                                    <select value={addMedForm.route} onChange={e => setAddMedForm({...addMedForm, route: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 focus:border-teal-500 outline-none">
+                                        <option value="Oral">Oral (PO)</option>
+                                        <option value="Sublingual">Sublingual (SL)</option>
+                                        <option value="Tópica">Tópica</option>
+                                        <option value="Intravenosa">Intravenosa (IV)</option>
+                                        <option value="Intramuscular">Intramuscular (IM)</option>
+                                        <option value="Subcutánea">Subcutánea (SQ)</option>
+                                        <option value="Óptica">Gotas Ópticas</option>
+                                        <option value="Ótica">Gotas Óticas</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Condición</label>
+                                    <select value={addMedForm.condition} onChange={e => setAddMedForm({...addMedForm, condition: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 focus:border-teal-500 outline-none">
+                                        <option value="Cardiovascular">Cardiovascular</option>
+                                        <option value="Ansiedad">Ansiedad / Psiquiatría</option>
+                                        <option value="Dolor Físico">Dolor y Fiebre</option>
+                                        <option value="Insomnio">Insomnio</option>
+                                        <option value="Infección">Infección (Antibiótico)</option>
+                                        <option value="Gastrointestinal">Gastrointestinal</option>
+                                        <option value="Respiratorio">Respiratorio</option>
+                                        <option value="Otros">Otros</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Descripción / Notas</label>
+                                <textarea text-sm="true" value={addMedForm.description} onChange={e => setAddMedForm({...addMedForm, description: e.target.value})} className="w-full p-3 border-2 border-gray-100 rounded-xl bg-gray-50 focus:border-teal-500 outline-none min-h-[60px]" placeholder="Instrucciones al prescribir..."></textarea>
+                            </div>
+
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Alertas Clínicas</label>
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked={addMedForm.isControlled} onChange={e => setAddMedForm({...addMedForm, isControlled: e.target.checked})} className="w-5 h-5 text-red-600 rounded" />
+                                        <span className="text-sm font-bold text-gray-700"> Droga Controlada (Psicotrópico/Narcótico)</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked={addMedForm.requiresFridge} onChange={e => setAddMedForm({...addMedForm, requiresFridge: e.target.checked})} className="w-5 h-5 text-blue-600 rounded" />
+                                        <span className="text-sm font-bold text-gray-700"> Requiere Refrigeración (Nevera)</span>
+                                    </label>
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" checked={addMedForm.withFood} onChange={e => setAddMedForm({...addMedForm, withFood: e.target.checked})} className="w-5 h-5 text-orange-500 rounded" />
+                                        <span className="text-sm font-bold text-gray-700"> Tomar con Alimentos (Gastro-protección)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-8">
+                            <button onClick={() => setIsAddModalOpen(false)} className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all">
+                                Cancelar
+                            </button>
+                            <button onClick={handleAddManualMed} disabled={isAdding} className="flex-1 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl shadow-lg shadow-teal-500/30 transition-all disabled:opacity-50">
+                                {isAdding ? "Guardando..." : "Guardar Fármaco"}
                             </button>
                         </div>
                     </div>
