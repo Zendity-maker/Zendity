@@ -53,7 +53,7 @@ export default function MasterPatientDirectory() {
                 return <span className="bg-amber-100 text-amber-700 border border-amber-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1"><ExclamationTriangleIcon className="w-3 h-3" /> Ausente ({leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})</span>;
             case "DISCHARGED":
             case "DECEASED":
-                return <span className="bg-slate-100 text-slate-500 border border-slate-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">Histórico (Baja)</span>;
+                return <span className="bg-slate-100 text-slate-500 border border-slate-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">Dado de Baja</span>;
             default:
                 return <span className="bg-slate-100 text-slate-500 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">{status}</span>;
         }
@@ -117,7 +117,7 @@ export default function MasterPatientDirectory() {
                         <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'ALL' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>Todos</button>
                         <button onClick={() => setStatusFilter('ACTIVE')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'ACTIVE' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}>Activos</button>
                         <button onClick={() => setStatusFilter('TEMPORARY_LEAVE')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'TEMPORARY_LEAVE' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>Ausentes / Hospital</button>
-                        <button onClick={() => setStatusFilter('DISCHARGED')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'DISCHARGED' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-slate-700'}`}>Históricos</button>
+                        <button onClick={() => setStatusFilter('DISCHARGED')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'DISCHARGED' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-slate-700'}`}>Residentes dados de baja</button>
                     </div>
                 </div>
 

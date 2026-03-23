@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
     const allHqs = await prisma.headquarters.findMany({
       include: {
         patients: {
+          where: {
+            status: { notIn: ['DISCHARGED', 'DECEASED'] }
+          },
           include: {
             medications: {
               include: { administrations: true }

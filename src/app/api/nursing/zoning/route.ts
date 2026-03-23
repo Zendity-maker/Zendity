@@ -6,6 +6,9 @@ const prisma = new PrismaClient();
 export async function GET() {
     try {
         const patients = await prisma.patient.findMany({
+            where: {
+                status: { notIn: ['DISCHARGED', 'DECEASED'] }
+            },
             include: {
                 headquarters: true,
                 medications: {
