@@ -2,9 +2,17 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { es } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
+
+// Función a prueba de fallos para fechas inválidas (Evita el Next.js Client Error 'Invalid time value')
+const safeFormatDate = (dateVal: any, fmt: string) => {
+    if (!dateVal) return "Fecha no registrada";
+    const d = new Date(dateVal);
+    if (!isValid(d)) return "Fecha corrupta";
+    return format(d, fmt, { locale: es });
+};
 
 function EmarPrintContent() {
     const searchParams = useSearchParams();
@@ -101,10 +109,10 @@ function EmarPrintContent() {
                 <div className="grid grid-cols-2 gap-8 mb-8 border-b-2 border-slate-100 pb-8">
                     <div>
                         <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-1">Paciente / Residente</p>
-                        <h2 className="text-2xl font-black text-slate-900 mb-2">{patient.name}</h2>
+                        <h2 className="text-2xl font-black text-slate-900 mb-2">{patient.name || 'Paciente sin nombre'}</h2>
                         <div className="space-y-1 text-sm text-slate-700 font-medium">
                             <p><span className="font-bold text-slate-400 w-24 inline-block">Habitación:</span> {patient.roomNumber || 'No asignada'}</p>
-                            <p><span className="font-bold text-slate-400 w-24 inline-block">Admisión:</span> {format(new Date(patient.admissionDate), "PP", {locale: es})}</p>
+                            <p><span className="font-bold text-slate-400 w-24 inline-block">Admisión:</span> {safeFormatDate(patient.admissionDate, "PP")}</p>
                         </div>
                     </div>
                     <div>
@@ -137,12 +145,12 @@ function EmarPrintContent() {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {allAdministrations.map((admin: any) => (
-                                    <tr key={admin.id} className="hover:bg-slate-50">
+                                    <tr key={admin.id || Math.random()} className="hover:bg-slate-50">
                                         <td className="py-4 px-4">
-                                            <p className="font-bold text-slate-900">{admin.medicationName}</p>
+                                            <p className="font-bold text-slate-900">{admin.medicationName || 'Desconocido'}</p>
                                         </td>
                                         <td className="py-4 px-4 font-medium text-slate-700">
-                                            {format(new Date(admin.administeredAt), "MMM d, yyyy - h:mm a", { locale: es })}
+                                            {safeFormatDate(admin.administeredAt, "MMM d, yyyy - h:mm a")}
                                         </td>
                                         <td className="py-4 px-4 text-slate-600 font-medium">
                                             {admin.dosage}  {admin.route}
