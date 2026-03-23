@@ -25,6 +25,11 @@ export default function ZendityMedPage() {
     const [newSchedule, setNewSchedule] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
+    // Add Med State
+    const [addMedModalOpen, setAddMedModalOpen] = useState(false);
+    const [catalog, setCatalog] = useState<any[]>([]);
+    const [addForm, setAddForm] = useState({ patientId: "", medicationId: "", scheduleTimes: "08:00 AM", prepDuration: "1_SEMANA", reason: "Asignación Inicial de Fármaco" });
+
     useEffect(() => {
         fetchPatients();
     }, []);
@@ -110,6 +115,37 @@ export default function ZendityMedPage() {
         setCrudAction(action);
         setNewSchedule(med.scheduleTime);
         setModalOpen(true);
+    };
+
+    const handleAddMedSubmit = async () => {
+        if (!addForm.medicationId || !addForm.reason) return alert("Faltan datos obligatorios.");
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/med/crud", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "ADDED",
+                    patientId: addForm.patientId,
+                    medicationId: addForm.medicationId,
+                    scheduleTimes: addForm.scheduleTimes,
+                    prepDuration: addForm.prepDuration,
+                    authorId: user?.id,
+                    reason: addForm.reason
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setAddMedModalOpen(false);
+                setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", reason: "Asignación Inicial de Fármaco" });
+                fetchPatients();
+            } else {
+                alert("Error: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const submitCartSign = async (color: string) => {
@@ -209,7 +245,18 @@ export default function ZendityMedPage() {
                                         </div>
                                     ))
                                 )}
-                                <button className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold rounded-xl text-xs hover:border-teal-400 hover:text-teal-600 transition-colors uppercase tracking-widest mt-2">+ Añadir Fármaco</button>
+                                <button
+                                    onClick={() => {
+                                        setAddForm({ ...addForm, patientId: p.id });
+                                        setAddMedModalOpen(true);
+                                        if (catalog.length === 0) {
+                                            fetch("/api/med/crud").then(res => res.json()).then(data => setCatalog(data.medications || []));
+                                        }
+                                    }}
+                                    className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold rounded-xl text-xs hover:border-teal-400 hover:text-teal-600 transition-colors uppercase tracking-widest mt-2"
+                                >
+                                    + Añadir Fármaco
+                                </button>
                             </div>
                         </div>
                     ))}
@@ -370,6 +417,51 @@ export default function ZendityMedPage() {
                             <button onClick={() => setModalOpen(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
                             <button onClick={handleCrudSubmit} className={`flex-1 py-3 font-black text-white rounded-xl shadow-lg transition-all active:scale-95 ${crudAction === 'DISCONTINUED' ? 'bg-red-500 shadow-red-500/30 hover:bg-red-600' : 'bg-teal-600 shadow-teal-500/30 hover:bg-teal-700'}`}>
                                 {submitting ? 'Guardando...' : 'Aplicar Sello'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* MODAL PARA AÑADIR FÁRMACO                                  */}
+            {/* ========================================================= */}
+            {addMedModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-xl w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
+                        <h3 className="text-2xl font-black text-slate-900 mb-1">Añadir Fármaco</h3>
+                        <p className="text-sm font-medium text-slate-500 mb-6 border-b border-slate-100 pb-4">Asignación directa (HIPAA)</p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Seleccionar Fármaco</label>
+                                <select value={addForm.medicationId} onChange={e => setAddForm({...addForm, medicationId: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold bg-slate-50 outline-none focus:border-teal-500">
+                                    <option value="">-- Catálogo General --</option>
+                                    {catalog.map(c => <option key={c.id} value={c.id}>{c.name} ({c.dosage})</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Horario de Suministro</label>
+                                <input type="text" value={addForm.scheduleTimes} onChange={e => setAddForm({...addForm, scheduleTimes: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: 08:00 AM, 08:00 PM, PRN" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Duración Preparación</label>
+                                <select value={addForm.prepDuration} onChange={e => setAddForm({...addForm, prepDuration: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold bg-slate-50 outline-none focus:border-teal-500">
+                                    <option value="1_SEMANA">1 Semana Continua</option>
+                                    <option value="2_SEMANAS">2 Semanas</option>
+                                    <option value="INDEFINIDO">Uso Indefinido / Permanente</option>
+                                </select>
+                            </div>
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                <label className="block text-sm font-bold text-amber-900 mb-1 flex items-center gap-2"><span></span> Razón (Auditoría Médica)</label>
+                                <textarea value={addForm.reason} onChange={e => setAddForm({...addForm, reason: e.target.value})} placeholder="Ej. Según orden médica del Dr. García" className="w-full p-2 bg-white/50 border border-amber-200 focus:border-amber-400 rounded-lg text-sm font-medium text-amber-900 min-h-[40px] outline-none"></textarea>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-6 border-t border-slate-100 mt-6">
+                            <button onClick={() => setAddMedModalOpen(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={handleAddMedSubmit} disabled={!addForm.medicationId || submitting} className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 font-black text-white rounded-xl shadow-lg shadow-teal-500/30 transition-all active:scale-95 disabled:opacity-50">
+                                {submitting ? 'Añadiendo...' : 'Añadir al Perfil'}
                             </button>
                         </div>
                     </div>
