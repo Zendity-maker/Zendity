@@ -96,21 +96,20 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (requireSignature: boolean = false) => {
         if (!employeeId || !description || !selectedSupervisorId) return alert("Faltan datos por llenar.");
         if (step === 1) {
             setStep(2);
             return;
         }
 
-        if (step === 2 && sigCanvas.current?.isEmpty()) {
-            const bypassSignature = window.confirm("El empleado no ha firmado. ¿Deseas emitir y guardar este reporte disciplinario sin la firma interactiva del empleado?");
-            if (!bypassSignature) return;
+        if (step === 2 && requireSignature && (sigCanvas.current === null || sigCanvas.current.isEmpty())) {
+            return alert("Por favor solicita al empleado que firme en el recuadro blanco, o utiliza el botón de 'Guardar sin Firma (Ausente)'.");
         }
 
         setSubmitting(true);
         try {
-            const signatureBase64 = sigCanvas.current?.isEmpty() ? null : sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+            const signatureBase64 = (sigCanvas.current === null || sigCanvas.current.isEmpty()) ? null : sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
 
             const res = await fetch("/api/hr/incidents", {
                 method: "POST",
@@ -280,11 +279,11 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                         )}
                     </div>
 
-                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between">
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center flex-wrap gap-4">
                         {step === 2 ? (
                             <button
                                 onClick={() => setStep(1)}
-                                className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm"
+                                className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm shrink-0"
                             >
                                 Volver a Redacción
                             </button>
@@ -292,16 +291,38 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                             <div></div>
                         )}
 
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {submitting ? 'Procesando...' : step === 1 ? 'Siguiente: Firma (Paso 2)' : 'Confirmar y Guardar Reporte'}
-                            {!submitting && step === 1 && (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                            )}
-                        </button>
+                        {step === 1 ? (
+                            <button
+                                onClick={() => handleSubmit(false)}
+                                disabled={submitting}
+                                className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 shrink-0 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {submitting ? 'Procesando...' : 'Siguiente: Firma (Paso 2)'}
+                                {!submitting && (
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                )}
+                            </button>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    onClick={() => handleSubmit(false)}
+                                    disabled={submitting}
+                                    className={`px-5 py-2.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Guardar sin Firma (Ausente)
+                                </button>
+                                <button
+                                    onClick={() => handleSubmit(true)}
+                                    disabled={submitting}
+                                    className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {submitting ? 'Procesando...' : 'Confirmar Reporte Firmado'}
+                                    {!submitting && (
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
             </div>
