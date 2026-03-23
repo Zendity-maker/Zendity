@@ -15,25 +15,42 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
         setIsUploading(true);
 
         const reader = new FileReader();
-        reader.onloadend = async () => {
-            const base64String = reader.result as string;
-            try {
-                const res = await fetch(`/api/corporate/patients/${patientData.id}/photo`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ photoUrl: base64String })
-                });
+        reader.onloadend = () => {
+            const img = new Image();
+            img.onload = async () => {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 400; // Optimal compression
+                let width = img.width;
+                let height = img.height;
+                if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const base64String = canvas.toDataURL("image/jpeg", 0.7);
 
-                if (res.ok) {
-                    onRefresh();
-                } else {
-                    alert("Error subiendo fotografía");
+                    try {
+                        const res = await fetch(`/api/corporate/patients/${patientData.id}/photo`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ photoUrl: base64String })
+                        });
+
+                        if (res.ok) {
+                            onRefresh();
+                        } else {
+                            const data = await res.json().catch(() => ({}));
+                            alert("Error subiendo fotografía: " + (data.error || "Error del servidor"));
+                        }
+                    } catch (error) {
+                        console.error("Upload error:", error);
+                        alert("Error de red al intentar subir la foto.");
+                    } finally {
+                        setIsUploading(false);
+                    }
                 }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setIsUploading(false);
-            }
+            };
+            img.src = reader.result as string;
         };
         reader.readAsDataURL(file);
     };
