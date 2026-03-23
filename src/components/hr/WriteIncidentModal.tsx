@@ -66,12 +66,13 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
         }
 
         if (step === 2 && sigCanvas.current?.isEmpty()) {
-            return alert("El empleado debe firmar de enterado.");
+            const bypassSignature = window.confirm("El empleado no ha firmado. ¿Deseas emitir y guardar este reporte disciplinario sin la firma interactiva del empleado?");
+            if (!bypassSignature) return;
         }
 
         setSubmitting(true);
         try {
-            const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
+            const signatureBase64 = sigCanvas.current?.isEmpty() ? null : sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
 
             const res = await fetch("/api/hr/incidents", {
                 method: "POST",
@@ -203,11 +204,11 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                                     <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Hechos Reportados:</h3>
                                     <p className="text-gray-800 whitespace-pre-wrap text-sm">{description}</p>
                                     <p className="text-xs font-bold text-gray-500 uppercase mt-4">Acción:</p>
-                                    <p className="text-gray-800 text-sm">{type}</p>
+                                    <p className="text-gray-800 text-sm font-bold">{type === 'WARNING' ? 'Amonestación Escrita' : type === 'SUSPENSION' ? 'Suspensión Temporal' : 'Despido Justificado'}</p>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Firma del Empleado (Involucrado)</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Firma del Empleado (Opcional - Si está presente)</label>
                                     <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white">
                                         <SignatureCanvas
                                             ref={sigCanvas}
