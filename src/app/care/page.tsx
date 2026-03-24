@@ -352,6 +352,24 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    const refreshPatientsSilently = async (color: string) => {
+        try {
+            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch(`/api/care?color=${color}&hqId=${hq}`);
+            const data = await res.json();
+            if (data.success) {
+                setPatients(data.patients);
+                setEvents(data.events || []);
+                setActivePatient((prev: any) => {
+                    if (!prev) return prev;
+                    return data.patients.find((p: any) => p.id === prev.id) || prev;
+                });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     // FASE 11: Fast Actions & 15-Min SLAs Polling
     const fetchFastActions = async () => {
         if (!user) return;
@@ -448,6 +466,7 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+                refreshPatientsSilently(selectedColor!);
                 
                 if (data.criticalAlert) {
                     alert(data.message);
@@ -482,6 +501,7 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 setDailyLog({ bathCompleted: false, foodIntake: 100, notes: "" });
+                refreshPatientsSilently(selectedColor!);
                 setModalType(null);
             }
         } catch (e) {
@@ -524,6 +544,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
+                refreshPatientsSilently(selectedColor!);
                 setActivePatient({
                     ...activePatient,
                     medications: []
@@ -554,6 +575,7 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 alert(" Baño registrado al sistema central.");
                 setDailyLog({ ...dailyLog, bathCompleted: true });
+                refreshPatientsSilently(selectedColor!);
             } else {
                 alert(` Alerta: ${data.message || data.error}`);
             }
@@ -570,6 +592,7 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 alert(` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+                refreshPatientsSilently(selectedColor!);
             } else {
                 alert(` Error Clínico: ${data.error}`);
             }
@@ -625,6 +648,7 @@ export default function ZendityCareTabletPage() {
                 setNightRoundStatus(null);
                 setNightRoundNote("");
                 setNightRoundSLA(0); // Lock it immediately
+                refreshPatientsSilently(selectedColor!);
             } else {
                 alert(` Error Clínico: ${data.error}`);
             }
@@ -675,6 +699,7 @@ export default function ZendityCareTabletPage() {
                 else if (data.pointsDelta < 0) gamifiedMsg = ` Rotación atrasada. Zendity HR dedujo ${data.pointsDelta} Puntos por incumplimiento.`;
 
                 alert(` Cambio Postural (${position}) registrado exitosamente.\n${gamifiedMsg}`);
+                refreshPatientsSilently(selectedColor!);
                 setActivePatient({
                     ...activePatient,
                     posturalChanges: [data.rotation, ...(activePatient.posturalChanges || [])]
@@ -712,6 +737,7 @@ export default function ZendityCareTabletPage() {
                 setModalType(null);
                 setSelectedSymptom(null);
                 setPreventiveNote("");
+                refreshPatientsSilently(selectedColor!);
             } else {
                 alert(` Error Clínico: ${data.error}`);
             }
