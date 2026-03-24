@@ -35,8 +35,8 @@ export async function GET(req: Request) {
                 },
                 vitalSigns: {
                     where: { createdAt: { gte: todayStart, lte: todayEnd } },
-                    select: { id: true },
-                    take: 1
+                    select: { id: true, systolic: true, diastolic: true, heartRate: true, temperature: true, glucose: true, createdAt: true },
+                    orderBy: { createdAt: 'desc' }
                 },
                 bathLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },

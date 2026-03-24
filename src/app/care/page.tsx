@@ -40,7 +40,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | null>(null);
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
@@ -1230,9 +1230,21 @@ export default function ZendityCareTabletPage() {
                                             <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
                                                 <span className="text-sm"></span> {p.mealLogs?.length || 0}/3 Comidas
                                             </div>
-                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.vitalSigns?.length > 0 ? 'bg-teal-100 text-teal-700 border border-teal-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActivePatient(p);
+                                                    if (p.vitalSigns?.length > 0) {
+                                                        setModalType('VITALS_HISTORY');
+                                                    } else {
+                                                        setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+                                                        setModalType('VITALS');
+                                                    }
+                                                }}
+                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer ${p.vitalSigns?.length > 0 ? 'bg-teal-100 text-teal-700 border border-teal-200 hover:bg-teal-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent hover:bg-slate-200'}`}
+                                            >
                                                 <span className="text-sm"></span> Vitales
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
 
@@ -1355,6 +1367,41 @@ export default function ZendityCareTabletPage() {
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {modalType === 'VITALS_HISTORY' && (
+                            <div className="space-y-4">
+                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Historial de Vitales (Turno Actual)</p>
+                                {activePatient?.vitalSigns?.length > 0 ? (
+                                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                                        {activePatient.vitalSigns.map((v: any, i: number) => (
+                                            <div key={i} className="bg-teal-50/50 p-4 rounded-xl border border-teal-100 flex justify-between items-center shadow-sm">
+                                                <div>
+                                                    <p className="font-black text-teal-900 text-sm">
+                                                        BP: {v.systolic || '--'} / {v.diastolic || '--'} <span className="text-teal-300 mx-2">|</span> 
+                                                        HR: {v.heartRate || '--'} <span className="text-teal-300 mx-2">|</span> 
+                                                        Temp: {v.temperature || '--'}°
+                                                    </p>
+                                                    <p className="text-xs font-bold text-teal-700 mt-1">
+                                                        SpO2: {v.spo2 || '--'}% {v.glucose ? `| Glucosa: ${v.glucose}` : ''}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-[10px] uppercase font-black tracking-widest text-teal-600 block mb-0.5">Hora</span>
+                                                    <span className="text-sm font-black text-teal-800 bg-white px-2 py-1 rounded-md shadow-sm border border-teal-100">
+                                                        {new Date(v.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm font-bold text-slate-400 text-center py-4">No hay lecturas registradas en este turno.</p>
+                                )}
+                                <button onClick={() => { setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="w-full py-4 mt-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-teal-500/30">
+                                    Tomar Nueva Lectura
+                                </button>
                             </div>
                         )}
 
