@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import Papa from "papaparse";
 
 type LeadStage = "PROSPECT" | "TOUR" | "EVALUATION" | "CONTRACT" | "ADMISSION";
 
@@ -34,6 +35,10 @@ export default function CRMDashboardPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newLead, setNewLead] = useState({ firstName: "", lastName: "", email: "", phone: "" });
     const [saving, setSaving] = useState(false);
+
+    // CSV State
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const hqId = user?.hqId || user?.headquartersId;
 
@@ -80,6 +85,57 @@ export default function CRMDashboardPage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleExportCSV = () => {
+        window.location.href = '/api/corporate/crm/leads/export';
+    };
+
+    const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                try {
+                    const parsedLeads = results.data.map((row: any) => ({
+                        firstName: row.Nombre || row.firstName || row.FirstName || '',
+                        lastName: row.Apellido || row.lastName || row.LastName || '',
+                        email: row.Email || row.email || null,
+                        phone: row.Teléfono || row.Telefono || row.phone || null,
+                        notes: row.Notas || row.notes || null,
+                    })).filter((l: any) => l.firstName || l.lastName);
+
+                    const res = await fetch("/api/corporate/crm/leads/import", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ leads: parsedLeads })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(`¡Importación exitosa! Se importaron ${data.count} prospectos.`);
+                        fetchLeads();
+                    } else {
+                        alert("Error en importación: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Import error:", error);
+                    alert("Ocurrió un error al importar el archivo.");
+                } finally {
+                    setIsImporting(false);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                }
+            },
+            error: (error) => {
+                console.error("PapaParse error:", error);
+                alert("Error leyendo el archivo CSV.");
+                setIsImporting(false);
+            }
+        });
     };
 
     const handleMoveLead = async (id: string, newStage: LeadStage) => {
@@ -168,6 +224,23 @@ export default function CRMDashboardPage() {
                 <div className="flex gap-3">
                     <button onClick={() => router.push('/corporate')} className="px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
                         Volver al Inicio
+                    </button>
+                    <button onClick={handleExportCSV} className="px-4 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors hidden sm:block">
+                        Exportar CSV
+                    </button>
+                    <input 
+                        type="file" 
+                        accept=".csv" 
+                        ref={fileInputRef} 
+                        onChange={handleImportCSV} 
+                        className="hidden" 
+                    />
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        disabled={isImporting}
+                        className="px-4 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 hidden sm:block"
+                    >
+                        {isImporting ? 'Importando...' : 'Importar CSV'}
                     </button>
                     <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-indigo-600 shadow-[0_4px_15px_rgba(79,70,229,0.3)] rounded-xl text-sm font-bold text-white hover:bg-indigo-500 active:scale-95 transition-all">
                         + Nuevo Ingreso
