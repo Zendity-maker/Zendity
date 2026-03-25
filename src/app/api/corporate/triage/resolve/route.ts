@@ -5,13 +5,13 @@ const prisma = new PrismaClient();
 
 export async function PATCH(req: Request) {
     try {
-        const { ticketId, moduleName } = await req.json();
+        const { ticketId, moduleName, actionTaken, authorId, patientId, ticketTitle, familyMessage } = await req.json();
 
         if (!ticketId || !moduleName) {
             return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
         }
 
-        let updatedTicket = null;
+        let updatedTicket: any = null;
 
         switch (moduleName) {
             case 'COMPLAINT':
@@ -34,6 +34,32 @@ export async function PATCH(req: Request) {
                 break;
             default:
                 return NextResponse.json({ success: false, error: 'Invalid moduleName' }, { status: 400 });
+        }
+
+        // FASE 66: Crear ClinicalNote (Reporte Triage) en el perfil
+        if (actionTaken && patientId && authorId) {
+            await prisma.clinicalNote.create({
+                data: {
+                    patientId,
+                    authorId,
+                    title: `Resolución de Ticket: ${ticketTitle || moduleName}`,
+                    content: actionTaken,
+                    type: "TRIAGE_RESOLUTION"
+                }
+            });
+        }
+
+        // FASE 66: Crear Mensaje Familiar Opcional Propuesto por Zendi
+        if (familyMessage && patientId && authorId) {
+            await prisma.familyMessage.create({
+                data: {
+                    patientId,
+                    senderType: 'STAFF',
+                    senderId: authorId,
+                    content: familyMessage,
+                    isRead: false
+                }
+            });
         }
 
         return NextResponse.json({ success: true, updatedTicket });

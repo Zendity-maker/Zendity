@@ -18,12 +18,12 @@ model Headquarters {
   isActive      Boolean  @default(true) // FASE 12: Operating Status
   licenseActive Boolean  @default(true)
   licenseExpiry DateTime
-  
+
   // FASE 51: AI Shift Rule Targets
-  shiftRuleMorning Int @default(3)
-  shiftRuleEvening Int @default(3)
-  shiftRuleNight   Int @default(2)
-  createdAt     DateTime @default(now())
+  shiftRuleMorning Int      @default(3)
+  shiftRuleEvening Int      @default(3)
+  shiftRuleNight   Int      @default(2)
+  createdAt        DateTime @default(now())
 
   // FASE 65: Zendity SaaS CRM (B2B Billing & Ownership)
   ownerName          String?
@@ -31,8 +31,8 @@ model Headquarters {
   ownerPhone         String?
   taxId              String?
   billingAddress     String?
-  subscriptionStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELED
-  subscriptionPlan   String   @default("PRO")    // LITE, PRO, ENTERPRISE
+  subscriptionStatus String  @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELED
+  subscriptionPlan   String  @default("PRO") // LITE, PRO, ENTERPRISE
 
   users         User[]
   patients      Patient[]
@@ -65,14 +65,14 @@ model Headquarters {
   shiftSchedules ShiftSchedule[]
 
   // FASE 30: Zendity Care Core
-  shiftSessions  ShiftSession[]
-  complaints     Complaint[]
+  shiftSessions ShiftSession[]
+  complaints    Complaint[]
 
   // FASE 39: Super Admin B2B SaaS Billing
-  saasInvoices   SaaSInvoice[]
+  saasInvoices SaaSInvoice[]
 
   // FASE 43 Integrations
-  legalDocs      LegalDocument[]
+  legalDocs LegalDocument[]
 
   // FASE 50 Kitchen Module
   kitchenObservations KitchenObservation[]
@@ -81,10 +81,10 @@ model Headquarters {
   globalAnnouncements GlobalAnnouncement[]
 
   // FASE 8: Zendity Kitchen Menu Sync
-  dailyMenus          DailyMenu[]
+  dailyMenus DailyMenu[]
 
   // FASE 10: HR Employee Incidents
-  incidentReports     IncidentReport[]
+  incidentReports IncidentReport[]
 
   // FASE 11: Fast Actions (15-Min)
   fastActionAssignments FastActionAssignment[]
@@ -95,20 +95,20 @@ model Headquarters {
 // =======================
 
 model User {
-  id              String   @id @default(uuid())
-  headquartersId  String
-  name            String
-  email           String   @unique
-  pinCode         String? // PIN de 4-6 dígitos para inicio de sesión rápido en clínicas
-  photoUrl        String? // FASE 47: URL de la foto de perfil del usuario/empleado
-  image           String? // FASE 51: Standalone Profile Image (Para NextAuth / RRHH)
-  role            Role // e.g. Gerente, Enfermero, SocialWorker
-  isActive        Boolean  @default(true) // FASE 51: Disable Employee filtering
-  
+  id             String  @id @default(uuid())
+  headquartersId String
+  name           String
+  email          String  @unique
+  pinCode        String? // PIN de 4-6 dígitos para inicio de sesión rápido en clínicas
+  photoUrl       String? // FASE 47: URL de la foto de perfil del usuario/empleado
+  image          String? // FASE 51: Standalone Profile Image (Para NextAuth / RRHH)
+  role           Role // e.g. Gerente, Enfermero, SocialWorker
+  isActive       Boolean @default(true) // FASE 51: Disable Employee filtering
+
   // FASE 51: Advanced AI Shift Rules
-  preferredShift  String?  // nullable string "MORNING", "EVENING", "NIGHT"
-  offDays         String[] // String Array of weekdays e.g. ["Wednesday", "Sunday"]
-  
+  preferredShift String? // nullable string "MORNING", "EVENING", "NIGHT"
+  offDays        String[] // String Array of weekdays e.g. ["Wednesday", "Sunday"]
+
   complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
   createdAt       DateTime @default(now())
 
@@ -123,7 +123,7 @@ model User {
   isShiftBlocked Boolean @default(false)
   blockReason    String?
   isDeleted      Boolean @default(false) // Permite soft-delete (Baja Definitiva) sin romper historiales eMAR
-  secondaryRoles Role[]  // FASE 51: Permite combinar puestos (ej. CAREGIVER + KITCHEN)
+  secondaryRoles Role[] // FASE 51: Permite combinar puestos (ej. CAREGIVER + KITCHEN)
 
   // FASE 6 Integrations
   signedLifePlans LifePlan[] @relation("LifePlanSigner")
@@ -133,8 +133,8 @@ model User {
   dailyLogsWritten   DailyLog[]
 
   // FASE 9 Integrations
-  medicationAudits  MedicationAuditLog[]
-  zendiInteractions ZendiInteractionLog[]
+  medicationAudits   MedicationAuditLog[]
+  zendiInteractions  ZendiInteractionLog[]
   zendiFamilyMoments ZendiFamilyMoment[]
 
   // FASE 18 Integrations
@@ -155,12 +155,12 @@ model User {
   shiftSchedules ShiftSchedule[]
 
   // FASE 30: Zendity Care Core
-  shiftSessions ShiftSession[]
-  bathLogs      BathLog[]
-  mealLogs      MealLog[]
-  serviceVisits ServiceVisit[]
+  shiftSessions       ShiftSession[]
+  bathLogs            BathLog[]
+  mealLogs            MealLog[]
+  serviceVisits       ServiceVisit[]
   kitchenObservations KitchenObservation[] @relation("SupervisorObservations")
-  menuObservations DailyMenu[] @relation("MenuSupervisor")
+  menuObservations    DailyMenu[]          @relation("MenuSupervisor")
 
   // FASE 42: Maintenance Tickets Assigned
   maintenanceTickets HeadquartersEvent[] @relation("MaintenanceTickets")
@@ -172,6 +172,7 @@ model User {
   // FASE 11: Fast Actions (15-Min)
   fastActionsGiven    FastActionAssignment[] @relation("SupervisorTasks")
   fastActionsReceived FastActionAssignment[] @relation("CaregiverTasks")
+  ClinicalNote        ClinicalNote[]
 }
 
 enum Role {
@@ -201,37 +202,37 @@ enum ColorGroup {
 // =======================
 
 model Patient {
-  id               String        @id @default(uuid())
+  id               String     @id @default(uuid())
   headquartersId   String
   name             String
   roomNumber       String?
   dateOfBirth      DateTime?
   diet             String? // Asignación por preingreso
   avdScore         Int? // Puntuación de Actividades Vida Diaria
-  downtonRisk      Boolean       @default(false) // Escala de Caídas
-  nortonRisk       Boolean       @default(false) // Escala de Úlceras
-  colorGroup       ColorGroup    @default(UNASSIGNED) // FASE 7: Zonificación
-  conciergeBalance Float         @default(0.0) // FASE 18: Saldo Gift Cards B2C
-  
+  downtonRisk      Boolean    @default(false) // Escala de Caídas
+  nortonRisk       Boolean    @default(false) // Escala de Úlceras
+  colorGroup       ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
+  conciergeBalance Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
+
   // FASE 7: Facturación y Cuotas
-  monthlyFee          Float         @default(0.0)
-  adfContribution     Float         @default(0.0)
-  privateContribution Float         @default(0.0)
+  monthlyFee          Float @default(0.0)
+  adfContribution     Float @default(0.0)
+  privateContribution Float @default(0.0)
 
   // FASE 31: Gestión de Egresos y Permisos Temporales
-  status           PatientStatus @default(ACTIVE)
-  leaveType        LeaveType?
-  leaveDate        DateTime?
-  dischargeDate    DateTime?
-  dischargeReason  String?
-  photoUrl         String? // FASE 48: URL de foto de perfil
-  
-  // FASE 52: Documentos Críticos del Residente (Fotografías)
-  idCardUrl        String?
-  medicalPlanUrl   String?
-  medicareCardUrl  String?
+  status          PatientStatus @default(ACTIVE)
+  leaveType       LeaveType?
+  leaveDate       DateTime?
+  dischargeDate   DateTime?
+  dischargeReason String?
+  photoUrl        String? // FASE 48: URL de foto de perfil
 
-  createdAt        DateTime      @default(now())
+  // FASE 52: Documentos Críticos del Residente (Fotografías)
+  idCardUrl       String?
+  medicalPlanUrl  String?
+  medicareCardUrl String?
+
+  createdAt DateTime @default(now())
 
   headquarters   Headquarters        @relation(fields: [headquartersId], references: [id])
   medications    PatientMedication[]
@@ -280,7 +281,8 @@ model Patient {
   complaints    Complaint[]
 
   // FASE 43 Integrations
-  legalDocs     LegalDocument[]
+  legalDocs    LegalDocument[]
+  ClinicalNote ClinicalNote[]
 }
 
 // =======================
@@ -288,19 +290,19 @@ model Patient {
 // =======================
 
 model Medication {
-  id          String              @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String // Ej: "Losartan"
   dosage      String // Ej: "50mg"
-  route       String              @default("Oral") // Vía: Oral, Tópica, Intravenosa
+  route       String  @default("Oral") // Vía: Oral, Tópica, Intravenosa
   description String? // Descripcion de la medicina (añadido para Catálogo)
-  
+
   // Categorización y Alertas de Seguridad
-  category       String              @default("General") // Ej: "Analgésicos", "Antihipertensivos", "Antibióticos"
-  condition      String?             @default("General") // Ej: "Ansiedad", "Insomnio" (FASE 9)
-  isControlled   Boolean             @default(false)     // Narcóticos / Psicotrópicos
-  requiresFridge Boolean             @default(false)     // Requiere Refrigeración
-  withFood       Boolean             @default(false)     // Tomar con Comida
-  
+  category       String  @default("General") // Ej: "Analgésicos", "Antihipertensivos", "Antibióticos"
+  condition      String? @default("General") // Ej: "Ansiedad", "Insomnio" (FASE 9)
+  isControlled   Boolean @default(false) // Narcóticos / Psicotrópicos
+  requiresFridge Boolean @default(false) // Requiere Refrigeración
+  withFood       Boolean @default(false) // Tomar con Comida
+
   createdAt   DateTime            @default(now()) // Fecha de adición al catálogo
   patientMeds PatientMedication[]
 }
@@ -335,9 +337,9 @@ model MedicationAdministration {
   scheduledFor   String? // A qué hora tocaba (Ej: "08:00")
   administeredAt DateTime @default(now()) // Cuándo se dió realmente
 
-  status MedStatus
-  notes  String? // Obligatorio si el Status es REFUSED o MISSED
-  signatureBase64 String? @db.Text // FASE 60: Cardex Signature
+  status          MedStatus
+  notes           String? // Obligatorio si el Status es REFUSED o MISSED
+  signatureBase64 String?   @db.Text // FASE 60: Cardex Signature
 
   patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
   administeredBy    User              @relation(fields: [administeredById], references: [id])
@@ -405,7 +407,7 @@ model FamilyMember {
   complaints   Complaint[]
 
   // FASE 43 Integrations
-  legalDocs    LegalDocument[]
+  legalDocs LegalDocument[]
 }
 
 model WellnessDiary {
@@ -531,7 +533,7 @@ model Course {
   bonusCompliance Int // Puntos que suma al complianceScore (e.g. 5, 10, 20)
   videoUrl        String?
   category        String   @default("General") // Puesto o Categoría
-  imageUrl        String?  // Fotografía del curso
+  imageUrl        String? // Fotografía del curso
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
 
@@ -547,7 +549,7 @@ model UserCourse {
   status         CourseStatus @default(IN_PROGRESS)
   score          Int? // Si incluye exámen final
   attemptsCount  Int          @default(0) // FASE 46: 3-Strikes
-  lockedUntil    DateTime?    // FASE 46: Bloqueo de 24h
+  lockedUntil    DateTime? // FASE 46: Bloqueo de 24h
   lastAttemptAt  DateTime?
   completedAt    DateTime?
   certificateUrl String?
@@ -636,15 +638,15 @@ model LifePlan {
   dietDetails     String? // Para expandir el Patient.diet
 
   // 3. Riesgos y prioridades de atención (Matrix)
-  risks           Json?   // [{ area: '', finding: '', priority: 'Alta/Media/Baja' }]
+  risks                    Json? // [{ area: '', finding: '', priority: 'Alta/Media/Baja' }]
   interdisciplinarySummary String? @db.Text
 
   // 4. Objetivos del PAI y plan de intervención (Matrix)
-  goals           Json?   // [{ objective: '', action: '', responsible: '', frequency: '', indicator: '' }]
+  goals Json? // [{ objective: '', action: '', responsible: '', frequency: '', indicator: '' }]
 
   // 5. Seguimiento, educación y preferencias
-  familyEducation String? @db.Text
-  preferences     String? @db.Text
+  familyEducation  String? @db.Text
+  preferences      String? @db.Text
   monitoringMethod String? @db.Text
   revisionCriteria String? @db.Text
 
@@ -696,7 +698,7 @@ model DailyLog {
   notes           String?
   isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
   isResolved      Boolean  @default(false) // FASE 33: Triage Flag
-  photoUrl        String?  // FASE 37: Image Uploads
+  photoUrl        String? // FASE 37: Image Uploads
   createdAt       DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
@@ -739,22 +741,22 @@ model HealthAppointment {
 }
 
 model ZendiFamilyMoment {
-  id             String   @id @default(uuid())
+  id             String @id @default(uuid())
   patientId      String
   authorId       String
   headquartersId String
 
-  status         String   @default("PENDING")
+  status         String  @default("PENDING")
   optionGen1     String
   optionGen2     String
   selectedOption String?
   photoUrl       String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  patient        Patient  @relation(fields: [patientId], references: [id])
-  author         User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  author  User    @relation(fields: [authorId], references: [id])
 }
 
 model ZendiInteractionLog {
@@ -876,8 +878,8 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
-  patient      Patient       @relation(fields: [patientId], references: [id])
+  headquarters Headquarters     @relation(fields: [headquartersId], references: [id])
+  patient      Patient          @relation(fields: [patientId], references: [id])
   items        InvoiceItem[]
   payments     InvoicePayment[] // FASE 7: Abonos parciales
 }
@@ -944,9 +946,9 @@ model ShiftHandover {
   // FASE 61: Zendi AI Handovers (5:45 AM Digest)
   aiSummaryReport String? @db.Text
   audioUrl        String?
-  
+
   // Enlace a la Sesión de Turno (Fase 44)
-  shiftSession  ShiftSession?
+  shiftSession ShiftSession?
 }
 
 model HandoverNote {
@@ -1110,17 +1112,16 @@ model HeadquartersEvent {
   startTime      DateTime
   endTime        DateTime
   patientId      String?
-  photoUrl       String?   // FASE 37: Image Uploads
+  photoUrl       String? // FASE 37: Image Uploads
 
   // FASE 51: Advanced Audience Targeting (Zendi Sync)
-  targetPopulation String    @default("ALL") // "ALL", "GROUP", "SPECIFIC"
-  targetGroups     String[]  // Array of ColorGroups e.g. ["RED", "BLUE"]
-  targetPatients   String[]  // Array of Patient IDs
-
+  targetPopulation String   @default("ALL") // "ALL", "GROUP", "SPECIFIC"
+  targetGroups     String[] // Array of ColorGroups e.g. ["RED", "BLUE"]
+  targetPatients   String[] // Array of Patient IDs
 
   // FASE 42: SLA Maintenance Resolution tracking
   assignedToId          String? // User ID del Técnico
-  resolutionTimeMinutes Int? 
+  resolutionTimeMinutes Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1159,10 +1160,10 @@ model ShiftSchedule {
 // =======================
 
 model ShiftSession {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   headquartersId  String
   caregiverId     String
-  startTime       DateTime @default(now())
+  startTime       DateTime  @default(now())
   expectedEndTime DateTime?
   actualEndTime   DateTime?
   initialCensus   Int?
@@ -1173,21 +1174,21 @@ model ShiftSession {
   handoverCompleted Boolean @default(false)
   shiftHandoverId   String? @unique
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  caregiver    User         @relation(fields: [caregiverId], references: [id])
+  headquarters  Headquarters   @relation(fields: [headquartersId], references: [id])
+  caregiver     User           @relation(fields: [caregiverId], references: [id])
   shiftHandover ShiftHandover? @relation(fields: [shiftHandoverId], references: [id])
-  bathLogs     BathLog[]
-  mealLogs     MealLog[]
-  serviceLogs  ServiceVisit[]
+  bathLogs      BathLog[]
+  mealLogs      MealLog[]
+  serviceLogs   ServiceVisit[]
 }
 
 model BathLog {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   patientId      String
   caregiverId    String
   shiftSessionId String?
-  timeLogged     DateTime     @default(now())
-  status         String       @default("COMPLETED")
+  timeLogged     DateTime @default(now())
+  status         String   @default("COMPLETED")
 
   patient      Patient       @relation(fields: [patientId], references: [id])
   caregiver    User          @relation(fields: [caregiverId], references: [id])
@@ -1208,13 +1209,13 @@ enum MealQuality {
 }
 
 model MealLog {
-  id             String       @id @default(uuid())
+  id             String      @id @default(uuid())
   patientId      String
   caregiverId    String
   shiftSessionId String?
   mealType       MealType
   quality        MealQuality
-  timeLogged     DateTime     @default(now())
+  timeLogged     DateTime    @default(now())
 
   patient      Patient       @relation(fields: [patientId], references: [id])
   caregiver    User          @relation(fields: [caregiverId], references: [id])
@@ -1222,12 +1223,12 @@ model MealLog {
 }
 
 model ServiceVisit {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   patientId      String
   caregiverId    String
   shiftSessionId String?
   serviceName    String // Fisioterapia, Podología, etc.
-  timeLogged     DateTime     @default(now())
+  timeLogged     DateTime @default(now())
 
   patient      Patient       @relation(fields: [patientId], references: [id])
   caregiver    User          @relation(fields: [caregiverId], references: [id])
@@ -1247,7 +1248,7 @@ model Complaint {
   familyMemberId String?
   patientId      String
   description    String
-  photoUrl       String?         // FASE 37: Image Uploads
+  photoUrl       String? // FASE 37: Image Uploads
   status         ComplaintStatus @default(PENDING)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -1279,36 +1280,36 @@ enum LeaveType {
 // =======================
 
 model SaaSInvoice {
-  id              String   @id @default(uuid())
-  headquartersId  String
-  invoiceNumber   String   @unique
-  issueDate       DateTime @default(now())
-  dueDate         DateTime
-  status          InvoiceStatus @default(PENDING)
-  
-  subtotal        Float
-  taxRate         Float    @default(0.0) // ITBIS o Sales Tax aplicable
-  totalAmount     Float
-  
-  notes           String?
-  paidAt          DateTime?
+  id             String        @id @default(uuid())
+  headquartersId String
+  invoiceNumber  String        @unique
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime
+  status         InvoiceStatus @default(PENDING)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  subtotal    Float
+  taxRate     Float @default(0.0) // ITBIS o Sales Tax aplicable
+  totalAmount Float
 
-  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
-  items           SaaSInvoiceItem[]
+  notes  String?
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters      @relation(fields: [headquartersId], references: [id])
+  items        SaaSInvoiceItem[]
 }
 
 model SaaSInvoiceItem {
-  id             String      @id @default(uuid())
-  saasInvoiceId  String
-  description    String
-  quantity       Int         @default(1)
-  unitPrice      Float
-  totalPrice     Float
+  id            String @id @default(uuid())
+  saasInvoiceId String
+  description   String
+  quantity      Int    @default(1)
+  unitPrice     Float
+  totalPrice    Float
 
-  saasInvoice    SaaSInvoice @relation(fields: [saasInvoiceId], references: [id], onDelete: Cascade)
+  saasInvoice SaaSInvoice @relation(fields: [saasInvoiceId], references: [id], onDelete: Cascade)
 }
 
 // =======================
@@ -1316,21 +1317,21 @@ model SaaSInvoiceItem {
 // =======================
 
 model LegalDocument {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   headquartersId String
   title          String
-  content        String   @db.Text
-  signatureData  String?  @db.Text // Base64 DE LA FIRMA
+  content        String         @db.Text
+  signatureData  String?        @db.Text // Base64 DE LA FIRMA
   ipAddress      String?
   status         DocumentStatus @default(PENDING)
   patientId      String?
   familyMemberId String?
-  
-  signedAt       DateTime?
-  createdAt      DateTime @default(now())
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  patient      Patient?     @relation(fields: [patientId], references: [id])
+  signedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
+  patient      Patient?      @relation(fields: [patientId], references: [id])
   familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id])
 }
 
@@ -1345,18 +1346,18 @@ enum DocumentStatus {
 // =======================
 
 model KitchenObservation {
-  id                String       @id @default(uuid())
-  headquartersId    String
-  supervisorId      String
-  
-  satisfactionScore Int          // 1 to 5 stars
-  comments          String       @db.Text
-  photoUrl          String?
-  
-  createdAt         DateTime     @default(now())
+  id             String @id @default(uuid())
+  headquartersId String
+  supervisorId   String
 
-  headquarters      Headquarters @relation(fields: [headquartersId], references: [id])
-  supervisor        User         @relation("SupervisorObservations", fields: [supervisorId], references: [id])
+  satisfactionScore Int // 1 to 5 stars
+  comments          String  @db.Text
+  photoUrl          String?
+
+  createdAt DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor   User         @relation("SupervisorObservations", fields: [supervisorId], references: [id])
 }
 
 // =======================
@@ -1364,13 +1365,13 @@ model KitchenObservation {
 // =======================
 
 model GlobalAnnouncement {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   headquartersId String
-  message        String       @db.Text
-  authorId       String?      // Si Zendi lo disparó a nombre de alguien
-  createdAt      DateTime     @default(now())
+  message        String   @db.Text
+  authorId       String? // Si Zendi lo disparó a nombre de alguien
+  createdAt      DateTime @default(now())
 
-  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 // =======================
@@ -1378,20 +1379,20 @@ model GlobalAnnouncement {
 // =======================
 
 model DailyMenu {
-  id             String       @id @default(uuid())
-  headquartersId String
-  date           DateTime     // The day this menu applies to
-  breakfast      String?
-  lunch          String?
-  dinner         String?
-  snacks         String?
-  supervisorNotes String?    @db.Text
-  supervisorId   String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String   @id @default(uuid())
+  headquartersId  String
+  date            DateTime // The day this menu applies to
+  breakfast       String?
+  lunch           String?
+  dinner          String?
+  snacks          String?
+  supervisorNotes String?  @db.Text
+  supervisorId    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
-  supervisor     User?        @relation("MenuSupervisor", fields: [supervisorId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor   User?        @relation("MenuSupervisor", fields: [supervisorId], references: [id])
 
   @@unique([headquartersId, date]) // Only one menu per day per HQ
 }
@@ -1401,15 +1402,15 @@ model DailyMenu {
 // =======================
 
 model IncidentReport {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   employeeId      String
   supervisorId    String
   headquartersId  String
-  type            String   // 'WARNING', 'SUSPENSION', 'TERMINATION'
-  description     String   @db.Text
+  type            String // 'WARNING', 'SUSPENSION', 'TERMINATION'
+  description     String    @db.Text
   signedAt        DateTime?
-  signatureBase64 String?  @db.Text
-  createdAt       DateTime @default(now())
+  signatureBase64 String?   @db.Text
+  createdAt       DateTime  @default(now())
 
   employee   User         @relation("EmployeeIncidents", fields: [employeeId], references: [id])
   supervisor User         @relation("SupervisorIncidents", fields: [supervisorId], references: [id])
@@ -1421,19 +1422,19 @@ model IncidentReport {
 // =======================
 
 model FastActionAssignment {
-  id              String   @id @default(uuid())
-  headquartersId  String
-  supervisorId    String
-  caregiverId     String
-  description     String   @db.Text
-  status          AssignmentStatus @default(PENDING) // PENDING, COMPLETED, FAILED
-  expiresAt       DateTime
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
+  id             String           @id @default(uuid())
+  headquartersId String
+  supervisorId   String
+  caregiverId    String
+  description    String           @db.Text
+  status         AssignmentStatus @default(PENDING) // PENDING, COMPLETED, FAILED
+  expiresAt      DateTime
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
 
-  supervisor      User         @relation("SupervisorTasks", fields: [supervisorId], references: [id])
-  caregiver       User         @relation("CaregiverTasks", fields: [caregiverId], references: [id])
-  hq              Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor User         @relation("SupervisorTasks", fields: [supervisorId], references: [id])
+  caregiver  User         @relation("CaregiverTasks", fields: [caregiverId], references: [id])
+  hq         Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 enum AssignmentStatus {
@@ -1442,3 +1443,20 @@ enum AssignmentStatus {
   FAILED
 }
 
+// =======================
+// FASE 66: CLINICAL PROGRESS NOTES (TRIAGE)
+// =======================
+
+model ClinicalNote {
+  id        String   @id @default(uuid())
+  patientId String
+  authorId  String
+  title     String
+  content   String   @db.Text
+  type      String   @default("GENERAL") // Ej: TRIAGE_RESOLUTION, GENERAL
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  author  User    @relation(fields: [authorId], references: [id])
+}

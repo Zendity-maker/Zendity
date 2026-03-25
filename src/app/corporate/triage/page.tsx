@@ -3,13 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, ChatBubbleBottomCenterTextIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, ChatBubbleBottomCenterTextIcon, WrenchScrewdriverIcon, SparklesIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 export default function TriageDashboardPage() {
     const [tickets, setTickets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [resolving, setResolving] = useState<string | null>(null);
     const router = useRouter();
+
+    // Modal States
+    const [showResolveModal, setShowResolveModal] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState<any>(null);
+    const [actionTaken, setActionTaken] = useState("");
+    const [familyMessage, setFamilyMessage] = useState("");
+    const [sendToFamily, setSendToFamily] = useState(false);
+    const [generatingAI, setGeneratingAI] = useState(false);
 
     const fetchTickets = async () => {
         try {
@@ -27,23 +35,76 @@ export default function TriageDashboardPage() {
 
     useEffect(() => {
         fetchTickets();
-        const interval = setInterval(fetchTickets, 15000); // Polling cada 15s para auto-actualización
+        const interval = setInterval(fetchTickets, 15000); // Polling cada 15s
         return () => clearInterval(interval);
     }, []);
 
-    const resolveTicket = async (ticketId: string, moduleName: string) => {
-        if (!confirm("¿Marcar este ticket como resuelto y sacarlo de la bandeja?")) return;
-        setResolving(ticketId);
+    const handleOpenResolveModal = (ticket: any) => {
+        setSelectedTicket(ticket);
+        setActionTaken("");
+        setFamilyMessage("");
+        setSendToFamily(false);
+        setShowResolveModal(true);
+    };
+
+    const handleZendiPropose = async () => {
+        if (!actionTaken.trim()) {
+            alert("Por favor escribe la Acción Tomada primero para que Zendi tenga contexto.");
+            return;
+        }
+        setGeneratingAI(true);
         try {
-            const res = await fetch("/api/corporate/triage/resolve", {
-                method: "PATCH",
+            const res = await fetch("/api/corporate/triage/zendi-propose", {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ticketId, moduleName })
+                body: JSON.stringify({
+                    ticketTitle: selectedTicket.title,
+                    ticketDescription: selectedTicket.description,
+                    actionTaken
+                })
             });
             const data = await res.json();
             if (data.success) {
-                // Remover el ticket localmente para UI instantánea
-                setTickets(prev => prev.filter(t => t.id !== ticketId));
+                setFamilyMessage(data.message);
+            } else {
+                alert("Error de Zendi: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setGeneratingAI(false);
+        }
+    };
+
+    const confirmResolveTicket = async () => {
+        if (!actionTaken.trim()) {
+            alert("Debes escribir la acción tomada.");
+            return;
+        }
+
+        setResolving(selectedTicket.id);
+        try {
+            // Se asume authorId dummy para propositos de demo si no hay sesión
+            const currentUserId = "staff-id-123"; 
+
+            const res = await fetch("/api/corporate/triage/resolve", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    ticketId: selectedTicket.id, 
+                    moduleName: selectedTicket.module,
+                    ticketTitle: selectedTicket.title,
+                    patientId: selectedTicket.patientId,
+                    authorId: currentUserId,
+                    actionTaken,
+                    familyMessage: sendToFamily ? familyMessage : undefined
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setTickets(prev => prev.filter(t => t.id !== selectedTicket.id));
+                setShowResolveModal(false);
+                setSelectedTicket(null);
                 router.refresh();
             } else {
                 alert("Error al resolver: " + data.error);
@@ -55,7 +116,6 @@ export default function TriageDashboardPage() {
         }
     };
 
-    // Agrupación Kanban
     const clinicalTickets = tickets.filter(t => t.module === 'CLINICAL_ALERT');
     const complaintTickets = tickets.filter(t => t.module === 'COMPLAINT');
     const maintenanceTickets = tickets.filter(t => t.module === 'INCIDENT');
@@ -98,11 +158,11 @@ export default function TriageDashboardPage() {
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200/50">
                     <span className="text-xs font-bold text-slate-400">Generado: {timeStr}</span>
                     <button
-                        onClick={() => resolveTicket(ticket.id, ticket.module)}
+                        onClick={() => handleOpenResolveModal(ticket)}
                         disabled={isResolving}
                         className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-colors disabled:bg-slate-400 active:scale-95"
                     >
-                        <CheckCircleIcon className="w-4 h-4" /> {isResolving ? 'Cerrando...' : 'Resolver Ticket'}
+                        <DocumentTextIcon className="w-4 h-4" /> {isResolving ? 'Cerrando...' : 'Resolver Ticket'}
                     </button>
                 </div>
             </div>
@@ -110,17 +170,16 @@ export default function TriageDashboardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 p-6 md:p-10 font-sans">
+        <div className="min-h-screen bg-slate-100 p-6 md:p-10 font-sans relative">
             <div className="max-w-[1400px] mx-auto space-y-8">
 
-                {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <Link href="/corporate" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition mb-3 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
                             <ArrowLeftIcon className="w-4 h-4" /> Volver al Dashboard Corporativo
                         </Link>
                         <h1 className="text-5xl font-black text-slate-900 tracking-tight">Centro de Triage</h1>
-                        <p className="text-slate-500 font-medium mt-2 text-lg">Bandeja de Entrada Administrativa (Reportes Diarios de Cuidadores en Tiempo Real)</p>
+                        <p className="text-slate-500 font-medium mt-2 text-lg">Bandeja de Entrada Administrativa (Reportes Diarios en Tiempo Real)</p>
                     </div>
                     <div className="bg-white px-8 py-5 rounded-xl shadow-xl border border-slate-100 flex items-center gap-5">
                         <div className="w-16 h-16 bg-indigo-50 border-4 border-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-black text-2xl">
@@ -140,47 +199,111 @@ export default function TriageDashboardPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start animate-in fade-in slide-in-from-bottom-8 duration-700">
-
-                        {/* Columna 1: Alertas Clínicas */}
+                        {/* Columnas Kanban omitidas para brevedad, mismas que antes */}
                         <div className="space-y-4">
-                            <div className="bg-rose-600 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                            <div className="bg-rose-600 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center">
                                 <h3 className="font-black text-xl flex items-center gap-3"><ExclamationTriangleIcon className="w-7 h-7" /> Alertas Clínicas</h3>
                                 <span className="bg-white text-rose-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{clinicalTickets.length}</span>
                             </div>
                             {clinicalTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
-                            <div className="space-y-4">
-                                {clinicalTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
-                            </div>
+                            <div className="space-y-4">{clinicalTickets.map(t => <TicketCard key={t.id} ticket={t} />)}</div>
                         </div>
 
-                        {/* Columna 2: Quejas Familiares */}
                         <div className="space-y-4">
-                            <div className="bg-amber-500 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                            <div className="bg-amber-500 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center">
                                 <h3 className="font-black text-xl flex items-center gap-3"><ChatBubbleBottomCenterTextIcon className="w-7 h-7" /> Familiares</h3>
                                 <span className="bg-white text-amber-600 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{complaintTickets.length}</span>
                             </div>
                             {complaintTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
-                            <div className="space-y-4">
-                                {complaintTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
-                            </div>
+                            <div className="space-y-4">{complaintTickets.map(t => <TicketCard key={t.id} ticket={t} />)}</div>
                         </div>
 
-                        {/* Columna 3: Mantenimiento / Operaciones */}
                         <div className="space-y-4">
-                            <div className="bg-slate-800 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                            <div className="bg-slate-800 text-white px-6 py-5 rounded-3xl shadow-lg flex justify-between items-center">
                                 <h3 className="font-black text-xl flex items-center gap-3"><WrenchScrewdriverIcon className="w-7 h-7" /> Operaciones</h3>
                                 <span className="bg-white text-slate-800 px-4 py-1.5 rounded-full text-sm font-black shadow-inner">{maintenanceTickets.length}</span>
                             </div>
                             {maintenanceTickets.length === 0 && <div className="text-center p-10 bg-white border border-slate-200 rounded-xl text-slate-400 font-bold shadow-sm">Bandeja Limpia </div>}
-                            <div className="space-y-4">
-                                {maintenanceTickets.map(t => <TicketCard key={t.id} ticket={t} />)}
-                            </div>
+                            <div className="space-y-4">{maintenanceTickets.map(t => <TicketCard key={t.id} ticket={t} />)}</div>
                         </div>
-
                     </div>
                 )}
-
             </div>
+
+            {/* RESOLVE MODAL */}
+            {showResolveModal && selectedTicket && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+                        <h3 className="text-2xl font-black text-slate-800 mb-2">Resolución de Ticket</h3>
+                        <p className="text-slate-500 font-medium mb-6">Redacta el informe de resolución que se guardará en el expediente de <strong className="text-slate-800">{selectedTicket.patientName}</strong>.</p>
+                        
+                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl mb-6">
+                            <p className="text-sm font-bold text-slate-800">{selectedTicket.title}</p>
+                            <p className="text-sm text-slate-600 mt-1 italic">"{selectedTicket.description}"</p>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Acción Tomada (Obligatorio)</label>
+                            <textarea 
+                                value={actionTaken}
+                                onChange={(e) => setActionTaken(e.target.value)}
+                                className="w-full h-32 p-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-slate-800"
+                                placeholder="Describe el procedimiento o decisión tomada para resolver este ticket..."
+                            ></textarea>
+                        </div>
+
+                        {selectedTicket.module === 'CLINICAL_ALERT' && (
+                            <div className="mb-8 border-t border-slate-100 pt-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h4 className="font-bold text-indigo-900 flex items-center gap-2">
+                                            <SparklesIcon className="w-5 h-5 text-indigo-500" /> Asistencia Zendi
+                                        </h4>
+                                        <p className="text-xs text-slate-500">Zendi puede generar un mensaje empático para enviar a la familia del residente, sin jerga médica.</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleZendiPropose}
+                                        disabled={generatingAI}
+                                        className="bg-indigo-50 text-indigo-600 border border-indigo-200 font-bold px-4 py-2 rounded-xl hover:bg-indigo-100 transition shadow-sm text-sm disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {generatingAI ? 'Redactando...' : 'Generar Mensaje Familiar'}
+                                    </button>
+                                </div>
+
+                                {familyMessage && (
+                                    <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4 space-y-4">
+                                        <textarea 
+                                            value={familyMessage}
+                                            onChange={(e) => setFamilyMessage(e.target.value)}
+                                            className="w-full h-24 p-3 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm text-indigo-900 bg-white"
+                                        ></textarea>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={sendToFamily}
+                                                onChange={(e) => setSendToFamily(e.target.checked)}
+                                                className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-sm font-bold text-indigo-900">Enviar como mensaje directo al Portal Familiar</span>
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex gap-4 border-t border-slate-100 pt-6">
+                            <button onClick={() => setShowResolveModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
+                            <button 
+                                onClick={confirmResolveTicket} 
+                                disabled={resolving === selectedTicket.id || !actionTaken.trim()}
+                                className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                <CheckCircleIcon className="w-5 h-5" /> Confirmar y Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

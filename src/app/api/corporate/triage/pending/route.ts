@@ -57,9 +57,10 @@ export async function GET(req: Request) {
                 description,
                 severity,
                 createdAt: item.createdAt,
+                patientId: item.patientId || null,
                 patientName: item.patient?.name || "Global / Área Común",
                 roomNumber: item.patient?.roomNumber || "N/A",
-                photoUrl: item.photoUrl || null // FASE 37: Image Evidence
+                photoUrl: item.photoUrl || null
             }
         });
 
