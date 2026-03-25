@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zendity - Tour de Nuevas Pantallas</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap');
+        
+        :root {
+            --bg-dark: #0f172a;
+            --sidebar-bg: #1e293b;
+            --sidebar-hover: #334155;
+            --sidebar-active: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --accent: #0ea5e9;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1rem;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            padding-left: 1rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 8px;
+        }
+
+        .menu-category {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 1.5rem 0 0.5rem 1rem;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 1rem;
+            border-radius: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .menu-item.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+        }
+
+        .menu-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 50%;
+            transform: translateY(-50%);
+            width: 4px; height: 20px;
+            background-color: var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .menu-item.highlight {
+            animation: pulse-menu 1.5s infinite alternate;
+            background-color: rgba(59, 130, 246, 0.2);
+            color: white;
+        }
+
+        @keyframes pulse-menu {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+            100% { transform: scale(1.02); box-shadow: 0 0 15px 0 rgba(59, 130, 246, 0.5); }
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            position: relative;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Abstract UI Mockups */
+        .screen-container {
+            position: absolute;
+            top: 3rem; left: 3rem; right: 3rem; bottom: 3rem;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateY(40px) scale(0.98);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: none;
+        }
+
+        .screen-container.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        /* Info Overlay Widget */
+        .info-widget {
+            position: absolute;
+            bottom: -20px;
+            right: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+            z-index: 50;
+        }
+
+        .screen-container.visible .info-widget {
+            transform: translateX(0);
+            opacity: 1;
+            bottom: 0;
+        }
+
+        .info-widget h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            margin: 0 0 1rem 0;
+            color: white;
+        }
+
+        .info-widget p {
+            margin: 0 0 1.5rem 0;
+            line-height: 1.6;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .info-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .path-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #cbd5e1;
+            background: rgba(255,255,255,0.05);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        /* UI Mockup Elements */
+        .mockup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .mockup-title {
+            width: 300px; height: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .mockup-btn {
+            width: 150px; height: 40px;
+            background: var(--primary);
+            border-radius: 8px;
+        }
+
+        .mockup-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .mockup-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            height: 180px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .mockup-line { background: rgba(255,255,255,0.05); border-radius: 4px; height: 20px; }
+        .mockup-line.w-full { width: 100%; }
+        .mockup-line.w-3/4 { width: 75%; }
+        .mockup-line.w-1/2 { width: 50%; }
+
+        .mockup-table {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            flex: 1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Title Screen */
+        .title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg-dark);
+            z-index: 100;
+            transition: opacity 1s ease;
+        }
+
+        .title-screen h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, white, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Signature Canvas Mockup */
+        .mockup-signature {
+            border: 2px dashed rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.05);
+            height: 120px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="title-screen" id="titleScreen">
+        <h1>Tour de Nuevas Pantallas</h1>
+        <p style="font-size: 1.5rem; color: #94a3b8;">Navegación y Funciones Principales</p>
+    </div>
+
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                Zendity
+            </div>
+
+            <div class="menu-category">Enfermería</div>
+            <div class="menu-item" id="menu-handovers">
+                <span>📋</span> Handovers
+            </div>
+
+            <div class="menu-category">Corporativo</div>
+            <div class="menu-item" id="menu-shift-closure">
+                <span>🔒</span> Cierre de Turno
+            </div>
+            <div class="menu-item" id="menu-triage">
+                <span>🚨</span> Triage Center
+            </div>
+
+            <div class="menu-category">Capacitación</div>
+            <div class="menu-item" id="menu-academy">
+                <span>🎓</span> Zendity Academy
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            
+            <!-- Handover Screen -->
+            <div class="screen-container" id="screen-handovers">
+                <div class="mockup-header">
+                    <div class="mockup-title" style="width: 250px;"></div>
+                    <div class="mockup-btn"></div>
+                </div>
+                <div class="mockup-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="mockup-card" style="height: 300px;">
+                        <div class="mockup-line w-full"></div>
+                        <div class="mockup-line w-3/4"></div>
+                        <div class="mockup-line w-full"></div>
+                        <div class="mockup-line w-1/2"></div>
+                    </div>
+                    <div class="mockup-card" style="height: 300px;">
+                        <div class="mockup-line w-1/2" style="margin-bottom: auto;"></div>
+                        <div class="mockup-signature">Área de Firma Táctil (Touch Signature)</div>
+                    </div>
+                </div>
+
+                <div class="info-widget">
+                    <div class="info-badge">Nuevo Módulo</div>
+                    <h2>Nursing Handovers</h2>
+                    <p>Permite a las enfermeras traspasar el contexto clínico (SV, Notas, Tareas pendientes) al siguiente turno de manera estructurada.</p>
+                    <div class="path-text">
+                        <span>🔍</span> Menú > Enfermería > Handovers
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shift Closure Screen -->
+            <div class="screen-container" id="screen-shift-closure">
+                <div class="mockup-header">
+                    <div class="mockup-title" style="width: 350px;"></div>
+                </div>
+                <div class="mockup-table">
+                    <div class="mockup-line w-full" style="height: 40px; background: rgba(59, 130, 246, 0.2);"></div>
+                    <div class="mockup-line w-full"></div>
+                    <div class="mockup-line w-full"></div>
+                    <div class="mockup-line w-full"></div>
+                    <div class="mockup-line w-3/4"></div>
+                    <div style="margin-top: auto; display: flex; justify-content: flex-end;">
+                        <div class="mockup-btn" style="background: #ef4444; width: 200px;"></div>
+                    </div>
+                </div>
+
+                <div class="info-widget">
+                    <div class="info-badge"> MVP Operacional</div>
+                    <h2>Cierre de Turno</h2>
+                    <p>Auditoría mandatoria para directores y supervisores. Justifica tareas no realizadas (overrides) y consolida el estatus del edificio antes del cierre.</p>
+                    <div class="path-text">
+                        <span>🔍</span> Menú > Corporativo > Cierre de Turno
+                    </div>
+                </div>
+            </div>
+
+            <!-- Triage Screen -->
+            <div class="screen-container" id="screen-triage">
+                <div class="mockup-header">
+                    <div class="mockup-title" style="width: 200px;"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="mockup-btn" style="background: rgba(255,255,255,0.1);"></div>
+                        <div class="mockup-btn"></div>
+                    </div>
+                </div>
+                <div class="mockup-grid">
+                    <div class="mockup-card" style="border-left: 4px solid #ef4444;">
+                        <div class="mockup-line w-3/4"></div>
+                        <div class="mockup-line w-full"></div>
+                    </div>
+                    <div class="mockup-card" style="border-left: 4px solid #f59e0b;">
+                        <div class="mockup-line w-1/2"></div>
+                        <div class="mockup-line w-full"></div>
+                    </div>
+                    <div class="mockup-card" style="border-left: 4px solid #10b981;">
+                        <div class="mockup-line w-3/4"></div>
+                        <div class="mockup-line w-full"></div>
+                    </div>
+                </div>
+                <div class="mockup-table" style="height: 200px; flex: none;">
+                    <div class="mockup-line w-full"></div>
+                    <div class="mockup-line w-full"></div>
+                </div>
+
+                <div class="info-widget">
+                    <div class="info-badge">Resolución Operativa</div>
+                    <h2>Centro de Triage</h2>
+                    <p>Gestiona alertas clínicas y familiares. Ahora incluye registro de "Acciones Tomadas" y redacción automática de mensajes por IA.</p>
+                    <div class="path-text">
+                        <span>🔍</span> Menú > Corporativo > Triage Center
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academy Screen -->
+            <div class="screen-container" id="screen-academy">
+                <div class="mockup-header">
+                    <div class="mockup-title" style="width: 300px; height: 60px; background: linear-gradient(135deg, var(--primary), var(--secondary));"></div>
+                </div>
+                <div class="mockup-grid">
+                    <div class="mockup-card" style="height: 250px; justify-content: flex-end;">
+                        <div class="mockup-btn" style="width: 100%;"></div>
+                    </div>
+                    <div class="mockup-card" style="height: 250px; justify-content: flex-end;">
+                        <div class="mockup-btn" style="width: 100%;"></div>
+                    </div>
+                    <div class="mockup-card" style="height: 250px; justify-content: flex-end;">
+                        <div class="mockup-btn" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="info-widget">
+                    <div class="info-badge">Educación Continua</div>
+                    <h2>Zendity Academy</h2>
+                    <p>Cursos de inducción y capacitación clínica para cuidadores. Incluye exámenes interactivos con feedback neuronal al instante.</p>
+                    <div class="path-text">
+                        <span>🔍</span> Menú > Capacitación > Zendity Academy
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const sequence = [
+            { menu: 'menu-handovers', screen: 'screen-handovers', duration: 7000 },
+            { menu: 'menu-shift-closure', screen: 'screen-shift-closure', duration: 7000 },
+            { menu: 'menu-triage', screen: 'screen-triage', duration: 7000 },
+            { menu: 'menu-academy', screen: 'screen-academy', duration: 7000 }
+        ];
+
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function playTour() {
+            // Hide Title Screen
+            document.getElementById('titleScreen').style.opacity = '0';
+            await sleep(1000);
+            document.getElementById('titleScreen').style.display = 'none';
+
+            for (let i = 0; i < sequence.length; i++) {
+                const step = sequence[i];
+                
+                // Clear active states
+                document.querySelectorAll('.menu-item').forEach(el => {
+                    el.classList.remove('active');
+                    el.classList.remove('highlight');
+                });
+                document.querySelectorAll('.screen-container').forEach(el => el.classList.remove('visible'));
+
+                // Highlight Menu Element
+                const menuEl = document.getElementById(step.menu);
+                menuEl.classList.add('highlight');
+                await sleep(1500); // Simulate user looking at sidebar
+                
+                // Click Menu Element
+                menuEl.classList.remove('highlight');
+                menuEl.classList.add('active');
+
+                // Show corresponding screen
+                document.getElementById(step.screen).classList.add('visible');
+
+                // Wait for the duration of this slide
+                await sleep(step.duration);
+            }
+            
+            console.log("Product Tour Recording Finished");
+        }
+
+        // Hook for playwright
+        window.simulateAutoPlaySessionForRecording = async () => {
+            console.log("Starting product tour...");
+            await playTour();
+            return "Complete";
+        };
+    </script>
+</body>
+</html>

@@ -88,6 +88,10 @@ model Headquarters {
 
   // FASE 11: Fast Actions (15-Min)
   fastActionAssignments FastActionAssignment[]
+  TriageTicket          TriageTicket[]
+  ShiftClosure          ShiftClosure[]
+  NursingHandover       NursingHandover[]
+  SystemAuditLog        SystemAuditLog[]
 }
 
 // =======================
@@ -173,6 +177,14 @@ model User {
   fastActionsGiven    FastActionAssignment[] @relation("SupervisorTasks")
   fastActionsReceived FastActionAssignment[] @relation("CaregiverTasks")
   ClinicalNote        ClinicalNote[]
+
+  // FASE 66: MVP Operacional
+  triageTicketsAssigned TriageTicket[]    @relation("TicketAssignee")
+  triageTicketsResolved TriageTicket[]    @relation("TicketResolver")
+  shiftClosuresOut      ShiftClosure[]    @relation("ShiftClosureOut")
+  shiftClosuresIn       ShiftClosure[]    @relation("ShiftClosureIn")
+  handoversOut          NursingHandover[] @relation("NursingHandoverOut")
+  handoversIn           NursingHandover[] @relation("NursingHandoverIn")
 }
 
 enum Role {
@@ -281,8 +293,10 @@ model Patient {
   complaints    Complaint[]
 
   // FASE 43 Integrations
-  legalDocs    LegalDocument[]
-  ClinicalNote ClinicalNote[]
+  legalDocs           LegalDocument[]
+  ClinicalNote        ClinicalNote[]
+  TriageTicket        TriageTicket[]
+  HandoverPatientNote HandoverPatientNote[]
 }
 
 // =======================
@@ -1459,4 +1473,215 @@ model ClinicalNote {
 
   patient Patient @relation(fields: [patientId], references: [id])
   author  User    @relation(fields: [authorId], references: [id])
+}
+
+// =======================
+// SUPERVISIÓN OPERACIONAL (MVP FINAL)
+// =======================
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum TicketOriginType {
+  EMAR_MISS
+  DAILY_LOG
+  INCIDENT
+  CRON_SYSTEM
+  MANUAL
+}
+
+enum ShiftClosureStatus {
+  PENDING
+  SIGNED_OUT
+  ACCEPTED_IN
+  ABANDONED
+}
+
+enum NursingHandoverStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+}
+
+enum EscalationReason {
+  SLA_BREACH_120M
+  MANUAL_BY_SUPERVISOR
+  CRITICAL_INCIDENT_AUTO
+}
+
+enum SignatureStatus {
+  PENDING
+  SIGNED
+  INVALIDATED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+  WHATSAPP
+}
+
+enum SemaphoreColor {
+  GREEN
+  YELLOW
+  RED
+}
+
+enum SystemAuditAction {
+  CREATED
+  STATE_CHANGED
+  ESCALATED
+  RESOLVED
+  SIGNED_OUT
+  ACCEPTED_IN
+  SYSTEM_ABANDONED
+  VOIDED
+}
+
+enum FlagReason {
+  FALL
+  UPP
+  VITAL_ALERT
+  BEHAVIOR
+  PRN_GIVEN
+  EMAR_OMISSION
+}
+
+// =======================
+// MODELOS DE DOMINIO MVP
+// =======================
+
+model TriageTicket {
+  id                String           @id @default(uuid())
+  headquartersId    String
+  patientId         String?
+  originType        TicketOriginType
+  originReferenceId String?
+
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus   @default(OPEN)
+  isEscalated Boolean        @default(false)
+  isVoided    Boolean        @default(false)
+
+  description    String  @db.Text
+  resolutionNote String? @db.Text
+
+  assignedToId String?
+  resolvedById String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  escalatedAt DateTime?
+  resolvedAt  DateTime?
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  assignedTo   User?        @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  resolvedBy   User?        @relation("TicketResolver", fields: [resolvedById], references: [id])
+
+  @@index([headquartersId, status, priority, isEscalated, isVoided])
+}
+
+model ShiftClosure {
+  id             String @id @default(uuid())
+  headquartersId String
+
+  shiftDate DateTime  @db.Date
+  shiftType ShiftType
+
+  supervisorOutId String
+  supervisorInId  String?
+
+  status         ShiftClosureStatus @default(PENDING)
+  triageSnapshot Json?
+  handoverNotes  String?            @db.Text
+
+  signatureOutBase64 String?   @db.Text
+  signedOutAt        DateTime?
+  signatureInBase64  String?   @db.Text
+  signedInAt         DateTime?
+
+  isOverridden Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters  Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisorOut User         @relation("ShiftClosureOut", fields: [supervisorOutId], references: [id])
+  supervisorIn  User?        @relation("ShiftClosureIn", fields: [supervisorInId], references: [id])
+
+  @@unique([headquartersId, shiftDate, shiftType])
+  @@index([headquartersId, status])
+}
+
+model NursingHandover {
+  id             String    @id @default(uuid())
+  headquartersId String
+  shiftDate      DateTime  @db.Date
+  shiftType      ShiftType
+
+  nurseOutId String
+  nurseInId  String?
+
+  status NursingHandoverStatus @default(DRAFT)
+
+  signatureOutBase64 String?   @db.Text
+  signedOutAt        DateTime?
+  signatureInBase64  String?   @db.Text
+  signedInAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters          @relation(fields: [headquartersId], references: [id])
+  nurseOut     User                  @relation("NursingHandoverOut", fields: [nurseOutId], references: [id])
+  nurseIn      User?                 @relation("NursingHandoverIn", fields: [nurseInId], references: [id])
+  notes        HandoverPatientNote[]
+
+  @@unique([headquartersId, shiftDate, shiftType])
+  @@index([headquartersId, status])
+}
+
+model HandoverPatientNote {
+  id                String     @id @default(uuid())
+  nursingHandoverId String
+  patientId         String
+  flagReason        FlagReason
+  nursingNote       String     @db.Text
+
+  createdAt DateTime @default(now())
+
+  handover NursingHandover @relation(fields: [nursingHandoverId], references: [id], onDelete: Cascade)
+  patient  Patient         @relation(fields: [patientId], references: [id])
+}
+
+model SystemAuditLog {
+  id             String @id @default(uuid())
+  headquartersId String
+
+  entityName String
+  entityId   String
+  action     SystemAuditAction
+
+  performedById  String?
+  payloadChanges Json?
+  clientIp       String?
+
+  createdAt DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([headquartersId, entityName, entityId])
+  @@index([createdAt])
 }
