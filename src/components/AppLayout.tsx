@@ -20,6 +20,7 @@ const clinicalNavigation = [
     { name: 'Med & Zoning', href: '/med', icon: Pill },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
     { name: 'Cabina Supervisor', href: '/care/supervisor', icon: Eye },
+    { name: 'Handovers Clínicos', href: '/nursing/handovers', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
@@ -30,6 +31,8 @@ const corporateNavigationSections = [
         title: "Operaciones y Crecimiento",
         links: [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
+            { name: "Cierre de Turno", href: "/corporate/shift-closure", icon: LayoutDashboard },
+            { name: "Triage Center", href: "/corporate/triage", icon: ShieldAlert },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
@@ -40,7 +43,7 @@ const corporateNavigationSections = [
         title: "Área Clínica / Médica",
         links: [
             { name: "Directorio Global", href: "/corporate/medical/patients", icon: Users },
-            { name: "Handovers", href: "/corporate/medical/handovers", icon: ClipboardList },
+            { name: "Handovers", href: "/nursing/handovers", icon: ClipboardList },
             { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
             { name: "UPPs (Úlceras)", href: "/corporate/medical/upp-dashboard", icon: Activity },
             { name: "eMAR Audit", href: "/corporate/medical/emar", icon: Pill },
