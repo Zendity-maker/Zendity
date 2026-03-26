@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
 
-const prisma = new PrismaClient();
+
 
 // This endpoint is meant to be hit by a Cron Service (like Vercel Cron or GitHub Actions) daily at midnight.
 export async function GET(request: Request) {

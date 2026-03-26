@@ -1,10 +1,11 @@
+import { prisma } from '@/lib/prisma';
 import React from 'react';
-import { PrismaClient, FallRiskLevel, IncidentSeverity } from '@prisma/client';
+import {  FallRiskLevel, IncidentSeverity } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
-const prisma = new PrismaClient();
+
 
 // FASE 24: Tablero B2B de Riesgo de Caídas e Incidentes
 export default async function FallRiskDashboard() {

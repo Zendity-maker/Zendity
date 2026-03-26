@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // FASE 12: Vivid Senior Living Partners Dashboard KPI Aggregator
 export async function GET(req: Request) {

@@ -1,11 +1,12 @@
+import { prisma } from '@/lib/prisma';
 "use server";
-import { PrismaClient, ShiftType, NursingHandoverStatus, SystemAuditAction, FlagReason, Role } from '@prisma/client';
+import {  ShiftType, NursingHandoverStatus, SystemAuditAction, FlagReason, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createAuditLog } from './audit';
 import { revalidatePath } from 'next/cache';
 
-const prisma = new PrismaClient();
+
 
 export async function submitNursingHandover(data: {
     shiftDate: Date | string;

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { google } from 'googleapis';
 
-const prisma = new PrismaClient();
+
 
 // Este Webhook será consumido por VAPI Platform (Server URL)
 export async function POST(req: Request) {

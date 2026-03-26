@@ -1,11 +1,12 @@
+import { prisma } from '@/lib/prisma';
 import ShiftClosureClient from './ShiftClosureClient';
-import { PrismaClient, ShiftType } from '@prisma/client';
+import {  ShiftType } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
-const prisma = new PrismaClient();
+
 
 export default async function ShiftClosurePage() {
     const session = await getServerSession(authOptions);

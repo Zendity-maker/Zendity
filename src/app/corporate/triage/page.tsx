@@ -1,4 +1,5 @@
-import { PrismaClient, TicketPriority } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import {  TicketPriority } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
@@ -6,7 +7,7 @@ import { resolveTriageTicket } from '@/actions/operational/triage';
 import Link from 'next/link';
 import { ArrowLeftIcon, DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-const prisma = new PrismaClient();
+
 
 export default async function TriageInboxPage() {
     const session = await getServerSession(authOptions);

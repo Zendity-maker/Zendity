@@ -1,10 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import CreateHqAction from './CreateHqAction';
 
-const prisma = new PrismaClient();
+
 
 export const dynamic = 'force-dynamic';
 

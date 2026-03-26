@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // 1. OBTENER CURSOS DISPONIBLES O HISTORIAL POR EMPLEADO
 export async function GET(req: Request) {

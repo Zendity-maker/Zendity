@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from "openai";
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import fs from 'fs';
 
-const prisma = new PrismaClient();
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // System Contexts

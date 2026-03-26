@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // Evitamos que Next.js cachee esta ruta estáticamente para que siempre traiga data fresca.
 export const dynamic = 'force-dynamic';

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // Obtener los Relevos de Guardia
 export async function GET(request: Request) {

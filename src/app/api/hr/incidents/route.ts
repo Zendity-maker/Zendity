@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,7 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const prisma = new PrismaClient();
+
 
 export async function POST(req: Request) {
     try {

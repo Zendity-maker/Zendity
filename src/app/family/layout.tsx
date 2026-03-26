@@ -3,9 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar } from "react-icons/fa";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 export default async function FamilyLayout({ children }: { children: React.ReactNode }) {
     const session = await getServerSession(authOptions);

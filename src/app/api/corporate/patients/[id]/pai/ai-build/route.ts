@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
-const prisma = new PrismaClient();
+
 
 // Aumentar timeout máximo para Vercel Serverless (Opcional, pero recomendado para LLMs)
 export const maxDuration = 60; 

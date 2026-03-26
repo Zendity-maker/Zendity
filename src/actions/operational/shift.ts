@@ -1,11 +1,12 @@
+import { prisma } from '@/lib/prisma';
 "use server";
-import { PrismaClient, ShiftType, ShiftClosureStatus, SystemAuditAction, Role } from '@prisma/client';
+import {  ShiftType, ShiftClosureStatus, SystemAuditAction, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { createAuditLog } from './audit';
 import { revalidatePath } from 'next/cache';
 
-const prisma = new PrismaClient();
+
 
 export async function createShiftClosure(data: {
     shiftDate: Date | string;

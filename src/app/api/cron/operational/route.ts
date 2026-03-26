@@ -1,7 +1,8 @@
+import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import { PrismaClient, TicketStatus, SystemAuditAction, ShiftClosureStatus, TicketPriority } from '@prisma/client';
+import {  TicketStatus, SystemAuditAction, ShiftClosureStatus, TicketPriority } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
 
 export async function GET(request: Request) {
     // Simple sec check for cron if needed

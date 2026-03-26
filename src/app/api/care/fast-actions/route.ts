@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // FASE 11: GET - Fetch pending fast actions for a caregiver, and auto-fail expired ones.
 export async function GET(req: Request) {

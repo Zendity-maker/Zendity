@@ -1,11 +1,11 @@
 import HandoverForm from './HandoverForm';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
-const prisma = new PrismaClient();
+
 
 export default async function NursingHandoversPage() {
     const session = await getServerSession(authOptions);

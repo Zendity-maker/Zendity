@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // FASE 12: Hidden Admin Route to inject Vivid Senior Living Mayagüez
 export async function GET(req: Request) {

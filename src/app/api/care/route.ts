@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 
-const prisma = new PrismaClient();
+
 
 // GET: Obtiene residentes filtrados por el Color seleccionado en el turno
 export async function GET(req: Request) {

@@ -1,9 +1,10 @@
+import { prisma } from '@/lib/prisma';
 "use server";
-import { PrismaClient, SystemAuditAction } from '@prisma/client';
+import {  SystemAuditAction } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
-const prisma = new PrismaClient();
+
 
 export async function createAuditLog(
     headquartersId: string,

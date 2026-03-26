@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
+
 
 // Idealmente llamado por Vercel Cron cada 1 o 2 horas: 
 // 0 */2 * * * (Ejemplo CRON)
