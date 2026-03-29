@@ -49,24 +49,41 @@ export default function ZendiSpeaker() {
                     if (lastAnnouncementId.current !== newId) {
                         lastAnnouncementId.current = newId;
 
-                        // Solo reproducir si el navegador lo permite
-                        if (hasInteracted.current && 'speechSynthesis' in window) {
+                        // Solo reproducir si el usuario interactuó con la pestaña
+                        if (hasInteracted.current) {
+                            try {
+                                const textContent = `Aviso de Zendi. ${message}`;
+                                const voiceRes = await fetch("/api/ai/zendi-voice", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ text: textContent })
+                                });
 
-                            // Reproducir chicharra/campana si tenemos un archivo, sino pasamos directo a la voz.
-                            // Para mayor fluidez, usamos un bip nativo corto:
-                            let utterance = new SpeechSynthesisUtterance(`Aviso de Zendi. ${message}`);
-                            utterance.lang = "es-MX";
-                            utterance.rate = 1.05; // Un poco más ágil
-                            utterance.pitch = 1.1; // Tono ligeramente más agudo simulando voz IA
+                                if (!voiceRes.ok) throw new Error("Fallo en la síntesis de OpenAI TTS");
 
-                            // Intenta buscar una voz que suene mejor en español
-                            const voices = window.speechSynthesis.getVoices();
-                            const spanishVoice = voices.find(v => v.lang.includes('es-') && (v.name.includes('Monica') || v.name.includes('Paulina') || v.name.includes('Google') || v.name.includes('Female')));
-                            if (spanishVoice) {
-                                utterance.voice = spanishVoice;
+                                const blob = await voiceRes.blob();
+                                const url = URL.createObjectURL(blob);
+                                const audio = new Audio(url);
+
+                                audio.onended = () => {
+                                    URL.revokeObjectURL(url); // Liberar memoria
+                                };
+
+                                await audio.play();
+                            } catch (err) {
+                                console.error("Fallback a SpeechAPI:", err);
+                                if ('speechSynthesis' in window) {
+                                    let utterance = new SpeechSynthesisUtterance(`Aviso de Zendi. ${message}`);
+                                    utterance.lang = "es-MX";
+                                    utterance.rate = 1.05;
+                                    
+                                    const voices = window.speechSynthesis.getVoices();
+                                    const spanishVoice = voices.find(v => v.lang.includes('es-') && (v.name.includes('Monica') || v.name.includes('Paulina') || v.name.includes('Google') || v.name.includes('Female')));
+                                    if (spanishVoice) utterance.voice = spanishVoice;
+
+                                    window.speechSynthesis.speak(utterance);
+                                }
                             }
-
-                            window.speechSynthesis.speak(utterance);
                         }
                     }
                 }
