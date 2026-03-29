@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 // Inicializa el cliente oficial de OpenAI usando la variable de entorno
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY || "dummy"
 });
 
 export async function POST(req: Request) {

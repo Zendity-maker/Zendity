@@ -1,0 +1,8 @@
+src/app/care/page.tsx(151,15): error TS2345: Argument of type '() => JSX.Element | (() => void)' is not assignable to parameter of type 'EffectCallback'.
+  Type 'Element | (() => void)' is not assignable to type 'void | Destructor'.
+    Type 'Element' is not assignable to type 'void | Destructor'.
+src/app/care/page.tsx(161,14): error TS2304: Cannot find name 'Loader2'.
+src/app/care/supervisor/page.tsx(14,15): error TS2345: Argument of type '() => JSX.Element | (() => void)' is not assignable to parameter of type 'EffectCallback'.
+  Type 'Element | (() => void)' is not assignable to type 'void | Destructor'.
+    Type 'Element' is not assignable to type 'void | Destructor'.
+src/app/care/supervisor/page.tsx(15,10): error TS2304: Cannot find name 'isMounted'.

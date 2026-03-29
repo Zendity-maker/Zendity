@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-
+import { SystemAuditAction, NursingHandoverStatus, FlagReason } from '@prisma/client';
 
 export async function POST(req: Request) {
     try {
-        const { shiftSessionId } = await req.json();
+        const { shiftSessionId, handoverData, signature, forceEnd } = await req.json();
 
         if (!shiftSessionId) {
             return NextResponse.json({ success: false, error: "shiftSessionId requerido" }, { status: 400 });
@@ -13,80 +12,146 @@ export async function POST(req: Request) {
 
         const session = await prisma.shiftSession.findUnique({
             where: { id: shiftSessionId },
-            include: {
-                caregiver: true
-            }
+            include: { caregiver: true }
         });
 
         if (!session) {
             return NextResponse.json({ success: false, error: "Turno no encontrado" }, { status: 404 });
         }
 
-        if (session.actualEndTime) {
+        if (session.actualEndTime && !forceEnd) {
             return NextResponse.json({ success: false, error: "Este turno ya fue finalizado" }, { status: 400 });
         }
 
-        // --- FASE 44: SHIFT HANDOVER ENFORCEMENT ---
-        // Evaluar si estamos dentro de la ventana de Cierre de Guardia (±30 mins)
+        // Determinar el ShiftType lógicamente
         const now = new Date();
         const hours = now.getHours();
-        const minutes = now.getMinutes();
+        let shiftTypeDraft: "MORNING" | "EVENING" | "NIGHT" = "NIGHT";
 
-        let inHandoverWindow = false;
-        let shiftTypeDraft = "OTHER";
-
-        // Night Shift End: 5:30 AM - 6:30 AM
-        if ((hours === 5 && minutes >= 30) || (hours === 6 && minutes <= 30)) {
-            inHandoverWindow = true;
-            shiftTypeDraft = "NIGHT";
-        }
-        // Morning Shift End: 1:30 PM - 2:30 PM
-        else if ((hours === 13 && minutes >= 30) || (hours === 14 && minutes <= 30)) {
-            inHandoverWindow = true;
+        if (hours >= 6 && hours < 14) {
             shiftTypeDraft = "MORNING";
-        }
-        // Evening Shift End: 9:30 PM - 10:30 PM
-        else if ((hours === 21 && minutes >= 30) || (hours === 22 && minutes <= 30)) {
-            inHandoverWindow = true;
+        } else if (hours >= 14 && hours < 22) {
             shiftTypeDraft = "EVENING";
         }
 
-        if (inHandoverWindow && !session.handoverCompleted) {
-            return NextResponse.json({
-                success: false,
-                requireHandover: true,
-                shiftType: shiftTypeDraft,
-                error: `Debe completar el Relevo de Guardia (${shiftTypeDraft} SHIFT) antes de poder finalizar su turno.`
-            }, { status: 403 }); // 403 Forbidden para forzar la UI a abrir el Modal
+        // Si se nos envía data de confirmación clínica, integramos la respuesta del Wizard
+        if (handoverData && signature) {
+            // Transaction atómica para proteger la continuidad de Floor
+            const [handover, closedSession] = await prisma.$transaction(async (tx) => {
+                
+                // 1. Crear o Actualizar el Documento Legal de Handover
+                // Nota: Usamos upsert por la restricción global @@unique([headquartersId, shiftDate, shiftType])
+                const startOfDay = new Date();
+                startOfDay.setHours(0,0,0,0);
+
+                // Insertar el Handover
+                const shiftHandover = await tx.nursingHandover.upsert({
+                    where: {
+                        headquartersId_shiftDate_shiftType_nurseOutId: {
+                            headquartersId: session.headquartersId,
+                            shiftDate: startOfDay,
+                            shiftType: shiftTypeDraft,
+                            nurseOutId: session.caregiverId
+                        }
+                    },
+                    update: {
+                        nurseOutId: session.caregiverId,
+                        status: NursingHandoverStatus.SUBMITTED,
+                        signatureOutBase64: signature,
+                        signedOutAt: now,
+                    },
+                    create: {
+                        headquartersId: session.headquartersId,
+                        shiftDate: startOfDay,
+                        shiftType: shiftTypeDraft,
+                        nurseOutId: session.caregiverId,
+                        status: NursingHandoverStatus.SUBMITTED,
+                        signatureOutBase64: signature,
+                        signedOutAt: now,
+                    }
+                });
+
+                // Insertar las Notas Clínicas Rápidas (Novedades ROJAS/AMARILLAS)
+                if (handoverData.selectedPatients && Object.keys(handoverData.selectedPatients).length > 0) {
+                    const notesToInsert = Object.entries(handoverData.selectedPatients).map(([patientId, noteStr]) => ({
+                        nursingHandoverId: shiftHandover.id,
+                        patientId,
+                        flagReason: FlagReason.BEHAVIOR, // Ajuste mock rápido, idealmente inferido por Zendi
+                        nursingNote: noteStr as string
+                    }));
+                    
+                    // Cleanup preventivo si Upsert recicló un handover existente
+                    await tx.handoverPatientNote.deleteMany({
+                         where: { nursingHandoverId: shiftHandover.id }
+                    });
+
+                    await tx.handoverPatientNote.createMany({
+                        data: notesToInsert
+                    });
+                }
+
+                // ESTRATEGIA ZENDI:
+                // Guardamos el borrador ya validado por el enfermero síncronamente en el ShiftSession
+                // para inmediatez.
+                const updatedSession = await tx.shiftSession.update({
+                    where: { id: shiftSessionId },
+                    data: {
+                        actualEndTime: now,
+                        handoverCompleted: true,
+                        aiSummaryReport: handoverData.zendiSummary || "Relevo estándar generado.",
+                    }
+                });
+
+                // Auditoría Strict
+                await tx.systemAuditLog.create({
+                    data: {
+                        headquartersId: session.headquartersId,
+                        entityName: 'ShiftSession-HandoverUnion',
+                        entityId: session.id,
+                        action: SystemAuditAction.SIGNED_OUT,
+                        performedById: session.caregiverId,
+                        payloadChanges: { 
+                            handoverId: shiftHandover.id, 
+                            tasksExempted: handoverData.justifications, 
+                            zendiApproved: true 
+                        }
+                    }
+                });
+
+                return [shiftHandover, updatedSession];
+            });
+
+            // Disparar procesamiento Background de IA SI FUERA NECESARIO (Simulación)
+            // fetch('https://webhook.zendi.com/analyze-shift...', { method: 'POST' }).catch(() => {});
+
+            return NextResponse.json({ success: true, shiftSession: closedSession, handover });
         }
-        // -------------------------------------------
 
-        // 1. Gather data for AI summary (Meds, Baths, Meals, Incidents of this shift)
-        // For now, we will mock the AI call or build a basic string. We can plug OpenAI/Gemini here later.
-
-        const bathCount = await prisma.bathLog.count({
-            where: { shiftSessionId }
-        });
-
-        const mealCount = await prisma.mealLog.count({
-            where: { shiftSessionId }
-        });
-
-        const aiSummaryReport = `Turno finalizado. Se registraron ${bathCount} baños y ${mealCount} comidas. (Resumen IA pendiente de integración completa)`;
-
-        // 2. Cierre de Turno
+        // Fallback: Finalizar turno administrativo genérico si por alguna razón salta el Wizard
+        // (Modo Override / Abandono del empleado)
         const closedSession = await prisma.shiftSession.update({
             where: { id: shiftSessionId },
             data: {
-                actualEndTime: new Date(),
-                aiSummaryReport
+                actualEndTime: now,
+                aiSummaryReport: "Shift Closed Without Clinical Handover (Override)"
+            }
+        });
+
+        // Trackear abandono
+        await prisma.systemAuditLog.create({
+            data: {
+                headquartersId: session.headquartersId,
+                entityName: 'ShiftSession',
+                entityId: session.id,
+                action: SystemAuditAction.SYSTEM_ABANDONED,
+                performedById: session.caregiverId
             }
         });
 
         return NextResponse.json({ success: true, shiftSession: closedSession });
 
     } catch (error) {
-        console.error("Shift End Error:", error);
-        return NextResponse.json({ success: false, error: "Error al finalizar el turno" }, { status: 500 });
+        console.error("Shift End/Handover Union Error:", error);
+        return NextResponse.json({ success: false, error: "Error de Servidor al Consolidar la Guardia" }, { status: 500 });
     }
 }

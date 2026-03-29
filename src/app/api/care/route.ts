@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 
-
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET: Obtiene residentes filtrados por el Color seleccionado en el turno
 export async function GET(req: Request) {
@@ -41,6 +42,14 @@ export async function GET(req: Request) {
                 bathLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },
                     select: { id: true },
+                    take: 1
+                },
+                pressureUlcers: {
+                    where: { status: 'ACTIVE' },
+                    select: { id: true }
+                },
+                posturalChanges: {
+                    orderBy: { performedAt: 'desc' },
                     take: 1
                 }
             },

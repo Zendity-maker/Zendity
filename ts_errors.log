@@ -1,0 +1,38 @@
+.next/dev/types/validator.ts(1287,31): error TS2344: Type 'typeof import("/Users/andresfloresruiz/Desktop/Zendity/src/app/api/corporate/patients/[id]/reports/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/corporate/patients/[id]/reports">'.
+  Types of property 'GET' are incompatible.
+    Type '(req: Request, { params }: { params: { id: string; }; }) => Promise<NextResponse<{ success: boolean; notes: ({ author: { name: string; role: Role; }; } & { id: string; createdAt: Date; patientId: string; ... 4 more ...; authorId: string; })[]; }> | NextResponse<...>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters '__1' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type '{ params: { id: string; }; }'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+scripts/purge-seed.ts(16,68): error TS2561: Object literal may only specify known properties, but 'handoverId' does not exist in type 'HandoverPatientNoteWhereInput'. Did you mean to write 'handover'?
+src/app/care/supervisor/page.tsx(89,46): error TS2304: Cannot find name 'LiveDataPayload'.
+src/app/care/supervisor/page.tsx(361,54): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(363,46): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(364,46): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(426,81): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(callbackfn: (previousValue: unknown, currentValue: unknown, currentIndex: number, array: unknown[]) => unknown, initialValue: unknown): unknown', gave the following error.
+    Argument of type '(a: number, b: number) => number' is not assignable to parameter of type '(previousValue: unknown, currentValue: unknown, currentIndex: number, array: unknown[]) => unknown'.
+      Types of parameters 'a' and 'previousValue' are incompatible.
+        Type 'unknown' is not assignable to type 'number'.
+  Overload 2 of 3, '(callbackfn: (previousValue: number, currentValue: unknown, currentIndex: number, array: unknown[]) => number, initialValue: number): number', gave the following error.
+    Argument of type '(a: number, b: number) => number' is not assignable to parameter of type '(previousValue: number, currentValue: unknown, currentIndex: number, array: unknown[]) => number'.
+      Types of parameters 'b' and 'currentValue' are incompatible.
+        Type 'unknown' is not assignable to type 'number'.
+src/app/care/supervisor/page.tsx(452,67): error TS2304: Cannot find name 'TriageTicket'.
+src/app/care/supervisor/page.tsx(453,81): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(454,69): error TS2304: Cannot find name 'FastActionAssignment'.
+src/app/care/supervisor/page.tsx(492,74): error TS2304: Cannot find name 'TriageTicket'.
+src/app/care/supervisor/page.tsx(495,73): error TS2304: Cannot find name 'TriageTicket'.
+src/app/care/supervisor/page.tsx(498,71): error TS2304: Cannot find name 'TriageTicket'.
+src/app/care/supervisor/page.tsx(505,59): error TS2304: Cannot find name 'TriageTicket'.
+src/app/care/supervisor/page.tsx(558,104): error TS2304: Cannot find name 'FastActionAssignment'.
+src/app/care/supervisor/page.tsx(560,106): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(751,143): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(791,53): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(811,172): error TS2304: Cannot find name 'MissingHandover'.
+src/app/care/supervisor/page.tsx(915,92): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(927,59): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(928,92): error TS2304: Cannot find name 'FastActionAssignment'.
+src/app/care/supervisor/page.tsx(935,68): error TS2304: Cannot find name 'CaregiverSession'.
+src/app/care/supervisor/page.tsx(936,99): error TS2304: Cannot find name 'FastActionAssignment'.

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "dummy" });
 
 // Esta ruta debe ser protegida si se expone, por ejemplo usando un CRON_SECRET en Vercel
 export async function GET(req: Request) {

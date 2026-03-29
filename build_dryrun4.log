@@ -1,0 +1,37 @@
+⚠ `eslint` configuration in next.config.ts is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.ts options detected: 
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.8s
+  Skipping validation of types
+  Collecting page data using 9 workers ...
+API key does not start with "SG.".
+  Generating static pages using 9 workers (0/162) ...
+  Generating static pages using 9 workers (40/162) 
+  Generating static pages using 9 workers (80/162) 
+API key does not start with "SG.".
+  Generating static pages using 9 workers (121/162) 
+Error occurred prerendering page "/corporate/medical/fall-risk". Read more: https://nextjs.org/docs/messages/prerender-error
+Error [PrismaClientInitializationError]: 
+Invalid `prisma.patient.findMany()` invocation:
+
+
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (-->  schema.prisma:7)
+    at async p (.next/server/chunks/ssr/[root-of-the-server]__9b25025c._.js:1:18991) {
+  clientVersion: '5.22.0',
+  errorCode: undefined,
+  digest: '334525430'
+}
+Export encountered an error on /corporate/medical/fall-risk/page: /corporate/medical/fall-risk, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null

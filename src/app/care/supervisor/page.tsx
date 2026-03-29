@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CaregiverSession, TriageTicket, FastActionAssignment, LiveDataPayload, MissingHandover } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2 } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 
@@ -11,6 +12,12 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
     const [isPlaying, setIsPlaying] = useState(false);
 
     useEffect(() => {
+    if (!isMounted) return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+            <Loader2 className="w-12 h-12 text-indigo-500/50 animate-spin" />
+        </div>
+    );
+
         return () => window.speechSynthesis.cancel();
     }, []);
 
@@ -71,6 +78,9 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
 // ----------------------------------------------
 
 export default function SupervisorDashboardPage() {
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => setIsMounted(true), []);
+
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
 
@@ -86,7 +96,7 @@ export default function SupervisorDashboardPage() {
     const [isThinking, setIsThinking] = useState(false);
 
     // FASE 30: Live Mission Monitor State
-    const [liveData, setLiveData] = useState<any>(null);
+    const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
 
     // FASE 41: Clinical Supervisor Rounds
     const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
@@ -94,6 +104,10 @@ export default function SupervisorDashboardPage() {
 
     // FASE 50: Kitchen Quality Monitoring
     const [kitchenObservation, setKitchenObservation] = useState<{ satisfactionScore: number, comments: string, photoUrl?: string }>({ satisfactionScore: 5, comments: "", photoUrl: "" });
+
+    // SPRINT 3: Fast Action Dispatch 
+    const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
+    const [isDispatching, setIsDispatching] = useState(false);
     const [isSavingKitchenObs, setIsSavingKitchenObs] = useState(false);
 
     useEffect(() => {
@@ -131,6 +145,38 @@ export default function SupervisorDashboardPage() {
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDispatchTask = async (caregiverId: string) => {
+        if (!dispatchingTicket || !user) return;
+        setIsDispatching(true);
+        try {
+            const hqId = user.hqId || user.headquartersId || "hq-demo-1";
+            const payload = {
+                headquartersId: hqId,
+                supervisorId: user.id,
+                caregiverId,
+                sourceType: dispatchingTicket.sourceType,
+                sourceId: dispatchingTicket.sourceType === 'ZENDI_GROUP' ? dispatchingTicket.items.map((i:any)=>i.id) : dispatchingTicket.sourceId,
+                description: `[${dispatchingTicket.id}] Triage: ${dispatchingTicket.title} - ${dispatchingTicket.description}`.substring(0, 800)
+            };
+            const res = await fetch("/api/care/supervisor/dispatch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDispatchingTicket(null);
+                fetchLiveData(); // Refresca tablero para mostrar tracking "En Curso"
+            } else {
+                alert("Error en despacho 1-Click: " + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsDispatching(false);
         }
     };
 
@@ -319,6 +365,21 @@ export default function SupervisorDashboardPage() {
         );
     }
 
+    const nowTime = new Date().getTime();
+    const activeSessions = liveData?.activeSessions || [];
+    const missingHandovers = liveData?.missingHandovers || [];
+    const activeEmployeeIds = activeSessions.map((s: CaregiverSession) => s.caregiverId);
+
+    const enPiso = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12);
+    const zombis = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 >= 12);
+    
+    // Scheduled but missing (Should be working now, but no active session)
+    const progMissing = schedules.filter(s => {
+        const start = new Date(s.startTime).getTime();
+        const end = new Date(s.endTime).getTime();
+        return nowTime >= start && nowTime <= end && !activeEmployeeIds.includes(s.employeeId);
+    });
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-12">
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
@@ -372,7 +433,7 @@ export default function SupervisorDashboardPage() {
                         <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-orange-200">
                             <Coffee className="w-10 h-10 text-orange-500 mb-2" />
                             <p className="text-4xl font-black text-orange-900 mb-1">
-                                {Object.values(liveData.liveStats.meals).reduce((a: any, b: any) => a + b, 0) as number}
+                                {Object.values(liveData.liveStats.meals).reduce((a: number, b: number) => a + b, 0) as number}
                             </p>
                             <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">Bandejas Servidas</p>
                         </div>
@@ -395,46 +456,156 @@ export default function SupervisorDashboardPage() {
                     </div>
                 )}
             </div>
+            {/* CONSOLA SPRINT 4: ZENDI RADAR (ATC) */}
+            {(() => {
+                if (!liveData) return null;
+                const pxClusters = liveData.triageFeed.filter((t: TriageTicket) => t.sourceType === 'ZENDI_PX_CLUSTER').length;
+                const overloadedCaregivers = liveData.activeSessions.filter((s: CaregiverSession) => {
+                    return (liveData.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0) >= 3;
+                }).length;
+                
+                if (pxClusters === 0 && overloadedCaregivers === 0) {
+                    return (
+                        <div className="bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-800 flex items-center gap-3 mb-6 relative overflow-hidden">
+                            <div className="absolute top-0 bottom-0 left-0 w-1 bg-emerald-500"></div>
+                            <Activity className="w-5 h-5 text-emerald-400" />
+                            <p className="text-white font-black text-sm tracking-widest uppercase">Zendi Radar: Piso Estable. Cargas operativas balanceadas.</p>
+                        </div>
+                    );
+                }
 
-            {/* BANDEJA DE TRIAJE (QUEJAS) */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-                <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3 mb-6">
-                    <Send className="w-7 h-7 text-indigo-500" />
-                    Bandeja de Triaje (Ruteo Pendiente)
-                </h2>
-                {liveData && liveData.pendingComplaints?.length > 0 ? (
+                return (
+                    <div className="bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-700 flex items-center gap-3 mb-6 relative overflow-hidden">
+                        <div className="absolute top-0 bottom-0 left-0 w-1 bg-amber-500 animate-pulse"></div>
+                        <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
+                        <div className="flex-1">
+                            <p className="text-white font-black text-sm tracking-widest uppercase mb-1 flex items-center gap-2">Zendi ATC: Detección de Saturación / Ruido</p>
+                            <p className="text-amber-200/80 text-xs font-bold font-mono">
+                                {[
+                                    pxClusters > 0 ? `${pxClusters} Paciente(s) con Vulnerabilidad Múltiple` : null,
+                                    overloadedCaregivers > 0 ? `${overloadedCaregivers} Cuidador(es) Sobresaturado(s) de tareas` : null
+                                ].filter(Boolean).join(' | ')}
+                            </p>
+                        </div>
+                    </div>
+                );
+            })()}
+            {/* CONSOLA HÍBRIDA DE TRIAGE OPERATIVO (FASE SPRINT 2) */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                        <Send className="w-8 h-8 text-indigo-500" />
+                        Consola Híbrida de Triage Operativo
+                    </h2>
+                    <div className="flex gap-2">
+                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+                            Inminente ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'INMINENTE').length || 0})
+                        </span>
+                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+                            Atención ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'ATENCION').length || 0})
+                        </span>
+                        <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+                            Rutina ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'RUTINA').length || 0})
+                        </span>
+                    </div>
+                </div>
+
+                {liveData && liveData.triageFeed?.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {liveData.pendingComplaints.map((complaint: any) => (
-                            <div key={complaint.id} className="bg-slate-50 border border-slate-200 p-6 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="pr-4">
-                                        <p className="font-black text-slate-800 text-lg mb-1 leading-tight">{complaint.subject}</p>
-                                        <p className="text-xs font-bold text-slate-500 flex flex-col gap-1 mt-2">
-                                            <span> Familiar: {complaint.familyMemberName}</span>
-                                            <span> Px: {complaint.patient?.name || 'General'}</span>
-                                        </p>
+                        {liveData.triageFeed.map((ticket: TriageTicket) => {
+                            // Semántica de Urgencia
+                            let urgencyStyles = "";
+                            let urgencyIcon = null;
+                            if (ticket.urgency === 'INMINENTE') {
+                                urgencyStyles = "border-rose-400 bg-rose-50 shadow-rose-100";
+                                urgencyIcon = <Siren className="w-5 h-5 text-rose-600 animate-pulse" />;
+                            } else if (ticket.urgency === 'ATENCION') {
+                                urgencyStyles = "border-amber-300 bg-amber-50 shadow-amber-50";
+                                urgencyIcon = <AlertTriangle className="w-5 h-5 text-amber-600" />;
+                            } else {
+                                urgencyStyles = "border-slate-200 bg-slate-50";
+                                urgencyIcon = <Info className="w-5 h-5 text-slate-400" />;
+                            }
+
+                            // Semántica de Categoría
+                            let categoryBadge = "";
+                            if (ticket.category === 'UPP_PIEL') categoryBadge = "bg-rose-100 text-rose-700";
+                            else if (ticket.category === 'FAMILY') categoryBadge = "bg-indigo-100 text-indigo-700";
+                            else if (ticket.category === 'MANTENIMIENTO') categoryBadge = "bg-slate-200 text-slate-700";
+                            else if (ticket.category === 'CLINICO_CRITICO') categoryBadge = "bg-red-100 text-red-800";
+                            else categoryBadge = "bg-sky-100 text-sky-700";
+
+                            const isZendiGroup = ticket.sourceType === 'ZENDI_GROUP';
+
+                            return (
+                                <div key={ticket.id} className={`p-6 rounded-3xl border-2 shadow-sm relative transition-all hover:shadow-md ${urgencyStyles}`}>
+                                    {isZendiGroup && (
+                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-200 text-amber-900 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm w-max">
+                                            <Sparkles className="w-3 h-3" /> Zendi Agrupación Inteligente
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-start mb-3 pt-1">
+                                        <div className="pr-2">
+                                            <p className="font-black text-slate-800 text-lg mb-1 leading-tight flex items-center gap-2">
+                                                {urgencyIcon} {ticket.title}
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-500 mt-1">
+                                                Sujeto: <span className="text-slate-700">{ticket.patientName}</span>
+                                            </p>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase shrink-0 ${categoryBadge}`}>
+                                            {ticket.category.replace('_', ' ')}
+                                        </span>
                                     </div>
-                                    <span className="bg-amber-100 text-amber-700 font-black px-3 py-1 rounded-full text-xs shrink-0">PENDIENTE</span>
+
+                                    <p className="text-slate-600 font-medium text-sm bg-white/60 p-4 rounded-xl mb-4 h-24 overflow-y-auto border border-white/50 shadow-inner">
+                                        "{ticket.description}"
+                                    </p>
+
+                                    <div className="flex flex-col gap-2">
+                                        {(() => {
+                                            const assignedTask = liveData.activeFastActions?.find((fa: FastActionAssignment) => fa.description.startsWith(`[${ticket.id}]`));
+                                            if (assignedTask) {
+                                                const assignedToName = liveData.activeSessions?.find((s: CaregiverSession)=>s.caregiverId === assignedTask.caregiverId)?.caregiver?.name || "Cuidador";
+                                                const isExpired = new Date(assignedTask.expiresAt).getTime() < new Date().getTime();
+                                                return (
+                                                    <div className={`p-4 rounded-xl border-2 ${isExpired ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'} flex items-center justify-between shadow-sm`}>
+                                                        <div className="flex items-center gap-2 font-black text-sm uppercase tracking-wider">
+                                                            {isExpired ? <Siren className="w-5 h-5 animate-pulse text-rose-600" /> : <Activity className="w-5 h-5 text-emerald-600" />}
+                                                            {isExpired ? "VENCIDO (>15m)" : "EN CURSO"}
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className="block text-[10px] tracking-widest uppercase opacity-70 mb-0.5">Asignado a:</span>
+                                                            <span className="block font-black leading-none">{assignedToName}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+
+                                            let btnLabel = "Asignar a Piso (1-Click)";
+                                            if (ticket.sourceType === 'COMPLAINT') btnLabel = "Despachar Asistencia (Family)";
+                                            else if (ticket.sourceType === 'UPP_SLA') btnLabel = "Despachar Rotación UPP Segura";
+                                            else if (ticket.sourceType === 'INCIDENT') btnLabel = "Asignar Revisión Clínica";
+                                            else if (isZendiGroup) btnLabel = `Despachar ${ticket.items?.length} Tickets Integrados`;
+                                            else if (ticket.sourceType === 'ZENDI_PX_CLUSTER') btnLabel = `Asignar Intervención Integral (${ticket.items?.length} eventos)`;
+
+                                            return (
+                                                <button onClick={() => setDispatchingTicket(ticket)} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-all active:scale-95 shadow-md shadow-slate-900/20 group">
+                                                    <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" /> {btnLabel}
+                                                </button>
+                                            );
+                                        })()}
+                                    </div>
                                 </div>
-                                <p className="text-slate-600 font-medium text-sm bg-white p-4 rounded-xl border border-slate-100 mb-4 h-28 overflow-y-auto">
-                                    "{complaint.description}"
-                                </p>
-                                <div className="flex flex-col gap-2">
-                                    <button onClick={() => handleTriageAction(complaint.id, 'APPROVE')} disabled={isSavingShift} className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md active:scale-95 text-xs uppercase tracking-wide flex justify-center items-center gap-2">
-                                        <CheckCircle2 className="w-4 h-4" /> Validar & Rutear Admin
-                                    </button>
-                                    <button onClick={() => handleTriageAction(complaint.id, 'ESCALATE')} disabled={isSavingShift} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md active:scale-95 text-xs uppercase tracking-wide flex justify-center items-center gap-2">
-                                        <Siren className="w-4 h-4" /> Alerta Clínica Enfermería
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-50 rounded-3xl border border-slate-100 border-dashed">
                         <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-3" />
-                        <h3 className="font-black text-slate-700 text-lg">Bandeja Limpia</h3>
-                        <p className="text-slate-500 font-medium">No hay quejas de familiares pendientes de validar o rutear.</p>
+                        <h3 className="font-black text-slate-700 text-lg">Triage Consolidado Limpio</h3>
+                        <p className="text-slate-500 font-medium">No hay tickets operativos, clínicos ni preventivos en espera.</p>
                     </div>
                 )}
             </div>
@@ -568,59 +739,102 @@ export default function SupervisorDashboardPage() {
                             >
                                 {isSavingKitchenObs ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Feedback a Cocina"}
                             </button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* PANEL IZQUIERDO: ROSTER & TURNOS */}
+                {/* PANEL IZQUIERDO: RADAR OPERATIVO */}
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
                     <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-                        <CalendarClock className="w-7 h-7 text-teal-600" />
-                        Roster de Cuidadores
+                        <Activity className="w-7 h-7 text-teal-600" />
+                        Radar de Realidad Operativa
                     </h2>
 
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-3">
-                            <CalendarClock className="w-6 h-6" />
+                    <div className="space-y-8">
+                        {/* 1. Personal En Piso */}
+                        <div>
+                            <h3 className="font-black text-slate-800 text-lg mb-3 flex items-center justify-between">
+                                <span>Personal Activo (En Piso)</span>
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-sm">{enPiso.length}</span>
+                            </h3>
+                            <div className="space-y-2">
+                                {enPiso.length === 0 ? <p className="text-slate-500 text-sm">Nadie en piso estructurado.</p> : enPiso.map((s: CaregiverSession) => {
+                                    const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
+                                    return (
+                                        <div key={s.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold">{s.caregiver?.name?.charAt(0)}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 leading-none">{s.caregiver?.name}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">Log-in hace {h.toFixed(1)} hrs</p>
+                                                </div>
+                                            </div>
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <h3 className="font-black text-slate-800 text-lg mb-2">Planificador Semanal & Zonas</h3>
-                        <p className="text-slate-500 text-sm mb-6">
-                            Accede a la interfaz avanzada para planificar turnos por bloques semanales y asignar áreas físicas a tus cuidadores.
-                        </p>
-                        <a href="/care/supervisor/shifts" className="w-full bg-slate-900 hover:bg-black text-white py-3.5 rounded-xl font-bold shadow-md transition-colors flex justify-center items-center gap-2">
-                            Abrir Planificador Avanzado
-                        </a>
-                    </div>
 
-                    <h3 className="font-bold text-slate-800 mb-4 text-lg">Turnos Programados Recientemente</h3>
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                        {schedules.length === 0 ? (
-                            <p className="text-slate-500 text-center py-6">No hay turnos futuros registrados.</p>
-                        ) : (
-                            schedules.map(shift => {
-                                const start = new Date(shift.startTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-                                const end = new Date(shift.endTime).toLocaleTimeString([], { timeStyle: 'short' });
-                                return (
-                                    <div key={shift.id} className="flex justify-between items-center bg-white border border-slate-200 p-4 rounded-xl shadow-sm hover:border-teal-300 transition-colors">
-                                        <div>
-                                            <p className="font-bold text-slate-800 flex items-center gap-2">
-                                                <Users className="w-4 h-4 text-teal-600" />
-                                                {shift.employee?.name}
-                                            </p>
-                                            <p className="text-sm text-slate-500 font-medium mt-1">
-                                                {start} - {end}
+                        {/* 2. Programado No Conectado */}
+                        <div>
+                            <h3 className="font-black text-slate-800 text-lg mb-3 flex items-center justify-between">
+                                <span className="text-amber-700">Programado No Conectado</span>
+                            </h3>
+                            <div className="space-y-2">
+                                {progMissing.length === 0 ? <p className="text-slate-400 text-sm">Equipo completo.</p> : progMissing.map((s: any, i: number) => (
+                                    <div key={i} className="flex justify-between bg-amber-50 border border-amber-100 p-3 rounded-xl opacity-80">
+                                        <p className="font-bold text-amber-900">{s.employee?.name}</p>
+                                        <p className="text-xs text-amber-700 font-medium">Desde {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                         {/* 3. Sesiones Zombi */}
+                        {zombis.length > 0 && (
+                            <div>
+                                <h3 className="font-black text-rose-800 text-lg mb-3 flex items-center gap-2">
+                                    <Siren className="w-4 h-4 text-rose-600" /> Sesión Zombi (&gt;12 hrs)
+                                </h3>
+                                <div className="space-y-2">
+                                    {zombis.map((s: CaregiverSession) => {
+                                        const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
+                                        return (
+                                            <div key={s.id} className="flex justify-between items-center bg-rose-50 border border-rose-200 p-3 rounded-xl">
+                                                <p className="font-bold text-rose-900">{s.caregiver?.name}</p>
+                                                <span className="text-xs font-black text-white bg-rose-600 px-2 py-0.5 rounded-md">Abierto {h.toFixed(1)} hrs</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 4. Alertas de Continuidad (Handovers) */}
+                        <div className="pt-6 border-t border-slate-200">
+                             <h3 className="font-black text-indigo-900 text-lg mb-3 flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-indigo-600" />
+                                Alertas de Continuidad 
+                            </h3>
+                            <div className="space-y-2">
+                                {missingHandovers.length === 0 ? <p className="text-slate-500 text-xs italic">Cadenas de handover limpias.</p> : missingHandovers.map((mh: MissingHandover, i: number) => {
+                                    const diff = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
+                                    return (
+                                        <div key={i} className="bg-white border-2 border-indigo-100 p-4 rounded-xl shadow-sm relative overflow-hidden">
+                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
+                                            <p className="font-black text-indigo-900 text-sm mb-1">Handover Faltante: {mh.shiftType}</p>
+                                            <p className="text-xs text-slate-600">
+                                                Cuidador <strong className="text-slate-800">{mh.employeeName}</strong> finalizó hace <strong className="text-indigo-600">{diff.toFixed(1)} hrs</strong>, pero no ha entregado turno oficial.
                                             </p>
                                         </div>
-                                        <button onClick={() => handleDeleteShift(shift.id)} className="text-rose-400 hover:text-rose-600 p-2 bg-rose-50 rounded-lg transition-colors">
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                );
-                            })
-                        )}
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                     </div>
+                </div>      </div>
                 </div>
 
                 {/* PANEL DERECHO: ZENDI AI WRITER */}
@@ -681,6 +895,97 @@ export default function SupervisorDashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* SPRINT 3: DISPATCH INTELLIGENT MODAL */}
+            {dispatchingTicket && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-slate-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                                <Send className="w-7 h-7 text-indigo-500" />
+                                Despacho Zendi (1-Click)
+                            </h3>
+                            <button onClick={() => setDispatchingTicket(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors active:scale-95">
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 shadow-inner">
+                            <p className="font-bold text-indigo-900 mb-1 leading-tight">{dispatchingTicket.title}</p>
+                            <p className="text-indigo-700 text-xs font-black">SUJETO: {dispatchingTicket.patientName}</p>
+                        </div>
+
+                        <h4 className="font-black text-slate-500 text-xs uppercase tracking-widest mb-3 flex items-center justify-between">
+                            <span>Personal Estructurado en Piso</span>
+                            <span>Radar Vivo</span>
+                        </h4>
+                        <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 pb-2">
+                            {(() => {
+                                const nowTime = new Date().getTime();
+                                const validSessions = liveData?.activeSessions?.filter((s: CaregiverSession) => s.startTime && (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12) || [];
+                                
+                                if (validSessions.length === 0) return (
+                                    <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl text-center">
+                                        <p className="text-rose-600 font-bold mb-1">Piso Comprometido</p>
+                                        <p className="text-xs text-rose-500">No hay cuidadores activos para despachar este ticket.</p>
+                                    </div>
+                                );
+                                
+                                // Determinar Sugerencia Zendi (el que tiene menos tareas pendientes)
+                                let suggestedId = validSessions[0].caregiverId;
+                                let minTasks = Infinity;
+                                validSessions.forEach((s: CaregiverSession) => {
+                                    const tasks = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0;
+                                    if (tasks < minTasks) {
+                                        minTasks = tasks;
+                                        suggestedId = s.caregiverId;
+                                    }
+                                });
+
+                                return validSessions.map((session: CaregiverSession) => {
+                                    const tasksPending = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === session.caregiverId && fa.status === 'PENDING').length || 0;
+                                    const isSuggested = session.caregiverId === suggestedId;
+                                    return (
+                                        <button 
+                                            key={session.id} 
+                                            onClick={() => handleDispatchTask(session.caregiverId)}
+                                            disabled={isDispatching}
+                                            className={`relative w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isSuggested ? 'bg-amber-50 border-amber-300 hover:bg-amber-100 hover:shadow-md' : 'bg-white border-slate-100 hover:border-teal-300'} text-left disabled:opacity-50 disabled:cursor-wait active:scale-95 group`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black outline outline-2 outline-offset-2 ${isSuggested ? 'bg-amber-500 text-white outline-amber-200' : 'bg-slate-100 text-slate-600 outline-slate-50'}`}>
+                                                    {session.caregiver?.name?.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-slate-800 leading-none mb-1 group-hover:text-amber-900 transition-colors">{session.caregiver?.name}</p>
+                                                    {isSuggested ? (
+                                                        <span className="text-[9px] bg-amber-200 text-amber-800 font-black px-2 py-0.5 rounded-md flex items-center gap-1 w-max tracking-widest uppercase">
+                                                            <Sparkles className="w-3 h-3" /> Zendi Sugiere Despacho
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Apto / En Piso</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-center bg-white shadow-sm border border-slate-100 px-3 py-1.5 rounded-xl">
+                                                <span className={`block font-black text-lg leading-none ${tasksPending >= 3 ? 'text-rose-600 animate-pulse' : (tasksPending >= 2 ? 'text-rose-500' : 'text-slate-800')}`}>{tasksPending}</span>
+                                                <span className="block text-[9px] uppercase tracking-widest text-slate-500 font-bold">Tareas Activas</span>
+                                            </div>
+
+                                            {/* Zendi Anti-Saturation Alert */}
+                                            {tasksPending >= 3 && (
+                                                <div className="absolute -top-3 -right-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 uppercase tracking-widest shadow-md">
+                                                    <Siren className="w-3 h-3 animate-pulse" /> Cuello de Botella Operativo
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

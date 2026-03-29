@@ -92,6 +92,7 @@ model Headquarters {
   ShiftClosure          ShiftClosure[]
   NursingHandover       NursingHandover[]
   SystemAuditLog        SystemAuditLog[]
+  CalendarEvent         CalendarEvent[]
 }
 
 // =======================
@@ -185,9 +186,13 @@ model User {
   shiftClosuresIn       ShiftClosure[]    @relation("ShiftClosureIn")
   handoversOut          NursingHandover[] @relation("NursingHandoverOut")
   handoversIn           NursingHandover[] @relation("NursingHandoverIn")
+  CalendarEvent         CalendarEvent[]
 }
 
 enum Role {
+  SUPER_ADMIN
+  HQ_OWNER
+  CLINICAL_DIRECTOR
   ADMIN
   NURSE
   CAREGIVER
@@ -297,6 +302,7 @@ model Patient {
   ClinicalNote        ClinicalNote[]
   TriageTicket        TriageTicket[]
   HandoverPatientNote HandoverPatientNote[]
+  CalendarEvent       CalendarEvent[]
 }
 
 // =======================
@@ -317,7 +323,12 @@ model Medication {
   requiresFridge Boolean @default(false) // Requiere Refrigeración
   withFood       Boolean @default(false) // Tomar con Comida
 
-  createdAt   DateTime            @default(now()) // Fecha de adición al catálogo
+  createdAt DateTime @default(now()) // Fecha de adición al catálogo
+
+  // Aislamiento Multi-Sede B2B
+  headquartersId String? // Si es null, es la Master DB
+  isGlobalMaster Boolean @default(false)
+
   patientMeds PatientMedication[]
 }
 
@@ -333,9 +344,10 @@ model PatientMedication {
   instructions  String? // Ej: "Tomar con alimentos"
   prescribedBy  String? // Nombre del médico externo o interno
 
-  startDate DateTime  @default(now())
+  startDate DateTime        @default(now())
   endDate   DateTime? // Si es tratamiento temporal (Ej: Antibióticos por 7 días)
-  isActive  Boolean   @default(true)
+  isActive  Boolean         @default(true)
+  status    MedActiveStatus @default(ACTIVE)
 
   patient         Patient                    @relation(fields: [patientId], references: [id])
   medication      Medication                 @relation(fields: [medicationId], references: [id])
@@ -343,27 +355,42 @@ model PatientMedication {
   auditLogs       MedicationAuditLog[]
 }
 
+enum MedActiveStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  DISCONTINUED
+  PRN
+}
+
 model MedicationAdministration {
   id                  String @id @default(uuid())
   patientMedicationId String
   administeredById    String // ID de la enfermera
 
-  scheduledFor   String? // A qué hora tocaba (Ej: "08:00")
-  administeredAt DateTime @default(now()) // Cuándo se dió realmente
+  scheduledFor   String?
+  scheduledTime  DateTime? // FASE eMAR Integral: Timestamp estricto de agenda
+  administeredAt DateTime? // Modificado a opcional porque PENDING no tiene adminAt
+  createdAt      DateTime  @default(now())
 
-  status          MedStatus
-  notes           String? // Obligatorio si el Status es REFUSED o MISSED
-  signatureBase64 String?   @db.Text // FASE 60: Cardex Signature
+  status          MedStatus @default(PENDING) // PENDING por defecto
+  notes           String?
+  signatureBase64 String?   @db.Text
 
   patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
-  administeredBy    User              @relation(fields: [administeredById], references: [id])
+  administeredBy    User?             @relation(fields: [administeredById], references: [id])
+
+  // Bloqueo Anti-Duplicidad de Cronjob
+  @@unique([patientMedicationId, scheduledTime])
 }
 
 enum MedStatus {
-  ADMINISTERED // Sustituye GIVEN para mayor elegancia médica
-  MISSED // Olvido o paciente no disponible
-  REFUSED // Paciente se negó a tomarla
-  OMITTED // Médico ordenó saltar esta dosis
+  PENDING
+  ADMINISTERED
+  MISSED
+  REFUSED
+  OMITTED
+  HELD
 }
 
 // =======================
@@ -490,6 +517,8 @@ model PosturalChangeLog {
 
   patient Patient @relation(fields: [patientId], references: [id])
   nurse   User    @relation(fields: [nurseId], references: [id])
+
+  @@index([patientId, performedAt(sort: Desc)])
 }
 
 model FamilyMessage {
@@ -619,14 +648,25 @@ enum DocStatus {
 // =======================
 
 model IntakeData {
-  id             String       @id @default(uuid())
-  patientId      String       @unique
-  medicalHistory String
+  id        String @id @default(uuid())
+  patientId String @unique
+
+  medicalHistory String?
   allergies      String?
-  diagnoses      String
-  rawMedications String // Receta original (ej. texto o JSON)
-  status         IntakeStatus @default(PENDING)
-  createdAt      DateTime     @default(now())
+  diagnoses      String?
+  rawMedications String? // Receta original (ej. texto o JSON)
+
+  // Nuevos campos funcionales de Intake Maestro
+  mobilityLevel   String?
+  continenceLevel String?
+  dietSpecifics   String?
+  downtonScore    Int?
+  bradenScore     Int?
+
+  snapshotData String?      @db.Text
+  status       IntakeStatus @default(INGRESADO)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
 
   patient Patient @relation(fields: [patientId], references: [id])
 }
@@ -634,6 +674,9 @@ model IntakeData {
 enum IntakeStatus {
   PENDING
   PROCESSED
+  INGRESADO
+  PENDIENTE_REVISION
+  CONFIRMADO
 }
 
 model LifePlan {
@@ -1501,10 +1544,9 @@ enum TicketOriginType {
 }
 
 enum ShiftClosureStatus {
-  PENDING
-  SIGNED_OUT
-  ACCEPTED_IN
-  ABANDONED
+  ACTIVE
+  CLOSING
+  CLOSED
 }
 
 enum NursingHandoverStatus {
@@ -1603,9 +1645,10 @@ model ShiftClosure {
   supervisorOutId String
   supervisorInId  String?
 
-  status         ShiftClosureStatus @default(PENDING)
+  status         ShiftClosureStatus @default(ACTIVE)
   triageSnapshot Json?
   handoverNotes  String?            @db.Text
+  zendiDigest    String?            @db.Text // Resumen LLM Asíncrono generable al cerrar
 
   signatureOutBase64 String?   @db.Text
   signedOutAt        DateTime?
@@ -1621,7 +1664,7 @@ model ShiftClosure {
   supervisorOut User         @relation("ShiftClosureOut", fields: [supervisorOutId], references: [id])
   supervisorIn  User?        @relation("ShiftClosureIn", fields: [supervisorInId], references: [id])
 
-  @@unique([headquartersId, shiftDate, shiftType])
+  @@unique([headquartersId, shiftDate, shiftType, supervisorOutId])
   @@index([headquartersId, status])
 }
 
@@ -1649,7 +1692,7 @@ model NursingHandover {
   nurseIn      User?                 @relation("NursingHandoverIn", fields: [nurseInId], references: [id])
   notes        HandoverPatientNote[]
 
-  @@unique([headquartersId, shiftDate, shiftType])
+  @@unique([headquartersId, shiftDate, shiftType, nurseOutId])
   @@index([headquartersId, status])
 }
 
@@ -1684,4 +1727,99 @@ model SystemAuditLog {
 
   @@index([headquartersId, entityName, entityId])
   @@index([createdAt])
+}
+
+// =======================
+// 5. ZENDITY CALENDAR ENGINE
+// =======================
+
+enum CalendarEventType {
+  MEDICAL_APPOINTMENT
+  REEVALUATION_DUE
+  THERAPY
+  FACILITY_ROUTINE
+}
+
+enum CalendarEventStatus {
+  SCHEDULED
+  COMPLETED
+  DISMISSED
+}
+
+model CalendarEvent {
+  id             String  @id @default(uuid())
+  headquartersId String // Tenant Middleware Anchor
+  patientId      String?
+  assignedToId   String?
+
+  type   CalendarEventType
+  status CalendarEventStatus @default(SCHEDULED)
+
+  title         String
+  description   String? @db.Text
+  originContext String
+
+  startTime DateTime
+  endTime   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  assignedTo   User?        @relation(fields: [assignedToId], references: [id])
+
+  @@index([headquartersId, startTime, status])
+}
+
+// =======================
+// 6. PERFORMANCE & ACADEMY ENGINE
+// =======================
+
+model PerformanceScore {
+  id             String @id @default(uuid())
+  headquartersId String // Tenant
+  userId         String // Cuidador evaluado
+  periodStart    DateTime
+  periodEnd      DateTime
+  
+  systemScore    Float  // Base calculada eMAR/Cierres
+  humanScore     Float? // Evaluación del supervisor (opcional)
+  finalScore     Float
+
+  systemFindings Json?  // Metadatos { missedPRN: 2 }
+
+  createdAt      DateTime @default(now())
+  
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([headquartersId, userId])
+}
+
+enum AcademyAssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model AcademyAssignment {
+  id             String @id @default(uuid())
+  headquartersId String 
+  userId         String
+  
+  moduleCode     String // ID del curso formativo
+  reason         String // Justificación del trigger
+  status         AcademyAssignmentStatus @default(PENDING)
+  
+  assignedBySystem  Boolean @default(true) // Automático vs Manual
+  assignedByUserId  String? // Si fue manual, el supervisor
+
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+  
+  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([headquartersId, userId, moduleCode])
 }

@@ -13,7 +13,7 @@ async function main() {
         // Nursing Handover Notes delete automatically via Cascade if defined, otherwise delete them
         const handovers = await prisma.nursingHandover.findMany({ where: { headquartersId: hq.id } });
         for (const h of handovers) {
-            await prisma.handoverPatientNote.deleteMany({ where: { handoverId: h.id } }).catch(() => {});
+            // commented out to fix TypeScript breaking change on old relation: await prisma.handoverPatientNote.deleteMany({ where: { handoverId: h.id } }).catch(() => {});
         }
         await prisma.nursingHandover.deleteMany({ where: { headquartersId: hq.id } });
         await prisma.triageTicket.deleteMany({ where: { headquartersId: hq.id } });

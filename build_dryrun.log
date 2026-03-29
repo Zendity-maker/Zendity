@@ -1,0 +1,85 @@
+⚠ `eslint` configuration in next.config.ts is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.ts options detected: 
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 3 errors:
+./src/actions/operational/shift.ts:2:1
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m {  [33mShiftType[39m[33m,[39m [33mShiftClosureStatus[39m[33m,[39m [33mSystemAuditAction[39m[33m,[39m [33mRole[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
+
+The "use server" directive must be at the top of the file.
+
+
+Import traces:
+  Client Component Browser:
+    ./src/actions/operational/shift.ts [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Server Component]
+    ./src/app/corporate/shift-closure/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/actions/operational/shift.ts [Client Component SSR]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Client Component SSR]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Server Component]
+    ./src/app/corporate/shift-closure/page.tsx [Server Component]
+
+
+./src/actions/operational/shift.ts:7:10
+Ecmascript file had an error
+[0m [90m  5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m
+ [90m  6 |[39m [36mimport[39m { createAuditLog } [36mfrom[39m [32m'./audit'[39m[33m;[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { revalidatePath } [36mfrom[39m [32m'next/cache'[39m[33m;[39m
+ [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m
+ [90m  9 |[39m
+ [90m 10 |[39m[0m
+
+You're importing a component that needs "revalidatePath". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/actions/operational/shift.ts [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Server Component]
+    ./src/app/corporate/shift-closure/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/actions/operational/shift.ts [Client Component SSR]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Client Component SSR]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Server Component]
+    ./src/app/corporate/shift-closure/page.tsx [Server Component]
+
+
+./src/actions/operational/triage.ts:2:1
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m {  [33mTicketPriority[39m[33m,[39m [33mTicketOriginType[39m[33m,[39m [33mTicketStatus[39m[33m,[39m [33mSystemAuditAction[39m[33m,[39m [33mRole[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
+
+The "use server" directive must be at the top of the file.
+
+
+Import trace:
+  Server Component:
+    ./src/actions/operational/triage.ts
+    ./src/app/corporate/triage/page.tsx
+
+
+    at <unknown> (./src/actions/operational/shift.ts:2:1)
+    at <unknown> (./src/actions/operational/shift.ts:7:10)
+    at <unknown> (./src/actions/operational/triage.ts:2:1)

@@ -1,0 +1,2214 @@
+
+> zendity-app@0.1.2 dev
+> next dev -H 0.0.0.0
+
+⚠ `eslint` configuration in next.config.ts is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.ts options detected: 
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3055
+- Network:       http://0.0.0.0:3055
+
+✓ Starting...
+✓ Ready in 1182ms
+ GET / 200 in 1840ms (compile: 1715ms, render: 125ms)
+[next-auth][warn][NEXTAUTH_URL] 
+https://next-auth.js.org/warnings#nextauth_url
+ GET /api/auth/session 200 in 974ms (compile: 957ms, render: 17ms)
+Error generating insights: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__71a8b8bf._.js:64:183
+
+  61 ;
+  62 async function GET() {
+  63     try {
+→ 64         const evaluations = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/insights/route.ts:8:61)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/insights/route.ts:8:29)
+   6 | export async function GET() {
+   7 |     try {
+>  8 |         const evaluations = await prisma.employeeEvaluation.findMany({
+     |                                                             ^
+   9 |             include: { employee: true, headquarters: true },
+  10 |             orderBy: { createdAt: 'asc' }
+  11 |         }); {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/insights 500 in 177ms (compile: 111ms, render: 66ms)
+Error generating insights: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__71a8b8bf._.js:64:183
+
+  61 ;
+  62 async function GET() {
+  63     try {
+→ 64         const evaluations = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/insights/route.ts:8:61)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/insights/route.ts:8:29)
+   6 | export async function GET() {
+   7 |     try {
+>  8 |         const evaluations = await prisma.employeeEvaluation.findMany({
+     |                                                             ^
+   9 |             include: { employee: true, headquarters: true },
+  10 |             orderBy: { createdAt: 'asc' }
+  11 |         }); {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/insights 500 in 35ms (compile: 3ms, render: 33ms)
+Care Messages GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__729a4b94._.js:248:177
+
+  245 }
+  246 const headquarterId = session.user.headquartersId;
+  247 // Extraer todos los hilos de los residentes activos en esta clínica
+→ 248 const dbMessages = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/messages/route.ts:20:55)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/messages/route.ts:20:28)
+  18 |
+  19 |         // Extraer todos los hilos de los residentes activos en esta clínica
+> 20 |         const dbMessages = await prisma.familyMessage.findMany({
+     |                                                       ^
+  21 |             where: {
+  22 |                 patient: { headquartersId: headquarterId }
+  23 |             }, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/messages 500 in 276ms (compile: 191ms, render: 85ms)
+Care Messages GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__729a4b94._.js:248:177
+
+  245 }
+  246 const headquarterId = session.user.headquartersId;
+  247 // Extraer todos los hilos de los residentes activos en esta clínica
+→ 248 const dbMessages = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/messages/route.ts:20:55)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/messages/route.ts:20:28)
+  18 |
+  19 |         // Extraer todos los hilos de los residentes activos en esta clínica
+> 20 |         const dbMessages = await prisma.familyMessage.findMany({
+     |                                                       ^
+  21 |             where: {
+  22 |                 patient: { headquartersId: headquarterId }
+  23 |             }, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/messages 500 in 35ms (compile: 941µs, render: 35ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 163ms (compile: 105ms, render: 58ms)
+ GET /care 200 in 976ms (compile: 875ms, render: 101ms)
+ GET /api/auth/session 200 in 11ms (compile: 3ms, render: 7ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 125ms (compile: 78ms, render: 48ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 41ms (compile: 1760µs, render: 39ms)
+CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+Care Fetch Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+
+  81 });
+  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/route.ts:23:47)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/route.ts:23:26)
+  21 |         const todayEnd = endOfDay(new Date());
+  22 |
+> 23 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  24 |             where: {
+  25 |                 colorGroup: color as any,
+  26 |                 headquartersId: hqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 168ms (compile: 110ms, render: 58ms)
+ GET /api/care/zendi/family-moments 200 in 208ms (compile: 199ms, render: 9ms)
+ GET /api/care/zendi/family-moments 200 in 6ms (compile: 1616µs, render: 4ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 55ms (compile: 2ms, render: 53ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 74ms (compile: 3ms, render: 71ms)
+⨯ ./src/actions/operational/audit.ts:2:1
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m {  [33mSystemAuditAction[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
+
+The "use server" directive must be at the top of the file.
+
+
+Import traces:
+  Client Component Browser:
+    ./src/actions/operational/audit.ts [Client Component Browser]
+    ./src/actions/operational/handover.ts [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/actions/operational/audit.ts [Client Component SSR]
+    ./src/actions/operational/handover.ts [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+
+
+./src/actions/operational/handover.ts:2:1
+Ecmascript file had an error
+[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
+[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 3 |[39m [36mimport[39m {  [33mShiftType[39m[33m,[39m [33mNursingHandoverStatus[39m[33m,[39m [33mSystemAuditAction[39m[33m,[39m [33mFlagReason[39m[33m,[39m [33mRole[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
+ [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
+
+The "use server" directive must be at the top of the file.
+
+
+Import traces:
+  Client Component Browser:
+    ./src/actions/operational/handover.ts [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/actions/operational/handover.ts [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+
+
+./src/actions/operational/handover.ts:7:10
+Ecmascript file had an error
+[0m [90m  5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m
+ [90m  6 |[39m [36mimport[39m { createAuditLog } [36mfrom[39m [32m'./audit'[39m[33m;[39m
+[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { revalidatePath } [36mfrom[39m [32m'next/cache'[39m[33m;[39m
+ [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m  8 |[39m
+ [90m  9 |[39m
+ [90m 10 |[39m[0m
+
+You're importing a component that needs "revalidatePath". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+
+
+
+Import traces:
+  Client Component Browser:
+    ./src/actions/operational/handover.ts [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/actions/operational/handover.ts [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
+    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
+    ./src/app/nursing/handovers/page.tsx [Server Component]
+
+
+ GET /nursing/handovers 500 in 2.0s (compile: 1946ms, render: 56ms)
+ GET /logout 404 in 263ms (compile: 227ms, render: 36ms)
+ GET /api/auth/session 500 in 15ms (compile: 8ms, render: 7ms)
+ POST /api/auth/_log 500 in 9ms (compile: 4ms, render: 5ms)
+ GET /login 200 in 241ms (compile: 229ms, render: 12ms)
+ GET /api/public/hq/branding 500 in 84ms (compile: 80ms, render: 4ms)
+ GET /api/public/hq/branding 500 in 7ms (compile: 2ms, render: 4ms)
+ GET / 200 in 16ms (compile: 1851µs, render: 14ms)
+ GET /api/auth/session 500 in 16ms (compile: 4ms, render: 12ms)
+ POST /api/auth/_log 500 in 10ms (compile: 5ms, render: 6ms)
+ GET /api/insights 500 in 34ms (compile: 22ms, render: 12ms)
+ GET /api/care/messages 500 in 39ms (compile: 27ms, render: 12ms)
+ GET /login 200 in 61ms (compile: 10ms, render: 51ms)
+ GET /api/insights 500 in 26ms (compile: 12ms, render: 14ms)
+ GET /api/care/messages 500 in 32ms (compile: 24ms, render: 8ms)
+ GET /api/public/hq/branding 500 in 15ms (compile: 6ms, render: 9ms)
+ GET /api/public/hq/branding 500 in 16ms (compile: 8ms, render: 8ms)
+ GET /care 200 in 21ms (compile: 3ms, render: 18ms)
+ GET /api/auth/session 500 in 13ms (compile: 6ms, render: 7ms)
+ POST /api/auth/_log 500 in 9ms (compile: 4ms, render: 5ms)
+ GET /login 200 in 14ms (compile: 1530µs, render: 12ms)
+ GET /api/public/hq/branding 500 in 26ms (compile: 22ms, render: 4ms)
+ GET /api/public/hq/branding 500 in 8ms (compile: 4ms, render: 4ms)
+ GET /care 200 in 27ms (compile: 3ms, render: 23ms)
+ GET /api/auth/session 500 in 12ms (compile: 7ms, render: 4ms)
+ POST /api/auth/_log 500 in 14ms (compile: 7ms, render: 7ms)
+ GET /login 200 in 18ms (compile: 1542µs, render: 17ms)
+ GET /api/public/hq/branding 500 in 27ms (compile: 23ms, render: 4ms)
+ GET /api/public/hq/branding 500 in 6ms (compile: 2ms, render: 4ms)
+ GET /login 200 in 34ms (compile: 7ms, render: 28ms)
+ GET /api/auth/session 500 in 41ms (compile: 23ms, render: 18ms)
+ POST /api/auth/_log 500 in 7ms (compile: 4ms, render: 4ms)
+ GET /api/public/hq/branding 500 in 12ms (compile: 4ms, render: 7ms)
+ GET /api/public/hq/branding 500 in 10ms (compile: 6ms, render: 3ms)
+ GET /care 200 in 19ms (compile: 3ms, render: 16ms)
+ GET /api/auth/session 500 in 10ms (compile: 5ms, render: 5ms)
+ POST /api/auth/_log 500 in 18ms (compile: 13ms, render: 5ms)
+ GET /login 200 in 17ms (compile: 1739µs, render: 15ms)
+ GET /api/public/hq/branding 500 in 11ms (compile: 5ms, render: 6ms)
+ GET /api/public/hq/branding 500 in 6ms (compile: 2ms, render: 4ms)
+✓ Compiled in 314ms
+ GET /login 200 in 53ms (compile: 11ms, render: 43ms)
+ GET /api/auth/providers 200 in 26ms (compile: 15ms, render: 11ms)
+ GET /api/auth/csrf 200 in 4ms (compile: 1244µs, render: 3ms)
+ POST /api/auth/callback/credentials 401 in 11ms (compile: 1014µs, render: 10ms)
+ GET /care 200 in 93ms (compile: 15ms, render: 79ms)
+ GET /api/auth/session 200 in 16ms (compile: 9ms, render: 8ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 91ms (compile: 1624µs, render: 89ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 42ms (compile: 2ms, render: 40ms)
+CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+Care Fetch Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+
+  81 });
+  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/route.ts:23:47)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/route.ts:23:26)
+  21 |         const todayEnd = endOfDay(new Date());
+  22 |
+> 23 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  24 |             where: {
+  25 |                 colorGroup: color as any,
+  26 |                 headquartersId: hqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 43ms (compile: 1478µs, render: 42ms)
+ GET /api/care/zendi/family-moments 200 in 46ms (compile: 40ms, render: 5ms)
+ GET /api/care/zendi/family-moments 200 in 8ms (compile: 1619µs, render: 6ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 58ms (compile: 2ms, render: 56ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 59ms (compile: 1961µs, render: 57ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 40ms (compile: 1220µs, render: 38ms)
+CARE API CALLED WITH: { color: 'YELLOW', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+Care Fetch Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+
+  81 });
+  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/route.ts:23:47)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/route.ts:23:26)
+  21 |         const todayEnd = endOfDay(new Date());
+  22 |
+> 23 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  24 |             where: {
+  25 |                 colorGroup: color as any,
+  26 |                 headquartersId: hqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care?color=YELLOW&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 53ms (compile: 2ms, render: 50ms)
+ GET /api/care/zendi/family-moments 200 in 55ms (compile: 48ms, render: 7ms)
+ GET /api/care/zendi/family-moments 200 in 8ms (compile: 2ms, render: 6ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 51ms (compile: 1969µs, render: 49ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 61ms (compile: 11ms, render: 50ms)
+CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+Care Fetch Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+
+  81 });
+  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/route.ts:23:47)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/route.ts:23:26)
+  21 |         const todayEnd = endOfDay(new Date());
+  22 |
+> 23 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  24 |             where: {
+  25 |                 colorGroup: color as any,
+  26 |                 headquartersId: hqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 49ms (compile: 2ms, render: 46ms)
+ GET /api/care/zendi/family-moments 200 in 54ms (compile: 49ms, render: 5ms)
+ GET /api/care/zendi/family-moments 200 in 6ms (compile: 838µs, render: 5ms)
+ GET /intake 200 in 364ms (compile: 344ms, render: 20ms)
+ GET /api/auth/session 200 in 15ms (compile: 9ms, render: 6ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 59ms (compile: 6ms, render: 53ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 59ms (compile: 4ms, render: 55ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 39ms (compile: 991µs, render: 38ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 36ms (compile: 910µs, render: 35ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 39ms (compile: 958µs, render: 38ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 39ms (compile: 990µs, render: 38ms)
+Intake Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__d767bd78._.js:81:168
+
+  78     }
+  79 }
+  80 // 1. Crear el Perfil Demográfico base del Residente
+→ 81 const patient = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/intake/route.ts:22:46)
+    at <unknown> (-->  schema.prisma:7)
+    at async POST (src/app/api/intake/route.ts:22:25)
+  20 |
+  21 |         // 1. Crear el Perfil Demográfico base del Residente
+> 22 |         const patient = await prisma.patient.create({
+     |                                              ^
+  23 |             data: {
+  24 |                 name,
+  25 |                 headquartersId: finalHqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ POST /api/intake 500 in 236ms (compile: 192ms, render: 44ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 41ms (compile: 1097µs, render: 39ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 53ms (compile: 1257µs, render: 52ms)
+Intake Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__d767bd78._.js:81:168
+
+  78     }
+  79 }
+  80 // 1. Crear el Perfil Demográfico base del Residente
+→ 81 const patient = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/intake/route.ts:22:46)
+    at <unknown> (-->  schema.prisma:7)
+    at async POST (src/app/api/intake/route.ts:22:25)
+  20 |
+  21 |         // 1. Crear el Perfil Demográfico base del Residente
+> 22 |         const patient = await prisma.patient.create({
+     |                                              ^
+  23 |             data: {
+  24 |                 name,
+  25 |                 headquartersId: finalHqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ POST /api/intake 500 in 40ms (compile: 1351µs, render: 38ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 46ms (compile: 1667µs, render: 44ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 41ms (compile: 1021µs, render: 40ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 51ms (compile: 1357µs, render: 50ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 43ms (compile: 1088µs, render: 42ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 40ms (compile: 1473µs, render: 39ms)
+[next-auth][warn][NEXTAUTH_URL] 
+https://next-auth.js.org/warnings#nextauth_url
+⨯ Error [PrismaClientInitializationError]: 
+Invalid `{imported module ./src/lib/prisma.ts}["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/ssr/[root-of-the-server]__670d0701._.js:83:163
+
+  80 // @ts-ignore
+  81 const hqId = session.user.headquartersId;
+  82 // Fetch residents assigned to HQ
+→ 83 const patients = await {imported module ./src/lib/prisma.ts}["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/nursing/handovers/page.tsx:20:43)
+    at <unknown> (-->  schema.prisma:7)
+    at async NursingHandoversPage (src/app/nursing/handovers/page.tsx:20:22)
+  18 |     
+  19 |     // Fetch residents assigned to HQ
+> 20 |     const patients = await prisma.patient.findMany({
+     |                                           ^
+  21 |         where: { headquartersId: hqId, status: 'ACTIVE' },
+  22 |         select: { id: true, name: true }
+  23 |     }); {
+  clientVersion: '5.22.0',
+  errorCode: undefined,
+  digest: '1994726896'
+}
+ GET /nursing/handovers 200 in 346ms (compile: 211ms, render: 135ms)
+ GET /api/auth/session 200 in 14ms (compile: 7ms, render: 8ms)
+ GET /care 200 in 31ms (compile: 4ms, render: 28ms)
+ GET /api/auth/session 200 in 10ms (compile: 3ms, render: 7ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 64ms (compile: 1347µs, render: 63ms)
+Shift GET Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+
+  154         status: 400
+  155     });
+  156 }
+→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/shift/start/route.ts:80:31)
+  78 |         }
+  79 |
+> 80 |         const activeSession = await prisma.shiftSession.findFirst({
+     |                                                         ^
+  81 |             where: {
+  82 |                 caregiverId,
+  83 |                 actualEndTime: null, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 77ms (compile: 1533µs, render: 75ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 38ms (compile: 1270µs, render: 37ms)
+CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+Care Fetch Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+
+  81 });
+  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/care/route.ts:23:47)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/care/route.ts:23:26)
+  21 |         const todayEnd = endOfDay(new Date());
+  22 |
+> 23 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  24 |             where: {
+  25 |                 colorGroup: color as any,
+  26 |                 headquartersId: hqId, {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 52ms (compile: 8ms, render: 44ms)
+ GET /api/care/zendi/family-moments 200 in 46ms (compile: 42ms, render: 4ms)
+ GET /api/care/zendi/family-moments 200 in 8ms (compile: 1625µs, render: 6ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 45ms (compile: 3ms, render: 42ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 35ms (compile: 1520µs, render: 33ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 48ms (compile: 3ms, render: 45ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 36ms (compile: 1258µs, render: 34ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 36ms (compile: 1155µs, render: 35ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 35ms (compile: 1020µs, render: 34ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 73ms (compile: 4ms, render: 69ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 34ms (compile: 1171µs, render: 33ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 33ms (compile: 1121µs, render: 32ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 58ms (compile: 4ms, render: 53ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 61ms (compile: 5ms, render: 56ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 61ms (compile: 5ms, render: 55ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 72ms (compile: 7ms, render: 65ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 66ms (compile: 4ms, render: 62ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 60ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 66ms (compile: 6ms, render: 59ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 60ms (compile: 4ms, render: 55ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 61ms (compile: 4ms, render: 57ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 61ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 65ms (compile: 7ms, render: 59ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 63ms (compile: 5ms, render: 58ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 56ms (compile: 5ms, render: 51ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 62ms (compile: 5ms, render: 57ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 37ms (compile: 1294µs, render: 36ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 58ms (compile: 4ms, render: 55ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 46ms (compile: 2ms, render: 43ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 61ms)
+API Error: Error [PrismaClientInitializationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+
+  243 const hqId = session.user.headquartersId;
+  244 // Polling optimization: Only grab announcements from the last 15 seconds
+  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
+→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
+error: Environment variable not found: DATABASE_URL.
+  -->  schema.prisma:7
+   | 
+ 6 |   provider = "postgresql"
+ 7 |   url      = env("DATABASE_URL")
+   | 
+
+Validation Error Count: 1
+    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
+    at <unknown> (-->  schema.prisma:7)
+    at async GET (src/app/api/ai/announcements/route.ts:18:31)
+  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
+  17 |
+> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
+     |                                                               ^
+  19 |             where: {
+  20 |                 headquartersId: hqId,
+  21 |                 createdAt: { {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+ GET /api/ai/announcements 500 in 47ms (compile: 1581µs, render: 45ms)

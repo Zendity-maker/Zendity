@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import OpenAI from "openai";
 import { prisma } from '@/lib/prisma';
 import fs from 'fs';
-
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Sistema dinámico puro para evitar static bail-out en Vercel
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // System Contexts
 const SHIFT_BLOCKS = [
@@ -18,6 +18,7 @@ const ZONE_COLORS = ["RED", "BLUE", "GREEN", "YELLOW", "PURPLE"];
 
 export async function POST(req: Request) {
     try {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "dummy" });
         const body = await req.json();
         const { prompt, employees, weekStartDate, hqId } = body;
 

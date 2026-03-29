@@ -21,20 +21,20 @@ export default function PatientFallRiskTab() {
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">Escala de Morse y Bitácora de Sucesos</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                     <button
                         onClick={() => setIsAssessing(true)}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-xl shadow-sm transition flex items-center gap-2 text-sm border border-indigo-200"
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-4 px-6 rounded-xl shadow-sm transition flex items-center justify-center gap-2 text-sm border border-indigo-200 min-h-[56px] active:scale-95"
                     >
-                        <ClipboardDocumentCheckIcon className="w-4 h-4" />
+                        <ClipboardDocumentCheckIcon className="w-5 h-5" />
                         Escala Morse (Evaluación)
                     </button>
                     <button
                         onClick={() => setIsReportingFall(true)}
-                        className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-4 rounded-xl shadow-md transition flex items-center gap-2 text-sm"
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm min-h-[56px] active:scale-95"
                     >
-                        <ExclamationTriangleIcon className="w-4 h-4" />
-                        Reportar Caída de Emergencia
+                        <ExclamationTriangleIcon className="w-5 h-5" />
+                        Reportar Caída (Emerg.)
                     </button>
                 </div>
             </div>
@@ -120,9 +120,9 @@ export default function PatientFallRiskTab() {
                             <div className="space-y-4">
                                 <p className="text-sm text-gray-500">¿Ha tenido caídas previas (últimos 3 meses)?</p>
                                 <select className="w-full border rounded-lg p-2 text-sm"><option>Sí (25 puntos)</option><option>No (0 puntos)</option></select>
-                                <div className="mt-6 flex justify-end gap-3">
-                                    <button onClick={() => setIsAssessing(false)} className="px-4 py-2 text-sm font-medium text-gray-600">Cancelar</button>
-                                    <button onClick={() => setIsAssessing(false)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold">Guardar Evaluación</button>
+                                <div className="mt-8 flex justify-end gap-3 w-full">
+                                    <button onClick={() => setIsAssessing(false)} className="px-6 py-4 text-sm font-bold text-gray-600 bg-gray-50 flex-1 rounded-xl">Cancelar</button>
+                                    <button onClick={() => setIsAssessing(false)} className="px-6 py-4 bg-indigo-600 text-white flex-1 rounded-xl text-sm font-bold shadow-md active:scale-95">Guardar Evaluación</button>
                                 </div>
                             </div>
                         </div>
@@ -140,9 +140,9 @@ export default function PatientFallRiskTab() {
                             <div className="space-y-4">
                                 <div><label className="text-xs font-bold">Lugar Exacto de la Caída</label><input type="text" className="w-full border rounded-lg p-2 mt-1" placeholder="Ej. Baño 102B" /></div>
                                 <div><label className="text-xs font-bold">Novedades Clínicas</label><textarea className="w-full border rounded-lg p-2 mt-1 h-20" placeholder="Descripción física..."></textarea></div>
-                                <div className="mt-6 flex justify-end gap-3">
-                                    <button onClick={() => setIsReportingFall(false)} className="px-4 py-2 text-sm font-medium text-gray-600">Cancelar</button>
-                                    <button onClick={() => setIsReportingFall(false)} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold shadow-md">Registrar Incidente Oficial</button>
+                                <div className="mt-8 flex justify-end gap-3 w-full">
+                                    <button onClick={() => setIsReportingFall(false)} className="px-6 py-4 text-sm font-bold text-gray-600 bg-gray-50 flex-1 rounded-xl">Cancelar</button>
+                                    <button onClick={() => setIsReportingFall(false)} className="px-6 py-4 bg-rose-600 text-white flex-1 rounded-xl text-sm font-bold shadow-md active:scale-95">Registrar Incidente Modal</button>
                                 </div>
                             </div>
                         </div>

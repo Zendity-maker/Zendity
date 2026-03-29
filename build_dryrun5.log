@@ -1,0 +1,237 @@
+⚠ `eslint` configuration in next.config.ts is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.ts options detected: 
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+▲ Next.js 16.1.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 8.4s
+  Skipping validation of types
+  Collecting page data using 9 workers ...
+API key does not start with "SG.".
+  Generating static pages using 9 workers (0/161) ...
+  Generating static pages using 9 workers (40/161) 
+  Generating static pages using 9 workers (80/161) 
+  Generating static pages using 9 workers (120/161) 
+✓ Generating static pages using 9 workers (161/161) in 363.3ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /academy
+├ ƒ /api/academy
+├ ƒ /api/academy/ai
+├ ƒ /api/academy/attempt
+├ ƒ /api/academy/complete
+├ ƒ /api/academy/enroll
+├ ƒ /api/admin/seed-mayaguez
+├ ƒ /api/ai/announcements
+├ ƒ /api/ai/scheduler
+├ ƒ /api/ai/shadow
+├ ƒ /api/ai/vapi-inbound
+├ ƒ /api/ai/vapi-webhook
+├ ƒ /api/ai/zendi
+├ ƒ /api/ai/zendi-digest
+├ ƒ /api/ai/zendi-voice
+├ ƒ /api/ai/zendi/handovers/cron
+├ ƒ /api/audit
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/care
+├ ƒ /api/care/adls/bath
+├ ƒ /api/care/adls/meal
+├ ƒ /api/care/briefing
+├ ƒ /api/care/fast-actions
+├ ƒ /api/care/hospitalize
+├ ƒ /api/care/incidents
+├ ƒ /api/care/log
+├ ƒ /api/care/meds
+├ ƒ /api/care/meds/bulk
+├ ƒ /api/care/messages
+├ ƒ /api/care/postural
+├ ƒ /api/care/preventive
+├ ƒ /api/care/reports/complaint
+├ ƒ /api/care/rounds
+├ ƒ /api/care/rounds/check
+├ ƒ /api/care/shift/end
+├ ƒ /api/care/shift/start
+├ ƒ /api/care/supervisor
+├ ƒ /api/care/supervisor/dispatch
+├ ƒ /api/care/supervisor/live
+├ ƒ /api/care/supervisor/rounds
+├ ƒ /api/care/vitals
+├ ƒ /api/care/zendi/family-moments
+├ ƒ /api/care/zendi/family-moments/[id]/action
+├ ƒ /api/corporate
+├ ƒ /api/corporate/academy/courses/upload
+├ ƒ /api/corporate/billing
+├ ƒ /api/corporate/billing/[id]/pay
+├ ƒ /api/corporate/billing/payments
+├ ƒ /api/corporate/calendar
+├ ƒ /api/corporate/complaints/triage
+├ ƒ /api/corporate/concierge/appointments
+├ ƒ /api/corporate/concierge/orders
+├ ƒ /api/corporate/crm
+├ ƒ /api/corporate/crm/leads
+├ ƒ /api/corporate/crm/leads/export
+├ ƒ /api/corporate/crm/leads/import
+├ ƒ /api/corporate/family/comms/send
+├ ƒ /api/corporate/family/comms/send-broadcast
+├ ƒ /api/corporate/hq
+├ ƒ /api/corporate/hq/branding
+├ ƒ /api/corporate/hr
+├ ƒ /api/corporate/hr/comms/send
+├ ƒ /api/corporate/hr/staff/[id]
+├ ƒ /api/corporate/hr/staff/[id]/photo
+├ ƒ /api/corporate/intake/generate
+├ ƒ /api/corporate/investors/kpis
+├ ƒ /api/corporate/patients
+├ ƒ /api/corporate/patients/[id]
+├ ƒ /api/corporate/patients/[id]/billing-specs
+├ ƒ /api/corporate/patients/[id]/diet
+├ ƒ /api/corporate/patients/[id]/discharge
+├ ƒ /api/corporate/patients/[id]/family
+├ ƒ /api/corporate/patients/[id]/history-report
+├ ƒ /api/corporate/patients/[id]/invoices
+├ ƒ /api/corporate/patients/[id]/pai
+├ ƒ /api/corporate/patients/[id]/pai/ai-build
+├ ƒ /api/corporate/patients/[id]/photo
+├ ƒ /api/corporate/patients/[id]/reports
+├ ƒ /api/corporate/settings/integrations
+├ ƒ /api/corporate/supervisor
+├ ƒ /api/corporate/supervisor/live
+├ ƒ /api/corporate/triage/pending
+├ ƒ /api/corporate/triage/resolve
+├ ƒ /api/corporate/triage/zendi-propose
+├ ƒ /api/corporate/users
+├ ƒ /api/corporate/users/[id]/preferences
+├ ƒ /api/crm/docusign
+├ ƒ /api/crm/vapi-webhook
+├ ƒ /api/cron/check-licenses
+├ ƒ /api/cron/operational
+├ ƒ /api/cron/upp-alerts
+├ ƒ /api/cuidadores/lifeplans
+├ ƒ /api/cuidadores/lifeplans/sign
+├ ƒ /api/emar
+├ ƒ /api/emar/patient/[id]
+├ ƒ /api/family
+├ ƒ /api/family/billing
+├ ƒ /api/family/concierge
+├ ƒ /api/family/dashboard
+├ ƒ /api/family/documents/[id]
+├ ƒ /api/family/documents/[id]/sign
+├ ƒ /api/family/messages
+├ ƒ /api/family/report
+├ ƒ /api/gamification/photo
+├ ƒ /api/hr/comms/send
+├ ƒ /api/hr/comms/send-broadcast
+├ ƒ /api/hr/evaluate
+├ ƒ /api/hr/evaluations
+├ ƒ /api/hr/incidents
+├ ƒ /api/hr/incidents/ai-generate
+├ ƒ /api/hr/insights
+├ ƒ /api/hr/performance/[userId]
+├ ƒ /api/hr/staff
+├ ƒ /api/hr/staff/[id]
+├ ƒ /api/hr/staff/[id]/photo
+├ ƒ /api/hr/staff/[id]/welcome
+├ ƒ /api/insights
+├ ƒ /api/intake
+├ ƒ /api/kitchen/dashboard
+├ ƒ /api/kitchen/menu
+├ ƒ /api/kitchen/observations
+├ ƒ /api/maintenance
+├ ƒ /api/med
+├ ƒ /api/med/briefing/monthly
+├ ƒ /api/med/cart
+├ ƒ /api/med/catalog
+├ ƒ /api/med/crud
+├ ƒ /api/med/ocr
+├ ƒ /api/medical/handovers
+├ ƒ /api/medical/handovers/draft
+├ ƒ /api/medical/shifts
+├ ƒ /api/medical/shifts/ai-generate
+├ ƒ /api/medical/shifts/publish
+├ ƒ /api/nursing/zoning
+├ ƒ /api/patients
+├ ƒ /api/preingreso
+├ ƒ /api/public/hq/branding
+├ ƒ /api/sandbox/simulate
+├ ƒ /api/sandbox/verify-vapi
+├ ƒ /api/specialists/appointments
+├ ƒ /api/superadmin/billing
+├ ƒ /api/superadmin/billing/[id]/pay
+├ ƒ /api/superadmin/hq/create
+├ ƒ /api/superadmin/hqs
+├ ƒ /api/user/me
+├ ƒ /api/wall/dashboard
+├ ƒ /api/webhooks/crm
+├ ƒ /api/zendity-admin/sedes
+├ ○ /audit
+├ ○ /care
+├ ○ /care/patient/emar-print
+├ ○ /care/supervisor
+├ ○ /care/supervisor/shifts
+├ ○ /corporate
+├ ○ /corporate/billing
+├ ○ /corporate/calendar
+├ ○ /corporate/concierge
+├ ○ /corporate/crm
+├ ○ /corporate/hq
+├ ○ /corporate/hr
+├ ○ /corporate/hr/academy
+├ ○ /corporate/hr/comms
+├ ○ /corporate/hr/staff
+├ ƒ /corporate/hr/staff/[id]
+├ ○ /corporate/intake
+├ ○ /corporate/investors
+├ ○ /corporate/medical/catalog
+├ ○ /corporate/medical/emar
+├ ƒ /corporate/medical/fall-risk
+├ ○ /corporate/medical/handovers
+├ ○ /corporate/medical/patients
+├ ƒ /corporate/medical/patients/[id]
+├ ƒ /corporate/medical/patients/[id]/pai
+├ ƒ /corporate/medical/patients/[id]/pai/print
+├ ○ /corporate/medical/upp-dashboard
+├ ○ /corporate/settings/integrations
+├ ƒ /corporate/shift-closure
+├ ○ /corporate/supervisor
+├ ○ /corporate/supervisor/shifts
+├ ƒ /corporate/triage
+├ ○ /cuidadores
+├ ƒ /family
+├ ƒ /family/billing
+├ ƒ /family/concierge
+├ ƒ /family/documents
+├ ƒ /family/documents/[id]
+├ ƒ /family/messages
+├ ƒ /family/pai/print/[id]
+├ ○ /hr
+├ ○ /hr/evaluate
+├ ○ /hr/insights
+├ ○ /hr/staff
+├ ƒ /hr/staff/[id]
+├ ○ /intake
+├ ○ /kitchen
+├ ○ /kitchen/menu
+├ ƒ /locations
+├ ○ /login
+├ ○ /maintenance
+├ ○ /med
+├ ○ /med/briefing
+├ ○ /med/zoning
+├ ƒ /nursing/handovers
+├ ○ /preingreso
+├ ƒ /referrals/[hqId]
+├ ○ /sandbox
+├ ○ /specialists
+├ ƒ /superadmin
+├ ƒ /superadmin/billing
+├ ○ /wall
+└ ƒ /zendity-admin
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

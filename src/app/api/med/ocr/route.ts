@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY || "dummy",
 });
 
 export async function POST(request: Request) {

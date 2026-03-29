@@ -23,7 +23,7 @@ const clinicalNavigation = [
     { name: 'Handovers Clínicos', href: '/nursing/handovers', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
-    { name: 'Academy', href: '/academy', icon: GraduationCap },
+    // { name: 'Academy', href: '/academy', icon: GraduationCap }, // PILOTO 2: SOMBRA
 ];
 
 const corporateNavigationSections = [
@@ -35,7 +35,7 @@ const corporateNavigationSections = [
             { name: "Triage Center", href: "/corporate/triage", icon: ShieldAlert },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
-            { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
+            // { name: "Calendario", href: "/corporate/calendar", icon: Calendar }, // PILOTO 2: SOMBRA
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
         ]
     },
@@ -56,8 +56,8 @@ const corporateNavigationSections = [
             { name: "Alertas Zendi AI", href: "/hr/insights", icon: ShieldAlert },
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
-            { name: "Academy Builder", href: "/corporate/hr/academy", icon: GraduationCap },
-            { name: "Tomar Academy", href: "/academy", icon: UserCheck },
+            // { name: "Academy Builder", href: "/corporate/hr/academy", icon: GraduationCap }, // PILOTO 2: SOMBRA
+            // { name: "Tomar Academy", href: "/academy", icon: UserCheck }, // PILOTO 2: SOMBRA
         ]
     },
     {

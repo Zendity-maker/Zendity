@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma';
 "use server";
+import { prisma } from '@/lib/prisma';
 import {  ShiftType, ShiftClosureStatus, SystemAuditAction, Role } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -58,10 +58,11 @@ export async function createShiftClosure(data: {
         // Verificar existencia
         const existing = await prisma.shiftClosure.findUnique({
             where: {
-                headquartersId_shiftDate_shiftType: {
+                headquartersId_shiftDate_shiftType_supervisorOutId: {
                     headquartersId: hqId,
                     shiftDate: new Date(data.shiftDate),
-                    shiftType: data.shiftType
+                    shiftType: data.shiftType,
+                    supervisorOutId: userId
                 }
             }
         });

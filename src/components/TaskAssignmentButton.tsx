@@ -6,10 +6,12 @@ export default function TaskAssignmentButton({
   user,
   buttonLabel = "Asignar Tarea",
   buttonStyle = "px-5 py-3 font-black bg-white text-indigo-700 rounded-xl shadow-lg border border-indigo-200 hover:scale-105 transition-all flex items-center gap-2",
+  activeStaffIds = [],
 }: {
   user: any;
   buttonLabel?: string;
   buttonStyle?: string;
+  activeStaffIds?: string[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hubCaregiverId, setHubCaregiverId] = useState("");
@@ -93,19 +95,33 @@ export default function TaskAssignmentButton({
 
               <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-right-4">
                 <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200">
-                  <label className="text-sm font-bold text-indigo-900 block mb-2">Empleado Destino (Cuidador)</label>
-                  <select
-                    value={hubCaregiverId}
-                    onChange={(e) => setHubCaregiverId(e.target.value)}
-                    className="w-full p-4 rounded-xl border-2 border-indigo-200 bg-white font-bold text-slate-800 outline-none focus:border-indigo-500"
-                  >
-                    <option value="">-- Seleccionar Personal Activo --</option>
-                    {hubCaregiversList.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.role})
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-sm font-bold text-indigo-900 block mb-3">Empleado Destino (Cuidador)</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {hubCaregiversList
+                      .sort((a, b) => {
+                          const aActive = activeStaffIds.includes(a.id);
+                          const bActive = activeStaffIds.includes(b.id);
+                          if (aActive && !bActive) return -1;
+                          if (!aActive && bActive) return 1;
+                          return a.name.localeCompare(b.name);
+                      })
+                      .map((c) => {
+                        const isActive = activeStaffIds.includes(c.id);
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={(e) => { e.stopPropagation(); setHubCaregiverId(c.id); }}
+                            className={`p-3 rounded-xl border-2 text-left flex items-center gap-3 transition-all outline-none ${hubCaregiverId === c.id ? 'border-indigo-500 bg-white shadow-md ring-2 ring-indigo-500/20' : 'border-slate-200 bg-white hover:border-indigo-300 opacity-90'}`}
+                          >
+                            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse' : 'bg-slate-300'}`}></div>
+                            <div className="flex-1">
+                                <p className="font-bold text-slate-800 text-sm leading-tight">{c.name}</p>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">{isActive ? 'En Turno Físico' : 'Off-shift'}</p>
+                            </div>
+                          </button>
+                        );
+                    })}
+                  </div>
                 </div>
 
                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">

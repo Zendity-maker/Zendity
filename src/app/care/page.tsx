@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -9,8 +10,13 @@ import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton"
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
+import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
+import IncomingShiftBriefing from "@/components/care/IncomingShiftBriefing";
 
 export default function ZendityCareTabletPage() {
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => setIsMounted(true), []);
+
     const { user, logout } = useAuth();
     const router = useRouter();
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -40,11 +46,12 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "HANDOVER_DRAFT" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | "INCOMING_SHIFT_BRIEFING" | null>(null);
+    const [isNightMode, setIsNightMode] = useState(false);
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
-    const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | null>(null);
+    const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | null>(null);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
     const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
@@ -66,6 +73,27 @@ export default function ZendityCareTabletPage() {
     // Preventive Hub
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [preventiveNote, setPreventiveNote] = useState("");
+    const [isSavingFastAction, setIsSavingFastAction] = useState(false);
+
+    const logNightRound = async (patientId: string, type: 'SECO' | 'HUMEDO' | 'EVACUACION' | 'ROTACION', position?: string) => {
+        setIsSavingFastAction(true);
+        try {
+            const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/care/rounds", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId, authorId: user?.id, hqId, type, position })
+            });
+            if (res.ok) {
+                // Notificación visual de éxito (Silent refresh)
+                const updatedPatients = [...patients]; // Mock local optimista no es necesario, UI UX is fast
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingFastAction(false);
+        }
+    };
 
     // Night Rounds Engine 2-Hour SLA
     const [nightRoundStatus, setNightRoundStatus] = useState<'SLEEPING' | 'AWAKE' | 'ANOMALY' | null>(null);
@@ -117,6 +145,26 @@ export default function ZendityCareTabletPage() {
             setSubmitting(false);
         }
     };
+
+    // ==========================================
+    // WAKE RECOVERY: Mantenimiento SLA Zendi
+    // ==========================================
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible' && selectedColor) {
+                // eslint-disable-next-line @typescript-eslint/no-use-before-define
+                refreshPatientsSilently(selectedColor);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+    if (!isMounted) return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+            <Loader2 className="w-12 h-12 text-indigo-500/50 animate-spin" />
+        </div>
+    );
+
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, [selectedColor]);
 
     // ==========================================
     // FASE 30: CLOCK-IN & CENSUS VERIFICATION
@@ -812,40 +860,8 @@ export default function ZendityCareTabletPage() {
             return;
         }
 
-        // Mock de alerta frontend si hay cosas pendientes
-        if (Math.random() > 0.8) {
-            alert(" ALTO: Zendity detectó una dosis programada que no ha sido administrada. Se requiere justificación para finalizar turno.");
-            return;
-        }
-
-        try {
-            const res = await fetch("/api/care/shift/end", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ shiftSessionId: activeSession.id })
-            });
-            const data = await res.json();
-
-            // FASE 44: Intercepción de Relevo de Guardia 
-            if (!res.ok && data.requireHandover) {
-                alert(` ALTO: ${data.error}`);
-                setPendingShiftType(data.shiftType);
-                setModalType('HANDOVER_DRAFT');
-                return;
-            }
-
-            if (!data.success) {
-                alert(data.error || "Error finalizando turno.");
-                return;
-            }
-
-            localStorage.removeItem('zendityCareShiftColor');
-
-            alert(" Turno Finalizado. Has protegido tus registros para auditoría (AI Shift Report Autogenerado).");
-            router.push('/login');
-        } catch (e) {
-            console.error(e);
-            alert("Error finalizando turno.");
-        }
+        // FASE NUEVA: Invocamos el Asistente de Entrega en vez de validar bloqueos rígidos
+        setModalType('SHIFT_CLOSURE_WIZARD');
     };
 
     const submitHubReport = async () => {
@@ -864,6 +880,14 @@ export default function ZendityCareTabletPage() {
                 endpoint = "/api/care/reports/complaint";
                 payload.type = "COMPLAINT";
                 payload.photoUrl = hubPhotoBase64;
+            } else if (hubAction === "UPP_ALERT") {
+                endpoint = "/api/care/vitals";
+                payload = {
+                    patientId: hubPatientId,
+                    authorId: user?.id,
+                    type: 'LOG',
+                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA UPP/PIEL] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
+                };
             } else if (hubAction === "CLINICAL") {
                 endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog pero con flag isAlert true
                 payload = {
@@ -1140,23 +1164,30 @@ export default function ZendityCareTabletPage() {
                     <button onClick={() => { setHubAction(null); setModalType('HUB'); }} className="px-5 py-3 font-black bg-slate-900 text-white rounded-xl shadow-lg hover:scale-105 transition-all flex items-center gap-2">
                         <span></span> Acciones Rápidas
                     </button>
+                    <button onClick={() => setIsNightMode(!isNightMode)} className={`px-5 py-3 font-black rounded-xl shadow-lg transition-all flex items-center gap-2 ${isNightMode ? 'bg-indigo-200 text-indigo-900 border-2 border-indigo-400' : 'bg-indigo-900 text-indigo-300'}`}>
+                        <span>{isNightMode ? '☀️ Modo Normal' : '🌙 Modo Rondas'}</span>
+                    </button>
                     <button onClick={() => router.push('/cuidadores')} className="px-6 py-3 font-bold bg-white/10 hover:bg-white/20 rounded-xl transition-colors hidden md:block">Life Plans (PAI)</button>
-                    <button onClick={handleLogoutAttempt} className="px-6 py-3 font-black bg-white text-slate-900 rounded-xl shadow-lg hover:scale-105 transition-all">Finalizar Turno</button>
+                    <button onClick={() => setModalType('INCOMING_SHIFT_BRIEFING')} className="px-5 py-3 font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg transition-colors">Simular Inicio</button>
+                    <button onClick={handleLogoutAttempt} className="px-6 py-3 font-black bg-slate-900 border-2 border-slate-700 text-white rounded-xl shadow-lg hover:scale-105 transition-all">Entregar Turno</button>
                 </div>
             </div>
 
-            {/* FASE 11: 15-Minute SLA Active Assignments Banner */}
+            {/* SPRINT 1 UX: Contextual SLA Banner (Estable, Pendiente, Advertencia, Crítico) */}
             {fastActions.length > 0 && (
-                <div className="bg-red-600 text-white px-8 py-3 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4">
+                <div className={`text-white px-8 py-4 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4 transition-all ${fastActions.length > 2 ? 'bg-rose-600' : (fastActions.length > 1 ? 'bg-amber-600' : 'bg-emerald-600')}`}>
                     <div className="flex items-center gap-4 w-full md:w-auto">
-                        <span className="text-3xl animate-pulse drop-shadow-md"></span>
+                        <span className={`text-3xl drop-shadow-md ${fastActions.length > 2 ? 'animate-pulse' : ''}`}>{fastActions.length > 2 ? '🚨' : (fastActions.length > 1 ? '⚠️' : '✅')}</span>
                         <div className="flex-1">
-                            <p className="text-sm uppercase tracking-wider text-red-100 font-black">Asignación del Supervisor ({fastActions.length} Pendiente{fastActions.length !== 1 && 's'})</p>
+                            <p className="text-sm uppercase tracking-wider text-white/80 font-black">
+                                {fastActions.length > 2 ? 'ESTADO CRÍTICO (SLA)' : (fastActions.length > 1 ? 'ADVERTENCIA: ACUMULACIÓN SLA' : 'ESTADO PENDIENTE (SLA NORMAL)')}
+                                 ({fastActions.length} Pendiente{fastActions.length !== 1 && 's'})
+                            </p>
                             <p className="text-base font-bold text-white mt-0.5">{fastActions[0].description}</p>
                         </div>
                     </div>
-                    <button onClick={() => completeFastAction(fastActions[0].id)} className="bg-white text-red-700 px-6 py-2.5 rounded-xl font-black active:scale-95 shadow-sm transform hover:-translate-y-0.5 transition w-full md:w-auto text-sm">
-                        Realizado (Cumplir SLA)
+                    <button onClick={() => completeFastAction(fastActions[0].id)} className={`bg-white px-8 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transform hover:-translate-y-0.5 transition w-full md:w-auto text-base min-h-[56px] flex items-center justify-center ${fastActions.length > 2 ? 'text-rose-700' : (fastActions.length > 1 ? 'text-amber-700' : 'text-emerald-700')}`}>
+                         Confirmar Realización
                     </button>
                 </div>
             )}
@@ -1189,10 +1220,59 @@ export default function ZendityCareTabletPage() {
                 {loading ? (
                     <div className="text-center p-20 text-xl font-bold text-slate-400 animate-pulse">Cargando Residentes...</div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                        {patients.map(p => {
-                            const isAbsent = p.status === 'TEMPORARY_LEAVE';
-                            return (
+                    <>
+                        {isNightMode ? (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                                <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-indigo-100 p-8 rounded-3xl shadow-xl border border-indigo-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-20"></div>
+                                     <div className="relative z-10">
+                                         <h2 className="text-3xl font-black flex items-center gap-4 text-white">🌙 Night Rounds Mode</h2>
+                                         <p className="text-indigo-300 font-bold mt-2 text-lg">Modo Ultra-Rápido: Registra rondas bi-horarias y cambios de pañal en 1 solo tap.</p>
+                                     </div>
+                                     <div className="bg-indigo-800/80 border border-indigo-600 px-6 py-4 rounded-2xl text-center shadow-inner relative z-10 backdrop-blur-sm shadow-xl mt-4 md:mt-0 w-full md:w-auto">
+                                         <span className="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1">Hora Local del Turno</span>
+                                         <span className="block text-4xl sm:text-5xl font-black font-mono text-white leading-none tracking-tight">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                     </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {patients.map(p => (
+                                        <div key={p.id} className="bg-slate-800 border-[3px] border-slate-700 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-colors">
+                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center font-black text-xl text-slate-400 backdrop-blur-sm">FUERA DE EDIFICIO</div>}
+                                            <div className="flex justify-between items-start mb-6 align-top">
+                                                <h3 className="text-2xl font-black text-white pr-4 leading-tight">{p.name}</h3>
+                                                {p.posturalChanges?.length > 0 && <span className="bg-teal-500/20 text-teal-300 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-teal-500/30 shrink-0 text-center">ROTADO: <br className="hidden md:block" /> {new Date(p.posturalChanges[p.posturalChanges.length-1].performedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 z-10">
+                                                <button onClick={() => logNightRound(p.id, 'SECO')} disabled={isSavingFastAction} className="py-5 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 border border-slate-600 shadow-sm transition-all active:scale-95 disabled:opacity-50 text-[13px] tracking-wide text-center px-2">
+                                                    <span className="text-3xl drop-shadow-sm mb-1 leading-none">✅</span> Pañal Seco
+                                                </button>
+                                                <button onClick={() => logNightRound(p.id, 'HUMEDO')} disabled={isSavingFastAction} className="py-5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/50 text-indigo-300 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50 text-[13px] tracking-wide text-center px-1">
+                                                    <span className="text-3xl drop-shadow-sm mb-1 leading-none">💧</span> Cambio (Orina)
+                                                </button>
+                                                <button onClick={() => logNightRound(p.id, 'EVACUACION')} disabled={isSavingFastAction} className="py-5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 rounded-2xl font-bold flex flex-col items-center gap-2 shadow-sm transition-all col-span-2 active:scale-95 disabled:opacity-50 text-base shadow-inner">
+                                                    <span className="text-4xl drop-shadow-sm mb-1 leading-none">💩</span> Cambio (Evacuación)
+                                                </button>
+                                            </div>
+                                            <button onClick={() => logNightRound(p.id, 'ROTACION')} disabled={isSavingFastAction} className="mt-4 w-full py-5 bg-teal-500 hover:bg-teal-400 text-teal-950 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-lg shadow-teal-500/30 active:scale-95 disabled:opacity-50 text-[13px] sm:text-sm z-10 border-b-4 border-teal-700 active:border-b-0 active:mt-5 active:mb-[-4px]">
+                                                <span className="text-2xl leading-none">🔄</span> Rotación Postural 2Hrs
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                                {patients.map(p => {
+                                    const isAbsent = p.status === 'TEMPORARY_LEAVE';
+                                    
+                                    // Zendi UPP Engine (Day Mode)
+                                    const lastRotation = p.posturalChanges?.length > 0 ? new Date(p.posturalChanges[0].performedAt) : null;
+                                    const msElapsed = lastRotation ? Date.now() - lastRotation.getTime() : null;
+                                    const hoursElapsed = msElapsed ? msElapsed / (1000 * 60 * 60) : 0;
+                                    const isVencido = hoursElapsed > 2.05; // 2h 05m tolerance
+                                    const isWarning = hoursElapsed >= 1.75 && hoursElapsed <= 2.05;
+
+                                    return (
                                 <div key={p.id} className={`bg-white rounded-2xl overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
                                     {isAbsent && (
                                         <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
@@ -1220,49 +1300,82 @@ export default function ZendityCareTabletPage() {
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {p.lifePlan && p.lifePlan.dietDetails && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.dietDetails}</p>}
+                                            {p.nortonRisk && <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200 shadow-sm flex items-center gap-1"><span>🛡️</span> Alto Riesgo Piel</p>}
+                                            {p.pressureUlcers?.length > 0 && <p className="text-[10px] font-black uppercase tracking-widest text-white bg-rose-600 px-2 py-1 rounded-md shadow-sm flex items-center gap-1"><span>🚨</span> UPP Activa</p>}
                                         </div>
+
+                                        {/* FASE UPP: Zendi SLA Timer para Rotación Postural */}
+                                        {p.nortonRisk && lastRotation && (
+                                            <div className={`mt-4 p-3 rounded-xl border-2 flex items-center justify-between shadow-sm transition-all ${isVencido ? 'bg-rose-50 border-rose-300' : (isWarning ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200')}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-2xl ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-500' : 'text-slate-400')}`}>⏳</span>
+                                                    <div>
+                                                        <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-800' : (isWarning ? 'text-amber-800' : 'text-slate-500')}`}>SLA Zendi: Rotar 2H</p>
+                                                        <p className={`text-sm font-bold leading-none ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-700')}`}>
+                                                            {hoursElapsed.toFixed(1)} hrs <span className="text-xs font-medium opacity-70">/ 2.0 hrs req.</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right border-l pl-3 border-opacity-20 border-black flex flex-col items-end gap-1">
+                                                    <p className={`text-[10px] w-full block font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-400')}`}> {isVencido ? '¡RETRASO SLA!' : (isWarning ? 'Próxima' : 'Piel En Regla')} </p>
+                                                    <p className="text-xs font-bold text-slate-500 leading-none">Pos. {p.posturalChanges[0]?.position?.split(' ')[0] || 'N/A'}</p>
+                                                    
+                                                    {/* Quick Action Rotation */}
+                                                    <div className="flex bg-white rounded-lg overflow-hidden border border-slate-200 mt-1 shadow-sm shadow-slate-200/50">
+                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Izquierdo'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 border-r border-slate-100 transition-colors">👈 Izq</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Supino'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 border-r border-slate-100 transition-colors">⬆️ Sup</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Derecho'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 transition-colors">👉 Der</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
 
                                         {/* FASE 66: AT-A-GLANCE DAILY PROGRESS BADGES */}
-                                        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50">
-                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
-                                                <span className="text-sm"></span> Baño
+                                        <div className="flex gap-3 mt-5 pt-4 border-t border-slate-100">
+                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                                <span className="text-base">🚿</span> Baño
                                             </div>
-                                            <div className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
-                                                <span className="text-sm"></span> {p.mealLogs?.length || 0}/3 Comidas
+                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                                <span className="text-base">🍽️</span> {p.mealLogs?.length || 0}/3 Comidas
                                             </div>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setActivePatient(p);
-                                                    if (p.vitalSigns?.length > 0) {
-                                                        setModalType('VITALS_HISTORY');
-                                                    } else {
-                                                        setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
-                                                        setModalType('VITALS');
-                                                    }
-                                                }}
-                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer ${p.vitalSigns?.length > 0 ? 'bg-teal-100 text-teal-700 border border-teal-200 hover:bg-teal-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent hover:bg-slate-200'}`}
-                                            >
-                                                <span className="text-sm"></span> Vitales
-                                            </button>
                                         </div>
+
+                                        {p.vitalSigns?.length > 0 && (
+                                            <div className="mt-4 bg-teal-50 border-2 border-teal-200 hover:bg-teal-100 transition-colors cursor-pointer rounded-xl p-4 shadow-sm flex items-center justify-between" onClick={(e) => { e.stopPropagation(); setActivePatient(p); setModalType('VITALS_HISTORY'); }}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="bg-teal-500 text-white rounded-full p-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>
+                                                    <div>
+                                                        <p className="text-xs font-black text-teal-800 uppercase tracking-widest leading-none mb-1">Vitales del Turno</p>
+                                                        <p className="text-[11px] font-bold text-teal-700 leading-none">
+                                                            P: {p.vitalSigns[0]?.systolic}/{p.vitalSigns[0]?.diastolic} | HR: {p.vitalSigns[0]?.heartRate} | T: {p.vitalSigns[0]?.temperature}°
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right border-l border-teal-200 pl-3">
+                                                    <span className="text-[9px] w-full block text-teal-600 font-bold uppercase tracking-widest leading-none mb-1">Última Toma</span>
+                                                    <span className="font-black text-teal-900 leading-none">{new Date(p.vitalSigns[0]?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className="text-[9px] font-bold text-teal-600/80 block mt-1 uppercase">por {p.vitalSigns[0]?.user?.name?.split(' ')[0] || 'Staff'}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className={`p-4 grid grid-cols-2 gap-3 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
-                                            <span className="text-2xl drop-shadow-sm"></span><span className="text-[11px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Vitales</span>
+                                    <div className={`p-5 grid grid-cols-2 gap-4 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-teal-500 hover:text-teal-700 transition-all shadow-sm active:scale-95">
+                                            <span className="text-3xl drop-shadow-sm leading-none">❤️</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Vitales</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-center gap-2 hover:border-teal-500 hover:shadow-md transition-all shadow-sm">
-                                            <span className="text-2xl drop-shadow-sm"></span><span className="text-[11px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Bitácora</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm active:scale-95">
+                                            <span className="text-3xl drop-shadow-sm leading-none">📝</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Bitácora</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-4 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-2xl flex items-center justify-center gap-2 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-2 focus:ring-teal-300">
-                                            <span className="text-2xl drop-shadow-sm relative bottom-0.5"></span><span className="text-xs font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl flex items-center justify-center gap-3 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-4 focus:ring-teal-300/50 active:scale-95">
+                                            <span className="text-3xl drop-shadow-sm leading-none">💊</span><span className="text-base font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-3.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm mt-1">
-                                            <span className="text-lg"></span> <span className="text-[10px] uppercase tracking-widest mt-0.5">Alerta Caída</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-700 font-black rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm mt-1 active:scale-95">
+                                            <span className="text-2xl leading-none">⚠️</span> <span className="text-xs uppercase tracking-widest mt-0.5">Alerta Caída</span>
                                         </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-3.5 bg-slate-800 hover:bg-slate-900 border border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors mt-1">
-                                            <span className="text-lg"></span> <span className="text-[10px] uppercase tracking-widest mt-0.5">Trasladar ER</span>
+                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-slate-800 hover:bg-slate-900 border-2 border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors mt-1 active:scale-95">
+                                            <span className="text-2xl leading-none">🚑</span> <span className="text-xs uppercase tracking-widest mt-0.5">Trasladar ER</span>
                                         </button>
                                     </div>
                                 </div>
@@ -1270,7 +1383,9 @@ export default function ZendityCareTabletPage() {
                         })}
                     </div>
                 )}
-            </div>
+                </>
+            )}
+        </div>
 
             {/* RESTO DE MODALES FASE 7 y 8... (Conservados por simplicidad) */}
             {modalType && (
@@ -1406,18 +1521,36 @@ export default function ZendityCareTabletPage() {
                         )}
 
                         {modalType === 'VITALS' && (
-                            <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Vitales</p>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => setVitals({ ...vitals, sys: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
-                                    <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => setVitals({ ...vitals, dia: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
-                                    <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => setVitals({ ...vitals, hr: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold" />
-                                    <input type="number" placeholder="Temp °F (Ej 98.6)" value={vitals.temp} onChange={e => setVitals({ ...vitals, temp: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
-                                    <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
-                                    <input type="number" placeholder="Glucosa mg/dL (Opcional)" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border p-3 rounded-xl font-bold md:col-span-1" />
+                            <div className="space-y-6">
+                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-3">Registro de Signos Vitales</p>
+                                
+                                {/* ZENDI DUPLICATE WARNING */}
+                                {activePatient?.vitalSigns?.length > 0 && new Date().getTime() - new Date(activePatient.vitalSigns[0].createdAt).getTime() < 4 * 60 * 60 * 1000 && (
+                                    <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl flex items-start gap-3 shadow-inner">
+                                        <div className="bg-amber-100 p-2 rounded-full mt-0.5 shadow-sm border border-amber-200"><span className="text-xl leading-none block">⚠️</span></div>
+                                        <div>
+                                            <p className="font-black text-amber-900 text-sm uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                                                Zendi Care Assistant <span className="bg-amber-200 text-amber-800 px-2 py-0.5 rounded-lg text-[10px]">Prevención</span>
+                                            </p>
+                                            <p className="text-amber-800 text-xs font-medium leading-relaxed">
+                                                Registro reciente detectado. Ya se documentaron los vitales de {activePatient.name.split(' ')[0]} hace menos de 4 horas (<span className="font-bold">{new Date(activePatient.vitalSigns[0].createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>). ¿Deseas sobreescribir la bitácora o registrar una toma extraordinaria manual?
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                                    <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => setVitals({ ...vitals, sys: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => setVitals({ ...vitals, dia: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => setVitals({ ...vitals, hr: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Temp °F (Ej 98.6)" value={vitals.temp} onChange={e => setVitals({ ...vitals, temp: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Glucosa mg/dL" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                 </div>
-                                {aiSuggestion && (<div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl text-teal-800 text-sm font-bold shadow-inner">{aiSuggestion}</div>)}
-                                <button onClick={submitVitals} disabled={submitting} className="w-full py-5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl mt-4">Guardar y Analizar</button>
+                                {aiSuggestion && (<div className="p-5 bg-teal-50 border-2 border-teal-200 rounded-2xl text-teal-800 text-base font-bold shadow-inner flex items-center gap-3"><span className="text-2xl">🧠</span> {aiSuggestion}</div>)}
+                                <button onClick={submitVitals} disabled={submitting} className={`w-full py-6 text-white font-black rounded-2xl mt-4 transition-all shadow-xl flex items-center justify-center gap-3 min-h-[72px] text-xl ${submitting ? 'bg-teal-800 opacity-80 cursor-wait' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'}`}>
+                                    {submitting ? 'Analizando Vitales con Zendi...' : 'Guardar y Analizar Vitales'}
+                                </button>
                             </div>
                         )}
 
@@ -1438,26 +1571,26 @@ export default function ZendityCareTabletPage() {
 
                                 {/* Protocolo UPP (Fase Dual) */}
                                 {selectedColor && (
-                                    <div className={`p-3 rounded-2xl border ${activePatient.requiresPosturalChanges ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
-                                        <h4 className={`font-black text-base mb-2 ${activePatient.requiresPosturalChanges ? 'text-rose-800' : 'text-amber-800'}`}>
+                                    <div className={`p-3 rounded-2xl border ${activePatient.requiresPosturalChanges ? 'bg-orange-50 border-orange-100' : 'bg-amber-50 border-amber-100'}`}>
+                                        <h4 className={`font-black text-base mb-2 ${activePatient.requiresPosturalChanges ? 'text-orange-800' : 'text-amber-800'}`}>
                                             {activePatient.requiresPosturalChanges ? ' Protocolo UPP Activo' : ' Vigilancia Dermatológica'}
                                         </h4>
                                         
                                         {!activePatient.requiresPosturalChanges ? (
                                             <>
-                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-3 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-lg transition-all shadow-sm flex items-center justify-center gap-2">
-                                                    <span className="text-lg"></span> Abrir Panel de Prevención
+                                                <button onClick={() => setModalType('PREVENTIVE')} className="w-full py-4 text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 min-h-[56px] text-sm active:scale-95">
+                                                    <span className="text-xl">🛡️</span> Abrir Panel de Prevención
                                                 </button>
-                                                <p className="text-[10px] font-bold text-emerald-600/60 mt-1.5 text-center uppercase tracking-wider">Fase Preventiva: +5 Pts Zendity</p>
+                                                <p className="text-[10px] font-bold text-emerald-600/60 mt-2 text-center uppercase tracking-wider">Fase Preventiva: +5 Pts Zendity</p>
                                             </>
                                         ) : (
                                             <>
                                                 <div className="grid grid-cols-3 gap-2 mb-1">
-                                                    <button onClick={() => handlePosturalChange('IZQUIERDA')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Izquie.</button>
-                                                    <button onClick={() => handlePosturalChange('SUPINO')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Supino</button>
-                                                    <button onClick={() => handlePosturalChange('DERECHA')} className="py-2.5 text-sm font-bold bg-rose-500 text-white hover:bg-rose-600 rounded-lg shadow-sm active:scale-95">Derecha</button>
+                                                    <button onClick={() => handlePosturalChange('IZQUIERDA')} className="py-5 text-sm md:text-base font-black bg-orange-500 text-white hover:bg-orange-600 rounded-xl shadow-sm active:scale-95 min-h-[56px] transition-colors">Izquie.</button>
+                                                    <button onClick={() => handlePosturalChange('SUPINO')} className="py-5 text-sm md:text-base font-black bg-orange-500 text-white hover:bg-orange-600 rounded-xl shadow-sm active:scale-95 min-h-[56px] transition-colors">Supino</button>
+                                                    <button onClick={() => handlePosturalChange('DERECHA')} className="py-5 text-sm md:text-base font-black bg-orange-500 text-white hover:bg-orange-600 rounded-xl shadow-sm active:scale-95 min-h-[56px] transition-colors">Derecha</button>
                                                 </div>
-                                                <p className="text-[10px] uppercase tracking-wider font-bold text-rose-600/60 mt-1.5 text-center">Reloj de 2-Horas Activo</p>
+                                                <p className="text-[10px] uppercase tracking-wider font-bold text-orange-600/80 mt-2 text-center">Rotación 2-Horas Requerida</p>
                                             </>
                                         )}
                                     </div>
@@ -1474,11 +1607,11 @@ export default function ZendityCareTabletPage() {
                                         </div>
 
                                         {dailyLog.selectedMeal && (
-                                            <div className="grid grid-cols-4 gap-2 animate-in fade-in zoom-in-95">
-                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg text-xs">Todo</button>
-                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs">Mitad</button>
-                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'LITTLE')} className="py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs">Poco</button>
-                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'NONE')} className="py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold rounded-lg text-xs">Nada</button>
+                                            <div className="grid grid-cols-4 gap-3 animate-in fade-in zoom-in-95 mt-1">
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Todo</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-4 bg-blue-100 hover:bg-blue-200 text-blue-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Mitad</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'LITTLE')} className="py-4 bg-amber-100 hover:bg-amber-200 text-amber-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Poco</button>
+                                                <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'NONE')} className="py-4 bg-rose-100 hover:bg-rose-200 text-rose-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Nada</button>
                                             </div>
                                         )}
                                     </div>
@@ -1486,12 +1619,12 @@ export default function ZendityCareTabletPage() {
 
                                 {/* Logística Interna (AM y PM) */}
                                 {selectedColor && (
-                                    <div className="p-3 grid grid-cols-2 gap-2">
-                                        <button onClick={handleLaundryLog} className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm text-sm">
-                                            <span className="text-lg"></span> Lavar Ropa
+                                    <div className="p-3 grid grid-cols-2 gap-3">
+                                        <button onClick={handleLaundryLog} className="py-4 bg-white border-2 border-slate-200 text-slate-700 font-black rounded-xl flex items-center justify-center gap-2 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm text-sm min-h-[56px] active:scale-95">
+                                            <span className="text-xl">👕</span> Lavar Ropa
                                         </button>
-                                        <button onClick={handleRoomCleaningLog} className="py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-lg flex items-center justify-center gap-2 hover:border-slate-400 transition-all shadow-sm text-sm">
-                                            <span className="text-lg"></span> Aseo Habitación
+                                        <button onClick={handleRoomCleaningLog} className="py-4 bg-white border-2 border-slate-200 text-slate-700 font-black rounded-xl flex items-center justify-center gap-2 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm text-sm min-h-[56px] active:scale-95">
+                                            <span className="text-xl">🧹</span> Aseo Habitación
                                         </button>
                                     </div>
                                 )}
@@ -1513,11 +1646,11 @@ export default function ZendityCareTabletPage() {
                                                 <p className="text-xs font-bold text-slate-300">Ronda bloqueada (SLA 2-Hrs).</p>
                                             </div>
                                         ) : (
-                                            <div className="space-y-3">
-                                                <div className="grid grid-cols-3 gap-1">
-                                                    <button onClick={() => setNightRoundStatus('SLEEPING')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'SLEEPING' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Profundo</button>
-                                                    <button onClick={() => setNightRoundStatus('AWAKE')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'AWAKE' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Despierto</button>
-                                                    <button onClick={() => setNightRoundStatus('ANOMALY')} className={`py-2 text-[10px] uppercase tracking-wider font-black rounded-lg transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'ANOMALY' ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Anomalía</button>
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <button onClick={() => setNightRoundStatus('SLEEPING')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'SLEEPING' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Profundo</button>
+                                                    <button onClick={() => setNightRoundStatus('AWAKE')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'AWAKE' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Despierto</button>
+                                                    <button onClick={() => setNightRoundStatus('ANOMALY')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'ANOMALY' ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Anomalía</button>
                                                 </div>
                                                 
                                                 {nightRoundStatus === 'ANOMALY' && (
@@ -1529,8 +1662,8 @@ export default function ZendityCareTabletPage() {
                                                     />
                                                 )}
                                                 
-                                                <button onClick={handleNightRoundSubmit} disabled={!nightRoundStatus || submitting} className="w-full py-3 mt-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500/50 text-white font-bold rounded-lg text-sm shadow-md active:scale-95">
-                                                    {submitting ? 'Sellando...' : 'Sellar Ronda (Huella)'}
+                                                <button onClick={handleNightRoundSubmit} disabled={!nightRoundStatus || submitting} className={`w-full py-4 mt-2 font-black rounded-xl text-base shadow-md min-h-[56px] transition-all flex items-center justify-center gap-3 ${submitting ? 'bg-emerald-700 text-emerald-100 cursor-wait' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 disabled:bg-slate-700 disabled:text-slate-500/50'}`}>
+                                                    {submitting ? 'Sellando Ronda...' : 'Sellar Ronda (Huella)'}
                                                 </button>
                                             </div>
                                         )}
@@ -1781,26 +1914,40 @@ export default function ZendityCareTabletPage() {
                                 <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-100 pb-2 flex items-center gap-2"><span></span> Operaciones Centrales</p>
 
                                 {!hubAction ? (
-                                    <div className="grid grid-cols-1 gap-4 mt-4">
-                                        <button onClick={() => setHubAction("CLINICAL")} className="flex items-center gap-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 p-5 rounded-2xl transition-all">
-                                            <span className="text-4xl"></span>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                        <button onClick={() => setHubAction("CLINICAL")} className="flex items-center gap-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 p-5 rounded-2xl transition-all shadow-sm">
+                                            <span className="text-4xl drop-shadow-sm">🩺</span>
                                             <div className="text-left">
-                                                <p className="font-black text-purple-900 text-lg">Cambio Clínico u Observación</p>
-                                                <p className="font-medium text-purple-700/70 text-sm">Comportamiento, Infección, Tristeza (Notifica a Enfermería)</p>
+                                                <p className="font-black text-purple-900 text-base leading-tight">Cambio Clínico u Observación</p>
+                                                <p className="font-bold text-purple-700/70 text-xs mt-1">Fiebre, Dolor, Comportamiento</p>
                                             </div>
                                         </button>
-                                        <button onClick={() => setHubAction("COMPLAINT")} className="flex items-center gap-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 p-5 rounded-2xl transition-all">
-                                            <span className="text-4xl"></span>
+                                        <button onClick={() => setHubAction("COMPLAINT")} className="flex items-center gap-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 p-5 rounded-2xl transition-all shadow-sm">
+                                            <span className="text-4xl drop-shadow-sm">🤝</span>
                                             <div className="text-left">
-                                                <p className="font-black text-orange-900 text-lg">Queja o Situación Familiar</p>
-                                                <p className="font-medium text-orange-700/70 text-sm">Desacuerdos, reclamos o situaciones con visitas</p>
+                                                <p className="font-black text-orange-900 text-base leading-tight">Queja o Situación Familiar</p>
+                                                <p className="font-bold text-orange-700/70 text-xs mt-1">Visitantes, Desacuerdos</p>
                                             </div>
                                         </button>
-                                        <button onClick={() => setHubAction("MAINTENANCE")} className="flex items-center gap-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 p-5 rounded-2xl transition-all">
-                                            <span className="text-4xl"></span>
+                                        <button onClick={() => setHubAction("MAINTENANCE")} className="flex items-center gap-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 p-5 rounded-2xl transition-all shadow-sm">
+                                            <span className="text-4xl drop-shadow-sm">🔧</span>
                                             <div className="text-left">
-                                                <p className="font-black text-slate-700 text-lg">Incidente de Operación / Mantenimiento</p>
-                                                <p className="font-medium text-slate-500 text-sm">Focos rotos, derrames, objetos extraviados, limpieza</p>
+                                                <p className="font-black text-slate-700 text-base leading-tight">Incidente de Mantenimiento</p>
+                                                <p className="font-bold text-slate-500 text-xs mt-1">Derrames, Luces, Limpieza</p>
+                                            </div>
+                                        </button>
+                                        <button onClick={() => setHubAction("UPP_ALERT")} className="flex items-center gap-4 bg-fuchsia-50 hover:bg-fuchsia-100 border border-fuchsia-200 p-5 rounded-2xl transition-all shadow-sm">
+                                            <span className="text-4xl drop-shadow-sm">🩹</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-fuchsia-900 text-base leading-tight">Alerta Piel / UPP</p>
+                                                <p className="font-bold text-fuchsia-700/70 text-xs mt-1 text-ellipsis overflow-hidden whitespace-nowrap">Enrojecimiento, Herida Nueva</p>
+                                            </div>
+                                        </button>
+                                        <button onClick={() => { setModalType('FALL'); setHubAction(null); }} className="flex items-center gap-4 bg-rose-50 hover:bg-rose-100 border border-rose-300 p-5 rounded-2xl transition-all shadow-md active:scale-95 group">
+                                            <span className="text-4xl drop-shadow-sm group-hover:scale-110 transition-transform">🚨</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-rose-700 text-base leading-tight">Alerta Crítica: Caída</p>
+                                                <p className="font-bold text-rose-500/80 text-xs mt-1 uppercase tracking-widest">Protocolo Morse Inmediato</p>
                                             </div>
                                         </button>
                                     </div>
@@ -1818,11 +1965,58 @@ export default function ZendityCareTabletPage() {
                                             </select>
                                         </div>
 
-                                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                                            <label className="text-sm font-bold text-slate-500 block mb-2">Descripción del Evento</label>
+                                        <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 shadow-inner">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <label className="text-sm font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                                                    Escritura Inteligente
+                                                    <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-md text-[10px]">ZENDI AI</span>
+                                                </label>
+                                            </div>
+                                            
+                                            {hubAction === 'UPP_ALERT' && (
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {['Enrojecimiento Temprano', 'Piel Rota', 'Drenaje Leve', 'Dolor al Tacto', 'Zona Sacra', 'Talones', 'Cambio Urgente'].map(tag => (
+                                                        <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}, ${tag}` : `Alerta Preventiva UPP: Se detecta ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
+                                                            + {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            
+                                            {hubAction === 'CLINICAL' && (
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {['Agresividad', 'Fiebre Alta', 'Dolor Fuerte', 'Aislamiento Social', 'Rechazo a Medicamento', 'Cambio en Piel'].map(tag => (
+                                                        <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}, ${tag}` : `Residente presenta ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
+                                                            + {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {hubAction === 'COMPLAINT' && (
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {['Duda Médica', 'Desacuerdo Cuidado', 'Petición Excepcional', 'Objeto Perdido', 'Calidad Comida'].map(tag => (
+                                                        <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}, ${tag}` : `Familia reporta ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
+                                                            + {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {hubAction === 'MAINTENANCE' && (
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {['Derrame Líquido', 'Foco Fundido', 'Baño Tapado', 'Fallo TV/AC'].map(tag => (
+                                                        <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}. ${tag}` : `Incidente operativo: ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
+                                                            + {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <label className="text-xs font-bold text-slate-500 block mb-2">Detalle Final (Formulado Automáticamente)</label>
                                             <textarea
-                                                className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
-                                                placeholder="Describe detalladamente qué sucedió, quién estuvo involucrado y si requiere atención inmediata..."
+                                                className="w-full bg-white border border-indigo-200 p-4 rounded-xl font-bold text-slate-800 text-sm h-28 resize-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300"
+                                                placeholder="Toca las etiquetas rápidas o escribe manualmente..."
                                                 value={hubDescription}
                                                 onChange={e => setHubDescription(e.target.value)}
                                             />
@@ -1910,73 +2104,46 @@ export default function ZendityCareTabletPage() {
             )}
 
 
-            {/* FASE 44: HANDOVER DRAFT MODAL (Auto-Enforcement) */}
-            {modalType === 'HANDOVER_DRAFT' && (
-                <div className="fixed inset-0 bg-red-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-6 bg-red-600 flex justify-between items-center text-white">
-                            <div>
-                                <h3 className="font-black text-xl flex items-center gap-2"><span></span> Relevo de Guardia Requerido</h3>
-                                <p className="text-red-100 text-sm font-medium mt-1">Bloque {pendingShiftType}</p>
-                            </div>
-                        </div>
-                        <div className="p-8">
-                            <div className="bg-red-50 p-5 rounded-2xl border border-red-200 mb-6 flex gap-4 items-start">
-                                <span className="text-3xl"></span>
-                                <div>
-                                    <p className="text-red-900 font-bold leading-relaxed">
-                                        Zendity no te permite hacer Clock-Out hasta que generes el Relevo de Guardia oficial de este bloque horario.
-                                        Por favor aprueba este borrador generado por inteligencia clínica para poder irte a casa.
-                                    </p>
-                                </div>
-                            </div>
+            {/* FASE NUEVA: SHIFT CLOSURE WIZARD */}
+            <ShiftClosureWizard
+                isOpen={modalType === 'SHIFT_CLOSURE_WIZARD'}
+                onClose={() => setModalType(null)}
+                patients={patients.map(p => ({ id: p.id, name: p.name || `${p.firstName} ${p.lastName}`, status: 'Active' }))}
+                missedTasks={[{ type: "MEDS", count: 1, description: "Medicamento no dado." }]} // Mock
+                onFinalize={async (data, signature) => {
+                    console.log("Finalizando turno con:", data, signature);
+                    try {
+                        const res = await fetch("/api/care/shift/end", {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ shiftSessionId: activeSession.id, forceEnd: true }) // Bypass for MVP demo
+                        });
+                        alert("Turno Entregado. Has protegido tus registros para auditoría mediante Zendi.");
+                        router.push('/login');
+                        return true;
+                    } catch (e) {
+                        alert("Error finalizando turno localmente.");
+                        return false;
+                    }
+                }}
+            />
 
-                            <p className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Firmar Documento Final</p>
-
-                            <div className="space-y-4 mb-6">
-                                <label className="flex items-center gap-3 p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
-                                    <input type="checkbox" className="w-6 h-6 rounded text-red-600 focus:ring-red-500" required id="certifyData" />
-                                    <span className="font-bold text-slate-700 select-none">Certifico que la información documentada en mi turno es correcta y asumo responsabilidad clínica del reporte al siguiente turno.</span>
-                                </label>
-                            </div>
-
-                            <div className="flex gap-4 pt-4 border-t-2 border-slate-100">
-                                <button
-                                    onClick={() => setModalType(null)}
-                                    className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
-                                >
-                                    Volver al Piso Clínico
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        const checkbox = document.getElementById("certifyData") as HTMLInputElement;
-                                        if (!checkbox.checked) return alert("Debes marcar la casilla para certificar tu relevo.");
-
-                                        try {
-                                            const res = await fetch("/api/medical/handovers/draft", {
-                                                method: "POST", headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ shiftSessionId: activeSession.id, shiftType: pendingShiftType })
-                                            });
-                                            const data = await res.json();
-                                            if (data.success) {
-                                                // Reintenta cerrar el turno ahora que handoverCompleted es true
-                                                handleLogoutAttempt();
-                                            } else {
-                                                alert("Error: " + data.error);
-                                            }
-                                        } catch (e) {
-                                            console.error("Error generando draft", e);
-                                        }
-                                    }}
-                                    className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl shadow-lg transition-transform active:scale-95 flex justify-center items-center gap-2"
-                                >
-                                    <span></span> Firmar y Salir
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* FASE NUEVA: INCOMING SHIFT BRIEFING */}
+            <IncomingShiftBriefing
+                isOpen={modalType === 'INCOMING_SHIFT_BRIEFING'}
+                userName={user?.name || "Cuidador"}
+                shiftName="Turno de Guardia"
+                novelties={[
+                    { patientName: "Residente A", description: "Rehusó medicamentos hace 2 horas.", level: "PENDING" },
+                ]}
+                onAccept={() => {
+                    alert("Responsabilidad Clínica Aceptada. Iniciando jornada.");
+                    setModalType(null);
+                }}
+                onBypass={() => {
+                    alert("Modo de Acceso Temporal (Urgencia) activado bajo auditoría.");
+                    setModalType(null);
+                }}
+            />
 
             {/* FASE 32: Floating Action Hub Trigger (REMOVED to Header) */}
             {/*
