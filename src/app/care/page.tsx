@@ -157,14 +157,11 @@ export default function ZendityCareTabletPage() {
             }
         };
         document.addEventListener('visibilitychange', handleVisibility);
-    if (!isMounted) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-            <Loader2 className="w-12 h-12 text-indigo-500/50 animate-spin" />
-        </div>
-    );
 
         return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, [selectedColor]);
+
+
 
     // ==========================================
     // FASE 30: CLOCK-IN & CENSUS VERIFICATION
@@ -1126,6 +1123,12 @@ export default function ZendityCareTabletPage() {
     // VIEW 3: CARE FLOOR (DASHBOARD TRADICIONAL FASES 7/8)
     // =========================================================
     const hexColor = colorStyles[selectedColor!] || "bg-slate-500";
+
+    if (!isMounted) return (
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+            <Loader2 className="w-12 h-12 text-indigo-500/50 animate-spin" />
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-slate-100 pb-20">
@@ -2106,10 +2109,9 @@ export default function ZendityCareTabletPage() {
 
             {/* FASE NUEVA: SHIFT CLOSURE WIZARD */}
             <ShiftClosureWizard
+                onResolveWarning={async () => true}
                 isOpen={modalType === 'SHIFT_CLOSURE_WIZARD'}
                 onClose={() => setModalType(null)}
-                patients={patients.map(p => ({ id: p.id, name: p.name || `${p.firstName} ${p.lastName}`, status: 'Active' }))}
-                missedTasks={[{ type: "MEDS", count: 1, description: "Medicamento no dado." }]} // Mock
                 onFinalize={async (data, signature) => {
                     console.log("Finalizando turno con:", data, signature);
                     try {

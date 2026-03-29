@@ -7,6 +7,8 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "dummy"
 });
 
+export const maxDuration = 60; // Parche Staging Integral E2E
+
 export async function POST(req: Request) {
     try {
         const { transcript, authorId, contextPath } = await req.json();

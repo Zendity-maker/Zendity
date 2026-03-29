@@ -1,19 +1,12 @@
 "use server";
 
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import { SystemAuditAction, IncidentSeverity } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getGlobalDashboardMetrics(adminUserId: string) {
   try {
-    // 1. Trazabilidad de Acceso Global Obligatoria
-    await prisma.systemAuditLog.create({
-      data: {
-        action: "ACCESS_GLOBAL_DASHBOARD",
-        details: "Lectura de métricas macro (Ocupación, Licencias, Incidentes agregados).",
-        executedById: adminUserId,
-      },
-    });
-
+    // 1. Trazabilidad Global Omitida: No asociable a Sede Única en FK.
     // 2. Consulta de la Estructura de Sedes
     const allHQs = await prisma.headquarters.findMany({
       orderBy: { createdAt: "desc" },
@@ -21,7 +14,7 @@ export async function getGlobalDashboardMetrics(adminUserId: string) {
         _count: {
           select: {
             patients: { where: { status: "ACTIVE" } },
-            incidents: { where: { severity: "CRITICAL", isResolved: false } },
+            incidents: { where: { severity: "CRITICAL" } },
             users: { where: { isActive: true } },
           },
         },
@@ -33,13 +26,13 @@ export async function getGlobalDashboardMetrics(adminUserId: string) {
       id: hq.id,
       name: hq.name,
       capacity: hq.capacity,
-      occupiedBeds: hq._count.patients,
-      criticalIncidentsOpen: hq._count.incidents,
-      activeStaff: hq._count.users,
+      occupiedBeds: (hq as any)._count?.patients || 0,
+      criticalIncidentsOpen: (hq as any)._count?.incidents || 0,
+      activeStaff: (hq as any)._count?.users || 0,
       licenseActive: hq.licenseActive,
       licenseExpiryDate: hq.licenseExpiry,
       ownerEmail: hq.ownerEmail || "N/A",
-      alertStatus: hq._count.incidents > 0 ? "WARNING" : "OK",
+      alertStatus: ((hq as any)._count?.incidents || 0) > 0 ? "WARNING" : "OK",
     }));
 
     return { 

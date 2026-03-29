@@ -16,6 +16,7 @@ export interface PerformanceUI {
 
 export interface AcademyCapsuleUI {
     id: string;
+    userId: string;
     moduleCode: string;
     moduleTitle: string;
     reason: string;
@@ -31,7 +32,9 @@ interface PerformanceAcademyProps {
 }
 
 export default function PerformanceAcademyDashboard({ role, performances, activeCapsules, onTakeModule, onApplyOverride }: PerformanceAcademyProps) {
-    
+    const [overrideModal, setOverrideModal] = useState<{ id: string; name: string } | null>(null);
+    const [overrideValue, setOverrideValue] = useState("");
+
     // Vista Caregiver (Solo ve su propio desempeño en Array Index 0)
     if (role === "CAREGIVER") {
         const myScore = performances[0];
@@ -144,12 +147,7 @@ export default function PerformanceAcademyDashboard({ role, performances, active
                             {/* Actions */}
                             <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100">
                                 <button 
-                                    onClick={() => {
-                                        const newScore = prompt(`Asignar Ajuste Humano (1-100) para ${perf.userName}:`);
-                                        if(newScore && !isNaN(Number(newScore)) && onApplyOverride) {
-                                            onApplyOverride(perf.id, Number(newScore));
-                                        }
-                                    }}
+                                    onClick={() => setOverrideModal({ id: perf.id, name: perf.userName })}
                                     className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-sm transition-colors"
                                 >
                                     <Edit2 size={16}/> Override Humano
@@ -164,6 +162,47 @@ export default function PerformanceAcademyDashboard({ role, performances, active
                     );
                 })}
             </div>
+
+            {overrideModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-slate-200">
+                        <h3 className="text-xl font-black text-slate-800 mb-1">Override Humano</h3>
+                        <p className="text-slate-500 text-sm font-medium mb-6">Ajuste para <strong>{overrideModal.name}</strong>. Valor entre 1 y 100.</p>
+                        <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={overrideValue}
+                            onChange={e => setOverrideValue(e.target.value)}
+                            placeholder="Ej: 87"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-lg font-bold text-slate-800 focus:ring-2 focus:ring-slate-400 outline-none mb-6"
+                            autoFocus
+                        />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setOverrideModal(null); setOverrideValue(""); }}
+                                className="flex-1 py-4 rounded-[2rem] bg-slate-100 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const val = Number(overrideValue);
+                                    if (val >= 1 && val <= 100 && onApplyOverride) {
+                                        onApplyOverride(overrideModal.id, val);
+                                        setOverrideModal(null);
+                                        setOverrideValue("");
+                                    }
+                                }}
+                                disabled={!overrideValue || Number(overrideValue) < 1 || Number(overrideValue) > 100}
+                                className="flex-1 py-4 rounded-[2rem] bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-colors disabled:opacity-40"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

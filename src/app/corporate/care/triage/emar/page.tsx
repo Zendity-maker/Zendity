@@ -24,7 +24,7 @@ export default function EmarConciliationPage() {
   const loadDrafts = async () => {
     setLoading(true);
     const res = await fetchEmarDrafts(DEMO_HQ);
-    if (res.success) {
+    if (res.success && res.data) {
       setDrafts(res.data);
     }
     setLoading(false);

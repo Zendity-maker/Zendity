@@ -87,145 +87,194 @@ export default function ShiftClosureWizard({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[999] flex flex-col items-center justify-center p-6 font-sans">
-            <div className="bg-white rounded-[2rem] shadow-2xl shadow-blue-900/20 w-full max-w-6xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300 border border-slate-200">
-                {/* Header */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-900 text-white">
-                    <div>
-                        <h2 className="text-3xl font-black tracking-tight">Cierre de Turno Ocupacional</h2>
-                        <p className="text-slate-400 font-medium mt-1">Asistente de Firmas y Despeje de Responsabilidad</p>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 font-sans">
+            <div className="bg-slate-50 rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-[1600px] h-full max-h-[96vh] overflow-hidden flex flex-col animate-in zoom-in-[0.98] duration-300 border border-slate-200">
+                
+                {/* Header Premium Claro */}
+                <div className="px-8 md:px-12 py-8 border-b border-slate-200 flex justify-between items-center bg-white z-10 shadow-sm shrink-0">
+                    <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 rounded-[1.5rem] bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
+                            <CheckCircle size={32} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-800">Cierre Operativo</h2>
+                            <p className="text-slate-500 font-bold text-sm mt-1 tracking-widest uppercase">Traspaso de Guardia Validado</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full transition-colors cursor-pointer">
-                        <X size={24} strokeWidth={3} />
+                    <button onClick={onClose} className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-[1.5rem] transition-all cursor-pointer active:scale-95 shadow-sm ml-auto flex items-center gap-3">
+                        <span className="font-bold text-sm uppercase px-2 hidden md:block tracking-widest">Posponer</span>
+                        <X size={28} strokeWidth={3} />
                     </button>
                 </div>
 
-                {/* Split-View Content */}
-                <div className="flex flex-col md:flex-row h-[70vh] bg-slate-50">
+                {/* Split-View Content (iPad Landscape Optimized) */}
+                <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                     
-                    {/* LEFT COLUMN: CHECKLIST */}
-                    <div className="w-full md:w-1/2 p-8 overflow-y-auto border-r border-slate-200 bg-slate-100/50 relative">
-                        <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">1</span> 
-                            Despeje de Tareas
-                        </h3>
+                    {/* LEFT COLUMN: CONTROL DE ESTADOS (WARNINGS & BLOCKERS) */}
+                    <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto border-r border-slate-200 custom-scrollbar flex flex-col gap-10 bg-slate-50/50">
+                        <div className="flex items-center gap-4">
+                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Carga Clínica Restante</h3>
+                            <span className="px-4 py-1.5 bg-white border border-slate-200 shadow-sm text-slate-600 rounded-full text-xs font-black uppercase tracking-widest">{hardBlockers.length + activeWarnings.length} Tareas</span>
+                        </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-8 flex-1">
+                            {/* HARD BLOCKERS */}
                             {hardBlockers.length > 0 && (
-                                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 shadow-sm">
-                                    <div className="flex items-center gap-3 text-red-700 mb-4">
-                                        <AlertOctagon size={28} />
-                                        <h3 className="text-xl font-black uppercase tracking-tight">Bloqueante Crítico</h3>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {hardBlockers.map(block => (
-                                            <div key={block.id} className="bg-white p-5 rounded-xl border border-red-100 flex justify-between items-center shadow-sm">
-                                                <div>
-                                                    <p className="font-bold text-slate-900 text-lg">{block.title}</p>
-                                                    <p className="text-sm text-slate-500">{block.description}</p>
-                                                </div>
+                                <div className="space-y-6">
+                                    <h4 className="font-black text-rose-700 text-sm uppercase tracking-widest flex items-center gap-3">
+                                        <AlertOctagon size={20} strokeWidth={3} /> Bloqueos Críticos
+                                    </h4>
+                                    {hardBlockers.map(block => (
+                                        <div key={block.id} className="bg-white p-8 rounded-[2rem] border-y border-r border-slate-200 border-l-[8px] border-l-rose-500 shadow-sm flex items-start gap-6">
+                                            <div className="bg-rose-50 p-4 rounded-[1.5rem] text-rose-600 shrink-0">
+                                                <AlertOctagon size={32} strokeWidth={2.5} />
                                             </div>
-                                        ))}
+                                            <div className="flex-1">
+                                                <p className="font-bold text-slate-900 text-xl leading-tight mb-2">{block.title}</p>
+                                                <p className="text-base text-slate-500 font-medium">{block.description}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="bg-rose-50 border border-rose-200 p-4 rounded-[1.5rem] text-center">
+                                        <p className="text-rose-700 font-bold text-sm uppercase tracking-widest">Resuelva en Triage Central para Proceder</p>
                                     </div>
                                 </div>
                             )}
 
+                            {/* WARNINGS - ACCIONES RÁPIDAS */}
                             {activeWarnings.length > 0 && (
-                                <div className="bg-white border-2 border-amber-200 rounded-2xl p-6 shadow-sm">
-                                    <div className="flex items-center gap-3 text-amber-900 mb-4">
-                                        <AlertTriangle className="text-amber-500" size={24} />
-                                        <h3 className="text-lg font-bold">Justificar Pendientes</h3>
-                                    </div>
-                                    <div className="space-y-4">
-                                        {activeWarnings.map(warn => (
-                                            <div key={warn.id} className="bg-slate-50 p-5 rounded-2xl border border-amber-100 flex flex-col gap-4">
-                                                <div>
-                                                    <p className="font-bold text-slate-800 text-lg">{warn.title}</p>
-                                                    <p className="text-sm text-slate-600 font-medium">{warn.description}</p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <button onClick={() => handleQuickResolve(warn.id, "REFUSED")} className="px-5 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl transition-all shadow-sm active:scale-95">Paciente Rehusó</button>
-                                                    <button onClick={() => handleQuickResolve(warn.id, "ASLEEP")} className="px-5 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold rounded-xl transition-all shadow-sm active:scale-95">Durmiendo</button>
-                                                    <button onClick={() => handleQuickResolve(warn.id, "TRANSFERRED")} className="px-5 py-3 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 font-bold rounded-xl transition-all shadow-sm flex items-center gap-2 active:scale-95">
-                                                        <span>⇄</span> Transferir
+                                <div className="space-y-6">
+                                    <h4 className="font-black text-amber-700 text-sm uppercase tracking-widest flex items-center gap-3">
+                                        <AlertTriangle size={20} strokeWidth={3} /> Decisiones Requeridas
+                                    </h4>
+                                    {activeWarnings.map(warn => (
+                                        <div key={warn.id} className="bg-white p-8 rounded-[2rem] border-y border-r border-slate-200 border-l-[8px] border-l-amber-400 shadow-sm flex flex-col gap-8">
+                                            <div>
+                                                <p className="font-black text-slate-900 text-2xl leading-tight mb-2">{warn.title}</p>
+                                                <p className="text-base text-slate-500 font-medium">{warn.description}</p>
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-4">
+                                                <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <button onClick={() => handleQuickResolve(warn.id, "REFUSED")} className="py-5 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-black text-lg rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm">
+                                                        Rehusó
+                                                    </button>
+                                                    <button onClick={() => handleQuickResolve(warn.id, "ASLEEP")} className="py-5 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-black text-lg rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm">
+                                                        Durmió
+                                                    </button>
+                                                    <button onClick={() => handleQuickResolve(warn.id, "TRANSFERRED")} className="py-5 bg-slate-900 text-white hover:bg-slate-800 border-2 border-slate-800 font-black text-lg rounded-[1.5rem] transition-all flex items-center justify-center gap-3 active:scale-95 shadow-md">
+                                                        Trasladar <ArrowRight size={20} strokeWidth={3} />
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
+                            {/* ESTADO LIMPIO */}
                             {!isBlocked && (
-                                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center gap-4 shadow-sm animate-in zoom-in-95">
-                                    <div className="bg-white p-5 rounded-full shadow-md"><CheckCircle className="text-emerald-500" size={56} /></div>
-                                    <h3 className="text-3xl font-black text-emerald-900 tracking-tight">Turno Limpio</h3>
-                                    <p className="text-emerald-700 font-medium text-xl">Sin deudas clínicas. Puedes firmar.</p>
+                                <div className="bg-white border-2 border-slate-200 rounded-[2.5rem] p-12 flex flex-col items-center justify-center text-center gap-6 shadow-sm min-h-[400px]">
+                                    <div className="bg-emerald-50 text-emerald-600 p-8 rounded-full mb-2">
+                                        <CheckCircle size={64} strokeWidth={2.5} />
+                                    </div>
+                                    <h3 className="text-4xl font-black text-slate-800 tracking-tight">Estado Limpio</h3>
+                                    <p className="text-slate-500 font-medium text-xl max-w-sm">
+                                        Todas las responsabilidades directas fueron atendidas o trasladadas exitosamente.
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: SIGNATURE & HANDOVER */}
-                    <div className={`w-full md:w-1/2 p-8 overflow-y-auto flex flex-col bg-white transition-opacity duration-500 ${isBlocked ? 'opacity-40 pointer-events-none grayscale' : ''}`}>
-                        <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">2</span> 
-                            Firma Digital y Entrega
-                        </h3>
+                    {/* RIGHT COLUMN: ZENDI DIGEST & SIGNATURE */}
+                    <div className={`w-full md:w-1/2 p-10 md:p-14 overflow-y-auto flex flex-col bg-white transition-all duration-700 gap-10 ${isBlocked ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+                        
+                        {/* Zendi Editor */}
+                        <div className="flex flex-col relative bg-slate-50 rounded-[2rem] p-8 border border-slate-200 min-h-[260px]">
+                            <h3 className="text-slate-500 font-black uppercase tracking-widest text-xs mb-6 flex items-center justify-between">
+                                <span className="flex items-center gap-3">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-teal-400"></div> 
+                                    Bitácora de Salida Automática
+                                </span>
+                                <span className="text-2xl grayscale opacity-40">🤖</span>
+                            </h3>
 
-                        <div className="flex flex-col h-full gap-6">
-                            {/* Zendi Editor */}
-                            <div className="bg-slate-50 border border-slate-200 shadow-inner rounded-3xl p-6 flex flex-col flex-grow relative">
-                                <div className="absolute top-6 right-6 text-3xl opacity-50">🤖</div>
-                                <h3 className="text-slate-400 font-black uppercase tracking-widest text-xs mb-4">Diario Clínico Asíncrono</h3>
-                                {isGenerating ? (
-                                    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
-                                        <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
-                                        <span className="font-bold text-lg animate-pulse">Zendi transcribiendo responsabilidades...</span>
-                                    </div>
-                                ) : (
-                                    <textarea 
-                                        value={zendiSummary}
-                                        onChange={(e) => setZendiSummary(e.target.value)}
-                                        readOnly={isBlocked}
-                                        className="w-full h-full bg-transparent resize-none outline-none text-slate-700 font-medium text-xl leading-relaxed"
-                                    />
-                                )}
-                            </div>
+                            {isGenerating ? (
+                                <div className="flex flex-col items-center justify-center flex-1 gap-5 text-slate-400">
+                                    <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-teal-500 animate-spin"></div>
+                                    <span className="font-bold text-sm uppercase tracking-widest animate-pulse">Sintetizando Turno...</span>
+                                </div>
+                            ) : (
+                                <textarea 
+                                    value={zendiSummary}
+                                    onChange={(e) => setZendiSummary(e.target.value)}
+                                    readOnly={isBlocked}
+                                    className="w-full flex-1 bg-transparent text-slate-700 font-medium text-lg md:text-xl leading-relaxed resize-none focus:outline-none"
+                                />
+                            )}
+                        </div>
 
-                            {/* Canvas */}
-                            <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-3xl p-6 h-40 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => !isBlocked && setSignature("Firma Registrada " + Date.now())}>
-                                {signature ? (
-                                    <div className="flex gap-3 text-emerald-600 items-center">
-                                        <CheckCircle size={40} /> <span className="font-black text-3xl signature-font italic">Firma Autenticada</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-3 text-slate-400 items-center">
-                                        <PenTool size={36} /> <span className="font-bold text-xl">Tap para Firmar Electrónicamente</span>
-                                    </div>
-                                )}
-                            </div>
+                        {/* Firma Electrónica */}
+                        <div 
+                            className={`rounded-[2.5rem] p-8 h-56 flex flex-col items-center justify-center cursor-pointer transition-all border-4 
+                                ${signature ? 'border-emerald-500 bg-emerald-50 shadow-inner' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}
+                            `}
+                            onClick={() => !isBlocked && setSignature("Firma Registrada " + Date.now())}
+                        >
+                            {signature ? (
+                                <div className="flex flex-col gap-3 text-emerald-600 items-center animate-in zoom-in-95">
+                                    <CheckCircle size={48} strokeWidth={3} /> 
+                                    <span className="font-bold text-4xl signature-font text-emerald-800">Firma Registrada</span>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-5 text-slate-400 items-center transition-colors">
+                                    <PenTool size={48} strokeWidth={2.5} className="text-slate-300" /> 
+                                    <span className="font-black text-xl text-slate-500 tracking-tight">Toque Aquí Para Firmar Electrónicamente</span>
+                                </div>
+                            )}
+                        </div>
 
-                            <label className="flex items-center gap-4 p-5 bg-blue-50/50 border border-blue-100 rounded-2xl cursor-pointer hover:bg-blue-50 transition-colors shadow-sm">
-                                <input type="checkbox" className="w-7 h-7 rounded text-blue-600 focus:ring-blue-500 border-2 border-slate-300" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}/>
-                                <span className="font-bold text-blue-900 text-lg leading-tight">Autorizo legalmente este traspaso clínico frente al Estado Libre Asociado.</span>
+                        {/* Controles Finales */}
+                        <div className="flex flex-col gap-6 mt-auto">
+                            <label className="flex items-center gap-6 p-6 md:p-8 bg-slate-50 border border-slate-200 rounded-[2rem] cursor-pointer hover:bg-slate-100 transition-colors shadow-sm group">
+                                <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center shrink-0 transition-colors ${confirmed ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-300 text-transparent group-hover:border-slate-400'}`}>
+                                    <CheckCircle size={24} strokeWidth={3} className="fill-current" />
+                                </div>
+                                {/* Hide underlying checkbox, drive by div visually */}
+                                <input 
+                                    type="checkbox" 
+                                    className="hidden" 
+                                    checked={confirmed} 
+                                    onChange={(e) => setConfirmed(e.target.checked)}
+                                />
+                                <span className="font-bold text-slate-800 text-lg md:text-xl leading-snug">
+                                    Certifico bajo penalidad normativa que este traspaso es verídico y las rondas fueron ejecutadas.
+                                </span>
                             </label>
 
                             <button 
                                 onClick={handleSubmit}
                                 disabled={!confirmed || !signature || isSubmitting || isBlocked}
-                                className={`w-full py-8 rounded-2xl font-black text-2xl tracking-tight transition-all shadow-xl flex items-center justify-center gap-3
-                                    ${(!confirmed || !signature || isSubmitting || isBlocked) ? 'bg-slate-200 text-slate-400' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30 active:scale-95'}`}
+                                className={`w-full py-8 rounded-[2.5rem] font-black text-2xl tracking-widest transition-all flex items-center justify-center gap-4
+                                    ${(!confirmed || !signature || isSubmitting || isBlocked) 
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30 active:scale-[0.98]'}`}
                             >
-                                {isSubmitting ? 'SELLANDO BITÁCORA...' : 'ENTREGAR Y CERRAR TURNO AL 100%'}
+                                {isSubmitting ? 'CERRANDO TURNO...' : 'CONFIRMAR CIERRE DE TURNO'}
+                                {!isSubmitting && <CheckCircle size={32} strokeWidth={3} className={(!confirmed || !signature || isBlocked) ? "opacity-50" : ""} />}
                             </button>
                         </div>
+
                     </div>
                 </div>
             </div>
             
             <style dangerouslySetInnerHTML={{__html: `
-                .signature-font { font-family: 'Brush Script MT', cursive; }
+                .signature-font { font-family: 'Brush Script MT', cursive, sans-serif; }
+                .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
             `}} />
         </div>
     );

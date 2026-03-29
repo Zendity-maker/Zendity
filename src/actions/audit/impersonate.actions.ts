@@ -1,8 +1,9 @@
 "use server";
 
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { SystemAuditAction } from "@prisma/client";
 
 const IMPERSONATION_COOKIE = "Zendity-Impersonated-HQ";
 
@@ -16,15 +17,18 @@ export async function startImpersonation(targetHqId: string, hqName: string, adm
     // 1. Trazabilidad Nuclear Obligatoria (HIPAA COMPLIANT)
     await prisma.systemAuditLog.create({
       data: {
-        action: "IMPERSONATION_START",
-        details: `ADMINSTRADOR inició impersonation legal sobre la sede: ${hqName} (${targetHqId}).`,
-        executedById: adminUserId,
-        targetHqId: targetHqId,
+        action: SystemAuditAction.STATE_CHANGED,
+        payloadChanges: { info: `ADMINSTRADOR inició impersonation legal sobre la sede: ${hqName} (${targetHqId}).` },
+        performedById: adminUserId,
+        headquartersId: targetHqId,
+        entityName: "System",
+        entityId: "Corporate",
       },
     });
 
     // 2. Sobrescritura Cortacircuito
-    cookies().set(IMPERSONATION_COOKIE, targetHqId, {
+    const cStore = await cookies();
+    cStore.set(IMPERSONATION_COOKIE, targetHqId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       path: "/",
@@ -32,7 +36,7 @@ export async function startImpersonation(targetHqId: string, hqName: string, adm
     });
 
     // Añadimos otra cookie cosmética para que el Banner Amarillo sepa a quién usurpa
-    cookies().set("Zendity-Impersonated-Name", hqName, { path: "/" });
+    cStore.set("Zendity-Impersonated-Name", hqName, { path: "/" });
 
     revalidatePath("/", "layout");
     return { success: true };
@@ -47,20 +51,23 @@ export async function startImpersonation(targetHqId: string, hqName: string, adm
  */
 export async function stopImpersonation(adminUserId: string) {
   try {
-    const targetHqId = cookies().get(IMPERSONATION_COOKIE)?.value || "UNKNOWN";
+    const targetHqId = (await cookies()).get(IMPERSONATION_COOKIE)?.value || "UNKNOWN";
 
     // 1. Trazabilidad de Cierre
     await prisma.systemAuditLog.create({
       data: {
-        action: "IMPERSONATION_STOP",
-        details: `ADMINSTRADOR cerró el túnel de impersonation sobre Sede: ${targetHqId}.`,
-        executedById: adminUserId,
+        action: SystemAuditAction.STATE_CHANGED,
+        payloadChanges: { info: `ADMINSTRADOR cerró el túnel de impersonation sobre Sede: ${targetHqId}.` },
+        performedById: adminUserId,
+        headquartersId: targetHqId,
+        entityName: "System",
+        entityId: "Corporate",
       },
     });
 
     // 2. Destrucción de Contexto Residual
-    cookies().delete(IMPERSONATION_COOKIE);
-    cookies().delete("Zendity-Impersonated-Name");
+    (await cookies()).delete(IMPERSONATION_COOKIE);
+    (await cookies()).delete("Zendity-Impersonated-Name");
 
     revalidatePath("/", "layout");
     return { success: true };
@@ -76,7 +83,7 @@ export async function stopImpersonation(adminUserId: string) {
  * si usan el JWT de la persona o la Cookie Usurpada del SuperAdmin.
  */
 export async function resolveCurrentHqId(nativeJwtHqId: string): Promise<string> {
-  const impersonated = cookies().get(IMPERSONATION_COOKIE)?.value;
+  const impersonated = (await cookies()).get(IMPERSONATION_COOKIE)?.value;
   // Si existe una cookie de impersonation, le pertenece temporalmente a ella
   if (impersonated) return impersonated;
   return nativeJwtHqId;

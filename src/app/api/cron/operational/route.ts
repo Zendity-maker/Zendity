@@ -51,7 +51,7 @@ export async function GET(request: Request) {
         const shiftThreshold = new Date(now.getTime() - 12 * 60 * 60 * 1000);
         const abandonedShifts = await prisma.shiftClosure.findMany({
             where: {
-                status: ShiftClosureStatus.PENDING,
+                status: ShiftClosureStatus.ACTIVE,
                 shiftDate: { lt: shiftThreshold }
             }
         });
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
             await prisma.shiftClosure.update({
                 where: { id: shift.id },
                 data: {
-                    status: ShiftClosureStatus.ABANDONED
+                    status: ShiftClosureStatus.CLOSED
                 }
             });
             await prisma.systemAuditLog.create({

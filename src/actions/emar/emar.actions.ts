@@ -88,6 +88,7 @@ export async function executeDailyCronExpansion() {
               scheduledFor: timeStr,
               scheduledTime: scheduledTime,
               status: MedStatus.PENDING,
+              administeredById: "SYSTEM",
             },
           });
           injectedCount++;
@@ -150,7 +151,7 @@ export async function administerPRN(data: {
         scheduledTime: now,
         administeredAt: now,
         status: MedStatus.ADMINISTERED,
-        executedById: data.userId,
+        administeredById: data.userId,
         notes: data.reason,
       },
     });
@@ -257,7 +258,7 @@ export async function markDoseAsGiven(adminId: string, userId: string) {
       data: {
         status: MedStatus.ADMINISTERED,
         administeredAt: new Date(),
-        executedById: userId
+        administeredById: userId
       }
     });
     revalidatePath("/care", "layout");
@@ -281,7 +282,7 @@ export async function markDoseException(
         status: status, // HELD o REFUSED
         notes: reason,
         administeredAt: new Date(),
-        executedById: userId
+        administeredById: userId
       }
     });
     revalidatePath("/care", "layout");

@@ -3,6 +3,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import { prisma } from '@/lib/prisma';
 
+export const maxDuration = 60; // Parche Staging Integral E2E
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();

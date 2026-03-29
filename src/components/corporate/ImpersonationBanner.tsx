@@ -2,10 +2,10 @@ import React from "react";
 import { cookies } from "next/headers";
 import { stopImpersonation } from "@/actions/audit/impersonate.actions";
 
-export default function ImpersonationBanner() {
-  const cookieStore = cookies();
-  const impersonatedHqId = cookieStore.get("Zendity-Impersonated-HQ")?.value;
-  const impersonatedName = cookieStore.get("Zendity-Impersonated-Name")?.value || impersonatedHqId;
+export default async function ImpersonationBanner() {
+  const cookieStore = await cookies();
+  const impersonatedHqId = (await cookieStore).get("Zendity-Impersonated-HQ")?.value;
+  const impersonatedName = (await cookieStore).get("Zendity-Impersonated-Name")?.value || impersonatedHqId;
 
   if (!impersonatedHqId) return null;
 

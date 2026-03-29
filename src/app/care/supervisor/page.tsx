@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { CaregiverSession, TriageTicket, FastActionAssignment, LiveDataPayload, MissingHandover } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 
@@ -18,8 +18,8 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
     }, []);
 
     if (!isMounted) return (
-        <div className="bg-slate-900 rounded-2xl h-32 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 text-indigo-500/50 animate-spin" />
+        <div className="bg-slate-900 rounded-[2rem] h-32 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-teal-500/50 animate-spin" />
         </div>
     );
 
@@ -28,7 +28,6 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
             window.speechSynthesis.cancel();
             setIsPlaying(false);
         } else {
-            // Eliminar markdown para la lectura en voz alta
             const plainText = text.replace(/[*_#]/g, '');
             const utterance = new SpeechSynthesisUtterance(plainText);
             utterance.lang = 'es-ES';
@@ -41,36 +40,34 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
     };
 
     return (
-        <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl p-8 shadow-xl border border-indigo-700/50 mb-8 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity"></div>
-            <div className="relative z-10">
+        <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-slate-800 mb-8 relative overflow-hidden group">
+                        <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-widest mb-1">
+                        <div className="flex items-center gap-2 text-teal-400 font-bold text-xs uppercase tracking-widest mb-1">
                             <Sparkles className="w-4 h-4" /> Zendi AI Engine
                         </div>
-                        <h2 className="text-2xl font-black text-white">Morning Briefing (05:45 AM)</h2>
-                        <p className="text-slate-400 text-sm mt-1">Resumen Ejecutivo del Turno Nocturno.</p>
+                        <h2 className="text-3xl font-black text-white">Prólogo del Turno (05:45 AM)</h2>
+                        <p className="text-slate-400 text-sm mt-1">Resumen Ejecutivo del Turno Precedente y Focos de Atención Diario.</p>
                     </div>
                     <button 
                         onClick={handlePlayPause}
-                        className={`flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all ${isPlaying ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' : 'bg-white hover:bg-indigo-50 text-indigo-900'}`}
+                        className={`flex items-center justify-center w-16 h-16 rounded-[1.5rem] shadow-lg transition-all active:scale-95 ${isPlaying ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' : 'bg-slate-800 border-2 border-slate-700 hover:border-teal-500 text-white'}`}
                     >
                         {isPlaying ? <Square className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-1" />}
                     </button>
                 </div>
                 
-                {/* Audio Waves Animation */}
                 {isPlaying && (
                     <div className="flex items-end gap-1 h-6 mb-6">
                         {[...Array(20)].map((_, i) => (
-                            <div key={i} className="w-1.5 bg-indigo-400 rounded-t-sm animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.05}s` }}></div>
+                            <div key={i} className="w-1.5 bg-teal-400 rounded-t-sm animate-pulse" style={{ height: `${Math.random() * 100}%`, animationDelay: `${i * 0.05}s` }}></div>
                         ))}
-                        <span className="text-xs text-indigo-300 ml-2 font-bold animate-pulse">Reproduciendo...</span>
+                        <span className="text-xs text-teal-300 ml-2 font-bold animate-pulse">Reproduciendo...</span>
                     </div>
                 )}
 
-                <div className="prose prose-invert prose-indigo max-w-none prose-p:leading-relaxed prose-li:marker:text-indigo-400">
+                <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-li:marker:text-teal-400 font-medium">
                     <ReactMarkdown>{text}</ReactMarkdown>
                 </div>
             </div>
@@ -86,28 +83,31 @@ export default function SupervisorDashboardPage() {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
 
-    // Rosters State
+    const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+
+    useEffect(() => {
+        if (toast) {
+            const t = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [toast]);
+
     const [staff, setStaff] = useState<any[]>([]);
     const [schedules, setSchedules] = useState<any[]>([]);
     const [shiftForm, setShiftForm] = useState({ employeeId: "", startTime: "", endTime: "" });
     const [isSavingShift, setIsSavingShift] = useState(false);
 
-    // AI Writer State
     const [rawMemo, setRawMemo] = useState("");
     const [processedMemo, setProcessedMemo] = useState("");
     const [isThinking, setIsThinking] = useState(false);
 
-    // FASE 30: Live Mission Monitor State
     const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
 
-    // FASE 41: Clinical Supervisor Rounds
     const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
     const [isSavingRound, setIsSavingRound] = useState(false);
 
-    // FASE 50: Kitchen Quality Monitoring
     const [kitchenObservation, setKitchenObservation] = useState<{ satisfactionScore: number, comments: string, photoUrl?: string }>({ satisfactionScore: 5, comments: "", photoUrl: "" });
 
-    // SPRINT 3: Fast Action Dispatch 
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
     const [isSavingKitchenObs, setIsSavingKitchenObs] = useState(false);
@@ -116,7 +116,7 @@ export default function SupervisorDashboardPage() {
         if (user) {
             fetchSupervisorData();
             fetchLiveData();
-            const interval = setInterval(fetchLiveData, 15000); // Poll every 15s
+            const interval = setInterval(fetchLiveData, 15000);
             return () => clearInterval(interval);
         }
     }, [user]);
@@ -171,9 +171,9 @@ export default function SupervisorDashboardPage() {
             const data = await res.json();
             if (data.success) {
                 setDispatchingTicket(null);
-                fetchLiveData(); // Refresca tablero para mostrar tracking "En Curso"
+                fetchLiveData(); 
             } else {
-                alert("Error en despacho 1-Click: " + data.error);
+                setToast({ msg: "Error en despacho 1-Click: " + data.error, type: 'err' });
             }
         } catch (e) {
             console.error(e);
@@ -197,10 +197,10 @@ export default function SupervisorDashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(` Queja ruteada exitosamente.`);
-                fetchLiveData(); // Refresh list immediately
+                setToast({ msg: "Queja ruteada exitosamente.", type: 'ok' });
+                fetchLiveData();
             } else {
-                alert("Error de Triaje: " + data.error);
+                setToast({ msg: "Error de Triaje: " + data.error, type: 'err' });
             }
         } catch (e) {
             console.error(e);
@@ -275,10 +275,10 @@ export default function SupervisorDashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Ronda Guardada: " + roundForm.area);
+                setToast({ msg: "Ronda Guardada: " + roundForm.area, type: 'ok' });
                 setRoundForm({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
             } else {
-                alert("Error guardando ronda: " + data.error);
+                setToast({ msg: "Error guardando ronda: " + data.error, type: 'err' });
             }
         } catch (error) {
             console.error(error);
@@ -311,7 +311,7 @@ export default function SupervisorDashboardPage() {
                 const ctx = canvas.getContext("2d");
                 if (ctx) {
                     ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // 70% quality JPEG
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
                     setKitchenObservation({ ...kitchenObservation, photoUrl: dataUrl });
                 }
             };
@@ -324,7 +324,7 @@ export default function SupervisorDashboardPage() {
 
     const handleSaveKitchenObs = async () => {
         if (!user) return;
-        if (!kitchenObservation.comments.trim()) return alert("Debe escribir un comentario para la cocina.");
+        if (!kitchenObservation.comments.trim()) return setToast({ msg: "Debe escribir un comentario para la cocina.", type: 'err' });
 
         setIsSavingKitchenObs(true);
         try {
@@ -342,10 +342,10 @@ export default function SupervisorDashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Observación enviada exitosamente a la Cocina.");
+                setToast({ msg: "Observación enviada exitosamente a la Cocina.", type: 'ok' });
                 setKitchenObservation({ satisfactionScore: 5, comments: "", photoUrl: "" });
             } else {
-                alert("Error enviando reporte a cocina: " + data.error);
+                setToast({ msg: "Error enviando reporte a cocina: " + data.error, type: 'err' });
             }
         } catch (error) {
             console.error(error);
@@ -356,12 +356,12 @@ export default function SupervisorDashboardPage() {
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(processedMemo);
-        alert("Memo copiado al portapapeles. Listo para enviar a RRHH o imprimir.");
+        setToast({ msg: "Memo copiado al portapapeles. Listo para enviar a RRHH o imprimir.", type: 'ok' });
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center p-20">
+            <div className="flex items-center justify-center p-32">
                 <Loader2 className="w-12 h-12 animate-spin text-teal-600" />
             </div>
         );
@@ -375,7 +375,6 @@ export default function SupervisorDashboardPage() {
     const enPiso = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12);
     const zombis = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 >= 12);
     
-    // Scheduled but missing (Should be working now, but no active session)
     const progMissing = schedules.filter(s => {
         const start = new Date(s.startTime).getTime();
         const end = new Date(s.endTime).getTime();
@@ -383,429 +382,330 @@ export default function SupervisorDashboardPage() {
     });
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 pb-12">
-            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-teal-500 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
-                <div className="relative z-10">
-                    <h1 className="text-4xl md:text-5xl font-black mb-4 flex items-center gap-4">
-                        <Brain className="w-12 h-12 text-teal-400" />
-                        Centro de Triage & Supervisión
-                    </h1>
-                    <p className="text-xl text-slate-300 font-medium max-w-2xl mb-8">
-                        Centro de Control Operativo B2B. Monitorea a los Cuidadores en Tiempo Real y apóyate en Zendi AI para redactar reportes disciplinarios.
-                    </p>
-                    <TaskAssignmentButton user={user} buttonLabel="Despachar Tarea (SLA 15m)" buttonStyle="px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-900 font-black rounded-2xl shadow-xl shadow-teal-500/20 active:scale-95 transition-all w-fit flex items-center gap-3 text-lg" />
-                </div>
-            </div>
-
-            {/* FASE 61: ZENDI MORNING BRIEFING */}
-            {liveData?.morningBriefing && (
-                <ZendiMorningBriefing text={liveData.morningBriefing} />
-            )}
-
-            {/* MISSION MONITOR FASE 41 */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <Activity className="w-8 h-8 text-rose-500 animate-pulse" />
-                        Monitor de Misión (Live)
-                    </h2>
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Sincronizado
-                    </div>
-                </div>
-
-                {liveData ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        {/* KPI 1: Caregivers */}
-                        <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-indigo-200">
-                            <Users className="w-10 h-10 text-indigo-500 mb-2" />
-                            <p className="text-4xl font-black text-indigo-900 mb-1">{liveData.activeCaregivers}</p>
-                            <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Cuidadores Activos</p>
-                            {liveData.activeCaregivers === 0 && <span className="absolute top-2 right-2 text-xl" title="Piso vacío"></span>}
-                        </div>
-                        {/* KPI 2: Baths */}
-                        <div className="bg-sky-50 p-6 rounded-3xl border border-sky-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-sky-200">
-                            <Droplets className="w-10 h-10 text-sky-500 mb-2" />
-                            <p className="text-4xl font-black text-sky-900 mb-1">{liveData.liveStats.baths}</p>
-                            <p className="text-xs font-bold text-sky-600 uppercase tracking-wider">Baños Completados</p>
-                            <div className="absolute bottom-0 left-0 h-1.5 bg-sky-500 transition-all duration-1000" style={{ width: `${Math.min((liveData.liveStats.baths / 15) * 100, 100)}%` }}></div>
-                        </div>
-                        {/* KPI 3: Meals */}
-                        <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-orange-200">
-                            <Coffee className="w-10 h-10 text-orange-500 mb-2" />
-                            <p className="text-4xl font-black text-orange-900 mb-1">
-                                {Object.values(liveData.liveStats.meals).reduce((a: number, b: number) => a + b, 0) as number}
-                            </p>
-                            <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">Bandejas Servidas</p>
-                        </div>
-                        {/* KPI 4: Incidents & Complaints */}
-                        <div className="bg-rose-50 p-6 rounded-3xl border border-rose-100 flex flex-col items-center text-center relative overflow-hidden transition-all hover:shadow-md hover:border-rose-200">
-                            <Siren className="w-10 h-10 text-rose-500 mb-2" />
-                            <p className="text-4xl font-black text-rose-900 mb-1">{liveData.liveStats.incidents}</p>
-                            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">Incidentes Clínicos</p>
-                            {liveData.liveStats.triageInbox > 0 && (
-                                <div className="absolute top-3 right-3 bg-rose-600 text-white w-8 h-8 rounded-full flex justify-center items-center font-black shadow-lg shadow-rose-500/50 animate-bounce cursor-help" title={`${liveData.liveStats.triageInbox} quejas familiares en cola de triaje`}>
-                                    {liveData.liveStats.triageInbox}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="py-16 flex flex-col items-center justify-center gap-4">
-                        <Loader2 className="w-10 h-10 animate-spin text-slate-300" />
-                        <span className="font-bold text-slate-400">Reuniendo telemetría de Zendity Care...</span>
-                    </div>
-                )}
-            </div>
-            {/* CONSOLA SPRINT 4: ZENDI RADAR (ATC) */}
-            {(() => {
-                if (!liveData) return null;
-                const pxClusters = liveData.triageFeed.filter((t: TriageTicket) => t.sourceType === 'ZENDI_PX_CLUSTER').length;
-                const overloadedCaregivers = liveData.activeSessions.filter((s: CaregiverSession) => {
-                    return (liveData.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0) >= 3;
-                }).length;
+        <div className="min-h-screen bg-slate-100 p-6 md:p-8 font-sans">
+            <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-8 pb-16">
                 
-                if (pxClusters === 0 && overloadedCaregivers === 0) {
-                    return (
-                        <div className="bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-800 flex items-center gap-3 mb-6 relative overflow-hidden">
-                            <div className="absolute top-0 bottom-0 left-0 w-1 bg-emerald-500"></div>
-                            <Activity className="w-5 h-5 text-emerald-400" />
-                            <p className="text-white font-black text-sm tracking-widest uppercase">Zendi Radar: Piso Estable. Cargas operativas balanceadas.</p>
+                {/* GLOBAL HUD ROW (KPIs) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Header Mission Control */}
+                    <div className="lg:col-span-5 bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
+                        <div className="relative z-10">
+                            <h1 className="text-3xl lg:text-4xl font-black text-white mb-2 flex items-center gap-3">
+                                <ShieldAlert className="w-8 h-8 text-teal-400" />
+                                Triage Central
+                            </h1>
+                            <p className="text-slate-400 font-medium text-sm md:text-base mb-8">
+                                Monitoreo Operativo y Despacho en Tiempo Real.
+                            </p>
+                            <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-6 py-4 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm w-max" />
                         </div>
-                    );
-                }
+                    </div>
 
-                return (
-                    <div className="bg-slate-900 rounded-2xl p-4 shadow-sm border border-slate-700 flex items-center gap-3 mb-6 relative overflow-hidden">
-                        <div className="absolute top-0 bottom-0 left-0 w-1 bg-amber-500 animate-pulse"></div>
-                        <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
-                        <div className="flex-1">
-                            <p className="text-white font-black text-sm tracking-widest uppercase mb-1 flex items-center gap-2">Zendi ATC: Detección de Saturación / Ruido</p>
-                            <p className="text-amber-200/80 text-xs font-bold font-mono">
-                                {[
-                                    pxClusters > 0 ? `${pxClusters} Paciente(s) con Vulnerabilidad Múltiple` : null,
-                                    overloadedCaregivers > 0 ? `${overloadedCaregivers} Cuidador(es) Sobresaturado(s) de tareas` : null
-                                ].filter(Boolean).join(' | ')}
+                    {/* Live KPIs Bento */}
+                    <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
+                            <Users className="w-8 h-8 text-teal-600 mb-3" />
+                            <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.activeCaregivers : "-"}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">En Piso</p>
+                        </div>
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
+                            <Droplets className="w-8 h-8 text-slate-400 mb-3" />
+                            <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.liveStats.baths : "-"}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Baños</p>
+                        </div>
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
+                            <Coffee className="w-8 h-8 text-slate-400 mb-3" />
+                            <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? Object.values(liveData.liveStats.meals).reduce((a:any, b:any) => a + b, 0) : "-"}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Dietas</p>
+                        </div>
+                        
+                        {/* Indicador de Incidentes (Crítico si > 0) */}
+                        <div className={`rounded-[2rem] p-6 shadow-sm border flex flex-col items-center justify-center text-center transition-all ${liveData && liveData.liveStats.incidents > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
+                            <Siren className={`w-8 h-8 mb-3 transition-colors ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-300'}`} />
+                            <p className={`text-4xl font-black leading-none ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-700' : 'text-slate-800'}`}>
+                                {liveData ? liveData.liveStats.incidents : "-"}
+                            </p>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                Incidentes
                             </p>
                         </div>
                     </div>
-                );
-            })()}
-            {/* CONSOLA HÍBRIDA DE TRIAGE OPERATIVO (FASE SPRINT 2) */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <Send className="w-8 h-8 text-indigo-500" />
-                        Consola Híbrida de Triage Operativo
-                    </h2>
-                    <div className="flex gap-2">
-                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-                            Inminente ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'INMINENTE').length || 0})
-                        </span>
-                        <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-                            Atención ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'ATENCION').length || 0})
-                        </span>
-                        <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-                            Rutina ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'RUTINA').length || 0})
-                        </span>
-                    </div>
                 </div>
 
-                {liveData && liveData.triageFeed?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {liveData.triageFeed.map((ticket: TriageTicket) => {
-                            // Semántica de Urgencia
-                            let urgencyStyles = "";
-                            let urgencyIcon = null;
-                            if (ticket.urgency === 'INMINENTE') {
-                                urgencyStyles = "border-rose-400 bg-rose-50 shadow-rose-100";
-                                urgencyIcon = <Siren className="w-5 h-5 text-rose-600 animate-pulse" />;
-                            } else if (ticket.urgency === 'ATENCION') {
-                                urgencyStyles = "border-amber-300 bg-amber-50 shadow-amber-50";
-                                urgencyIcon = <AlertTriangle className="w-5 h-5 text-amber-600" />;
-                            } else {
-                                urgencyStyles = "border-slate-200 bg-slate-50";
-                                urgencyIcon = <Info className="w-5 h-5 text-slate-400" />;
-                            }
+                {/* ZENDI ZONES (Briefing & ATC Detection) */}
+                <div className="flex flex-col gap-6">
+                    {liveData?.morningBriefing && (
+                        <ZendiMorningBriefing text={liveData.morningBriefing} />
+                    )}
 
-                            // Semántica de Categoría
-                            let categoryBadge = "";
-                            if (ticket.category === 'UPP_PIEL') categoryBadge = "bg-rose-100 text-rose-700";
-                            else if (ticket.category === 'FAMILY') categoryBadge = "bg-indigo-100 text-indigo-700";
-                            else if (ticket.category === 'MANTENIMIENTO') categoryBadge = "bg-slate-200 text-slate-700";
-                            else if (ticket.category === 'CLINICO_CRITICO') categoryBadge = "bg-red-100 text-red-800";
-                            else categoryBadge = "bg-sky-100 text-sky-700";
-
-                            const isZendiGroup = ticket.sourceType === 'ZENDI_GROUP';
-
+                    {/* ATC Detection */}
+                    {(() => {
+                        if (!liveData) return null;
+                        const pxClusters = liveData.triageFeed.filter((t: TriageTicket) => t.sourceType === 'ZENDI_PX_CLUSTER').length;
+                        const overloadedCaregivers = liveData.activeSessions.filter((s: CaregiverSession) => {
+                            return (liveData.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0) >= 3;
+                        }).length;
+                        
+                        if (pxClusters > 0 || overloadedCaregivers > 0) {
                             return (
-                                <div key={ticket.id} className={`p-6 rounded-3xl border-2 shadow-sm relative transition-all hover:shadow-md ${urgencyStyles}`}>
-                                    {isZendiGroup && (
-                                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-200 text-amber-900 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1 shadow-sm w-max">
-                                            <Sparkles className="w-3 h-3" /> Zendi Agrupación Inteligente
-                                        </div>
-                                    )}
-
-                                    <div className="flex justify-between items-start mb-3 pt-1">
-                                        <div className="pr-2">
-                                            <p className="font-black text-slate-800 text-lg mb-1 leading-tight flex items-center gap-2">
-                                                {urgencyIcon} {ticket.title}
-                                            </p>
-                                            <p className="text-xs font-bold text-slate-500 mt-1">
-                                                Sujeto: <span className="text-slate-700">{ticket.patientName}</span>
-                                            </p>
-                                        </div>
-                                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase shrink-0 ${categoryBadge}`}>
-                                            {ticket.category.replace('_', ' ')}
-                                        </span>
+                                <div className="bg-amber-50 rounded-[2rem] p-6 border-l-[8px] border-amber-400 border-y border-r border-amber-200 shadow-sm flex items-center gap-5">
+                                    <div className="w-14 h-14 bg-amber-100 rounded-[1.5rem] flex items-center justify-center shrink-0">
+                                        <Sparkles className="w-7 h-7 text-amber-600 animate-pulse" />
                                     </div>
-
-                                    <p className="text-slate-600 font-medium text-sm bg-white/60 p-4 rounded-xl mb-4 h-24 overflow-y-auto border border-white/50 shadow-inner">
-                                        "{ticket.description}"
-                                    </p>
-
-                                    <div className="flex flex-col gap-2">
-                                        {(() => {
-                                            const assignedTask = liveData.activeFastActions?.find((fa: FastActionAssignment) => fa.description.startsWith(`[${ticket.id}]`));
-                                            if (assignedTask) {
-                                                const assignedToName = liveData.activeSessions?.find((s: CaregiverSession)=>s.caregiverId === assignedTask.caregiverId)?.caregiver?.name || "Cuidador";
-                                                const isExpired = new Date(assignedTask.expiresAt).getTime() < new Date().getTime();
-                                                return (
-                                                    <div className={`p-4 rounded-xl border-2 ${isExpired ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-emerald-50 border-emerald-300 text-emerald-900'} flex items-center justify-between shadow-sm`}>
-                                                        <div className="flex items-center gap-2 font-black text-sm uppercase tracking-wider">
-                                                            {isExpired ? <Siren className="w-5 h-5 animate-pulse text-rose-600" /> : <Activity className="w-5 h-5 text-emerald-600" />}
-                                                            {isExpired ? "VENCIDO (>15m)" : "EN CURSO"}
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <span className="block text-[10px] tracking-widest uppercase opacity-70 mb-0.5">Asignado a:</span>
-                                                            <span className="block font-black leading-none">{assignedToName}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }
-
-                                            let btnLabel = "Asignar a Piso (1-Click)";
-                                            if (ticket.sourceType === 'COMPLAINT') btnLabel = "Despachar Asistencia (Family)";
-                                            else if (ticket.sourceType === 'UPP_SLA') btnLabel = "Despachar Rotación UPP Segura";
-                                            else if (ticket.sourceType === 'INCIDENT') btnLabel = "Asignar Revisión Clínica";
-                                            else if (isZendiGroup) btnLabel = `Despachar ${ticket.items?.length} Tickets Integrados`;
-                                            else if (ticket.sourceType === 'ZENDI_PX_CLUSTER') btnLabel = `Asignar Intervención Integral (${ticket.items?.length} eventos)`;
-
-                                            return (
-                                                <button onClick={() => setDispatchingTicket(ticket)} className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-xl text-xs flex justify-center items-center gap-2 transition-all active:scale-95 shadow-md shadow-slate-900/20 group">
-                                                    <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" /> {btnLabel}
-                                                </button>
-                                            );
-                                        })()}
+                                    <div>
+                                        <p className="text-amber-900 font-black text-sm uppercase tracking-widest mb-1">Zendi ATC: Ruido Operativo Estructural</p>
+                                        <p className="text-amber-700 font-bold text-sm">
+                                            {[
+                                                pxClusters > 0 ? `${pxClusters} Clúster(s) de Vulnerabilidad Múltiple` : null,
+                                                overloadedCaregivers > 0 ? `${overloadedCaregivers} Cuidador(es) Sobresaturado(s)` : null
+                                            ].filter(Boolean).join(' | ')}
+                                        </p>
                                     </div>
                                 </div>
                             );
-                        })}
-                    </div>
-                ) : (
-                    <div className="py-12 flex flex-col items-center justify-center text-center bg-slate-50 rounded-3xl border border-slate-100 border-dashed">
-                        <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-3" />
-                        <h3 className="font-black text-slate-700 text-lg">Triage Consolidado Limpio</h3>
-                        <p className="text-slate-500 font-medium">No hay tickets operativos, clínicos ni preventivos en espera.</p>
-                    </div>
-                )}
-            </div>
-
-            {/* RONDAS SUPERVISOR (ROUNDS) FASE 41 */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <Activity className="w-7 h-7 text-teal-600" />
-                        Rondas Clínicas (Housekeeping & Safety)
-                    </h2>
+                        }
+                        return null;
+                    })()}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="md:col-span-1">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Zona a Auditar</label>
-                        <select
-                            value={roundForm.area}
-                            onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        >
-                            <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
-                            <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
-                            <option value="Área de Memoria (Dementia)">Área de Memoria (Dementia)</option>
-                            <option value="Comedor Principal">Comedor Principal</option>
-                            <option value="Salón de Actividades">Salón de Actividades</option>
-                            <option value="Zonas Exteriores / Jardín">Zonas Exteriores / Jardín</option>
-                        </select>
-                    </div>
 
-                    <div className="md:col-span-1 flex flex-col justify-end gap-3 pb-1">
-                        <button
-                            onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })}
-                            className={`w-full py-3 rounded-xl font-bold border transition-colors flex items-center justify-center gap-2 ${roundForm.isClean ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-300'}`}
-                        >
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${roundForm.isClean ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
-                                {roundForm.isClean && <CheckCircle2 className="w-3 h-3 text-white" />}
+                {/* MAIN SPLIT VIEW: TRIAGE (8 COL) VS RADAR (4 COL) */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                    
+                    {/* LEFT COLUMN: Triage List */}
+                    <div className="xl:col-span-8 flex flex-col gap-6">
+                        
+                        <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-200/60 min-h-[500px] flex flex-col">
+                            <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
+                                <div>
+                                    <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                                        <Activity className="w-8 h-8 text-teal-600" /> Inbox Operativo
+                                    </h2>
+                                    <p className="text-slate-500 font-medium mt-1">
+                                        Tickets clínicos, preventivos y reportes familiares en espera.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col md:flex-row gap-2">
+                                    <span className="bg-white border text-rose-800 border-rose-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm flex gap-2 items-center">
+                                        <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div> Inminente ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'INMINENTE').length || 0})
+                                    </span>
+                                    <span className="bg-white border text-amber-800 border-amber-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-sm flex gap-2 items-center">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400"></div> Atención ({liveData?.triageFeed?.filter((t: TriageTicket) => t.urgency === 'ATENCION').length || 0})
+                                    </span>
+                                </div>
                             </div>
-                            Área Limpia
-                        </button>
-                    </div>
 
-                    <div className="md:col-span-1 flex flex-col justify-end gap-3 pb-1">
-                        <button
-                            onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })}
-                            className={`w-full py-3 rounded-xl font-bold border transition-colors flex items-center justify-center gap-2 ${roundForm.isSafe ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-slate-200 text-slate-400 hover:border-emerald-300'}`}
-                        >
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${roundForm.isSafe ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`}>
-                                {roundForm.isSafe && <CheckCircle2 className="w-3 h-3 text-white" />}
-                            </div>
-                            Área Segura (Cero Caídas)
-                        </button>
-                    </div>
-
-                    <div className="md:col-span-1 flex flex-col justify-end pb-1">
-                        <button
-                            onClick={handleSaveRound}
-                            disabled={isSavingRound}
-                            className="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md active:scale-95 flex justify-center items-center gap-2"
-                        >
-                            {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Auditoría"}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* EVALUACIÓN DE COCINA Y NUTRICIÓN FASE 50 */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                        <Coffee className="w-7 h-7 text-orange-500" />
-                        Evaluación del Servicio de Alimentos
-                    </h2>
-                </div>
-                
-                <div className="bg-orange-50 border border-orange-100 p-6 rounded-3xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-3 block">Nivel de Satisfacción (Basado en feedback de residentes)</label>
-                            <div className="flex gap-2 mb-6">
-                                {[1, 2, 3, 4, 5].map(star => (
-                                    <button
-                                        key={star}
-                                        onClick={() => setKitchenObservation({ ...kitchenObservation, satisfactionScore: star })}
-                                        className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all ${kitchenObservation.satisfactionScore >= star ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20 scale-110' : 'bg-white text-slate-300 border border-slate-200 hover:border-orange-300'}`}
-                                    >
+                            {!liveData ? (
+                                <div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
+                            ) : liveData.triageFeed?.length > 0 ? (
+                                <div className="space-y-4">
+                                    {[...liveData.triageFeed].sort((a,b) => {
+                                        const rank = { INMINENTE: 3, ATENCION: 2, RUTINA: 1 };
+                                        return (rank[b.urgency as keyof typeof rank] || 0) - (rank[a.urgency as keyof typeof rank] || 0);
+                                    }).map((ticket: TriageTicket) => {
                                         
-                                    </button>
-                                ))}
-                            </div>
-                            <div className="text-xs font-bold text-orange-600/80 bg-orange-100/50 p-3 rounded-xl border border-orange-100">
-                                 Este reporte se envía directamente a la pantalla del Chef Principal para corrección de dietas y temperatura.
-                            </div>
+                                        const isCrisis = ticket.urgency === 'INMINENTE';
+                                        const isAttention = ticket.urgency === 'ATENCION';
+                                        
+                                        // Semántica Estricta: Full background descartado, se usa borde denso y fondo blanco/tenue
+                                        const cardBorderLayout = isCrisis ? 'border-l-[8px] border-l-rose-500 bg-white border-y border-r border-slate-200 shadow-sm' 
+                                            : isAttention ? 'border-l-[8px] border-l-amber-400 bg-white border-y border-r border-slate-200 shadow-sm' 
+                                            : 'border-l-[8px] border-l-slate-300 bg-white border-y border-r border-slate-200 shadow-sm';
+
+                                        const pillColor = isCrisis ? 'bg-rose-100 text-rose-800' 
+                                            : isAttention ? 'bg-amber-100 text-amber-800' 
+                                            : 'bg-slate-100 text-slate-600';
+
+                                        return (
+                                            <div key={ticket.id} className={`rounded-[1.5rem] p-6 flex flex-col lg:flex-row gap-6 items-start lg:items-center transition-all hover:shadow-md ${cardBorderLayout}`}>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${pillColor}`}>
+                                                            {ticket.urgency}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                                                            {ticket.category.replace('_', ' ')}
+                                                        </span>
+                                                        {ticket.sourceType === 'ZENDI_GROUP' && (
+                                                            <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-100 font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+                                                                <Sparkles className="w-3 h-3" /> Zendi Agrupación
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <h3 className="text-xl font-bold text-slate-800 leading-tight mb-2">
+                                                        {ticket.title}
+                                                    </h3>
+                                                    <p className="text-sm font-semibold text-slate-500 mb-3">
+                                                        Sujeto: <span className="text-slate-800 ml-1">{ticket.patientName}</span>
+                                                    </p>
+                                                    <div className="bg-slate-50 text-slate-700 font-medium text-sm p-4 rounded-[1rem] border border-slate-200 shadow-inner">
+                                                        "{ticket.description}"
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="w-full lg:w-64 shrink-0 mt-4 lg:mt-0">
+                                                    {(() => {
+                                                        const assignedTask = liveData.activeFastActions?.find((fa: FastActionAssignment) => fa.description.startsWith(`[${ticket.id}]`));
+                                                        if (assignedTask) {
+                                                            const caregiverMatch = liveData.activeSessions?.find((s: CaregiverSession)=>s.caregiverId === assignedTask.caregiverId);
+                                                            const employeeName = caregiverMatch?.caregiver?.name || "Cuidador";
+                                                            const isExpired = new Date(assignedTask.expiresAt).getTime() < new Date().getTime();
+                                                            
+                                                            return (
+                                                                <div className={`p-4 rounded-[1.5rem] border-2 flex flex-col items-center justify-center text-center ${isExpired ? 'bg-rose-50 border-rose-200' : 'bg-teal-50 border-teal-200'}`}>
+                                                                    <div className={`font-black text-[10px] uppercase tracking-widest mb-2 flex items-center gap-1 ${isExpired ? 'text-rose-600' : 'text-teal-600'}`}>
+                                                                        {isExpired ? <Siren className="w-4 h-4 animate-pulse" /> : <Activity className="w-4 h-4" />}
+                                                                        {isExpired ? "SLA Vencido" : "Resolución Activa"}
+                                                                    </div>
+                                                                    <span className={`font-bold text-lg leading-tight ${isExpired ? 'text-rose-900' : 'text-teal-900'}`}>{employeeName}</span>
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        // Action Block: Fast dispatch
+                                                        return (
+                                                            <button 
+                                                                onClick={() => setDispatchingTicket(ticket)} 
+                                                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-[1.5rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 group"
+                                                            >
+                                                                <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> Despachar (1-Click)
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center py-20 bg-slate-50 rounded-[2rem] border-2 border-slate-100 border-dashed">
+                                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
+                                        <CheckCircle2 className="w-10 h-10 text-teal-400" />
+                                    </div>
+                                    <h3 className="font-black text-slate-800 text-2xl">Bandeja Cero</h3>
+                                    <p className="text-slate-500 font-medium mt-2">No existen métricas de crisis ni quejas pendientes.</p>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex flex-col gap-3">
-                            <label className="block text-sm font-bold text-slate-700">Observaciones (Temperatura, Presentación, Sabor)</label>
-                            <textarea
-                                value={kitchenObservation.comments}
-                                onChange={(e) => setKitchenObservation({ ...kitchenObservation, comments: e.target.value })}
-                                placeholder="Ej. La sopa de la mesa 3 llegó fría. Los purés tienen buena consistencia hoy."
-                                className="w-full bg-white border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none h-24"
-                            ></textarea>
-                            
-                            <div className="flex flex-col gap-2">
-                                <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-orange-200 hover:border-orange-400 bg-orange-50/50 hover:bg-orange-50 text-orange-600 font-bold py-3 px-4 rounded-xl cursor-pointer transition-all">
-                                    <span></span> {kitchenObservation.photoUrl ? "Cambiar Foto Adjunta" : "Tomar/Subir Foto de la Comida"}
-                                    <input 
-                                        type="file" 
-                                        accept="image/*" 
-                                        capture="environment" 
-                                        className="hidden" 
-                                        onChange={handleImageUpload} 
-                                    />
-                                </label>
-                                {kitchenObservation.photoUrl && (
-                                    <div className="relative w-fit">
-                                        <img src={kitchenObservation.photoUrl} alt="Preview" className="h-20 w-20 object-cover rounded-lg shadow-sm border border-slate-200" />
-                                        <button 
-                                            onClick={() => setKitchenObservation({ ...kitchenObservation, photoUrl: "" })}
-                                            className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-rose-600 shadow-md"
-                                        >
-                                            ×
-                                        </button>
+                        {/* UTILITIES ROW: Zendi Writer & Setup Checks */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+                            {/* Zendi AI Writer */}
+                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                                <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
+                                    <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
+                                </h3>
+                                <textarea
+                                    value={rawMemo}
+                                    onChange={e => setRawMemo(e.target.value)}
+                                    placeholder="Dicta: El empleado ignoró un protocolo de limpieza..."
+                                    className="w-full h-24 bg-slate-50 border border-slate-200 rounded-[2rem] p-5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none resize-none mb-6"
+                                />
+                                <button
+                                    onClick={handleZendiRewrite}
+                                    disabled={isThinking || !rawMemo.trim()}
+                                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold py-4 rounded-[2rem] transition-all shadow-sm active:scale-95 flex justify-center items-center gap-2"
+                                >
+                                    {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} Sintetizar Reporte Legal
+                                </button>
+                                {processedMemo && (
+                                    <div className="mt-6 p-5 bg-slate-900 text-slate-300 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
+                                        {processedMemo}
                                     </div>
                                 )}
                             </div>
-                            <button
-                                onClick={handleSaveKitchenObs}
-                                disabled={isSavingKitchenObs || !kitchenObservation.comments.trim()}
-                                className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                {isSavingKitchenObs ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Feedback a Cocina"}
-                            </button>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* PANEL IZQUIERDO: RADAR OPERATIVO */}
-                <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
-                    <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-                        <Activity className="w-7 h-7 text-teal-600" />
-                        Radar de Realidad Operativa
-                    </h2>
-
-                    <div className="space-y-8">
-                        {/* 1. Personal En Piso */}
-                        <div>
-                            <h3 className="font-black text-slate-800 text-lg mb-3 flex items-center justify-between">
-                                <span>Personal Activo (En Piso)</span>
-                                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-sm">{enPiso.length}</span>
-                            </h3>
-                            <div className="space-y-2">
-                                {enPiso.length === 0 ? <p className="text-slate-500 text-sm">Nadie en piso estructurado.</p> : enPiso.map((s: CaregiverSession) => {
-                                    const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
-                                    return (
-                                        <div key={s.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 p-3 rounded-xl">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold">{s.caregiver?.name?.charAt(0)}</div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800 leading-none">{s.caregiver?.name}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">Log-in hace {h.toFixed(1)} hrs</p>
-                                                </div>
-                                            </div>
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* 2. Programado No Conectado */}
-                        <div>
-                            <h3 className="font-black text-slate-800 text-lg mb-3 flex items-center justify-between">
-                                <span className="text-amber-700">Programado No Conectado</span>
-                            </h3>
-                            <div className="space-y-2">
-                                {progMissing.length === 0 ? <p className="text-slate-400 text-sm">Equipo completo.</p> : progMissing.map((s: any, i: number) => (
-                                    <div key={i} className="flex justify-between bg-amber-50 border border-amber-100 p-3 rounded-xl opacity-80">
-                                        <p className="font-bold text-amber-900">{s.employee?.name}</p>
-                                        <p className="text-xs text-amber-700 font-medium">Desde {new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            {/* Housekeeping Check In */}
+                            <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-800 flex flex-col justify-between">
+                                <div>
+                                    <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
+                                        <CalendarClock className="w-6 h-6 text-teal-400" /> Inspección Zonal
+                                    </h3>
+                                    <select
+                                        value={roundForm.area}
+                                        onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
+                                        className="w-full bg-slate-800 text-slate-100 font-medium rounded-[2rem] px-5 py-4 border border-slate-700 focus:outline-none focus:border-teal-500 appearance-none mb-6 text-sm"
+                                    >
+                                        <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
+                                        <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
+                                    </select>
+                                    <div className="flex gap-4 mb-6">
+                                        <button 
+                                            onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })} 
+                                            className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                        >
+                                            Zona Limpia
+                                        </button>
+                                        <button 
+                                            onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })} 
+                                            className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                        >
+                                            Zona Segura
+                                        </button>
                                     </div>
-                                ))}
+                                </div>
+                                <button 
+                                    onClick={handleSaveRound} 
+                                    disabled={isSavingRound} 
+                                    className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-[2rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Registrar Firma Electrónica"}
+                                </button>
                             </div>
                         </div>
 
-                         {/* 3. Sesiones Zombi */}
+                    </div>
+
+                    {/* RIGHT COLUMN: Live Radar Ops */}
+                    <div className="xl:col-span-4 flex flex-col gap-6">
+                        
+                        {/* Handovers Faltantes (ALERTA AMBAR) */}
+                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                            <h3 className="font-extrabold text-slate-800 text-xl mb-6 flex items-center gap-3">
+                                <AlertTriangle className="w-6 h-6 text-amber-500" /> Brechas Handovers
+                            </h3>
+                            {(!liveData || missingHandovers.length === 0) ? (
+                                <div className="bg-slate-50 p-6 rounded-[1.5rem] flex items-start gap-4 border border-slate-100">
+                                    <CheckCircle2 className="w-8 h-8 text-teal-500 shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-slate-700">Continuidad Aprobada</p>
+                                        <p className="text-xs text-slate-500 mt-1">Cero turnos sin cerrar oficialmente.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {missingHandovers.map((mh: MissingHandover, i: number) => {
+                                        const diffHrs = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
+                                        const isCritical = diffHrs > 2;
+                                        return (
+                                            <div key={i} className={`p-5 rounded-[1.5rem] border-l-[6px] shadow-sm relative overflow-hidden flex flex-col gap-2 ${isCritical ? 'bg-white border-l-rose-500 border-y border-r border-slate-200' : 'bg-white border-l-amber-400 border-y border-r border-slate-200'}`}>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className={`font-black text-[10px] uppercase tracking-widest ${isCritical ? 'text-rose-600' : 'text-amber-600'}`}>Falta Firma Legal</span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md text-white ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`}>hace {diffHrs.toFixed(1)}h</span>
+                                                </div>
+                                                <p className="font-bold text-slate-800 text-lg">{mh.employeeName}</p>
+                                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg w-max">{mh.shiftType}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                                                {/* Alertas Administrativas Ocultas (Zombis) */}
                         {zombis.length > 0 && (
-                            <div>
-                                <h3 className="font-black text-rose-800 text-lg mb-3 flex items-center gap-2">
-                                    <Siren className="w-4 h-4 text-rose-600" /> Sesión Zombi (&gt;12 hrs)
+                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border-2 border-rose-200 relative overflow-hidden mb-6">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-[60px] opacity-10 pointer-events-none"></div>
+                                <h3 className="font-extrabold text-rose-700 text-xl mb-6 flex items-center gap-3 relative z-10">
+                                    <Siren className="w-6 h-6 animate-pulse" /> Sesiones Sin Cerrar
                                 </h3>
-                                <div className="space-y-2">
+                                <div className="space-y-3 relative z-10">
                                     {zombis.map((s: CaregiverSession) => {
                                         const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
                                         return (
-                                            <div key={s.id} className="flex justify-between items-center bg-rose-50 border border-rose-200 p-3 rounded-xl">
-                                                <p className="font-bold text-rose-900">{s.caregiver?.name}</p>
-                                                <span className="text-xs font-black text-white bg-rose-600 px-2 py-0.5 rounded-md">Abierto {h.toFixed(1)} hrs</span>
+                                            <div key={s.id} className="bg-white border border-rose-200 p-4 rounded-[2rem] flex justify-between items-center shadow-sm">
+                                                <span className="font-bold text-slate-800 text-sm">{s.caregiver?.name}</span>
+                                                <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-wider">{h.toFixed(1)}h ABIERTA</span>
                                             </div>
                                         );
                                     })}
@@ -813,127 +713,102 @@ export default function SupervisorDashboardPage() {
                             </div>
                         )}
 
-                        {/* 4. Alertas de Continuidad (Handovers) */}
-                        <div className="pt-6 border-t border-slate-200">
-                             <h3 className="font-black text-indigo-900 text-lg mb-3 flex items-center gap-2">
-                                <Activity className="w-5 h-5 text-indigo-600" />
-                                Alertas de Continuidad 
-                            </h3>
-                            <div className="space-y-2">
-                                {missingHandovers.length === 0 ? <p className="text-slate-500 text-xs italic">Cadenas de handover limpias.</p> : missingHandovers.map((mh: MissingHandover, i: number) => {
-                                    const diff = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
-                                    return (
-                                        <div key={i} className="bg-white border-2 border-indigo-100 p-4 rounded-xl shadow-sm relative overflow-hidden">
-                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
-                                            <p className="font-black text-indigo-900 text-sm mb-1">Handover Faltante: {mh.shiftType}</p>
-                                            <p className="text-xs text-slate-600">
-                                                Cuidador <strong className="text-slate-800">{mh.employeeName}</strong> finalizó hace <strong className="text-indigo-600">{diff.toFixed(1)} hrs</strong>, pero no ha entregado turno oficial.
-                                            </p>
-                                        </div>
-                                    );
-                                })}
+                        {/* Plantilla Conectada */}
+                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 flex flex-col flex-1">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="font-extrabold text-slate-800 text-xl flex items-center gap-3">
+                                    <Users className="w-6 h-6 text-teal-600" /> En Piso
+                                </h3>
+                                <span className="bg-slate-100 text-slate-500 font-black px-4 py-1.5 rounded-full shadow-inner">{enPiso.length}</span>
                             </div>
-                        </div>
 
-                    </div>
-                </div>      </div>
-                </div>
-
-                {/* PANEL DERECHO: ZENDI AI WRITER */}
-                <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 flex flex-col h-full">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                            <Sparkles className="w-7 h-7 text-indigo-500" />
-                            Zendi Asistente HR
-                        </h2>
-                        <span className="bg-indigo-50 text-indigo-600 font-bold px-3 py-1 rounded-full text-xs border border-indigo-100 uppercase tracking-widest">
-                            Powered by GPT-4o
-                        </span>
-                    </div>
-
-                    <p className="text-sm text-slate-500 mb-6 font-medium">
-                        Escribe notas breves de lo que pasó con el empleado (Llegó tarde, trató mal a un familiar, o un reconocimiento por buen trato). Zendi lo transformará en un informe profesional para el expediente.
-                    </p>
-
-                    <div className="flex-1 flex flex-col gap-6">
-                        <div className="flex-1">
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Borrador del Supervisor</label>
-                            <textarea
-                                value={rawMemo}
-                                onChange={e => setRawMemo(e.target.value)}
-                                placeholder="Ej. Joaneliz llegó tarde 30 minutos hoy por 3ra vez en la semana y no quiso ayudar con la comida..."
-                                className="w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-slate-700 font-medium"
-                            ></textarea>
-
-                            <button
-                                onClick={handleZendiRewrite}
-                                disabled={isThinking || !rawMemo.trim()}
-                                className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all flex justify-center items-center gap-2 active:scale-95"
-                            >
-                                {isThinking ? (
-                                    <><Loader2 className="w-5 h-5 animate-spin" /> Procesando NLP Científico...</>
+                            <div className="space-y-4 flex-1">
+                                {(!liveData || enPiso.length === 0) ? (
+                                    <div className="p-8 text-center bg-slate-50 border border-slate-100 rounded-[2rem]">
+                                        <p className="text-slate-400 font-medium text-sm">Sin usuarios activos.</p>
+                                    </div>
                                 ) : (
-                                    <><Sparkles className="w-5 h-5" /> Redactar Documento Oficial</>
+                                    enPiso.map((s: CaregiverSession) => {
+                                        const hrs = (nowTime - new Date(s.startTime).getTime()) / 3600000;
+                                        const tasks = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0;
+                                        
+                                        return (
+                                            <div key={s.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] hover:bg-white hover:border-slate-200 transition-colors">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 border border-teal-100 font-black flex items-center justify-center text-lg">
+                                                        {s.caregiver?.name?.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800">{s.caregiver?.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{hrs.toFixed(1)} hrs logueado</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    {tasks > 0 && (
+                                                        <div className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">
+                                                            {tasks}
+                                                        </div>
+                                                    )}
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
                                 )}
-                            </button>
+                            </div>
                         </div>
 
-                        {processedMemo && (
-                            <div className="flex-1 border-t border-slate-100 pt-6 animate-in fade-in slide-in-from-bottom-4">
-                                <label className="block text-xs font-bold text-emerald-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4" /> Resultado Corporativo
-                                </label>
-                                <div className="bg-slate-900 text-slate-300 p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap font-medium">
-                                    {processedMemo}
-                                </div>
-                                <button
-                                    onClick={copyToClipboard}
-                                    className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
-                                >
-                                    Copiar para Portal RH
-                                </button>
-                            </div>
-                        )}
                     </div>
                 </div>
+
             </div>
 
-            {/* SPRINT 3: DISPATCH INTELLIGENT MODAL */}
+
+            {toast && (
+                <div 
+                    className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-[2rem] shadow-xl font-bold text-sm flex items-center gap-3 transition-all cursor-pointer ${toast.type === 'ok' ? 'bg-teal-900 text-teal-100' : 'bg-rose-900 text-rose-100'}`}
+                    onClick={() => setToast(null)}
+                >
+                    {toast.msg}
+                </div>
+            )}
+
+{/* SPRINT 3: DISPATCH INTELLIGENT MODAL */}
             {dispatchingTicket && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-slate-200">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-lg w-full shadow-2xl border border-slate-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                                <Send className="w-7 h-7 text-indigo-500" />
-                                Despacho Zendi (1-Click)
+                                <Send className="w-6 h-6 text-teal-600" />
+                                Ruteo Táctico 1-Click
                             </h3>
-                            <button onClick={() => setDispatchingTicket(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-colors active:scale-95">
+                            <button onClick={() => setDispatchingTicket(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 w-10 h-10 rounded-full transition-colors active:scale-95 flex items-center justify-center text-lg font-bold">
                                 ×
                             </button>
                         </div>
 
-                        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 shadow-inner">
-                            <p className="font-bold text-indigo-900 mb-1 leading-tight">{dispatchingTicket.title}</p>
-                            <p className="text-indigo-700 text-xs font-black">SUJETO: {dispatchingTicket.patientName}</p>
+                        <div className="bg-slate-50 border border-slate-200 p-5 rounded-[1.5rem] mb-6 shadow-inner">
+                            <p className="font-bold text-slate-800 mb-1 leading-tight">{dispatchingTicket.title}</p>
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">OBJETIVO: {dispatchingTicket.patientName}</p>
                         </div>
 
-                        <h4 className="font-black text-slate-500 text-xs uppercase tracking-widest mb-3 flex items-center justify-between">
-                            <span>Personal Estructurado en Piso</span>
-                            <span>Radar Vivo</span>
+                        <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-3 flex items-center justify-between">
+                            <span>Fuerza de Trabajo en Piso</span>
+                            <span>Carga Actual</span>
                         </h4>
-                        <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 pb-2">
+                        <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 pb-2 custom-scrollbar">
                             {(() => {
                                 const nowTime = new Date().getTime();
                                 const validSessions = liveData?.activeSessions?.filter((s: CaregiverSession) => s.startTime && (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12) || [];
                                 
                                 if (validSessions.length === 0) return (
-                                    <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl text-center">
-                                        <p className="text-rose-600 font-bold mb-1">Piso Comprometido</p>
-                                        <p className="text-xs text-rose-500">No hay cuidadores activos para despachar este ticket.</p>
+                                    <div className="p-8 bg-rose-50 border border-rose-200 rounded-[1.5rem] text-center">
+                                        <Siren className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+                                        <p className="text-rose-800 font-bold mb-1">Piso Comprometido</p>
+                                        <p className="text-xs text-rose-600">No hay cuidadores logueados para recibir este ruteo.</p>
                                     </div>
                                 );
                                 
-                                // Determinar Sugerencia Zendi (el que tiene menos tareas pendientes)
                                 let suggestedId = validSessions[0].caregiverId;
                                 let minTasks = Infinity;
                                 validSessions.forEach((s: CaregiverSession) => {
@@ -952,34 +827,27 @@ export default function SupervisorDashboardPage() {
                                             key={session.id} 
                                             onClick={() => handleDispatchTask(session.caregiverId)}
                                             disabled={isDispatching}
-                                            className={`relative w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isSuggested ? 'bg-amber-50 border-amber-300 hover:bg-amber-100 hover:shadow-md' : 'bg-white border-slate-100 hover:border-teal-300'} text-left disabled:opacity-50 disabled:cursor-wait active:scale-95 group`}
+                                            className={`relative w-full flex items-center justify-between p-5 rounded-[1.5rem] border-2 transition-all cursor-pointer ${isSuggested ? 'bg-teal-50 border-teal-400 hover:bg-teal-100 hover:shadow-md' : 'bg-white border-slate-100 hover:border-slate-300'} text-left disabled:opacity-50 disabled:cursor-wait active:scale-95 group`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black outline outline-2 outline-offset-2 ${isSuggested ? 'bg-amber-500 text-white outline-amber-200' : 'bg-slate-100 text-slate-600 outline-slate-50'}`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg ${isSuggested ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'}`}>
                                                     {session.caregiver?.name?.charAt(0)}
                                                 </div>
                                                 <div>
-                                                    <p className="font-black text-slate-800 leading-none mb-1 group-hover:text-amber-900 transition-colors">{session.caregiver?.name}</p>
+                                                    <p className={`font-black leading-none mb-1.5 transition-colors ${isSuggested ? 'text-teal-900' : 'text-slate-800'}`}>{session.caregiver?.name}</p>
                                                     {isSuggested ? (
-                                                        <span className="text-[9px] bg-amber-200 text-amber-800 font-black px-2 py-0.5 rounded-md flex items-center gap-1 w-max tracking-widest uppercase">
-                                                            <Sparkles className="w-3 h-3" /> Zendi Sugiere Despacho
+                                                        <span className="text-[9px] bg-white text-teal-700 font-black px-2 py-0.5 rounded-md flex items-center gap-1 w-max tracking-widest uppercase shadow-sm border border-teal-100">
+                                                            <Sparkles className="w-3 h-3 text-amber-500" /> Zendi Sugiere Despacho
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Apto / En Piso</span>
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">Lista / En Piso</span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="text-center bg-white shadow-sm border border-slate-100 px-3 py-1.5 rounded-xl">
-                                                <span className={`block font-black text-lg leading-none ${tasksPending >= 3 ? 'text-rose-600 animate-pulse' : (tasksPending >= 2 ? 'text-rose-500' : 'text-slate-800')}`}>{tasksPending}</span>
-                                                <span className="block text-[9px] uppercase tracking-widest text-slate-500 font-bold">Tareas Activas</span>
+                                            <div className="text-center bg-white shadow-sm border border-slate-100 w-14 py-2 rounded-[2rem]">
+                                                <span className={`block font-black text-xl leading-none ${tasksPending >= 3 ? 'text-rose-600' : (tasksPending >= 2 ? 'text-amber-500' : 'text-slate-800')}`}>{tasksPending}</span>
+                                                <span className="block text-[8px] uppercase tracking-widest text-slate-400 font-bold mt-0.5">Tareas</span>
                                             </div>
-
-                                            {/* Zendi Anti-Saturation Alert */}
-                                            {tasksPending >= 3 && (
-                                                <div className="absolute -top-3 -right-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 uppercase tracking-widest shadow-md">
-                                                    <Siren className="w-3 h-3 animate-pulse" /> Cuello de Botella Operativo
-                                                </div>
-                                            )}
                                         </button>
                                     );
                                 });

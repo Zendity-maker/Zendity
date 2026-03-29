@@ -1,7 +1,7 @@
 "use server";
 
-import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { Role, SystemAuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function provisionNewHeadquarters(data: {
@@ -64,7 +64,7 @@ export async function provisionNewHeadquarters(data: {
       });
 
       if (globalMeds.length > 0) {
-        const medsToInsert = globalMeds.map((m) => ({
+        const medsToInsert = globalMeds.map((m: any) => ({
           name: m.name,
           dosage: m.dosage,
           route: m.route,
@@ -87,10 +87,12 @@ export async function provisionNewHeadquarters(data: {
       // Aseguramos que la provisión queda grabada inmutablemente.
       await tx.systemAuditLog.create({
         data: {
-          action: "PROVISION_HEADQUARTERS",
-          details: `Provisionada sede ${data.hqName} (${newHq.id}). Owner creado: ${data.ownerEmail}. Catálogo inicial de medicinas sembrado: ${globalMeds.length} items.`,
-          executedById: data.adminUserId,
-          targetHqId: newHq.id,
+          action: SystemAuditAction.CREATED,
+          payloadChanges: { info: `Provisionada sede ${data.hqName} (${newHq.id}). Owner creado: ${data.ownerEmail}. Catálogo inicial de medicinas sembrado: ${globalMeds.length} items.` },
+          performedById: data.adminUserId,
+          headquartersId: newHq.id,
+          entityName: "Headquarters",
+          entityId: newHq.id,
         },
       });
 

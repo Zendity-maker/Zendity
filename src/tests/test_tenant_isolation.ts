@@ -15,7 +15,7 @@ async function runTest() {
     data: {
       name: "Abuelo Test A",
       headquartersId: hqA.id,
-      dob: new Date("1940-01-01"),
+      dateOfBirth: new Date("1940-01-01"),
       status: "ACTIVE",
       roomNumber: "101"
     }

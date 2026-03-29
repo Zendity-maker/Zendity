@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // =======================
@@ -93,6 +94,10 @@ model Headquarters {
   NursingHandover       NursingHandover[]
   SystemAuditLog        SystemAuditLog[]
   CalendarEvent         CalendarEvent[]
+
+  // FASE 66
+  performanceScores     PerformanceScore[]
+  academyAssignments    AcademyAssignment[]
 }
 
 // =======================
@@ -187,6 +192,10 @@ model User {
   handoversOut          NursingHandover[] @relation("NursingHandoverOut")
   handoversIn           NursingHandover[] @relation("NursingHandoverIn")
   CalendarEvent         CalendarEvent[]
+
+  // FASE 66
+  performanceScores     PerformanceScore[]
+  academyAssignments    AcademyAssignment[]
 }
 
 enum Role {

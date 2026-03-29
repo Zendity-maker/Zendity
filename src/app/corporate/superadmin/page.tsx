@@ -16,7 +16,9 @@ export default async function SuperAdminDashboard() {
     );
   }
 
-  const { data: hqFleet, globalTotalOccupancy, globalTotalCapacity } = result;
+  const hqFleet = result.data || [];
+  const globalTotalOccupancy = result.globalTotalOccupancy || 0;
+  const globalTotalCapacity = result.globalTotalCapacity || 1;
 
   return (
     <div className="min-h-screen bg-slate-100 p-8">
@@ -104,7 +106,6 @@ export default async function SuperAdminDashboard() {
             <div className="pt-4 border-t border-slate-100 pb-2">
                <button 
                 className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition text-sm flex justify-center items-center gap-2 group-hover:bg-blue-600"
-                onClick={() => alert("Auditar Sede: Activará Protocolo de Impersonation (En Construcción Build 4)")}
                >
                  🔍 Auditar Sede (Impersonation)
                </button>

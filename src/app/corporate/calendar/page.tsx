@@ -32,6 +32,8 @@ export default function CorporateCalendarPage() {
     const [events, setEvents] = useState<CorporateEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+    const [deleteModal, setDeleteModal] = useState<{ id: string; title: string } | null>(null);
 
     // Form state
     const [title, setTitle] = useState("");
@@ -52,6 +54,13 @@ export default function CorporateCalendarPage() {
         fetchEvents();
         fetchPatients();
     }, []);
+
+    useEffect(() => {
+        if (toast) {
+            const t = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [toast]);
 
     const fetchPatients = async () => {
         try {
@@ -80,16 +89,19 @@ export default function CorporateCalendarPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("¿Seguro que deseas cancelar este evento del calendario?")) return;
         try {
             const res = await fetch(`/api/corporate/calendar?id=${id}`, { method: "DELETE" });
             if (res.ok) {
                 fetchEvents();
+                setToast({ msg: "Evento eliminado del calendario.", type: 'ok' });
             } else {
-                alert("No tienes permiso para borrar eventos o ocurrió un error.");
+                setToast({ msg: "Sin permiso para eliminar este evento.", type: 'err' });
             }
         } catch (error) {
             console.error(error);
+            setToast({ msg: "Error al eliminar el evento.", type: 'err' });
+        } finally {
+            setDeleteModal(null);
         }
     };
 
@@ -126,7 +138,7 @@ export default function CorporateCalendarPage() {
                 setTargetPatients([]);
                 fetchEvents();
             } else {
-                alert("Ocurrió un error guardando la cita.");
+                setToast({ msg: "Error guardando el evento. Intenta de nuevo.", type: 'err' });
             }
         } catch (error) {
             console.error(error);
@@ -201,11 +213,7 @@ export default function CorporateCalendarPage() {
                                 week: "Semana",
                                 day: "Día"
                             }}
-                            onSelectEvent={(event: any) => {
-                                if (confirm(`¿Deseas ver más detalles o ELIMINAR el evento: ${event.title}? \nPresiona "Aceptar" para Cancelarlo del sistema.`)) {
-                                    handleDelete(event.id);
-                                }
-                            }}
+                            onSelectEvent={(event: any) => setDeleteModal({ id: event.id, title: event.title })}
                         />
                     </div>
                 )}
@@ -313,6 +321,41 @@ export default function CorporateCalendarPage() {
                             </button>
                         </form>
                     </div>
+                </div>
+            )}
+
+            {deleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-slate-200">
+                        <h3 className="text-xl font-black text-slate-800 mb-2">Eliminar evento</h3>
+                        <p className="text-slate-500 text-sm font-medium mb-2">¿Confirmas que deseas cancelar este evento del sistema?</p>
+                        <p className="font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-6 text-sm">{deleteModal.title}</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteModal(null)}
+                                className="flex-1 py-4 rounded-[2rem] bg-slate-100 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleDelete(deleteModal.id)}
+                                className="flex-1 py-4 rounded-[2rem] bg-rose-600 text-white font-black text-sm uppercase tracking-widest hover:bg-rose-700 transition-colors"
+                            >
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div
+                    className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-[2rem] shadow-xl font-bold text-sm flex items-center gap-3 cursor-pointer ${
+                        toast.type === 'ok' ? 'bg-teal-900 text-teal-100' : 'bg-rose-900 text-rose-100'
+                    }`}
+                    onClick={() => setToast(null)}
+                >
+                    {toast.msg}
                 </div>
             )}
         </div>

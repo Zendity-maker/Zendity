@@ -78,7 +78,7 @@ export async function createShiftClosure(data: {
                 shiftType: data.shiftType,
                 supervisorOutId: userId,
                 handoverNotes: data.handoverNotes,
-                status: ShiftClosureStatus.SIGNED_OUT,
+                status: ShiftClosureStatus.CLOSING,
                 signatureOutBase64: data.signatureOutBase64,
                 signedOutAt: new Date(),
                 isOverridden: data.isOverridden || false,
@@ -111,7 +111,7 @@ export async function acceptShiftClosure(closureId: string, signatureInBase64: s
         const closure = await prisma.shiftClosure.update({
             where: { id: closureId },
             data: {
-                status: ShiftClosureStatus.ACCEPTED_IN,
+                status: ShiftClosureStatus.CLOSED,
                 supervisorInId: userId,
                 signatureInBase64,
                 signedInAt: new Date()

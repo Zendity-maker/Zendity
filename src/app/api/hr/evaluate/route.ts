@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 
-
+export const maxDuration = 60; // Parche Staging Integral E2E
 
 export async function POST(request: NextRequest) {
     try {

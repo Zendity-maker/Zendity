@@ -8,7 +8,7 @@ async function runE2E() {
   // 1. Obtener HQ de prueba
   let hq = await prisma.headquarters.findFirst();
   if (!hq) {
-    hq = await prisma.headquarters.create({ data: { name: "HQ Test E2E" } });
+    hq = await prisma.headquarters.create({ data: { name: "HQ Test E2E", licenseExpiry: new Date() } });
   }
 
   // 2. Identificadores de Testing

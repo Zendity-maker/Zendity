@@ -7,1372 +7,493 @@
 ⚠     Unrecognized key(s) in object: 'eslint'
 ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
 ▲ Next.js 16.1.6 (Turbopack)
-- Local:         http://localhost:3055
-- Network:       http://0.0.0.0:3055
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+- Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 1182ms
- GET / 200 in 1840ms (compile: 1715ms, render: 125ms)
+✓ Ready in 790ms
+ GET /care 200 in 525ms (compile: 369ms, render: 156ms)
 [next-auth][warn][NEXTAUTH_URL] 
 https://next-auth.js.org/warnings#nextauth_url
- GET /api/auth/session 200 in 974ms (compile: 957ms, render: 17ms)
-Error generating insights: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__71a8b8bf._.js:64:183
+ GET /api/auth/session 200 in 702ms (compile: 687ms, render: 16ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 4.6s (compile: 28ms, render: 4.6s)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 3ms, render: 72ms)
+ GET /api/ai/announcements 200 in 180ms (compile: 29ms, render: 152ms)
+CARE API CALLED WITH: { color: 'RED', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 149ms (compile: 115ms, render: 34ms)
+ GET /api/care/zendi/family-moments 200 in 17ms (compile: 3ms, render: 14ms)
+Care Fetch Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:90:169
 
-  61 ;
-  62 async function GET() {
-  63     try {
-→ 64         const evaluations = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/insights/route.ts:8:61)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/insights/route.ts:8:29)
-   6 | export async function GET() {
-   7 |     try {
->  8 |         const evaluations = await prisma.employeeEvaluation.findMany({
-     |                                                             ^
-   9 |             include: { employee: true, headquarters: true },
-  10 |             orderBy: { createdAt: 'asc' }
-  11 |         }); {
+  87 });
+  88 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  89 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 90 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/care/route.ts:24:47)
+    at async GET (src/app/api/care/route.ts:24:26)
+  22 |         const todayEnd = endOfDay(new Date());
+  23 |
+> 24 |         const patients = await prisma.patient.findMany({
+     |                                               ^
+  25 |             where: {
+  26 |                 colorGroup: color as any,
+  27 |                 headquartersId: hqId, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/insights 500 in 177ms (compile: 111ms, render: 66ms)
-Error generating insights: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__71a8b8bf._.js:64:183
-
-  61 ;
-  62 async function GET() {
-  63     try {
-→ 64         const evaluations = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].employeeEvaluation.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/insights/route.ts:8:61)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/insights/route.ts:8:29)
-   6 | export async function GET() {
-   7 |     try {
->  8 |         const evaluations = await prisma.employeeEvaluation.findMany({
-     |                                                             ^
-   9 |             include: { employee: true, headquarters: true },
-  10 |             orderBy: { createdAt: 'asc' }
-  11 |         }); {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/insights 500 in 35ms (compile: 3ms, render: 33ms)
-Care Messages GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__729a4b94._.js:248:177
-
-  245 }
-  246 const headquarterId = session.user.headquartersId;
-  247 // Extraer todos los hilos de los residentes activos en esta clínica
-→ 248 const dbMessages = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/messages/route.ts:20:55)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/messages/route.ts:20:28)
-  18 |
-  19 |         // Extraer todos los hilos de los residentes activos en esta clínica
-> 20 |         const dbMessages = await prisma.familyMessage.findMany({
-     |                                                       ^
-  21 |             where: {
-  22 |                 patient: { headquartersId: headquarterId }
-  23 |             }, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/messages 500 in 276ms (compile: 191ms, render: 85ms)
-Care Messages GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__729a4b94._.js:248:177
-
-  245 }
-  246 const headquarterId = session.user.headquartersId;
-  247 // Extraer todos los hilos de los residentes activos en esta clínica
-→ 248 const dbMessages = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].familyMessage.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/messages/route.ts:20:55)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/messages/route.ts:20:28)
-  18 |
-  19 |         // Extraer todos los hilos de los residentes activos en esta clínica
-> 20 |         const dbMessages = await prisma.familyMessage.findMany({
-     |                                                       ^
-  21 |             where: {
-  22 |                 patient: { headquartersId: headquarterId }
-  23 |             }, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/messages 500 in 35ms (compile: 941µs, render: 35ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 163ms (compile: 105ms, render: 58ms)
- GET /care 200 in 976ms (compile: 875ms, render: 101ms)
+ GET /api/care?color=RED&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 872ms (compile: 52ms, render: 820ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 3ms, render: 147ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 2ms, render: 84ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 1978µs, render: 151ms)
+ GET /api/ai/announcements 200 in 90ms (compile: 2ms, render: 88ms)
+ GET /care 200 in 39ms (compile: 3ms, render: 36ms)
  GET /api/auth/session 200 in 11ms (compile: 3ms, render: 7ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
-
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 125ms (compile: 78ms, render: 48ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
-
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 41ms (compile: 1760µs, render: 39ms)
-CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
-Care Fetch Error: Error [PrismaClientInitializationError]: 
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 78ms (compile: 2ms, render: 76ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 73ms (compile: 1003µs, render: 72ms)
+CARE API CALLED WITH: { color: 'RED', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 14ms (compile: 4ms, render: 10ms)
+ GET /api/care/zendi/family-moments 200 in 11ms (compile: 1791µs, render: 10ms)
+Care Fetch Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:90:169
 
-  81 });
-  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
-  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
-→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/route.ts:23:47)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/route.ts:23:26)
-  21 |         const todayEnd = endOfDay(new Date());
-  22 |
-> 23 |         const patients = await prisma.patient.findMany({
+  87 });
+  88 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  89 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 90 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/care/route.ts:24:47)
+    at async GET (src/app/api/care/route.ts:24:26)
+  22 |         const todayEnd = endOfDay(new Date());
+  23 |
+> 24 |         const patients = await prisma.patient.findMany({
      |                                               ^
-  24 |             where: {
-  25 |                 colorGroup: color as any,
-  26 |                 headquartersId: hqId, {
+  25 |             where: {
+  26 |                 colorGroup: color as any,
+  27 |                 headquartersId: hqId, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 168ms (compile: 110ms, render: 58ms)
- GET /api/care/zendi/family-moments 200 in 208ms (compile: 199ms, render: 9ms)
- GET /api/care/zendi/family-moments 200 in 6ms (compile: 1616µs, render: 4ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 55ms (compile: 2ms, render: 53ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 74ms (compile: 3ms, render: 71ms)
-⨯ ./src/actions/operational/audit.ts:2:1
-Ecmascript file had an error
-[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
- [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 3 |[39m [36mimport[39m {  [33mSystemAuditAction[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
- [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
- [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
-
-The "use server" directive must be at the top of the file.
-
-
-Import traces:
-  Client Component Browser:
-    ./src/actions/operational/audit.ts [Client Component Browser]
-    ./src/actions/operational/handover.ts [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-  Client Component SSR:
-    ./src/actions/operational/audit.ts [Client Component SSR]
-    ./src/actions/operational/handover.ts [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-
-
-./src/actions/operational/handover.ts:2:1
-Ecmascript file had an error
-[0m [90m 1 |[39m [36mimport[39m { prisma } [36mfrom[39m [32m'@/lib/prisma'[39m[33m;[39m
-[31m[1m>[22m[39m[90m 2 |[39m [32m"use server"[39m[33m;[39m
- [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m 3 |[39m [36mimport[39m {  [33mShiftType[39m[33m,[39m [33mNursingHandoverStatus[39m[33m,[39m [33mSystemAuditAction[39m[33m,[39m [33mFlagReason[39m[33m,[39m [33mRole[39m } [36mfrom[39m [32m'@prisma/client'[39m[33m;[39m
- [90m 4 |[39m [36mimport[39m { getServerSession } [36mfrom[39m [32m'next-auth/next'[39m[33m;[39m
- [90m 5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m[0m
-
-The "use server" directive must be at the top of the file.
-
-
-Import traces:
-  Client Component Browser:
-    ./src/actions/operational/handover.ts [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-  Client Component SSR:
-    ./src/actions/operational/handover.ts [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-
-
-./src/actions/operational/handover.ts:7:10
-Ecmascript file had an error
-[0m [90m  5 |[39m [36mimport[39m { authOptions } [36mfrom[39m [32m'@/lib/auth'[39m[33m;[39m
- [90m  6 |[39m [36mimport[39m { createAuditLog } [36mfrom[39m [32m'./audit'[39m[33m;[39m
-[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { revalidatePath } [36mfrom[39m [32m'next/cache'[39m[33m;[39m
- [90m    |[39m          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
- [90m  8 |[39m
- [90m  9 |[39m
- [90m 10 |[39m[0m
-
-You're importing a component that needs "revalidatePath". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
-
-
-
-Import traces:
-  Client Component Browser:
-    ./src/actions/operational/handover.ts [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component Browser]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-  Client Component SSR:
-    ./src/actions/operational/handover.ts [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Client Component SSR]
-    ./src/app/nursing/handovers/HandoverForm.tsx [Server Component]
-    ./src/app/nursing/handovers/page.tsx [Server Component]
-
-
- GET /nursing/handovers 500 in 2.0s (compile: 1946ms, render: 56ms)
- GET /logout 404 in 263ms (compile: 227ms, render: 36ms)
- GET /api/auth/session 500 in 15ms (compile: 8ms, render: 7ms)
- POST /api/auth/_log 500 in 9ms (compile: 4ms, render: 5ms)
- GET /login 200 in 241ms (compile: 229ms, render: 12ms)
- GET /api/public/hq/branding 500 in 84ms (compile: 80ms, render: 4ms)
- GET /api/public/hq/branding 500 in 7ms (compile: 2ms, render: 4ms)
- GET / 200 in 16ms (compile: 1851µs, render: 14ms)
- GET /api/auth/session 500 in 16ms (compile: 4ms, render: 12ms)
- POST /api/auth/_log 500 in 10ms (compile: 5ms, render: 6ms)
- GET /api/insights 500 in 34ms (compile: 22ms, render: 12ms)
- GET /api/care/messages 500 in 39ms (compile: 27ms, render: 12ms)
- GET /login 200 in 61ms (compile: 10ms, render: 51ms)
- GET /api/insights 500 in 26ms (compile: 12ms, render: 14ms)
- GET /api/care/messages 500 in 32ms (compile: 24ms, render: 8ms)
- GET /api/public/hq/branding 500 in 15ms (compile: 6ms, render: 9ms)
- GET /api/public/hq/branding 500 in 16ms (compile: 8ms, render: 8ms)
- GET /care 200 in 21ms (compile: 3ms, render: 18ms)
- GET /api/auth/session 500 in 13ms (compile: 6ms, render: 7ms)
- POST /api/auth/_log 500 in 9ms (compile: 4ms, render: 5ms)
- GET /login 200 in 14ms (compile: 1530µs, render: 12ms)
- GET /api/public/hq/branding 500 in 26ms (compile: 22ms, render: 4ms)
- GET /api/public/hq/branding 500 in 8ms (compile: 4ms, render: 4ms)
- GET /care 200 in 27ms (compile: 3ms, render: 23ms)
- GET /api/auth/session 500 in 12ms (compile: 7ms, render: 4ms)
- POST /api/auth/_log 500 in 14ms (compile: 7ms, render: 7ms)
- GET /login 200 in 18ms (compile: 1542µs, render: 17ms)
- GET /api/public/hq/branding 500 in 27ms (compile: 23ms, render: 4ms)
- GET /api/public/hq/branding 500 in 6ms (compile: 2ms, render: 4ms)
- GET /login 200 in 34ms (compile: 7ms, render: 28ms)
- GET /api/auth/session 500 in 41ms (compile: 23ms, render: 18ms)
- POST /api/auth/_log 500 in 7ms (compile: 4ms, render: 4ms)
- GET /api/public/hq/branding 500 in 12ms (compile: 4ms, render: 7ms)
- GET /api/public/hq/branding 500 in 10ms (compile: 6ms, render: 3ms)
- GET /care 200 in 19ms (compile: 3ms, render: 16ms)
- GET /api/auth/session 500 in 10ms (compile: 5ms, render: 5ms)
- POST /api/auth/_log 500 in 18ms (compile: 13ms, render: 5ms)
- GET /login 200 in 17ms (compile: 1739µs, render: 15ms)
- GET /api/public/hq/branding 500 in 11ms (compile: 5ms, render: 6ms)
- GET /api/public/hq/branding 500 in 6ms (compile: 2ms, render: 4ms)
-✓ Compiled in 314ms
- GET /login 200 in 53ms (compile: 11ms, render: 43ms)
- GET /api/auth/providers 200 in 26ms (compile: 15ms, render: 11ms)
- GET /api/auth/csrf 200 in 4ms (compile: 1244µs, render: 3ms)
- POST /api/auth/callback/credentials 401 in 11ms (compile: 1014µs, render: 10ms)
- GET /care 200 in 93ms (compile: 15ms, render: 79ms)
- GET /api/auth/session 200 in 16ms (compile: 9ms, render: 8ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
-
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 91ms (compile: 1624µs, render: 89ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
-
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 42ms (compile: 2ms, render: 40ms)
-CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
-Care Fetch Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
-
-  81 });
-  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
-  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
-→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/route.ts:23:47)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/route.ts:23:26)
-  21 |         const todayEnd = endOfDay(new Date());
-  22 |
-> 23 |         const patients = await prisma.patient.findMany({
-     |                                               ^
-  24 |             where: {
-  25 |                 colorGroup: color as any,
-  26 |                 headquartersId: hqId, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 43ms (compile: 1478µs, render: 42ms)
- GET /api/care/zendi/family-moments 200 in 46ms (compile: 40ms, render: 5ms)
- GET /api/care/zendi/family-moments 200 in 8ms (compile: 1619µs, render: 6ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 58ms (compile: 2ms, render: 56ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 59ms (compile: 1961µs, render: 57ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 40ms (compile: 1220µs, render: 38ms)
+ GET /api/care?color=RED&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 644ms (compile: 2ms, render: 641ms)
+ GET /api/ai/announcements 200 in 96ms (compile: 2ms, render: 94ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 2ms, render: 80ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 1406µs, render: 145ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 1192µs, render: 83ms)
+ GET /care 200 in 24ms (compile: 1794µs, render: 22ms)
+ GET /api/auth/session 200 in 8ms (compile: 4ms, render: 4ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 79ms (compile: 1826µs, render: 77ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 84ms (compile: 1548µs, render: 82ms)
 CARE API CALLED WITH: { color: 'YELLOW', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
-Care Fetch Error: Error [PrismaClientInitializationError]: 
+ GET /api/care/zendi/family-moments 200 in 14ms (compile: 3ms, render: 11ms)
+ GET /api/care/zendi/family-moments 200 in 9ms (compile: 912µs, render: 8ms)
+Care Fetch Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:90:169
 
-  81 });
-  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
-  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
-→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/route.ts:23:47)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/route.ts:23:26)
-  21 |         const todayEnd = endOfDay(new Date());
-  22 |
-> 23 |         const patients = await prisma.patient.findMany({
+  87 });
+  88 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  89 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 90 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/care/route.ts:24:47)
+    at async GET (src/app/api/care/route.ts:24:26)
+  22 |         const todayEnd = endOfDay(new Date());
+  23 |
+> 24 |         const patients = await prisma.patient.findMany({
      |                                               ^
-  24 |             where: {
-  25 |                 colorGroup: color as any,
-  26 |                 headquartersId: hqId, {
+  25 |             where: {
+  26 |                 colorGroup: color as any,
+  27 |                 headquartersId: hqId, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/care?color=YELLOW&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 53ms (compile: 2ms, render: 50ms)
- GET /api/care/zendi/family-moments 200 in 55ms (compile: 48ms, render: 7ms)
- GET /api/care/zendi/family-moments 200 in 8ms (compile: 2ms, render: 6ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+ GET /api/care?color=YELLOW&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 580ms (compile: 3ms, render: 577ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 3ms, render: 77ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 2ms, render: 76ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 3ms, render: 148ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 3ms, render: 80ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 82ms (compile: 2ms, render: 80ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 74ms (compile: 1112µs, render: 73ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 3ms, render: 146ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 1174µs, render: 76ms)
+ GET /api/ai/announcements 200 in 164ms (compile: 2ms, render: 162ms)
+CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 11ms (compile: 3ms, render: 8ms)
+ GET /api/care/zendi/family-moments 200 in 9ms (compile: 1527µs, render: 8ms)
+ GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 225ms (compile: 2ms, render: 223ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 1242µs, render: 79ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 3ms, render: 153ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 2ms, render: 153ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 3ms, render: 84ms)
+ GET /admissions 404 in 129ms (compile: 92ms, render: 37ms)
+ GET /api/auth/session 200 in 10ms (compile: 4ms, render: 6ms)
+ GET /intake 200 in 80ms (compile: 33ms, render: 47ms)
+ GET /api/auth/session 200 in 14ms (compile: 5ms, render: 9ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 2ms, render: 155ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 892µs, render: 86ms)
+ GET /api/ai/announcements 200 in 184ms (compile: 2ms, render: 182ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 1923µs, render: 85ms)
+ GET /api/ai/announcements 200 in 139ms (compile: 867µs, render: 138ms)
+ GET /api/ai/announcements 200 in 73ms (compile: 923µs, render: 72ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 3ms, render: 158ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 1400µs, render: 75ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 3ms, render: 156ms)
+Intake Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].intakeData.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__d767bd78._.js:89:155
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
+  86     }
+  87 });
+  88 // 2. Almacenar la fuente de la verdad inmutable (Zendity Intake)
+→ 89 await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].intakeData.create(
+The column `updatedAt` does not exist in the current database.
+    at <unknown> (src/app/api/intake/route.ts:31:33)
+    at async POST (src/app/api/intake/route.ts:31:9)
+  29 |
+  30 |         // 2. Almacenar la fuente de la verdad inmutable (Zendity Intake)
+> 31 |         await prisma.intakeData.create({
+     |                                 ^
+  32 |             data: {
+  33 |                 patientId: patient.id,
+  34 |                 diagnoses, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/ai/announcements 500 in 51ms (compile: 1969µs, render: 49ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 61ms (compile: 11ms, render: 50ms)
-CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
-Care Fetch Error: Error [PrismaClientInitializationError]: 
+ POST /api/intake 500 in 316ms (compile: 22ms, render: 294ms)
+ GET /api/ai/announcements 200 in 108ms (compile: 3ms, render: 105ms)
+ GET /api/ai/announcements 200 in 230ms (compile: 3ms, render: 227ms)
+ GET /care 200 in 25ms (compile: 2ms, render: 23ms)
+ GET /api/auth/session 200 in 7ms (compile: 3ms, render: 5ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 2ms, render: 72ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 76ms (compile: 3ms, render: 72ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 2ms, render: 83ms)
+CARE API CALLED WITH: { color: 'RED', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 11ms (compile: 1130µs, render: 9ms)
+ GET /api/care/zendi/family-moments 200 in 10ms (compile: 2ms, render: 7ms)
+Care Fetch Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:90:169
 
-  81 });
-  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
-  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
-→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/route.ts:23:47)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/route.ts:23:26)
-  21 |         const todayEnd = endOfDay(new Date());
-  22 |
-> 23 |         const patients = await prisma.patient.findMany({
+  87 });
+  88 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
+  89 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
+→ 90 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/care/route.ts:24:47)
+    at async GET (src/app/api/care/route.ts:24:26)
+  22 |         const todayEnd = endOfDay(new Date());
+  23 |
+> 24 |         const patients = await prisma.patient.findMany({
      |                                               ^
-  24 |             where: {
-  25 |                 colorGroup: color as any,
-  26 |                 headquartersId: hqId, {
+  25 |             where: {
+  26 |                 colorGroup: color as any,
+  27 |                 headquartersId: hqId, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 49ms (compile: 2ms, render: 46ms)
- GET /api/care/zendi/family-moments 200 in 54ms (compile: 49ms, render: 5ms)
- GET /api/care/zendi/family-moments 200 in 6ms (compile: 838µs, render: 5ms)
- GET /intake 200 in 364ms (compile: 344ms, render: 20ms)
- GET /api/auth/session 200 in 15ms (compile: 9ms, render: 6ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 59ms (compile: 6ms, render: 53ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 59ms (compile: 4ms, render: 55ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 39ms (compile: 991µs, render: 38ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 36ms (compile: 910µs, render: 35ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 39ms (compile: 958µs, render: 38ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 39ms (compile: 990µs, render: 38ms)
-Intake Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__d767bd78._.js:81:168
-
-  78     }
-  79 }
-  80 // 1. Crear el Perfil Demográfico base del Residente
-→ 81 const patient = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/intake/route.ts:22:46)
-    at <unknown> (-->  schema.prisma:7)
-    at async POST (src/app/api/intake/route.ts:22:25)
-  20 |
-  21 |         // 1. Crear el Perfil Demográfico base del Residente
-> 22 |         const patient = await prisma.patient.create({
-     |                                              ^
-  23 |             data: {
-  24 |                 name,
-  25 |                 headquartersId: finalHqId, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- POST /api/intake 500 in 236ms (compile: 192ms, render: 44ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 41ms (compile: 1097µs, render: 39ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 53ms (compile: 1257µs, render: 52ms)
-Intake Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__d767bd78._.js:81:168
-
-  78     }
-  79 }
-  80 // 1. Crear el Perfil Demográfico base del Residente
-→ 81 const patient = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.create(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/intake/route.ts:22:46)
-    at <unknown> (-->  schema.prisma:7)
-    at async POST (src/app/api/intake/route.ts:22:25)
-  20 |
-  21 |         // 1. Crear el Perfil Demográfico base del Residente
-> 22 |         const patient = await prisma.patient.create({
-     |                                              ^
-  23 |             data: {
-  24 |                 name,
-  25 |                 headquartersId: finalHqId, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- POST /api/intake 500 in 40ms (compile: 1351µs, render: 38ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 46ms (compile: 1667µs, render: 44ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 41ms (compile: 1021µs, render: 40ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 51ms (compile: 1357µs, render: 50ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 43ms (compile: 1088µs, render: 42ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
-
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 40ms (compile: 1473µs, render: 39ms)
+ GET /api/care?color=RED&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 592ms (compile: 2ms, render: 590ms)
+ GET /api/ai/announcements 200 in 1028ms (compile: 3ms, render: 1026ms)
+ GET /api/ai/announcements 200 in 122ms (compile: 2ms, render: 120ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 3ms, render: 156ms)
+ GET /handovers 404 in 25ms (compile: 4ms, render: 21ms)
+ GET /api/auth/session 200 in 11ms (compile: 3ms, render: 8ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 1540µs, render: 76ms)
 [next-auth][warn][NEXTAUTH_URL] 
 https://next-auth.js.org/warnings#nextauth_url
-⨯ Error [PrismaClientInitializationError]: 
-Invalid `{imported module ./src/lib/prisma.ts}["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/ssr/[root-of-the-server]__670d0701._.js:83:163
+ GET /api/auth/session 200 in 9ms (compile: 3ms, render: 6ms)
+ GET /nursing/handovers 200 in 344ms (compile: 75ms, render: 269ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 2ms, render: 157ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 974µs, render: 146ms)
+ GET /api/ai/announcements 200 in 95ms (compile: 794µs, render: 94ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 775µs, render: 152ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 765µs, render: 83ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 836µs, render: 148ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 752µs, render: 79ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 796µs, render: 148ms)
+ GET /intake 200 in 10ms (compile: 3ms, render: 7ms)
+ GET /med 200 in 28ms (compile: 22ms, render: 6ms)
+API Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patientMedication.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fa24e9b3._.js:75:182
 
-  80 // @ts-ignore
-  81 const hqId = session.user.headquartersId;
-  82 // Fetch residents assigned to HQ
-→ 83 const patients = await {imported module ./src/lib/prisma.ts}["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/nursing/handovers/page.tsx:20:43)
-    at <unknown> (-->  schema.prisma:7)
-    at async NursingHandoversPage (src/app/nursing/handovers/page.tsx:20:22)
-  18 |     
-  19 |     // Fetch residents assigned to HQ
-> 20 |     const patients = await prisma.patient.findMany({
-     |                                           ^
-  21 |         where: { headquartersId: hqId, status: 'ACTIVE' },
-  22 |         select: { id: true, name: true }
-  23 |     }); {
+  72         status: 400
+  73     });
+  74 }
+→ 75 const patientMeds = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patientMedication.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/med/route.ts:14:60)
+    at async GET (src/app/api/med/route.ts:14:29)
+  12 |         }
+  13 |
+> 14 |         const patientMeds = await prisma.patientMedication.findMany({
+     |                                                            ^
+  15 |             where: {
+  16 |                 patient: { headquartersId: hqId }
+  17 |             }, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined,
-  digest: '1994726896'
+  meta: [Object]
 }
- GET /nursing/handovers 200 in 346ms (compile: 211ms, render: 135ms)
- GET /api/auth/session 200 in 14ms (compile: 7ms, render: 8ms)
- GET /care 200 in 31ms (compile: 4ms, render: 28ms)
- GET /api/auth/session 200 in 10ms (compile: 3ms, render: 7ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 147ms (compile: 17ms, render: 129ms)
+API Error: Error [PrismaClientKnownRequestError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patientMedication.findMany()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fa24e9b3._.js:75:182
 
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
+  72         status: 400
+  73     });
+  74 }
+→ 75 const patientMeds = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patientMedication.findMany(
+The column `PatientMedication.status` does not exist in the current database.
+    at <unknown> (src/app/api/med/route.ts:14:60)
+    at async GET (src/app/api/med/route.ts:14:29)
+  12 |         }
+  13 |
+> 14 |         const patientMeds = await prisma.patientMedication.findMany({
+     |                                                            ^
+  15 |             where: {
+  16 |                 patient: { headquartersId: hqId }
+  17 |             }, {
+  code: 'P2022',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 64ms (compile: 1347µs, render: 63ms)
-Shift GET Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__fb76746c._.js:157:179
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 116ms (compile: 8ms, render: 109ms)
+ GET /care 200 in 8ms (compile: 2ms, render: 5ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 204ms (compile: 3ms, render: 201ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 780µs, render: 74ms)
+  Reload env: .env
+[🚀] Ejecutando Staging E2E Seed vía API...
+Seed API Error: Error [PrismaClientValidationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__75b2c823._.js:199:161
 
-  154         status: 400
-  155     });
-  156 }
-→ 157 const activeSession = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].shiftSession.findFirst(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+  196     }
+  197 });
+  198 if (!zomb) {
+→ 199     await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create({
+            data: {
+              patientId: "fb0a535b-043e-4b05-8476-45564bdba5f6",
+              authorId: "b37d21bc-19d5-4236-b7c0-10b58a9fafbe",
+              headquartersId: "b5d13d84-0a57-42fe-a1ed-bff887ed0c09",
+              notes: "ZOMBIE_LOG: Prueba de sesión abierta por más de 12 horas.",
+              createdAt: new Date("2026-03-29T03:32:54.929Z"),
+          +   foodIntake: Int
+            }
+          })
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/shift/start/route.ts:80:57)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/shift/start/route.ts:80:31)
-  78 |         }
-  79 |
-> 80 |         const activeSession = await prisma.shiftSession.findFirst({
-     |                                                         ^
-  81 |             where: {
-  82 |                 caregiverId,
-  83 |                 actualEndTime: null, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
+Argument `foodIntake` is missing.
+    at <unknown> (src/app/api/dev/seed-staging/route.ts:68:39)
+    at async GET (src/app/api/dev/seed-staging/route.ts:68:17)
+  66 |             const zomb = await prisma.dailyLog.findFirst({ where: { authorId: pedro.id, notes: { contains: "ZOMBIE_LOG" } } });
+  67 |             if (!zomb) {
+> 68 |                 await prisma.dailyLog.create({
+     |                                       ^
+  69 |                     data: {
+  70 |                         patientId: patients[0].id,
+  71 |                         authorId: pedro.id, {
+  clientVersion: '5.22.0'
 }
- GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 500 in 77ms (compile: 1533µs, render: 75ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+ HEAD /api/dev/seed-staging 500 in 4.1s (compile: 26ms, render: 4.1s)
+[🚀] Ejecutando Staging E2E Seed vía API...
+Seed API Error: Error [PrismaClientValidationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__75b2c823._.js:199:161
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+  196     }
+  197 });
+  198 if (!zomb) {
+→ 199     await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create({
+            data: {
+              patientId: "fb0a535b-043e-4b05-8476-45564bdba5f6",
+              authorId: "b37d21bc-19d5-4236-b7c0-10b58a9fafbe",
+              headquartersId: "b5d13d84-0a57-42fe-a1ed-bff887ed0c09",
+              notes: "ZOMBIE_LOG: Prueba de sesión abierta por más de 12 horas.",
+              createdAt: new Date("2026-03-29T03:32:56.925Z"),
+          +   foodIntake: Int
+            }
+          })
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
+Argument `foodIntake` is missing.
+    at <unknown> (src/app/api/dev/seed-staging/route.ts:68:39)
+    at async GET (src/app/api/dev/seed-staging/route.ts:68:17)
+  66 |             const zomb = await prisma.dailyLog.findFirst({ where: { authorId: pedro.id, notes: { contains: "ZOMBIE_LOG" } } });
+  67 |             if (!zomb) {
+> 68 |                 await prisma.dailyLog.create({
+     |                                       ^
+  69 |                     data: {
+  70 |                         patientId: patients[0].id,
+  71 |                         authorId: pedro.id, {
+  clientVersion: '5.22.0'
 }
- GET /api/ai/announcements 500 in 38ms (compile: 1270µs, render: 37ms)
+ GET /api/dev/seed-staging 500 in 1989ms (compile: 1828µs, render: 1987ms)
+[🚀] Ejecutando Staging E2E Seed vía API...
+Seed API Error: Error [PrismaClientValidationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__75b2c823._.js:199:161
+
+  196     }
+  197 });
+  198 if (!zomb) {
+→ 199     await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create({
+            data: {
+              patientId: "fb0a535b-043e-4b05-8476-45564bdba5f6",
+              authorId: "b37d21bc-19d5-4236-b7c0-10b58a9fafbe",
+              headquartersId: "b5d13d84-0a57-42fe-a1ed-bff887ed0c09",
+              ~~~~~~~~~~~~~~
+              notes: "ZOMBIE_LOG: Prueba de sesión abierta por más de 12 horas.",
+              foodIntake: 100,
+              createdAt: new Date("2026-03-29T03:34:33.893Z"),
+          ?   id?: String,
+          ?   bathCompleted?: Boolean,
+          ?   isClinicalAlert?: Boolean,
+          ?   isResolved?: Boolean,
+          ?   photoUrl?: String | Null
+            }
+          })
+
+Unknown argument `headquartersId`. Available options are marked with ?.
+    at <unknown> (src/app/api/dev/seed-staging/route.ts:68:39)
+    at async GET (src/app/api/dev/seed-staging/route.ts:68:17)
+  66 |             const zomb = await prisma.dailyLog.findFirst({ where: { authorId: pedro.id, notes: { contains: "ZOMBIE_LOG" } } });
+  67 |             if (!zomb) {
+> 68 |                 await prisma.dailyLog.create({
+     |                                       ^
+  69 |                     data: {
+  70 |                         patientId: patients[0].id,
+  71 |                         authorId: pedro.id, {
+  clientVersion: '5.22.0'
+}
+ HEAD /api/dev/seed-staging 500 in 6.1s (compile: 23ms, render: 6.1s)
+[🚀] Ejecutando Staging E2E Seed vía API...
+Seed API Error: Error [PrismaClientValidationError]: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create()` invocation in
+/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__75b2c823._.js:199:161
+
+  196     }
+  197 });
+  198 if (!zomb) {
+→ 199     await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dailyLog.create({
+            data: {
+              patientId: "fb0a535b-043e-4b05-8476-45564bdba5f6",
+              authorId: "b37d21bc-19d5-4236-b7c0-10b58a9fafbe",
+              headquartersId: "b5d13d84-0a57-42fe-a1ed-bff887ed0c09",
+              ~~~~~~~~~~~~~~
+              notes: "ZOMBIE_LOG: Prueba de sesión abierta por más de 12 horas.",
+              foodIntake: 100,
+              createdAt: new Date("2026-03-29T03:34:36.189Z"),
+          ?   id?: String,
+          ?   bathCompleted?: Boolean,
+          ?   isClinicalAlert?: Boolean,
+          ?   isResolved?: Boolean,
+          ?   photoUrl?: String | Null
+            }
+          })
+
+Unknown argument `headquartersId`. Available options are marked with ?.
+    at <unknown> (src/app/api/dev/seed-staging/route.ts:68:39)
+    at async GET (src/app/api/dev/seed-staging/route.ts:68:17)
+  66 |             const zomb = await prisma.dailyLog.findFirst({ where: { authorId: pedro.id, notes: { contains: "ZOMBIE_LOG" } } });
+  67 |             if (!zomb) {
+> 68 |                 await prisma.dailyLog.create({
+     |                                       ^
+  69 |                     data: {
+  70 |                         patientId: patients[0].id,
+  71 |                         authorId: pedro.id, {
+  clientVersion: '5.22.0'
+}
+ GET /api/dev/seed-staging 500 in 2.3s (compile: 806µs, render: 2.3s)
+[🚀] Ejecutando Staging E2E Seed vía API...
+ HEAD /api/dev/seed-staging 200 in 3.1s (compile: 30ms, render: 3.0s)
+[🚀] Ejecutando Staging E2E Seed vía API...
+ GET /api/dev/seed-staging 200 in 2.3s (compile: 2ms, render: 2.3s)
+ GET /care 200 in 240ms (compile: 87ms, render: 153ms)
+[next-auth][warn][NEXTAUTH_URL] 
+https://next-auth.js.org/warnings#nextauth_url
+ GET /api/auth/session 200 in 62ms (compile: 50ms, render: 12ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 243ms (compile: 25ms, render: 218ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 74ms (compile: 911µs, render: 73ms)
+ GET /api/ai/announcements 200 in 186ms (compile: 34ms, render: 152ms)
+CARE API CALLED WITH: { color: 'RED', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 110ms (compile: 83ms, render: 28ms)
+ GET /api/care/zendi/family-moments 200 in 13ms (compile: 2ms, render: 10ms)
+ GET /api/care?color=RED&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 343ms (compile: 32ms, render: 312ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 2ms, render: 150ms)
+ GET /api/ai/announcements 200 in 112ms (compile: 3ms, render: 108ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 1252µs, render: 153ms)
 CARE API CALLED WITH: { color: 'GREEN', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
-Care Fetch Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__cfde536f._.js:84:169
-
-  81 });
-  82 const todayStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$startOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["startOfDay"])(new Date());
-  83 const todayEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$endOfDay$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["endOfDay"])(new Date());
-→ 84 const patients = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].patient.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
-
-Validation Error Count: 1
-    at <unknown> (src/app/api/care/route.ts:23:47)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/care/route.ts:23:26)
-  21 |         const todayEnd = endOfDay(new Date());
-  22 |
-> 23 |         const patients = await prisma.patient.findMany({
-     |                                               ^
-  24 |             where: {
-  25 |                 colorGroup: color as any,
-  26 |                 headquartersId: hqId, {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 500 in 52ms (compile: 8ms, render: 44ms)
- GET /api/care/zendi/family-moments 200 in 46ms (compile: 42ms, render: 4ms)
- GET /api/care/zendi/family-moments 200 in 8ms (compile: 1625µs, render: 6ms)
-API Error: Error [PrismaClientInitializationError]: 
+ GET /api/care/zendi/family-moments 200 in 13ms (compile: 3ms, render: 10ms)
+ GET /api/care/zendi/family-moments 200 in 13ms (compile: 2ms, render: 11ms)
+ GET /api/care?color=GREEN&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 164ms (compile: 2ms, render: 161ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 3ms, render: 82ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 153ms)
+CARE API CALLED WITH: { color: 'YELLOW', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 12ms (compile: 3ms, render: 9ms)
+ GET /api/care/zendi/family-moments 200 in 11ms (compile: 3ms, render: 9ms)
+ GET /api/care?color=YELLOW&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 149ms (compile: 3ms, render: 146ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 2ms, render: 83ms)
+CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 10ms (compile: 2ms, render: 8ms)
+ GET /api/care/zendi/family-moments 200 in 12ms (compile: 2ms, render: 9ms)
+ GET /api/ai/announcements 200 in 234ms (compile: 3ms, render: 232ms)
+ GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 1484ms (compile: 3ms, render: 1481ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 3ms, render: 147ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 3ms, render: 80ms)
+ GET /api/ai/announcements 200 in 163ms (compile: 3ms, render: 160ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 2ms, render: 82ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 3ms, render: 147ms)
+ GET /clinical/triage 404 in 94ms (compile: 45ms, render: 50ms)
+ GET /api/auth/session 200 in 22ms (compile: 6ms, render: 16ms)
+ GET /care/supervisor 200 in 250ms (compile: 214ms, render: 35ms)
+ GET /api/auth/session 200 in 10ms (compile: 3ms, render: 7ms)
+ GET /api/care/supervisor/live?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 829ms (compile: 27ms, render: 802ms)
+ GET /api/care/supervisor 200 in 966ms (compile: 53ms, render: 913ms)
+ GET /api/care/supervisor/live?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 157ms (compile: 2ms, render: 155ms)
+ GET /api/care/supervisor 200 in 285ms (compile: 1376µs, render: 283ms)
+ GET /api/ai/announcements 200 in 251ms (compile: 1054µs, render: 250ms)
+ GET /api/care/supervisor/live?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 235ms (compile: 3ms, render: 232ms)
+ GET /api/ai/announcements 200 in 73ms (compile: 1160µs, render: 71ms)
+ GET /med 200 in 30ms (compile: 12ms, render: 19ms)
+ GET /api/auth/session 200 in 7ms (compile: 3ms, render: 5ms)
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 169ms (compile: 24ms, render: 145ms)
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 115ms (compile: 8ms, render: 107ms)
+ GET /api/ai/announcements 200 in 90ms (compile: 2ms, render: 88ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 2ms, render: 159ms)
+ GET /api/ai/announcements 200 in 90ms (compile: 3ms, render: 87ms)
+[🚀] Ejecutando Staging E2E Seed vía API...
+ GET /api/dev/seed-staging 200 in 2.7s (compile: 1777µs, render: 2.7s)
+ GET /care 200 in 47ms (compile: 4ms, render: 43ms)
+ GET /api/auth/session 200 in 7ms (compile: 2ms, render: 5ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 143ms (compile: 2ms, render: 140ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 71ms (compile: 979µs, render: 70ms)
+CARE API CALLED WITH: { color: 'RED', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 13ms (compile: 3ms, render: 11ms)
+ GET /api/care/zendi/family-moments 200 in 6ms (compile: 1482µs, render: 5ms)
+ GET /api/care?color=RED&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 226ms (compile: 2ms, render: 224ms)
+ GET /api/ai/announcements 200 in 73ms (compile: 1067µs, render: 71ms)
+ GET /api/ai/announcements 200 in 123ms (compile: 3ms, render: 121ms)
+ GET /care/supervisor 200 in 29ms (compile: 5ms, render: 24ms)
+ GET /api/auth/session 200 in 11ms (compile: 4ms, render: 6ms)
+ GET /api/care/supervisor/live?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 272ms (compile: 6ms, render: 266ms)
+ GET /api/care/supervisor/live?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 148ms (compile: 845µs, render: 147ms)
+ GET /api/care/supervisor 200 in 424ms (compile: 3ms, render: 421ms)
+ GET /api/care/supervisor 200 in 275ms (compile: 1342µs, render: 273ms)
+ GET /intake 200 in 37ms (compile: 15ms, render: 21ms)
+ GET /api/auth/session 200 in 9ms (compile: 2ms, render: 7ms)
+ GET /api/ai/announcements 200 in 231ms (compile: 1575µs, render: 229ms)
+ GET /api/ai/announcements 200 in 7.8s (compile: 99ms, render: 7.7s)
+ GET /api/ai/announcements 200 in 108ms (compile: 5ms, render: 103ms)
+API Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
 /Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
 
@@ -1380,16 +501,10 @@ Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e
   244 // Polling optimization: Only grab announcements from the last 15 seconds
   245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
 → 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Can't reach database server at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`
 
-Validation Error Count: 1
+Please make sure your database server is running at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`.
     at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
     at async GET (src/app/api/ai/announcements/route.ts:18:31)
   16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
   17 |
@@ -1398,11 +513,71 @@ Validation Error Count: 1
   19 |             where: {
   20 |                 headquartersId: hqId,
   21 |                 createdAt: { {
+  code: 'P1001',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/ai/announcements 500 in 45ms (compile: 3ms, render: 42ms)
-API Error: Error [PrismaClientInitializationError]: 
+ GET /api/ai/announcements 500 in 8.8s (compile: 1915µs, render: 8.8s)
+ GET /api/ai/announcements 200 in 80ms (compile: 922µs, render: 79ms)
+ GET /api/ai/announcements 200 in 482ms (compile: 4ms, render: 478ms)
+ GET /api/ai/announcements 200 in 90ms (compile: 4ms, render: 86ms)
+ GET /api/auth/session 200 in 12ms (compile: 6ms, render: 6ms)
+ GET /care 200 in 31ms (compile: 11ms, render: 20ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 4ms, render: 156ms)
+ GET /api/auth/session 200 in 9ms (compile: 5ms, render: 5ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 143ms (compile: 3ms, render: 140ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 973µs, render: 74ms)
+CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 9ms (compile: 3ms, render: 7ms)
+ GET /api/care/zendi/family-moments 200 in 9ms (compile: 1602µs, render: 8ms)
+ GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 300ms (compile: 2ms, render: 298ms)
+ GET /api/ai/announcements 200 in 75ms (compile: 902µs, render: 74ms)
+ GET /api/ai/announcements 200 in 71ms (compile: 1108µs, render: 70ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 2ms, render: 157ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 2ms, render: 80ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 1452µs, render: 83ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 889µs, render: 76ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 2ms, render: 156ms)
+ GET /api/ai/announcements 200 in 80ms (compile: 2ms, render: 77ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 2ms, render: 91ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 3ms, render: 79ms)
+ GET /academy 200 in 347ms (compile: 311ms, render: 36ms)
+ GET /api/auth/session 200 in 9ms (compile: 3ms, render: 6ms)
+ GET /api/auth/session 200 in 8ms (compile: 1597µs, render: 6ms)
+ GET /api/academy?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 262ms (compile: 33ms, render: 229ms)
+ GET /api/academy?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 79ms (compile: 1223µs, render: 78ms)
+ GET /api/academy?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0&employeeId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 869ms (compile: 820µs, render: 869ms)
+ GET /api/academy?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0&employeeId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 74ms (compile: 2ms, render: 72ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 2ms, render: 81ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 1904µs, render: 156ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 2ms, render: 83ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 1695µs, render: 154ms)
+ GET /intake 200 in 26ms (compile: 4ms, render: 21ms)
+ GET /api/auth/session 200 in 10ms (compile: 3ms, render: 7ms)
+ GET /api/auth/session 200 in 10ms (compile: 1641µs, render: 9ms)
+ GET /api/ai/announcements 200 in 91ms (compile: 3ms, render: 88ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 3ms, render: 152ms)
+ GET /api/ai/announcements 200 in 88ms (compile: 1921µs, render: 86ms)
+ GET /api/ai/announcements 200 in 160ms (compile: 3ms, render: 158ms)
+[🚀] Ejecutando Staging E2E Seed vía API...
+ GET /api/dev/seed-staging 200 in 2.7s (compile: 2ms, render: 2.7s)
+ GET /api/ai/announcements 200 in 86ms (compile: 1254µs, render: 85ms)
+ GET /api/ai/announcements 200 in 178ms (compile: 4ms, render: 175ms)
+ GET /care 200 in 27ms (compile: 3ms, render: 24ms)
+ GET /api/auth/session 200 in 24ms (compile: 6ms, render: 18ms)
+ GET /api/auth/session 200 in 8ms (compile: 1978µs, render: 6ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 5.8s (compile: 1047µs, render: 5.8s)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 83ms (compile: 2ms, render: 81ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 1754µs, render: 84ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 1429µs, render: 151ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 3ms, render: 79ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 2ms, render: 155ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 1003µs, render: 149ms)
+CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 9ms (compile: 943µs, render: 8ms)
+ GET /api/care/zendi/family-moments 200 in 8ms (compile: 1882µs, render: 6ms)
+ GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 284ms (compile: 3ms, render: 281ms)
+API Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
 /Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
 
@@ -1410,16 +585,10 @@ Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e
   244 // Polling optimization: Only grab announcements from the last 15 seconds
   245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
 → 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Can't reach database server at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`
 
-Validation Error Count: 1
+Please make sure your database server is running at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`.
     at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
     at async GET (src/app/api/ai/announcements/route.ts:18:31)
   16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
   17 |
@@ -1428,11 +597,250 @@ Validation Error Count: 1
   19 |             where: {
   20 |                 headquartersId: hqId,
   21 |                 createdAt: { {
+  code: 'P1001',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/ai/announcements 500 in 35ms (compile: 1520µs, render: 33ms)
-API Error: Error [PrismaClientInitializationError]: 
+ GET /api/ai/announcements 500 in 5.1s (compile: 1796µs, render: 5.1s)
+ GET /api/ai/announcements 200 in 82ms (compile: 2ms, render: 80ms)
+ GET /api/ai/announcements 200 in 677ms (compile: 1852µs, render: 675ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 1906µs, render: 92ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 1957µs, render: 150ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 151ms (compile: 2ms, render: 149ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 1783µs, render: 73ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 2ms, render: 80ms)
+ GET /med 200 in 27ms (compile: 5ms, render: 22ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 1264µs, render: 79ms)
+ GET /api/auth/session 200 in 10ms (compile: 4ms, render: 6ms)
+ GET /api/auth/session 200 in 11ms (compile: 1420µs, render: 9ms)
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 149ms (compile: 3ms, render: 146ms)
+ GET /api/med?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 100ms (compile: 26ms, render: 73ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 1374µs, render: 147ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 539µs, render: 152ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 3ms, render: 79ms)
+ GET /api/ai/announcements 200 in 92ms (compile: 3ms, render: 89ms)
+ GET /api/ai/announcements 200 in 143ms (compile: 3ms, render: 140ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 1995µs, render: 150ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 3ms, render: 78ms)
+ GET /api/ai/announcements 200 in 91ms (compile: 3ms, render: 89ms)
+ GET /api/ai/announcements 200 in 170ms (compile: 3ms, render: 167ms)
+ GET /api/ai/announcements 200 in 180ms (compile: 3ms, render: 177ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 689µs, render: 79ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 1478µs, render: 83ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 2ms, render: 156ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 3ms, render: 151ms)
+ GET /api/ai/announcements 200 in 88ms (compile: 4ms, render: 84ms)
+ GET /api/ai/announcements 200 in 88ms (compile: 4ms, render: 85ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 155ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 6ms, render: 151ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 2ms, render: 82ms)
+ GET /api/ai/announcements 200 in 92ms (compile: 3ms, render: 90ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 3ms, render: 151ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 3ms, render: 159ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 3ms, render: 82ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 3ms, render: 91ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 2ms, render: 154ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 2ms, render: 148ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 1671µs, render: 80ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 3ms, render: 80ms)
+ GET /api/ai/announcements 200 in 190ms (compile: 3ms, render: 187ms)
+ GET /api/ai/announcements 200 in 199ms (compile: 5ms, render: 194ms)
+ GET /care 200 in 24ms (compile: 2ms, render: 22ms)
+ GET /api/auth/session 200 in 14ms (compile: 5ms, render: 9ms)
+ GET /api/auth/session 200 in 15ms (compile: 6ms, render: 9ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 82ms (compile: 4ms, render: 78ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 75ms (compile: 1984µs, render: 73ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 1066µs, render: 148ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 1014µs, render: 155ms)
+CARE API CALLED WITH: { color: 'BLUE', hqId: '49a6a75e-93cf-42e4-aa9f-69649bcbb6c0' }
+ GET /api/care/zendi/family-moments 200 in 13ms (compile: 1848µs, render: 11ms)
+ GET /api/care/zendi/family-moments 200 in 10ms (compile: 2ms, render: 8ms)
+ GET /api/care?color=BLUE&hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 310ms (compile: 2ms, render: 308ms)
+ GET /api/ai/announcements 200 in 88ms (compile: 2ms, render: 86ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 2ms, render: 84ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 1991µs, render: 155ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 2ms, render: 149ms)
+ GET /api/ai/announcements 200 in 80ms (compile: 3ms, render: 76ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 1863µs, render: 77ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 1924µs, render: 148ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 2ms, render: 151ms)
+ GET /api/ai/announcements 200 in 96ms (compile: 1946µs, render: 94ms)
+ GET /api/ai/announcements 200 in 95ms (compile: 1979µs, render: 93ms)
+ GET /intake 200 in 30ms (compile: 2ms, render: 27ms)
+ GET /api/auth/session 200 in 12ms (compile: 4ms, render: 7ms)
+ GET /api/auth/session 200 in 12ms (compile: 1734µs, render: 10ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 1832µs, render: 149ms)
+ GET /api/ai/announcements 200 in 160ms (compile: 3ms, render: 157ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 2ms, render: 92ms)
+ GET /api/ai/announcements 200 in 863ms (compile: 3ms, render: 860ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 2ms, render: 92ms)
+ GET /api/ai/announcements 200 in 164ms (compile: 3ms, render: 160ms)
+ GET /hr/staff/91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 2.5s (compile: 2.5s, render: 26ms)
+ GET /api/hr/staff/91c4e400-279e-4e67-8a72-1edb6b14f06c 404 in 1363ms (compile: 1161ms, render: 202ms)
+ GET /api/hr/staff/91c4e400-279e-4e67-8a72-1edb6b14f06c 404 in 86ms (compile: 5ms, render: 81ms)
+ GET /hr/staff 200 in 556ms (compile: 477ms, render: 79ms)
+ GET /hr/staff 200 in 52ms (compile: 7ms, render: 44ms)
+ GET /api/hr/staff?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 818ms (compile: 646ms, render: 172ms)
+ GET /api/hr/staff?hqId=49a6a75e-93cf-42e4-aa9f-69649bcbb6c0 200 in 82ms (compile: 3ms, render: 79ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 2ms, render: 83ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 1581µs, render: 80ms)
+ GET /api/ai/announcements 200 in 178ms (compile: 940µs, render: 177ms)
+ GET /api/ai/announcements 200 in 113ms (compile: 1788µs, render: 112ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 2ms, render: 84ms)
+[next-auth][warn][NEXTAUTH_URL] 
+https://next-auth.js.org/warnings#nextauth_url
+ GET /corporate/shift-closure 200 in 445ms (compile: 90ms, render: 355ms)
+ GET /api/ai/announcements 200 in 175ms (compile: 4ms, render: 171ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 2ms, render: 77ms)
+ GET /api/ai/announcements 200 in 88ms (compile: 3ms, render: 86ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 1240µs, render: 76ms)
+ GET /api/ai/announcements 200 in 350ms (compile: 4ms, render: 346ms)
+ GET /api/ai/announcements 200 in 95ms (compile: 2ms, render: 92ms)
+ GET /api/ai/announcements 200 in 92ms (compile: 3ms, render: 90ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 3ms, render: 75ms)
+ GET /api/ai/announcements 200 in 185ms (compile: 1144µs, render: 184ms)
+ GET /api/ai/announcements 200 in 75ms (compile: 2ms, render: 73ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 2ms, render: 83ms)
+ GET /api/ai/announcements 200 in 1852ms (compile: 2ms, render: 1849ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 2ms, render: 78ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 4ms, render: 74ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 2ms, render: 75ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 2ms, render: 75ms)
+ GET /corporate/medical/patients 200 in 189ms (compile: 178ms, render: 11ms)
+ GET /api/corporate/patients 200 in 292ms (compile: 75ms, render: 217ms)
+ GET /api/corporate/patients 200 in 72ms (compile: 938µs, render: 71ms)
+ GET /api/ai/announcements 200 in 76ms (compile: 2ms, render: 73ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 4ms, render: 78ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 2ms, render: 75ms)
+ GET /care 200 in 26ms (compile: 4ms, render: 22ms)
+ GET /api/auth/session 200 in 7ms (compile: 3ms, render: 4ms)
+ GET /api/auth/session 200 in 10ms (compile: 1884µs, render: 8ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 172ms (compile: 2ms, render: 170ms)
+ GET /api/care/shift/start?caregiverId=91c4e400-279e-4e67-8a72-1edb6b14f06c 200 in 66ms (compile: 1235µs, render: 65ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 3ms, render: 145ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 3ms, render: 152ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 1005µs, render: 76ms)
+ GET /api/ai/announcements 200 in 74ms (compile: 3ms, render: 72ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 767µs, render: 148ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 684µs, render: 156ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 787µs, render: 76ms)
+ GET /api/ai/announcements 200 in 73ms (compile: 734µs, render: 72ms)
+ GET /api/ai/announcements 200 in 146ms (compile: 804µs, render: 145ms)
+ GET /api/ai/announcements 200 in 146ms (compile: 709µs, render: 145ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 832µs, render: 80ms)
+ GET /api/ai/announcements 200 in 74ms (compile: 710µs, render: 73ms)
+ GET /api/ai/announcements 200 in 807ms (compile: 842µs, render: 806ms)
+ GET /api/ai/announcements 200 in 770ms (compile: 1067µs, render: 769ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 727µs, render: 81ms)
+ GET /api/ai/announcements 200 in 74ms (compile: 761µs, render: 73ms)
+ GET /api/ai/announcements 200 in 139ms (compile: 789µs, render: 139ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 783µs, render: 149ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 799µs, render: 76ms)
+ GET /api/ai/announcements 200 in 72ms (compile: 751µs, render: 71ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 738µs, render: 154ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 650µs, render: 159ms)
+ GET /api/ai/announcements 200 in 80ms (compile: 872µs, render: 79ms)
+ GET /api/ai/announcements 200 in 74ms (compile: 668µs, render: 74ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 1731µs, render: 146ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 897µs, render: 152ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 1058µs, render: 84ms)
+ GET /api/ai/announcements 200 in 74ms (compile: 747µs, render: 74ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 762µs, render: 149ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 755µs, render: 150ms)
+ GET /api/ai/announcements 200 in 76ms (compile: 809µs, render: 75ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 688µs, render: 78ms)
+ GET /api/ai/announcements 200 in 144ms (compile: 1173µs, render: 143ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 671µs, render: 150ms)
+ GET /api/ai/announcements 200 in 83ms (compile: 730µs, render: 83ms)
+ GET /api/ai/announcements 200 in 76ms (compile: 661µs, render: 76ms)
+ GET /api/ai/announcements 200 in 145ms (compile: 792µs, render: 144ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 721µs, render: 152ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 1096µs, render: 80ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 634µs, render: 76ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 732µs, render: 154ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 705µs, render: 151ms)
+ GET /api/ai/announcements 200 in 75ms (compile: 733µs, render: 74ms)
+ GET /api/ai/announcements 200 in 80ms (compile: 703µs, render: 79ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 744µs, render: 146ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 1247µs, render: 157ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 628µs, render: 77ms)
+ GET /api/ai/announcements 200 in 1040ms (compile: 716µs, render: 1040ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 766µs, render: 81ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 682µs, render: 149ms)
+ GET /api/ai/announcements 200 in 81ms (compile: 767µs, render: 81ms)
+ GET /api/ai/announcements 200 in 152ms (compile: 710µs, render: 151ms)
+ GET /api/ai/announcements 200 in 76ms (compile: 693µs, render: 75ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 756µs, render: 146ms)
+ GET /api/ai/announcements 200 in 78ms (compile: 1125µs, render: 77ms)
+ GET /api/ai/announcements 200 in 147ms (compile: 601µs, render: 147ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 742µs, render: 78ms)
+ GET /api/ai/announcements 200 in 145ms (compile: 648µs, render: 144ms)
+ GET /api/ai/announcements 200 in 80ms (compile: 774µs, render: 79ms)
+ GET /api/ai/announcements 200 in 140ms (compile: 1000µs, render: 139ms)
+ GET /api/ai/announcements 200 in 76ms (compile: 735µs, render: 76ms)
+ GET /api/ai/announcements 200 in 143ms (compile: 688µs, render: 143ms)
+ GET /api/ai/announcements 200 in 89ms (compile: 4ms, render: 86ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 4ms, render: 150ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 3ms, render: 89ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 4ms, render: 152ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 5ms, render: 157ms)
+ GET /api/ai/announcements 200 in 894ms (compile: 3ms, render: 890ms)
+ GET /api/ai/announcements 200 in 90ms (compile: 5ms, render: 86ms)
+ GET /api/ai/announcements 200 in 89ms (compile: 4ms, render: 85ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 4ms, render: 151ms)
+ GET /api/ai/announcements 200 in 160ms (compile: 5ms, render: 155ms)
+ GET /api/ai/announcements 200 in 89ms (compile: 4ms, render: 85ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 4ms, render: 83ms)
+ GET /api/ai/announcements 200 in 168ms (compile: 4ms, render: 163ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 3ms, render: 152ms)
+ GET /api/ai/announcements 200 in 89ms (compile: 3ms, render: 86ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 4ms, render: 81ms)
+ GET /api/ai/announcements 200 in 148ms (compile: 1966µs, render: 146ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 1407µs, render: 155ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 4ms, render: 91ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 4ms, render: 81ms)
+ GET /api/ai/announcements 200 in 162ms (compile: 3ms, render: 159ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 4ms, render: 153ms)
+ GET /api/ai/announcements 200 in 89ms (compile: 4ms, render: 85ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 5ms, render: 82ms)
+ GET /api/ai/announcements 200 in 163ms (compile: 3ms, render: 160ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 3ms, render: 155ms)
+ GET /api/ai/announcements 200 in 91ms (compile: 4ms, render: 87ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 4ms, render: 82ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 4ms, render: 155ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 3ms, render: 155ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 4ms, render: 83ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 5ms, render: 150ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 4ms, render: 152ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 3ms, render: 91ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 4ms, render: 82ms)
+ GET /api/ai/announcements 200 in 155ms (compile: 4ms, render: 151ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 856µs, render: 149ms)
+ GET /api/ai/announcements 200 in 91ms (compile: 3ms, render: 88ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 3ms, render: 155ms)
+ GET /api/ai/announcements 200 in 159ms (compile: 4ms, render: 155ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 5ms, render: 88ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 3ms, render: 82ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 3ms, render: 158ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 154ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 2ms, render: 84ms)
+ GET /api/ai/announcements 200 in 77ms (compile: 2ms, render: 75ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 3ms, render: 157ms)
+ GET /api/ai/announcements 200 in 168ms (compile: 3ms, render: 164ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 3ms, render: 91ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 3ms, render: 82ms)
+ GET /api/ai/announcements 200 in 162ms (compile: 3ms, render: 158ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 154ms)
+ GET /api/ai/announcements 200 in 92ms (compile: 3ms, render: 88ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 3ms, render: 80ms)
+ GET /api/ai/announcements 200 in 156ms (compile: 4ms, render: 152ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 154ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 3ms, render: 90ms)
+ GET /api/ai/announcements 200 in 85ms (compile: 3ms, render: 82ms)
+ GET /api/ai/announcements 200 in 161ms (compile: 3ms, render: 158ms)
+API Error: Error [PrismaClientKnownRequestError]: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
 /Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
 
@@ -1440,16 +848,10 @@ Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e
   244 // Polling optimization: Only grab announcements from the last 15 seconds
   245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
 → 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Can't reach database server at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`
 
-Validation Error Count: 1
+Please make sure your database server is running at `ep-wispy-queen-ae20881h-pooler.c-2.us-east-2.aws.neon.tech:5432`.
     at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
     at async GET (src/app/api/ai/announcements/route.ts:18:31)
   16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
   17 |
@@ -1458,757 +860,450 @@ Validation Error Count: 1
   19 |             where: {
   20 |                 headquartersId: hqId,
   21 |                 createdAt: { {
+  code: 'P1001',
   clientVersion: '5.22.0',
-  errorCode: undefined
+  meta: [Object]
 }
- GET /api/ai/announcements 500 in 48ms (compile: 3ms, render: 45ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+ GET /api/ai/announcements 500 in 5.1s (compile: 4ms, render: 5.1s)
+ GET /api/ai/announcements 200 in 86ms (compile: 4ms, render: 82ms)
+ GET /api/ai/announcements 200 in 665ms (compile: 3ms, render: 661ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 3ms, render: 90ms)
+ GET /api/ai/announcements 200 in 166ms (compile: 3ms, render: 163ms)
+ GET /api/ai/announcements 200 in 82ms (compile: 1795µs, render: 80ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 1768µs, render: 155ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 3ms, render: 83ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 3ms, render: 154ms)
+ GET /api/ai/announcements 200 in 93ms (compile: 3ms, render: 90ms)
+ GET /api/ai/announcements 200 in 151ms (compile: 3ms, render: 148ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 2ms, render: 82ms)
+ GET /api/ai/announcements 200 in 149ms (compile: 717µs, render: 149ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 4ms, render: 83ms)
+ GET /api/ai/announcements 200 in 150ms (compile: 3ms, render: 147ms)
+ GET /api/ai/announcements 200 in 79ms (compile: 1940µs, render: 77ms)
+ GET /api/ai/announcements 200 in 158ms (compile: 1408µs, render: 156ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 3ms, render: 81ms)
+ GET /api/ai/announcements 200 in 171ms (compile: 3ms, render: 168ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 4ms, render: 83ms)
+ GET /api/ai/announcements 200 in 688ms (compile: 3ms, render: 685ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 4ms, render: 84ms)
+ GET /api/ai/announcements 200 in 157ms (compile: 3ms, render: 154ms)
+ GET /api/ai/announcements 200 in 86ms (compile: 1805µs, render: 84ms)
+ GET /api/ai/announcements 200 in 154ms (compile: 1925µs, render: 152ms)
+ GET /api/ai/announcements 200 in 87ms (compile: 2ms, render: 85ms)
+ GET /api/ai/announcements 200 in 141ms (compile: 801µs, render: 140ms)
+ GET /api/ai/announcements 200 in 94ms (compile: 3ms, render: 91ms)
+ GET /api/ai/announcements 200 in 160ms (compile: 3ms, render: 157ms)
+ GET /api/ai/announcements 200 in 84ms (compile: 817µs, render: 83ms)
+ GET /api/ai/announcements 200 in 153ms (compile: 3ms, render: 149ms)
+✓ Compiled in 367ms
+Persisting failed: Unable to write SST file 00001059.sst
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 36ms (compile: 1258µs, render: 34ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407131) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 440933))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 440933 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 36ms (compile: 1155µs, render: 35ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3408707) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 440933))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 440933 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 35ms (compile: 1020µs, render: 34ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3408707) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 440933))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 440933 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 73ms (compile: 4ms, render: 69ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407736) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for get_app_page_entry (TaskId 331505))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 331505 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 34ms (compile: 1171µs, render: 33ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3408707) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for get_app_page_entry (TaskId 331505))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 331505 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+⨯ ./node_modules/@prisma/client/index-browser.js:1:16
+Module not found: Can't resolve '.prisma/client/index-browser'
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mconst[39m prisma [33m=[39m require([32m'.prisma/client/index-browser'[39m)
+ [90m   |[39m                [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m
+ [90m 3 |[39m module[33m.[39mexports [33m=[39m prisma
+ [90m 4 |[39m[0m
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 33ms (compile: 1121µs, render: 32ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 58ms (compile: 4ms, render: 53ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+Import trace:
+  Client Component Browser:
+    ./node_modules/@prisma/client/index-browser.js [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Client Component Browser]
+    ./src/app/corporate/shift-closure/ShiftClosureClient.tsx [Server Component]
+    ./src/app/corporate/shift-closure/page.tsx [Server Component]
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+https://nextjs.org/docs/messages/module-not-found
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 61ms (compile: 5ms, render: 56ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 61ms (compile: 5ms, render: 55ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407736) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for AssetIdent::from_path (TaskId 376750))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 376750 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 72ms (compile: 7ms, render: 65ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3405255) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <DevModuleIdStrategy as ModuleIdStrategy>::get_module_id (TaskId 163684))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 163684 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 66ms (compile: 4ms, render: 62ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3405255) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/mod.rs:963:22:
+Failed to lookup task type: Looking up task type for TaskId 533058 from database failed
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Unable to open static sorted file referenced from 00000909.meta
+    1: Unable to open static sorted file 00000906.sst
+    2: No such file or directory (os error 2)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 60ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/mod.rs:963:22:
+Failed to lookup task type: Looking up task type for TaskId 493233 from database failed
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Unable to open static sorted file referenced from 00000967.meta
+    1: Unable to open static sorted file 00000963.sst
+    2: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 66ms (compile: 6ms, render: 59ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3408707) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for EcmascriptModuleAsset::new (TaskId 462211))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 462211 from database failed
+    1: Unable to open static sorted file referenced from 00001004.meta
+    2: Unable to open static sorted file 00001000.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 60ms (compile: 4ms, render: 55ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for EcmascriptModuleAsset::new (TaskId 462211))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 462211 from database failed
+    1: Unable to open static sorted file referenced from 00001004.meta
+    2: Unable to open static sorted file 00001000.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 61ms (compile: 4ms, render: 57ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3408707) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for <EcmascriptModuleAsset as EcmascriptParsable>::parse_original (TaskId 489095))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 489095 from database failed
+    1: Unable to open static sorted file referenced from 00001046.meta
+    2: Unable to open static sorted file 00001041.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 61ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3388113) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::get_exports (TaskId 461765))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 461765 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 65ms (compile: 7ms, render: 59ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407798) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for parse_actions (TaskId 488804))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 488804 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 63ms (compile: 5ms, render: 58ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407131) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for <ModuleChunkItem as ChunkItem>::chunking_context (TaskId 502405))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 502405 from database failed
+    1: Unable to open static sorted file referenced from 00001028.meta
+    2: Unable to open static sorted file 00001023.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 56ms (compile: 5ms, render: 51ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3388113) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::get_exports (TaskId 461765))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 461765 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 62ms (compile: 5ms, render: 57ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3407131) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EsmAssetReference as ChunkableModuleReference>::chunking_type (TaskId 462390))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 462390 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 37ms (compile: 1294µs, render: 36ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EcmascriptModuleAsset as EcmascriptAnalyzable>::module_content_options (TaskId 492666))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 492666 from database failed
+    1: Unable to open static sorted file referenced from 00001003.meta
+    2: Unable to open static sorted file 00000999.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 58ms (compile: 4ms, render: 55ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3405255) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EsmAssetReference as ChunkableModuleReference>::chunking_type (TaskId 462390))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 462390 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 46ms (compile: 2ms, render: 43ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3405731) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for parse_actions (TaskId 489113))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 489113 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 65ms (compile: 4ms, render: 61ms)
-API Error: Error [PrismaClientInitializationError]: 
-Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany()` invocation in
-/Users/andresfloresruiz/Desktop/Zendity/.next/dev/server/chunks/[root-of-the-server]__0a53dc3f._.js:246:185
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for parse_actions (TaskId 489040))
 
-  243 const hqId = session.user.headquartersId;
-  244 // Polling optimization: Only grab announcements from the last 15 seconds
-  245 const fifteenSecondsAgo = new Date(Date.now() - 15000);
-→ 246 const announcements = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].globalAnnouncement.findMany(
-error: Environment variable not found: DATABASE_URL.
-  -->  schema.prisma:7
-   | 
- 6 |   provider = "postgresql"
- 7 |   url      = env("DATABASE_URL")
-   | 
+Caused by:
+    0: Looking up data for TaskId 489040 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
 
-Validation Error Count: 1
-    at <unknown> (src/app/api/ai/announcements/route.ts:18:63)
-    at <unknown> (-->  schema.prisma:7)
-    at async GET (src/app/api/ai/announcements/route.ts:18:31)
-  16 |         const fifteenSecondsAgo = new Date(Date.now() - 15000);
-  17 |
-> 18 |         const announcements = await prisma.globalAnnouncement.findMany({
-     |                                                               ^
-  19 |             where: {
-  20 |                 headquartersId: hqId,
-  21 |                 createdAt: { {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
- GET /api/ai/announcements 500 in 47ms (compile: 1581µs, render: 45ms)
+thread 'tokio-runtime-worker' (3388113) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EsmAssetReference as ChunkableModuleReference>::chunking_type (TaskId 462390))
+
+Caused by:
+    0: Looking up data for TaskId 462390 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3400552) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for parse_actions (TaskId 301577))
+
+Caused by:
+    0: Looking up data for TaskId 301577 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3405255) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for parse_actions (TaskId 488730))
+
+Caused by:
+    0: Looking up data for TaskId 488730 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3405731) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for parse_actions (TaskId 301577))
+
+Caused by:
+    0: Looking up data for TaskId 301577 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for <EsmAssetReference as ChunkableModuleReference>::chunking_type (TaskId 462336))
+
+Caused by:
+    0: Looking up data for TaskId 462336 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for primary_chunkable_referenced_modules (TaskId 461838))
+
+Caused by:
+    0: Looking up data for TaskId 461838 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407798) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for primary_chunkable_referenced_modules (TaskId 479761))
+
+Caused by:
+    0: Looking up data for TaskId 479761 from database failed
+    1: Unable to open static sorted file referenced from 00001003.meta
+    2: Unable to open static sorted file 00000999.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for primary_chunkable_referenced_modules (TaskId 461838))
+
+Caused by:
+    0: Looking up data for TaskId 461838 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407798) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for primary_chunkable_referenced_modules (TaskId 473823))
+
+Caused by:
+    0: Looking up data for TaskId 473823 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407131) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for <EsmAssetReference as ChunkableModuleReference>::chunking_type (TaskId 462336))
+
+Caused by:
+    0: Looking up data for TaskId 462336 from database failed
+    1: Unable to open static sorted file referenced from 00001058.meta
+    2: Unable to open static sorted file 00001053.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407736) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for ChunkingContext::chunk_item_id_from_module (TaskId 496384))
+
+Caused by:
+    0: Looking up data for TaskId 496384 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407798) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for primary_chunkable_referenced_modules (TaskId 479587))
+
+Caused by:
+    0: Looking up data for TaskId 479587 from database failed
+    1: Unable to open static sorted file referenced from 00001046.meta
+    2: Unable to open static sorted file 00001041.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for primary_chunkable_referenced_modules (TaskId 461838))
+
+Caused by:
+    0: Looking up data for TaskId 461838 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for primary_chunkable_referenced_modules (TaskId 463965))
+
+Caused by:
+    0: Looking up data for TaskId 463965 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3400552) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for primary_chunkable_referenced_modules (TaskId 474331))
+
+Caused by:
+    0: Looking up data for TaskId 474331 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Meta for <EcmascriptModuleAsset as Module>::is_self_async (TaskId 489862))
+
+Caused by:
+    0: Looking up data for TaskId 489862 from database failed
+    1: Unable to open static sorted file referenced from 00001057.meta
+    2: Unable to open static sorted file 00001054.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3403144) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 489389))
+
+Caused by:
+    0: Looking up data for TaskId 489389 from database failed
+    1: Unable to open static sorted file referenced from 00000974.meta
+    2: Unable to open static sorted file 00000970.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3405255) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 490384))
+
+Caused by:
+    0: Looking up data for TaskId 490384 from database failed
+    1: Unable to open static sorted file referenced from 00001046.meta
+    2: Unable to open static sorted file 00001041.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3388113) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 490363))
+
+Caused by:
+    0: Looking up data for TaskId 490363 from database failed
+    1: Unable to open static sorted file referenced from 00000943.meta
+    2: Unable to open static sorted file 00000936.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3407798) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 489540))
+
+Caused by:
+    0: Looking up data for TaskId 489540 from database failed
+    1: Unable to open static sorted file referenced from 00000943.meta
+    2: Unable to open static sorted file 00000936.sst
+    3: No such file or directory (os error 2)
+
+thread 'tokio-runtime-worker' (3400775) panicked at /Users/geist/dev/actions-runner/_work/next.js/next.js/turbopack/crates/turbo-tasks-backend/src/backend/operation/mod.rs:156:17:
+Failed to restore task data (corrupted database or bug): Data for AsyncModule::is_self_async (TaskId 489427))
+
+Caused by:
+    0: Looking up data for TaskId 489427 from database failed
+    1: Unable to open static sorted file referenced from 00001028.meta
+    2: Unable to open static sorted file 00001023.sst
+    3: No such file or directory (os error 2)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)

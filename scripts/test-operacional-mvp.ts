@@ -82,7 +82,7 @@ async function main() {
           shiftDate: new Date(),
           shiftType: ShiftType.MORNING,
           supervisorOutId: supervisor.id,
-          status: 'SIGNED_OUT',
+          status: 'CLOSING',
           isOverridden: true,
           triageSnapshot: { activeTicketsCount: 0 }
       }

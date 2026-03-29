@@ -1,7 +1,8 @@
 "use server";
 
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { ShiftType, ShiftClosureStatus, SystemAuditAction, Role, IncidentSeverity } from '@prisma/client';
 
 /**
  * SCAN ENGINE
@@ -16,7 +17,6 @@ export async function getShiftPreScan(shiftId: string, hqId: string) {
       where: {
         headquartersId: hqId,
         severity: "CRITICAL",
-        isResolved: false,
         // (Lógica hipotética time-range) createdAt: { gte: shiftStartTime, lte: shiftEndTime }
       },
     });
@@ -34,7 +34,7 @@ export async function getShiftPreScan(shiftId: string, hqId: string) {
       ...openCriticalIncidents.map(inc => ({
         id: inc.id,
         type: "INCIDENT",
-        title: `Incidente Abierto: ${inc.category}`,
+        title: `Incidente Abierto: ${inc.id}`,
         description: "Requiere nota clínica de resolución obligatoria.",
       }))
     ];

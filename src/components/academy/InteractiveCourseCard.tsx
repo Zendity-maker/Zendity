@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Object from "jspdf";
+import jsPDF from "jspdf";
 import ReactMarkdown from "react-markdown";
 import { generateZendityCertificate } from "./CertificateGenerator";
 export default function InteractiveCourseCard({
@@ -78,7 +78,8 @@ export default function InteractiveCourseCard({
             const res = await fetch("/api/academy/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "flashcards", courseId: course.id })
+                body: JSON.stringify({ requestType: "flashcards", courseId: course.id }),
+                signal: AbortSignal.timeout(45000)
             });
             const data = await res.json();
             if (data.success && data.data.flashcards) {
@@ -100,7 +101,8 @@ export default function InteractiveCourseCard({
             const res = await fetch("/api/academy/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "reflection", courseId: course.id, userResponse: reflectionAnswer })
+                body: JSON.stringify({ requestType: "reflection", courseId: course.id, userResponse: reflectionAnswer }),
+                signal: AbortSignal.timeout(45000)
             });
             const data = await res.json();
             if (data.success && data.data) {
@@ -126,7 +128,8 @@ export default function InteractiveCourseCard({
             const res = await fetch("/api/academy/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "quiz", courseId: course.id })
+                body: JSON.stringify({ requestType: "quiz", courseId: course.id }),
+                signal: AbortSignal.timeout(45000)
             });
             const data = await res.json();
             if (data.success && data.data.quiz) {

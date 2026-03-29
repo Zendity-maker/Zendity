@@ -92,3 +92,32 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 });
     }
 }
+
+export async function PATCH(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
+
+        const body = await request.json();
+        const { status, dismissReason } = body;
+
+        const updated = await prisma.headquartersEvent.update({
+            where: { id },
+            data: {
+                status: status || undefined,
+                ...(dismissReason ? { description: dismissReason } : {}),
+            },
+        });
+
+        return NextResponse.json({ success: true, event: updated });
+    } catch (error) {
+        console.error('PATCH Error:', error);
+        return NextResponse.json({ error: 'Failed to update event' }, { status: 500 });
+    }
+}

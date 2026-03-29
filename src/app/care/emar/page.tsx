@@ -27,7 +27,7 @@ export default function EmarTabletTimeline() {
   const loadDoses = async () => {
     setLoading(true);
     const res = await fetchShiftPendingDoses(DEMO_HQ);
-    if (res.success) {
+    if (res.success && res.data) {
       setDoses(res.data);
     }
     setLoading(false);

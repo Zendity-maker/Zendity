@@ -4,7 +4,6 @@ import {  FallRiskLevel, IncidentSeverity } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
-import EnhancedPatientList from "@/components/medical/patient/EnhancedPatientList";
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
