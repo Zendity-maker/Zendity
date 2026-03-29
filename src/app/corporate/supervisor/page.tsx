@@ -157,7 +157,7 @@ export default function SupervisorDashboardPage() {
                 <div className="relative z-10">
                     <h1 className="text-4xl md:text-5xl font-black mb-4 flex items-center gap-4">
                         <Brain className="w-12 h-12 text-teal-400" />
-                        Cabina del Supervisor
+                        Triage & Supervisión Corporativa
                     </h1>
                     <p className="text-xl text-slate-300 font-medium max-w-2xl">
                         Centro de Control Logístico B2B. Asigna horarios del Staff y apóyate en Zendi AI para redactar reportes disciplinarios o de mérito.

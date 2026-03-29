@@ -10,16 +10,18 @@ import ReactMarkdown from 'react-markdown';
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-    if (!isMounted) return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-            <Loader2 className="w-12 h-12 text-indigo-500/50 animate-spin" />
-        </div>
-    );
-
+        setIsMounted(true);
         return () => window.speechSynthesis.cancel();
     }, []);
+
+    if (!isMounted) return (
+        <div className="bg-slate-900 rounded-2xl h-32 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-indigo-500/50 animate-spin" />
+        </div>
+    );
 
     const handlePlayPause = () => {
         if (isPlaying) {
@@ -387,7 +389,7 @@ export default function SupervisorDashboardPage() {
                 <div className="relative z-10">
                     <h1 className="text-4xl md:text-5xl font-black mb-4 flex items-center gap-4">
                         <Brain className="w-12 h-12 text-teal-400" />
-                        Cabina del Supervisor Clínico
+                        Centro de Triage & Supervisión
                     </h1>
                     <p className="text-xl text-slate-300 font-medium max-w-2xl mb-8">
                         Centro de Control Operativo B2B. Monitorea a los Cuidadores en Tiempo Real y apóyate en Zendi AI para redactar reportes disciplinarios.

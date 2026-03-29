@@ -19,7 +19,7 @@ const clinicalNavigation = [
     { name: 'Intake (Admitir)', href: '/intake', icon: UserPlus },
     { name: 'Med & Zoning', href: '/med', icon: Pill },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
-    { name: 'Cabina Supervisor', href: '/care/supervisor', icon: Eye },
+    { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
     { name: 'Handovers Clínicos', href: '/nursing/handovers', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },

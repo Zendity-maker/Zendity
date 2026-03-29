@@ -219,52 +219,112 @@ export default function IntakeWizardPage() {
           {activeTab === 3 && (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Plan de Vida (PAI) y Riesgos</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Tipo de Dieta Inicial</label>
-                      <select 
-                         value={formData.dietSpecifics} 
-                         onChange={(e) => handleFieldChange("dietSpecifics", e.target.value)}
-                         className="w-full p-3 border border-gray-300 rounded-lg"
-                      >
-                         <option value="REGULAR">Regular</option>
-                         <option value="BLANDA">Blanda / Fácil Masticación</option>
-                         <option value="PUREE">Puré / Procesada</option>
-                         <option value="DIABETICA">Diabética</option>
-                      </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   {/* Columna Izquierda: Parametrización Logística (Toggles/Selectores Visuales) */}
+                   <div className="space-y-6">
+                       <div>
+                          <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-3">Movilidad y Asistencia</label>
+                          <div className="grid grid-cols-2 gap-3">
+                              {[ 
+                                { id: "INDEPENDENT", label: "Independiente", icon: "🚶‍♂️" },
+                                { id: "ASSISTED", label: "Apoyo Menor", icon: "🦯" },
+                                { id: "WHEELCHAIR", label: "Silla de Ruedas", icon: "🦽" },
+                                { id: "BEDRIDDEN", label: "Encamado Total", icon: "🛏️" }
+                              ].map(m => (
+                                 <button
+                                     key={m.id}
+                                     type="button"
+                                     onClick={() => handleFieldChange("mobilityLevel", m.id)}
+                                     className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 text-center active:scale-95 ${formData.mobilityLevel === m.id ? 'bg-indigo-50 border-indigo-500 text-indigo-800 shadow-md scale-105' : 'bg-white border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-slate-50'}`}
+                                 >
+                                     <span className="text-3xl">{m.icon}</span>
+                                     <span className="text-xs font-bold leading-tight">{m.label}</span>
+                                 </button>
+                              ))}
+                          </div>
+                       </div>
+                       
+                       <div>
+                          <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-3">Régimen Dietético</label>
+                          <div className="grid grid-cols-2 gap-3">
+                              {[ 
+                                { id: "REGULAR", label: "Regular" },
+                                { id: "BLANDA", label: "Blanda" },
+                                { id: "PUREE", label: "Puré" },
+                                { id: "DIABETICA", label: "Diabética" }
+                              ].map(d => (
+                                 <button
+                                     key={d.id}
+                                     type="button"
+                                     onClick={() => handleFieldChange("dietSpecifics", d.id)}
+                                     className={`p-3 rounded-2xl font-bold transition-all border-2 active:scale-95 ${formData.dietSpecifics === d.id ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-md' : 'bg-white border-slate-200 text-slate-500 hover:border-orange-200'}`}
+                                 >
+                                     {d.label}
+                                 </button>
+                              ))}
+                          </div>
+                       </div>
                    </div>
-                   <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Movilidad Asistida</label>
-                      <select 
-                         value={formData.mobilityLevel} 
-                         onChange={(e) => handleFieldChange("mobilityLevel", e.target.value)}
-                         className="w-full p-3 border border-gray-300 rounded-lg"
-                      >
-                         <option value="INDEPENDENT">Independiente (Camina solo)</option>
-                         <option value="ASSISTED">Requiere Apoyo / Andador</option>
-                         <option value="WHEELCHAIR">Silla de Ruedas</option>
-                         <option value="BEDRIDDEN">Encamado Total</option>
-                      </select>
-                   </div>
-                   <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Puntuación Downton (Caídas)</label>
-                      <input 
-                        type="number" 
-                        value={formData.downtonScore}
-                        onChange={(e) => handleFieldChange("downtonScore", parseInt(e.target.value))}
-                        className="w-full border-gray-300 rounded-lg p-3 border"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Si es &gt;2 se activará riesgo Automático.</p>
-                   </div>
-                   <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Puntuación Braden (UPPs)</label>
-                      <input 
-                        type="number" 
-                        value={formData.bradenScore}
-                        onChange={(e) => handleFieldChange("bradenScore", parseInt(e.target.value))}
-                        className="w-full border-gray-300 rounded-lg p-3 border"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Si es {"<14"} se activará riesgo de Úlceras.</p>
+
+                   {/* Columna Derecha: Sliders de Riesgo Clínico */}
+                   <div className="space-y-6">
+                       <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm relative overflow-hidden">
+                          <div className={`absolute top-0 left-0 w-2 h-full ${formData.downtonScore > 2 ? 'bg-rose-500' : 'bg-emerald-400'}`}></div>
+                          <div className="flex justify-between items-center mb-6 pl-2">
+                            <div>
+                                <label className="text-xl font-black text-slate-800 block">Riesgo de Caídas</label>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Escala Downton</span>
+                            </div>
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border-2 ${formData.downtonScore > 2 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+                                <span className="text-2xl font-black">{formData.downtonScore}</span>
+                            </div>
+                          </div>
+                          
+                          <input 
+                            type="range" 
+                            min="0" max="6" step="1"
+                            value={formData.downtonScore}
+                            onChange={(e) => handleFieldChange("downtonScore", parseInt(e.target.value))}
+                            className={`w-full h-6 rounded-full appearance-none outline-none shadow-inner cursor-pointer transition-colors ${formData.downtonScore > 2 ? 'bg-rose-200' : 'bg-emerald-100'}`}
+                            style={{ 
+                                WebkitAppearance: 'none',
+                                background: `linear-gradient(to right, ${formData.downtonScore > 2 ? '#f43f5e' : '#34d399'} ${(formData.downtonScore / 6) * 100}%, ${formData.downtonScore > 2 ? '#ffe4e6' : '#d1fae5'} ${(formData.downtonScore / 6) * 100}%)`
+                            }}
+                          />
+                          <div className="flex justify-between text-xs font-bold text-slate-400 mt-3 px-1">
+                            <span>0 (Bajo)</span>
+                            <span>Crítico (6)</span>
+                          </div>
+                       </div>
+
+                       <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm relative overflow-hidden">
+                          <div className={`absolute top-0 left-0 w-2 h-full ${formData.bradenScore < 14 ? 'bg-rose-500' : 'bg-emerald-400'}`}></div>
+                          <div className="flex justify-between items-center mb-6 pl-2">
+                            <div>
+                                <label className="text-xl font-black text-slate-800 block">Riesgo UPPs (Úlceras)</label>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Escala Braden</span>
+                            </div>
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border-2 ${formData.bradenScore < 14 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+                                <span className="text-2xl font-black">{formData.bradenScore}</span>
+                            </div>
+                          </div>
+                          
+                          <input 
+                            type="range" 
+                            min="6" max="23" step="1"
+                            value={formData.bradenScore}
+                            onChange={(e) => handleFieldChange("bradenScore", parseInt(e.target.value))}
+                            className={`w-full h-6 rounded-full appearance-none outline-none shadow-inner cursor-pointer transition-colors ${formData.bradenScore < 14 ? 'bg-rose-200' : 'bg-emerald-100'}`}
+                            style={{ 
+                                WebkitAppearance: 'none',
+                                background: `linear-gradient(to right, ${formData.bradenScore < 14 ? '#f43f5e' : '#34d399'} ${((formData.bradenScore - 6) / 17) * 100}%, ${formData.bradenScore < 14 ? '#ffe4e6' : '#d1fae5'} ${((formData.bradenScore - 6) / 17) * 100}%)`
+                            }}
+                          />
+                          <div className="flex justify-between text-xs font-bold text-slate-400 mt-3 px-1">
+                            <span>Crítico (6)</span>
+                            <span>Sin Riesgo (23)</span>
+                          </div>
+                       </div>
                    </div>
                 </div>
              </div>
