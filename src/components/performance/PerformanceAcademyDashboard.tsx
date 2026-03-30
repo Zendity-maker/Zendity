@@ -112,6 +112,16 @@ export default function PerformanceAcademyDashboard({ role, performances, active
                 <h2 className="text-3xl font-black text-slate-800">Monitoreo y Corrección de Piso</h2>
             </div>
             
+            {performances.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 border-dashed">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
+                        <Activity size={40} className="text-slate-300" />
+                    </div>
+                    <h3 className="font-black text-slate-800 text-2xl">Sin datos de desempeño</h3>
+                    <p className="text-slate-500 font-medium mt-2 text-center max-w-sm">No hay registros de performance para este período. Los scores se generan automáticamente cada quincena.</p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {performances.map(perf => {
                     // Buscar si tiene bloqueo pedagógico
