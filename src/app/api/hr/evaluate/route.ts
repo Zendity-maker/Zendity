@@ -114,6 +114,28 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // ACADEMY TRIGGER: Score bajo (75-84) sin bloqueo formal → refuerzo formativo
+        if (!isPenalized && globalScore < 85) {
+            const existingCapsule = await prisma.academyAssignment.findFirst({
+                where: {
+                    userId: employeeId,
+                    status: { in: ['PENDING', 'IN_PROGRESS'] }
+                }
+            });
+
+            if (!existingCapsule) {
+                await prisma.academyAssignment.create({
+                    data: {
+                        userId: employeeId,
+                        headquartersId: evaluator.headquartersId,
+                        moduleCode: 'BUENAS_PRACTICAS_101',
+                        reason: `Score de evaluación ${globalScore}/100 — refuerzo preventivo asignado automáticamente.`,
+                        status: 'PENDING',
+                    }
+                });
+            }
+        }
+
         return NextResponse.json({
             success: true,
             evaluationId: evaluation.id,
