@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
@@ -19,15 +20,29 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const router = useRouter();
+
     // Modal States
     const [showDischargeModal, setShowDischargeModal] = useState(false);
     const [showLeaveModal, setShowLeaveModal] = useState(false);
     const [showDietModal, setShowDietModal] = useState(false);
+    const [hospModal, setHospModal] = useState(false);
 
     // Form States
     const [actionReason, setActionReason] = useState("");
     const [leaveType, setLeaveType] = useState("HOSPITAL");
     const [newDiet, setNewDiet] = useState("Regular (Sólida)");
+    const [hospReason, setHospReason] = useState("");
+    const [isHospitalizing, setIsHospitalizing] = useState(false);
+
+    // Toast State
+    const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+    useEffect(() => {
+        if (toast) {
+            const t = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [toast]);
 
     useEffect(() => {
         fetchPatientData();
@@ -163,6 +178,35 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         reader.readAsDataURL(file);
     };
 
+    const handleHospitalize = async () => {
+        if (!hospReason.trim() || !patientData) return;
+        setIsHospitalizing(true);
+        try {
+            const res = await fetch("/api/care/hospitalize", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientId: patientData.id,
+                    reason: hospReason.trim(),
+                    headquartersId: patientData.headquartersId,
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: "Traslado hospitalario registrado. Triage notificado.", type: 'ok' });
+                setHospModal(false);
+                setHospReason("");
+                router.refresh();
+            } else {
+                setToast({ msg: data.error || "Error al registrar hospitalización.", type: 'err' });
+            }
+        } catch (err) {
+            setToast({ msg: "Error de conexión.", type: 'err' });
+        } finally {
+            setIsHospitalizing(false);
+        }
+    };
+
     const handlePatientAction = async (action: string) => {
         try {
             const res = await fetch(`/api/corporate/patients/${params.id}/discharge`, {
@@ -295,6 +339,12 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 </Link>
                                 <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal
+                                </button>
+                                <button
+                                    onClick={() => setHospModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all active:scale-95 shadow-sm"
+                                >
+                                    🚑 Hospitalización de Emergencia
                                 </button>
                                 <button onClick={() => setShowDischargeModal(true)} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <ArrowRightOnRectangleIcon className="w-5 h-5" /> Baja Definitiva
@@ -553,6 +603,46 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {hospModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-slate-200">
+                        <h3 className="text-xl font-black text-slate-800 mb-1">Hospitalización de Emergencia</h3>
+                        <p className="text-slate-500 text-sm font-medium mb-6">El residente será marcado como <strong>Traslado Hospitalario</strong>. El triage recibirá una alerta clínica inmediata.</p>
+                        <textarea
+                            value={hospReason}
+                            onChange={e => setHospReason(e.target.value)}
+                            placeholder="Motivo del traslado — Ej: Fractura de cadera, dificultad respiratoria..."
+                            className="w-full h-24 bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-rose-400 outline-none resize-none mb-6"
+                            autoFocus
+                        />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setHospModal(false); setHospReason(""); }}
+                                className="flex-1 py-4 rounded-[2rem] bg-slate-100 text-slate-600 font-black text-sm uppercase tracking-widest hover:bg-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleHospitalize}
+                                disabled={!hospReason.trim() || isHospitalizing}
+                                className="flex-1 py-4 rounded-[2rem] bg-rose-600 text-white font-black text-sm uppercase tracking-widest hover:bg-rose-700 transition-colors disabled:opacity-40"
+                            >
+                                {isHospitalizing ? "Registrando..." : "Confirmar Traslado"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && (
+                <div
+                    className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-[2rem] shadow-xl font-bold text-sm flex items-center gap-3 cursor-pointer ${toast.type === 'ok' ? 'bg-teal-900 text-teal-100' : 'bg-rose-900 text-rose-100'}`}
+                    onClick={() => setToast(null)}
+                >
+                    {toast.msg}
                 </div>
             )}
         </div>
