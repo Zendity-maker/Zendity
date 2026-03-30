@@ -42,6 +42,15 @@ export default function MedicalCatalogPage() {
     const [scanResult, setScanResult] = useState<{ message: string, count: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Toast State
+    const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
+    useEffect(() => {
+        if (toast) {
+            const t = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [toast]);
+
     // Edit Modal State
     const [editingMed, setEditingMed] = useState<Medication | null>(null);
 
@@ -99,20 +108,20 @@ export default function MedicalCatalogPage() {
                     });
                     fetchMedications();
                 } else {
-                    alert(data.error || "Ocurrió un error leyendo la receta.");
+                    setToast({ msg: data.error || "Ocurrió un error leyendo la receta.", type: 'err' });
                 }
                 setIsScanning(false);
             };
 
             reader.onerror = () => {
-                alert("Error comprimiendo la imagen en tu dispositivo.");
+                setToast({ msg: "Error comprimiendo la imagen en tu dispositivo.", type: 'err' });
                 setIsScanning(false);
             };
 
         } catch (error) {
             console.error("OCR Send Error:", error);
             setIsScanning(false);
-            alert("Error de conexión con OpenAI.");
+            setToast({ msg: "Error de conexión con OpenAI.", type: 'err' });
         }
     };
 
@@ -503,6 +512,15 @@ export default function MedicalCatalogPage() {
                     onClose={() => setEditingMed(null)}
                     onSaved={() => fetchMedications()}
                 />
+            )}
+
+            {toast && (
+                <div
+                    className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-[2rem] shadow-xl font-bold text-sm flex items-center gap-3 cursor-pointer ${toast.type === 'ok' ? 'bg-teal-900 text-teal-100' : 'bg-rose-900 text-rose-100'}`}
+                    onClick={() => setToast(null)}
+                >
+                    {toast.msg}
+                </div>
             )}
         </div>
     );
