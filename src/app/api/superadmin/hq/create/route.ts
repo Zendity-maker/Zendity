@@ -1,12 +1,19 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import {  Role } from '@prisma/client';
+import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 
 
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const data = await request.json();
         const {
             hqName,

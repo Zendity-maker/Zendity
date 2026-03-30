@@ -1,8 +1,15 @@
 import SaaSInvoiceClient from "./SaaSInvoiceClient";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-export default function SuperAdminBillingPage() {
+export default async function SuperAdminBillingPage() {
+    const session = await getServerSession(authOptions);
+    if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+        redirect('/');
+    }
     return (
         <div className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans selection:bg-teal-500/30">
             <div className="max-w-7xl mx-auto space-y-8">

@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Link from "next/link";
 import SedesHeader from "./SedesHeader";
 import { 
@@ -13,6 +16,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function ZendityAdminPage() {
+    const session = await getServerSession(authOptions);
+    if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+        redirect('/');
+    }
     const sedes = await prisma.headquarters.findMany({
         include: {
             _count: {
@@ -170,9 +177,9 @@ export default async function ZendityAdminPage() {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button className="text-blue-400 hover:text-blue-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <a href={`/superadmin/billing?hqId=${sede.id}`} className="text-blue-400 hover:text-blue-300 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                                             Administrar &rarr;
-                                        </button>
+                                        </a>
                                     </td>
                                 </tr>
                             ))}

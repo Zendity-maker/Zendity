@@ -3,12 +3,20 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 import CreateHqAction from './CreateHqAction';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 
 
 export const dynamic = 'force-dynamic';
 
 export default async function SuperAdminDashboard() {
+    const session = await getServerSession(authOptions);
+    if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+        redirect('/');
+    }
+
     // 1. Fetch all Headquarters
     const hqs = await prisma.headquarters.findMany({
         orderBy: { createdAt: 'desc' },
