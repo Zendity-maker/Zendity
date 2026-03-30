@@ -2,7 +2,19 @@
   "crons": [
     {
       "path": "/api/ai/zendi/handovers/cron",
-      "schedule": "45 5 * * *" 
+      "schedule": "45 5 * * *"
+    },
+    {
+      "path": "/api/cron/operational",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/upp-alerts",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/care/briefing",
+      "schedule": "55 9 * * *"
     }
   ]
 }
