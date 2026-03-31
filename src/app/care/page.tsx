@@ -12,6 +12,7 @@ import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import IncomingShiftBriefing from "@/components/care/IncomingShiftBriefing";
+import ZendiAssist from "@/components/ZendiAssist";
 
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -1469,17 +1470,14 @@ export default function ZendityCareTabletPage() {
                                             <p className="text-emerald-800 font-black mb-1 uppercase tracking-wide text-xs">Síntoma Detectado:</p>
                                             <p className="text-emerald-700 font-black text-lg">{selectedSymptom}</p>
                                         </div>
-                                        <textarea
-                                            placeholder="Detalla lo que observaste (Ej. Cuándo comenzó, severidad, si el residente se queja...)"
+                                        <ZendiAssist
                                             value={preventiveNote}
-                                            onChange={e => setPreventiveNote(e.target.value)}
-                                            className="w-full h-40 p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl font-bold text-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none resize-none"
+                                            onChange={setPreventiveNote}
+                                            type="FORMAT_NOTES"
+                                            context="reporte preventivo clínico"
+                                            placeholder="Detalla lo que observaste (Ej. Cuándo comenzó, severidad, si el residente se queja...)"
+                                            rows={5}
                                         />
-                                        <div className="flex justify-end -mt-2">
-                                            <button className="text-xs font-black text-indigo-600 bg-indigo-100/50 px-4 py-2 rounded-xl hover:bg-indigo-100 flex items-center gap-2 border border-indigo-200 shadow-sm transition-all active:scale-95">
-                                                <span className="text-base"></span> Mejorar con Zendi AI
-                                            </button>
-                                        </div>
                                         <button onClick={handlePreventiveSubmit} disabled={submitting} className="w-full py-5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-[0_8px_30px_rgb(5,150,105,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 text-lg">
                                             {submitting ? "Sincronizando..." : "Enviar Reporte (+5 Pts)"}
                                         </button>
@@ -1657,11 +1655,13 @@ export default function ZendityCareTabletPage() {
                                                 </div>
                                                 
                                                 {nightRoundStatus === 'ANOMALY' && (
-                                                    <textarea 
-                                                        placeholder="Describe anomalía..." 
+                                                    <ZendiAssist
                                                         value={nightRoundNote}
-                                                        onChange={(e) => setNightRoundNote(e.target.value)}
-                                                        className="w-full bg-slate-900/80 border border-slate-600 text-white p-3 rounded-xl text-xs outline-none h-16 resize-none" 
+                                                        onChange={setNightRoundNote}
+                                                        type="FORMAT_NOTES"
+                                                        context="anomalía en ronda nocturna"
+                                                        placeholder="Describe anomalía..."
+                                                        rows={2}
                                                     />
                                                 )}
                                                 
@@ -1674,9 +1674,15 @@ export default function ZendityCareTabletPage() {
                                 )}
 
                                 {/* Bitacora General */}
-                                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl relative">
-                                    <textarea placeholder="Notas clínicas adicionales..." value={dailyLog.notes} onChange={e => setDailyLog({ ...dailyLog, notes: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl font-medium text-sm h-16 resize-none focus:border-indigo-400 outline-none" />
-                                    <button type="button" onClick={formatDailyLogWithAI} disabled={formattingNotes || !dailyLog.notes} className="absolute bottom-4 right-4 text-xl drop-shadow-md hover:scale-110 active:scale-95 transition-all text-indigo-500"></button>
+                                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl">
+                                    <ZendiAssist
+                                        value={dailyLog.notes}
+                                        onChange={v => setDailyLog({ ...dailyLog, notes: v })}
+                                        type="FORMAT_NOTES"
+                                        context="bitácora clínica diaria"
+                                        placeholder="Notas clínicas adicionales..."
+                                        rows={2}
+                                    />
                                 </div>
                                 <button onClick={submitLog} disabled={submitting} className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-md text-sm mt-3">Guardar y Sincronizar Logs</button>
                             </div>
@@ -1806,11 +1812,13 @@ export default function ZendityCareTabletPage() {
                                         Al presionar este botón, se modificará el estatus clínico del residente y se generará instantáneamente una <strong>Nota de Progreso Clínica (Handover)</strong> en PDF lista para imprimir y entregar a los paramédicos de turno.
                                     </p>
                                     <label className="text-sm font-black text-red-800 uppercase block mb-2">Motivo del Traslado de Emergencia:</label>
-                                    <textarea
+                                    <ZendiAssist
                                         value={hospitalReason}
-                                        onChange={e => setHospitalReason(e.target.value)}
+                                        onChange={setHospitalReason}
+                                        type="FORMAT_NOTES"
+                                        context="motivo de traslado de emergencia hospitalaria"
                                         placeholder="Ej. Residente presenta fuerte dolor en el pecho y dificultad respiratoria (Desaturando a 85%). Activado protocolo emergencia."
-                                        className="w-full bg-white border border-red-200 p-4 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-red-500 outline-none placeholder-slate-400"
+                                        rows={4}
                                     />
                                 </div>
                                 <div className="space-y-3 mt-4">
@@ -2017,11 +2025,13 @@ export default function ZendityCareTabletPage() {
                                             )}
 
                                             <label className="text-xs font-bold text-slate-500 block mb-2">Detalle Final (Formulado Automáticamente)</label>
-                                            <textarea
-                                                className="w-full bg-white border border-indigo-200 p-4 rounded-xl font-bold text-slate-800 text-sm h-28 resize-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all placeholder:text-slate-300"
-                                                placeholder="Toca las etiquetas rápidas o escribe manualmente..."
+                                            <ZendiAssist
                                                 value={hubDescription}
-                                                onChange={e => setHubDescription(e.target.value)}
+                                                onChange={setHubDescription}
+                                                type="FORMAT_NOTES"
+                                                context="detalle de reporte operativo o queja familiar"
+                                                placeholder="Toca las etiquetas rápidas o escribe manualmente..."
+                                                rows={4}
                                             />
                                         </div>
 
@@ -2083,11 +2093,13 @@ export default function ZendityCareTabletPage() {
 
                                     <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                                         <label className="text-sm font-bold text-slate-500 block mb-2">Mandato u Orden (Obligatorio)</label>
-                                        <textarea
-                                            className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
-                                            placeholder="Ej. Realizar reporte del residente Artemia por cambio de salud..."
+                                        <ZendiAssist
                                             value={hubDescription}
-                                            onChange={e => setHubDescription(e.target.value)}
+                                            onChange={setHubDescription}
+                                            type="FORMAT_NOTES"
+                                            context="mandato u orden operativa para cuidador"
+                                            placeholder="Ej. Realizar reporte del residente Artemia por cambio de salud..."
+                                            rows={4}
                                         />
                                     </div>
 

@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
+import ZendiAssist from "@/components/ZendiAssist";
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -154,11 +155,13 @@ const KitchenFeedbackWidget = ({ user, onSaved }: { user: any; onSaved: () => vo
                     ))}
                 </div>
             </div>
-            <textarea
+            <ZendiAssist
                 value={comments}
-                onChange={e => setComments(e.target.value)}
+                onChange={setComments}
+                type="KITCHEN_OBS"
+                context="observación del servicio de cocina"
                 placeholder="Observación sobre el servicio de cocina..."
-                className="w-full h-20 bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium focus:ring-2 focus:ring-slate-400 outline-none resize-none"
+                rows={3}
             />
             {saved ? (
                 <div className="w-full py-4 rounded-[2rem] bg-teal-50 text-teal-700 font-black text-sm text-center border border-teal-200">
@@ -627,19 +630,14 @@ export default function SupervisorDashboardPage() {
                                 <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
                                     <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
                                 </h3>
-                                <textarea
+                                <ZendiAssist
                                     value={rawMemo}
-                                    onChange={e => setRawMemo(e.target.value)}
+                                    onChange={setRawMemo}
+                                    type="SUPERVISOR_MEMO"
+                                    context="nota cruda de supervisor para memorándum RRHH"
                                     placeholder="Dicta: El empleado ignoró un protocolo de limpieza..."
-                                    className="w-full h-24 bg-slate-50 border border-slate-200 rounded-[2rem] p-5 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none resize-none mb-6"
+                                    rows={3}
                                 />
-                                <button
-                                    onClick={handleZendiRewrite}
-                                    disabled={isThinking || !rawMemo.trim()}
-                                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold py-4 rounded-[2rem] transition-all shadow-sm active:scale-95 flex justify-center items-center gap-2"
-                                >
-                                    {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} Sintetizar Reporte Legal
-                                </button>
                                 {processedMemo && (
                                     <div className="mt-6 p-5 bg-slate-900 text-slate-300 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
                                         {processedMemo}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Mail, Send, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import ZendiAssist from "@/components/ZendiAssist";
 
 export default function SendEmailModal({ employees }: { employees: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -198,13 +199,13 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                             </button>
                                         </div>
                                     </div>
-                                    <textarea
-                                        placeholder={`Hola colaborador...\n\nPor este medio Zendity HR informa que...`}
+                                    <ZendiAssist
                                         value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full px-4 py-3 h-48 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-400 resize-none custom-scrollbar"
-                                        required
-                                        disabled={isPolishing}
+                                        onChange={setMessage}
+                                        type="SUPERVISOR_MEMO"
+                                        context="comunicado oficial b2b a colaborador"
+                                        placeholder={`Hola colaborador...\n\nPor este medio Zendity HR informa que...`}
+                                        rows={6}
                                     />
                                 </div>
 

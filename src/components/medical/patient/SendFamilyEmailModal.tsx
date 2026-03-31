@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Mail, Send, X, AlertCircle, CheckCircle2, Megaphone } from "lucide-react";
+import ZendiAssist from "@/components/ZendiAssist";
 
 type FamilyMemberBase = {
     id: string;
@@ -220,13 +221,13 @@ export default function SendFamilyEmailModal({ familyMembers, defaultMode = 'BRO
                                             <span className="bg-teal-100 text-teal-700 px-2 py-0.5 rounded text-[9px]">Branded Template</span>
                                         </div>
                                     </div>
-                                    <textarea
-                                        placeholder={sendMode === 'BROADCAST' ? 'Estimadas familias de nuestra comunidad...\n\nLes escribimos para invitarles a...' : 'Estimado familiar del residente...\n\nPor la presente le informamos que...'}
+                                    <ZendiAssist
                                         value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        className="w-full px-4 py-4 h-48 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-400 resize-none custom-scrollbar leading-relaxed"
-                                        required
-                                        disabled={isPolishing}
+                                        onChange={setMessage}
+                                        type="FAMILY_MESSAGE"
+                                        context="mensaje corporativo a familiar de residente"
+                                        placeholder={sendMode === 'BROADCAST' ? 'Estimadas familias de nuestra comunidad...\n\nLes escribimos para invitarles a...' : 'Estimado familiar del residente...\n\nPor la presente le informamos que...'}
+                                        rows={6}
                                     />
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium"> El logo de la Sede y los datos corporativos se adjuntarán automáticamente al envío.</p>
