@@ -1419,6 +1419,10 @@ model KitchenObservation {
   satisfactionScore Int // 1 to 5 stars
   comments          String  @db.Text
   photoUrl          String?
+  mealType          String  @default("GENERAL")   // GENERAL | BREAKFAST | LUNCH | DINNER
+  feedbackType      String  @default("NEUTRAL")   // NEUTRAL | POSITIVE | COMPLAINT
+  portionsAdequate  Boolean @default(true)
+  isRead            Boolean @default(false)
 
   createdAt DateTime @default(now())
 

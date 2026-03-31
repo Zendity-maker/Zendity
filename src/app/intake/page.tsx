@@ -26,7 +26,7 @@ export default function ZendityIntakePage() {
         try {
             const payload = {
                 name,
-                headquartersId: user?.hqId || user?.headquartersId || "hq-demo-1", // Fallback seguro
+                headquartersId: user?.hqId || user?.headquartersId || "",
                 diagnoses,
                 medicalHistory,
                 allergies,
