@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { saveIntakeDraft, submitIntake } from "@/actions/intake/intake.actions";
 import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare } from "lucide-react";
 
 export default function IntakeWizardPage() {
   const router = useRouter();
-  
-  // Fake HQ for UI Dev
-  const DEMO_HQ_ID = "00000000-0000-0000-0000-000000000001";
+  const { user } = useAuth();
+  const hqId = (user as any)?.hqId || (user as any)?.headquartersId || "";
 
   const [activeTab, setActiveTab] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
@@ -18,7 +18,7 @@ export default function IntakeWizardPage() {
   const [formData, setFormData] = useState({
     patientId: "",
     name: "",
-    headquartersId: DEMO_HQ_ID,
+    headquartersId: hqId,
     medicalHistory: "",
     allergies: "",
     diagnoses: "",

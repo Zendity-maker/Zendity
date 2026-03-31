@@ -42,6 +42,7 @@ const corporateNavigationSections = [
     {
         title: "Área Clínica / Médica",
         links: [
+            { name: "Admisión de Residentes", href: "/corporate/patients/intake", icon: UserPlus },
             { name: "Directorio Global", href: "/corporate/medical/patients", icon: Users },
             { name: "Handovers", href: "/nursing/handovers", icon: ClipboardList },
             { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
@@ -64,6 +65,7 @@ const corporateNavigationSections = [
         title: "Administración",
         links: [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
+            { name: "Documentos de Admisión", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
         ]
