@@ -76,6 +76,106 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
 };
 // ----------------------------------------------
 
+// --- SUB-COMPONENT: Kitchen Feedback Widget ---
+const KitchenFeedbackWidget = ({ user, onSaved }: { user: any; onSaved: () => void }) => {
+    const [mealType, setMealType] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER'>('LUNCH');
+    const [feedbackType, setFeedbackType] = useState<'POSITIVE' | 'NEGATIVE' | 'NEUTRAL'>('NEUTRAL');
+    const [score, setScore] = useState(4);
+    const [comments, setComments] = useState('');
+    const [portionsOk, setPortionsOk] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSend = async () => {
+        if (!comments.trim() || !user) return;
+        setSaving(true);
+        try {
+            const hqId = user.hqId || user.headquartersId || '';
+            const res = await fetch('/api/kitchen/observations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    headquartersId: hqId,
+                    supervisorId: user.id,
+                    satisfactionScore: score,
+                    comments,
+                    mealType,
+                    feedbackType,
+                    portionsAdequate: portionsOk,
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSaved(true);
+                setComments('');
+                setTimeout(() => setSaved(false), 3000);
+                onSaved();
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex gap-2">
+                {(['BREAKFAST', 'LUNCH', 'DINNER'] as const).map(m => (
+                    <button key={m} onClick={() => setMealType(m)}
+                        className={`flex-1 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all border ${mealType === m ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
+                        {m === 'BREAKFAST' ? '🌅 Desayuno' : m === 'LUNCH' ? '☀️ Almuerzo' : '🌙 Cena'}
+                    </button>
+                ))}
+            </div>
+            <div className="flex gap-2">
+                {(['POSITIVE', 'NEUTRAL', 'NEGATIVE'] as const).map(f => (
+                    <button key={f} onClick={() => setFeedbackType(f)}
+                        className={`flex-1 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all border ${
+                            feedbackType === f
+                                ? f === 'POSITIVE' ? 'bg-emerald-500 text-white border-emerald-500'
+                                : f === 'NEGATIVE' ? 'bg-rose-500 text-white border-rose-500'
+                                : 'bg-slate-400 text-white border-slate-400'
+                                : 'bg-white text-slate-500 border-slate-200'}`}>
+                        {f === 'POSITIVE' ? '✓ Positivo' : f === 'NEGATIVE' ? '✗ Negativo' : '— Neutro'}
+                    </button>
+                ))}
+            </div>
+            <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Porciones</span>
+                <button onClick={() => setPortionsOk(!portionsOk)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${portionsOk ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                    {portionsOk ? '✓ Adecuadas' : '✗ Inadecuadas'}
+                </button>
+                <div className="flex gap-1 ml-auto">
+                    {[1,2,3,4,5].map(s => (
+                        <button key={s} onClick={() => setScore(s)}
+                            className={`text-xl transition-transform hover:scale-110 ${s <= score ? 'opacity-100' : 'opacity-25'}`}>⭐</button>
+                    ))}
+                </div>
+            </div>
+            <textarea
+                value={comments}
+                onChange={e => setComments(e.target.value)}
+                placeholder="Observación sobre el servicio de cocina..."
+                className="w-full h-20 bg-slate-50 border border-slate-200 rounded-[1.5rem] p-4 text-sm font-medium focus:ring-2 focus:ring-slate-400 outline-none resize-none"
+            />
+            {saved ? (
+                <div className="w-full py-4 rounded-[2rem] bg-teal-50 text-teal-700 font-black text-sm text-center border border-teal-200">
+                    ✓ Feedback enviado a cocina
+                </div>
+            ) : (
+                <button onClick={handleSend} disabled={!comments.trim() || saving}
+                    className="w-full py-4 rounded-[2rem] bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {saving ? 'Enviando...' : 'Enviar Feedback a Cocina'}
+                </button>
+            )}
+        </div>
+    );
+};
+// -----------------------------------------------
+
 export default function SupervisorDashboardPage() {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
@@ -106,11 +206,8 @@ export default function SupervisorDashboardPage() {
     const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
     const [isSavingRound, setIsSavingRound] = useState(false);
 
-    const [kitchenObservation, setKitchenObservation] = useState<{ satisfactionScore: number, comments: string, photoUrl?: string }>({ satisfactionScore: 5, comments: "", photoUrl: "" });
-
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
-    const [isSavingKitchenObs, setIsSavingKitchenObs] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -287,72 +384,7 @@ export default function SupervisorDashboardPage() {
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                const MAX_WIDTH = 800;
-                let width = img.width;
-                let height = img.height;
-
-                if (width > MAX_WIDTH) {
-                    height = Math.round((height * MAX_WIDTH) / width);
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext("2d");
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-                    setKitchenObservation({ ...kitchenObservation, photoUrl: dataUrl });
-                }
-            };
-            if (typeof event.target?.result === 'string') {
-                img.src = event.target.result;
-            }
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const handleSaveKitchenObs = async () => {
-        if (!user) return;
-        if (!kitchenObservation.comments.trim()) return setToast({ msg: "Debe escribir un comentario para la cocina.", type: 'err' });
-
-        setIsSavingKitchenObs(true);
-        try {
-            const hqId = user.hqId || user.headquartersId || "hq-demo-1";
-            const res = await fetch("/api/kitchen/observations", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    headquartersId: hqId,
-                    supervisorId: user.id,
-                    satisfactionScore: kitchenObservation.satisfactionScore,
-                    comments: kitchenObservation.comments,
-                    photoUrl: kitchenObservation.photoUrl || null
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setToast({ msg: "Observación enviada exitosamente a la Cocina.", type: 'ok' });
-                setKitchenObservation({ satisfactionScore: 5, comments: "", photoUrl: "" });
-            } else {
-                setToast({ msg: "Error enviando reporte a cocina: " + data.error, type: 'err' });
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSavingKitchenObs(false);
-        }
-    };
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(processedMemo);
@@ -756,6 +788,14 @@ export default function SupervisorDashboardPage() {
                                     })
                                 )}
                             </div>
+                        </div>
+
+                        {/* Kitchen Feedback Widget */}
+                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
+                                🍽 Feedback de Cocina
+                            </h3>
+                            <KitchenFeedbackWidget user={user} onSaved={fetchLiveData} />
                         </div>
 
                     </div>
