@@ -301,32 +301,43 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const synthesizeZendiBriefing = (text: string) => {
-        if (!('speechSynthesis' in window)) {
+    const synthesizeZendiBriefing = async (text: string) => {
+        setIsSpeaking(true);
+        try {
+            const res = await fetch("/api/ai/zendi-voice", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
+            });
+            if (!res.ok) throw new Error("TTS failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.onended = () => {
+                setIsSpeaking(false);
+                setShowQuickRead(true);
+                URL.revokeObjectURL(url);
+            };
+            audio.onerror = () => {
+                setIsSpeaking(false);
+                setShowQuickRead(true);
+                URL.revokeObjectURL(url);
+            };
+            await audio.play();
+        } catch (err) {
+            console.error("Zendi voice error:", err);
+            setIsSpeaking(false);
             setShowQuickRead(true);
-            return;
         }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'es-US';
-        utterance.pitch = 0.95; // Tono maduro, profesional y sereno
-        utterance.rate = 1.15; // Velocidad fluida, profesional y resolutiva (sin perder serenidad)
-
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => { setIsSpeaking(false); setShowQuickRead(true); };
-        utterance.onerror = () => { setIsSpeaking(false); setShowQuickRead(true); };
-
-        window.speechSynthesis.speak(utterance);
     };
 
     const skipBriefing = () => {
-        window.speechSynthesis.cancel();
         setIsSpeaking(false);
         setShowQuickRead(true);
     };
 
     const enterCareFloor = () => {
-        window.speechSynthesis.cancel();
+        setIsSpeaking(false);
         setBriefingMode(false);
         fetchPatients(selectedColor!);
     };

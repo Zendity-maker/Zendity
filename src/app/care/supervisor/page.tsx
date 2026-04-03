@@ -15,7 +15,7 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
 
     useEffect(() => {
         setIsMounted(true);
-        return () => window.speechSynthesis.cancel();
+        return () => {};
     }, []);
 
     if (!isMounted) return (
@@ -24,19 +24,35 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
         </div>
     );
 
-    const handlePlayPause = () => {
+    const handlePlayPause = async () => {
         if (isPlaying) {
-            window.speechSynthesis.cancel();
             setIsPlaying(false);
-        } else {
+            return;
+        }
+        setIsPlaying(true);
+        try {
             const plainText = text.replace(/[*_#]/g, '');
-            const utterance = new SpeechSynthesisUtterance(plainText);
-            utterance.lang = 'es-ES';
-            utterance.rate = 1.05;
-            utterance.pitch = 1.0;
-            utterance.onend = () => setIsPlaying(false);
-            window.speechSynthesis.speak(utterance);
-            setIsPlaying(true);
+            const res = await fetch("/api/ai/zendi-voice", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: plainText })
+            });
+            if (!res.ok) throw new Error("TTS failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.onended = () => {
+                setIsPlaying(false);
+                URL.revokeObjectURL(url);
+            };
+            audio.onerror = () => {
+                setIsPlaying(false);
+                URL.revokeObjectURL(url);
+            };
+            await audio.play();
+        } catch (err) {
+            console.error("Zendi voice error:", err);
+            setIsPlaying(false);
         }
     };
 
