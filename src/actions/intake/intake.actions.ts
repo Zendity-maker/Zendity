@@ -129,17 +129,29 @@ export async function submitIntake(patientId: string) {
           }
         });
 
-        const rawMedsList = intake.rawMedications.split('\\n').filter(Boolean);
-        for (const rawMed of rawMedsList) {
+        let parsedMeds: Array<{name: string, scheduleTimes: string[]}> = [];
+        try {
+          parsedMeds = JSON.parse(intake.rawMedications);
+        } catch {
+          // Fallback en caso de que sea un string viejo atorado en el Draft
+          parsedMeds = intake.rawMedications.split('\n').filter(Boolean).map(m => ({
+            name: m.trim(),
+            scheduleTimes: ["PRN"]
+          }));
+        }
+
+        for (const medObj of parsedMeds) {
+          if (!medObj.name) continue;
+
           // Buscamos un anclaje en el catálogo o creamos uno de transición
           let medRecord = await tx.medication.findFirst({
-            where: { name: { contains: rawMed.trim(), mode: "insensitive" } }
+            where: { name: { contains: medObj.name.trim(), mode: "insensitive" } }
           });
           
           if (!medRecord) {
             medRecord = await tx.medication.create({
               data: {
-                name: rawMed.trim(),
+                name: medObj.name.trim(),
                 dosage: "Por Definir",
                 route: "Oral",
                 category: "Intake Draft"
@@ -147,13 +159,17 @@ export async function submitIntake(patientId: string) {
             });
           }
 
+          const joinedSchedules = medObj.scheduleTimes && medObj.scheduleTimes.length > 0 
+                                  ? medObj.scheduleTimes.join(", ") 
+                                  : "PRN";
+
           // Inyectamos el draft inactivo y seguro al paciente
           await tx.patientMedication.create({
             data: {
               patientId: patientId,
               medicationId: medRecord.id,
-              frequency: "DIARIO",
-              scheduleTimes: "08:00", // Horario predeterminado que la enfermera re-asignará
+              frequency: joinedSchedules === "PRN" ? "PRN" : "DIARIO",
+              scheduleTimes: joinedSchedules,
               status: "DRAFT",
               isActive: false,   // Seguridad pasiva estructural
               instructions: "Borrador importado automáticamente desde Intake"

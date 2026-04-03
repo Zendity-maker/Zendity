@@ -15,6 +15,10 @@ export default function IntakeWizardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"IDLE" | "SAVING" | "SAVED">("IDLE");
   
+  const [tempMedName, setTempMedName] = useState("");
+  const [tempMedTimes, setTempMedTimes] = useState<string[]>([]);
+  const LOCAL_AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM", "10:00 PM", "PRN"];
+
   const [formData, setFormData] = useState({
     patientId: "",
     name: "",
@@ -38,6 +42,28 @@ export default function IntakeWizardPage() {
 
     return () => clearTimeout(handler);
   }, [formData]);
+
+  const medicationsList = React.useMemo(() => {
+    if (!formData.rawMedications) return [];
+    try {
+      return JSON.parse(formData.rawMedications);
+    } catch {
+      return [];
+    }
+  }, [formData.rawMedications]);
+
+  const addMedication = () => {
+    if (!tempMedName.trim()) return;
+    const newList = [...medicationsList, { name: tempMedName.trim(), scheduleTimes: tempMedTimes.length > 0 ? tempMedTimes : ["PRN"] }];
+    handleFieldChange("rawMedications", JSON.stringify(newList));
+    setTempMedName("");
+    setTempMedTimes([]);
+  };
+
+  const removeMedication = (index: number) => {
+    const newList = medicationsList.filter((_: any, i: number) => i !== index);
+    handleFieldChange("rawMedications", JSON.stringify(newList));
+  };
 
   const handleAutoSave = async (data: typeof formData) => {
     // Identity is fiercely Required to even start the draft
@@ -430,33 +456,67 @@ export default function IntakeWizardPage() {
                         <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-4">
                           <Pill className="w-10 h-10 text-teal-600" /> Inventario Farmacológico (eMAR)
                         </h2>
-                        <p className="text-slate-500 font-bold text-lg mt-3">Dipeo primario de boticas o recetas médicas entrantes para conciliación posterior.</p>
+                        <p className="text-slate-500 font-bold text-lg mt-3">Ingresa los medicamentos uno a uno y asigna sus horarios de distribución obligatorios.</p>
                       </div>
                       
-                      <div className="space-y-8 flex-1 flex flex-col">
-                         <div className="bg-white p-8 rounded-[2.5rem] border-y border-r border-slate-200 border-l-[8px] border-l-amber-400 shadow-sm flex gap-6 items-start">
-                            <div className="bg-amber-50 p-4 rounded-[1.5rem] shrink-0">
-                                <ActivitySquare className="w-8 h-8 text-amber-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-black text-slate-900 text-xl mb-2">Validación Médica Requerida</h4>
-                              <p className="text-base text-slate-600 font-medium leading-relaxed">
-                                Cualquier medicamento ingresado en este inventario permanecerá en estado <code className="bg-slate-100 text-slate-700 px-2 py-1 rounded-lg text-sm font-bold">DORMANT</code>. Ninguna tableta de enfermería exigirá la administración de la dosis hasta que el médico titular acceda al perfil y presione <span className="text-teal-600 font-extrabold uppercase tracking-widest text-xs mx-1">Approve & Synthesize</span>.
-                              </p>
-                            </div>
+                      <div className="space-y-6 flex-1 flex flex-col">
+                         
+                         <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                           <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-4">Añadir Nuevo Medicamento</label>
+                           <div className="flex flex-col md:flex-row gap-4 mb-6">
+                             <input 
+                               type="text" 
+                               value={tempMedName}
+                               onChange={(e) => setTempMedName(e.target.value)}
+                               placeholder="Ej: Losartan 50mg"
+                               className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-[1.5rem] px-6 py-4 font-black text-slate-800 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none"
+                             />
+                             <button
+                               onClick={addMedication}
+                               disabled={!tempMedName.trim()}
+                               className="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-black text-lg rounded-[1.5rem] transition-all disabled:opacity-50"
+                             >
+                               Añadir
+                             </button>
+                           </div>
+                           
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Horarios Asignados (Opcional, defecto PRN)</label>
+                           <div className="flex flex-wrap gap-2">
+                             {LOCAL_AVAILABLE_TIMES.map(time => (
+                               <label key={time} className={`cursor-pointer px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${tempMedTimes.includes(time) ? 'bg-teal-50 border-teal-500 text-teal-800' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                                 <input type="checkbox" className="hidden" checked={tempMedTimes.includes(time)} onChange={() => {
+                                   if (time === "PRN") setTempMedTimes(["PRN"]);
+                                   else setTempMedTimes(prev => prev.includes(time) ? prev.filter(t => t !== time) : [...prev.filter(t => t !== "PRN"), time]);
+                                 }} />
+                                 {time}
+                               </label>
+                             ))}
+                           </div>
                          </div>
-                         <div className="flex-1 flex flex-col bg-white p-8 md:p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                           <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-4">Recetario Directo / Transcripción</label>
-                           <textarea 
-                             value={formData.rawMedications}
-                             onChange={(e) => handleFieldChange("rawMedications", e.target.value)}
-                             className="w-full flex-1 bg-slate-50 hover:bg-white border-2 border-slate-200 rounded-[2rem] p-8 text-slate-800 font-mono text-lg md:text-xl focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all shadow-inner resize-none min-h-[300px] leading-relaxed"
-                             placeholder="Ej:
-Losartan 50mg, por las mañanas
-Tylenol PM, si tiene dolor en la noche
-Vitamina C"
-                           />
+                         
+                         <div className="flex-1 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 p-6">
+                           <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">Borradores Listos para Insertar ({medicationsList.length})</h4>
+                           {medicationsList.length === 0 ? (
+                             <p className="text-center text-slate-400 font-medium py-10">No hay medicamentos en la lista. Comienza agregando uno arriba.</p>
+                           ) : (
+                             <div className="space-y-3">
+                               {medicationsList.map((med: any, index: number) => (
+                                 <div key={index} className="bg-white p-4 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm">
+                                   <div>
+                                     <h5 className="font-black text-slate-800">{med.name}</h5>
+                                     <div className="flex gap-2 mt-1 flex-wrap">
+                                       {med.scheduleTimes.map((t: string) => (
+                                         <span key={t} className="bg-teal-50 text-teal-700 text-[10px] uppercase font-black tracking-widest px-2 py-1 rounded-lg border border-teal-100">{t}</span>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   <button onClick={() => removeMedication(index)} className="text-rose-500 hover:bg-rose-50 px-4 py-2 border border-transparent hover:border-rose-100 rounded-xl font-bold text-sm transition-colors">Quitar</button>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
                          </div>
+
                       </div>
                    </div>
                 )}

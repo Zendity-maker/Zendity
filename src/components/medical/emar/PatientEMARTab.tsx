@@ -13,7 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
 
-const AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM", "08:00 AM (Semanal)"];
+const AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM", "10:00 PM", "08:00 AM (Semanal)"];
 
 const FREQUENCY_PRESETS = [
     { label: "PRN (A demanda)", times: ["PRN"], color: "rose" },
