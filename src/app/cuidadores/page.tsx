@@ -76,7 +76,7 @@ export default function CaregiversLifePlanPage() {
         }
     };
 
-    const canSign = user?.role === "NURSE" || user?.role === "ADMIN";
+    const canSign = ["NURSE", "ADMIN", "DIRECTOR", "CLINICAL_DIRECTOR", "SUPER_ADMIN"].includes(user?.role || "");
 
     if (loading) return (
         <div className="flex h-64 items-center justify-center">
