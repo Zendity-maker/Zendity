@@ -183,16 +183,23 @@ export default function ZendiWidget() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className={`group relative w-16 h-16 rounded-full bg-slate-900 border-2 shadow-2xl flex items-center justify-center transition-all hover:scale-105 hover:rotate-3 ${isSpeaking ? 'border-teal-400 shadow-teal-500/30' : 'border-slate-700'}`}
+                    className="group relative flex flex-col items-center gap-1.5"
                 >
-                    {/* Orbe Zendi */}
-                    <div className={`absolute w-8 h-8 rounded-full blur-md opacity-60 transition-colors ${isSpeaking ? 'bg-teal-400 animate-ping' : 'bg-indigo-500 group-hover:bg-teal-400'}`}></div>
-                    <span className="relative text-2xl drop-shadow-lg"></span>
-
-                    {/* Badge Tooltip */}
-                    <div className="absolute right-20 bg-black text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        Hey Zendi
+                    <div className="relative w-16 h-16">
+                        <span className="absolute inset-0 rounded-full bg-teal-500 opacity-50 animate-ping" style={{ animationDuration: '3s' }}></span>
+                        <span className="absolute inset-0 rounded-full border-2 border-teal-400 opacity-40 scale-110 animate-pulse" style={{ animationDuration: '3s' }}></span>
+                        <span className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ${isSpeaking ? 'bg-teal-400' : 'bg-teal-500'}`}>
+                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M7 8C7 6.9 7.9 6 9 6H19C20.1 6 21 6.9 21 8V14C21 15.1 20.1 16 19 16H16L12 22V16H9C7.9 16 7 15.1 7 14V8Z" fill="white" fillOpacity="0.95"/>
+                                <circle cx="11" cy="11" r="1.2" fill="#1D9E75"/>
+                                <circle cx="14" cy="11" r="1.2" fill="#1D9E75"/>
+                                <circle cx="17" cy="11" r="1.2" fill="#1D9E75"/>
+                            </svg>
+                        </span>
                     </div>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-teal-600 drop-shadow-sm">
+                        Zendi
+                    </span>
                 </button>
             )}
         </div>
