@@ -16,7 +16,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         const patientMeds = await prisma.patientMedication.findMany({
             where: {
                 patientId: id,
-                isActive: true
+                OR: [
+                    { isActive: true },
+                    { status: "DRAFT" }
+                ]
             },
             include: {
                 medication: true,

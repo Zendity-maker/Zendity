@@ -44,7 +44,12 @@ export async function POST(req: Request) {
         else if (action === 'MODIFIED') {
             updatedMed = await prisma.patientMedication.update({
                 where: { id: patientMedicationId },
-                data: { scheduleTimes, prepDuration: prepDuration || "1_SEMANA" }
+                data: { 
+                    scheduleTimes, 
+                    prepDuration: prepDuration || "1_SEMANA",
+                    isActive: true,
+                    status: "ACTIVE"
+                }
             });
             await prisma.medicationAuditLog.create({
                 data: { action: 'MODIFIED', patientMedicationId: updatedMed.id, authorId, reason }
