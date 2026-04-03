@@ -43,6 +43,8 @@ export default function CorporateCalendarPage() {
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [familyCallerName, setFamilyCallerName] = useState("");
+    const [familyPhone, setFamilyPhone] = useState("");
 
     // Advanced Audience Targeting States
     const [patientsList, setPatientsList] = useState<any[]>([]);
@@ -114,7 +116,9 @@ export default function CorporateCalendarPage() {
 
             const payload = {
                 title,
-                description: desc,
+                description: type === 'FAMILY_CALL'
+                    ? `Llamada familiar — ${familyCallerName}${familyPhone ? ` — Tel: ${familyPhone}` : ''}`
+                    : desc,
                 type,
                 startTime: startDateTime.toISOString(),
                 endTime: endDateTime.toISOString(),
@@ -131,6 +135,8 @@ export default function CorporateCalendarPage() {
 
             if (res.ok) {
                 setIsModalOpen(false);
+                setFamilyCallerName("");
+                setFamilyPhone("");
                 setTitle("");
                 setDesc("");
                 setTargetPopulation("ALL");
@@ -164,6 +170,7 @@ export default function CorporateCalendarPage() {
             case 'MEDICAL_VISIT': backgroundColor = '#3b82f6'; break; // Azul
             case 'FAMILY_VISIT': backgroundColor = '#f59e0b'; break; // Ambar
             case 'ACTIVITY': backgroundColor = '#10b981'; break; // Verde
+            case 'FAMILY_CALL': backgroundColor = '#2563eb'; break;
             default: backgroundColor = '#64748b'; break; // Gris
         }
         return { style: { backgroundColor, borderRadius: '6px', border: 'none', color: 'white', fontWeight: 'bold' } };
@@ -242,6 +249,7 @@ export default function CorporateCalendarPage() {
                                         <option value="MEDICAL_VISIT"> Visita Médica (Azul)</option>
                                         <option value="FAMILY_VISIT"> Visita Familiar (Ambar)</option>
                                         <option value="ACTIVITY"> Recreación (Verde)</option>
+                                        <option value="FAMILY_CALL">📞 Llamada Familiar</option>
                                         <option value="OTHER"> Otro / Administrativo</option>
                                     </select>
                                 </div>
@@ -266,6 +274,31 @@ export default function CorporateCalendarPage() {
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Instrucciones a Cuidadores (Opcional)</label>
                                 <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al residente en ayunas..." className="w-full font-medium text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
                             </div>
+
+                            {type === 'FAMILY_CALL' && (
+                                <div className="space-y-3 bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Familiar</label>
+                                        <input
+                                            type="text"
+                                            value={familyCallerName}
+                                            onChange={e => setFamilyCallerName(e.target.value)}
+                                            placeholder="Ej. María González (hija)"
+                                            className="w-full border border-slate-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Número de Teléfono</label>
+                                        <input
+                                            type="tel"
+                                            value={familyPhone}
+                                            onChange={e => setFamilyPhone(e.target.value)}
+                                            placeholder="Ej. 787-555-1234"
+                                            className="w-full border border-slate-300 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* AUDIENCE SELECTORS (FASE 51) */}
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">

@@ -2,7 +2,9 @@
 
 import React, { useState } from "react";
 import { Calendar as CalendarIcon, Clock, ShieldAlert, CheckCircle, ChevronRight, XCircle } from "lucide-react";
-import type { CalendarEventType, CalendarEventStatus } from "@/actions/calendar/calendar.actions";
+import type { CalendarEventType as PrismaCalendarEventType, CalendarEventStatus } from "@/actions/calendar/calendar.actions";
+
+export type CalendarEventType = PrismaCalendarEventType | "FAMILY_CALL";
 
 export interface TransversalEvent {
     id: string;
@@ -65,6 +67,14 @@ export default function TransversalCalendar({ role, events, currentDate, onDismi
                     badge: "bg-indigo-50 text-indigo-700 border border-indigo-100",
                     iconBg: "bg-indigo-100 text-indigo-600",
                     isClinical: true
+                };
+            case "FAMILY_CALL":
+                return {
+                    container: "border-l-[8px] border-l-blue-600 bg-white border-y border-r border-slate-200 shadow-sm",
+                    text: "text-blue-900",
+                    badge: "bg-blue-50 text-blue-700 border border-blue-100",
+                    iconBg: "bg-blue-100 text-blue-600",
+                    isClinical: false
                 };
             case "FACILITY_ROUTINE":
             default:
