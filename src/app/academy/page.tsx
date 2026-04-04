@@ -22,7 +22,7 @@ export default function ZendityAcademyPage() {
     const fetchCoursesData = async () => {
         try {
             const hqId = user?.hqId || user?.headquartersId;
-            const catRes = await fetch(`/api/academy?hqId=${hqId}`);
+            const catRes = await fetch(`/api/academy?hqId=${hqId}&role=${user?.role || ''}`);
             const catData = await catRes.json();
 
             const histRes = await fetch(`/api/academy?hqId=${hqId}&employeeId=${user?.id}`);

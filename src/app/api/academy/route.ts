@@ -23,13 +23,15 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, enrollments });
 
         } else {
+            const userRole = searchParams.get('role') || '';
             // Catálogo Completo Sede — incluye cursos globales + cursos de la sede
             const catalog = await prisma.course.findMany({
                 where: {
                     isActive: true,
                     OR: [
-                        { headquartersId: hqId },
-                        { isGlobal: true }
+                        { isGlobal: true, targetRole: null },
+                        { headquartersId: hqId, targetRole: null },
+                        { targetRole: userRole }
                     ]
                 },
                 orderBy: [{ isGlobal: 'desc' }, { createdAt: 'asc' }]

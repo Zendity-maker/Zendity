@@ -588,6 +588,7 @@ model Course {
   imageUrl        String? // Fotografía del curso
   isActive        Boolean  @default(true)
   isGlobal        Boolean  @default(false)
+  targetRole      String?  // Si tiene valor, solo ese rol puede verlo. Ej: "DIRECTOR", "SUPERVISOR"
   createdAt       DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
