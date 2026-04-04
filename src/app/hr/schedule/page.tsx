@@ -71,11 +71,11 @@ export default function ScheduleBuilderPage() {
         try {
             const res = await fetch(`/api/hr/staff?hqId=${hqId}`);
             const data = await res.json();
-            if (data.success) {
-                setStaff(data.staff.filter((s: any) =>
-                    ['CAREGIVER', 'SUPERVISOR', 'NURSE'].includes(s.role)
-                ));
-            }
+            // La API puede devolver array directo O { success, staff }
+            const staffList = Array.isArray(data) ? data : (data.staff || data.employees || []);
+            setStaff(staffList.filter((s: any) =>
+                ['CAREGIVER', 'SUPERVISOR', 'NURSE'].includes(s.role)
+            ));
         } catch (e) { console.error(e); }
     };
 
