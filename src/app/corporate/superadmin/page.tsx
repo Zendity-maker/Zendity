@@ -1,5 +1,7 @@
 import React from "react";
 import { getGlobalDashboardMetrics } from "@/actions/hq/dashboard.actions";
+import { startImpersonation } from "@/actions/audit/impersonate.actions";
+import { redirect } from "next/navigation";
 
 // Simula el ID del Director Corporativo activo en sesión
 const DEMO_SUPER_ADMIN_ID = "SUPERADMIN-001";
@@ -104,11 +106,18 @@ export default async function SuperAdminDashboard() {
 
             {/* Acción Corporativa / Impersonation */}
             <div className="pt-4 border-t border-slate-100 pb-2">
+              <form action={async () => {
+                "use server";
+                await startImpersonation(hq.id, hq.name, DEMO_SUPER_ADMIN_ID);
+                redirect("/corporate");
+              }}>
                <button 
                 className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition text-sm flex justify-center items-center gap-2 group-hover:bg-blue-600"
+                type="submit"
                >
                  🔍 Auditar Sede (Impersonation)
                </button>
+              </form>
                <p className="text-center text-[10px] text-gray-400 mt-2 italic">Dejará registro en AuditLog bajo HIPPA</p>
             </div>
 
