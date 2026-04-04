@@ -10,7 +10,7 @@ import {
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell,
-    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils
+    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -56,6 +56,7 @@ const corporateNavigationSections = [
         links: [
             { name: "Alertas Zendi AI", href: "/hr/insights", icon: ShieldAlert },
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
+            { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
             { name: "Zendity Academy", href: "/academy", icon: UserCheck },
         ]

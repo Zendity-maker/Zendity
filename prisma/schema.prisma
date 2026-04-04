@@ -196,6 +196,59 @@ model User {
   // FASE 66
   performanceScores     PerformanceScore[]
   academyAssignments    AcademyAssignment[]
+
+  scheduledShifts       ScheduledShift[]
+  shiftColorAssignments ShiftColorAssignment[]
+}
+
+model Schedule {
+  id              String         @id @default(uuid())
+  headquartersId  String
+  weekStartDate   DateTime
+  status          ScheduleStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+
+  headquarters    Headquarters    @relation(fields: [headquartersId], references: [id])
+  shifts          ScheduledShift[]
+}
+
+model ScheduledShift {
+  id               String     @id @default(uuid())
+  scheduleId       String
+  userId           String
+  date             DateTime
+  shiftType        ShiftType
+  colorGroup       String
+  isAbsent         Boolean    @default(false)
+  absentMarkedAt   DateTime?
+  absentMarkedById String?
+  createdAt        DateTime   @default(now())
+
+  schedule         Schedule   @relation(fields: [scheduleId], references: [id])
+  user             User       @relation(fields: [userId], references: [id])
+  colorAssignments ShiftColorAssignment[]
+}
+
+model ShiftColorAssignment {
+  id               String   @id @default(uuid())
+  headquartersId   String
+  scheduledShiftId String
+  color            String
+  userId           String
+  assignedBy       String?
+  isAutoAssigned   Boolean  @default(false)
+  assignedAt       DateTime @default(now())
+
+  headquarters     Headquarters    @relation(fields: [headquartersId], references: [id])
+  scheduledShift   ScheduledShift  @relation(fields: [scheduledShiftId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+}
+
+enum ScheduleStatus {
+  DRAFT
+  PUBLISHED
 }
 
 enum Role {
