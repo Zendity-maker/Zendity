@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import InteractiveCourseCard from "@/components/academy/InteractiveCourseCard";
+import { generateZendityMasterCertificate } from "@/components/academy/CertificateGenerator";
 
 export default function ZendityAcademyPage() {
     const { user } = useAuth();
@@ -51,6 +52,21 @@ export default function ZendityAcademyPage() {
         return acc;
     }, {});
 
+    const PROTOCOL_SERIES_CODES = [
+        "CIERRE_TURNO_101",
+        "ADMISION_RESIDENTES_101", 
+        "EMAR_101",
+        "INCIDENTES_CAIDA_101",
+        "HANDOVER_101",
+        "ZENDI_AI_101",
+        "ACCESO_ROLES_101",
+        "MANTENIMIENTO_101"
+    ];
+
+    const seriesCourses = courses.filter(c => PROTOCOL_SERIES_CODES.includes(c.moduleCode || c.code || c.id));
+    const completedSeriesCourses = seriesCourses.filter(c => getCourseStatus(c.id) === 'COMPLETED');
+    const seriesComplete = seriesCourses.length === 8 && completedSeriesCourses.length === 8;
+
     return (
         <div className="space-y-10 animate-in fade-in duration-500 pb-10">
             {/* Encabezado y Progreso */}
@@ -90,6 +106,39 @@ export default function ZendityAcademyPage() {
                         <p className="font-black text-red-800 text-sm tracking-wide uppercase">Riesgo de Operación Clínica</p>
                         <p className="text-sm text-red-900/80 font-medium mt-1">Tu puntaje de certificación está bajo lo requerido. Completa los cursos pendientes para evitar bloqueos de Punch-In en tus siguientes turnos.</p>
                     </div>
+                </div>
+            )}
+
+            {/* Banner Serie Completa */}
+            {seriesComplete && (
+                <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-teal-900 rounded-3xl p-8 border border-teal-500/30 shadow-2xl flex items-center justify-between gap-6">
+                    <div>
+                        <p className="text-teal-400 font-black text-xs uppercase tracking-widest mb-2">🏆 Serie Completa</p>
+                        <h3 className="text-white font-black text-2xl mb-1">Personal Adiestrado en Zendity</h3>
+                        <p className="text-slate-400 text-sm">Has completado los 8 protocolos oficiales de operación. Descarga tu Certificado Maestro.</p>
+                    </div>
+                    <button
+                        onClick={() => generateZendityMasterCertificate(user?.name || 'Empleado', new Date().toLocaleDateString('es-PR'))}
+                        className="shrink-0 px-8 py-4 bg-teal-500 hover:bg-teal-400 text-white font-black rounded-2xl transition-all hover:scale-105 shadow-xl shadow-teal-500/30 text-sm"
+                    >
+                        Descargar Certificado Maestro
+                    </button>
+                </div>
+            )}
+
+            {/* Progreso de la Serie */}
+            {!seriesComplete && seriesCourses.length > 0 && (
+                <div className="bg-slate-900 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-6">
+                    <div className="flex-1">
+                        <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Serie Protocolos Zendity</p>
+                        <div className="w-full bg-slate-700 rounded-full h-2">
+                            <div 
+                                className="bg-teal-500 h-2 rounded-full transition-all duration-700"
+                                style={{width: `${(completedSeriesCourses.length / 8) * 100}%`}}
+                            />
+                        </div>
+                    </div>
+                    <span className="text-white font-black text-2xl shrink-0">{completedSeriesCourses.length}<span className="text-slate-500 text-base">/8</span></span>
                 </div>
             )}
 

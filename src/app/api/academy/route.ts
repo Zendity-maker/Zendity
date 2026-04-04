@@ -23,9 +23,16 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, enrollments });
 
         } else {
-            // Catálogo Completo Sede
+            // Catálogo Completo Sede — incluye cursos globales + cursos de la sede
             const catalog = await prisma.course.findMany({
-                where: { headquartersId: hqId, isActive: true }
+                where: {
+                    isActive: true,
+                    OR: [
+                        { headquartersId: hqId },
+                        { isGlobal: true }
+                    ]
+                },
+                orderBy: [{ isGlobal: 'desc' }, { createdAt: 'asc' }]
             });
             return NextResponse.json({ success: true, catalog });
         }

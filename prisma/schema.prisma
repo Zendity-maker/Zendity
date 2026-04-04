@@ -587,6 +587,7 @@ model Course {
   category        String   @default("General") // Puesto o Categoría
   imageUrl        String? // Fotografía del curso
   isActive        Boolean  @default(true)
+  isGlobal        Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
