@@ -143,8 +143,17 @@ export default function ScheduleBuilderPage() {
     };
 
     const saveSchedule = async () => {
+        if (shifts.length === 0) {
+            alert('Agrega al menos un turno antes de guardar.');
+            return;
+        }
+        if (!hqId) {
+            alert('Error: no se detectó la sede activa. Recarga la página.');
+            return;
+        }
         setSaving(true);
         try {
+            console.log('[Schedule] Guardando:', { hqId, shifts: shifts.length, userId: user?.id });
             const res = await fetch('/api/hr/schedule', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -413,7 +422,7 @@ export default function ScheduleBuilderPage() {
                         disabled={saving || shifts.length === 0}
                         className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
                     >
-                        {saving ? 'Guardando...' : 'Guardar borrador'}
+                        {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
                     </button>
                     <button
                         onClick={publishSchedule}
