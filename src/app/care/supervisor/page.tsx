@@ -713,7 +713,7 @@ export default function SupervisorDashboardPage() {
                     </div>
 
                     {/* FILA 2 — 3 columnas iguales: En Piso | Brechas Handover | Feedback Cocina */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                         {/* COLUMNA 1 — En Piso + Zombis */}
                         <div className="flex flex-col gap-4">
@@ -826,7 +826,7 @@ export default function SupervisorDashboardPage() {
                     </div>
 
                     {/* FILA 3 — Generador HR + Inspección Zonal */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Zendi AI Writer */}
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
