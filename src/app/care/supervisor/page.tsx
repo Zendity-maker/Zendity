@@ -426,10 +426,9 @@ export default function SupervisorDashboardPage() {
     const enPiso = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12);
     const zombis = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 >= 12);
     
-    const progMissing = schedules.filter(s => {
-        const start = new Date(s.startTime).getTime();
-        const end = new Date(s.endTime).getTime();
-        return nowTime >= start && nowTime <= end && !activeEmployeeIds.includes(s.employeeId);
+    const progMissing = (schedules || []).filter((s: any) => {
+        const empId = s.userId || s.employeeId;
+        return empId && !activeEmployeeIds.includes(empId);
     });
 
     return (

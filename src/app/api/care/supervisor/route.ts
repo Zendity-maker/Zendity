@@ -24,11 +24,22 @@ export async function GET(request: Request) {
             select: { id: true, name: true, role: true }
         });
 
-        // Traer Horarios de Hoy y Futuros
-        const schedules = await prisma.shiftSchedule.findMany({
-            where: { headquartersId: hqId, startTime: { gte: todayStart } },
-            include: { employee: { select: { name: true, role: true } } },
-            orderBy: { startTime: 'asc' }
+        // Traer Horarios del turno activo actual (ScheduledShift publicado)
+        const currentHour = new Date().getHours();
+        const activeShiftType = currentHour >= 22 || currentHour < 6 ? 'NIGHT'
+            : currentHour >= 14 ? 'EVENING' : 'MORNING';
+
+        const schedules = await prisma.scheduledShift.findMany({
+            where: {
+                date: { gte: todayStart, lte: todayEnd },
+                shiftType: activeShiftType,
+                isAbsent: false,
+                schedule: { status: 'PUBLISHED' }
+            },
+            include: {
+                user: { select: { id: true, name: true, role: true } },
+                schedule: { select: { headquartersId: true } }
+            }
         });
 
         return NextResponse.json({ success: true, staff, schedules });
