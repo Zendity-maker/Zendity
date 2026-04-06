@@ -102,7 +102,8 @@ export default function ScheduleBuilderPage() {
                     userName: sh.user?.name || '',
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
-                    colorGroup: sh.colorGroup
+                    colorGroup: sh.colorGroup,
+                    isAbsent: sh.isAbsent || false
                 }));
                 setShifts(loaded);
             } else {
@@ -185,6 +186,11 @@ export default function ScheduleBuilderPage() {
     };
 
     const markAbsent = async (shift: ShiftEntry) => {
+        // Si el turno no está guardado aún, guardar primero
+        if (shift.tempId.startsWith('temp-')) {
+            alert('Guarda el horario primero antes de marcar ausencias.');
+            return;
+        }
         setProcessingAbsent(shift.tempId);
         try {
             const res = await fetch('/api/hr/schedule/absent', {
@@ -345,9 +351,13 @@ export default function ScheduleBuilderPage() {
                                             <button
                                                 onClick={() => markAbsent(shift)}
                                                 disabled={processingAbsent === shift.tempId}
-                                                className="w-full text-[10px] font-bold text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 rounded-lg py-1 transition-all mt-1"
+                                                className="w-full text-[10px] font-bold text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 rounded-lg py-1 transition-all mt-1 disabled:opacity-50"
                                             >
-                                                {processingAbsent === shift.tempId ? 'Procesando...' : 'Marcar Ausente'}
+                                                {processingAbsent === shift.tempId
+                                                    ? 'Procesando...'
+                                                    : shift.tempId.startsWith('temp-')
+                                                        ? 'Guarda primero'
+                                                        : 'Marcar Ausente'}
                                             </button>
                                         ) : (
                                             <div className="w-full text-center text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-lg py-1 mt-1">
