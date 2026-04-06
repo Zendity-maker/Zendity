@@ -164,7 +164,7 @@ const KitchenFeedbackWidget = ({ user, onSaved }: { user: any; onSaved: () => vo
                     className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${portionsOk ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
                     {portionsOk ? '✓ Adecuadas' : '✗ Inadecuadas'}
                 </button>
-                <div className="flex gap-1 ml-auto">
+                <div className="flex flex-wrap gap-1 justify-end max-w-[120px]">
                     {[1,2,3,4,5].map(s => (
                         <button key={s} onClick={() => setScore(s)}
                             className={`text-xl transition-transform hover:scale-110 ${s <= score ? 'opacity-100' : 'opacity-25'}`}>⭐</button>

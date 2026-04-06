@@ -60,7 +60,7 @@ export default function ZendiAssist({
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
                 rows={rows}
-                className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-teal-400 outline-none resize-none pr-14 transition-colors ${improved ? 'border-teal-300 bg-teal-50/30' : ''} ${className}`}
+                className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none resize-none pr-14 transition-colors ${improved ? 'border-teal-300 bg-teal-50/30' : ''} ${className}`}
             />
             <button
                 type="button"
