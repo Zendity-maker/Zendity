@@ -194,6 +194,25 @@ export default function ScheduleBuilderPage() {
         } catch (e) { alert('Error publicando el horario'); }
     };
 
+    const unpublishSchedule = async () => {
+        if (!draftId) return;
+        if (!confirm('¿Editar el horario publicado? El estado cambiará a borrador y podrás modificarlo antes de volver a publicar.')) return;
+        try {
+            const res = await fetch('/api/hr/schedule/unpublish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduleId: draftId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPublishedSchedule(null);
+                alert('✓ Horario en modo edición. Modifica los turnos y vuelve a publicar.');
+            }
+        } catch (e) {
+            alert('Error al editar el horario.');
+        }
+    };
+
     const markAbsent = async (shift: ShiftEntry) => {
         // Si el turno no está guardado aún, guardar primero
         if (shift.tempId.startsWith('temp-')) {
@@ -424,6 +443,14 @@ export default function ScheduleBuilderPage() {
                     >
                         {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
                     </button>
+                    {publishedSchedule && (
+                        <button
+                            onClick={unpublishSchedule}
+                            className="px-6 py-3 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-xl transition-all text-sm border border-amber-300"
+                        >
+                            Editar horario publicado
+                        </button>
+                    )}
                     <button
                         onClick={publishSchedule}
                         disabled={!draftId || !!publishedSchedule}
