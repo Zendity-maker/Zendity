@@ -122,7 +122,7 @@ export async function POST(req: Request) {
                 emailPromises.push(
                     sgMail.send({
                         to: user.email,
-                        from: { email: 'noreply@zendity.com', name: `${hqName} via Zendity` },
+                        from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: `${hqName} via Zendity` },
                         subject: `Tu horario esta listo — semana del ${weekStart}`,
                         html
                     }).catch(e => console.error(`Email error for ${user.email}:`, e))
