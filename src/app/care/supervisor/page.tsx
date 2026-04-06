@@ -502,54 +502,58 @@ export default function SupervisorDashboardPage() {
                             </span>
                         </div>
                         <div className="space-y-2">
-                            {progMissing.map((emp: any) => (
-                                <div key={emp.id || emp.userId}
-                                    className="flex items-center justify-between bg-slate-900/60 rounded-xl px-4 py-3 border border-red-500/20">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-red-900/60 flex items-center justify-center">
-                                            <span className="text-red-400 text-xs font-black">
-                                                {(emp.name || emp.userName || '?')[0].toUpperCase()}
-                                            </span>
+                            {progMissing.map((emp: any) => {
+                                const empName = emp.employee?.name || emp.name || emp.userName || 'Empleado';
+                                const empColor = emp.zoneColor || emp.colorGroup || null;
+                                const empRole = emp.employee?.role || emp.role || '';
+                                const empShiftId = emp.id || emp.shiftId;
+                                return (
+                                    <div key={empShiftId}
+                                        className="flex items-center justify-between bg-slate-900/60 rounded-xl px-4 py-3 border border-red-500/20">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-red-900/60 flex items-center justify-center">
+                                                <span className="text-red-400 text-xs font-black">
+                                                    {empName[0].toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <p className="text-white font-bold text-sm">{empName}</p>
+                                                <p className="text-slate-400 text-xs">
+                                                    {empColor ? `Grupo ${empColor}` : empRole || 'Sin grupo asignado'}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-white font-bold text-sm">
-                                                {emp.name || emp.userName || 'Empleado'}
-                                            </p>
-                                            <p className="text-slate-400 text-xs">
-                                                {emp.colorGroup ? `Grupo ${emp.colorGroup}` : emp.role || 'Sin grupo asignado'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={async () => {
-                                            if (!confirm(`¿Marcar a ${emp.name || emp.userName} como ausente? Se iniciará redistribución en 15 minutos.`)) return;
-                                            try {
-                                                const hq = (user as any)?.hqId || (user as any)?.headquartersId || '';
-                                                const res = await fetch('/api/hr/schedule/absent', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        scheduledShiftId: emp.shiftId || emp.id,
-                                                        markedById: user?.id,
-                                                        hqId: hq
-                                                    })
-                                                });
-                                                const data = await res.json();
-                                                if (data.success) {
-                                                    alert(`✓ ${emp.name || emp.userName} marcado como ausente. Redistribución en 15 minutos.`);
-                                                } else {
-                                                    alert('Error al marcar ausencia. Intenta de nuevo.');
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`¿Marcar a ${empName} como ausente? Se iniciará redistribución en 15 minutos.`)) return;
+                                                try {
+                                                    const hq = (user as any)?.hqId || (user as any)?.headquartersId || '';
+                                                    const res = await fetch('/api/hr/schedule/absent', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            scheduledShiftId: empShiftId,
+                                                            markedById: user?.id,
+                                                            hqId: hq
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+                                                    if (data.success) {
+                                                        alert(`✓ ${empName} marcado como ausente. Redistribución en 15 minutos.`);
+                                                    } else {
+                                                        alert('Error al marcar ausencia. Intenta de nuevo.');
+                                                    }
+                                                } catch (e) {
+                                                    alert('Error de conexión.');
                                                 }
-                                            } catch (e) {
-                                                alert('Error de conexión.');
-                                            }
-                                        }}
-                                        className="bg-red-500 hover:bg-red-600 text-white text-xs font-black px-4 py-2 rounded-xl transition-all hover:scale-105 active:scale-95"
-                                    >
-                                        Marcar Ausente
-                                    </button>
-                                </div>
-                            ))}
+                                            }}
+                                            className="bg-red-500 hover:bg-red-600 text-white text-xs font-black px-4 py-2 rounded-xl transition-all hover:scale-105 active:scale-95"
+                                        >
+                                            Marcar Ausente
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
