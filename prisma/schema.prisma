@@ -98,6 +98,10 @@ model Headquarters {
   // FASE 66
   performanceScores     PerformanceScore[]
   academyAssignments    AcademyAssignment[]
+
+  // FASE 67: Schedule Builder
+  schedules            Schedule[]
+  shiftColorAssignments ShiftColorAssignment[]
 }
 
 // =======================
