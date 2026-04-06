@@ -593,12 +593,11 @@ export default function SupervisorDashboardPage() {
                     })()}
                 </div>
 
-                {/* MAIN SPLIT VIEW: TRIAGE (8 COL) VS RADAR (4 COL) */}
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                    
-                    {/* LEFT COLUMN: Triage List */}
-                    <div className="xl:col-span-8 flex flex-col gap-6">
-                        
+                {/* LAYOUT REDISEÑADO — 3 filas */}
+                <div className="flex flex-col gap-6">
+
+                    {/* FILA 1 — Inbox Operativo, ancho completo */}
+                    <div className="w-full">
                         <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-slate-200/60 min-h-[500px] flex flex-col">
                             <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
                                 <div>
@@ -711,74 +710,79 @@ export default function SupervisorDashboardPage() {
                                 </div>
                             )}
                         </div>
+                    </div>
 
-                        {/* UTILITIES ROW: Zendi Writer & Setup Checks */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
-                            {/* Zendi AI Writer */}
-                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
-                                <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
-                                    <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
-                                </h3>
-                                <ZendiAssist
-                                    value={rawMemo}
-                                    onChange={setRawMemo}
-                                    type="SUPERVISOR_MEMO"
-                                    context="nota cruda de supervisor para memorándum RRHH"
-                                    placeholder="Dicta: El empleado ignoró un protocolo de limpieza..."
-                                    rows={3}
-                                />
-                                {processedMemo && (
-                                    <div className="mt-6 p-5 bg-slate-900 text-slate-300 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
-                                        {processedMemo}
-                                    </div>
-                                )}
-                            </div>
+                    {/* FILA 2 — 3 columnas iguales: En Piso | Brechas Handover | Feedback Cocina */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                            {/* Housekeeping Check In */}
-                            <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-800 flex flex-col justify-between">
-                                <div>
-                                    <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
-                                        <CalendarClock className="w-6 h-6 text-teal-400" /> Inspección Zonal
+                        {/* COLUMNA 1 — En Piso + Zombis */}
+                        <div className="flex flex-col gap-4">
+                            {/* Alertas Administrativas Ocultas (Zombis) */}
+                            {zombis.length > 0 && (
+                                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border-2 border-rose-200 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-[60px] opacity-10 pointer-events-none"></div>
+                                    <h3 className="font-extrabold text-rose-700 text-xl mb-6 flex items-center gap-3 relative z-10">
+                                        <Siren className="w-6 h-6 animate-pulse" /> Sesiones Sin Cerrar
                                     </h3>
-                                    <select
-                                        value={roundForm.area}
-                                        onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
-                                        className="w-full bg-slate-800 text-slate-100 font-medium rounded-[2rem] px-5 py-4 border border-slate-700 focus:outline-none focus:border-teal-500 appearance-none mb-6 text-sm"
-                                    >
-                                        <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
-                                        <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
-                                    </select>
-                                    <div className="flex gap-4 mb-6">
-                                        <button 
-                                            onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })} 
-                                            className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
-                                        >
-                                            Zona Limpia
-                                        </button>
-                                        <button 
-                                            onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })} 
-                                            className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
-                                        >
-                                            Zona Segura
-                                        </button>
+                                    <div className="space-y-3 relative z-10">
+                                        {zombis.map((s: CaregiverSession) => {
+                                            const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
+                                            return (
+                                                <div key={s.id} className="bg-white border border-rose-200 p-4 rounded-[2rem] flex justify-between items-center shadow-sm">
+                                                    <span className="font-bold text-slate-800 text-sm">{s.caregiver?.name}</span>
+                                                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-wider">{h.toFixed(1)}h ABIERTA</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                                <button 
-                                    onClick={handleSaveRound} 
-                                    disabled={isSavingRound} 
-                                    className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-[2rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-                                >
-                                    {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Registrar Firma Electrónica"}
-                                </button>
+                            )}
+
+                            {/* Plantilla Conectada */}
+                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 flex flex-col flex-1">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="font-extrabold text-slate-800 text-xl flex items-center gap-3">
+                                        <Users className="w-6 h-6 text-teal-600" /> En Piso
+                                    </h3>
+                                    <span className="bg-slate-100 text-slate-500 font-black px-4 py-1.5 rounded-full shadow-inner">{enPiso.length}</span>
+                                </div>
+                                <div className="space-y-4 flex-1">
+                                    {(!liveData || enPiso.length === 0) ? (
+                                        <div className="p-8 text-center bg-slate-50 border border-slate-100 rounded-[2rem]">
+                                            <p className="text-slate-400 font-medium text-sm">Sin usuarios activos.</p>
+                                        </div>
+                                    ) : (
+                                        enPiso.map((s: CaregiverSession) => {
+                                            const hrs = (nowTime - new Date(s.startTime).getTime()) / 3600000;
+                                            const tasks = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0;
+                                            return (
+                                                <div key={s.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] hover:bg-white hover:border-slate-200 transition-colors">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 border border-teal-100 font-black flex items-center justify-center text-lg">
+                                                            {s.caregiver?.name?.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-800">{s.caregiver?.name}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{hrs.toFixed(1)} hrs logueado</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        {tasks > 0 && (
+                                                            <div className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">
+                                                                {tasks}
+                                                            </div>
+                                                        )}
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                    </div>
-
-                    {/* RIGHT COLUMN: Live Radar Ops */}
-                    <div className="xl:col-span-4 flex flex-col gap-6">
-                        
-                        {/* Handovers Faltantes (ALERTA AMBAR) */}
+                        {/* COLUMNA 2 — Brechas Handover */}
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                             <h3 className="font-extrabold text-slate-800 text-xl mb-6 flex items-center gap-3">
                                 <AlertTriangle className="w-6 h-6 text-amber-500" /> Brechas Handovers
@@ -811,73 +815,7 @@ export default function SupervisorDashboardPage() {
                             )}
                         </div>
 
-                                                {/* Alertas Administrativas Ocultas (Zombis) */}
-                        {zombis.length > 0 && (
-                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border-2 border-rose-200 relative overflow-hidden mb-6">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-[60px] opacity-10 pointer-events-none"></div>
-                                <h3 className="font-extrabold text-rose-700 text-xl mb-6 flex items-center gap-3 relative z-10">
-                                    <Siren className="w-6 h-6 animate-pulse" /> Sesiones Sin Cerrar
-                                </h3>
-                                <div className="space-y-3 relative z-10">
-                                    {zombis.map((s: CaregiverSession) => {
-                                        const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
-                                        return (
-                                            <div key={s.id} className="bg-white border border-rose-200 p-4 rounded-[2rem] flex justify-between items-center shadow-sm">
-                                                <span className="font-bold text-slate-800 text-sm">{s.caregiver?.name}</span>
-                                                <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-wider">{h.toFixed(1)}h ABIERTA</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Plantilla Conectada */}
-                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 flex flex-col flex-1">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-extrabold text-slate-800 text-xl flex items-center gap-3">
-                                    <Users className="w-6 h-6 text-teal-600" /> En Piso
-                                </h3>
-                                <span className="bg-slate-100 text-slate-500 font-black px-4 py-1.5 rounded-full shadow-inner">{enPiso.length}</span>
-                            </div>
-
-                            <div className="space-y-4 flex-1">
-                                {(!liveData || enPiso.length === 0) ? (
-                                    <div className="p-8 text-center bg-slate-50 border border-slate-100 rounded-[2rem]">
-                                        <p className="text-slate-400 font-medium text-sm">Sin usuarios activos.</p>
-                                    </div>
-                                ) : (
-                                    enPiso.map((s: CaregiverSession) => {
-                                        const hrs = (nowTime - new Date(s.startTime).getTime()) / 3600000;
-                                        const tasks = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.caregiverId === s.caregiverId && fa.status === 'PENDING').length || 0;
-                                        
-                                        return (
-                                            <div key={s.id} className="flex justify-between items-center bg-slate-50 border border-slate-100 p-4 rounded-[1.5rem] hover:bg-white hover:border-slate-200 transition-colors">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-full bg-teal-50 text-teal-700 border border-teal-100 font-black flex items-center justify-center text-lg">
-                                                        {s.caregiver?.name?.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-800">{s.caregiver?.name}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{hrs.toFixed(1)} hrs logueado</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    {tasks > 0 && (
-                                                        <div className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">
-                                                            {tasks}
-                                                        </div>
-                                                    )}
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Kitchen Feedback Widget */}
+                        {/* COLUMNA 3 — Feedback de Cocina */}
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
                                 🍽 Feedback de Cocina
@@ -886,6 +824,68 @@ export default function SupervisorDashboardPage() {
                         </div>
 
                     </div>
+
+                    {/* FILA 3 — Generador HR + Inspección Zonal */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Zendi AI Writer */}
+                        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
+                                <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
+                            </h3>
+                            <ZendiAssist
+                                value={rawMemo}
+                                onChange={setRawMemo}
+                                type="SUPERVISOR_MEMO"
+                                context="nota cruda de supervisor para memorándum RRHH"
+                                placeholder="Dicta: El empleado ignoró un protocolo de limpieza..."
+                                rows={3}
+                            />
+                            {processedMemo && (
+                                <div className="mt-6 p-5 bg-slate-900 text-slate-300 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
+                                    {processedMemo}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Housekeeping Check In */}
+                        <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-800 flex flex-col justify-between">
+                            <div>
+                                <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
+                                    <CalendarClock className="w-6 h-6 text-teal-400" /> Inspección Zonal
+                                </h3>
+                                <select
+                                    value={roundForm.area}
+                                    onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
+                                    className="w-full bg-slate-800 text-slate-100 font-medium rounded-[2rem] px-5 py-4 border border-slate-700 focus:outline-none focus:border-teal-500 appearance-none mb-6 text-sm"
+                                >
+                                    <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
+                                    <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
+                                </select>
+                                <div className="flex gap-4 mb-6">
+                                    <button
+                                        onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })}
+                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                    >
+                                        Zona Limpia
+                                    </button>
+                                    <button
+                                        onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })}
+                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                    >
+                                        Zona Segura
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleSaveRound}
+                                disabled={isSavingRound}
+                                className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-[2rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Registrar Firma Electrónica"}
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
             </div>
