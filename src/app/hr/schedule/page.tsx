@@ -45,6 +45,7 @@ type ShiftEntry = {
     date: string;
     shiftType: string;
     colorGroup: string;
+    isAbsent?: boolean;
 };
 
 export default function ScheduleBuilderPage() {
@@ -58,6 +59,12 @@ export default function ScheduleBuilderPage() {
     const [draftId, setDraftId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [absentModal, setAbsentModal] = useState<{
+        shift: any;
+        result: any;
+        countdown: number;
+    } | null>(null);
+    const [processingAbsent, setProcessingAbsent] = useState<string | null>(null);
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -177,9 +184,87 @@ export default function ScheduleBuilderPage() {
         } catch (e) { alert('Error publicando el horario'); }
     };
 
+    const markAbsent = async (shift: ShiftEntry) => {
+        setProcessingAbsent(shift.tempId);
+        try {
+            const res = await fetch('/api/hr/schedule/absent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    scheduledShiftId: shift.tempId,
+                    markedById: user?.id,
+                    hqId
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Marcar visualmente como ausente
+                setShifts(prev => prev.map(s =>
+                    s.tempId === shift.tempId ? { ...s, isAbsent: true } : s
+                ));
+                // Iniciar countdown de 15 minutos
+                let countdown = 15 * 60;
+                const timer = setInterval(() => {
+                    countdown--;
+                    setAbsentModal(prev => prev ? { ...prev, countdown } : null);
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        // Auto-redistribuir
+                        if (data.suggestedAssignee && data.absentColorGroup) {
+                            fetch('/api/hr/schedule/redistribute', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    scheduledShiftId: data.suggestedAssignee.shift?.id || shift.tempId,
+                                    targetUserId: data.suggestedAssignee.id,
+                                    color: data.absentColorGroup,
+                                    hqId,
+                                    isAutoAssigned: true
+                                })
+                            });
+                        }
+                        setAbsentModal(null);
+                        alert(`Redistribucion automatica completada. Grupo ${data.absentColorGroup} asignado a ${data.suggestedAssignee?.name || 'cuidador disponible'}.`);
+                    }
+                }, 1000);
+                setAbsentModal({ shift, result: data, countdown });
+            }
+        } catch (e) {
+            alert('Error marcando ausencia');
+        } finally {
+            setProcessingAbsent(null);
+        }
+    };
+
+    const redistributeManually = async (targetUserId: string, targetName: string) => {
+        if (!absentModal) return;
+        try {
+            const res = await fetch('/api/hr/schedule/redistribute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    scheduledShiftId: absentModal.result.suggestedAssignee?.shift?.id || absentModal.shift.tempId,
+                    targetUserId,
+                    color: absentModal.result.absentColorGroup,
+                    hqId,
+                    assignedById: user?.id,
+                    isAutoAssigned: false
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setAbsentModal(null);
+                alert(`✓ Grupo ${absentModal.result.absentColorGroup} asignado manualmente a ${targetName}`);
+            }
+        } catch (e) {
+            alert('Error en redistribucion manual');
+        }
+    };
+
     const weekLabel = `${weekStart.toLocaleDateString('es-PR', { month: 'long', day: 'numeric' })} — ${addDays(weekStart, 6).toLocaleDateString('es-PR', { month: 'long', day: 'numeric', year: 'numeric' })}`;
 
     return (
+        <>
         <div className="space-y-6 pb-10 animate-in fade-in duration-500">
             {/* Header */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 text-white">
@@ -256,6 +341,19 @@ export default function ScheduleBuilderPage() {
                                                 <option key={c} value={c}>{c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
                                             ))}
                                         </select>
+                                        {!shift.isAbsent ? (
+                                            <button
+                                                onClick={() => markAbsent(shift)}
+                                                disabled={processingAbsent === shift.tempId}
+                                                className="w-full text-[10px] font-bold text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 rounded-lg py-1 transition-all mt-1"
+                                            >
+                                                {processingAbsent === shift.tempId ? 'Procesando...' : 'Marcar Ausente'}
+                                            </button>
+                                        ) : (
+                                            <div className="w-full text-center text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-lg py-1 mt-1">
+                                                AUSENTE
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -318,5 +416,58 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         </div>
+
+        {absentModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                            <span className="text-red-600 font-bold text-sm">!</span>
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-800">Empleado Ausente</h3>
+                            <p className="text-sm text-slate-500">{absentModal.shift.userName} — Grupo {absentModal.result.absentColorGroup}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                        <p className="text-sm font-bold text-amber-800 mb-1">Redistribucion automatica en:</p>
+                        <p className="text-3xl font-black text-amber-600">
+                            {Math.floor(absentModal.countdown / 60)}:{String(absentModal.countdown % 60).padStart(2, '0')}
+                        </p>
+                        <p className="text-xs text-amber-600 mt-1">
+                            Sugerido: {absentModal.result.suggestedAssignee?.name || 'calculando...'}
+                        </p>
+                    </div>
+
+                    {absentModal.result.activeShifts?.length > 0 && (
+                        <div className="space-y-2 mb-4">
+                            <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Asignar manualmente a:</p>
+                            {absentModal.result.activeShifts.map((s: any) => (
+                                <button
+                                    key={s.shift?.user?.id || s.shift?.userId}
+                                    onClick={() => redistributeManually(s.shift?.user?.id, s.shift?.user?.name)}
+                                    className="w-full flex items-center justify-between bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 rounded-xl px-4 py-3 transition-all text-left"
+                                >
+                                    <div>
+                                        <p className="font-bold text-slate-800 text-sm">{s.shift?.user?.name}</p>
+                                        <p className="text-xs text-slate-500">{s.currentLoad} residentes actuales</p>
+                                    </div>
+                                    <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-full">Asignar</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <button
+                        onClick={() => setAbsentModal(null)}
+                        className="w-full py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                    >
+                        Cerrar (la redistribucion automatica continua)
+                    </button>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
