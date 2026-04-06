@@ -203,6 +203,7 @@ model User {
 
   scheduledShifts       ScheduledShift[]
   shiftColorAssignments ShiftColorAssignment[]
+  notifications         Notification[]
 }
 
 model Schedule {
@@ -248,6 +249,20 @@ model ShiftColorAssignment {
   headquarters     Headquarters    @relation(fields: [headquartersId], references: [id])
   scheduledShift   ScheduledShift  @relation(fields: [scheduledShiftId], references: [id])
   user             User            @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
 }
 
 enum ScheduleStatus {
