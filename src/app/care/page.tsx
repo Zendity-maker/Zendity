@@ -174,17 +174,34 @@ export default function ZendityCareTabletPage() {
         if (!user) return;
         const checkSession = async () => {
             try {
+                const hq = user?.hqId || user?.headquartersId || "";
                 const res = await fetch(`/api/care/shift/start?caregiverId=${user.id}`);
                 const data = await res.json();
                 if (data.success && data.activeSession) {
                     setActiveSession(data.activeSession);
 
-                    // Recuperar estado previo (localStorage)
+                    // 1. Intentar obtener color del Schedule Builder primero
+                    if (hq) {
+                        const colorRes = await fetch(`/api/hr/schedule/my-color?userId=${user.id}&hqId=${hq}`);
+                        const colorData = await colorRes.json();
+                        if (colorData.success && colorData.color && colorData.color !== 'ALL') {
+                            // Hay asignacion activa en el roster
+                            setSelectedColor(colorData.color);
+                            localStorage.setItem('zendityCareShiftColor', colorData.color);
+                            const patientRes = await fetch(`/api/care?color=${colorData.color}&hqId=${hq}`);
+                            const patientData = await patientRes.json();
+                            if (patientData.success) {
+                                setPatients(patientData.patients || []);
+                                setEvents(patientData.events || []);
+                            }
+                            return; // No necesita elegir manualmente
+                        }
+                    }
+
+                    // 2. Fallback: usar color guardado en localStorage
                     const storedColor = localStorage.getItem('zendityCareShiftColor');
                     if (storedColor) {
                         setSelectedColor(storedColor);
-
-                        const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
                         const patientRes = await fetch(`/api/care?color=${storedColor}&hqId=${hq}`);
                         const patientData = await patientRes.json();
                         if (patientData.success) {
