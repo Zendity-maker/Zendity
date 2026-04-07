@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { Loader2, Sparkles, Volume2, VolumeX } from "lucide-react";
 
 interface ZendiAssistProps {
     value: string;
@@ -26,6 +26,38 @@ export default function ZendiAssist({
 }: ZendiAssistProps) {
     const [improving, setImproving] = useState(false);
     const [improved, setImproved] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const speakText = async () => {
+        if (!value?.trim()) return;
+
+        if (isSpeaking) {
+            audioRef.current?.pause();
+            audioRef.current = null;
+            setIsSpeaking(false);
+            return;
+        }
+
+        try {
+            setIsSpeaking(true);
+            const res = await fetch('/api/zendi/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: value })
+            });
+            if (!res.ok) throw new Error('TTS failed');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); audioRef.current = null; };
+            audio.onerror = () => { setIsSpeaking(false); audioRef.current = null; };
+            await audio.play();
+        } catch {
+            setIsSpeaking(false);
+        }
+    };
 
     const handleImprove = async () => {
         if (!value.trim() || improving) return;
@@ -62,6 +94,23 @@ export default function ZendiAssist({
                 rows={rows}
                 className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none resize-none pr-14 transition-colors ${improved ? 'border-teal-300 bg-teal-50/30' : ''} ${className}`}
             />
+            {value?.trim() && (
+                <button
+                    type="button"
+                    onClick={speakText}
+                    className={`absolute bottom-3 right-14 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                        isSpeaking
+                            ? 'bg-teal-500 text-white animate-pulse'
+                            : 'bg-slate-100 hover:bg-teal-50 text-slate-400 hover:text-teal-600'
+                    }`}
+                    title={isSpeaking ? 'Detener' : 'Escuchar con Zendi'}
+                >
+                    {isSpeaking
+                        ? <VolumeX size={14} />
+                        : <Volume2 size={14} />
+                    }
+                </button>
+            )}
             <button
                 type="button"
                 onClick={handleImprove}

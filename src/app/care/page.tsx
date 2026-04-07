@@ -322,7 +322,7 @@ export default function ZendityCareTabletPage() {
     const synthesizeZendiBriefing = async (text: string) => {
         setIsSpeaking(true);
         try {
-            const res = await fetch("/api/ai/zendi-voice", {
+            const res = await fetch("/api/zendi/speak", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text })
