@@ -39,6 +39,7 @@ export default function ReceptionKiosk() {
     const [isSaving, setIsSaving] = useState(false);
     const [visitId, setVisitId] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [isSpeaking, setIsSpeaking] = useState(false);
 
     // Canvas firma
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -47,17 +48,49 @@ export default function ReceptionKiosk() {
     const [hasSigned, setHasSigned] = useState(false);
 
     // ── Voz TTS ──────────────────────────────────────────────────────────────
-    const speak = useCallback((text: string) => {
-        if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const speak = useCallback((text: string, onEnd?: () => void) => {
+        if (typeof window === "undefined" || !window.speechSynthesis) {
+            if (onEnd) onEnd();
+            return;
+        }
         window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(text);
-        utt.lang = "es-PR";
-        utt.rate = 0.95;
-        window.speechSynthesis.speak(utt);
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'es-US';
+        utterance.rate = 0.88;
+        utterance.pitch = 1.08;
+        utterance.volume = 1.0;
+
+        const loadVoices = () => {
+            const voices = window.speechSynthesis.getVoices();
+            // Prioridad: voces premium de Google o Apple en español
+            const preferred = [
+                voices.find(v => v.name.includes('Paulina')),           // macOS Spanish
+                voices.find(v => v.name.includes('Monica')),            // macOS Spanish
+                voices.find(v => v.name.includes('Google español')),    // Chrome Google TTS
+                voices.find(v => v.name.includes('Luciana')),           // Portuguese fallback quality
+                voices.find(v => v.lang === 'es-US' && !v.localService),
+                voices.find(v => v.lang === 'es-MX' && !v.localService),
+                voices.find(v => v.lang.startsWith('es') && !v.localService),
+                voices.find(v => v.lang.startsWith('es')),
+            ].find(Boolean);
+
+            if (preferred) utterance.voice = preferred;
+        };
+
+        if (window.speechSynthesis.getVoices().length > 0) {
+            loadVoices();
+        } else {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => { setIsSpeaking(false); if (onEnd) onEnd(); };
+        utterance.onerror = () => { setIsSpeaking(false); if (onEnd) onEnd(); };
+        window.speechSynthesis.speak(utterance);
     }, []);
 
     // ── STT ──────────────────────────────────────────────────────────────────
-    const startListening = useCallback((onResult: (text: string) => void) => {
+    const startListening = useCallback((onResult?: (text: string) => void) => {
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) {
             alert("Tu navegador no soporta reconocimiento de voz. Por favor escribe manualmente.");
@@ -73,7 +106,7 @@ export default function ReceptionKiosk() {
         rec.onresult = (e: SpeechRecognitionEvent) => {
             const text = e.results[0][0].transcript;
             setTranscript(text);
-            onResult(text);
+            if (onResult) onResult(text);
         };
         rec.onerror = () => {
             setIsListening(false);
@@ -84,7 +117,9 @@ export default function ReceptionKiosk() {
     // ── Flujo de pasos ───────────────────────────────────────────────────────
     useEffect(() => {
         if (step === "welcome") {
-            setTimeout(() => speak("¡Bienvenido a Zéndity! Para registrar su visita, toque la pantalla o presione el micrófono."), 600);
+            setTimeout(() => speak('Bienvenido a Vivid Senior Living Cupey. Soy Zendi, su asistente de recepción. ¿A quién viene a visitar hoy?', () => {
+                setTimeout(() => startListening(), 500);
+            }), 600);
         } else if (step === "asking-resident") {
             speak("¿A cuál residente viene a visitar hoy? Diga el nombre completo.");
         } else if (step === "asking-name") {
@@ -188,11 +223,13 @@ export default function ReceptionKiosk() {
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none">
 
             {/* Header */}
-            <div className="w-full max-w-2xl mb-8">
-                <div className="text-center">
-                    <h1 className="text-white font-black text-3xl mb-1">Vivid Senior Living Cupey</h1>
-                    <p className="text-teal-400 text-sm font-medium tracking-widest">Recepción — Powered by ZÉNDITY</p>
-                </div>
+            <div className="w-full max-w-2xl mb-6 text-center">
+                <h1 className="text-white font-black text-3xl tracking-wide mb-1">
+                    Vivid Senior Living Cupey
+                </h1>
+                <p className="text-teal-400 text-sm font-medium tracking-widest uppercase">
+                    Recepción · Powered by Zéndity
+                </p>
             </div>
 
             {/* ── STEP: WELCOME ── */}
