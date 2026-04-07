@@ -15,6 +15,17 @@ export default function FamilyRegisterPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        // Limpiar cookies de sesión anteriores para evitar error 494 en móvil
+        const cookiesToClear = ['next-auth.session-token', '__Secure-next-auth.session-token',
+                                'next-auth.callback-url', '__Secure-next-auth.callback-url',
+                                'next-auth.csrf-token', '__Secure-next-auth.csrf-token'];
+        cookiesToClear.forEach(name => {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+        });
+    }, []);
+
+    useEffect(() => {
         if (!token) { setStatus('invalid'); return; }
         fetch(`/api/family/verify-token?token=${token}`)
             .then(r => r.json())
