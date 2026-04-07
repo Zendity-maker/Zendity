@@ -41,6 +41,7 @@ model Headquarters {
   userCourses   UserCourse[]
   incidents     Incident[]
   familyMem     FamilyMember[]
+  familyVisits  FamilyVisit[]
   evals         EmployeeEvaluation[]
   surveys       FamilySurvey[]
   corporateDocs CorporateDocument[]
@@ -265,6 +266,26 @@ model Notification {
   @@index([userId, isRead])
 }
 
+// =======================
+// KIOSCO DE RECEPCIÓN — Registro de Visitas
+// =======================
+
+model FamilyVisit {
+  id             String   @id @default(uuid())
+  headquartersId String
+  patientId      String
+  visitorName    String
+  visitorRelation String?
+  signatureData  String?  @db.Text // Base64 del canvas
+  notes          String?
+  checkedInAt    DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+
+  @@index([headquartersId, checkedInAt])
+}
+
 enum ScheduleStatus {
   DRAFT
   PUBLISHED
@@ -336,6 +357,7 @@ model Patient {
   medications    PatientMedication[]
   incidents      Incident[]
   familyMembers  FamilyMember[]
+  familyVisits   FamilyVisit[]
   familyMessages FamilyMessage[] // FASE 13 Integrations
   wellnessNotes  WellnessDiary[]
 
