@@ -12,62 +12,105 @@ export default async function VisitsPage() {
 
     const hqId = session.user.headquartersId;
 
+    const hq = await prisma.headquarters.findUnique({
+        where: { id: hqId },
+        select: { name: true, logoUrl: true, phone: true }
+    });
+
     const visits = await prisma.familyVisit.findMany({
         where: { headquartersId: hqId },
         orderBy: { visitedAt: 'desc' },
-        take: 100
+        take: 200
+    });
+
+    const today = new Date().toLocaleDateString('es-PR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
 
     return (
-        <div className="min-h-screen bg-white p-8 print:p-4">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-8 print:mb-4">
-                    <div>
-                        <h1 className="text-2xl font-black text-slate-800">Registro de Visitas</h1>
-                        <p className="text-slate-500 text-sm">Vivid Senior Living Cupey · Powered by Zéndity</p>
+        <div className="min-h-screen bg-white">
+            {/* Print styles */}
+            <style>{`
+                @media print {
+                    .no-print { display: none !important; }
+                    body { margin: 0; }
+                    .print-page { padding: 0.5in; }
+                }
+            `}</style>
+
+            {/* Toolbar — no imprime */}
+            <div className="no-print bg-slate-800 px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <a href="/reception" className="text-slate-400 hover:text-white text-sm transition-colors">
+                        ← Kiosco
+                    </a>
+                    <span className="text-slate-600">|</span>
+                    <span className="text-white font-medium text-sm">Historial de Visitas</span>
+                </div>
+                <PrintButton />
+            </div>
+
+            {/* Contenido imprimible */}
+            <div className="print-page max-w-5xl mx-auto p-8">
+
+                {/* Header de la sede */}
+                <div className="border-b-2 border-slate-800 pb-6 mb-6">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            {hq?.logoUrl && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={hq.logoUrl} alt="Logo" className="h-14 mb-3 object-contain" />
+                            )}
+                            <h1 className="text-2xl font-black text-slate-800">{hq?.name || 'Vivid Senior Living Cupey'}</h1>
+                            {hq?.phone && <p className="text-slate-500 text-sm mt-1">{hq.phone}</p>}
+                        </div>
+                        <div className="text-right">
+                            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Powered by</p>
+                            <p className="text-teal-600 font-black text-xl tracking-widest">ZÉNDITY</p>
+                            <p className="text-slate-400 text-xs mt-2">Generado el {today}</p>
+                            <p className="text-slate-400 text-xs">Total: {visits.length} visitas</p>
+                        </div>
                     </div>
-                    <PrintButton />
+                    <div className="mt-4 bg-slate-50 rounded-lg px-4 py-2 flex items-center justify-between">
+                        <h2 className="text-base font-bold text-slate-700">Registro Oficial de Visitas Familiares</h2>
+                        <p className="text-slate-400 text-xs">Official Family Visit Log</p>
+                    </div>
                 </div>
 
-                {/* Table */}
+                {/* Tabla */}
                 <table className="w-full border-collapse text-sm">
                     <thead>
-                        <tr className="bg-slate-800 text-white">
-                            <th className="px-4 py-3 text-left font-bold">#</th>
-                            <th className="px-4 py-3 text-left font-bold">Visitante</th>
-                            <th className="px-4 py-3 text-left font-bold">Residente visitado</th>
-                            <th className="px-4 py-3 text-left font-bold">Fecha</th>
-                            <th className="px-4 py-3 text-left font-bold">Hora</th>
-                            <th className="px-4 py-3 text-left font-bold print:hidden">Firma</th>
+                        <tr style={{background: '#1E293B', color: 'white'}}>
+                            <th className="px-3 py-3 text-left font-bold text-xs">#</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Visitante / Visitor</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Residente visitado</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Fecha / Date</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Hora / Time</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Firma / Signature</th>
                         </tr>
                     </thead>
                     <tbody>
                         {visits.map((v, i) => (
-                            <tr key={v.id} className={i % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                                <td className="px-4 py-3 text-slate-400 font-bold">{i + 1}</td>
-                                <td className="px-4 py-3 font-medium text-slate-800">{v.visitorName}</td>
-                                <td className="px-4 py-3 text-slate-600">{v.residentName}</td>
-                                <td className="px-4 py-3 text-slate-600">
+                            <tr key={v.id} style={{background: i % 2 === 0 ? '#F8FAFC' : 'white', borderBottom: '1px solid #E2E8F0'}}>
+                                <td className="px-3 py-2.5 text-slate-400 font-bold text-xs">{i + 1}</td>
+                                <td className="px-3 py-2.5 font-medium text-slate-800">{v.visitorName}</td>
+                                <td className="px-3 py-2.5 text-slate-600">{v.residentName}</td>
+                                <td className="px-3 py-2.5 text-slate-600 text-xs">
                                     {new Date(v.visitedAt).toLocaleDateString('es-PR', {
                                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
                                     })}
                                 </td>
-                                <td className="px-4 py-3 text-slate-600">
+                                <td className="px-3 py-2.5 text-slate-600 text-xs font-medium">
                                     {new Date(v.visitedAt).toLocaleTimeString('es-PR', {
                                         hour: '2-digit', minute: '2-digit'
                                     })}
                                 </td>
-                                <td className="px-4 py-3 print:hidden">
+                                <td className="px-3 py-2.5">
                                     {v.signatureData ? (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={v.signatureData}
-                                            alt="Firma"
-                                            className="h-8 w-auto"
-                                        />
+                                        <img src={v.signatureData} alt="Firma" className="h-8 w-auto" />
                                     ) : (
-                                        <span className="text-slate-300 text-xs">Sin firma</span>
+                                        <span className="text-slate-300 text-xs italic">Sin firma</span>
                                     )}
                                 </td>
                             </tr>
@@ -82,11 +125,12 @@ export default async function VisitsPage() {
                     </tbody>
                 </table>
 
-                <div className="mt-6 text-xs text-slate-400 print:mt-4">
-                    Total de visitas: {visits.length} · Generado el {new Date().toLocaleDateString('es-PR', {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    })}
+                {/* Footer imprimible */}
+                <div className="mt-8 pt-4 border-t border-slate-200 flex items-center justify-between">
+                    <p className="text-slate-400 text-xs">
+                        {hq?.name} · Registro de Visitas Familiares · {today}
+                    </p>
+                    <p className="text-teal-500 text-xs font-bold">ZÉNDITY · app.zendity.com</p>
                 </div>
             </div>
         </div>

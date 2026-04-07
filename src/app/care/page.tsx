@@ -13,6 +13,7 @@ import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import IncomingShiftBriefing from "@/components/care/IncomingShiftBriefing";
 import ZendiAssist from "@/components/ZendiAssist";
+import { Toaster, toast } from 'sonner';
 
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -480,6 +481,36 @@ export default function ZendityCareTabletPage() {
             return () => clearInterval(interval);
         }
     }, [activeSession]);
+
+    // Polling de notificaciones FAMILY_VISIT cada 30s — muestra toast en tablet
+    useEffect(() => {
+        if (!user?.id) return;
+        const checkNotifications = async () => {
+            try {
+                const res = await fetch(`/api/notifications/unread?type=FAMILY_VISIT`);
+                const data = await res.json();
+                if (data.notifications?.length > 0) {
+                    data.notifications.forEach((n: any) => {
+                        toast.info(n.title, {
+                            description: n.message,
+                            duration: 8000,
+                        });
+                    });
+                    // Marcar como leídas
+                    await fetch('/api/notifications/mark-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notificationIds: data.notifications.map((n: any) => n.id) })
+                    });
+                }
+            } catch (e) {
+                // silencioso
+            }
+        };
+        checkNotifications();
+        const interval = setInterval(checkNotifications, 30000);
+        return () => clearInterval(interval);
+    }, [user?.id]);
 
     const fetchCaregiversTarget = async () => {
         try {
@@ -1161,6 +1192,7 @@ export default function ZendityCareTabletPage() {
 
     return (
         <div className="min-h-screen bg-slate-100 pb-20">
+            <Toaster position="top-center" richColors />
             <div className={`w-full ${hexColor} py-6 px-8 shadow-md flex justify-between items-center text-white sticky top-0 z-40`}>
                 <div className="flex items-center gap-4">
                     {user && (

@@ -6,6 +6,7 @@ import SendFamilyEmailModal from "@/components/medical/patient/SendFamilyEmailMo
 
 export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+    const [familyVisits, setFamilyVisits] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -17,6 +18,13 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
 
     useEffect(() => {
         fetchFamilyMembers();
+    }, [patientId]);
+
+    useEffect(() => {
+        fetch(`/api/reception/visits?patientId=${patientId}`)
+            .then(r => r.json())
+            .then(d => { if (d.success) setFamilyVisits(d.visits); })
+            .catch(() => null);
     }, [patientId]);
 
     const fetchFamilyMembers = async () => {
@@ -183,6 +191,34 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                             <p className="text-slate-500 text-sm max-w-sm mx-auto">
                                 No hay cuentas de familiares activas para este residente. Registra a un familiar en el panel lateral para otorgarle acceso al portal.
                             </p>
+                        </div>
+                    )}
+
+                    {/* Historial de visitas recibidas */}
+                    {familyVisits.length > 0 && (
+                        <div className="mt-8">
+                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <span>Visitas recibidas</span>
+                                <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-0.5 rounded-full">{familyVisits.length}</span>
+                            </h3>
+                            <div className="space-y-2">
+                                {familyVisits.slice(0, 10).map((v: any) => (
+                                    <div key={v.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+                                        <div>
+                                            <p className="font-bold text-slate-800 text-sm">{v.visitorName}</p>
+                                            <p className="text-slate-400 text-xs">Registrado en recepción</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-slate-600 text-xs font-medium">
+                                                {new Date(v.visitedAt).toLocaleDateString('es-PR', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                            <p className="text-teal-600 text-xs font-bold">
+                                                {new Date(v.visitedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
