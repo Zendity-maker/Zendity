@@ -230,36 +230,47 @@ export default function ReceptionKiosk() {
         });
     };
 
-    // ── Flujo de pasos ───────────────────────────────────────────────────────
+    // ── Bienvenida al montar — solo una vez ─────────────────────────────────
     useEffect(() => {
-        if (step === "welcome") {
-            setTimeout(() => speak('Bienvenido a Vivid Senior Living Cupey. Soy Zendi, su asistente de recepción. ¿A quién viene a visitar hoy?', () => {
+        const timer = setTimeout(() => {
+            speak('Bienvenido a Vivid Senior Living Cupey. Soy Zendi, su asistente de recepción.');
+        }, 800);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Sin dependencias — solo al montar
+
+    // ── Flujo de pasos — nunca incluir 'welcome' ────────────────────────────
+    useEffect(() => {
+        if (step === 'asking-resident') {
+            speak('¿A quién viene a visitar hoy?', () => {
                 setTimeout(() => startListening(), 500);
-            }), 600);
-        } else if (step === "asking-resident") {
-            speak("¿A cuál residente viene a visitar hoy? Diga el nombre completo.");
-        } else if (step === "asking-name") {
-            speak("Perfecto. Ahora, ¿cuál es su nombre completo?");
-        } else if (step === "signing") {
-            speak("Excelente. Por favor firme en la pantalla para completar su registro.");
-        } else if (step === "done") {
-            speak("¡Listo! Su visita ha sido registrada. Bienvenido. El personal le atenderá en breve.");
-            setTimeout(() => {
-                setStep("welcome");
-                setResidentName("");
-                setVisitorName("");
-                setVisitorRelation("");
-                setInputText("");
-                setTranscript("");
+            });
+        } else if (step === 'asking-name') {
+            speak('¿Me puede dar su nombre completo?', () => {
+                setTimeout(() => startListening(), 500);
+            });
+        } else if (step === 'signing') {
+            speak(`Gracias ${visitData.visitorName}. Por favor firme su visita en la pantalla mientras le notifico al personal.`);
+        } else if (step === 'done') {
+            speak(`Visita registrada. ¡Que disfrute su visita con ${visitData.residentName}!`);
+            const timer = setTimeout(() => {
+                setStep('welcome');
+                setResidentName('');
+                setVisitorName('');
+                setVisitorRelation('');
+                setInputText('');
+                setTranscript('');
                 setHasSigned(false);
                 setVisitId(null);
                 setErrorMsg(null);
                 setResidentCandidates([]);
-                setVisitData({ residentName: "", visitorName: "", visitorRelation: "", patientId: null });
+                setVisitData({ residentName: '', visitorName: '', visitorRelation: '', patientId: null });
                 clearCanvas();
             }, 8000);
+            return () => clearTimeout(timer);
         }
-    }, [step, speak]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [step]); // Solo reacciona a cambios de step, nunca a 'welcome'
 
     // ── Canvas Firma ─────────────────────────────────────────────────────────
     const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
