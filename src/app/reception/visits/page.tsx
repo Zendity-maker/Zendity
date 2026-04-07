@@ -3,8 +3,13 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import PrintButton from './PrintButton';
+import DateFilter from './DateFilter';
 
-export default async function VisitsPage() {
+export default async function VisitsPage({
+    searchParams
+}: {
+    searchParams: { from?: string; to?: string }
+}) {
     const session = await getServerSession(authOptions);
     if (!session || !['DIRECTOR', 'ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
         redirect('/login');
@@ -17,8 +22,19 @@ export default async function VisitsPage() {
         select: { name: true, logoUrl: true, phone: true }
     });
 
+    const from = searchParams.from ? new Date(searchParams.from + 'T00:00:00') : null;
+    const to = searchParams.to ? new Date(searchParams.to + 'T23:59:59') : null;
+
+    const where: Record<string, unknown> = { headquartersId: hqId };
+    if (from || to) {
+        where.visitedAt = {
+            ...(from ? { gte: from } : {}),
+            ...(to ? { lte: to } : {})
+        };
+    }
+
     const visits = await prisma.familyVisit.findMany({
-        where: { headquartersId: hqId },
+        where,
         orderBy: { visitedAt: 'desc' },
         take: 200
     });
@@ -39,15 +55,23 @@ export default async function VisitsPage() {
             `}</style>
 
             {/* Toolbar — no imprime */}
-            <div className="no-print bg-slate-800 px-6 py-3 flex items-center justify-between">
+            <div className="no-print bg-slate-800 px-6 py-3 flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                     <a href="/reception" className="text-slate-400 hover:text-white text-sm transition-colors">
                         ← Kiosco
                     </a>
                     <span className="text-slate-600">|</span>
                     <span className="text-white font-medium text-sm">Historial de Visitas</span>
+                    {(searchParams.from || searchParams.to) && (
+                        <span className="bg-teal-900 text-teal-400 text-xs px-2 py-0.5 rounded-full">
+                            {searchParams.from || '...'} → {searchParams.to || 'hoy'}
+                        </span>
+                    )}
                 </div>
-                <PrintButton />
+                <div className="flex items-center gap-3">
+                    <DateFilter />
+                    <PrintButton />
+                </div>
             </div>
 
             {/* Contenido imprimible */}
@@ -69,6 +93,11 @@ export default async function VisitsPage() {
                             <p className="text-teal-600 font-black text-xl tracking-widest">ZÉNDITY</p>
                             <p className="text-slate-400 text-xs mt-2">Generado el {today}</p>
                             <p className="text-slate-400 text-xs">Total: {visits.length} visitas</p>
+                            {(searchParams.from || searchParams.to) && (
+                                <p className="text-teal-500 text-xs mt-1 font-medium">
+                                    Período: {searchParams.from || '...'} → {searchParams.to || 'hoy'}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="mt-4 bg-slate-50 rounded-lg px-4 py-2 flex items-center justify-between">
@@ -118,7 +147,7 @@ export default async function VisitsPage() {
                         {visits.length === 0 && (
                             <tr>
                                 <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
-                                    No hay visitas registradas todavía.
+                                    No hay visitas registradas para este período.
                                 </td>
                             </tr>
                         )}

@@ -10,7 +10,7 @@ import {
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell,
-    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays
+    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -68,6 +68,8 @@ const corporateNavigationSections = [
             { name: "Documentos de Admisión", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
+            { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
+            { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
         ]
     }
 ];
