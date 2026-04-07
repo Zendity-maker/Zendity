@@ -68,7 +68,9 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.id = user.id;
                 token.role = (user as any).role;
-                token.secondaryRoles = (user as any).secondaryRoles || [];
+                token.secondaryRoles = Array.isArray((user as any).secondaryRoles)
+                    ? (user as any).secondaryRoles.slice(0, 3)
+                    : [];
                 token.headquartersId = (user as any).headquartersId;
                 token.headquartersName = (user as any).headquartersName;
             }
@@ -87,6 +89,7 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: "jwt",
+        maxAge: 8 * 60 * 60, // 8 horas en lugar de 30 días
     },
     secret: process.env.NEXTAUTH_SECRET || "ZenditySecretKey123!Secure!2026",
 };
