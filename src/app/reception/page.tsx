@@ -75,6 +75,9 @@ export default function ReceptionKiosk() {
     // Referencia al audio activo de ElevenLabs (para cancelar duplicación)
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    // Ref para evitar duplicación de anuncio en asking-name
+    const nameStepAnnouncedRef = useRef(false);
+
     // ── Voz TTS — ElevenLabs con fallback Web Speech ─────────────────────────
     const speak = useCallback((text: string, onEnd?: () => void) => {
         // Cancelar audio anterior si existe
@@ -186,6 +189,7 @@ export default function ReceptionKiosk() {
             if (data.patients?.length === 1) {
                 const patient = data.patients[0];
                 setResidentName(patient.name);
+                nameStepAnnouncedRef.current = true;
                 setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
                 setTranscript('');
                 setInputText('');
@@ -200,6 +204,7 @@ export default function ReceptionKiosk() {
                 speak(`Encontré varios residentes. ¿Viene a visitar a ${names}? Por favor seleccione en la pantalla.`);
             } else {
                 setResidentName(name);
+                nameStepAnnouncedRef.current = true;
                 setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
                 setTranscript('');
                 setInputText('');
@@ -210,6 +215,7 @@ export default function ReceptionKiosk() {
             }
         } catch {
             setResidentName(name);
+            nameStepAnnouncedRef.current = true;
             setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
             setStep('asking-name');
             speak(`¿Me puede dar su nombre completo?`, () => {
@@ -220,6 +226,7 @@ export default function ReceptionKiosk() {
 
     const handleResidentSelect = (patient: any) => {
         setResidentName(patient.name);
+        nameStepAnnouncedRef.current = true;
         setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
         setResidentCandidates([]);
         setTranscript('');
@@ -246,9 +253,15 @@ export default function ReceptionKiosk() {
                 setTimeout(() => startListening(), 500);
             });
         } else if (step === 'asking-name') {
-            speak('¿Me puede dar su nombre completo?', () => {
-                setTimeout(() => startListening(), 500);
-            });
+            if (nameStepAnnouncedRef.current) {
+                // Ya fue anunciado por handleResidentConfirm — solo resetear el ref
+                nameStepAnnouncedRef.current = false;
+            } else {
+                // Llegó aquí por otra vía — hablar normalmente
+                speak('¿Me puede dar su nombre completo?', () => {
+                    setTimeout(() => startListening(), 500);
+                });
+            }
         } else if (step === 'signing') {
             speak(`Gracias ${visitData.visitorName}. Por favor firme su visita en la pantalla mientras le notifico al personal.`);
         } else if (step === 'done') {
