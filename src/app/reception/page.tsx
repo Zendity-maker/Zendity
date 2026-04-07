@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { FaMicrophone, FaCheck, FaTimes, FaRedo } from "react-icons/fa";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
-type KioskStep = "welcome" | "asking-resident" | "asking-name" | "signing" | "done";
+type KioskStep = 'welcome' | 'asking-resident' | 'confirming-resident' | 'asking-name' | 'signing' | 'done';
 
 interface SpeechRecognitionEvent extends Event {
     results: SpeechRecognitionResultList;
@@ -19,6 +19,7 @@ interface ISpeechRecognition extends EventTarget {
     onresult: ((e: SpeechRecognitionEvent) => void) | null;
     onerror: (() => void) | null;
     start: () => void;
+    stop: () => void;
 }
 
 declare global {
@@ -28,12 +29,33 @@ declare global {
     }
 }
 
+interface VisitData {
+    residentName: string;
+    visitorName: string;
+    visitorRelation: string;
+    patientId: string | null;
+}
+
 // ─── Componente Principal ────────────────────────────────────────────────────
 export default function ReceptionKiosk() {
     const [step, setStep] = useState<KioskStep>("welcome");
+
+    // Display states (usados en JSX para mostrar nombres)
     const [residentName, setResidentName] = useState("");
     const [visitorName, setVisitorName] = useState("");
     const [visitorRelation, setVisitorRelation] = useState("");
+
+    // Input en asking-resident (antes de confirmar)
+    const [inputText, setInputText] = useState("");
+
+    // Datos confirmados para el API (incluye patientId)
+    const [visitData, setVisitData] = useState<VisitData>({
+        residentName: "", visitorName: "", visitorRelation: "", patientId: null
+    });
+
+    // Candidatos al buscar residente
+    const [residentCandidates, setResidentCandidates] = useState<any[]>([]);
+
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState("");
     const [isSaving, setIsSaving] = useState(false);
@@ -46,6 +68,9 @@ export default function ReceptionKiosk() {
     const isDrawingRef = useRef(false);
     const lastPosRef = useRef({ x: 0, y: 0 });
     const [hasSigned, setHasSigned] = useState(false);
+
+    // Referencia al reconocedor activo (para poder detenerlo)
+    const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
     // ── Voz TTS ──────────────────────────────────────────────────────────────
     const speak = useCallback((text: string, onEnd?: () => void) => {
@@ -62,18 +87,16 @@ export default function ReceptionKiosk() {
 
         const loadVoices = () => {
             const voices = window.speechSynthesis.getVoices();
-            // Prioridad: voces premium de Google o Apple en español
             const preferred = [
-                voices.find(v => v.name.includes('Paulina')),           // macOS Spanish
-                voices.find(v => v.name.includes('Monica')),            // macOS Spanish
-                voices.find(v => v.name.includes('Google español')),    // Chrome Google TTS
-                voices.find(v => v.name.includes('Luciana')),           // Portuguese fallback quality
+                voices.find(v => v.name.includes('Paulina')),
+                voices.find(v => v.name.includes('Monica')),
+                voices.find(v => v.name.includes('Google español')),
+                voices.find(v => v.name.includes('Luciana')),
                 voices.find(v => v.lang === 'es-US' && !v.localService),
                 voices.find(v => v.lang === 'es-MX' && !v.localService),
                 voices.find(v => v.lang.startsWith('es') && !v.localService),
                 voices.find(v => v.lang.startsWith('es')),
             ].find(Boolean);
-
             if (preferred) utterance.voice = preferred;
         };
 
@@ -90,6 +113,14 @@ export default function ReceptionKiosk() {
     }, []);
 
     // ── STT ──────────────────────────────────────────────────────────────────
+    const stopListening = useCallback(() => {
+        if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch { }
+            recognitionRef.current = null;
+        }
+        setIsListening(false);
+    }, []);
+
     const startListening = useCallback((onResult?: (text: string) => void) => {
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRec) {
@@ -101,8 +132,10 @@ export default function ReceptionKiosk() {
         rec.interimResults = false;
         rec.maxAlternatives = 1;
 
+        recognitionRef.current = rec;
+
         rec.onstart = () => setIsListening(true);
-        rec.onend = () => setIsListening(false);
+        rec.onend = () => { setIsListening(false); recognitionRef.current = null; };
         rec.onresult = (e: SpeechRecognitionEvent) => {
             const text = e.results[0][0].transcript;
             setTranscript(text);
@@ -110,9 +143,67 @@ export default function ReceptionKiosk() {
         };
         rec.onerror = () => {
             setIsListening(false);
+            recognitionRef.current = null;
         };
         rec.start();
     }, []);
+
+    // ── Búsqueda y confirmación de residente ─────────────────────────────────
+    const handleResidentConfirm = async () => {
+        const name = inputText.trim() || transcript.trim();
+        if (!name) return;
+        stopListening();
+
+        try {
+            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}`);
+            const data = await res.json();
+
+            if (data.patients?.length === 1) {
+                const patient = data.patients[0];
+                setResidentName(patient.name);
+                setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
+                setTranscript('');
+                setInputText('');
+                setStep('asking-name');
+                speak(`¿Viene a visitar a ${patient.name}? Perfecto. ¿Me puede dar su nombre completo?`, () => {
+                    setTimeout(() => startListening(), 500);
+                });
+            } else if (data.patients?.length > 1) {
+                setResidentCandidates(data.patients);
+                setStep('confirming-resident');
+                const names = data.patients.slice(0, 3).map((p: any) => p.name).join(', ');
+                speak(`Encontré varios residentes. ¿Viene a visitar a ${names}? Por favor seleccione en la pantalla.`);
+            } else {
+                setResidentName(name);
+                setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
+                setTranscript('');
+                setInputText('');
+                setStep('asking-name');
+                speak(`De acuerdo. ¿Me puede dar su nombre completo?`, () => {
+                    setTimeout(() => startListening(), 500);
+                });
+            }
+        } catch {
+            setResidentName(name);
+            setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
+            setStep('asking-name');
+            speak(`¿Me puede dar su nombre completo?`, () => {
+                setTimeout(() => startListening(), 500);
+            });
+        }
+    };
+
+    const handleResidentSelect = (patient: any) => {
+        setResidentName(patient.name);
+        setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
+        setResidentCandidates([]);
+        setTranscript('');
+        setInputText('');
+        setStep('asking-name');
+        speak(`Perfecto. Visita para ${patient.name}. ¿Me puede dar su nombre completo?`, () => {
+            setTimeout(() => startListening(), 500);
+        });
+    };
 
     // ── Flujo de pasos ───────────────────────────────────────────────────────
     useEffect(() => {
@@ -133,10 +224,13 @@ export default function ReceptionKiosk() {
                 setResidentName("");
                 setVisitorName("");
                 setVisitorRelation("");
+                setInputText("");
                 setTranscript("");
                 setHasSigned(false);
                 setVisitId(null);
                 setErrorMsg(null);
+                setResidentCandidates([]);
+                setVisitData({ residentName: "", visitorName: "", visitorRelation: "", patientId: null });
                 clearCanvas();
             }, 8000);
         }
@@ -146,10 +240,7 @@ export default function ReceptionKiosk() {
     const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
         if ("touches" in e) {
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top
-            };
+            return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
         }
         return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
     };
@@ -189,7 +280,7 @@ export default function ReceptionKiosk() {
     };
 
     // ── Guardar visita ────────────────────────────────────────────────────────
-    const saveVisit = async () => {
+    const handleSignatureSubmit = async () => {
         if (!hasSigned) {
             speak("Por favor firme en la pantalla antes de continuar.");
             return;
@@ -197,15 +288,23 @@ export default function ReceptionKiosk() {
         setIsSaving(true);
         setErrorMsg(null);
         try {
-            const signatureData = canvasRef.current?.toDataURL("image/png") || null;
+            const signature = canvasRef.current?.toDataURL("image/png") || null;
+            const timestamp = new Date().toISOString();
             const res = await fetch("/api/reception/visit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ residentName, visitorName, visitorRelation, signatureData })
+                body: JSON.stringify({
+                    residentName: visitData.residentName || residentName,
+                    visitorName: visitData.visitorName || visitorName,
+                    visitorRelation: visitData.visitorRelation || visitorRelation,
+                    patientId: visitData.patientId || null,
+                    signatureData: signature,
+                    timestamp
+                })
             });
             const data = await res.json();
             if (data.success) {
-                setVisitId(data.visitId);
+                setVisitId(data.visit?.id || null);
                 setStep("done");
             } else {
                 setErrorMsg(data.error || "Error al registrar la visita.");
@@ -263,19 +362,19 @@ export default function ReceptionKiosk() {
                     <div className="w-full relative">
                         <input
                             type="text"
-                            value={residentName}
-                            onChange={(e) => setResidentName(e.target.value)}
+                            value={inputText}
+                            onChange={(e) => setInputText(e.target.value)}
                             placeholder="Nombre del residente..."
                             className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600 font-medium"
                         />
                         {transcript && step === "asking-resident" && (
-                            <p className="text-teal-400 text-sm mt-2 text-center">Escuché: "{transcript}"</p>
+                            <p className="text-teal-400 text-sm mt-2 text-center">Escuché: &quot;{transcript}&quot;</p>
                         )}
                     </div>
 
                     <MicButton
                         isListening={isListening}
-                        onPress={() => startListening((text) => setResidentName(text))}
+                        onPress={() => startListening((text) => setInputText(text))}
                     />
 
                     <div className="flex gap-4 w-full mt-2">
@@ -283,11 +382,56 @@ export default function ReceptionKiosk() {
                             <FaTimes /> Cancelar
                         </button>
                         <button
-                            onClick={() => { if (residentName.trim()) { setTranscript(""); setStep("asking-name"); } }}
-                            disabled={!residentName.trim()}
+                            onClick={handleResidentConfirm}
+                            disabled={!inputText.trim() && !transcript.trim()}
                             className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
-                            Continuar <FaCheck />
+                            Buscar <FaCheck />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── STEP: CONFIRMING RESIDENT ── */}
+            {step === 'confirming-resident' && (
+                <div className="w-full max-w-2xl">
+                    <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-teal-500">
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-white text-sm font-bold">Z</span>
+                            </div>
+                            <div>
+                                <p className="text-teal-400 text-xs font-bold mb-1">ZENDI</p>
+                                <p className="text-white text-xl font-medium">¿A cuál de estos residentes viene a visitar?</p>
+                                <p className="text-slate-400 text-sm mt-1">Which resident are you visiting?</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        {residentCandidates.map((patient: any) => (
+                            <button
+                                key={patient.id}
+                                onClick={() => handleResidentSelect(patient)}
+                                className="w-full flex items-center justify-between bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-teal-500 rounded-2xl px-6 py-4 transition-all text-left"
+                            >
+                                <div>
+                                    <p className="text-white font-bold text-lg">{patient.name}</p>
+                                    {patient.room && <p className="text-slate-400 text-sm">Cuarto {patient.room}</p>}
+                                </div>
+                                <span className="text-teal-400 text-2xl">→</span>
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => {
+                                setResidentCandidates([]);
+                                setStep('asking-resident');
+                                setInputText('');
+                                setTranscript('');
+                                speak('Por favor intente de nuevo con el nombre completo del residente.');
+                            }}
+                            className="w-full py-3 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                        >
+                            Ninguno — intentar de nuevo
                         </button>
                     </div>
                 </div>
@@ -320,7 +464,7 @@ export default function ReceptionKiosk() {
                             className="w-full bg-slate-800 border border-slate-600 text-white text-base rounded-2xl px-6 py-4 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600"
                         />
                         {transcript && step === "asking-name" && (
-                            <p className="text-teal-400 text-sm text-center">Escuché: "{transcript}"</p>
+                            <p className="text-teal-400 text-sm text-center">Escuché: &quot;{transcript}&quot;</p>
                         )}
                     </div>
 
@@ -334,7 +478,13 @@ export default function ReceptionKiosk() {
                             <FaTimes /> Atrás
                         </button>
                         <button
-                            onClick={() => { if (visitorName.trim()) { setTranscript(""); setStep("signing"); } }}
+                            onClick={() => {
+                                if (visitorName.trim()) {
+                                    setVisitData(prev => ({ ...prev, visitorName, visitorRelation }));
+                                    setTranscript("");
+                                    setStep("signing");
+                                }
+                            }}
                             disabled={!visitorName.trim()}
                             className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
@@ -389,7 +539,7 @@ export default function ReceptionKiosk() {
                             Atrás
                         </button>
                         <button
-                            onClick={saveVisit}
+                            onClick={handleSignatureSubmit}
                             disabled={!hasSigned || isSaving}
                             className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-black py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >

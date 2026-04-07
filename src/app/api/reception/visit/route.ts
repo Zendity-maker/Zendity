@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
     try {
-        const { residentName, visitorName, visitorRelation, signatureData, timestamp } = await req.json();
+        const { residentName, visitorName, visitorRelation, signatureData, timestamp, patientId: incomingPatientId } = await req.json();
 
         if (!residentName || !visitorName) {
             return NextResponse.json({ success: false, error: 'Datos incompletos' }, { status: 400 });
@@ -11,16 +11,22 @@ export async function POST(req: Request) {
 
         const visitedAt = new Date(timestamp || Date.now());
 
-        // 1. Buscar residente por nombre
-        const patient = await prisma.patient.findFirst({
-            where: {
-                name: { contains: residentName, mode: 'insensitive' },
-                status: 'ACTIVE'
-            },
-            include: {
-                headquarters: { select: { id: true, name: true } }
-            }
-        });
+        // 1. Usar patientId directo si viene del frontend (búsqueda previa), si no buscar por nombre
+        let patient = null;
+        if (incomingPatientId) {
+            patient = await prisma.patient.findUnique({
+                where: { id: incomingPatientId },
+                include: { headquarters: { select: { id: true, name: true } } }
+            });
+        } else {
+            patient = await prisma.patient.findFirst({
+                where: {
+                    name: { contains: residentName, mode: 'insensitive' },
+                    status: 'ACTIVE'
+                },
+                include: { headquarters: { select: { id: true, name: true } } }
+            });
+        }
 
         const hqId = patient?.headquartersId || 'b5d13d84-0a57-42fe-a1ed-bff887ed0c09';
 
