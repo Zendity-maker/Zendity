@@ -72,8 +72,17 @@ export default function ReceptionKiosk() {
     // Referencia al reconocedor activo (para poder detenerlo)
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
+    // Referencia al audio activo de ElevenLabs (para cancelar duplicación)
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     // ── Voz TTS — ElevenLabs con fallback Web Speech ─────────────────────────
     const speak = useCallback((text: string, onEnd?: () => void) => {
+        // Cancelar audio anterior si existe
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = '';
+            audioRef.current = null;
+        }
         window.speechSynthesis.cancel();
 
         const playWithElevenLabs = async () => {
@@ -90,14 +99,17 @@ export default function ReceptionKiosk() {
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
                 const audio = new Audio(url);
+                audioRef.current = audio;
 
                 audio.onended = () => {
+                    audioRef.current = null;
                     setIsSpeaking(false);
                     URL.revokeObjectURL(url);
                     if (onEnd) onEnd();
                 };
 
                 audio.onerror = () => {
+                    audioRef.current = null;
                     setIsSpeaking(false);
                     URL.revokeObjectURL(url);
                     if (onEnd) onEnd();
