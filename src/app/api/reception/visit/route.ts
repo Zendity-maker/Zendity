@@ -3,67 +3,108 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(req: Request) {
     try {
-        const { residentName, visitorName, visitorRelation, signatureData } = await req.json();
+        const { residentName, visitorName, visitorRelation, signatureData, timestamp } = await req.json();
 
-        if (!visitorName) {
-            return NextResponse.json({ error: 'visitorName es requerido' }, { status: 400 });
+        if (!residentName || !visitorName) {
+            return NextResponse.json({ success: false, error: 'Datos incompletos' }, { status: 400 });
         }
 
-        // Buscar el residente por nombre (búsqueda parcial, case-insensitive)
+        const visitedAt = new Date(timestamp || Date.now());
+
+        // 1. Buscar residente por nombre
         const patient = await prisma.patient.findFirst({
             where: {
-                name: { contains: (residentName || '').trim(), mode: 'insensitive' },
+                name: { contains: residentName, mode: 'insensitive' },
                 status: 'ACTIVE'
+            },
+            include: {
+                headquarters: { select: { id: true, name: true } }
             }
-        }).catch(() => null);
+        });
 
-        // Crear el registro de visita — robusto: no bloquea al visitante si falla
+        const hqId = patient?.headquartersId || 'b5d13d84-0a57-42fe-a1ed-bff887ed0c09';
+
+        // 2. Guardar visita en FamilyVisit
         let visit = null;
         try {
             visit = await prisma.familyVisit.create({
                 data: {
-                    visitorName: visitorName.trim(),
-                    residentName: residentName?.trim() || null,
-                    patientId: patient?.id || null,
-                    headquartersId: patient?.headquartersId || 'b5d13d84-0a57-42fe-a1ed-bff887ed0c09',
+                    visitorName,
+                    residentName: patient?.name || residentName,
                     visitorRelation: visitorRelation?.trim() || null,
+                    patientId: patient?.id || null,
+                    headquartersId: hqId,
                     signatureData: signatureData ? signatureData.substring(0, 50000) : null,
+                    visitedAt,
                     notified: false
                 }
             });
         } catch (e) {
             console.error('FamilyVisit create error:', e);
-            // Continuar aunque falle el registro — no bloquear al visitante
         }
 
-        // Crear notificaciones internas si el registro fue exitoso
-        if (visit && patient) {
-            const supervisors = await prisma.user.findMany({
-                where: {
-                    headquartersId: patient.headquartersId,
-                    role: { in: ['DIRECTOR', 'ADMIN', 'SUPERVISOR'] },
-                    isActive: true
-                },
-                select: { id: true }
-            }).catch(() => []);
-
-            if (supervisors.length > 0) {
-                await prisma.notification.createMany({
-                    data: supervisors.map(s => ({
-                        userId: s.id,
-                        type: 'VISIT_CHECKIN',
-                        title: `Visita registrada — ${patient.name}`,
-                        message: `${visitorName}${visitorRelation ? ` (${visitorRelation})` : ''} se registró en recepción para visitar a ${patient.name}.`,
-                    }))
+        // 3. Registrar nota en el perfil del residente (FamilyVisitNote)
+        if (patient?.id) {
+            try {
+                const dateStr = visitedAt.toLocaleDateString('es-PR', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+                const timeStr = visitedAt.toLocaleTimeString('es-PR', {
+                    hour: '2-digit', minute: '2-digit'
+                });
+                await prisma.familyVisitNote.create({
+                    data: {
+                        patientId: patient.id,
+                        headquartersId: hqId,
+                        visitorName,
+                        visitedAt,
+                        notes: `Visita registrada en recepción: ${visitorName} visitó a ${patient.name} el ${dateStr} a las ${timeStr}.`
+                    }
                 }).catch(() => null);
+            } catch (e) {
+                console.error('FamilyVisitNote error:', e);
             }
         }
 
-        return NextResponse.json({ success: true, visit, patient: patient?.name || null });
+        // 4. Notificar a supervisores y directores activos en la sede
+        try {
+            const supervisors = await prisma.user.findMany({
+                where: {
+                    headquartersId: hqId,
+                    role: { in: ['SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+                    isActive: true,
+                    isDeleted: false
+                },
+                select: { id: true }
+            });
+
+            const hour = visitedAt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = visitedAt.toLocaleDateString('es-PR', { weekday: 'long', month: 'long', day: 'numeric' });
+
+            await Promise.all(supervisors.map(sup =>
+                prisma.notification.create({
+                    data: {
+                        userId: sup.id,
+                        type: 'FAMILY_VISIT',
+                        title: `Visita familiar — ${patient?.name || residentName}`,
+                        message: `${visitorName} se registró en recepción para visitar a ${patient?.name || residentName} el ${dateStr} a las ${hour}.`,
+                        isRead: false
+                    }
+                }).catch(() => null)
+            ));
+        } catch (e) {
+            console.error('Notification error:', e);
+        }
+
+        return NextResponse.json({
+            success: true,
+            visit,
+            patient: patient?.name || null,
+            hqName: patient?.headquarters?.name || 'Vivid Senior Living Cupey'
+        });
 
     } catch (error) {
-        console.error('Error en reception/visit:', error);
-        // Siempre devolver success para no bloquear al visitante en el kiosco
-        return NextResponse.json({ success: true, visit: null, patient: null });
+        console.error('Reception visit error:', error);
+        return NextResponse.json({ success: true }); // Nunca bloquear el kiosco
     }
 }

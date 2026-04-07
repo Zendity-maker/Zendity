@@ -288,6 +288,18 @@ model FamilyVisit {
   @@index([headquartersId, visitedAt])
 }
 
+model FamilyVisitNote {
+  id             String   @id @default(uuid())
+  patientId      String
+  headquartersId String
+  visitorName    String
+  visitedAt      DateTime
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  @@index([patientId, visitedAt])
+}
+
 enum ScheduleStatus {
   DRAFT
   PUBLISHED
