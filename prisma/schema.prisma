@@ -523,6 +523,11 @@ model FamilyMember {
   passcode       String? // PIN familiar (ej. 889900)
   accessLevel    String // e.g., "Full", "Read-Only"
 
+  // Portal de Familia — invitación y acceso
+  inviteToken  String?   @unique
+  inviteExpiry DateTime?
+  isRegistered Boolean   @default(false)
+
   headquarters Headquarters   @relation(fields: [headquartersId], references: [id])
   patient      Patient        @relation(fields: [patientId], references: [id])
   surveys      FamilySurvey[]
