@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Zéndity — Activando acceso...</title>
+<style>
+  body { margin:0; background:#0F172A; display:flex; align-items:center; justify-content:center; min-height:100vh; font-family:Arial,sans-serif; }
+  .box { text-align:center; color:#fff; }
+  .logo { color:#1D9E75; font-size:28px; font-weight:900; letter-spacing:4px; margin-bottom:8px; }
+  .sub { color:#94A3B8; font-size:13px; margin-bottom:32px; }
+  .spinner { width:36px; height:36px; border:3px solid #1D9E75; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 16px; }
+  .msg { color:#64748B; font-size:13px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">ZÉNDITY</div>
+  <div class="sub">Portal Familiar</div>
+  <div class="spinner"></div>
+  <div class="msg">Preparando su acceso...</div>
+</div>
+<script>
+  // Limpiar TODAS las cookies del dominio
+  function clearAllCookies() {
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var name = cookies[i].split('=')[0].trim();
+      var domain = window.location.hostname;
+      // Limpiar con y sin domain, con y sin secure
+      var expires = 'expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      document.cookie = name + '=;' + expires + ';path=/';
+      document.cookie = name + '=;' + expires + ';path=/;domain=' + domain;
+      document.cookie = name + '=;' + expires + ';path=/;domain=.' + domain;
+      document.cookie = name + '=;' + expires + ';path=/;secure';
+    }
+  }
+
+  // Obtener token de la URL
+  var params = new URLSearchParams(window.location.search);
+  var token = params.get('token');
+
+  // Limpiar cookies
+  clearAllCookies();
+
+  // Redirigir al registro real
+  setTimeout(function() {
+    if (token) {
+      window.location.replace('/family/register?token=' + token);
+    } else {
+      window.location.replace('/login');
+    }
+  }, 800);
+</script>
+</body>
+</html>

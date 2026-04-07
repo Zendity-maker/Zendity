@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             data: { inviteToken: token, inviteExpiry: expiry }
         });
 
-        const portalUrl = `${process.env.NEXTAUTH_URL}/family/register?token=${token}`;
+        const portalUrl = `${process.env.NEXTAUTH_URL}/family-invite.html?token=${token}`;
         const hqName = hq?.name || 'Zéndity';
 
         const html = `
