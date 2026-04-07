@@ -91,7 +91,7 @@ export default function ReceptionKiosk() {
         const playWithElevenLabs = async () => {
             try {
                 setIsSpeaking(true);
-                const res = await fetch('/api/reception/speak', {
+                const res = await fetch('/api/zendi/speak', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })

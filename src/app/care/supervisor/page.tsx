@@ -32,7 +32,7 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
         setIsPlaying(true);
         try {
             const plainText = text.replace(/[*_#]/g, '');
-            const res = await fetch("/api/ai/zendi-voice", {
+            const res = await fetch("/api/zendi/speak", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: plainText })
