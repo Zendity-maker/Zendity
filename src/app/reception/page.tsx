@@ -72,49 +72,57 @@ export default function ReceptionKiosk() {
     // Referencia al reconocedor activo (para poder detenerlo)
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
-    // ── Voz TTS ──────────────────────────────────────────────────────────────
+    // ── Voz TTS — ElevenLabs con fallback Web Speech ─────────────────────────
     const speak = useCallback((text: string, onEnd?: () => void) => {
         window.speechSynthesis.cancel();
 
-        const trySpeak = (attemptsLeft: number) => {
-            const voices = window.speechSynthesis.getVoices();
+        const playWithElevenLabs = async () => {
+            try {
+                setIsSpeaking(true);
+                const res = await fetch('/api/reception/speak', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
 
-            if (voices.length === 0 && attemptsLeft > 0) {
-                setTimeout(() => trySpeak(attemptsLeft - 1), 200);
-                return;
+                if (!res.ok) throw new Error('ElevenLabs failed');
+
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+
+                audio.onended = () => {
+                    setIsSpeaking(false);
+                    URL.revokeObjectURL(url);
+                    if (onEnd) onEnd();
+                };
+
+                audio.onerror = () => {
+                    setIsSpeaking(false);
+                    URL.revokeObjectURL(url);
+                    if (onEnd) onEnd();
+                };
+
+                await audio.play();
+
+            } catch (e) {
+                console.warn('[Zendi] ElevenLabs falló, usando Web Speech API:', e);
+                // Fallback a Web Speech API
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-US';
+                utterance.rate = 0.88;
+                utterance.pitch = 1.08;
+                const voices = window.speechSynthesis.getVoices();
+                const preferred = voices.find(v => v.lang.startsWith('es') && !v.localService)
+                    || voices.find(v => v.lang.startsWith('es'));
+                if (preferred) utterance.voice = preferred;
+                utterance.onstart = () => setIsSpeaking(true);
+                utterance.onend = () => { setIsSpeaking(false); if (onEnd) onEnd(); };
+                window.speechSynthesis.speak(utterance);
             }
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'es-US';
-            utterance.rate = 0.88;
-            utterance.pitch = 1.08;
-            utterance.volume = 1.0;
-
-            // Prioridad de voces — de mejor a peor
-            const preferred =
-                voices.find(v => v.name === 'Paulina') ||                    // macOS premium
-                voices.find(v => v.name === 'Monica') ||                     // macOS
-                voices.find(v => v.name.includes('Google') && v.lang.startsWith('es')) || // Chrome Google
-                voices.find(v => v.name.includes('Luciana')) ||              // macOS PT fallback quality
-                voices.find(v => v.lang === 'es-US' && !v.localService) ||   // remota es-US
-                voices.find(v => v.lang === 'es-MX' && !v.localService) ||   // remota es-MX
-                voices.find(v => v.lang === 'es-419' && !v.localService) ||  // remota Latinoamérica
-                voices.find(v => v.lang.startsWith('es') && !v.localService) || // cualquier remota es
-                voices.find(v => v.lang.startsWith('es'));                   // última opción local
-
-            if (preferred) {
-                utterance.voice = preferred;
-                console.log('[Zendi voz]', preferred.name, preferred.lang, preferred.localService ? 'local' : 'remota');
-            }
-
-            utterance.onstart = () => setIsSpeaking(true);
-            utterance.onend = () => { setIsSpeaking(false); if (onEnd) onEnd(); };
-            utterance.onerror = () => { setIsSpeaking(false); if (onEnd) onEnd(); };
-            window.speechSynthesis.speak(utterance);
         };
 
-        // Esperar hasta 2 segundos por las voces (10 intentos × 200ms)
-        trySpeak(10);
+        playWithElevenLabs();
     }, []);
 
     // ── STT ──────────────────────────────────────────────────────────────────
