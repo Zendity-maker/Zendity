@@ -141,6 +141,29 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             familyMembers={[member]}
                                         />
                                         <button
+                                            onClick={async () => {
+                                                if (!confirm(`¿Enviar invitación al portal a ${member.name}?`)) return;
+                                                try {
+                                                    const res = await fetch('/api/corporate/family/invite', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ familyMemberId: member.id })
+                                                    });
+                                                    const data = await res.json();
+                                                    if (data.success) {
+                                                        alert(`✓ Invitación enviada a ${member.email}`);
+                                                    } else {
+                                                        alert(data.error || 'Error enviando la invitación.');
+                                                    }
+                                                } catch {
+                                                    alert('Error de conexión.');
+                                                }
+                                            }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-all justify-center"
+                                        >
+                                            <span>Invitar al portal</span>
+                                        </button>
+                                        <button
                                             onClick={() => handleRevokeAccess(member.id)}
                                             className="text-xs font-bold text-rose-500 bg-rose-50 hover:bg-rose-500 hover:text-white px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 border border-rose-100 justify-center shadow-sm"
                                             title="Revocar Acceso"
