@@ -188,9 +188,11 @@ export default function ReceptionKiosk() {
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none">
 
             {/* Header */}
-            <div className="mb-10 text-center">
-                <div className="text-teal-500 text-4xl font-black tracking-[0.3em] mb-1">ZÉNDITY</div>
-                <div className="text-slate-500 text-sm tracking-widest uppercase">Kiosco de Recepción</div>
+            <div className="w-full max-w-2xl mb-8">
+                <div className="text-center">
+                    <h1 className="text-white font-black text-3xl mb-1">Vivid Senior Living Cupey</h1>
+                    <p className="text-teal-400 text-sm font-medium tracking-widest">Recepción — Powered by ZÉNDITY</p>
+                </div>
             </div>
 
             {/* ── STEP: WELCOME ── */}

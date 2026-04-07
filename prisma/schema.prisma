@@ -271,19 +271,21 @@ model Notification {
 // =======================
 
 model FamilyVisit {
-  id             String   @id @default(uuid())
-  headquartersId String
-  patientId      String
-  visitorName    String
+  id              String   @id @default(uuid())
+  headquartersId  String
+  patientId       String?
+  visitorName     String
+  residentName    String?
   visitorRelation String?
-  signatureData  String?  @db.Text // Base64 del canvas
-  notes          String?
-  checkedInAt    DateTime @default(now())
+  signatureData   String?  @db.Text // Base64 del canvas (truncado a 50k)
+  notes           String?
+  visitedAt       DateTime @default(now())
+  notified        Boolean  @default(false)
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  patient      Patient      @relation(fields: [patientId], references: [id])
+  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
+  patient      Patient?      @relation(fields: [patientId], references: [id])
 
-  @@index([headquartersId, checkedInAt])
+  @@index([headquartersId, visitedAt])
 }
 
 enum ScheduleStatus {
