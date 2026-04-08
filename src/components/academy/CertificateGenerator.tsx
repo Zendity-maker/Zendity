@@ -1,217 +1,320 @@
-import jsPDF from "jspdf";
+'use client';
+import jsPDF from 'jspdf';
+
+const TEAL = '#1D9E75';
+const TEAL_DARK = '#0F6E56';
+const GOLD = '#C9A84C';
+const GOLD_LIGHT = '#E8C97A';
+const SLATE = '#0F172A';
+const SLATE2 = '#1E293B';
+const WHITE = '#FFFFFF';
+const OFF_WHITE = '#F8F6F0';
+const GRAY = '#94A3B8';
+
+function drawUniversityCertificate(doc: jsPDF, W: number, H: number) {
+    // Cream background
+    doc.setFillColor(OFF_WHITE);
+    doc.rect(0, 0, W, H, 'F');
+
+    // Outer gold border
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(3);
+    doc.rect(8, 8, W - 16, H - 16);
+
+    // Inner gold border
+    doc.setDrawColor(GOLD_LIGHT);
+    doc.setLineWidth(0.8);
+    doc.rect(12, 12, W - 24, H - 24);
+
+    // Corner ornaments
+    const corners = [[14, 14], [W - 14, 14], [14, H - 14], [W - 14, H - 14]];
+    corners.forEach(([cx, cy]) => {
+        doc.setFillColor(GOLD);
+        doc.circle(cx, cy, 2.5, 'F');
+        doc.setFillColor(GOLD_LIGHT);
+        doc.circle(cx, cy, 1.2, 'F');
+    });
+
+    // Top teal decorative band
+    doc.setFillColor(TEAL_DARK);
+    doc.rect(12, 12, W - 24, 18, 'F');
+
+    // Bottom teal band
+    doc.setFillColor(TEAL_DARK);
+    doc.rect(12, H - 30, W - 24, 18, 'F');
+}
+
+function drawSeal(doc: jsPDF, cx: number, cy: number, r: number, label: string, sublabel: string) {
+    // Outer ring
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(1.5);
+    doc.circle(cx, cy, r, 'S');
+
+    // Middle ring
+    doc.setDrawColor(GOLD_LIGHT);
+    doc.setLineWidth(0.5);
+    doc.circle(cx, cy, r - 3, 'S');
+
+    // Inner fill
+    doc.setFillColor(TEAL_DARK);
+    doc.circle(cx, cy, r - 5, 'F');
+
+    // Inner ring
+    doc.setDrawColor(GOLD_LIGHT);
+    doc.setLineWidth(0.3);
+    doc.circle(cx, cy, r - 5, 'S');
+
+    // Seal text
+    doc.setTextColor(GOLD_LIGHT);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.text(label, cx, cy - 3, { align: 'center' });
+    doc.setFontSize(5.5);
+    doc.text(sublabel, cx, cy + 3, { align: 'center' });
+    doc.setFontSize(5);
+    doc.text('ZENDITY', cx, cy + 8, { align: 'center' });
+}
+
+function drawDivider(doc: jsPDF, y: number, W: number) {
+    const mx = W / 2;
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(0.3);
+    doc.line(30, y, mx - 15, y);
+    doc.line(mx + 15, y, W - 30, y);
+    doc.setFillColor(GOLD);
+    doc.circle(mx, y, 1.5, 'F');
+    doc.circle(mx - 12, y, 0.8, 'F');
+    doc.circle(mx + 12, y, 0.8, 'F');
+}
 
 export function generateZendityCertificate(
     employeeName: string,
     courseTitle: string,
     completionDate: string
 ) {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const W = 297, H = 210;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const W = 297;
+    const H = 210;
 
-    // Fondo
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, W, H, "F");
+    drawUniversityCertificate(doc, W, H);
 
-    // Borde decorativo exterior
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(1.5);
-    doc.rect(8, 8, W - 16, H - 16, "S");
-
-    // Borde interior fino
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(0.3);
-    doc.rect(12, 12, W - 24, H - 24, "S");
-
-    // Header — ZENDITY
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(93, 202, 165);
-    doc.text("ZENDITY", W / 2, 32, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Healthcare Management Platform", W / 2, 38, { align: "center" });
-
-    // Línea separadora
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(0.3);
-    doc.line(60, 43, W - 60, 43);
-
-    // Título del certificado
-    doc.setFont("helvetica", "normal");
+    // Institution header in teal band
+    doc.setTextColor(GOLD_LIGHT);
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text("CERTIFICA QUE", W / 2, 56, { align: "center" });
+    doc.text('ZENDITY HEALTHCARE MANAGEMENT PLATFORM', W / 2, 23, { align: 'center' });
 
-    // Nombre del empleado
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(28);
-    doc.setTextColor(255, 255, 255);
-    doc.text(employeeName, W / 2, 76, { align: "center" });
+    // Academy subtitle
+    doc.setFillColor(OFF_WHITE);
+    doc.setTextColor(TEAL_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('ACADEMIA DE EXCELENCIA OPERATIVA', W / 2, 42, { align: 'center' });
 
-    // Línea bajo el nombre
+    drawDivider(doc, 48, W);
+
+    // Certificate declaration
+    doc.setTextColor(SLATE2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Este certificado se otorga a quien a continuacion se menciona, en reconocimiento a haber', W / 2, 60, { align: 'center' });
+    doc.text('completado satisfactoriamente el programa de capacitacion y superado la evaluacion oficial.', W / 2, 67, { align: 'center' });
+
+    // Employee name
+    doc.setFont('times', 'italic');
+    doc.setFontSize(32);
+    doc.setTextColor(SLATE);
+    doc.text(employeeName, W / 2, 92, { align: 'center' });
+
+    // Name underline
     const nameWidth = doc.getTextWidth(employeeName);
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(0.5);
-    doc.line((W - nameWidth) / 2, 80, (W + nameWidth) / 2, 80);
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(0.8);
+    doc.line(W / 2 - nameWidth / 2 - 5, 95, W / 2 + nameWidth / 2 + 5, 95);
 
-    // Texto de completación
-    doc.setFont("helvetica", "normal");
+    drawDivider(doc, 103, W);
+
+    // Course label
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text("ha completado satisfactoriamente el curso oficial", W / 2, 93, { align: "center" });
+    doc.setTextColor(GRAY);
+    doc.text('por haber completado y aprobado el curso oficial', W / 2, 113, { align: 'center' });
 
-    // Título del curso
-    doc.setFont("helvetica", "bold");
+    // Course title
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.setTextColor(93, 202, 165);
-    const splitTitle = doc.splitTextToSize(courseTitle, 200);
-    doc.text(splitTitle, W / 2, 107, { align: "center" });
+    doc.setTextColor(TEAL_DARK);
+    doc.text(courseTitle.toUpperCase(), W / 2, 126, { align: 'center' });
 
-    // Texto adicional
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    doc.text("de la serie oficial de protocolos operativos de Zendity Academy", W / 2, 126, { align: "center" });
+    // Course underline
+    const ctWidth = doc.getTextWidth(courseTitle.toUpperCase());
+    doc.setDrawColor(TEAL);
+    doc.setLineWidth(0.5);
+    doc.line(W / 2 - ctWidth / 2, 129, W / 2 + ctWidth / 2, 129);
 
-    // Footer — fecha y sello
-    doc.setDrawColor(29, 158, 117);
+    // Date
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(GRAY);
+    doc.text(`Otorgado el ${completionDate}`, W / 2, 142, { align: 'center' });
+
+    // Signature line — left
+    doc.setDrawColor(SLATE2);
     doc.setLineWidth(0.3);
-    doc.line(60, 152, W - 60, 152);
-
-    doc.setFont("helvetica", "normal");
+    doc.line(40, 165, 110, 165);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SLATE2);
+    doc.text('Andres Flores', 75, 170, { align: 'center' });
     doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Fecha de emisión: ${completionDate}`, W / 2, 160, { align: "center" });
-    doc.text("Este certificado valida la capacitación del personal en los protocolos operativos de Zendity.", W / 2, 166, { align: "center" });
+    doc.setTextColor(GRAY);
+    doc.text('Director — Zendity', 75, 175, { align: 'center' });
 
-    // Sello ZENDITY CERTIFIED
-    doc.setFillColor(29, 158, 117);
-    doc.circle(W / 2, 185, 10, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(5);
-    doc.setTextColor(255, 255, 255);
-    doc.text("ZENDITY", W / 2, 183, { align: "center" });
-    doc.text("CERTIFIED", W / 2, 187, { align: "center" });
+    // Seal — center
+    drawSeal(doc, W / 2, 162, 18, 'CERTIFICADO', 'OFICIAL');
 
-    doc.save(`Certificado_Zendity_${employeeName.replace(/\s/g, "_")}_${courseTitle.slice(0, 20).replace(/\s/g, "_")}.pdf`);
+    // Signature line — right
+    doc.setDrawColor(SLATE2);
+    doc.setLineWidth(0.3);
+    doc.line(187, 165, 257, 165);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SLATE2);
+    doc.text('Sede Certificadora', 222, 170, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(GRAY);
+    doc.text('Vivid Senior Living Cupey', 222, 175, { align: 'center' });
+
+    // Bottom band text
+    doc.setTextColor(GOLD_LIGHT);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('ZENDITY · Healthcare Management Platform · app.zendity.com · Puerto Rico', W / 2, H - 18, { align: 'center' });
+
+    doc.save(`Certificado_Zendity_${employeeName}_${courseTitle}.pdf`);
 }
 
-export function generateZendityMasterCertificate(employeeName: string, completionDate: string) {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const W = 297, H = 210;
+export function generateZendityMasterCertificate(
+    employeeName: string,
+    completionDate: string
+) {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const W = 297;
+    const H = 210;
 
-    // Fondo premium oscuro con degradado visual
-    doc.setFillColor(10, 15, 30);
-    doc.rect(0, 0, W, H, "F");
+    drawUniversityCertificate(doc, W, H);
 
-    // Franja decorativa superior
-    doc.setFillColor(29, 158, 117);
-    doc.rect(0, 0, W, 3, "F");
+    // Institution header
+    doc.setTextColor(GOLD_LIGHT);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('ZENDITY HEALTHCARE MANAGEMENT PLATFORM', W / 2, 23, { align: 'center' });
 
-    // Franja decorativa inferior
-    doc.setFillColor(29, 158, 117);
-    doc.rect(0, H - 3, W, 3, "F");
+    // Master title
+    doc.setTextColor(TEAL_DARK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('ACADEMIA DE EXCELENCIA OPERATIVA', W / 2, 40, { align: 'center' });
 
-    // Borde dorado
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(2);
-    doc.rect(10, 10, W - 20, H - 20, "S");
+    // Gold master badge
+    doc.setFillColor(GOLD);
+    doc.roundedRect(W / 2 - 38, 44, 76, 8, 2, 2, 'F');
+    doc.setTextColor(SLATE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.text('CERTIFICADO MAESTRO — SERIE COMPLETA DE PROTOCOLOS', W / 2, 49.5, { align: 'center' });
 
-    doc.setDrawColor(93, 202, 165);
-    doc.setLineWidth(0.4);
-    doc.rect(14, 14, W - 28, H - 28, "S");
+    drawDivider(doc, 56, W);
 
-    // ZENDITY ACADEMY
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(93, 202, 165);
-    doc.text("ZENDITY ACADEMY", W / 2, 30, { align: "center" });
+    // Declaration
+    doc.setTextColor(SLATE2);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Con especial distincion, se certifica que el profesional que a continuacion se indica ha completado', W / 2, 65, { align: 'center' });
+    doc.text('la Serie Oficial Completa de Protocolos de Zendity, demostrando dominio operativo y clinico integral.', W / 2, 72, { align: 'center' });
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Healthcare Management Platform  •  Certificación Oficial de Personal", W / 2, 37, { align: "center" });
-
-    // Línea
-    doc.setDrawColor(29, 158, 117);
-    doc.setLineWidth(0.5);
-    doc.line(50, 43, W - 50, 43);
-
-    // CERTIFICADO MAESTRO
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(29, 158, 117);
-    doc.text("CERTIFICADO MAESTRO DE PERSONAL ADIESTRADO EN ZENDITY", W / 2, 53, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Otorgado con distinción a", W / 2, 63, { align: "center" });
-
-    // Nombre
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(32);
-    doc.setTextColor(255, 255, 255);
-    doc.text(employeeName, W / 2, 83, { align: "center" });
+    // Employee name
+    doc.setFont('times', 'italic');
+    doc.setFontSize(30);
+    doc.setTextColor(SLATE);
+    doc.text(employeeName, W / 2, 92, { align: 'center' });
 
     const nameWidth = doc.getTextWidth(employeeName);
-    doc.setDrawColor(93, 202, 165);
-    doc.setLineWidth(0.7);
-    doc.line((W - nameWidth) / 2, 87, (W + nameWidth) / 2, 87);
+    doc.setDrawColor(GOLD);
+    doc.setLineWidth(1);
+    doc.line(W / 2 - nameWidth / 2 - 5, 95, W / 2 + nameWidth / 2 + 5, 95);
 
-    // Texto descriptivo
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184);
-    doc.text("por haber completado con éxito la Serie Oficial Completa de Protocolos Operativos", W / 2, 99, { align: "center" });
+    drawDivider(doc, 101, W);
 
-    // Los 8 cursos en dos columnas
-    const cursos = [
-        "1. Proceso de Cierre de Turno",
-        "2. Admisión de Residentes",
-        "3. Administración de Medicamentos — eMAR",
-        "4. Respuesta a Incidentes de Caída",
-        "5. Handover de Enfermería",
-        "6. Uso de Zendi AI",
-        "7. Acceso, Roles y Gestión de Usuarios",
-        "8. Planta Física y Mantenimiento"
+    // Courses — two columns
+    const courses = [
+        'Cierre de Turno', 'Admision de Residentes',
+        'eMAR Digital', 'Protocolo de Caidas',
+        'Handover Clinico', 'Zendi AI',
+        'Acceso y Roles', 'Mantenimiento'
     ];
 
-    doc.setFontSize(7.5);
-    doc.setTextColor(93, 202, 165);
-    cursos.slice(0, 4).forEach(function(c, i) {
-        doc.text("✓ " + c, 55, 112 + i * 8);
-    });
-    cursos.slice(4).forEach(function(c, i) {
-        doc.text("✓ " + c, W / 2 + 10, 112 + i * 8);
-    });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
 
-    // Línea
-    doc.setDrawColor(29, 158, 117);
+    const col1X = 55;
+    const col2X = 165;
+    let rowY = 112;
+
+    for (let i = 0; i < courses.length; i += 2) {
+        // Left
+        doc.setFillColor(TEAL);
+        doc.circle(col1X - 6, rowY - 1.5, 1.5, 'F');
+        doc.setTextColor(SLATE2);
+        doc.text(courses[i], col1X, rowY, { align: 'left' });
+
+        // Right
+        if (courses[i + 1]) {
+            doc.setFillColor(TEAL);
+            doc.circle(col2X - 6, rowY - 1.5, 1.5, 'F');
+            doc.setTextColor(SLATE2);
+            doc.text(courses[i + 1], col2X, rowY, { align: 'left' });
+        }
+        rowY += 8;
+    }
+
+    // Date
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(GRAY);
+    doc.text(`Serie completada el ${completionDate}`, W / 2, 152, { align: 'center' });
+
+    // Signatures
+    doc.setDrawColor(SLATE2);
     doc.setLineWidth(0.3);
-    doc.line(50, 152, W - 50, 152);
-
-    // Footer
-    doc.setFont("helvetica", "normal");
+    doc.line(35, 168, 105, 168);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SLATE2);
+    doc.text('Andres Flores', 70, 173, { align: 'center' });
     doc.setFontSize(7);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Fecha de emisión: ${completionDate}`, W / 2, 161, { align: "center" });
-    doc.text("Este certificado acredita al portador como Personal Adiestrado en Zendity conforme a los estándares operativos del sistema.", W / 2, 167, { align: "center" });
+    doc.setTextColor(GRAY);
+    doc.text('Director — Zendity', 70, 178, { align: 'center' });
 
-    // Sello maestro
-    doc.setFillColor(29, 158, 117);
-    doc.circle(W / 2, 183, 12, "F");
-    doc.setFillColor(10, 15, 30);
-    doc.circle(W / 2, 183, 9, "F");
-    doc.setFillColor(29, 158, 117);
-    doc.circle(W / 2, 183, 6, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(4);
-    doc.setTextColor(255, 255, 255);
-    doc.text("MASTER", W / 2, 181.5, { align: "center" });
-    doc.text("CERT", W / 2, 184.5, { align: "center" });
+    // Master seal — center, larger
+    drawSeal(doc, W / 2, 165, 22, 'CERTIFICADO', 'MAESTRO');
 
-    doc.save(`Certificado_Maestro_Zendity_${employeeName.replace(/\s/g, "_")}.pdf`);
+    doc.setDrawColor(SLATE2);
+    doc.setLineWidth(0.3);
+    doc.line(192, 168, 262, 168);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(SLATE2);
+    doc.text('Sede Certificadora', 227, 173, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(GRAY);
+    doc.text('Vivid Senior Living Cupey', 227, 178, { align: 'center' });
+
+    // Bottom band
+    doc.setTextColor(GOLD_LIGHT);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('ZENDITY · Healthcare Management Platform · app.zendity.com · Puerto Rico', W / 2, H - 18, { align: 'center' });
+
+    doc.save(`Certificado_Maestro_Zendity_${employeeName}.pdf`);
 }
