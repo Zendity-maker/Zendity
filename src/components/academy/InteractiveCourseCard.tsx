@@ -1,550 +1,672 @@
-import React, { useState, useEffect } from "react";
-import jsPDF from "jspdf";
-import ReactMarkdown from "react-markdown";
-import { generateZendityCertificate } from "./CertificateGenerator";
-export default function InteractiveCourseCard({
-    course,
-    user,
-    initialStatus,
-    onCourseCompleted
-}: {
-    course: any,
-    user: any,
-    initialStatus: string,
-    onCourseCompleted: () => void
-}) {
-    const [status, setStatus] = useState(initialStatus);
-    const [mode, setMode] = useState<"IDLE" | "LEARNING" | "QUIZ">("IDLE");
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { generateZendityCertificate } from './CertificateGenerator';
 
-    // AI Data
-    const [flashcards, setFlashcards] = useState<any[]>([]);
-    const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
-    const [activeCardIndex, setActiveCardIndex] = useState(0);
-    const [aiLoading, setAiLoading] = useState(false);
+type Stage = 'IDLE' | 'LESSON_INTRO' | 'LESSON_BLOCKS' | 'BLOCK_CHECK' | 'QUIZ' | 'REFLECTION' | 'RESULT' | 'COMPLETED';
 
-    // Reflection State
-    const [reflectionAnswer, setReflectionAnswer] = useState("");
-    const [reflectionFeedback, setReflectionFeedback] = useState<any>(null);
-    const [isSubmittingReflection, setIsSubmittingReflection] = useState(false);
+interface MCQ {
+    question: string;
+    options: string[];
+    correct: number;
+    explanation: string;
+}
 
-    // Quiz State
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-    const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
-    const [score, setScore] = useState(0);
+interface LessonBlock {
+    title: string;
+    content: string;
+    checkQuestion?: string;
+    checkOptions?: string[];
+    checkCorrect?: number;
+}
 
-    // 3 Strikes Logic
-    const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+interface Props {
+    course: any;
+    user: any;
+    initialStatus?: string;
+    onCourseCompleted?: () => void;
+}
+
+export default function InteractiveCourseCard({ course, user, initialStatus, onCourseCompleted }: Props) {
+    const [stage, setStage] = useState<Stage>(initialStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Lesson
+    const [blocks, setBlocks] = useState<LessonBlock[]>([]);
+    const [currentBlock, setCurrentBlock] = useState(0);
+    const [blockAnswer, setBlockAnswer] = useState<number | null>(null);
+    const [blockFeedback, setBlockFeedback] = useState('');
+
+    // Quiz
+    const [questions, setQuestions] = useState<MCQ[]>([]);
+    const [currentQ, setCurrentQ] = useState(0);
+    const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+    const [showExplanation, setShowExplanation] = useState(false);
+    const [correctCount, setCorrectCount] = useState(0);
+    const [quizAnswers, setQuizAnswers] = useState<boolean[]>([]);
+
+    // Reflection
+    const [reflection, setReflection] = useState('');
+    const [reflectionResult, setReflectionResult] = useState<{ approved: boolean; feedback: string } | null>(null);
+    const [reflectionLoading, setReflectionLoading] = useState(false);
+
+    // Locks & strikes
     const [strikes, setStrikes] = useState(0);
+    const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
+    const [lockCountdown, setLockCountdown] = useState('');
 
-    // Fetch UserCourse status to check locks on mount
+    const hqId = (user as any)?.hqId || (user as any)?.headquartersId || '';
+
+    // Check lock on mount
     useEffect(() => {
-        const checkLockStatus = async () => {
-            try {
-                const res = await fetch(`/api/academy?hqId=${user?.hqId || user?.headquartersId}&employeeId=${user?.id}`);
-                const data = await res.json();
-                if (data.success) {
-                    const myEnrollment = data.enrollments.find((e: any) => e.courseId === course.id);
-                    if (myEnrollment) {
-                        setStrikes(myEnrollment.attemptsCount || 0);
-                        if (myEnrollment.lockedUntil && new Date(myEnrollment.lockedUntil) > new Date()) {
-                            setLockedUntil(myEnrollment.lockedUntil);
-                        }
-                    }
+        if (!user?.id || !course?.id) return;
+        fetch(`/api/academy?employeeId=${user.id}&hqId=${hqId}`)
+            .then(r => r.json())
+            .then(data => {
+                const enrollment = data?.enrollments?.find((e: any) => e.courseId === course.id);
+                if (enrollment?.lockedUntil && new Date(enrollment.lockedUntil) > new Date()) {
+                    setLockedUntil(new Date(enrollment.lockedUntil));
                 }
-            } catch (e) {
-                console.error(e);
-            }
-        };
-        if (status !== 'COMPLETED') {
-            checkLockStatus();
-        }
-    }, [course.id, user, status]);
+                if (enrollment?.attemptsCount) setStrikes(enrollment.attemptsCount % 3);
+            }).catch(() => null);
+    }, [user?.id, course?.id, hqId]);
 
-    const handleStartLearning = async () => {
-        if (course.content) {
-            setMode("LEARNING");
-            return;
-        }
+    // Lock countdown
+    useEffect(() => {
+        if (!lockedUntil) return;
+        const interval = setInterval(() => {
+            const remaining = lockedUntil.getTime() - Date.now();
+            if (remaining <= 0) { setLockedUntil(null); clearInterval(interval); return; }
+            const h = Math.floor(remaining / 3600000);
+            const m = Math.floor((remaining % 3600000) / 60000);
+            setLockCountdown(`${h}h ${m}m`);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [lockedUntil]);
 
-        if (flashcards.length > 0) {
-            setMode("LEARNING");
-            setActiveCardIndex(0);
-            return;
-        }
-
-        setAiLoading(true);
-        try {
-            const res = await fetch("/api/academy/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "flashcards", courseId: course.id }),
-                signal: AbortSignal.timeout(45000)
+    // Split course content into blocks
+    const parseBlocks = useCallback((content: string): LessonBlock[] => {
+        if (!content) return [];
+        const sections = content.split(/(?=#{1,3}\s)/);
+        return sections
+            .filter(s => s.trim().length > 50)
+            .slice(0, 5)
+            .map(s => {
+                const lines = s.trim().split('\n');
+                const title = lines[0].replace(/^#+\s*/, '').trim() || 'Seccion';
+                const body = lines.slice(1).join('\n').trim();
+                return { title, content: body || s };
             });
-            const data = await res.json();
-            if (data.success && data.data.flashcards) {
-                setFlashcards(data.data.flashcards);
-                setMode("LEARNING");
+    }, []);
+
+    const startLesson = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            if (course.content) {
+                const parsed = parseBlocks(course.content);
+                setBlocks(parsed.length > 0 ? parsed : [{ title: course.title, content: course.content }]);
             } else {
-                alert("Error generando contenido de estudio. Intenta de nuevo.");
+                // Generate flashcard-style blocks via AI
+                const res = await fetch('/api/academy/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestType: 'flashcards', courseId: course.id })
+                });
+                const data = await res.json();
+                const cards = data?.data?.flashcards || [];
+                setBlocks(cards.map((c: any) => ({ title: c.title, content: c.content })));
             }
+            setCurrentBlock(0);
+            setStage('LESSON_INTRO');
         } catch (e) {
-            alert("Error de conexión con Gemini 1.5 Pro");
+            setError('Error cargando el material. Intenta de nuevo.');
         } finally {
-            setAiLoading(false);
+            setLoading(false);
         }
     };
 
-    const submitReflection = async () => {
-        setIsSubmittingReflection(true);
+    const startQuiz = async () => {
+        setLoading(true);
+        setError('');
         try {
-            const res = await fetch("/api/academy/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "reflection", courseId: course.id, userResponse: reflectionAnswer }),
-                signal: AbortSignal.timeout(45000)
+            const res = await fetch('/api/academy/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requestType: 'quiz', courseId: course.id })
             });
             const data = await res.json();
-            if (data.success && data.data) {
-                setReflectionFeedback(data.data);
-            } else {
-                alert("Error validando reflexión. Intenta de nuevo.");
-            }
-        } catch (e) {
-            alert("Error de conexión con Zendity AI");
-        } finally {
-            setIsSubmittingReflection(false);
-        }
-    };
-
-    const handleStartQuiz = async () => {
-        if (lockedUntil && new Date(lockedUntil) > new Date()) {
-            alert(`Acceso denegado. Curso bloqueado hasta: ${new Date(lockedUntil).toLocaleString()}`);
-            return;
-        }
-
-        setAiLoading(true);
-        try {
-            const res = await fetch("/api/academy/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requestType: "quiz", courseId: course.id }),
-                signal: AbortSignal.timeout(45000)
-            });
-            const data = await res.json();
-            if (data.success && data.data.quiz) {
-                setQuizQuestions(data.data.quiz);
-                setMode("QUIZ");
-                setCurrentQuestionIndex(0);
+            const quizData = data?.data?.quiz || [];
+            if (quizData.length > 0) {
+                setQuestions(quizData.map((q: any) => ({
+                    question: q.question,
+                    options: q.options,
+                    correct: q.options.indexOf(q.correctAnswer),
+                    explanation: q.explanation
+                })));
+                setCurrentQ(0);
+                setCorrectCount(0);
+                setQuizAnswers([]);
                 setSelectedAnswer(null);
-                setIsAnswerRevealed(false);
-                setScore(0);
+                setShowExplanation(false);
+                setStage('QUIZ');
             } else {
-                alert("Error generando el examen. Intenta de nuevo.");
+                setError('No se pudo generar el examen. Intenta de nuevo.');
             }
         } catch (e) {
-            alert("Error de conexión con Gemini 1.5 Pro");
+            setError('Error generando el examen.');
         } finally {
-            setAiLoading(false);
+            setLoading(false);
         }
     };
 
-    const handleAnswerSubmit = () => {
-        if (!selectedAnswer) return;
-
-        const isCorrect = selectedAnswer === quizQuestions[currentQuestionIndex].correctAnswer;
-        if (isCorrect) setScore(score + 1);
-        setIsAnswerRevealed(true);
-    };
-
-    const handleNextQuestion = async () => {
-        if (currentQuestionIndex + 1 < quizQuestions.length) {
-            setCurrentQuestionIndex(currentQuestionIndex + 1);
-            setSelectedAnswer(null);
-            setIsAnswerRevealed(false);
+    const handleBlockNext = () => {
+        setBlockAnswer(null);
+        setBlockFeedback('');
+        if (currentBlock < blocks.length - 1) {
+            setCurrentBlock(prev => prev + 1);
+            setStage('LESSON_BLOCKS');
         } else {
-            // EXAMEN FINALIZADO
-            setAiLoading(true);
-            const totalQuestions = quizQuestions.length;
-            const finalScore = score + (selectedAnswer === quizQuestions[currentQuestionIndex].correctAnswer && !isAnswerRevealed ? 1 : 0);
-            const passed = finalScore === totalQuestions;
-
-            if (passed) {
-                // SUCCESS
-                const res = await fetch('/api/academy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ employeeId: user?.id, hqId: user?.hqId || user?.headquartersId, courseId: course.id, examScore: 100 })
-                });
-
-                if (res.ok) {
-                    setStatus('COMPLETED');
-                    alert(" ¡Excelencia Zendity! Has aprobado el curso con 100%. Tu credencial oficial de Zendity Certified ha sido generada.");
-                    onCourseCompleted();
-                    setMode("IDLE");
-                }
-            } else {
-                // FAILURE - Log attempt
-                const res = await fetch('/api/academy/attempt', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ employeeId: user?.id, hqId: user?.hqId || user?.headquartersId, courseId: course.id })
-                });
-                const data = await res.json();
-
-                if (data.locked) {
-                    setLockedUntil(data.lockedUntil);
-                    setStrikes(3);
-                    alert(` REPROBADO. Has alcanzado el límite de 3 intentos fallidos. Por seguridad operativa, este curso ha sido BLOQUEADO por 24 horas. Zendity HR ha sido notificado.`);
-                } else {
-                    setStrikes(data.newAttemptCount);
-                    alert(` REPROBADO. Puntuación: ${finalScore}/${totalQuestions}. Intento ${data.newAttemptCount}/3. Repasa las tarjetas de estudio e inténtalo de nuevo.`);
-                }
-                setMode("IDLE");
-            }
-            setAiLoading(false);
+            // All blocks done — go to quiz
+            startQuiz();
         }
     };
 
-    if (lockedUntil && new Date(lockedUntil) > new Date()) {
-        return (
-            <div className="bg-slate-50 rounded-2xl p-6 shadow-sm border border-red-200 opacity-80 relative overflow-hidden flex flex-col items-center justify-center min-h-[250px] text-center">
-                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4"></div>
-                <h4 className="text-xl font-bold text-gray-900 mb-2">Acceso Restringido (24 Horas)</h4>
-                <p className="text-sm text-gray-600 mb-4 max-w-sm">Has fallado la Certificación Zendity 3 veces consecutivas. Como medida de seguridad clínica, debes repasar el material con tu Supervisor antes de reintentar.</p>
-                <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold font-mono text-slate-500 shadow-sm">
-                    Desbloqueo automático: {new Date(lockedUntil).toLocaleString()}
-                </div>
-            </div>
-        );
-    }
+    const handleAnswer = (idx: number) => {
+        if (showExplanation) return;
+        setSelectedAnswer(idx);
+        setShowExplanation(true);
+        const isCorrect = idx === questions[currentQ].correct;
+        if (isCorrect) setCorrectCount(prev => prev + 1);
+        setQuizAnswers(prev => [...prev, isCorrect]);
+    };
 
-    if (mode === "LEARNING") {
-        if (course.content && flashcards.length === 0) {
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-900/90 backdrop-blur-md overflow-hidden">
-                    <div className="bg-white rounded-2xl p-0 shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
-                        
-                        {/* Header Sticky */}
-                        <div className="flex justify-between items-center p-6 md:px-10 md:py-8 bg-white border-b border-slate-100 sticky top-0 z-10">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full w-fit">
-                                    Lectura Oficial (Zendity Academy)
-                                </span>
-                                <h3 className="text-xl md:text-2xl font-black text-slate-900">{course.title}</h3>
-                            </div>
-                            <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-white bg-slate-50 hover:bg-rose-500 px-6 py-3 rounded-2xl transition-all shadow-sm">
-                                 Cerrar
-                            </button>
-                        </div>
-                        
-                        {/* Contenido Scrolleable */}
-                        <div className="flex-1 overflow-y-auto px-6 md:px-12 py-8 bg-slate-50/50 text-slate-700 text-lg leading-relaxed">
-                            <ReactMarkdown 
-                                components={{
-                                    h3: ({node, ...props}) => <h3 className="text-2xl md:text-3xl font-black text-slate-900 mt-10 mb-6 pb-2 border-b-2 border-indigo-100" {...props} />,
-                                    p: ({node, ...props}) => <p className="mb-6" {...props} />,
-                                    ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 space-y-3" {...props} />,
-                                    ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-6 space-y-3 font-bold text-slate-900" {...props} />,
-                                    li: ({node, ...props}) => <li className="text-slate-600 font-medium leading-relaxed" {...props} />,
-                                    strong: ({node, ...props}) => <strong className="font-extrabold text-slate-900 bg-indigo-50 px-1 rounded" {...props} />,
-                                    em: ({node, ...props}) => <em className="text-indigo-600 font-semibold" {...props} />,
-                                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50/60 p-6 md:p-8 rounded-r-3xl text-indigo-900 my-8 shadow-sm flex flex-col gap-2" {...props} />,
-                                    hr: ({node, ...props}) => <hr className="my-10 border-slate-200 border-2 rounded-full" {...props} />
-                                }}
-                            >
-                                {course.content}
-                            </ReactMarkdown>
-                            
-                            {/* Reflexión y Evaluación Interactiva */}
-                            <div className="mt-12 bg-white rounded-3xl p-6 md:p-8 border-2 border-indigo-100 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
-                                <h4 className="text-xl font-black text-slate-900 mb-2 flex items-center gap-2">Dinámica de Reflexión Práctica</h4>
-                                <p className="text-slate-600 mb-6 text-base font-medium">
-                                    Busca el bloque de "Dinámica de Reflexión" o "Ejercicio Práctico" en el material superior y redacta tu respuesta profesional. Tu Coordinadora (Zendi AI) evaluará éticamente tus decisiones.
-                                </p>
-                                
-                                {!reflectionFeedback ? (
-                                    <>
-                                        <textarea 
-                                            value={reflectionAnswer}
-                                            onChange={(e) => setReflectionAnswer(e.target.value)}
-                                            placeholder="Escribe tu reflexión detallada aquí..."
-                                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 min-h-[120px] focus:outline-none focus:border-indigo-500 transition-colors text-base resize-none"
-                                        />
-                                        <div className="mt-4 flex justify-end">
-                                            <button 
-                                                onClick={submitReflection}
-                                                disabled={isSubmittingReflection || reflectionAnswer.trim().length < 10}
-                                                className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all flex items-center gap-2"
-                                            >
-                                                {isSubmittingReflection ? "Zendi Evaluando..." : "Enviar Reflexión"}
-                                            </button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className={`p-6 rounded-2xl border shadow-sm ${reflectionFeedback.approved ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
-                                        <div className="flex items-start gap-4">
-                                            <div className="text-3xl">{reflectionFeedback.approved ? 'Aprobado' : 'Rechazado'}</div>
-                                            <div>
-                                                <p className={`font-black text-lg mb-2 ${reflectionFeedback.approved ? 'text-emerald-800' : 'text-rose-800'}`}>
-                                                    {reflectionFeedback.approved ? '¡Reflexión Aprobada!' : 'Respuesta No Apta'}
-                                                </p>
-                                                <p className="text-slate-700 text-sm leading-relaxed"><strong className="text-slate-900">Zendi Feedback:</strong> {reflectionFeedback.feedback}</p>
-                                                {!reflectionFeedback.approved && (
-                                                    <button onClick={() => setReflectionFeedback(null)} className="mt-4 text-sm font-bold text-rose-600 hover:text-rose-800 underline">
-                                                        Intentar de nuevo cambiando el enfoque
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        
-                        {/* Footer Sticky */}
-                        <div className="p-6 md:px-10 bg-white border-t border-slate-100 flex justify-end sticky bottom-0 z-10 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)]">
-                            <button 
-                                onClick={() => {
-                                    setMode("IDLE");
-                                    setReflectionFeedback(null);
-                                    setReflectionAnswer("");
-                                }} 
-                                disabled={!reflectionFeedback?.approved}
-                                className="px-10 py-4 bg-indigo-600 text-white rounded-2xl text-lg font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 transition-all disabled:bg-slate-300 disabled:shadow-none disabled:hover:scale-100 disabled:cursor-not-allowed"
-                            >
-                                {reflectionFeedback?.approved ? 'Terminar Lectura y Volver' : 'Debes Aprobar la Reflexión'}
-                            </button>
-                        </div>
-
-                    </div>
-                </div>
-            );
+    const handleNextQuestion = () => {
+        if (currentQ < questions.length - 1) {
+            setCurrentQ(prev => prev + 1);
+            setSelectedAnswer(null);
+            setShowExplanation(false);
+        } else {
+            // Quiz done — go to reflection
+            setStage('REFLECTION');
         }
+    };
 
-        const card = flashcards[activeCardIndex];
+    const handleReflection = async () => {
+        if (reflection.trim().length < 20) {
+            setReflectionResult({ approved: false, feedback: 'Por favor escribe una respuesta mas completa. Minimo 2-3 oraciones.' });
+            return;
+        }
+        setReflectionLoading(true);
+        try {
+            const res = await fetch('/api/academy/ai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    requestType: 'reflection',
+                    courseId: course.id,
+                    userResponse: reflection
+                })
+            });
+            const data = await res.json();
+            const result = data?.data || data;
+            setReflectionResult({ approved: result.approved, feedback: result.feedback });
+            if (result.approved && correctCount >= Math.ceil(questions.length * 0.8)) {
+                await completeCourse();
+            }
+        } catch {
+            setReflectionResult({ approved: false, feedback: 'Error evaluando la respuesta. Intenta de nuevo.' });
+        } finally {
+            setReflectionLoading(false);
+        }
+    };
+
+    const completeCourse = async () => {
+        try {
+            await fetch('/api/academy/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employeeId: user.id,
+                    courseId: course.id,
+                    hqId,
+                    examScore: Math.round((correctCount / questions.length) * 100)
+                })
+            });
+            setStage('RESULT');
+            if (onCourseCompleted) onCourseCompleted();
+        } catch {
+            setStage('RESULT');
+        }
+    };
+
+    const handleFail = async () => {
+        try {
+            const res = await fetch('/api/academy/attempt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ employeeId: user.id, courseId: course.id, hqId })
+            });
+            const data = await res.json();
+            if (data.locked) setLockedUntil(new Date(data.lockedUntil));
+            setStrikes(prev => Math.min(prev + 1, 3));
+        } catch { /* silent */ }
+        setStage('IDLE');
+    };
+
+    const progressPct = questions.length > 0 ? Math.round((currentQ / questions.length) * 100) : 0;
+
+    // -- LOCKED ---------------------------------------------------------------
+    if (lockedUntil) return (
+        <div className="bg-white rounded-2xl border border-red-200 p-6 text-center">
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">🔒</span>
+            </div>
+            <h3 className="font-black text-slate-800 mb-1">{course.title}</h3>
+            <p className="text-red-600 font-bold text-sm mb-1">Acceso bloqueado temporalmente</p>
+            <p className="text-slate-500 text-xs">Se desbloquea en <span className="font-bold text-red-500">{lockCountdown}</span></p>
+            <p className="text-slate-500 text-xs mt-2">3 intentos fallidos — periodo de reflexion de 24 horas</p>
+        </div>
+    );
+
+    // -- COMPLETED ------------------------------------------------------------
+    if (stage === 'COMPLETED' || initialStatus === 'COMPLETED') return (
+        <div className="bg-white rounded-2xl border border-teal-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-2xl">🎓</span>
+                </div>
+                <div>
+                    <h3 className="font-black text-slate-800 text-sm">{course.title}</h3>
+                    <p className="text-teal-600 text-xs font-bold">Certificado completado</p>
+                </div>
+            </div>
+            <button
+                onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
+                className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm py-2.5 rounded-xl transition-all"
+            >
+                Imprimir Certificado Zendity
+            </button>
+        </div>
+    );
+
+    // -- RESULT ---------------------------------------------------------------
+    if (stage === 'RESULT') return (
+        <div className="bg-white rounded-2xl border border-teal-300 p-8 text-center">
+            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">🏆</span>
+            </div>
+            <h3 className="font-black text-slate-800 text-xl mb-2">Certificado obtenido!</h3>
+            <p className="text-slate-500 mb-1">Puntuacion: <span className="font-black text-teal-600">{Math.round((correctCount / questions.length) * 100)}%</span></p>
+            <p className="text-slate-500 text-sm mb-6">Has completado <span className="font-bold">{course.title}</span></p>
+            <button
+                onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
+                className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-3 rounded-xl transition-all"
+            >
+                Descargar mi Certificado
+            </button>
+            <button onClick={() => setStage('COMPLETED')} className="w-full mt-2 text-slate-500 text-sm py-2">Cerrar</button>
+        </div>
+    );
+
+    // -- IDLE -----------------------------------------------------------------
+    if (stage === 'IDLE') return (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all">
+            {/* Course image */}
+            {course.imageUrl ? (
+                <img src={course.imageUrl} alt={course.title} className="w-full h-40 object-cover" />
+            ) : (
+                <div className="w-full h-40 bg-gradient-to-br from-teal-600 to-slate-800 flex items-center justify-center">
+                    <span className="text-5xl">{course.emoji || '📘'}</span>
+                </div>
+            )}
+            <div className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-black text-slate-800 text-sm leading-tight flex-1">{course.title}</h3>
+                    {strikes > 0 && (
+                        <span className="text-xs text-red-500 font-bold ml-2">{strikes}/3</span>
+                    )}
+                </div>
+                <p className="text-slate-500 text-xs mb-4 line-clamp-2">{course.description}</p>
+                <div className="flex gap-2">
+                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded-full">
+                        +{course.bonusCompliance || 50} PTS
+                    </span>
+                    <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">
+                        {course.durationMins || 15} min
+                    </span>
+                </div>
+                {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+                <button
+                    onClick={startLesson}
+                    disabled={loading}
+                    className="mt-4 w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-black py-3 rounded-xl transition-all text-sm"
+                >
+                    {loading ? 'Cargando...' : 'Comenzar leccion'}
+                </button>
+            </div>
+        </div>
+    );
+
+    // -- LESSON INTRO ---------------------------------------------------------
+    if (stage === 'LESSON_INTRO') return (
+        <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
+            <div className="bg-teal-700 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-black">Z</span>
+                    </div>
+                    <div>
+                        <p className="text-teal-200 text-xs">Profesora Zendi</p>
+                        <p className="text-white font-black text-sm">{course.title}</p>
+                    </div>
+                </div>
+                <button onClick={() => setStage('IDLE')} className="text-white/60 hover:text-white text-sm">✕</button>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-24 h-24 bg-teal-700 rounded-full flex items-center justify-center mb-6 border-4 border-teal-500">
+                    <span className="text-4xl">👩‍🏫</span>
+                </div>
+                <h2 className="text-white font-black text-2xl mb-3">Hola! Soy Zendi</h2>
+                <p className="text-slate-300 text-lg mb-2">Tu profesora para este curso.</p>
+                <p className="text-slate-500 max-w-md mb-4">
+                    Vamos a aprender <span className="text-teal-400 font-bold">{course.title}</span> en {blocks.length} bloques.
+                    Despues tendras un examen de 5 preguntas y una pregunta de razonamiento que yo misma corregire.
+                </p>
+                <div className="flex gap-4 text-sm text-slate-500 mb-8">
+                    <span>📚 {blocks.length} bloques</span>
+                    <span>❓ 5 preguntas</span>
+                    <span>💭 1 reflexion</span>
+                    <span>🎓 Certificado</span>
+                </div>
+                <button
+                    onClick={() => setStage('LESSON_BLOCKS')}
+                    className="bg-teal-600 hover:bg-teal-500 text-white font-black px-10 py-4 rounded-2xl transition-all text-lg"
+                >
+                    Empezamos! →
+                </button>
+            </div>
+        </div>
+    );
+
+    // -- LESSON BLOCKS --------------------------------------------------------
+    if (stage === 'LESSON_BLOCKS' && blocks.length > 0) {
+        const block = blocks[currentBlock];
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-                <div className="bg-white rounded-3xl p-8 shadow-2xl border border-slate-200 w-full max-w-4xl min-h-[500px] flex flex-col animate-in fade-in zoom-in-95 duration-300">
-                    <div className="flex justify-between items-center mb-8">
-                        <span className="text-sm font-bold uppercase tracking-widest text-indigo-500 bg-indigo-50 px-4 py-1.5 rounded-full">
-                            Material de Estudio  Tarjeta {activeCardIndex + 1} de {flashcards.length}
-                        </span>
-                        <button onClick={() => setMode("IDLE")} className="text-sm font-bold text-slate-400 hover:text-rose-500 transition-colors bg-slate-100 hover:bg-rose-50 px-4 py-2 rounded-xl">
-                             Cerrar Sesión
-                        </button>
+            <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
+                {/* Header */}
+                <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
+                    <button onClick={() => setStage('IDLE')} className="text-slate-500 hover:text-white text-sm">✕</button>
+                    <div className="flex gap-1">
+                        {blocks.map((_, i) => (
+                            <div key={i} className={`h-1.5 rounded-full transition-all ${i < currentBlock ? 'bg-teal-500 w-6' : i === currentBlock ? 'bg-teal-400 w-8' : 'bg-slate-600 w-6'}`} />
+                        ))}
                     </div>
-                    
-                    <div className="flex-1 flex flex-col justify-center items-center text-center px-4 md:px-16 py-12 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 rounded-2xl border border-indigo-100 mb-8">
-                        <h3 className="text-4xl md:text-5xl font-black text-slate-800 mb-8 leading-tight tracking-tight">{card.title}</h3>
-                        <p className="text-xl md:text-2xl text-slate-600 leading-relaxed font-medium max-w-2xl">{card.content}</p>
-                    </div>
+                    <span className="text-slate-500 text-xs">{currentBlock + 1}/{blocks.length}</span>
+                </div>
 
-                    <div className="flex justify-between items-center mt-auto border-t border-slate-100 pt-6">
-                        <button
-                            onClick={() => setActiveCardIndex(Math.max(0, activeCardIndex - 1))}
-                            disabled={activeCardIndex === 0}
-                            className="px-8 py-3.5 text-base font-bold text-slate-600 bg-slate-100 disabled:opacity-30 disabled:hover:bg-slate-100 hover:bg-slate-200 hover:text-indigo-700 rounded-2xl transition-all"
-                        >
-                            ← Anterior
-                        </button>
-                        
-                        <div className="flex gap-2">
-                            {flashcards.map((_, idx) => (
-                                <div key={idx} className={`h-2 rounded-full transition-all duration-300 ${idx === activeCardIndex ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-200'}`} />
-                            ))}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {/* Block title */}
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-sm font-black">{currentBlock + 1}</span>
                         </div>
-
-                        {activeCardIndex + 1 === flashcards.length ? (
-                            <button onClick={() => setMode("IDLE")} className="px-8 py-3.5 bg-indigo-600 text-white rounded-2xl text-base font-bold shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 transition-all">
-                                Entendido
-                            </button>
-                        ) : (
-                            <button onClick={() => setActiveCardIndex(activeCardIndex + 1)} className="px-8 py-3.5 bg-indigo-100 text-indigo-700 rounded-2xl text-base font-bold hover:bg-indigo-200 hover:scale-105 transition-all">
-                                Siguiente →
-                            </button>
-                        )}
+                        <h2 className="text-white font-black text-xl">{block.title}</h2>
                     </div>
+
+                    {/* Content */}
+                    <div className="bg-slate-800 rounded-2xl p-6 mb-6 prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown
+                            components={{
+                                h3: ({children}) => <h3 className="text-teal-400 font-bold text-base mt-4 mb-2">{children}</h3>,
+                                p: ({children}) => <p className="text-slate-200 leading-relaxed mb-3">{children}</p>,
+                                ul: ({children}) => <ul className="space-y-1 mb-3">{children}</ul>,
+                                li: ({children}) => <li className="text-slate-300 flex gap-2"><span className="text-teal-400 flex-shrink-0">•</span><span>{children}</span></li>,
+                                strong: ({children}) => <strong className="text-teal-300 font-bold">{children}</strong>,
+                                blockquote: ({children}) => <blockquote className="border-l-4 border-teal-500 pl-4 italic text-slate-500">{children}</blockquote>,
+                            }}
+                        >
+                            {block.content}
+                        </ReactMarkdown>
+                    </div>
+
+                    {/* Zendi tip */}
+                    <div className="bg-teal-900/40 border border-teal-700 rounded-xl p-4 mb-6 flex gap-3">
+                        <span className="text-2xl flex-shrink-0">💡</span>
+                        <div>
+                            <p className="text-teal-400 text-xs font-bold mb-1">Zendi dice:</p>
+                            <p className="text-slate-300 text-sm">
+                                {currentBlock === 0
+                                    ? 'Lee con calma. Cada bloque te prepara para las preguntas del examen.'
+                                    : currentBlock === blocks.length - 1
+                                    ? 'Ultimo bloque! Al terminar pasaremos al examen. Listo?'
+                                    : 'Bien. Sigue asi. Estas construyendo el conocimiento paso a paso.'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
+                    <button
+                        onClick={handleBlockNext}
+                        disabled={loading}
+                        className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all"
+                    >
+                        {loading
+                            ? 'Preparando examen...'
+                            : currentBlock < blocks.length - 1
+                            ? `Siguiente bloque →`
+                            : 'Entendido! Ir al examen →'}
+                    </button>
                 </div>
             </div>
         );
     }
 
-    if (mode === "QUIZ") {
-        const q = quizQuestions[currentQuestionIndex];
+    // -- QUIZ -----------------------------------------------------------------
+    if (stage === 'QUIZ' && questions.length > 0) {
+        const q = questions[currentQ];
+        const isLast = currentQ === questions.length - 1;
+
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-lg overflow-y-auto">
-                <div className="bg-white rounded-3xl p-8 md:p-12 shadow-2xl border-2 border-indigo-100 w-full max-w-4xl min-h-[600px] flex flex-col animate-in fade-in zoom-in-95 duration-500">
-                    <div className="flex justify-between items-center mb-10 pb-6 border-b border-slate-100">
-                        <div className="flex flex-col gap-2">
-                            <span className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full w-fit">
-                                Examen Oficial de Certificación
-                            </span>
-                            <span className="text-slate-500 font-bold text-sm">
-                                Pregunta {currentQuestionIndex + 1} de {quizQuestions.length}
-                            </span>
-                        </div>
-                        <button onClick={() => { if (confirm("¿Abandonar el examen contará como intento nulo. Seguro?")) setMode("IDLE") }} className="text-sm font-bold text-slate-400 hover:text-rose-500 bg-slate-50 hover:bg-rose-50 px-4 py-2 rounded-xl transition-colors">
-                            Abandonar Examen
-                        </button>
+            <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
+                {/* Header */}
+                <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
+                    <div>
+                        <p className="text-teal-400 text-xs font-bold">EXAMEN OFICIAL</p>
+                        <p className="text-white text-sm font-bold">{course.title}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-slate-500 text-xs">{currentQ + 1} de {questions.length}</p>
+                        <p className="text-teal-400 text-xs font-bold">{correctCount} correctas</p>
+                    </div>
+                </div>
+
+                {/* Progress */}
+                <div className="h-1.5 bg-slate-700">
+                    <div className="h-full bg-teal-500 transition-all duration-500" style={{width: `${progressPct}%`}} />
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                    {/* Question */}
+                    <div className="bg-slate-800 rounded-2xl p-6 mb-6">
+                        <p className="text-slate-500 text-xs font-bold mb-3 uppercase tracking-widest">Pregunta {currentQ + 1}</p>
+                        <p className="text-white font-bold text-lg leading-relaxed">{q.question}</p>
                     </div>
 
-                    <div className="mb-10 text-center">
-                        <h3 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight tracking-tight">{q.question}</h3>
-                    </div>
-
-                    <div className="space-y-4 flex-1 max-w-2xl w-full mx-auto">
+                    {/* Options */}
+                    <div className="space-y-3 mb-6">
                         {q.options.map((opt: string, i: number) => {
-                            let btnClass = "w-full text-left px-6 py-5 rounded-2xl border-2 transition-all font-semibold text-lg text-slate-700 ";
-
-                            if (isAnswerRevealed) {
-                                if (opt === q.correctAnswer) {
-                                    btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-md";
-                                } else if (opt === selectedAnswer && opt !== q.correctAnswer) {
-                                    btnClass += "bg-rose-50 border-rose-500 text-rose-800";
-                                } else {
-                                    btnClass += "border-slate-100 opacity-40";
-                                }
-                            } else {
-                                if (opt === selectedAnswer) btnClass += "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-lg scale-[1.02] translate-x-2";
-                                else btnClass += "border-slate-200 hover:border-indigo-300 hover:bg-slate-50 hover:translate-x-1";
+                            let style = 'border-slate-700 bg-slate-800 text-slate-200';
+                            if (showExplanation) {
+                                if (i === q.correct) style = 'border-teal-500 bg-teal-900/40 text-teal-300';
+                                else if (i === selectedAnswer && i !== q.correct) style = 'border-red-500 bg-red-900/30 text-red-300';
+                                else style = 'border-slate-700 bg-slate-800/50 text-slate-500';
+                            } else if (selectedAnswer === i) {
+                                style = 'border-teal-500 bg-teal-900/40 text-teal-300';
                             }
-
                             return (
                                 <button
                                     key={i}
-                                    disabled={isAnswerRevealed}
-                                    onClick={() => setSelectedAnswer(opt)}
-                                    className={btnClass}
+                                    onClick={() => handleAnswer(i)}
+                                    disabled={showExplanation}
+                                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all font-medium ${style}`}
                                 >
-                                    <span className="mr-3 text-slate-400 font-bold opacity-50">{String.fromCharCode(65 + i)}.</span>
+                                    <span className="font-black mr-3 text-slate-500">{['A', 'B', 'C', 'D'][i]}.</span>
                                     {opt}
                                 </button>
                             );
                         })}
                     </div>
 
-                    {isAnswerRevealed && (
-                        <div className={"mt-8 p-6 rounded-2xl flex items-start gap-4 animate-in slide-in-from-bottom-4 " + (selectedAnswer === q.correctAnswer ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200")}>
-                            <div className="text-4xl font-bold">{selectedAnswer === q.correctAnswer ? 'Aprobado' : 'Fallido'}</div>
-                            <div>
-                                <p className={"font-black text-lg mb-1 " + (selectedAnswer === q.correctAnswer ? "text-emerald-800" : "text-rose-800")}>
-                                    {selectedAnswer === q.correctAnswer ? 'Respuesta Correcta' : 'Respuesta Incorrecta'}
+                    {/* Explanation */}
+                    {showExplanation && (
+                        <div className={`rounded-2xl p-5 mb-4 border ${selectedAnswer === q.correct ? 'bg-teal-900/30 border-teal-700' : 'bg-red-900/20 border-red-800'}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xl">{selectedAnswer === q.correct ? '✅' : '❌'}</span>
+                                <p className={`font-black text-sm ${selectedAnswer === q.correct ? 'text-teal-400' : 'text-red-400'}`}>
+                                    {selectedAnswer === q.correct ? 'Correcto!' : 'Incorrecto'}
                                 </p>
-                                <p className="text-base text-slate-700 font-medium leading-relaxed">
-                                    <strong className="text-slate-900">Zendi AI Coach:</strong> {q.explanation}
-                                </p>
+                            </div>
+                            <div className="flex gap-2 items-start">
+                                <div className="w-7 h-7 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xs font-black text-white">Z</span>
+                                </div>
+                                <p className="text-slate-300 text-sm leading-relaxed">{q.explanation}</p>
                             </div>
                         </div>
                     )}
-
-                    <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center">
-                        <div className="flex gap-2">
-                            {quizQuestions.map((_, idx) => (
-                                <div key={idx} className={`h-2 rounded-full transition-all duration-300 ${idx === currentQuestionIndex ? 'w-8 bg-indigo-600' : idx < currentQuestionIndex ? 'w-2 bg-indigo-300' : 'w-2 bg-slate-200'}`} />
-                            ))}
-                        </div>
-
-                        {!isAnswerRevealed ? (
-                            <button
-                                disabled={!selectedAnswer}
-                                onClick={handleAnswerSubmit}
-                                className="px-8 py-4 bg-indigo-600 text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 hover:scale-105 disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100 transition-all"
-                            >
-                                Comprobar Respuesta
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleNextQuestion}
-                                className="px-8 py-4 bg-slate-900 text-white text-lg font-black rounded-2xl shadow-xl shadow-slate-900/30 hover:bg-black hover:scale-105 transition-all"
-                            >
-                                {currentQuestionIndex + 1 === quizQuestions.length ? "Finalizar Examen y Ver Resultados" : "Siguiente Pregunta →"}
-                            </button>
-                        )}
-                    </div>
                 </div>
+
+                {/* Footer */}
+                {showExplanation && (
+                    <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
+                        <button
+                            onClick={handleNextQuestion}
+                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
+                        >
+                            {isLast ? 'Ver pregunta de reflexion →' : 'Siguiente pregunta →'}
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }
 
-    return (
-        <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between h-full relative">
-            {/* Status Tags On Image / Header */}
-            {status === 'COMPLETED' && (
-                <div className="absolute top-4 right-4 z-10 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                    APROBADO
-                </div>
-            )}
-            
-            {course.imageUrl ? (
-                <div className="h-48 w-full relative overflow-hidden bg-slate-100">
-                    <img src={course.imageUrl} alt={course.title} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    <div className="absolute bottom-4 left-4 flex gap-2">
-                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">{course.durationMins} MINS</span>
-                        <span className="bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg shadow-sm flex items-center gap-1">+{course.bonusCompliance} PTS</span>
+    // -- REFLECTION -----------------------------------------------------------
+    if (stage === 'REFLECTION') {
+        const passed = correctCount >= Math.ceil(questions.length * 0.8);
+        return (
+            <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
+                <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
+                    <div>
+                        <p className="text-teal-400 text-xs font-bold">PREGUNTA DE RAZONAMIENTO</p>
+                        <p className="text-white text-sm font-bold">{course.title}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${passed ? 'bg-teal-900 text-teal-400' : 'bg-red-900 text-red-400'}`}>
+                            {correctCount}/{questions.length} correctas
+                        </span>
                     </div>
                 </div>
-            ) : (
-                <div className="h-40 w-full relative overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                    <div className="absolute bottom-4 left-4 flex gap-2 z-10">
-                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20 flex items-center gap-1">{course.durationMins} MINS</span>
-                        <span className="bg-black/30 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-black/20 flex items-center gap-1">+{course.bonusCompliance} PTS</span>
-                    </div>
-                </div>
-            )}
 
-            <div className="p-6 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-2">
-                    <span className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100">{course.category || "General"}</span>
-                    {strikes > 0 && status !== 'COMPLETED' && strikes < 3 && (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded flex items-center gap-1">STRIKES: {strikes}/3</span>
-                    )}
-                </div>
-                
-                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-2 mt-2 group-hover:text-indigo-600 transition-colors">{course.title}</h4>
-                <p className="text-sm text-slate-500 mb-6 line-clamp-3 leading-relaxed">{course.description}</p>
-                
-                {/* Actions Footer */}
-                <div className="mt-auto pt-4 border-t border-slate-50">
-                    {status !== 'COMPLETED' ? (
-                        <div className="flex flex-col gap-3 w-full">
-                            {aiLoading ? (
-                                <div className="flex items-center justify-center gap-2 text-indigo-600 font-bold text-sm bg-indigo-50 px-6 py-3.5 rounded-xl border border-indigo-100 w-full">
-                                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                    Zendity AI Generando...
+                <div className="flex-1 overflow-y-auto p-6">
+                    {/* Score summary */}
+                    <div className={`rounded-2xl p-4 mb-6 ${passed ? 'bg-teal-900/30 border border-teal-700' : 'bg-amber-900/20 border border-amber-700'}`}>
+                        <p className={`font-black text-sm mb-1 ${passed ? 'text-teal-400' : 'text-amber-400'}`}>
+                            {passed ? `Excelente! ${correctCount} de ${questions.length} correctas` : `${correctCount} de ${questions.length} correctas — necesitas la reflexion para aprobar`}
+                        </p>
+                        <p className="text-slate-500 text-xs">
+                            {passed
+                                ? 'Supera la reflexion final para obtener tu certificado.'
+                                : 'Esta es tu oportunidad de demostrar que entendiste el material.'}
+                        </p>
+                    </div>
+
+                    {/* Zendi question */}
+                    <div className="bg-slate-800 rounded-2xl p-6 mb-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg">👩‍🏫</span>
+                            </div>
+                            <div>
+                                <p className="text-teal-400 text-xs font-bold">Profesora Zendi pregunta:</p>
+                            </div>
+                        </div>
+                        <p className="text-white font-bold text-lg leading-relaxed">
+                            Basandote en lo que aprendiste en este curso, describe una situacion real en tu trabajo donde aplicarias este conocimiento. Que harias diferente a partir de hoy?
+                        </p>
+                    </div>
+
+                    {/* Text area */}
+                    <textarea
+                        value={reflection}
+                        onChange={e => setReflection(e.target.value)}
+                        placeholder="Escribe tu respuesta aqui. Se especifico — Zendi evaluara la profundidad de tu comprension..."
+                        rows={6}
+                        className="w-full bg-slate-800 border border-slate-600 focus:border-teal-500 rounded-2xl p-4 text-white text-sm resize-none outline-none mb-2 placeholder:text-slate-600"
+                    />
+                    <p className="text-slate-600 text-xs mb-4">{reflection.length} caracteres — minimo recomendado: 100</p>
+
+                    {/* Feedback from Zendi */}
+                    {reflectionResult && (
+                        <div className={`rounded-2xl p-5 mb-4 border ${reflectionResult.approved ? 'bg-teal-900/30 border-teal-700' : 'bg-amber-900/20 border-amber-700'}`}>
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="w-8 h-8 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-sm">👩‍🏫</span>
                                 </div>
-                            ) : (
-                                <>
-                                    <button
-                                        onClick={handleStartLearning}
-                                        className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:scale-[1.02] border border-indigo-100 flex justify-center items-center gap-2 active:scale-95"
-                                    >
-                                        Estudiar Material
-                                    </button>
-                                    <button
-                                        onClick={handleStartQuiz}
-                                        className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] text-white shadow-md shadow-indigo-200 flex justify-center items-center gap-2 active:scale-95"
-                                    >
-                                        Iniciar Examen Oficial
-                                    </button>
-                                </>
+                                <p className={`font-black text-sm ${reflectionResult.approved ? 'text-teal-400' : 'text-amber-400'}`}>
+                                    {reflectionResult.approved ? 'Excelente reflexion!' : 'Zendi tiene un comentario para ti:'}
+                                </p>
+                            </div>
+                            <p className="text-slate-300 text-sm leading-relaxed">{reflectionResult.feedback}</p>
+                            {!reflectionResult.approved && (
+                                <button
+                                    onClick={() => { setReflectionResult(null); }}
+                                    className="mt-3 text-amber-400 text-xs font-bold hover:text-amber-300"
+                                >
+                                    Mejorar mi respuesta
+                                </button>
                             )}
                         </div>
-                    ) : (
-                        <div className="flex items-center w-full">
-                            <button
-                                onClick={() => generateZendityCertificate(user?.name || 'Usuario', course.title, new Date().toLocaleDateString())}
-                                className="w-full px-6 py-3 rounded-xl text-sm font-bold transition-all bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex justify-center items-center gap-2 hover:scale-[1.02] active:scale-95"
-                            >
-                                Imprimir Certificado Zendity
-                            </button>
-                        </div>
                     )}
                 </div>
+
+                {/* Footer */}
+                {(!reflectionResult || !reflectionResult.approved) && (
+                    <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
+                        <button
+                            onClick={handleReflection}
+                            disabled={reflectionLoading || reflection.trim().length < 10}
+                            className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white font-black py-4 rounded-2xl transition-all"
+                        >
+                            {reflectionLoading ? 'Zendi esta evaluando...' : 'Enviar respuesta a Zendi →'}
+                        </button>
+                        {!passed && (
+                            <button
+                                onClick={handleFail}
+                                className="w-full mt-2 text-slate-500 text-xs py-2 hover:text-slate-500"
+                            >
+                                Abandonar y reintentar despues
+                            </button>
+                        )}
+                    </div>
+                )}
+                {reflectionResult?.approved && (
+                    <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
+                        <button
+                            onClick={() => setStage('RESULT')}
+                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
+                        >
+                            Ver mi certificado 🎓
+                        </button>
+                    </div>
+                )}
             </div>
-        </div>
-    );
+        );
+    }
+
+    return null;
 }
