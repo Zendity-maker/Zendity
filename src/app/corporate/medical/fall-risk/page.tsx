@@ -66,7 +66,7 @@ export default async function FallRiskDashboard() {
                             {highRisk.map(patient => (
                                 <PatientRiskCard key={patient.id} patient={patient} level="HIGH" now={now} />
                             ))}
-                            {highRisk.length === 0 && <p className="text-sm text-gray-400 italic">No hay residentes en alto riesgo.</p>}
+                            {highRisk.length === 0 && <p className="text-sm text-gray-500 italic">No hay residentes en alto riesgo.</p>}
                         </div>
                     </section>
 
@@ -103,7 +103,7 @@ export default async function FallRiskDashboard() {
                 {/* Lado Derecho: Incident Feed (1 Columna) */}
                 <aside className="xl:col-span-1 border-l pl-8 border-gray-200">
                     <h3 className="text-base font-semibold text-gray-900 mb-6 flex items-center">
-                        <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         Incidentes Recientes (72 Hrs)
@@ -219,7 +219,7 @@ function IncidentFeedCard({ incident }: { incident: any }) {
                 <span className="font-medium">Locación: </span>{incident.location}. {incident.notes}
             </p>
 
-            <p className="mt-3 text-[10px] text-gray-400 group-hover:text-indigo-500 transition-colors">
+            <p className="mt-3 text-[10px] text-gray-500 group-hover:text-indigo-500 transition-colors">
                 Hace {timeAgo}
             </p>
         </div>

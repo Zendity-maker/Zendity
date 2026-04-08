@@ -184,7 +184,7 @@ export default function ZendityHQPage() {
                             <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 cursor-pointer transition-colors">
                                 <p className="text-2xl mb-1"></p>
                                 <p className="text-xs font-bold text-teal-600">Click para adjuntar PDF</p>
-                                <p className="text-[10px] text-slate-400 mt-1">Soporta PDF, JPG (Max 5MB)</p>
+                                <p className="text-[10px] text-slate-500 mt-1">Soporta PDF, JPG (Max 5MB)</p>
                             </div>
 
                             <button
@@ -212,7 +212,7 @@ export default function ZendityHQPage() {
                                     value={logoUrl}
                                     onChange={(e) => setLogoUrl(e.target.value)}
                                 />
-                                <p className="text-[10px] text-slate-400 mt-1">Este logo reemplazará a Zendity en el Portal Familiar B2C.</p>
+                                <p className="text-[10px] text-slate-500 mt-1">Este logo reemplazará a Zendity en el Portal Familiar B2C.</p>
                             </div>
 
                             {logoUrl && (
@@ -238,14 +238,14 @@ export default function ZendityHQPage() {
                         <div className="bg-slate-900 p-5 text-white flex justify-between items-center relative overflow-hidden">
                             <div className="relative z-10">
                                 <h2 className="text-xl font-bold">Inventario Documental</h2>
-                                <p className="text-xs text-slate-400">Archivos oficiales de la Sede</p>
+                                <p className="text-xs text-slate-500">Archivos oficiales de la Sede</p>
                             </div>
                             <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
                         </div>
 
                         <div className="p-0">
                             {documents.length === 0 ? (
-                                <div className="p-10 text-center text-slate-400 font-medium">
+                                <div className="p-10 text-center text-slate-500 font-medium">
                                     No hay documentos en la bóveda de esta sede. Sube el primer registro.
                                 </div>
                             ) : (
@@ -268,7 +268,7 @@ export default function ZendityHQPage() {
                                                         </div>
                                                         <div>
                                                             <p className="font-bold text-slate-800">{doc.name}</p>
-                                                            <p className="text-[10px] uppercase font-bold text-slate-400">{doc.type}</p>
+                                                            <p className="text-[10px] uppercase font-bold text-slate-500">{doc.type}</p>
                                                         </div>
                                                     </div>
                                                 </td>

@@ -159,7 +159,7 @@ export default function EMARDashboardPage() {
                     <div className="p-12 text-center animate-pulse">
                         <BeakerIcon className="w-12 h-12 text-teal-300 mx-auto mb-4" />
                         <h2 className="text-xl font-bold text-teal-700">Enlazando con Farmacia...</h2>
-                        <p className="text-sm font-medium text-slate-400 mt-2">Buscando prescripciones y horarios B2B.</p>
+                        <p className="text-sm font-medium text-slate-500 mt-2">Buscando prescripciones y horarios B2B.</p>
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -182,7 +182,7 @@ export default function EMARDashboardPage() {
                                             </div>
                                             <div>
                                                 <h2 className="text-lg font-black text-slate-800">{patient.name}</h2>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{filteredMeds.length} Fármacos Asignados</p>
+                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{filteredMeds.length} Fármacos Asignados</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-4">
@@ -190,9 +190,9 @@ export default function EMARDashboardPage() {
                                                 Ver Historial
                                             </Link>
                                             {isExpanded ? (
-                                                <ChevronUpIcon className="w-6 h-6 text-slate-400" />
+                                                <ChevronUpIcon className="w-6 h-6 text-slate-500" />
                                             ) : (
-                                                <ChevronDownIcon className="w-6 h-6 text-slate-400" />
+                                                <ChevronDownIcon className="w-6 h-6 text-slate-500" />
                                             )}
                                         </div>
                                     </div>
@@ -205,7 +205,7 @@ export default function EMARDashboardPage() {
                                                     <div className="flex gap-5">
                                                         {/* Status Indicator Icon */}
                                                         <div className="mt-1">
-                                                            {med.status === 'PENDING' && <ClockIcon className="w-6 h-6 text-slate-300" />}
+                                                            {med.status === 'PENDING' && <ClockIcon className="w-6 h-6 text-slate-500" />}
                                                             {med.status === 'ADMINISTERED' && <CheckCircleIcon className="w-6 h-6 text-emerald-500" />}
                                                             {med.status === 'REFUSED' && <XCircleIcon className="w-6 h-6 text-rose-500" />}
                                                             {med.status === 'OMITTED' && <ExclamationTriangleIcon className="w-6 h-6 text-amber-500" />}
@@ -213,7 +213,7 @@ export default function EMARDashboardPage() {
 
                                                         <div>
                                                             <div className="flex items-center gap-3">
-                                                                <h3 className={`font-black text-lg ${med.status !== 'PENDING' ? 'text-slate-400 line-through decoration-slate-300' : 'text-slate-800'}`}>
+                                                                <h3 className={`font-black text-lg ${med.status !== 'PENDING' ? 'text-slate-500 line-through decoration-slate-300' : 'text-slate-800'}`}>
                                                                     {med.name}
                                                                 </h3>
                                                                 {med.time === 'PRN' ? (
@@ -259,7 +259,7 @@ export default function EMARDashboardPage() {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
                                                             Registrado 
                                                         </div>
                                                     )}
@@ -276,8 +276,8 @@ export default function EMARDashboardPage() {
                         {patients.every(p => p.medications.filter(filterFn).length === 0) && (
                             <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center">
                                 <BeakerIcon className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                                <h3 className="text-xl font-black text-slate-400">Ronda Limpia</h3>
-                                <p className="text-slate-400 mt-2 font-medium">No hay prescripciones activas para este horario de recuento.</p>
+                                <h3 className="text-xl font-black text-slate-500">Ronda Limpia</h3>
+                                <p className="text-slate-500 mt-2 font-medium">No hay prescripciones activas para este horario de recuento.</p>
                             </div>
                         )}
                     </div>
@@ -299,7 +299,7 @@ export default function EMARDashboardPage() {
 
                                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6">
                                     <p className="font-black text-lg text-slate-800">{selectedMed.name}</p>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">{selectedMed.route}  {selectedMed.time}</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">{selectedMed.route}  {selectedMed.time}</p>
                                 </div>
 
                                 {actionType !== 'ADMINISTERED' && (

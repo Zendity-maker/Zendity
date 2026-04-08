@@ -75,7 +75,7 @@ export default function VividInvestorsDashboard() {
                         </div>
                         <div className="flex flex-col">
                             <h1 className="text-2xl font-serif text-white tracking-tight uppercase pb-1">Vivid <span className="text-amber-500 font-light">Senior Living</span></h1>
-                            <p className="text-slate-400 font-medium text-xs tracking-[0.2em] uppercase leading-relaxed">Partners & Investor Dashboard</p>
+                            <p className="text-slate-500 font-medium text-xs tracking-[0.2em] uppercase leading-relaxed">Partners & Investor Dashboard</p>
                         </div>
                     </div>
 
@@ -90,7 +90,7 @@ export default function VividInvestorsDashboard() {
 
                 <div className="mb-12">
                     <h2 className="text-4xl font-light text-white tracking-tight mb-2">Visión General Operativa</h2>
-                    <p className="text-slate-400 text-lg">Métricas agregadas en tiempo real de las facilidades Vivid Senior Living.</p>
+                    <p className="text-slate-500 text-lg">Métricas agregadas en tiempo real de las facilidades Vivid Senior Living.</p>
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -112,14 +112,14 @@ export default function VividInvestorsDashboard() {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-slate-400 text-sm font-medium">Capacidad Total Restringida: {hq.capacity} Camas Autorizadas</p>
+                                    <p className="text-slate-500 text-sm font-medium">Capacidad Total Restringida: {hq.capacity} Camas Autorizadas</p>
                                 </div>
                                 {hq.logoUrl ? (
                                     <div className="hidden sm:flex h-12 w-32 items-center justify-end">
                                         <img src={hq.logoUrl} alt="Logo" className="max-h-12 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] grayscale hover:grayscale-0 transition-all duration-500" />
                                     </div>
                                 ) : (
-                                    <div className="hidden sm:flex h-12 w-12 rounded-full bg-slate-700 items-center justify-center text-slate-400 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors">
+                                    <div className="hidden sm:flex h-12 w-12 rounded-full bg-slate-700 items-center justify-center text-slate-500 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors">
                                         <Activity className="w-6 h-6" />
                                     </div>
                                 )}
@@ -131,7 +131,7 @@ export default function VividInvestorsDashboard() {
                                 {/* Occupancy */}
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-end">
-                                        <div className="flex items-center gap-2 text-slate-300">
+                                        <div className="flex items-center gap-2 text-slate-500">
                                             <Users className="w-4 h-4 text-emerald-400" />
                                             <span className="text-sm font-bold uppercase tracking-wider">Ocupación</span>
                                         </div>
@@ -149,7 +149,7 @@ export default function VividInvestorsDashboard() {
                                 {/* Revenue */}
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-end">
-                                        <div className="flex items-center gap-2 text-slate-300">
+                                        <div className="flex items-center gap-2 text-slate-500">
                                             <DollarSign className="w-4 h-4 text-amber-400" />
                                             <span className="text-sm font-bold uppercase tracking-wider">Ingresos MTD</span>
                                         </div>
@@ -167,14 +167,14 @@ export default function VividInvestorsDashboard() {
                                 {/* Clinical Compliance */}
                                 <div className="md:col-span-2 bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50 flex items-center justify-between">
                                     <div>
-                                        <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                                             <Activity className="w-4 h-4 text-blue-400" /> Índice Clínico Laboral
                                         </h4>
                                         <p className="text-slate-500 text-xs mt-1">Garantía de calidad de {hq.staffCount} enfermeros/cuidadores</p>
                                     </div>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-4xl font-black text-white">{hq.clinicalComplianceRate}</span>
-                                        <span className="text-slate-400 font-bold">/ 100</span>
+                                        <span className="text-slate-500 font-bold">/ 100</span>
                                     </div>
                                 </div>
 

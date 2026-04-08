@@ -86,7 +86,7 @@ export default function NursingZoningPage() {
                 <div className="bg-slate-900 p-6 rounded-3xl text-white shadow-xl mb-8 flex items-center justify-between animate-pulse">
                     <div>
                         <h3 className="font-bold text-lg text-amber-400"> {zoning["UNASSIGNED"].length} Residentes Recientes Sin Asignar</h3>
-                        <p className="text-sm text-slate-400">Residentes ingeridos desde Intake requieren asignación inmediata de turno.</p>
+                        <p className="text-sm text-slate-500">Residentes ingeridos desde Intake requieren asignación inmediata de turno.</p>
                     </div>
                     <div>
                         <select
@@ -143,7 +143,7 @@ export default function NursingZoningPage() {
                                             </div>
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                                 {updating === p.id ? (
-                                                    <span className="text-xs text-slate-400 font-bold uppercase">...</span>
+                                                    <span className="text-xs text-slate-500 font-bold uppercase">...</span>
                                                 ) : (
                                                     <select
                                                         className="text-[10px] uppercase font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg py-1 px-2 cursor-pointer outline-none"

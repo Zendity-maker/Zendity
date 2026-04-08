@@ -57,7 +57,7 @@ export default async function VisitsPage({
             {/* Toolbar — no imprime */}
             <div className="no-print bg-slate-800 px-6 py-3 flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                    <a href="/reception" className="text-slate-400 hover:text-white text-sm transition-colors">
+                    <a href="/reception" className="text-slate-500 hover:text-white text-sm transition-colors">
                         ← Kiosco
                     </a>
                     <span className="text-slate-600">|</span>
@@ -89,10 +89,10 @@ export default async function VisitsPage({
                             {hq?.phone && <p className="text-slate-500 text-sm mt-1">{hq.phone}</p>}
                         </div>
                         <div className="text-right">
-                            <p className="text-slate-400 text-xs uppercase tracking-widest mb-1">Powered by</p>
+                            <p className="text-slate-500 text-xs uppercase tracking-widest mb-1">Powered by</p>
                             <p className="text-teal-600 font-black text-xl tracking-widest">ZÉNDITY</p>
-                            <p className="text-slate-400 text-xs mt-2">Generado el {today}</p>
-                            <p className="text-slate-400 text-xs">Total: {visits.length} visitas</p>
+                            <p className="text-slate-500 text-xs mt-2">Generado el {today}</p>
+                            <p className="text-slate-500 text-xs">Total: {visits.length} visitas</p>
                             {(searchParams.from || searchParams.to) && (
                                 <p className="text-teal-500 text-xs mt-1 font-medium">
                                     Período: {searchParams.from || '...'} → {searchParams.to || 'hoy'}
@@ -102,7 +102,7 @@ export default async function VisitsPage({
                     </div>
                     <div className="mt-4 bg-slate-50 rounded-lg px-4 py-2 flex items-center justify-between">
                         <h2 className="text-base font-bold text-slate-700">Registro Oficial de Visitas Familiares</h2>
-                        <p className="text-slate-400 text-xs">Official Family Visit Log</p>
+                        <p className="text-slate-500 text-xs">Official Family Visit Log</p>
                     </div>
                 </div>
 
@@ -121,7 +121,7 @@ export default async function VisitsPage({
                     <tbody>
                         {visits.map((v, i) => (
                             <tr key={v.id} style={{background: i % 2 === 0 ? '#F8FAFC' : 'white', borderBottom: '1px solid #E2E8F0'}}>
-                                <td className="px-3 py-2.5 text-slate-400 font-bold text-xs">{i + 1}</td>
+                                <td className="px-3 py-2.5 text-slate-500 font-bold text-xs">{i + 1}</td>
                                 <td className="px-3 py-2.5 font-medium text-slate-800">{v.visitorName}</td>
                                 <td className="px-3 py-2.5 text-slate-600">{v.residentName}</td>
                                 <td className="px-3 py-2.5 text-slate-600 text-xs">
@@ -139,14 +139,14 @@ export default async function VisitsPage({
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={v.signatureData} alt="Firma" className="h-8 w-auto" />
                                     ) : (
-                                        <span className="text-slate-300 text-xs italic">Sin firma</span>
+                                        <span className="text-slate-500 text-xs italic">Sin firma</span>
                                     )}
                                 </td>
                             </tr>
                         ))}
                         {visits.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
+                                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                                     No hay visitas registradas para este período.
                                 </td>
                             </tr>
@@ -156,7 +156,7 @@ export default async function VisitsPage({
 
                 {/* Footer imprimible */}
                 <div className="mt-8 pt-4 border-t border-slate-200 flex items-center justify-between">
-                    <p className="text-slate-400 text-xs">
+                    <p className="text-slate-500 text-xs">
                         {hq?.name} · Registro de Visitas Familiares · {today}
                     </p>
                     <p className="text-teal-500 text-xs font-bold">ZÉNDITY · app.zendity.com</p>

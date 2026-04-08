@@ -157,7 +157,7 @@ export default function HandoverForm({ patients }: { patients: { id: string, nam
             <button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting || notes.length === 0}
-                className={`w-full text-white font-black py-6 px-8 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-4 text-xl ${isSubmitting ? 'bg-indigo-600 opacity-80 cursor-wait shadow-indigo-500/30' : (success ? 'bg-emerald-600 shadow-emerald-500/30' : 'bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none min-h-[80px]')}`}
+                className={`w-full text-white font-black py-6 px-8 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-4 text-xl ${isSubmitting ? 'bg-indigo-600 opacity-80 cursor-wait shadow-indigo-500/30' : (success ? 'bg-emerald-600 shadow-emerald-500/30' : 'bg-slate-900 hover:bg-slate-800 active:scale-95 disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none min-h-[80px]')}`}
             >
                 {isSubmitting ? 'Procesando Cierre Clínico...' : (success ? '✅ Guardia Intercambiada' : 'Firmar y Entregar Guardia')}
             </button>

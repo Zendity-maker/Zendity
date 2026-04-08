@@ -35,7 +35,7 @@ export default async function FamilyLayout({ children }: { children: React.React
                             )}
                             <div className="flex flex-col justify-center">
                                 {!logoUrl && <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-500">{hqName}</h1>}
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{!logoUrl ? "Portal Familiar" : "Portal Familiar"}</p>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">{!logoUrl ? "Portal Familiar" : "Portal Familiar"}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
@@ -67,19 +67,19 @@ export default async function FamilyLayout({ children }: { children: React.React
             {/* Mobile Bottom Nav */}
             <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 pb-safe z-50">
                 <div className="flex justify-around items-center h-16">
-                    <Link href="/family" className="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-rose-500">
+                    <Link href="/family" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-rose-500">
                         <FaHome className="text-xl mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-wider">Inicio</span>
                     </Link>
-                    <Link href="/family/concierge" className="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-indigo-500">
+                    <Link href="/family/concierge" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-500">
                         <FaSpa className="text-xl mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-wider">Concierge</span>
                     </Link>
-                    <Link href="/family/messages" className="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-rose-500">
+                    <Link href="/family/messages" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-rose-500">
                         <FaCommentDots className="text-xl mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-wider">Mensajes</span>
                     </Link>
-                    <Link href="/family/billing" className="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-indigo-900">
+                    <Link href="/family/billing" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-900">
                         <FaFileInvoiceDollar className="text-xl mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-wider">Facturación</span>
                     </Link>

@@ -112,7 +112,7 @@ export default function HRCommsPage() {
                 </Link>
                 
                 <h1 className="text-4xl font-black tracking-tight mb-2">Comunicaciones RRHH</h1>
-                <p className="text-slate-400 text-lg font-medium max-w-2xl">
+                <p className="text-slate-500 text-lg font-medium max-w-2xl">
                     Despacha comunicados oficiales (Memorándums) a toda la plantilla de empleados institucionales o hacia roles específicos con un solo botón.
                 </p>
             </div>
@@ -152,7 +152,7 @@ export default function HRCommsPage() {
                                 </button>
                             ))}
                         </div>
-                        <p className="text-xs text-slate-400 mt-4 font-medium">Zendity ocultará automáticamente las direcciones a través del sistema blindado BCC.</p>
+                        <p className="text-xs text-slate-500 mt-4 font-medium">Zendity ocultará automáticamente las direcciones a través del sistema blindado BCC.</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

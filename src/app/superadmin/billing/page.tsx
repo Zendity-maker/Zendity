@@ -20,9 +20,9 @@ export default async function SuperAdminBillingPage() {
                             <span className="text-teal-400"></span> Zendity OS
                             <span className="text-xl font-medium text-slate-500 tracking-normal ml-2">SaaS Billing Console</span>
                         </h1>
-                        <p className="text-slate-400 mt-2">Gestión Financiera B2B - Recibos por Uso de Plataforma</p>
+                        <p className="text-slate-500 mt-2">Gestión Financiera B2B - Recibos por Uso de Plataforma</p>
                     </div>
-                    <a href="/superadmin" className="px-5 py-2.5 rounded-xl border border-slate-800 text-slate-300 font-bold hover:bg-slate-800 transition-colors text-sm">
+                    <a href="/superadmin" className="px-5 py-2.5 rounded-xl border border-slate-800 text-slate-500 font-bold hover:bg-slate-800 transition-colors text-sm">
                         ← Volver a Master Console
                     </a>
                 </div>

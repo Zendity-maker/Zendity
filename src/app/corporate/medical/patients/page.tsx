@@ -60,7 +60,7 @@ export default function MasterPatientDirectory() {
     };
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center p-20 font-bold text-slate-400 animate-pulse text-xl">Sincronizando Directorio de Residentes...</div>;
+        return <div className="min-h-screen flex items-center justify-center p-20 font-bold text-slate-500 animate-pulse text-xl">Sincronizando Directorio de Residentes...</div>;
     }
 
     return (
@@ -81,16 +81,16 @@ export default function MasterPatientDirectory() {
 
                     <div className="grid grid-cols-3 gap-4 bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
                         <div className="px-4 py-2 text-center border-r border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Activos</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Activos</p>
                             <p className="text-2xl font-black text-emerald-600">{patients.filter(p => p.status === 'ACTIVE').length}</p>
                         </div>
                         <div className="px-4 py-2 text-center border-r border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Hospital</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Hospital</p>
                             <p className="text-2xl font-black text-amber-500">{patients.filter(p => p.status === 'TEMPORARY_LEAVE').length}</p>
                         </div>
                         <div className="px-4 py-2 text-center">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Bajas</p>
-                            <p className="text-2xl font-black text-slate-400">{patients.filter(p => p.status === 'DISCHARGED' || p.status === 'DECEASED').length}</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Bajas</p>
+                            <p className="text-2xl font-black text-slate-500">{patients.filter(p => p.status === 'DISCHARGED' || p.status === 'DECEASED').length}</p>
                         </div>
                     </div>
                 </div>
@@ -103,7 +103,7 @@ export default function MasterPatientDirectory() {
                     </div>
 
                     <div className="relative w-full md:w-96">
-                        <MagnifyingGlassIcon className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                        <MagnifyingGlassIcon className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
                             placeholder="Buscar residente por nombre o habitación..."
@@ -127,16 +127,16 @@ export default function MasterPatientDirectory() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Residente</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest hidden md:table-cell">Habitación</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">Estatus</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Acción</th>
+                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Residente</th>
+                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden md:table-cell">Habitación</th>
+                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Estatus</th>
+                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Acción</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredPatients.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
                                             No se encontraron residentes con esos criterios.
                                         </td>
                                     </tr>
@@ -145,7 +145,7 @@ export default function MasterPatientDirectory() {
                                         <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black overflow-hidden relative ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                    <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black overflow-hidden relative ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
                                                         {patient.photoUrl ? (
                                                             <img src={patient.photoUrl} alt={patient.name} className="w-full h-full object-cover" />
                                                         ) : (

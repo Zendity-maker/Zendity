@@ -294,7 +294,7 @@ export default function CRMDashboardPage() {
                                                 >
                                                     {STAGES.map(s => <option key={s.key} value={s.key}>Mover a: {s.label}</option>)}
                                                 </select>
-                                                <span className="text-slate-300 group-hover:hidden select-none">⠿</span>
+                                                <span className="text-slate-500 group-hover:hidden select-none">⠿</span>
                                             </div>
 
                                             <div className="text-xs text-slate-500 space-y-1">
@@ -303,13 +303,13 @@ export default function CRMDashboardPage() {
                                             </div>
 
                                             {/* Action Hints */}
-                                            {stage.key === "PROSPECT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-slate-400 pointer-events-none">→ Programar Tour familiar</div>}
+                                            {stage.key === "PROSPECT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-slate-500 pointer-events-none">→ Programar Tour familiar</div>}
                                             {stage.key === "EVALUATION" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-medium text-amber-600 pointer-events-none"> Recabar Firma Médica</div>}
                                             {stage.key === "CONTRACT" && <div className="mt-3 pt-3 border-t border-slate-100 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-center pointer-events-none">¡Listo para Mover a Admisión!</div>}
                                         </div>
                                     ))}
                                     {stageLeads.length === 0 && (
-                                        <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-400 text-xs font-medium -z-10 bg-slate-50/50">
+                                        <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-slate-500 text-xs font-medium -z-10 bg-slate-50/50">
                                             Arrastra aquí
                                         </div>
                                     )}

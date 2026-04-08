@@ -207,7 +207,7 @@ export default function WallOfCarePage() {
                     <div className="grid grid-cols-3 gap-6 auto-rows-max pb-8">
                         {data.patients.map((patient) => (
                             <div key={patient.id} className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-3xl p-5 flex items-center gap-5 transition-all hover:scale-[1.02] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] group">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-800 flex-shrink-0 flex items-center justify-center font-display font-black text-2xl text-slate-300 border border-slate-600 shadow-inner group-hover:border-slate-500 transition-colors">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-800 flex-shrink-0 flex items-center justify-center font-display font-black text-2xl text-slate-500 border border-slate-600 shadow-inner group-hover:border-slate-500 transition-colors">
                                     {patient.name.charAt(0)}
                                 </div>
                                 <div className="flex-1 min-w-0">

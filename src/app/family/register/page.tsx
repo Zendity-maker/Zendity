@@ -67,7 +67,7 @@ export default function FamilyRegisterPage() {
         <div className="min-h-screen bg-slate-900 flex items-center justify-center">
             <div className="text-white text-center">
                 <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"/>
-                <p className="text-slate-400">Verificando tu invitación...</p>
+                <p className="text-slate-500">Verificando tu invitación...</p>
             </div>
         </div>
     );
@@ -79,7 +79,7 @@ export default function FamilyRegisterPage() {
                     <span className="text-red-400 text-2xl">✕</span>
                 </div>
                 <h2 className="text-white font-bold text-xl mb-2">Enlace no válido</h2>
-                <p className="text-slate-400 text-sm">Este enlace de invitación ha expirado o ya fue utilizado. Contacte al hogar para solicitar uno nuevo.</p>
+                <p className="text-slate-500 text-sm">Este enlace de invitación ha expirado o ya fue utilizado. Contacte al hogar para solicitar uno nuevo.</p>
             </div>
         </div>
     );
@@ -91,7 +91,7 @@ export default function FamilyRegisterPage() {
                     <span className="text-teal-400 text-2xl">✓</span>
                 </div>
                 <h2 className="text-white font-bold text-xl mb-2">¡Acceso activado!</h2>
-                <p className="text-slate-400 text-sm">Redirigiendo al portal familiar...</p>
+                <p className="text-slate-500 text-sm">Redirigiendo al portal familiar...</p>
             </div>
         </div>
     );
@@ -101,15 +101,15 @@ export default function FamilyRegisterPage() {
             <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full border border-slate-700">
                 <div className="text-center mb-8">
                     <h1 className="text-teal-400 font-black text-2xl tracking-widest mb-1">ZÉNDITY</h1>
-                    <p className="text-slate-400 text-sm">Portal Familiar</p>
+                    <p className="text-slate-500 text-sm">Portal Familiar</p>
                 </div>
                 <h2 className="text-white font-bold text-xl mb-2">Bienvenido, {familyMember?.name}</h2>
-                <p className="text-slate-400 text-sm mb-8">
+                <p className="text-slate-500 text-sm mb-8">
                     Crea un PIN de acceso para entrar al portal y mantenerte al tanto del cuidado de tu familiar.
                 </p>
                 <div className="space-y-4">
                     <div>
-                        <label className="text-slate-300 text-sm font-medium block mb-2">Crea tu PIN</label>
+                        <label className="text-slate-500 text-sm font-medium block mb-2">Crea tu PIN</label>
                         <input
                             type="password"
                             inputMode="numeric"
@@ -121,7 +121,7 @@ export default function FamilyRegisterPage() {
                         />
                     </div>
                     <div>
-                        <label className="text-slate-300 text-sm font-medium block mb-2">Confirma tu PIN</label>
+                        <label className="text-slate-500 text-sm font-medium block mb-2">Confirma tu PIN</label>
                         <input
                             type="password"
                             inputMode="numeric"

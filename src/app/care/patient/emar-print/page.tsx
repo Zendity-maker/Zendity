@@ -81,7 +81,7 @@ function EmarPrintContent() {
                 <div className="flex justify-between items-center bg-slate-800 text-white p-4 rounded-xl mb-8 print:hidden">
                     <div>
                         <p className="font-black">eMAR Cardex View</p>
-                        <p className="text-xs text-slate-400">Sólo para fines de auditoría oficial.</p>
+                        <p className="text-xs text-slate-500">Sólo para fines de auditoría oficial.</p>
                     </div>
                     <button onClick={() => window.print()} className="bg-indigo-500 hover:bg-indigo-600 px-6 py-2 rounded-lg font-bold text-sm">
                          Imprimir Expediente
@@ -95,12 +95,12 @@ function EmarPrintContent() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={headquarters.logoUrl} alt="Logo Sede" className="w-24 h-24 object-contain" />
                         ) : (
-                            <div className="w-24 h-24 bg-slate-100 flex items-center justify-center font-black text-slate-400 text-2xl rounded-xl">HQ</div>
+                            <div className="w-24 h-24 bg-slate-100 flex items-center justify-center font-black text-slate-500 text-2xl rounded-xl">HQ</div>
                         )}
                         <div>
                             <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Historial Clínico (eMAR)</h1>
                             <p className="text-slate-500 text-lg font-bold mt-1">{headquarters?.name || "Zendity Medical"}</p>
-                            <p className="text-sm text-slate-400 font-medium">Impreso: {now ? format(now, "PPpp", { locale: es }) : "Cargando fecha..."}</p>
+                            <p className="text-sm text-slate-500 font-medium">Impreso: {now ? format(now, "PPpp", { locale: es }) : "Cargando fecha..."}</p>
                         </div>
                     </div>
                 </div>
@@ -111,14 +111,14 @@ function EmarPrintContent() {
                         <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-1">Paciente / Residente</p>
                         <h2 className="text-2xl font-black text-slate-900 mb-2">{patient.name || 'Paciente sin nombre'}</h2>
                         <div className="space-y-1 text-sm text-slate-700 font-medium">
-                            <p><span className="font-bold text-slate-400 w-24 inline-block">Habitación:</span> {patient.roomNumber || 'No asignada'}</p>
-                            <p><span className="font-bold text-slate-400 w-24 inline-block">Admisión:</span> {safeFormatDate(patient.admissionDate, "PP")}</p>
+                            <p><span className="font-bold text-slate-500 w-24 inline-block">Habitación:</span> {patient.roomNumber || 'No asignada'}</p>
+                            <p><span className="font-bold text-slate-500 w-24 inline-block">Admisión:</span> {safeFormatDate(patient.admissionDate, "PP")}</p>
                         </div>
                     </div>
                     <div>
                         <p className="text-xs font-black text-rose-500 uppercase tracking-widest mb-1">Condiciones Médicas</p>
                         <div className="space-y-1 text-sm text-slate-700 font-medium mt-3">
-                            <p><span className="font-bold text-slate-400 w-24 inline-block">Condición:</span> {patient.lifePlan?.medicalCondition || 'N/A'}</p>
+                            <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {patient.lifePlan?.medicalCondition || 'N/A'}</p>
                             <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {patient.lifePlan?.allergies || 'NKA'}</p>
                         </div>
                     </div>
@@ -129,7 +129,7 @@ function EmarPrintContent() {
                     <p className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Registro de Entregas (Auditoría de Firmware)</p>
                     
                     {allAdministrations.length === 0 ? (
-                        <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold">
+                        <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 font-bold">
                             No existen registros de medicación para este paciente.
                         </div>
                     ) : (
@@ -170,7 +170,7 @@ function EmarPrintContent() {
                                                     <img src={admin.signatureBase64} alt="Firma" className="max-h-full max-w-full object-contain" />
                                                 </div>
                                             ) : (
-                                                <span className="text-xs italic text-slate-400 font-medium">Sin firma digital</span>
+                                                <span className="text-xs italic text-slate-500 font-medium">Sin firma digital</span>
                                             )}
                                         </td>
                                     </tr>
@@ -180,7 +180,7 @@ function EmarPrintContent() {
                     )}
                 </div>
 
-                <div className="mt-16 text-center text-xs text-slate-400 border-t-2 border-dashed border-slate-200 pt-8 pb-12">
+                <div className="mt-16 text-center text-xs text-slate-500 border-t-2 border-dashed border-slate-200 pt-8 pb-12">
                     <p className="font-bold">Este reporte reemplaza oficialmente el uso del Cardex Tradicional bajo normativa digital válida.</p>
                     <p>Las firmas aquí plasmadas fueron captadas mediante autenticación de usuario y trazo táctil directo (Zendity Secure Signature).</p>
                 </div>

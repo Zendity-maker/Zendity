@@ -311,7 +311,7 @@ export default function ScheduleBuilderPage() {
                                 <span className="bg-teal-500 text-white text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">Publicado</span>
                             )}
                         </div>
-                        <p className="text-slate-400 text-sm">Asigna turnos, grupos de color y personal para la semana</p>
+                        <p className="text-slate-500 text-sm">Asigna turnos, grupos de color y personal para la semana</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setWeekStart(prev => addDays(prev, -7))} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all">
@@ -344,7 +344,7 @@ export default function ScheduleBuilderPage() {
                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup]}`}>
                                                 {shift.colorGroup}
                                             </span>
-                                            <button onClick={() => removeShift(shift.tempId)} className="text-slate-400 hover:text-red-500 transition-colors">
+                                            <button onClick={() => removeShift(shift.tempId)} className="text-slate-500 hover:text-red-500 transition-colors">
                                                 <Trash2 className="w-3 h-3" />
                                             </button>
                                         </div>
@@ -397,7 +397,7 @@ export default function ScheduleBuilderPage() {
                             </div>
                             <button
                                 onClick={() => addShift(day)}
-                                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-bold text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-1.5 transition-all border border-dashed border-slate-200 hover:border-teal-300"
+                                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-1.5 transition-all border border-dashed border-slate-200 hover:border-teal-300"
                             >
                                 <Plus className="w-3 h-3" /> Agregar turno
                             </button>
@@ -419,7 +419,7 @@ export default function ScheduleBuilderPage() {
                             <div key={type} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                                 <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">{SHIFT_LABELS[type]}</p>
                                 <p className="text-2xl font-black text-slate-800">{count}</p>
-                                <p className="text-xs text-slate-400">turnos programados</p>
+                                <p className="text-xs text-slate-500">turnos programados</p>
                             </div>
                         );
                     })}
@@ -429,10 +429,10 @@ export default function ScheduleBuilderPage() {
             {/* Acciones */}
             <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-6">
                 <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-slate-400" />
+                    <User className="w-5 h-5 text-slate-500" />
                     <div>
                         <p className="text-sm font-bold text-slate-700">{shifts.length} turnos en este borrador</p>
-                        <p className="text-xs text-slate-400">{publishedSchedule ? 'Horario publicado — el equipo puede verlo' : 'Borrador — aún no visible para el equipo'}</p>
+                        <p className="text-xs text-slate-500">{publishedSchedule ? 'Horario publicado — el equipo puede verlo' : 'Borrador — aún no visible para el equipo'}</p>
                     </div>
                 </div>
                 <div className="flex gap-3">

@@ -185,7 +185,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handlePhotoUpload} />
             {/* Nav */}
-            <Link href="/corporate/hr" className="inline-flex items-center text-sm font-bold text-slate-400 hover:text-teal-600 transition-colors">
+            <Link href="/corporate/hr" className="inline-flex items-center text-sm font-bold text-slate-500 hover:text-teal-600 transition-colors">
                 <span>← Volver al Directorio de RRHH</span>
             </Link>
 
@@ -203,7 +203,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                             <img className="h-32 w-32 rounded-full border-4 border-slate-50 object-cover shadow-sm" src={staff.photoUrl} alt={staff.name} />
                         ) : (
                             <div className="h-32 w-32 rounded-full bg-slate-100 border-4 border-slate-50 shadow-sm flex items-center justify-center">
-                                <span className="text-slate-400 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
+                                <span className="text-slate-500 text-4xl font-black uppercase">{staff.name.charAt(0)}</span>
                             </div>
                         )}
                         <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -288,7 +288,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 
                 {/* Global Score Card */}
                 <div className="w-full md:w-auto bg-slate-50 rounded-2xl p-6 border border-slate-200 flex flex-col items-center justify-center text-center">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Desempeño Consolidado</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Desempeño Consolidado</p>
                     <div className={`text-5xl font-black mb-1 ${getScoreColor(staff.performanceScore).split(' ')[1]}`}>
                         {staff.performanceScore}
                     </div>
@@ -303,9 +303,9 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Evaluaciones (HR)</h3>
+                            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Evaluaciones (HR)</h3>
                             <div className="text-3xl font-black text-slate-800">
-                                {staff.avgEvalScore || 'N/A'}<span className="text-lg text-slate-400">/100</span>
+                                {staff.avgEvalScore || 'N/A'}<span className="text-lg text-slate-500">/100</span>
                             </div>
                         </div>
                         <div className="p-3 bg-blue-50 text-blue-500 rounded-xl rounded-tr-sm"></div>
@@ -319,9 +319,9 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Compliance Academy</h3>
+                            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Compliance Academy</h3>
                             <div className="text-3xl font-black text-slate-800">
-                                {staff.complianceScore}<span className="text-lg text-slate-400">/100</span>
+                                {staff.complianceScore}<span className="text-lg text-slate-500">/100</span>
                             </div>
                         </div>
                         <div className="p-3 bg-violet-50 text-violet-500 rounded-xl rounded-tr-sm"></div>
@@ -335,10 +335,10 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                  <div className={`bg-white p-6 rounded-2xl border border-slate-100 shadow-sm ${!isMedicalStaff ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between">
                         <div>
-                            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Cumplimiento eMAR</h3>
+                            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Cumplimiento eMAR</h3>
                             <div className="flex items-baseline gap-1">
                                 <div className="text-3xl font-black text-slate-800">
-                                    {staff.emarCompliance !== null ? staff.emarCompliance : 'N/A'}<span className="text-lg text-slate-400">%</span>
+                                    {staff.emarCompliance !== null ? staff.emarCompliance : 'N/A'}<span className="text-lg text-slate-500">%</span>
                                 </div>
                             </div>
                         </div>
@@ -348,7 +348,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                         <span>Exitosas: <span className="font-bold text-emerald-600">{staff.medsGivenRecord || 0}</span></span>
                         <span>Omitidas: <span className="font-bold text-rose-600">{staff.medsMissedRecord || 0}</span></span>
                     </div>
-                    {!isMedicalStaff && <p className="text-xs text-slate-400 mt-2 italic">*Métrica exclusiva del área clínica.</p>}
+                    {!isMedicalStaff && <p className="text-xs text-slate-500 mt-2 italic">*Métrica exclusiva del área clínica.</p>}
                 </div>
             </div>
 
@@ -359,7 +359,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 </div>
                 
                 {staff.evalsReceived?.length === 0 ? (
-                    <div className="p-12 text-center text-slate-400">
+                    <div className="p-12 text-center text-slate-500">
                         <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50"></p>
                         <h4 className="font-bold text-lg text-slate-600">Sin Historico</h4>
                         <p className="text-sm mt-1">Este empleado aún no cuenta con evaluaciones u observaciones estructuradas del gerente.</p>
@@ -377,7 +377,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                             {new Date(eva.createdAt).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                         </span>
                                     </div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                         Por ID: {eva.evaluatorId.substring(0,8)}...
                                     </div>
                                 </div>
@@ -400,7 +400,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                 </div>
                 
                 {!staff.incidents || staff.incidents.length === 0 ? (
-                    <div className="p-12 text-center text-slate-400">
+                    <div className="p-12 text-center text-slate-500">
                         <p className="text-5xl mb-3 border border-slate-100 inline-block p-4 rounded-3xl bg-slate-50"></p>
                         <h4 className="font-bold text-lg text-slate-600">Expediente Limpio</h4>
                         <p className="text-sm mt-1">Este empleado no tiene reportes disciplinarios ni observaciones formales en su perfil.</p>
@@ -423,7 +423,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                         </span>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
-                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                             Por: {incident.supervisor?.name || 'Supervisor'} ({incident.supervisor?.role || 'RRHH'})
                                         </div>
                                         {incident.signatureBase64 ? (
@@ -444,7 +444,7 @@ export default function StaffPerformanceProfile({ params }: { params: Promise<{ 
                                 
                                 {incident.signatureBase64 && (
                                     <div className="mt-3 bg-white p-3 border border-gray-100 rounded-lg inline-block shadow-sm">
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Firma Digital del Empleado</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Firma Digital del Empleado</p>
                                         <img src={incident.signatureBase64} alt="Firma Empleado" className="h-12 object-contain filter contrast-125" />
                                     </div>
                                 )}

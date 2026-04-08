@@ -135,7 +135,7 @@ export default function SpecialistsPortal() {
                                     )}
 
                                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Servicio Contratado</p>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Servicio Contratado</p>
                                         <p className="text-slate-800 font-bold">{appt.service.name}</p>
                                     </div>
 
@@ -158,7 +158,7 @@ export default function SpecialistsPortal() {
                                         </label>
                                         <input
                                             type="url"
-                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-500"
                                             placeholder="URL Pública del Antes/Después"
                                             value={evidenceUrl}
                                             onChange={e => setEvidenceUrl(e.target.value)}

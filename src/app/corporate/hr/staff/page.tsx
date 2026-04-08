@@ -168,14 +168,14 @@ export default function StaffManagementPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-400">
+                                    <td colSpan={6} className="p-8 text-center text-gray-500">
                                         <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
                                         Cargando nómina...
                                     </td>
                                 </tr>
                             ) : staff.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-gray-400">
+                                    <td colSpan={6} className="p-8 text-center text-gray-500">
                                         Vaya, no hay personal registrado en esta sede.
                                     </td>
                                 </tr>
@@ -290,7 +290,7 @@ export default function StaffManagementPage() {
                                 <input
                                     type="text"
                                     required
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     placeholder="Ej. Dra. Ana Gómez"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -302,7 +302,7 @@ export default function StaffManagementPage() {
                                 <input
                                     type="email"
                                     required
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     placeholder="ana@clinica.com"
                                     value={formData.email}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
@@ -333,7 +333,7 @@ export default function StaffManagementPage() {
                                         value={formData.pinCode}
                                         onChange={e => setFormData({ ...formData, pinCode: e.target.value })}
                                     />
-                                    <p className="text-[10px] text-gray-400 mt-1">Sugerido: 4 dígitos</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Sugerido: 4 dígitos</p>
                                 </div>
                             </div>
 

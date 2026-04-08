@@ -188,7 +188,7 @@ export default function InsightsDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-teal-200 transition-colors">
             <div className="flex justify-between items-start">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Promedio Global</h3>
+              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Promedio Global</h3>
               <div className="p-2 bg-teal-50 text-teal-600 rounded-lg"><Activity className="w-4 h-4" /></div>
             </div>
             <div className="mt-4 flex items-baseline gap-2">
@@ -197,27 +197,27 @@ export default function InsightsDashboard() {
                   chartData[chartData.length - 1][headquarters[0]] || 0
                 ) : 0}
               </span>
-              <span className="text-xs font-bold text-slate-400 uppercase">Pts</span>
+              <span className="text-xs font-bold text-slate-500 uppercase">Pts</span>
             </div>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-indigo-200 transition-colors">
             <div className="flex justify-between items-start">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Sedes Evaluadas</h3>
+              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Sedes Evaluadas</h3>
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Building className="w-4 h-4" /></div>
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-black text-slate-800 tracking-tight">{headquarters.length}</span>
-              <span className="text-xs font-bold text-slate-400 uppercase">HQs</span>
+              <span className="text-xs font-bold text-slate-500 uppercase">HQs</span>
             </div>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 flex flex-col justify-between hover:border-amber-200 transition-colors">
             <div className="flex justify-between items-start">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Empleados Auditados</h3>
+              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Empleados Auditados</h3>
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Users className="w-4 h-4" /></div>
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-black text-slate-800 tracking-tight">{leaderboard.length}</span>
-              <span className="text-xs font-bold text-slate-400 uppercase">Staff</span>
+              <span className="text-xs font-bold text-slate-500 uppercase">Staff</span>
             </div>
           </div>
         </div>
@@ -271,8 +271,8 @@ export default function InsightsDashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                <Activity className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-slate-400 font-bold text-sm">No hay datos históricos suficientes.</p>
+                <Activity className="w-8 h-8 text-slate-500 mb-2" />
+                <p className="text-slate-500 font-bold text-sm">No hay datos históricos suficientes.</p>
               </div>
             )}
           </div>
@@ -288,7 +288,7 @@ export default function InsightsDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <tr className="border-b border-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                   <th className="py-4 px-4">Empleado</th>
                   <th className="py-4 px-4">Rol en Sede</th>
                   <th className="py-4 px-4">Sede (HQ)</th>
@@ -384,7 +384,7 @@ export default function InsightsDashboard() {
                     <div>
                       <h4 className="font-bold text-slate-800 text-sm group-hover:text-rose-700 transition-colors leading-tight">{pt.name}</h4>
                       <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400" /> Cuarto {pt.room || 'N/A'}
+                        <MapPin className="w-3 h-3 text-slate-500" /> Cuarto {pt.room || 'N/A'}
                       </p>
                       <span className="inline-block mt-2 text-[9px] uppercase tracking-widest font-bold bg-white text-rose-600 px-2 py-0.5 rounded border border-rose-200">
                         {pt.hqName}
@@ -421,9 +421,9 @@ export default function InsightsDashboard() {
                 <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-teal-600" /> Sala de Enfermería
                 </h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Family Link</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Family Link</p>
               </div>
-              <button onClick={() => setShowInbox(false)} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors">
+              <button onClick={() => setShowInbox(false)} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -432,7 +432,7 @@ export default function InsightsDashboard() {
               {!activeThread ? (
                 <div className="p-4 space-y-3">
                   {inboxThreads.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 font-bold flex flex-col items-center gap-3">
+                    <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 text-slate-500 font-bold flex flex-col items-center gap-3">
                       <MessageSquare className="w-8 h-8 opacity-40" />
                       <span>Sin mensajes hoy. </span>
                     </div>
@@ -441,12 +441,12 @@ export default function InsightsDashboard() {
                       <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                         <div>
                           <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600">{thread.patient.name}</h4>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Cuarto {thread.patient.room}</p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Cuarto {thread.patient.room}</p>
                         </div>
                         {thread.unreadCount > 0 ? (
                           <span className="bg-rose-500 text-white font-black text-[10px] px-2.5 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
                         ) : (
-                          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-teal-500 transition-colors" />
+                          <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-teal-500 transition-colors" />
                         )}
                       </div>
                     ))
@@ -456,7 +456,7 @@ export default function InsightsDashboard() {
                 <div className="flex flex-col h-full bg-slate-50/50 overflow-hidden relative">
                   {/* Hilo Específico Header */}
                   <div className="p-3 px-4 bg-white border-b border-slate-200 flex items-center gap-3 sticky top-0 z-10 shadow-sm">
-                    <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-400 hover:text-slate-800 font-bold p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
+                    <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-500 hover:text-slate-800 font-bold p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
                       <ArrowRight className="w-4 h-4 rotate-180" />
                     </button>
                     <span className="font-black text-slate-800 text-sm">{activeThread.patient.name}</span>
@@ -469,7 +469,7 @@ export default function InsightsDashboard() {
                       return (
                         <div key={msg.id} className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-sm shadow-sm' : 'bg-white border border-slate-200 text-slate-700 self-start rounded-bl-sm shadow-sm'}`}>
                           <p className="font-medium">{msg.content}</p>
-                          <div className={`text-[9px] mt-1.5 font-bold text-right uppercase tracking-wider ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
+                          <div className={`text-[9px] mt-1.5 font-bold text-right uppercase tracking-wider ${isStaff ? 'text-teal-200' : 'text-slate-500'}`}>
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
@@ -485,7 +485,7 @@ export default function InsightsDashboard() {
                         value={replyContent}
                         onChange={(e) => setReplyContent(e.target.value)}
                         placeholder="Escribe al familiar..."
-                        className="flex-1 bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400"
+                        className="flex-1 bg-slate-50 border border-slate-200 px-4 py-2.5 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-500"
                       />
                       <button type="submit" disabled={sendingReply || !replyContent.trim()} className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-bold px-4 rounded-xl shadow-sm transition-all flex items-center justify-center">
                         <ArrowRight className="w-5 h-5" />

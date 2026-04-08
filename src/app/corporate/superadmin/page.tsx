@@ -33,15 +33,15 @@ export default async function SuperAdminDashboard() {
       {/* Tarjetas Analíticas Superiores (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-          <p className="text-sm font-bold text-slate-400 uppercase">Sedes Operativas</p>
+          <p className="text-sm font-bold text-slate-500 uppercase">Sedes Operativas</p>
           <div className="text-5xl font-black text-slate-800 mt-2">{hqFleet.length}</div>
           <p className="text-xs text-green-600 font-semibold mt-2">↑ 100% Infraestructura Activa</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-          <p className="text-sm font-bold text-slate-400 uppercase">Ocupación Global (Censo)</p>
+          <p className="text-sm font-bold text-slate-500 uppercase">Ocupación Global (Censo)</p>
           <div className="text-5xl font-black text-slate-800 mt-2 flex items-baseline gap-2">
-            {globalTotalOccupancy} <span className="text-2xl text-slate-400 font-medium">/ {globalTotalCapacity} Camas</span>
+            {globalTotalOccupancy} <span className="text-2xl text-slate-500 font-medium">/ {globalTotalCapacity} Camas</span>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden">
             <div 
@@ -52,7 +52,7 @@ export default async function SuperAdminDashboard() {
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-          <p className="text-sm font-bold text-slate-400 uppercase">Salud de Red (Riesgos Abiertos)</p>
+          <p className="text-sm font-bold text-slate-500 uppercase">Salud de Red (Riesgos Abiertos)</p>
           <div className="text-5xl font-black text-red-600 mt-2">
             {hqFleet.reduce((acc: number, curr: any) => acc + curr.criticalIncidentsOpen, 0)}
           </div>
@@ -118,7 +118,7 @@ export default async function SuperAdminDashboard() {
                  🔍 Auditar Sede (Impersonation)
                </button>
               </form>
-               <p className="text-center text-[10px] text-gray-400 mt-2 italic">Dejará registro en AuditLog bajo HIPPA</p>
+               <p className="text-center text-[10px] text-gray-500 mt-2 italic">Dejará registro en AuditLog bajo HIPPA</p>
             </div>
 
           </div>

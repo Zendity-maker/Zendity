@@ -131,7 +131,7 @@ export default function ZendiInsightsPage() {
                                             <span className={`text-xs font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${insight.type === 'CRITICAL' ? 'bg-rose-100 text-rose-700' : insight.type === 'HIGH' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>
                                                 {insight.type === 'CRITICAL' ? 'Crítico' : insight.type === 'HIGH' ? 'Alto' : 'Medio'}
                                             </span>
-                                            <span className="text-xs font-bold text-slate-400 capitalize">{insight.category.replace('_', ' ')}</span>
+                                            <span className="text-xs font-bold text-slate-500 capitalize">{insight.category.replace('_', ' ')}</span>
                                         </div>
                                         <h3 className="text-xl font-bold text-slate-900 mb-2">{insight.title}</h3>
                                         <p className="text-slate-600 font-medium leading-relaxed">{insight.description}</p>

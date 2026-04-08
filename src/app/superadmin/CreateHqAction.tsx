@@ -74,12 +74,12 @@ export default function CreateHqAction() {
                         {/* Header */}
                         <div className="p-6 border-b border-white/5 bg-slate-800/20">
                             <h2 className="text-2xl font-black text-white"> Onboarding B2B (Nuevo Cliente)</h2>
-                            <p className="text-slate-400 text-sm mt-1">
+                            <p className="text-slate-500 text-sm mt-1">
                                 Creará la Base de Datos aislada, la Suscripción y el Acceso Director en 3 segundos.
                             </p>
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="absolute top-6 right-6 text-slate-400 hover:text-white transition-colors"
+                                className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
                             >
                                 
                             </button>

@@ -67,7 +67,7 @@ export default function FamilyBilling() {
                 ) : invoices.length === 0 ? (
                     <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 border border-slate-100/50">
                         <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                            <FaFileInvoiceDollar className="text-2xl text-slate-300" />
+                            <FaFileInvoiceDollar className="text-2xl text-slate-500" />
                         </div>
                         <h4 className="font-bold text-slate-700">Sin Facturas Pendientes</h4>
                         <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Actualmente no existen registros de facturación asociados al residente.</p>
@@ -95,7 +95,7 @@ export default function FamilyBilling() {
                                             <div className="mt-4 pt-4 border-t border-dashed border-slate-100 space-y-2">
                                                 {inv.items.map((item: any) => (
                                                     <div key={item.id} className="flex justify-between text-sm">
-                                                        <span className="text-slate-600 font-medium">{item.description} <span className="text-slate-400 text-xs">x{item.quantity}</span></span>
+                                                        <span className="text-slate-600 font-medium">{item.description} <span className="text-slate-500 text-xs">x{item.quantity}</span></span>
                                                         <span className="font-bold text-slate-800">{formatCurrency(item.totalPrice)}</span>
                                                     </div>
                                                 ))}
@@ -106,7 +106,7 @@ export default function FamilyBilling() {
                                     {/* Columna Acciones / Total */}
                                     <div className="flex flex-col items-start sm:items-end justify-between border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
                                         <div className="text-left sm:text-right w-full mb-4 sm:mb-0">
-                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Total a Pagar</p>
+                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">Total a Pagar</p>
                                             <p className="text-3xl font-black text-slate-800 tracking-tighter">{formatCurrency(inv.totalAmount)}</p>
                                         </div>
 
@@ -130,7 +130,7 @@ export default function FamilyBilling() {
                 )}
             </div>
 
-            <p className="text-center text-xs text-slate-400 font-semibold uppercase tracking-widest">
+            <p className="text-center text-xs text-slate-500 font-semibold uppercase tracking-widest">
                 <FaLock className="inline-block mb-1 mr-1" /> Zendity Secure Payments
             </p>
         </div>

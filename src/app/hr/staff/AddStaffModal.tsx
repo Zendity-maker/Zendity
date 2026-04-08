@@ -143,7 +143,7 @@ export default function AddStaffModal() {
                                             placeholder="1234"
                                             maxLength={6}
                                         />
-                                        <p className="text-[10px] text-slate-400 mt-1 ml-1 font-semibold leading-tight">Clave numérica para firmas biométricas rápidas.</p>
+                                        <p className="text-[10px] text-slate-500 mt-1 ml-1 font-semibold leading-tight">Clave numérica para firmas biométricas rápidas.</p>
                                     </div>
                                 </div>
 

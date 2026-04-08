@@ -148,7 +148,7 @@ export default function IntakeWizardPage() {
           
           <div className="mt-6 md:mt-0 flex items-center gap-4 bg-slate-50 p-4 lg:px-8 rounded-[2rem] border border-slate-100 shadow-inner">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Estado del Sincronismo</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Estado del Sincronismo</span>
               {saveStatus === "SAVING" && (
                 <div className="flex items-center gap-2 text-amber-600 font-extrabold text-sm bg-amber-50 px-4 py-1.5 rounded-full border border-amber-100 shadow-sm">
                   <Save className="w-4 h-4 animate-bounce" /> Autoguardando...
@@ -193,7 +193,7 @@ export default function IntakeWizardPage() {
                     </div>
                     <div className="ml-5 flex-1">
                       <span className={`block font-black text-base md:text-lg mb-1 ${isActive ? "text-white" : "text-slate-900"}`}>{tab.title}</span>
-                      <span className={`block text-[11px] font-bold uppercase tracking-wider ${isActive ? "text-slate-400" : "text-slate-500"}`}>{tab.desc}</span>
+                      <span className={`block text-[11px] font-bold uppercase tracking-wider ${isActive ? "text-slate-500" : "text-slate-500"}`}>{tab.desc}</span>
                     </div>
                     {isActive && <ChevronRight className="w-6 h-6 text-slate-600 shrink-0" />}
                   </button>
@@ -204,14 +204,14 @@ export default function IntakeWizardPage() {
             {/* BOTÓN DE CIERRE MAESTRO */}
             <div className="bg-white rounded-[3rem] p-8 shadow-sm border border-slate-200 mt-auto flex flex-col gap-4">
                <div className="text-center px-4 mb-2">
-                   <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Validación Final</span>
+                   <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Validación Final</span>
                </div>
                <button 
                   onClick={handleSubmit} 
                   disabled={isSaving || !formData.patientId}
                   className={`w-full py-6 px-4 rounded-[2.5rem] font-black text-xl tracking-tight transition-all flex flex-col items-center justify-center gap-2 group
                       ${(isSaving || !formData.patientId) 
-                          ? 'bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed shadow-inner' 
+                          ? 'bg-slate-100 text-slate-500 border-2 border-slate-200 cursor-not-allowed shadow-inner' 
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl shadow-emerald-600/30 active:scale-[0.98]'}`}
                >
                   <span className="flex items-center gap-2 text-center leading-none">
@@ -249,7 +249,7 @@ export default function IntakeWizardPage() {
                              type="text" 
                              value={formData.name}
                              onChange={(e) => handleFieldChange("name", e.target.value)}
-                             className="w-full bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-200 rounded-[2rem] px-8 py-6 text-2xl font-black text-slate-900 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all shadow-inner placeholder:text-slate-300"
+                             className="w-full bg-slate-50 hover:bg-white focus:bg-white border-2 border-slate-200 rounded-[2rem] px-8 py-6 text-2xl font-black text-slate-900 focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all shadow-inner placeholder:text-slate-500"
                              placeholder="Ej: Roberto Sánchez Díaz"
                            />
                          </div>
@@ -388,7 +388,7 @@ export default function IntakeWizardPage() {
                                 <div className="flex justify-between items-center mb-10 pl-4">
                                   <div>
                                       <label className="text-2xl font-black text-slate-800 block mb-1">Riesgo de Caídas</label>
-                                      <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Escala Downton</span>
+                                      <span className="text-sm font-black text-slate-500 uppercase tracking-widest">Escala Downton</span>
                                   </div>
                                   <div className={`w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center shadow-lg border-2 transition-colors duration-500 ${formData.downtonScore > 2 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-teal-50 border-teal-200 text-teal-600'}`}>
                                       <span className="text-4xl font-black leading-none">{formData.downtonScore}</span>
@@ -420,7 +420,7 @@ export default function IntakeWizardPage() {
                                 <div className="flex justify-between items-center mb-10 pl-4">
                                   <div>
                                       <label className="text-2xl font-black text-slate-800 block mb-1">Riesgo UPPs (Úlceras)</label>
-                                      <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Escala Braden</span>
+                                      <span className="text-sm font-black text-slate-500 uppercase tracking-widest">Escala Braden</span>
                                   </div>
                                   <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center shadow-lg border-2 transition-colors duration-500 ${formData.bradenScore < 14 ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-teal-50 border-teal-200 text-teal-600'}`}>
                                       <span className="text-4xl font-black leading-none">{formData.bradenScore}</span>
@@ -497,7 +497,7 @@ export default function IntakeWizardPage() {
                          <div className="flex-1 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 p-6">
                            <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-4">Borradores Listos para Insertar ({medicationsList.length})</h4>
                            {medicationsList.length === 0 ? (
-                             <p className="text-center text-slate-400 font-medium py-10">No hay medicamentos en la lista. Comienza agregando uno arriba.</p>
+                             <p className="text-center text-slate-500 font-medium py-10">No hay medicamentos en la lista. Comienza agregando uno arriba.</p>
                            ) : (
                              <div className="space-y-3">
                                {medicationsList.map((med: any, index: number) => (

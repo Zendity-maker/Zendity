@@ -389,7 +389,7 @@ export default function ReceptionKiosk() {
                     <h1 className="text-white text-3xl font-bold text-center leading-snug">
                         ¡Bienvenido!
                     </h1>
-                    <p className="text-slate-400 text-lg text-center max-w-sm">
+                    <p className="text-slate-500 text-lg text-center max-w-sm">
                         Regístrese para visitar a un residente de nuestra comunidad.
                     </p>
                     <button
@@ -406,7 +406,7 @@ export default function ReceptionKiosk() {
                 <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
                     <StepIndicator current={1} total={3} />
                     <h2 className="text-white text-2xl font-bold text-center">¿A quién viene a visitar?</h2>
-                    <p className="text-slate-400 text-center text-sm">Escriba o diga el nombre del residente.</p>
+                    <p className="text-slate-500 text-center text-sm">Escriba o diga el nombre del residente.</p>
 
                     <div className="w-full relative">
                         <input
@@ -427,7 +427,7 @@ export default function ReceptionKiosk() {
                     />
 
                     <div className="flex gap-4 w-full mt-2">
-                        <button onClick={() => setStep("welcome")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <button onClick={() => setStep("welcome")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
                             <FaTimes /> Cancelar
                         </button>
                         <button
@@ -452,7 +452,7 @@ export default function ReceptionKiosk() {
                             <div>
                                 <p className="text-teal-400 text-xs font-bold mb-1">ZENDI</p>
                                 <p className="text-white text-xl font-medium">¿A cuál de estos residentes viene a visitar?</p>
-                                <p className="text-slate-400 text-sm mt-1">Which resident are you visiting?</p>
+                                <p className="text-slate-500 text-sm mt-1">Which resident are you visiting?</p>
                             </div>
                         </div>
                     </div>
@@ -465,7 +465,7 @@ export default function ReceptionKiosk() {
                             >
                                 <div>
                                     <p className="text-white font-bold text-lg">{patient.name}</p>
-                                    {patient.room && <p className="text-slate-400 text-sm">Cuarto {patient.room}</p>}
+                                    {patient.room && <p className="text-slate-500 text-sm">Cuarto {patient.room}</p>}
                                 </div>
                                 <span className="text-teal-400 text-2xl">→</span>
                             </button>
@@ -478,7 +478,7 @@ export default function ReceptionKiosk() {
                                 setTranscript('');
                                 speak('Por favor intente de nuevo con el nombre completo del residente.');
                             }}
-                            className="w-full py-3 text-slate-500 hover:text-slate-300 text-sm transition-colors"
+                            className="w-full py-3 text-slate-500 hover:text-slate-500 text-sm transition-colors"
                         >
                             Ninguno — intentar de nuevo
                         </button>
@@ -491,7 +491,7 @@ export default function ReceptionKiosk() {
                 <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
                     <StepIndicator current={2} total={3} />
                     <h2 className="text-white text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
-                    <p className="text-slate-400 text-center text-sm">
+                    <p className="text-slate-500 text-center text-sm">
                         Visitando a: <span className="text-teal-400 font-bold">{residentName}</span>
                     </p>
 
@@ -523,7 +523,7 @@ export default function ReceptionKiosk() {
                     />
 
                     <div className="flex gap-4 w-full mt-2">
-                        <button onClick={() => setStep("asking-resident")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <button onClick={() => setStep("asking-resident")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
                             <FaTimes /> Atrás
                         </button>
                         <button
@@ -549,8 +549,8 @@ export default function ReceptionKiosk() {
                     <StepIndicator current={3} total={3} />
                     <h2 className="text-white text-2xl font-bold text-center">Firme para confirmar</h2>
                     <div className="text-center space-y-0.5">
-                        <p className="text-slate-400 text-sm">Visitante: <span className="text-white font-semibold">{visitorName}</span></p>
-                        <p className="text-slate-400 text-sm">Residente: <span className="text-teal-400 font-semibold">{residentName}</span></p>
+                        <p className="text-slate-500 text-sm">Visitante: <span className="text-white font-semibold">{visitorName}</span></p>
+                        <p className="text-slate-500 text-sm">Residente: <span className="text-teal-400 font-semibold">{residentName}</span></p>
                     </div>
 
                     {/* Canvas */}
@@ -570,12 +570,12 @@ export default function ReceptionKiosk() {
                         />
                         {!hasSigned && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-slate-300 text-base font-medium opacity-70">Firme aquí ✍️</span>
+                                <span className="text-slate-500 text-base font-medium opacity-70">Firme aquí ✍️</span>
                             </div>
                         )}
                     </div>
 
-                    <button onClick={clearCanvas} className="text-slate-500 hover:text-slate-300 text-sm flex items-center gap-1.5 transition-colors">
+                    <button onClick={clearCanvas} className="text-slate-500 hover:text-slate-500 text-sm flex items-center gap-1.5 transition-colors">
                         <FaRedo className="text-xs" /> Borrar firma
                     </button>
 
@@ -584,7 +584,7 @@ export default function ReceptionKiosk() {
                     )}
 
                     <div className="flex gap-4 w-full">
-                        <button onClick={() => setStep("asking-name")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-4 rounded-xl transition-colors">
+                        <button onClick={() => setStep("asking-name")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors">
                             Atrás
                         </button>
                         <button
@@ -610,8 +610,8 @@ export default function ReceptionKiosk() {
                     </div>
                     <h2 className="text-white text-3xl font-black">¡Visita Registrada!</h2>
                     <div className="space-y-1">
-                        <p className="text-slate-300 text-lg">Bienvenido, <span className="text-white font-bold">{visitorName}</span></p>
-                        <p className="text-slate-400">Visita a <span className="text-teal-400 font-semibold">{residentName}</span> confirmada.</p>
+                        <p className="text-slate-500 text-lg">Bienvenido, <span className="text-white font-bold">{visitorName}</span></p>
+                        <p className="text-slate-500">Visita a <span className="text-teal-400 font-semibold">{residentName}</span> confirmada.</p>
                         {visitId && <p className="text-slate-600 text-xs mt-2">ID: {visitId}</p>}
                     </div>
                     <p className="text-slate-500 text-sm mt-4">Esta pantalla se reiniciará en unos segundos...</p>
@@ -655,7 +655,7 @@ function MicButton({ isListening, onPress }: { isListening: boolean; onPress: ()
                     : "bg-slate-800 border-slate-600 hover:border-teal-500 hover:bg-slate-700"
             }`}
         >
-            <FaMicrophone className={`text-xl ${isListening ? "text-white" : "text-slate-400"}`} />
+            <FaMicrophone className={`text-xl ${isListening ? "text-white" : "text-slate-500"}`} />
         </button>
     );
 }

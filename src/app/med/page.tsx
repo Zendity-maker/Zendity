@@ -184,7 +184,7 @@ export default function ZendityMedPage() {
         UNASSIGNED: "bg-slate-50 text-slate-700"
     };
 
-    if (loading) return <div className="p-20 text-center font-bold text-slate-400 animate-pulse text-xl">Cargando Zendity Med (eMAR)...</div>;
+    if (loading) return <div className="p-20 text-center font-bold text-slate-500 animate-pulse text-xl">Cargando Zendity Med (eMAR)...</div>;
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -230,7 +230,7 @@ export default function ZendityMedPage() {
 
                             <div className="p-4 space-y-3">
                                 {p.medications.length === 0 ? (
-                                    <p className="text-sm font-medium text-slate-400 text-center py-4">Sin PAI Farmacológico.</p>
+                                    <p className="text-sm font-medium text-slate-500 text-center py-4">Sin PAI Farmacológico.</p>
                                 ) : (
                                     p.medications.map((m: any) => (
                                         <div key={m.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl group relative">
@@ -257,7 +257,7 @@ export default function ZendityMedPage() {
                                             fetch("/api/med/crud").then(res => res.json()).then(data => setCatalog(data.medications || []));
                                         }
                                     }}
-                                    className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-400 font-bold rounded-xl text-xs hover:border-teal-400 hover:text-teal-600 transition-colors uppercase tracking-widest mt-2"
+                                    className="w-full py-2 border-2 border-dashed border-slate-200 text-slate-500 font-bold rounded-xl text-xs hover:border-teal-400 hover:text-teal-600 transition-colors uppercase tracking-widest mt-2"
                                 >
                                     + Añadir Fármaco
                                 </button>
@@ -289,7 +289,7 @@ export default function ZendityMedPage() {
                                 <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50" onChange={handleOcrUpload} accept="image/*" />
                                 <div className="text-5xl mb-4 group-hover:scale-110 transition-transform"></div>
                                 <p className="font-bold text-slate-700 text-lg">Toca para Tomar Foto a la Receta</p>
-                                <p className="text-sm font-medium text-slate-400 mt-1">Soporta prescripciones a mano alzada o impresas.</p>
+                                <p className="text-sm font-medium text-slate-500 mt-1">Soporta prescripciones a mano alzada o impresas.</p>
                             </div>
 
                             {ocrLoading && (
@@ -310,19 +310,19 @@ export default function ZendityMedPage() {
                                     </div>
                                     <div className="p-6 space-y-6">
                                         <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Texto Crudo Extraído (Receta Físca)</p>
-                                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm text-slate-300">
+                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Texto Crudo Extraído (Receta Físca)</p>
+                                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm text-slate-500">
                                                 "{ocrResult.rawText}"
                                             </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Fármaco (DB Link)</p>
+                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Fármaco (DB Link)</p>
                                                 <p className="font-black text-xl">{ocrResult.name}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Dosis (Potencia)</p>
+                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Dosis (Potencia)</p>
                                                 <p className="font-black text-xl">{ocrResult.dosage}</p>
                                             </div>
                                         </div>
@@ -453,9 +453,48 @@ export default function ZendityMedPage() {
                                 />
                                 {showDropdown && (
                                     <ul className="absolute z-10 w-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                                        {catalog.filter(c => c.name.toLowerCase().includes(medSearch.toLowerCase())).length === 0 ? (
-                                            <li className="p-3 text-slate-500 font-medium text-sm">No se encontraron fármacos.</li>
-                                        ) : (
+                                        {catalog.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())).length === 0 && medSearch.trim().length > 1 && (
+                                            <div className="p-4 text-center">
+                                                <p className="text-slate-500 text-sm mb-3">
+                                                    "{medSearch}" no está en el catálogo.
+                                                </p>
+                                                <button
+                                                    onClick={async () => {
+                                                        // Crear el medicamento en el catálogo y seleccionarlo automáticamente
+                                                        try {
+                                                            const res = await fetch('/api/med/catalog', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    name: medSearch.trim().toUpperCase(),
+                                                                    dosage: 'Ver indicación médica',
+                                                                    category: 'General',
+                                                                    hqId: user?.hqId || user?.headquartersId
+                                                                })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.id || data.medication?.id) {
+                                                                const newMed = data.medication || data;
+                                                                setCatalog(prev => [...prev, newMed]);
+                                                                setAddForm(prev => ({ ...prev, medicationId: newMed.id }));
+                                                                setMedSearch(newMed.name);
+                                                            } else {
+                                                                alert('Error agregando el fármaco al catálogo.');
+                                                            }
+                                                        } catch {
+                                                            alert('Error de conexión.');
+                                                        }
+                                                    }}
+                                                    className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all"
+                                                >
+                                                    + Agregar "{medSearch}" al catálogo
+                                                </button>
+                                                <p className="text-slate-500 text-xs mt-2">
+                                                    Se creará como nuevo fármaco y quedará disponible para toda la sede.
+                                                </p>
+                                            </div>
+                                        )}
+                                        {catalog.filter(c => c.name.toLowerCase().includes(medSearch.toLowerCase())).length > 0 && (
                                             catalog.filter(c => c.name.toLowerCase().includes(medSearch.toLowerCase())).map(c => (
                                                 <li 
                                                     key={c.id} 

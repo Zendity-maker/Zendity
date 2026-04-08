@@ -91,7 +91,7 @@ export default function ZendityStaffDirectoryPage() {
         }
     };
 
-    if (loading) return <div className="p-20 text-center font-bold text-slate-400 animate-pulse text-xl">Cargando Staff HR...</div>;
+    if (loading) return <div className="p-20 text-center font-bold text-slate-500 animate-pulse text-xl">Cargando Staff HR...</div>;
 
     const activeStaff = staff.filter(e => !e.isDeleted);
     const inactiveStaff = staff.filter(e => e.isDeleted);
@@ -170,7 +170,7 @@ export default function ZendityStaffDirectoryPage() {
                                             <span className={`text-lg font-black ${emp.complianceScore < 80 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                 {emp.complianceScore}
                                             </span>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                                 / 100 PTA.
                                             </span>
                                         </div>
@@ -190,7 +190,7 @@ export default function ZendityStaffDirectoryPage() {
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); router.push(`/hr/staff/${emp.id}`); }}
-                                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
                                                 title="Ver Perfil"
                                             >
                                                 
@@ -206,7 +206,7 @@ export default function ZendityStaffDirectoryPage() {
                                                     </button>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleDelete(emp.id, emp.name); }}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
+                                                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-200"
                                                         title="Eliminar Empleado Permanentemente"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -215,7 +215,7 @@ export default function ZendityStaffDirectoryPage() {
                                             ) : (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleRestore(emp.id, emp.name); }}
-                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200 font-bold text-xs px-3"
+                                                    className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-200 font-bold text-xs px-3"
                                                 >
                                                      Restaurar Empleado
                                                 </button>

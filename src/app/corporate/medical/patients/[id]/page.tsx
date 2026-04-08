@@ -291,7 +291,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.photoUrl ? (
                                     <img src={patientData.photoUrl} alt={patientData.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <UserIcon className={`w-8 h-8 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-400'}`} />
+                                    <UserIcon className={`w-8 h-8 ${patientData?.status === 'ACTIVE' ? 'text-indigo-600' : patientData?.status === 'TEMPORARY_LEAVE' ? 'text-amber-600' : 'text-slate-500'}`} />
                                 )}
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <CameraIcon className="w-6 h-6 text-white" />
@@ -575,21 +575,21 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                         <input type="file" accept="image/*" className="hidden" ref={idInputRef} onChange={e => handleDocumentUpload(e, 'idCardUrl')} />
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Identificación ID</p>
                                         <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
-                                            {editForm.idCardUrl ? <img src={editForm.idCardUrl} alt="ID" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                            {editForm.idCardUrl ? <img src={editForm.idCardUrl} alt="ID" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-500" />}
                                         </div>
                                     </div>
                                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 relative group cursor-pointer hover:border-indigo-400 transition" onClick={() => medicalInputRef.current?.click()}>
                                         <input type="file" accept="image/*" className="hidden" ref={medicalInputRef} onChange={e => handleDocumentUpload(e, 'medicalPlanUrl')} />
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Plan Médico</p>
                                         <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
-                                            {editForm.medicalPlanUrl ? <img src={editForm.medicalPlanUrl} alt="Plan Medico" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                            {editForm.medicalPlanUrl ? <img src={editForm.medicalPlanUrl} alt="Plan Medico" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-500" />}
                                         </div>
                                     </div>
                                     <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 relative group cursor-pointer hover:border-indigo-400 transition" onClick={() => medicareInputRef.current?.click()}>
                                         <input type="file" accept="image/*" className="hidden" ref={medicareInputRef} onChange={e => handleDocumentUpload(e, 'medicareCardUrl')} />
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Tarjeta Medicare</p>
                                         <div className="aspect-[4/3] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden">
-                                            {editForm.medicareCardUrl ? <img src={editForm.medicareCardUrl} alt="Medicare" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-300" />}
+                                            {editForm.medicareCardUrl ? <img src={editForm.medicareCardUrl} alt="Medicare" className="w-full h-full object-cover" /> : <CameraIcon className="w-8 h-8 text-slate-500" />}
                                         </div>
                                     </div>
                                 </div>

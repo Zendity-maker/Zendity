@@ -38,7 +38,7 @@ export default function HRScorecardPage() {
         <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
           <UserCog className="w-6 h-6" />
         </div>
-        <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Cargando Directorio HR...</p>
+        <p className="font-bold text-slate-500 tracking-wider text-sm uppercase">Cargando Directorio HR...</p>
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ export default function HRScorecardPage() {
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-lg leading-tight">Ranking Global de Sede</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Top Performers</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Top Performers</p>
             </div>
           </div>
           <Link href="/hr/evaluate" className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold py-2.5 px-6 rounded-xl shadow-md shadow-teal-500/10 transition-colors flex items-center gap-2">
@@ -81,7 +81,7 @@ export default function HRScorecardPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-[10px] text-slate-400 bg-white uppercase font-black tracking-widest border-b border-slate-100">
+            <thead className="text-[10px] text-slate-500 bg-white uppercase font-black tracking-widest border-b border-slate-100">
               <tr>
                 <th className="px-6 py-5"># Empleado</th>
                 <th className="px-6 py-5">Rol / Posición</th>
@@ -98,11 +98,11 @@ export default function HRScorecardPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-800">{emp.name}</span>
-                      <span className="text-[11px] font-semibold text-slate-400">{emp.email}</span>
+                      <span className="text-[11px] font-semibold text-slate-500">{emp.email}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-600 font-semibold">{emp.role}</td>
-                  <td className="px-6 py-4 text-center text-slate-400 font-medium">
+                  <td className="px-6 py-4 text-center text-slate-500 font-medium">
                     <span className="bg-slate-100 px-3 py-1 rounded-md text-xs border border-slate-200/60"></span>
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -127,7 +127,7 @@ export default function HRScorecardPage() {
         </div>
 
         {rankedStaff.length === 0 && (
-          <div className="p-12 text-center text-slate-400 font-semibold flex flex-col items-center gap-3 bg-slate-50/50">
+          <div className="p-12 text-center text-slate-500 font-semibold flex flex-col items-center gap-3 bg-slate-50/50">
             <Users className="w-8 h-8 opacity-50" />
             No hay personal registrado en la Sede.
           </div>

@@ -92,7 +92,7 @@ export default function KitchenDashboard() {
                         <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white font-black text-xl shadow-md">🍽</div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Cocina y Nutrición</h1>
-                            <p className="text-xs font-bold text-slate-400">{(user as any).hqName || 'Zendity Network'}</p>
+                            <p className="text-xs font-bold text-slate-500">{(user as any).hqName || 'Zendity Network'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -111,7 +111,7 @@ export default function KitchenDashboard() {
                 {/* KPI Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Residentes</p>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Residentes</p>
                         <p className="text-3xl font-black text-slate-800">{activePatients.length}</p>
                     </div>
                     <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl shadow-sm text-center">
@@ -130,7 +130,7 @@ export default function KitchenDashboard() {
                     </div>
                     <div className={`p-5 rounded-2xl border shadow-sm text-center ${(kpi?.unreadCount ?? 0) > 0 ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200'}`}>
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Sin Leer</p>
-                        <p className={`text-3xl font-black ${(kpi?.unreadCount ?? 0) > 0 ? 'text-rose-700' : 'text-slate-400'}`}>{kpi?.unreadCount ?? 0}</p>
+                        <p className={`text-3xl font-black ${(kpi?.unreadCount ?? 0) > 0 ? 'text-rose-700' : 'text-slate-500'}`}>{kpi?.unreadCount ?? 0}</p>
                     </div>
                 </div>
 
@@ -196,7 +196,7 @@ export default function KitchenDashboard() {
                                             </div>
                                             <div>
                                                 <p className="font-bold text-slate-800 text-sm">{patient.name}</p>
-                                                <p className="text-xs text-slate-400">Cuarto {patient.roomNumber || 'N/A'}</p>
+                                                <p className="text-xs text-slate-500">Cuarto {patient.roomNumber || 'N/A'}</p>
                                             </div>
                                         </div>
                                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
@@ -240,7 +240,7 @@ export default function KitchenDashboard() {
                                             }`}>
                                                 {obs.feedbackType === 'POSITIVE' ? '✓ Positivo' : obs.feedbackType === 'NEGATIVE' ? '✗ Negativo' : '— Neutro'}
                                             </span>
-                                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">
+                                            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
                                                 {obs.mealType === 'BREAKFAST' ? '🌅 Desayuno' : obs.mealType === 'LUNCH' ? '☀️ Almuerzo' : obs.mealType === 'DINNER' ? '🌙 Cena' : '🍽 General'}
                                             </span>
                                         </div>
@@ -255,7 +255,7 @@ export default function KitchenDashboard() {
                                         <img src={obs.photoUrl} alt="Foto" className="w-full h-32 object-cover rounded-xl mb-3 border border-slate-200" />
                                     )}
                                     <div className="flex justify-between items-center border-t border-slate-100 pt-3">
-                                        <span className="text-xs text-slate-400 font-medium">
+                                        <span className="text-xs text-slate-500 font-medium">
                                             {obs.supervisor?.name} · {format(new Date(obs.createdAt), "dd MMM, hh:mm a", { locale: es })}
                                         </span>
                                         {!obs.isRead ? (
@@ -268,7 +268,7 @@ export default function KitchenDashboard() {
                                                 Leído
                                             </button>
                                         ) : (
-                                            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                                            <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
                                                 <CheckCircle2 className="w-3 h-3 text-teal-500" /> Leído
                                             </span>
                                         )}

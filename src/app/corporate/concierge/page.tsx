@@ -144,7 +144,7 @@ export default function ConciergeFulfillment() {
                     {/* LISTA DE ÓRDENES (PRODUCTOS) */}
                     {activeTab === 'ORDERS' && (
                         orders.length === 0 ? (
-                            <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400 font-medium">No hay órdenes registradas.</div>
+                            <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-500 font-medium">No hay órdenes registradas.</div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {orders.map(order => (
@@ -152,21 +152,21 @@ export default function ConciergeFulfillment() {
                                         <div>
                                             <div className="flex justify-between items-start mb-4">
                                                 {renderStatusBadge(order.status)}
-                                                <span className="text-xs text-slate-400 font-bold">{new Date(order.createdAt).toLocaleDateString()}</span>
+                                                <span className="text-xs text-slate-500 font-bold">{new Date(order.createdAt).toLocaleDateString()}</span>
                                             </div>
 
                                             <div className="mb-4">
                                                 <h3 className="text-lg font-black text-slate-800 leading-tight">{order.product.name}</h3>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{order.product.category}</p>
+                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{order.product.category}</p>
                                             </div>
 
                                             <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100 mb-6">
                                                 <div>
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Residente Entregar a</p>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Residente Entregar a</p>
                                                     <p className="font-bold text-slate-700">{order.patient.name}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apto/Hab</p>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Apto/Hab</p>
                                                     <p className="font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1 rounded-lg inline-block">{order.patient.roomNumber || 'N/A'}</p>
                                                 </div>
                                             </div>
@@ -199,7 +199,7 @@ export default function ConciergeFulfillment() {
                     {/* LISTA DE CITAS (TERAPIAS) */}
                     {activeTab === 'APPOINTMENTS' && (
                         appointments.length === 0 ? (
-                            <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400 font-medium">No hay citas registradas.</div>
+                            <div className="text-center p-12 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-500 font-medium">No hay citas registradas.</div>
                         ) : (
                             <div className="space-y-4">
                                 {appointments.map(appt => (
@@ -208,7 +208,7 @@ export default function ConciergeFulfillment() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
                                                 {renderStatusBadge(appt.status)}
-                                                <span className="text-xs text-slate-400 font-bold">{new Date(appt.createdAt).toLocaleString()}</span>
+                                                <span className="text-xs text-slate-500 font-bold">{new Date(appt.createdAt).toLocaleString()}</span>
                                             </div>
                                             <h3 className="text-xl font-black text-slate-800 leading-tight">{appt.service.name}</h3>
                                             <div className="flex items-center gap-2 mt-2">
@@ -221,7 +221,7 @@ export default function ConciergeFulfillment() {
                                             {appt.status === 'SCHEDULED' ? (
                                                 <>
                                                     <div>
-                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 shadow-sm">Asignar a:</p>
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 shadow-sm">Asignar a:</p>
                                                         <select
                                                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                                                             onChange={(e) => {
@@ -256,7 +256,7 @@ export default function ConciergeFulfillment() {
                                                 </>
                                             ) : (
                                                 <div className="text-sm font-medium text-slate-600">
-                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Especialista Asignado</p>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Especialista Asignado</p>
                                                     <p className="font-bold">{appt.specialist?.name || 'Asignado'}</p>
 
                                                     {appt.status === 'IN_PROGRESS' && (

@@ -72,7 +72,7 @@ export default function FamilyMessages() {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
                     </div>
                 ) : messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500">
                         <FaUserNurse className="text-4xl mb-4 opacity-20" />
                         <p className="text-sm font-medium">Bandeja de mensajes segura.</p>
                         <p className="text-xs mt-1 text-center max-w-xs">Escríbele a la estación de enfermería de su clínica. Te responderán por este mismo medio oficial.</p>
@@ -92,7 +92,7 @@ export default function FamilyMessages() {
                                         </div>
                                     )}
                                     <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                    <span className={`text-[10px] font-bold block mt-2 text-right uppercase tracking-wider ${isFamily ? 'text-rose-200' : 'text-slate-400'}`}>
+                                    <span className={`text-[10px] font-bold block mt-2 text-right uppercase tracking-wider ${isFamily ? 'text-rose-200' : 'text-slate-500'}`}>
                                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
@@ -112,7 +112,7 @@ export default function FamilyMessages() {
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             placeholder="Escribe un mensaje..."
-                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-14 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-400 placeholder:font-medium"
+                            className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 sm:py-4 pl-5 pr-14 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-bold text-slate-800 placeholder:text-slate-500 placeholder:font-medium"
                         />
                         <button
                             type="submit"

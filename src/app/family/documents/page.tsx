@@ -77,7 +77,7 @@ export default async function FamilyDocumentsPage() {
                             <div key={doc.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
                                 <div>
                                     <h3 className="font-bold text-gray-600">{doc.title}</h3>
-                                    <p className="text-sm text-gray-400">Firmado el: {doc.signedAt?.toLocaleDateString()}</p>
+                                    <p className="text-sm text-gray-500">Firmado el: {doc.signedAt?.toLocaleDateString()}</p>
                                 </div>
                                 <Link
                                     href={`/family/documents/${doc.id}`}
@@ -94,8 +94,8 @@ export default async function FamilyDocumentsPage() {
             {documents.length === 0 && (
                 <div className="text-center py-20">
                     <FileSignature className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-400">Su bóveda está vacía</h3>
-                    <p className="text-gray-400">No hay documentos legales pendientes de firma.</p>
+                    <h3 className="text-xl font-bold text-gray-500">Su bóveda está vacía</h3>
+                    <p className="text-gray-500">No hay documentos legales pendientes de firma.</p>
                 </div>
             )}
         </div>

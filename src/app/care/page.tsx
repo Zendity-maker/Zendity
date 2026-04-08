@@ -1017,7 +1017,7 @@ export default function ZendityCareTabletPage() {
     // VIEW 1: SELECCIÓN DE TURNO Y COLOR ZONING
     // =========================================================
     if (sessionLoading) {
-        return <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-black text-2xl text-slate-400 animate-pulse">Sincronizando Sistema Zendity...</div>;
+        return <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-black text-2xl text-slate-500 animate-pulse">Sincronizando Sistema Zendity...</div>;
     }
 
     if (!selectedColor && !briefingMode && !verifyingCensus) {
@@ -1026,7 +1026,7 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-white rounded-2xl p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center">
                     <button
                         onClick={() => logout()}
-                        className="absolute top-6 right-8 text-slate-400 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
+                        className="absolute top-6 right-8 text-slate-500 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
                     >
                         <span>Cerrar Sesión / Salir</span>
                     </button>
@@ -1056,10 +1056,10 @@ export default function ZendityCareTabletPage() {
                     </p>
 
                     {loading ? (
-                        <div className="py-10 text-slate-400 font-bold animate-pulse">Cargando residentes del grupo...</div>
+                        <div className="py-10 text-slate-500 font-bold animate-pulse">Cargando residentes del grupo...</div>
                     ) : (
                         <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 text-left">
-                            {patients.length === 0 && <div className="text-center p-8 text-slate-400 font-bold border-2 border-dashed border-slate-200 rounded-2xl">No hay residentes activos en este grupo.</div>}
+                            {patients.length === 0 && <div className="text-center p-8 text-slate-500 font-bold border-2 border-dashed border-slate-200 rounded-2xl">No hay residentes activos en este grupo.</div>}
                             {patients.map(p => (
                                 <div key={p.id} className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
@@ -1114,7 +1114,7 @@ export default function ZendityCareTabletPage() {
                     <div className="text-center z-10 animate-pulse">
                         <div className="w-24 h-24 border-4 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mx-auto mb-6"></div>
                         <h2 className="text-2xl font-black tracking-widest uppercase">Escaneando Turno...</h2>
-                        <p className="text-slate-400 mt-2">Zendi está recopilando signos vitales e historiales recientes.</p>
+                        <p className="text-slate-500 mt-2">Zendi está recopilando signos vitales e historiales recientes.</p>
                     </div>
                 ) : (
                     <div className="z-10 max-w-3xl w-full text-center animate-in slide-in-from-bottom-10 fade-in duration-700">
@@ -1144,17 +1144,17 @@ export default function ZendityCareTabletPage() {
                                 <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.vitalsAlerts}</h3>
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Alertas Viales Recientes</p>
+                                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Alertas Viales Recientes</p>
                                 </div>
                                 <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.foodAlerts}</h3>
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Inapetencias 8Hrs</p>
+                                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Inapetencias 8Hrs</p>
                                 </div>
                                 <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 backdrop-blur-sm">
                                     <span className="text-5xl mb-4 block"></span>
                                     <h3 className="text-4xl font-black">{briefingData.quickRead.appointments}</h3>
-                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Citas Hoy</p>
+                                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">Citas Hoy</p>
                                 </div>
                             </div>
                         )}
@@ -1162,7 +1162,7 @@ export default function ZendityCareTabletPage() {
                         {/* Controls */}
                         <div className="flex gap-4 justify-center">
                             {!showQuickRead && (
-                                <button onClick={skipBriefing} className="px-8 py-4 bg-slate-800 text-slate-300 font-bold rounded-full hover:bg-slate-700 transition">
+                                <button onClick={skipBriefing} className="px-8 py-4 bg-slate-800 text-slate-500 font-bold rounded-full hover:bg-slate-700 transition">
                                      Omitir Audio (Lectura Rápida)
                                 </button>
                             )}
@@ -1282,7 +1282,7 @@ export default function ZendityCareTabletPage() {
                 )}
 
                 {loading ? (
-                    <div className="text-center p-20 text-xl font-bold text-slate-400 animate-pulse">Cargando Residentes...</div>
+                    <div className="text-center p-20 text-xl font-bold text-slate-500 animate-pulse">Cargando Residentes...</div>
                 ) : (
                     <>
                         {isNightMode ? (
@@ -1301,7 +1301,7 @@ export default function ZendityCareTabletPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {patients.map(p => (
                                         <div key={p.id} className="bg-slate-800 border-[3px] border-slate-700 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-colors">
-                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center font-black text-xl text-slate-400 backdrop-blur-sm">FUERA DE EDIFICIO</div>}
+                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center font-black text-xl text-slate-500 backdrop-blur-sm">FUERA DE EDIFICIO</div>}
                                             <div className="flex justify-between items-start mb-6 align-top">
                                                 <h3 className="text-2xl font-black text-white pr-4 leading-tight">{p.name}</h3>
                                                 {p.posturalChanges?.length > 0 && <span className="bg-teal-500/20 text-teal-300 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-teal-500/30 shrink-0 text-center">ROTADO: <br className="hidden md:block" /> {new Date(p.posturalChanges[p.posturalChanges.length-1].performedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>}
@@ -1372,7 +1372,7 @@ export default function ZendityCareTabletPage() {
                                         {p.nortonRisk && lastRotation && (
                                             <div className={`mt-4 p-3 rounded-xl border-2 flex items-center justify-between shadow-sm transition-all ${isVencido ? 'bg-rose-50 border-rose-300' : (isWarning ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200')}`}>
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`text-2xl ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-500' : 'text-slate-400')}`}>⏳</span>
+                                                    <span className={`text-2xl ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-500' : 'text-slate-500')}`}>⏳</span>
                                                     <div>
                                                         <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-800' : (isWarning ? 'text-amber-800' : 'text-slate-500')}`}>SLA Zendi: Rotar 2H</p>
                                                         <p className={`text-sm font-bold leading-none ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-700')}`}>
@@ -1381,7 +1381,7 @@ export default function ZendityCareTabletPage() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right border-l pl-3 border-opacity-20 border-black flex flex-col items-end gap-1">
-                                                    <p className={`text-[10px] w-full block font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-400')}`}> {isVencido ? '¡RETRASO SLA!' : (isWarning ? 'Próxima' : 'Piel En Regla')} </p>
+                                                    <p className={`text-[10px] w-full block font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-500')}`}> {isVencido ? '¡RETRASO SLA!' : (isWarning ? 'Próxima' : 'Piel En Regla')} </p>
                                                     <p className="text-xs font-bold text-slate-500 leading-none">Pos. {p.posturalChanges[0]?.position?.split(' ')[0] || 'N/A'}</p>
                                                     
                                                     {/* Quick Action Rotation */}
@@ -1397,10 +1397,10 @@ export default function ZendityCareTabletPage() {
 
                                         {/* FASE 66: AT-A-GLANCE DAILY PROGRESS BADGES */}
                                         <div className="flex gap-3 mt-5 pt-4 border-t border-slate-100">
-                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-500 opacity-60 border border-transparent'}`}>
                                                 <span className="text-base">🚿</span> Baño
                                             </div>
-                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-400 opacity-60 border border-transparent'}`}>
+                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-500 opacity-60 border border-transparent'}`}>
                                                 <span className="text-base">🍽️</span> {p.mealLogs?.length || 0}/3 Comidas
                                             </div>
                                         </div>
@@ -1462,7 +1462,7 @@ export default function ZendityCareTabletPage() {
                             {modalType === 'DIET_CHANGE' && (
                             <form onSubmit={handleDietUpdate} className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div>
-                                    <p className="font-bold text-slate-400 uppercase tracking-widest text-xs border-b pb-2">Modificar Dieta / Nutrición</p>
+                                    <p className="font-bold text-slate-500 uppercase tracking-widest text-xs border-b pb-2">Modificar Dieta / Nutrición</p>
                                     <p className="text-slate-600 text-sm mt-3 font-medium">Asigna un plan de alimentación específico para este residente.</p>
                                 </div>
                                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 text-sm font-bold flex items-start gap-4">
@@ -1496,7 +1496,7 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'PREVENTIVE' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase tracking-widest text-xs border-b pb-2 flex items-center justify-between">
+                                <p className="font-bold text-slate-500 uppercase tracking-widest text-xs border-b pb-2 flex items-center justify-between">
                                     <span> Motor de Salud Preventiva</span>
                                     {selectedSymptom && (
                                         <button onClick={() => setSelectedSymptom(null)} className="text-indigo-500 font-bold text-xs hover:text-indigo-600">← Volver al Menú</button>
@@ -1548,7 +1548,7 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'VITALS_HISTORY' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-2">Historial de Vitales (Turno Actual)</p>
+                                <p className="font-bold text-slate-500 uppercase text-sm border-b pb-2">Historial de Vitales (Turno Actual)</p>
                                 {activePatient?.vitalSigns?.length > 0 ? (
                                     <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
                                         {activePatient.vitalSigns.map((v: any, i: number) => (
@@ -1573,7 +1573,7 @@ export default function ZendityCareTabletPage() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm font-bold text-slate-400 text-center py-4">No hay lecturas registradas en este turno.</p>
+                                    <p className="text-sm font-bold text-slate-500 text-center py-4">No hay lecturas registradas en este turno.</p>
                                 )}
                                 <button onClick={() => { setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="w-full py-4 mt-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-teal-500/30">
                                     Tomar Nueva Lectura
@@ -1583,7 +1583,7 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'VITALS' && (
                             <div className="space-y-6">
-                                <p className="font-bold text-slate-400 uppercase text-sm border-b pb-3">Registro de Signos Vitales</p>
+                                <p className="font-bold text-slate-500 uppercase text-sm border-b pb-3">Registro de Signos Vitales</p>
                                 
                                 {/* ZENDI DUPLICATE WARNING */}
                                 {activePatient?.vitalSigns?.length > 0 && new Date().getTime() - new Date(activePatient.vitalSigns[0].createdAt).getTime() < 4 * 60 * 60 * 1000 && (
@@ -1617,7 +1617,7 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'LOG' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-400 uppercase text-xs border-b pb-2 sticky top-0 bg-white z-10 pt-1">Actividades Diarias y Comidas</p>
+                                <p className="font-bold text-slate-500 uppercase text-xs border-b pb-2 sticky top-0 bg-white z-10 pt-1">Actividades Diarias y Comidas</p>
 
                                 {/* Tareas de Cuidado Personal (AM) */}
                                 {selectedColor && (
@@ -1704,14 +1704,14 @@ export default function ZendityCareTabletPage() {
                                         
                                         {nightRoundSLA !== null && nightRoundSLA < 120 ? (
                                             <div className="bg-slate-900/50 p-4 rounded-xl text-center border border-white/5">
-                                                <p className="text-xs font-bold text-slate-300">Ronda bloqueada (SLA 2-Hrs).</p>
+                                                <p className="text-xs font-bold text-slate-500">Ronda bloqueada (SLA 2-Hrs).</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-4">
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    <button onClick={() => setNightRoundStatus('SLEEPING')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'SLEEPING' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Profundo</button>
-                                                    <button onClick={() => setNightRoundStatus('AWAKE')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'AWAKE' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Despierto</button>
-                                                    <button onClick={() => setNightRoundStatus('ANOMALY')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'ANOMALY' ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-700/50 text-slate-300 border-slate-600'}`}> Anomalía</button>
+                                                    <button onClick={() => setNightRoundStatus('SLEEPING')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'SLEEPING' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-700/50 text-slate-500 border-slate-600'}`}> Profundo</button>
+                                                    <button onClick={() => setNightRoundStatus('AWAKE')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'AWAKE' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-700/50 text-slate-500 border-slate-600'}`}> Despierto</button>
+                                                    <button onClick={() => setNightRoundStatus('ANOMALY')} className={`py-4 text-xs md:text-sm uppercase tracking-wider font-black rounded-xl min-h-[56px] transition-all active:scale-95 shadow-sm border ${nightRoundStatus === 'ANOMALY' ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-700/50 text-slate-500 border-slate-600'}`}> Anomalía</button>
                                                 </div>
                                                 
                                                 {nightRoundStatus === 'ANOMALY' && (
@@ -1751,7 +1751,7 @@ export default function ZendityCareTabletPage() {
                         {modalType === 'MEDS' && (
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center border-b pb-2">
-                                    <p className="font-bold text-slate-400 uppercase text-sm">eMAR: Entrega de Fármacos</p>
+                                    <p className="font-bold text-slate-500 uppercase text-sm">eMAR: Entrega de Fármacos</p>
                                     <a href={`/care/patient/emar-print?patientId=${activePatient?.id}`} target="_blank" className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-colors">
                                         <span></span> Imprimir Cardex
                                     </a>
@@ -1767,7 +1767,7 @@ export default function ZendityCareTabletPage() {
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="text-sm font-bold text-slate-400 text-center py-4">No hay medicamentos pautados pendientes.</p>
+                                        <p className="text-sm font-bold text-slate-500 text-center py-4">No hay medicamentos pautados pendientes.</p>
                                     )}
                                 </div>
 
@@ -1799,7 +1799,7 @@ export default function ZendityCareTabletPage() {
                                             <div className="mb-5 animate-in fade-in">
                                                 <div className="flex justify-between items-end mb-2">
                                                     <label className="text-sm font-black text-slate-700 block">Firma Clínica (Requerida)</label>
-                                                    <button onClick={() => sigCanvas.current?.clear()} className="text-xs font-bold text-slate-400 hover:text-slate-600 underline">Limpiar Trazo</button>
+                                                    <button onClick={() => sigCanvas.current?.clear()} className="text-xs font-bold text-slate-500 hover:text-slate-600 underline">Limpiar Trazo</button>
                                                 </div>
                                                 <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden touch-none relative">
                                                     <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-200 pointer-events-none"></div>
@@ -1809,7 +1809,7 @@ export default function ZendityCareTabletPage() {
                                                         canvasProps={{className: 'signature-canvas w-full h-32 cursor-crosshair'}} 
                                                     />
                                                 </div>
-                                                <p className="text-[10px] text-center font-bold text-slate-400 mt-2 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
+                                                <p className="text-[10px] text-center font-bold text-slate-500 mt-2 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
                                             </div>
                                         )}
 
@@ -1833,7 +1833,7 @@ export default function ZendityCareTabletPage() {
                                             )}
 
                                             {activeMedAction && (
-                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); setOmissionNote(""); }} className="col-span-2 py-3 mt-2 text-slate-400 font-bold hover:text-slate-600 transition-colors">
+                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); setOmissionNote(""); }} className="col-span-2 py-3 mt-2 text-slate-500 font-bold hover:text-slate-600 transition-colors">
                                                     Cancelar
                                                 </button>
                                             )}
@@ -1903,7 +1903,7 @@ export default function ZendityCareTabletPage() {
                                         <h3 className="font-bold flex items-center gap-2 text-xl"><span></span> Documento Handover (Vivid)</h3>
                                         <div className="flex gap-4">
                                             <button className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white font-black px-6 py-2 rounded-xl text-sm shadow-lg shadow-emerald-500/20" onClick={() => window.print()}> Imprimir Progress Note</button>
-                                            <button onClick={() => { setModalType(null); setPdfNoteData(null); }} className="text-slate-300 hover:text-white font-bold px-4"> Cerrar</button>
+                                            <button onClick={() => { setModalType(null); setPdfNoteData(null); }} className="text-slate-500 hover:text-white font-bold px-4"> Cerrar</button>
                                         </div>
                                     </div>
                                     <div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center">
@@ -1925,9 +1925,9 @@ export default function ZendityCareTabletPage() {
                                                     <p className="text-sm font-black text-indigo-500 uppercase tracking-widest mb-2">Información del Residente</p>
                                                     <p className="text-3xl font-black text-slate-900 leading-tight mb-2">{pdfNoteData.name}</p>
                                                     <div className="space-y-1 text-slate-700 font-medium">
-                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Habitación:</span> {pdfNoteData.roomNumber || 'N/A'}</p>
-                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Condición:</span> {pdfNoteData.lifePlan?.medicalCondition || 'No especificada en PAI'}</p>
-                                                        <p><span className="font-bold text-slate-400 w-24 inline-block">Dieta / TR:</span> {pdfNoteData.diet || pdfNoteData.lifePlan?.feeding || 'Normal'}</p>
+                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Habitación:</span> {pdfNoteData.roomNumber || 'N/A'}</p>
+                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {pdfNoteData.lifePlan?.medicalCondition || 'No especificada en PAI'}</p>
+                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Dieta / TR:</span> {pdfNoteData.diet || pdfNoteData.lifePlan?.feeding || 'Normal'}</p>
                                                         <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {pdfNoteData.lifePlan?.allergies || 'NKA (No Known Allergies)'}</p>
                                                     </div>
                                                 </div>
@@ -1963,14 +1963,14 @@ export default function ZendityCareTabletPage() {
                                                             ))
                                                         ) : (
                                                             <tr>
-                                                                <td colSpan={4} className="py-6 text-center text-slate-400 font-bold">Sin medicamentos registrados</td>
+                                                                <td colSpan={4} className="py-6 text-center text-slate-500 font-bold">Sin medicamentos registrados</td>
                                                             </tr>
                                                         )}
                                                     </tbody>
                                                 </table>
                                             </div>
 
-                                            <div className="mt-16 text-center text-sm text-slate-400 border-t-2 border-dashed border-slate-200 pt-8">
+                                            <div className="mt-16 text-center text-sm text-slate-500 border-t-2 border-dashed border-slate-200 pt-8">
                                                 Este documento oficial es un resumen generado por inteligencia clínica del eMAR de la institución. No debe considerarse una prescripción médica final sino un historial de transición.
                                             </div>
                                         </div>
@@ -2113,7 +2113,7 @@ export default function ZendityCareTabletPage() {
                                                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200"> Foto Adjunta</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                                                    <div className="flex flex-col items-center gap-2 text-slate-500">
                                                         <span className="text-4xl"></span>
                                                         <span className="font-bold text-sm">Tocar para tomar foto</span>
                                                         <span className="text-xs text-slate-500 text-center">Abrirá la cámara o galería</span>

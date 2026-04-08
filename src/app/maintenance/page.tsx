@@ -83,7 +83,7 @@ export default function MaintenanceDashboardPage() {
 
                 <div className="p-4 flex-1">
                     <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Mecánico de Turno</p>
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Mecánico de Turno</p>
                         <p className="text-white font-bold text-lg leading-none">{user?.name}</p>
                     </div>
 
@@ -91,11 +91,11 @@ export default function MaintenanceDashboardPage() {
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-3 px-2">Métricas SLA Hoy</p>
                         <div className="space-y-2">
                             <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between items-center border border-slate-700/50">
-                                <span className="text-slate-400 font-medium text-sm">Resueltos</span>
+                                <span className="text-slate-500 font-medium text-sm">Resueltos</span>
                                 <span className="text-emerald-400 font-black">{kanban.resolved.length}</span>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between items-center border border-slate-700/50">
-                                <span className="text-slate-400 font-medium text-sm">Pendientes</span>
+                                <span className="text-slate-500 font-medium text-sm">Pendientes</span>
                                 <span className="text-rose-400 font-black">{kanban.pending.length}</span>
                             </div>
                         </div>
@@ -103,7 +103,7 @@ export default function MaintenanceDashboardPage() {
                 </div>
 
                 <div className="p-4 border-t border-white/10">
-                    <button onClick={logout} className="w-full bg-slate-800 hover:bg-rose-900/50 text-slate-300 hover:text-rose-400 font-bold py-3 rounded-xl transition-colors border border-slate-700 flex justify-center items-center gap-2">
+                    <button onClick={logout} className="w-full bg-slate-800 hover:bg-rose-900/50 text-slate-500 hover:text-rose-400 font-bold py-3 rounded-xl transition-colors border border-slate-700 flex justify-center items-center gap-2">
                         <span></span> Cerrar Sesión
                     </button>
                 </div>
@@ -162,8 +162,8 @@ export default function MaintenanceDashboardPage() {
                                 </div>
                             ))}
                             {kanban.pending.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                    <CheckCircle2 className="w-12 h-12 mb-2 text-slate-300" />
+                                <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                                    <CheckCircle2 className="w-12 h-12 mb-2 text-slate-500" />
                                     <p className="font-medium text-sm">Sin averías pendientes</p>
                                 </div>
                             )}

@@ -14,7 +14,7 @@ export default function SedesHeader() {
                     <BuildingOfficeIcon className="w-8 h-8 text-blue-500" />
                     Zendity B2B Control Panel
                 </h1>
-                <p className="text-slate-400 mt-2">Visión global de todas las facilidades operando bajo la plataforma SaaS.</p>
+                <p className="text-slate-500 mt-2">Visión global de todas las facilidades operando bajo la plataforma SaaS.</p>
             </div>
             
             <button 

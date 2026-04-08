@@ -181,7 +181,7 @@ export default function BillingDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Pagos Pendientes</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Pagos Pendientes</p>
                         <h2 className="text-4xl font-black text-rose-600">
                             ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </h2>
@@ -192,7 +192,7 @@ export default function BillingDashboard() {
                 </div>
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Ingresos Cobrados</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Ingresos Cobrados</p>
                         <h2 className="text-4xl font-black text-emerald-600">
                             ${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </h2>
@@ -220,14 +220,14 @@ export default function BillingDashboard() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                                    <td colSpan={6} className="p-8 text-center text-slate-500">
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
                                         Calculando contabilidad...
                                     </td>
                                 </tr>
                             ) : invoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-400 font-medium">
+                                    <td colSpan={6} className="p-8 text-center text-slate-500 font-medium">
                                         No hay recibos generados aún. Haz clic en "Emitir Recibo" para comenzar.
                                     </td>
                                 </tr>
@@ -244,7 +244,7 @@ export default function BillingDashboard() {
                                         </td>
                                         <td className="p-5 text-sm">
                                             <p className="text-slate-600">Emi: {format(new Date(invoice.issueDate), 'dd MMM yyyy', { locale: es })}</p>
-                                            <p className="text-slate-400 text-xs mt-0.5">Vence: {format(new Date(invoice.dueDate), 'dd MMM yyyy', { locale: es })}</p>
+                                            <p className="text-slate-500 text-xs mt-0.5">Vence: {format(new Date(invoice.dueDate), 'dd MMM yyyy', { locale: es })}</p>
                                         </td>
                                         <td className="p-5">
                                             <p className="font-black text-slate-800 text-lg">
@@ -279,7 +279,7 @@ export default function BillingDashboard() {
                                             ) : (
                                                 <button
                                                     onClick={() => setViewPdfInvoice(invoice)}
-                                                    className="text-slate-400 hover:text-slate-600 text-sm font-bold flex items-center justify-end w-full gap-2 transition-colors"
+                                                    className="text-slate-500 hover:text-slate-600 text-sm font-bold flex items-center justify-end w-full gap-2 transition-colors"
                                                 >
                                                     <FileText className="w-4 h-4" /> PDF
                                                 </button>
@@ -302,7 +302,7 @@ export default function BillingDashboard() {
                                 <FileText className="w-6 h-6 text-emerald-600" />
                                 Emitir Nuevo Recibo
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-2"></button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-600 font-bold p-2"></button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
@@ -364,7 +364,7 @@ export default function BillingDashboard() {
                                                 />
                                             </div>
                                             <div className="w-32 relative">
-                                                <span className="absolute left-3 top-2.5 text-slate-400 font-bold">$</span>
+                                                <span className="absolute left-3 top-2.5 text-slate-500 font-bold">$</span>
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -408,8 +408,8 @@ export default function BillingDashboard() {
                         <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2"><FileText className="w-4 h-4" /> Visor de Recibo PDF</h3>
                             <div className="flex gap-4">
-                                <button className="text-slate-300 hover:text-white font-bold text-sm" onClick={() => window.print()}> Imprimir</button>
-                                <button onClick={() => setViewPdfInvoice(null)} className="text-slate-300 hover:text-white font-bold"> Cerrar</button>
+                                <button className="text-slate-500 hover:text-white font-bold text-sm" onClick={() => window.print()}> Imprimir</button>
+                                <button onClick={() => setViewPdfInvoice(null)} className="text-slate-500 hover:text-white font-bold"> Cerrar</button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-12 bg-slate-100 flex justify-center">
@@ -430,7 +430,7 @@ export default function BillingDashboard() {
                                 </div>
 
                                 <div className="mb-8">
-                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Facturado a</p>
+                                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Facturado a</p>
                                     <p className="text-lg font-bold text-slate-800">{viewPdfInvoice.patient.name}</p>
                                     <p className="text-slate-600">Residente - Cuarto {viewPdfInvoice.patient.roomNumber || 'N/A'}</p>
                                 </div>
@@ -473,7 +473,7 @@ export default function BillingDashboard() {
                                     </div>
                                 </div>
 
-                                <div className="mt-16 text-center text-sm text-slate-400 border-t border-slate-100 pt-8">
+                                <div className="mt-16 text-center text-sm text-slate-500 border-t border-slate-100 pt-8">
                                     Este recibo ha sido liquidado en su totalidad. Generado en {hqName}.
                                 </div>
                             </div>

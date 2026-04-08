@@ -38,7 +38,7 @@ export default async function SuperAdminDashboard() {
                             <span className="text-teal-400"></span> Zendity OS
                             <span className="text-xl font-medium text-slate-500 tracking-normal ml-2">Master Console</span>
                         </h1>
-                        <p className="text-slate-400 mt-2">B2B SaaS Multi-Tenant Management</p>
+                        <p className="text-slate-500 mt-2">B2B SaaS Multi-Tenant Management</p>
                     </div>
                 </div>
 
@@ -46,17 +46,17 @@ export default async function SuperAdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total Tenants (HQs)</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total Tenants (HQs)</p>
                         <p className="text-4xl font-black text-white mt-2">{hqs.length}</p>
                     </div>
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Active Licenses</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Active Licenses</p>
                         <p className="text-4xl font-black text-teal-400 mt-2">{hqs.filter(h => h.licenseActive).length}</p>
                     </div>
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform"></div>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Total End-Users</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Total End-Users</p>
                         <p className="text-4xl font-black text-indigo-400 mt-2">
                             {hqs.reduce((acc, curr) => acc + curr._count.users, 0)}
                         </p>
@@ -111,7 +111,7 @@ export default async function SuperAdminDashboard() {
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            <div className="text-sm text-slate-300">
+                                            <div className="text-sm text-slate-500">
                                                 {format(new Date(hq.licenseExpiry), "dd MMM yyyy", { locale: es })}
                                             </div>
                                             {hq.licenseExpiry < new Date() && (
@@ -119,7 +119,7 @@ export default async function SuperAdminDashboard() {
                                             )}
                                         </td>
                                         <td className="p-4 pr-6 text-right">
-                                            <Link href={`/superadmin/billing?hqId=${hq.id}`} className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-sm">
+                                            <Link href={`/superadmin/billing?hqId=${hq.id}`} className="inline-block px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-500 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-sm">
                                                  Ver {hq._count.saasInvoices} Docs
                                             </Link>
                                         </td>

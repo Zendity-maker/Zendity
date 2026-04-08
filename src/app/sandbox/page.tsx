@@ -126,7 +126,7 @@ export default function ZenditySandboxPage() {
                                 <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black ${step === 3 ? 'bg-teal-500' : 'bg-slate-700'}`}>3</span>
                                 <h2 className="text-xl font-black">Orquestar Operación</h2>
                             </div>
-                            <p className="text-sm text-slate-300 mb-6 font-medium">
+                            <p className="text-sm text-slate-500 mb-6 font-medium">
                                 Procesar Alta Médica, Invocar Zendity AI y Simular Login del Cuidador {employeeName}.
                             </p>
 
@@ -152,7 +152,7 @@ export default function ZenditySandboxPage() {
                         {step < 4 ? (
                             <div className="h-full bg-slate-200/50 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-12 text-center animate-pulse">
                                 <span className="text-6xl mb-4 grayscale opacity-50"></span>
-                                <h3 className="text-2xl font-black text-slate-400">Motor AI en Espera</h3>
+                                <h3 className="text-2xl font-black text-slate-500">Motor AI en Espera</h3>
                                 <p className="text-slate-500 mt-2 max-w-sm">Completa los pasos en el panel izquierdo para simular el procesamiento de un nuevo residente.</p>
                             </div>
                         ) : (
@@ -185,7 +185,7 @@ export default function ZenditySandboxPage() {
                                         <h3 className="text-3xl font-black flex items-center gap-3 mb-6">
                                             <span></span> Zendi Morning Briefing
                                         </h3>
-                                        <p className="text-slate-400 font-medium mb-6">
+                                        <p className="text-slate-500 font-medium mb-6">
                                             Lo que escucha <strong>{employeeName}</strong> al escanear su badge para el <strong>Grupo {patientColor}</strong>:
                                         </p>
 

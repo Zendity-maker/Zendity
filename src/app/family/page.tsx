@@ -64,7 +64,7 @@ export default function FamilyDashboard() {
             <div className="bg-white rounded-3xl p-6 sm:p-8 flex items-center sm:items-start gap-6 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden mt-2">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-bl-full -z-0 opacity-50"></div>
                 <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 border-4 border-white shadow-xl shadow-slate-200/50 flex flex-shrink-0 items-center justify-center z-10 relative overflow-hidden">
-                    <FaRegUser className="text-4xl text-slate-400" />
+                    <FaRegUser className="text-4xl text-slate-500" />
                 </div>
                 <div className="text-left flex-1 z-10">
                     <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 tracking-tight">{resident.name}</h2>
@@ -115,7 +115,7 @@ export default function FamilyDashboard() {
                                     <span className="font-black text-slate-800 text-lg capitalize">{latestLog.mobility}</span>
                                 </div>
                                 <div className="pt-4 mt-2 border-t border-dashed border-slate-100 text-right">
-                                    <span className="inline-block bg-slate-50 px-3 py-1 rounded-lg text-xs font-bold text-slate-400">Turno de hoy</span>
+                                    <span className="inline-block bg-slate-50 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">Turno de hoy</span>
                                 </div>
                             </div>
                         ) : (

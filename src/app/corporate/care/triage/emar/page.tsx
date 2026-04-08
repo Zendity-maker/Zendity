@@ -86,7 +86,7 @@ export default function EmarConciliationPage() {
         ) : drafts.length === 0 ? (
           <div className="bg-white p-12 text-center rounded-xl shadow-sm border border-gray-200">
             <h3 className="text-gray-500 text-lg">No hay borradores pendientes.</h3>
-            <p className="text-gray-400 text-sm mt-1">El intake está al día.</p>
+            <p className="text-gray-500 text-sm mt-1">El intake está al día.</p>
           </div>
         ) : (
           <div className="grid gap-6">

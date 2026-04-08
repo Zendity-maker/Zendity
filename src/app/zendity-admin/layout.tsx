@@ -24,7 +24,7 @@ export default async function ZendityAdminLayout({
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-slate-950 text-slate-500 font-sans selection:bg-blue-500/30">
             {/* Sidebar Dark Mode (Zendity Admin Control Panel) */}
             <aside className="fixed left-0 top-0 w-64 h-screen bg-slate-900 border-r border-slate-800 flex flex-col z-20 shadow-2xl shadow-black">
                 <div className="p-6 border-b border-slate-800 flex items-center gap-3">
@@ -43,7 +43,7 @@ export default async function ZendityAdminLayout({
                         <BuildingOfficeIcon className="w-5 h-5" />
                         <span className="font-medium text-sm">Sedes (Tenants)</span>
                     </Link>
-                    <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all cursor-not-allowed opacity-50">
+                    <Link href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:text-white hover:bg-slate-800/50 transition-all cursor-not-allowed opacity-50">
                         <ChartPieIcon className="w-5 h-5" />
                         <span className="font-medium text-sm">Zendity Billing</span>
                         <span className="ml-auto text-[9px] uppercase tracking-wider bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">Pronto</span>
@@ -52,7 +52,7 @@ export default async function ZendityAdminLayout({
 
                 <div className="p-4 border-t border-slate-800">
                     <div className="flex items-center gap-3 px-3 py-3 mb-2 rounded-xl bg-slate-950/50 border border-slate-800">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 shrink-0 border border-slate-700">
+                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 shrink-0 border border-slate-700">
                             {session.user.name?.charAt(0) || 'D'}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -61,7 +61,7 @@ export default async function ZendityAdminLayout({
                         </div>
                     </div>
                     
-                    <Link href="/corporate/hq" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white text-sm font-medium transition-colors">
+                    <Link href="/corporate/hq" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl hover:bg-slate-800 text-slate-500 hover:text-white text-sm font-medium transition-colors">
                         <ArrowRightOnRectangleIcon className="w-4 h-4" />
                         Regresar a mi Sede
                     </Link>

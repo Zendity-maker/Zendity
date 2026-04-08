@@ -199,16 +199,16 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Fuentes de Apoyo Principal (Familiares)</label>
-                                <input type="text" value={supportSource} onChange={e => setSupportSource(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Hija y sobrino" />
+                                <input type="text" value={supportSource} onChange={e => setSupportSource(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Hija y sobrino" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Fecha Inicio</label>
-                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Revisión Smt.</label>
-                                    <input type="date" value={nextReview} onChange={e => setNextReview(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                    <input type="date" value={nextReview} onChange={e => setNextReview(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
                                 </div>
                             </div>
                         </div>
@@ -220,24 +220,24 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nivel Cognitivo</label>
-                                    <input type="text" value={cognitiveLevel} onChange={e => setCognitiveLevel(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Desorientación parcial" />
+                                    <input type="text" value={cognitiveLevel} onChange={e => setCognitiveLevel(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Desorientación parcial" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Movilidad</label>
-                                    <input type="text" value={mobility} onChange={e => setMobility(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Deambula con andador" />
+                                    <input type="text" value={mobility} onChange={e => setMobility(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Deambula con andador" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Continencia</label>
-                                    <input type="text" value={continence} onChange={e => setContinence(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Incontinencia ocasional" />
+                                    <input type="text" value={continence} onChange={e => setContinence(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" placeholder="Ej: Incontinencia ocasional" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Dieta</label>
-                                    <input type="text" value={dietDetails} onChange={e => setDietDetails(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
+                                    <input type="text" value={dietDetails} onChange={e => setDietDetails(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all" />
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Diagnósticos y Resumen</label>
-                                <textarea value={clinicalSummary} onChange={e => setClinicalSummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="Demencia vascular moderada, HTA..." />
+                                <textarea value={clinicalSummary} onChange={e => setClinicalSummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Demencia vascular moderada, HTA..." />
                             </div>
                         </div>
                     </div>
@@ -249,12 +249,12 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                         <h2 className="text-lg font-black text-slate-800">3. Riesgos y Prioridades de Atención</h2>
                         <button onClick={() => setRisks([...risks, { area: '', finding: '', priority: 'Media' }])} className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold"><PlusIcon className="w-4 h-4"/> Añadir Fila</button>
                     </div>
-                    {risks.length === 0 && <p className="text-center text-slate-400 py-4 font-bold border-2 border-dashed rounded-xl">No hay riesgos añadidos a la matriz.</p>}
+                    {risks.length === 0 && <p className="text-center text-slate-500 py-4 font-bold border-2 border-dashed rounded-xl">No hay riesgos añadidos a la matriz.</p>}
                     <div className="space-y-3">
                         {risks.map((r, i) => (
                             <div key={i} className="flex flex-col md:flex-row gap-3 items-center bg-slate-50 p-2 border border-slate-200 rounded-xl relative">
-                                <input className="w-full md:w-1/4 bg-white p-2 rounded-lg border font-bold text-sm text-slate-900 placeholder:text-slate-400" placeholder="Área (Ej. Seguridad)" value={r.area} onChange={e => { const copy = [...risks]; copy[i].area = e.target.value; setRisks(copy); }} />
-                                <input className="w-full md:flex-1 bg-white p-2 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-400" placeholder="Hallazgo / Necesidad" value={r.finding} onChange={e => { const copy = [...risks]; copy[i].finding = e.target.value; setRisks(copy); }} />
+                                <input className="w-full md:w-1/4 bg-white p-2 rounded-lg border font-bold text-sm text-slate-900 placeholder:text-slate-500" placeholder="Área (Ej. Seguridad)" value={r.area} onChange={e => { const copy = [...risks]; copy[i].area = e.target.value; setRisks(copy); }} />
+                                <input className="w-full md:flex-1 bg-white p-2 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-500" placeholder="Hallazgo / Necesidad" value={r.finding} onChange={e => { const copy = [...risks]; copy[i].finding = e.target.value; setRisks(copy); }} />
                                 <select className="w-full md:w-32 bg-white p-2 text-sm rounded-lg border font-bold" value={r.priority} onChange={e => { const copy = [...risks]; copy[i].priority = e.target.value; setRisks(copy); }}>
                                     <option>Alta</option><option>Media</option><option>Baja</option>
                                 </select>
@@ -264,7 +264,7 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     </div>
                     <div className="mt-4">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Resumen Interdisciplinario Global</label>
-                        <textarea value={interdisciplinarySummary} onChange={e => setInterdisciplinarySummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="El residente conserva capacidad parcial para..." />
+                        <textarea value={interdisciplinarySummary} onChange={e => setInterdisciplinarySummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="El residente conserva capacidad parcial para..." />
                     </div>
                 </div>
 
@@ -274,16 +274,16 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                         <h2 className="text-lg font-black text-slate-800">4. Objetivos del PAI e Intervención</h2>
                         <button onClick={() => setGoals([...goals, { objective: '', action: '', responsible: '', frequency: '', indicator: '' }])} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold"><PlusIcon className="w-4 h-4"/> Añadir Objetivo</button>
                     </div>
-                    {goals.length === 0 && <p className="text-center text-slate-400 py-4 font-bold border-2 border-dashed rounded-xl">No hay metas registradas.</p>}
+                    {goals.length === 0 && <p className="text-center text-slate-500 py-4 font-bold border-2 border-dashed rounded-xl">No hay metas registradas.</p>}
                     <div className="space-y-3">
                         {goals.map((g, i) => (
                             <div key={i} className="flex flex-col gap-2 bg-indigo-50/50 p-4 border border-indigo-100 rounded-xl relative">
                                 <div className="absolute top-4 right-4 text-indigo-200 font-black text-2xl opacity-50">#{i + 1}</div>
                                 <input className="w-full md:w-3/4 bg-white p-2.5 rounded-lg border font-black text-indigo-900 border-indigo-200" placeholder="Objetivo (Ej. Prevenir Caídas)" value={g.objective} onChange={e => { const copy = [...goals]; copy[i].objective = e.target.value; setGoals(copy); }} />
-                                <textarea className="w-full bg-white p-2.5 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-400 h-16 resize-none text-slate-900 placeholder:text-indigo-300 focus:border-indigo-400" placeholder="Acción / Intervención Concreta" value={g.action} onChange={e => { const copy = [...goals]; copy[i].action = e.target.value; setGoals(copy); }} />
+                                <textarea className="w-full bg-white p-2.5 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-500 h-16 resize-none text-slate-900 placeholder:text-indigo-300 focus:border-indigo-400" placeholder="Acción / Intervención Concreta" value={g.action} onChange={e => { const copy = [...goals]; copy[i].action = e.target.value; setGoals(copy); }} />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div><label className="text-[10px] font-bold text-slate-500 uppercase">Responsable</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-bold text-slate-900 placeholder:text-slate-400" value={g.responsible} onChange={e => { const copy = [...goals]; copy[i].responsible = e.target.value; setGoals(copy); }} /></div>
-                                    <div><label className="text-[10px] font-bold text-slate-500 uppercase">Frecuencia</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-medium text-slate-900 placeholder:text-slate-400" value={g.frequency} onChange={e => { const copy = [...goals]; copy[i].frequency = e.target.value; setGoals(copy); }} /></div>
+                                    <div><label className="text-[10px] font-bold text-slate-500 uppercase">Responsable</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-bold text-slate-900 placeholder:text-slate-500" value={g.responsible} onChange={e => { const copy = [...goals]; copy[i].responsible = e.target.value; setGoals(copy); }} /></div>
+                                    <div><label className="text-[10px] font-bold text-slate-500 uppercase">Frecuencia</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-medium text-slate-900 placeholder:text-slate-500" value={g.frequency} onChange={e => { const copy = [...goals]; copy[i].frequency = e.target.value; setGoals(copy); }} /></div>
                                     <div><label className="text-[10px] font-bold text-slate-500 uppercase">Indicador</label><input className="w-full bg-emerald-50 text-emerald-800 p-2 rounded-lg border border-emerald-200 text-sm font-bold" value={g.indicator} onChange={e => { const copy = [...goals]; copy[i].indicator = e.target.value; setGoals(copy); }} /></div>
                                 </div>
                                 <button onClick={() => setGoals(goals.filter((_, index) => index !== i))} className="absolute top-4 right-12 p-1.5 text-rose-500 hover:bg-rose-100 rounded-lg"><TrashIcon className="w-4 h-4"/></button>
@@ -304,7 +304,7 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             <div key={i} className="flex flex-col gap-2 bg-white p-4 border border-orange-200 rounded-xl relative shadow-sm">
                                 <input className="w-full md:w-3/4 bg-orange-50 p-2.5 rounded-lg border-2 font-black text-orange-900 border-orange-200 outline-none focus:border-orange-400" placeholder="Nombre del Servicio (Ej. Terapia Física 3x/sem)" value={rs.serviceName} onChange={e => { const copy = [...recommendedServices]; copy[i].serviceName = e.target.value; setRecommendedServices(copy); }} />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-orange-700 uppercase">Descripción de los Beneficios</label><input className="w-full bg-slate-50 p-2 rounded-lg border text-sm font-medium text-slate-900 placeholder:text-slate-400" value={rs.description} onChange={e => { const copy = [...recommendedServices]; copy[i].description = e.target.value; setRecommendedServices(copy); }} /></div>
+                                    <div className="md:col-span-2"><label className="text-[10px] font-bold text-orange-700 uppercase">Descripción de los Beneficios</label><input className="w-full bg-slate-50 p-2 rounded-lg border text-sm font-medium text-slate-900 placeholder:text-slate-500" value={rs.description} onChange={e => { const copy = [...recommendedServices]; copy[i].description = e.target.value; setRecommendedServices(copy); }} /></div>
                                     <div><label className="text-[10px] font-bold text-orange-700 uppercase">Cotización Aproximada</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-black text-green-700" value={rs.price} onChange={e => { const copy = [...recommendedServices]; copy[i].price = e.target.value; setRecommendedServices(copy); }} /></div>
                                 </div>
                                 <button onClick={() => setRecommendedServices(recommendedServices.filter((_, index) => index !== i))} className="absolute top-4 right-4 p-1.5 text-rose-500 hover:bg-rose-100 rounded-lg"><TrashIcon className="w-4 h-4"/></button>
@@ -319,19 +319,19 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Educación al Cuidador / Familia</label>
-                            <textarea value={familyEducation} onChange={e => setFamilyEducation(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="Se orienta sobre prevención de caídas..." />
+                            <textarea value={familyEducation} onChange={e => setFamilyEducation(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Se orienta sobre prevención de caídas..." />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Preferencias del Residente</label>
-                            <textarea value={preferences} onChange={e => setPreferences(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="Música suave, rutinas consistentes..." />
+                            <textarea value={preferences} onChange={e => setPreferences(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Música suave, rutinas consistentes..." />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Método de Monitoreo</label>
-                            <textarea value={monitoringMethod} onChange={e => setMonitoringMethod(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="Notas de enfermería, reportes zendity..." />
+                            <textarea value={monitoringMethod} onChange={e => setMonitoringMethod(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Notas de enfermería, reportes zendity..." />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Criterios de Revisión Temprana</label>
-                            <textarea value={revisionCriteria} onChange={e => setRevisionCriteria(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-400 focus:border-indigo-400" placeholder="Hospitalización, deterioro funcional..." />
+                            <textarea value={revisionCriteria} onChange={e => setRevisionCriteria(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Hospitalización, deterioro funcional..." />
                         </div>
                     </div>
                 </div>

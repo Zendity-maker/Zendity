@@ -65,7 +65,7 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
                             <Sparkles className="w-4 h-4" /> Zendi AI Engine
                         </div>
                         <h2 className="text-3xl font-black text-white">Prólogo del Turno (05:45 AM)</h2>
-                        <p className="text-slate-400 text-sm mt-1">Resumen Ejecutivo del Turno Precedente y Focos de Atención Diario.</p>
+                        <p className="text-slate-500 text-sm mt-1">Resumen Ejecutivo del Turno Precedente y Focos de Atención Diario.</p>
                     </div>
                     <button 
                         onClick={handlePlayPause}
@@ -445,7 +445,7 @@ export default function SupervisorDashboardPage() {
                                 <ShieldAlert className="w-8 h-8 text-teal-400" />
                                 Triage Central
                             </h1>
-                            <p className="text-slate-400 font-medium text-sm md:text-base mb-8">
+                            <p className="text-slate-500 font-medium text-sm md:text-base mb-8">
                                 Monitoreo Operativo y Despacho en Tiempo Real.
                             </p>
                             <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-6 py-4 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm w-max" />
@@ -457,26 +457,26 @@ export default function SupervisorDashboardPage() {
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
                             <Users className="w-8 h-8 text-teal-600 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.activeCaregivers : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">En Piso</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">En Piso</p>
                         </div>
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
-                            <Droplets className="w-8 h-8 text-slate-400 mb-3" />
+                            <Droplets className="w-8 h-8 text-slate-500 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.liveStats.baths : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Baños</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Baños</p>
                         </div>
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
-                            <Coffee className="w-8 h-8 text-slate-400 mb-3" />
+                            <Coffee className="w-8 h-8 text-slate-500 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? Object.values(liveData.liveStats.meals).reduce((a:any, b:any) => a + b, 0) : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Dietas</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Dietas</p>
                         </div>
                         
                         {/* Indicador de Incidentes (Crítico si > 0) */}
                         <div className={`rounded-[2rem] p-6 shadow-sm border flex flex-col items-center justify-center text-center transition-all ${liveData && liveData.liveStats.incidents > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
-                            <Siren className={`w-8 h-8 mb-3 transition-colors ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-300'}`} />
+                            <Siren className={`w-8 h-8 mb-3 transition-colors ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'}`} />
                             <p className={`text-4xl font-black leading-none ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-700' : 'text-slate-800'}`}>
                                 {liveData ? liveData.liveStats.incidents : "-"}
                             </p>
-                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
                                 Incidentes
                             </p>
                         </div>
@@ -517,7 +517,7 @@ export default function SupervisorDashboardPage() {
                                             </div>
                                             <div>
                                                 <p className="text-white font-bold text-sm">{empName}</p>
-                                                <p className="text-slate-400 text-xs">
+                                                <p className="text-slate-500 text-xs">
                                                     {empColor ? `Grupo ${empColor}` : empRole || 'Sin grupo asignado'}
                                                 </p>
                                             </div>
@@ -619,7 +619,7 @@ export default function SupervisorDashboardPage() {
                             </div>
 
                             {!liveData ? (
-                                <div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-slate-300" /></div>
+                                <div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-slate-500" /></div>
                             ) : liveData.triageFeed?.length > 0 ? (
                                 <div className="space-y-4">
                                     {[...liveData.triageFeed].sort((a,b) => {
@@ -646,7 +646,7 @@ export default function SupervisorDashboardPage() {
                                                         <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${pillColor}`}>
                                                             {ticket.urgency}
                                                         </span>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
                                                             {ticket.category.replace('_', ' ')}
                                                         </span>
                                                         {ticket.sourceType === 'ZENDI_GROUP' && (
@@ -749,7 +749,7 @@ export default function SupervisorDashboardPage() {
                                 <div className="space-y-4 flex-1">
                                     {(!liveData || enPiso.length === 0) ? (
                                         <div className="p-8 text-center bg-slate-50 border border-slate-100 rounded-[2rem]">
-                                            <p className="text-slate-400 font-medium text-sm">Sin usuarios activos.</p>
+                                            <p className="text-slate-500 font-medium text-sm">Sin usuarios activos.</p>
                                         </div>
                                     ) : (
                                         enPiso.map((s: CaregiverSession) => {
@@ -763,7 +763,7 @@ export default function SupervisorDashboardPage() {
                                                         </div>
                                                         <div>
                                                             <p className="font-bold text-slate-800">{s.caregiver?.name}</p>
-                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{hrs.toFixed(1)} hrs logueado</p>
+                                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{hrs.toFixed(1)} hrs logueado</p>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
@@ -841,7 +841,7 @@ export default function SupervisorDashboardPage() {
                                 rows={3}
                             />
                             {processedMemo && (
-                                <div className="mt-6 p-5 bg-slate-900 text-slate-300 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
+                                <div className="mt-6 p-5 bg-slate-900 text-slate-500 rounded-[2rem] text-xs font-medium whitespace-pre-wrap shadow-inner cursor-pointer hover:bg-black transition-colors" onClick={copyToClipboard} title="Copiar al portapapeles">
                                     {processedMemo}
                                 </div>
                             )}
@@ -864,13 +864,13 @@ export default function SupervisorDashboardPage() {
                                 <div className="flex gap-4 mb-6">
                                     <button
                                         onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })}
-                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-500'}`}
                                     >
                                         Zona Limpia
                                     </button>
                                     <button
                                         onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })}
-                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-400'}`}
+                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-500'}`}
                                     >
                                         Zona Segura
                                     </button>
@@ -909,7 +909,7 @@ export default function SupervisorDashboardPage() {
                                 <Send className="w-6 h-6 text-teal-600" />
                                 Ruteo Táctico 1-Click
                             </h3>
-                            <button onClick={() => setDispatchingTicket(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 w-10 h-10 rounded-full transition-colors active:scale-95 flex items-center justify-center text-lg font-bold">
+                            <button onClick={() => setDispatchingTicket(null)} className="text-slate-500 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 w-10 h-10 rounded-full transition-colors active:scale-95 flex items-center justify-center text-lg font-bold">
                                 ×
                             </button>
                         </div>
@@ -919,7 +919,7 @@ export default function SupervisorDashboardPage() {
                             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">OBJETIVO: {dispatchingTicket.patientName}</p>
                         </div>
 
-                        <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-3 flex items-center justify-between">
+                        <h4 className="font-black text-slate-500 text-[10px] uppercase tracking-widest mb-3 flex items-center justify-between">
                             <span>Fuerza de Trabajo en Piso</span>
                             <span>Carga Actual</span>
                         </h4>
@@ -967,13 +967,13 @@ export default function SupervisorDashboardPage() {
                                                             <Sparkles className="w-3 h-3 text-amber-500" /> Zendi Sugiere Despacho
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">Lista / En Piso</span>
+                                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md">Lista / En Piso</span>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="text-center bg-white shadow-sm border border-slate-100 w-14 py-2 rounded-[2rem]">
                                                 <span className={`block font-black text-xl leading-none ${tasksPending >= 3 ? 'text-rose-600' : (tasksPending >= 2 ? 'text-amber-500' : 'text-slate-800')}`}>{tasksPending}</span>
-                                                <span className="block text-[8px] uppercase tracking-widest text-slate-400 font-bold mt-0.5">Tareas</span>
+                                                <span className="block text-[8px] uppercase tracking-widest text-slate-500 font-bold mt-0.5">Tareas</span>
                                             </div>
                                         </button>
                                     );

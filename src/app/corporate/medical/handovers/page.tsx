@@ -248,7 +248,7 @@ export default function HandoversPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-4">
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-amber-300 transition-colors">
                         <div className="flex justify-between items-start">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Pendientes de Firma</h3>
+                            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Pendientes de Firma</h3>
                             <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl"><FileSignature className="w-5 h-5" /></div>
                         </div>
                         <div className="mt-4 flex items-baseline gap-2">
@@ -259,7 +259,7 @@ export default function HandoversPage() {
 
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-rose-300 transition-colors">
                         <div className="flex justify-between items-start">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Alertas Críticas Activas</h3>
+                            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Alertas Críticas Activas</h3>
                             <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl"><AlertOctagon className="w-5 h-5" /></div>
                         </div>
                         <div className="mt-4 flex items-baseline gap-2">
@@ -270,7 +270,7 @@ export default function HandoversPage() {
 
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-teal-300 transition-colors">
                         <div className="flex justify-between items-start">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Staff Involucrado</h3>
+                            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Staff Involucrado</h3>
                             <div className="p-2.5 bg-teal-50 text-teal-600 rounded-xl"><Users className="w-5 h-5" /></div>
                         </div>
                         <div className="mt-4 flex items-baseline gap-2">
@@ -287,7 +287,7 @@ export default function HandoversPage() {
                         <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
                             <ActivitySquare className="w-6 h-6" />
                         </div>
-                        <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Recuperando Bitácoras...</p>
+                        <p className="font-bold text-slate-500 tracking-wider text-sm uppercase">Recuperando Bitácoras...</p>
                     </div>
                 </div>
             ) : (
@@ -295,7 +295,7 @@ export default function HandoversPage() {
                     {handovers.length === 0 ? (
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
                             <h3 className="text-slate-500 font-bold mb-2">No hay Handovers Existentes.</h3>
-                            <p className="text-slate-400 text-sm">Empieza tu cultura operativa libre de papeles creando el primero.</p>
+                            <p className="text-slate-500 text-sm">Empieza tu cultura operativa libre de papeles creando el primero.</p>
                         </div>
                     ) : (
                         handovers.map((handover) => (
@@ -324,7 +324,7 @@ export default function HandoversPage() {
                                                 )}
                                             </span>
                                         </div>
-                                        <p className="text-slate-400 text-xs">{new Date(handover.createdAt).toLocaleString('es-PR')}</p>
+                                        <p className="text-slate-500 text-xs">{new Date(handover.createdAt).toLocaleString('es-PR')}</p>
                                     </div>
 
                                     {handover.status === 'PENDING' && (
@@ -339,14 +339,14 @@ export default function HandoversPage() {
 
                                 <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-6">
                                     <div>
-                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Enfermera Saliente</p>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Enfermera Saliente</p>
                                         <p className="text-slate-800 font-bold flex items-center gap-2">
                                             <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">S</span>
                                             {handover.outgoingNurse.name}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Enfermera Entrante</p>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Enfermera Entrante</p>
                                         <p className="text-slate-800 font-bold flex items-center gap-2">
                                             <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">E</span>
                                             {handover.incomingNurse?.name || "No Especificada / Abierta"}
@@ -356,7 +356,7 @@ export default function HandoversPage() {
 
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wider flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                                         Novedades por Residente ({handover.notes.length})
                                     </h4>
                                     <div className="space-y-3">
@@ -396,7 +396,7 @@ export default function HandoversPage() {
                                 <span className="bg-indigo-100 text-indigo-600 p-2 rounded-xl"></span>
                                 Redactar Relevo de Guardia
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-2"></button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-600 p-2"></button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
@@ -491,7 +491,7 @@ export default function HandoversPage() {
                         </div>
 
                         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between">
-                            <span className="text-xs text-slate-400 flex max-w-xs items-center leading-tight">Zendity Corporate: Todas las entregas quedan firmadas temporalmente.</span>
+                            <span className="text-xs text-slate-500 flex max-w-xs items-center leading-tight">Zendity Corporate: Todas las entregas quedan firmadas temporalmente.</span>
                             <div className="flex gap-3">
                                 <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors">Cancelar</button>
                                 <button onClick={submitHandover} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2.5 rounded-xl font-bold shadow-md shadow-indigo-200 transition-colors">Firmar y Entregar Cuidado</button>

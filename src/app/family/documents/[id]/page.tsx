@@ -151,7 +151,7 @@ export default function DocumentSignerPage() {
                             {signing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-6 h-6" />}
                             {signing ? "Sellando Documento Legal..." : "Aceptar y Firmar Electrónicamente"}
                         </button>
-                        <p className="text-xs text-center text-gray-400 mt-4">
+                        <p className="text-xs text-center text-gray-500 mt-4">
                             *Tus trazos biomecánicos e IP serán anclados digitalmente para validación legal corporativa.
                         </p>
                     </div>
@@ -163,7 +163,7 @@ export default function DocumentSignerPage() {
 
                         <div className="bg-white p-4 inline-block rounded-xl shadow-inner border border-gray-200 mb-6">
                             <img src={documentData.signatureData} alt="Firma Electrónica" className="max-h-24 mx-auto filter grayscale opacity-90" />
-                            <p className="border-t border-gray-300 mt-2 pt-1 text-xs text-gray-400 font-mono tracking-widest">FIRMA AUTORIZADA</p>
+                            <p className="border-t border-gray-300 mt-2 pt-1 text-xs text-gray-500 font-mono tracking-widest">FIRMA AUTORIZADA</p>
                         </div>
 
                         <div>

@@ -84,7 +84,7 @@ export default function CaregiversLifePlanPage() {
                 <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-500">
                     <FileSignature className="w-6 h-6" />
                 </div>
-                <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Cargando Plataforma de Cuidadores...</p>
+                <p className="font-bold text-slate-500 tracking-wider text-sm uppercase">Cargando Plataforma de Cuidadores...</p>
             </div>
         </div>
     );
@@ -103,7 +103,7 @@ export default function CaregiversLifePlanPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {plans.length === 0 && (
-                    <div className="col-span-full py-20 text-center text-slate-400 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
+                    <div className="col-span-full py-20 text-center text-slate-500 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                         Aún no hay Fichas de Vida procesadas desde Zendity Intake.
                     </div>
                 )}
@@ -119,7 +119,7 @@ export default function CaregiversLifePlanPage() {
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className="font-bold text-lg leading-tight text-slate-800">{plan.patient.name}</h3>
-                                    <div className="flex items-center gap-1.5 mt-1 text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                                    <div className="flex items-center gap-1.5 mt-1 text-[10px] uppercase font-bold tracking-widest text-slate-500">
                                         <User className="w-3 h-3" /> Residente
                                     </div>
                                 </div>
@@ -157,7 +157,7 @@ export default function CaregiversLifePlanPage() {
                             <div className="flex items-start gap-4">
                                 <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
-                                    <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Alimentación</h4>
+                                    <h4 className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Alimentación</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.feeding}</p>
                                 </div>
                             </div>
@@ -165,7 +165,7 @@ export default function CaregiversLifePlanPage() {
                             <div className="flex items-start gap-4">
                                 <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
-                                    <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Movilidad & Piel</h4>
+                                    <h4 className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Movilidad & Piel</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.mobility}</p>
                                 </div>
                             </div>
@@ -173,7 +173,7 @@ export default function CaregiversLifePlanPage() {
                             <div className="flex items-start gap-4">
                                 <div className="text-2xl mt-0.5 opacity-80"></div>
                                 <div>
-                                    <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Rutinas & Emoción</h4>
+                                    <h4 className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Rutinas & Emoción</h4>
                                     <p className="font-semibold text-slate-700 leading-snug mt-1 text-sm">{plan.customs}</p>
                                 </div>
                             </div>
@@ -188,12 +188,12 @@ export default function CaregiversLifePlanPage() {
                                             {plan.signedBy?.name?.charAt(0) || 'V'}
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Validado por</p>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Validado por</p>
                                             <p className="text-xs font-bold text-slate-700">{plan.signedBy?.name || 'Zendity Staff'}</p>
                                         </div>
                                     </div>
                                     {plan.signedAt && (
-                                        <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-200">
+                                        <span className="text-xs font-bold text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">
                                             {new Date(plan.signedAt).toLocaleDateString()}
                                         </span>
                                     )}
@@ -233,7 +233,7 @@ export default function CaregiversLifePlanPage() {
                                             onClick={() => setSigningPlanId(plan.id)}
                                             className="w-full py-2.5 bg-white border border-slate-200 hover:border-teal-400 hover:text-teal-700 text-slate-600 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 group"
                                         >
-                                            <FileSignature className="w-4 h-4 text-slate-400 group-hover:text-teal-500 transition-colors" />
+                                            <FileSignature className="w-4 h-4 text-slate-500 group-hover:text-teal-500 transition-colors" />
                                             Revisar y Firmar PAI
                                         </button>
                                     )

@@ -448,7 +448,7 @@ export default function ShiftSchedulerPage() {
 
                 {/* Tablero Semanal Visual (Grid) */}
                 <div id="roster-table" className="lg:col-span-3 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col pt-2 pb-2">
-                    <div className="px-4 py-2 border-b border-slate-100 hidden print:block text-slate-400 font-bold mb-4">
+                    <div className="px-4 py-2 border-b border-slate-100 hidden print:block text-slate-500 font-bold mb-4">
                         Zendity Institutional Shift Planner - Generado el {new Date().toLocaleDateString()}
                     </div>
                     <div className="overflow-x-auto">
@@ -466,7 +466,7 @@ export default function ShiftSchedulerPage() {
                             </thead>
                             <tbody>
                                 {employees.length === 0 && !loading && (
-                                    <tr><td colSpan={8} className="p-8 text-center text-slate-400">No hay personal clínico disponible.</td></tr>
+                                    <tr><td colSpan={8} className="p-8 text-center text-slate-500">No hay personal clínico disponible.</td></tr>
                                 )}
                                 {loading && (
                                     <tr><td colSpan={8} className="p-8 text-center animate-pulse text-teal-600 font-bold">Cargando Tablero...</td></tr>
@@ -539,7 +539,7 @@ export default function ShiftSchedulerPage() {
                                                                 <div className="absolute top-0 left-0 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 p-3 transform translate-x-4 translate-y-4">
                                                                     <div className="flex justify-between items-center mb-3">
                                                                         <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Nuevo Turno</span>
-                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-400 hover:text-rose-500 transition-colors"></button>
+                                                                        <button onClick={() => setActiveCell(null)} className="text-slate-500 hover:text-rose-500 transition-colors"></button>
                                                                     </div>
 
                                                                     {isSavingGrid ? (
@@ -567,7 +567,7 @@ export default function ShiftSchedulerPage() {
                                                                                 })}
                                                                             </div>
                                                                             <div className="pt-2 border-t border-slate-100">
-                                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Color de Zona:</span>
+                                                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Color de Zona:</span>
                                                                                 <div className="flex flex-wrap gap-2 justify-between">
                                                                                     {ZONE_COLORS.map(color => {
                                                                                         const isSelected = activeCell.zoneId === color.id;
@@ -596,7 +596,7 @@ export default function ShiftSchedulerPage() {
                                                                                     }
                                                                                 }}
                                                                                 className={`w-full py-2.5 mt-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 
-                                                                                ${activeCell.blockId && activeCell.zoneId ? 'bg-slate-800 text-white shadow-lg hover:bg-slate-700 hover:-translate-y-0.5' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                                                                                ${activeCell.blockId && activeCell.zoneId ? 'bg-slate-800 text-white shadow-lg hover:bg-slate-700 hover:-translate-y-0.5' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`}
                                                                             >
                                                                                 Confirmar y Asignar
                                                                             </button>

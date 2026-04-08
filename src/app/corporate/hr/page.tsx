@@ -95,7 +95,7 @@ export default function HRDirectoryPage() {
             {/* Filters Area */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
                         
                     </span>
                     <input

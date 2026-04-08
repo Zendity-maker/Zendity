@@ -108,7 +108,7 @@ export default function KitchenMenuSync() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold text-slate-800 tracking-tight">Sincronización de Menú</h1>
-                            <p className="text-xs font-bold text-slate-400">TV Dashboard & Wall of Care</p>
+                            <p className="text-xs font-bold text-slate-500">TV Dashboard & Wall of Care</p>
                         </div>
                     </div>
                 </div>
@@ -136,7 +136,7 @@ export default function KitchenMenuSync() {
                         <ChevronLeft className="w-6 h-6" />
                     </button>
                     <div className="flex flex-col items-center">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha del Menú</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Fecha del Menú</span>
                         <h2 className="text-2xl font-black text-[#0F6B78] capitalize">
                             {format(currentDate, "EEEE, d 'de' MMMM, yyyy", { locale: es })}
                         </h2>
@@ -164,7 +164,7 @@ export default function KitchenMenuSync() {
                                     <span className="w-2 h-2 rounded-full bg-orange-500"></span> Desayuno
                                 </label>
                                 <textarea
-                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-300"
+                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-500"
                                     placeholder="Ej. Avena con Canela, Tostadas Integrales..."
                                     value={menu.breakfast}
                                     onChange={(e) => setMenu({ ...menu, breakfast: e.target.value })}
@@ -176,7 +176,7 @@ export default function KitchenMenuSync() {
                                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Almuerzo
                                 </label>
                                 <textarea
-                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-300"
+                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-500"
                                     placeholder="Ej. Sopa de Lentejas, Arroz Blanco, Pollo Asado..."
                                     value={menu.lunch}
                                     onChange={(e) => setMenu({ ...menu, lunch: e.target.value })}
@@ -188,7 +188,7 @@ export default function KitchenMenuSync() {
                                     <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Cena
                                 </label>
                                 <textarea
-                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-300"
+                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-500"
                                     placeholder="Ej. Ensalada Mixta, Pescado al Horno..."
                                     value={menu.dinner}
                                     onChange={(e) => setMenu({ ...menu, dinner: e.target.value })}
@@ -200,7 +200,7 @@ export default function KitchenMenuSync() {
                                     <span className="w-2 h-2 rounded-full bg-purple-500"></span> Snacks / Meriendas
                                 </label>
                                 <textarea
-                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-300"
+                                    className="w-full bg-transparent border-none p-0 text-slate-800 text-lg font-medium focus:ring-0 resize-none h-20 placeholder:text-slate-500"
                                     placeholder="Ej. Yogurt Griego, Frutas Picadas, Galletas..."
                                     value={menu.snacks}
                                     onChange={(e) => setMenu({ ...menu, snacks: e.target.value })}
@@ -214,7 +214,7 @@ export default function KitchenMenuSync() {
                                 <span className="w-2 h-2 rounded-full bg-slate-500"></span> Observaciones de Supervisor
                             </label>
                             <textarea
-                                className="w-full bg-transparent border-none p-0 text-slate-800 text-[15px] font-medium focus:ring-0 resize-none h-24 placeholder:text-slate-400"
+                                className="w-full bg-transparent border-none p-0 text-slate-800 text-[15px] font-medium focus:ring-0 resize-none h-24 placeholder:text-slate-500"
                                 placeholder="Ej. Dieta líquida para Hab. 12, restricciones de sodio en cena..."
                                 value={menu.supervisorNotes}
                                 onChange={(e) => setMenu({ ...menu, supervisorNotes: e.target.value })}

@@ -174,8 +174,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         return (
             <div className="flex bg-slate-50 h-screen items-center justify-center">
                 <div className="flex flex-col items-center gap-4 animate-pulse">
-                    <UserIcon className="w-12 h-12 text-slate-300" />
-                    <p className="font-bold text-slate-400 tracking-wider text-sm uppercase">Cargando Perfil Dinámico...</p>
+                    <UserIcon className="w-12 h-12 text-slate-500" />
+                    <p className="font-bold text-slate-500 tracking-wider text-sm uppercase">Cargando Perfil Dinámico...</p>
                 </div>
             </div>
         );
@@ -199,7 +199,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <div className="flex justify-between items-center">
                     <button
                         onClick={() => router.back()}
-                        className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-800 transition bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"
+                        className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200"
                     >
                         <ArrowLeftIcon className="w-4 h-4" /> Volver
                     </button>
@@ -320,7 +320,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
                     {/* Score Highlight */}
                     <div className="shrink-0 flex flex-col justify-center items-center md:items-end">
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Desempeño Z-Score</p>
+                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Desempeño Z-Score</p>
                         <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 shadow-inner ${getScoreColor(employee.complianceScore)}`}>
                             <span className="text-3xl font-black">{employee.complianceScore}</span>
                         </div>
@@ -434,7 +434,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                                 }`}>
                                                 {incident.type}
                                             </span>
-                                            <span className="text-sm font-bold text-slate-400">
+                                            <span className="text-sm font-bold text-slate-500">
                                                 {new Date(incident.createdAt).toLocaleDateString('es-ES')}
                                             </span>
                                         </div>
@@ -446,14 +446,14 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                         </p>
                                     </div>
                                     <div className="shrink-0 md:w-48 bg-white border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-center">Firma de Enterado</p>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 text-center">Firma de Enterado</p>
                                         {incident.signatureBase64 ? (
                                             <img src={incident.signatureBase64} alt="Firma del empleado" className="w-full object-contain h-20 opacity-80" />
                                         ) : (
                                             <span className="text-xs text-rose-500 font-bold">Sin firmar</span>
                                         )}
                                         {incident.signedAt && (
-                                            <p className="text-[10px] text-slate-400 mt-2">{new Date(incident.signedAt).toLocaleString('es-ES')}</p>
+                                            <p className="text-[10px] text-slate-500 mt-2">{new Date(incident.signedAt).toLocaleString('es-ES')}</p>
                                         )}
                                     </div>
                                 </div>

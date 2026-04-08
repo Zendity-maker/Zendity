@@ -164,7 +164,7 @@ export default function ConciergePage() {
                                 <div className="mt-auto flex justify-between items-end mb-4">
                                     <div>
                                         {service.isOffer && service.originalPrice && (
-                                            <p className="text-xs text-slate-400 line-through mb-0.5">${service.originalPrice.toFixed(2)}</p>
+                                            <p className="text-xs text-slate-500 line-through mb-0.5">${service.originalPrice.toFixed(2)}</p>
                                         )}
                                         <p className="text-xl font-black text-indigo-600">${service.price.toFixed(2)}</p>
                                     </div>
@@ -211,7 +211,7 @@ export default function ConciergePage() {
                             <div className="p-6 flex-1 flex flex-col">
                                 {!product.imageUrl && (
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-3 rounded-xl ${product.category === 'GiftCards' ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-400'}`}>
+                                        <div className={`p-3 rounded-xl ${product.category === 'GiftCards' ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-500'}`}>
                                             {product.category === 'GiftCards' ? <FaGift className="text-xl" /> : <FaShoppingCart className="text-xl" />}
                                         </div>
                                         {product.category === 'GiftCards' && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>}
@@ -221,12 +221,12 @@ export default function ConciergePage() {
                                 {product.description && (
                                     <p className="text-xs text-slate-500 mb-4 line-clamp-2">{product.description}</p>
                                 )}
-                                <p className="text-xs font-bold text-slate-400 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
+                                <p className="text-xs font-bold text-slate-500 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
 
                                 <div className="mt-auto flex justify-between items-end mb-4">
                                     <div>
                                         {product.isOffer && product.originalPrice && (
-                                            <p className="text-xs text-slate-400 line-through mb-0.5">${product.originalPrice.toFixed(2)}</p>
+                                            <p className="text-xs text-slate-500 line-through mb-0.5">${product.originalPrice.toFixed(2)}</p>
                                         )}
                                         <div className="text-xl font-black text-slate-800">${product.price.toFixed(2)}</div>
                                     </div>

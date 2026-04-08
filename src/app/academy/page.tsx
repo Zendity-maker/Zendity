@@ -115,7 +115,7 @@ export default function ZendityAcademyPage() {
                     <div>
                         <p className="text-teal-400 font-black text-xs uppercase tracking-widest mb-2">🏆 Serie Completa</p>
                         <h3 className="text-white font-black text-2xl mb-1">Personal Adiestrado en Zendity</h3>
-                        <p className="text-slate-400 text-sm">Has completado los 8 protocolos oficiales de operación. Descarga tu Certificado Maestro.</p>
+                        <p className="text-slate-500 text-sm">Has completado los 8 protocolos oficiales de operación. Descarga tu Certificado Maestro.</p>
                     </div>
                     <button
                         onClick={() => generateZendityMasterCertificate(user?.name || 'Empleado', new Date().toLocaleDateString('es-PR'))}
@@ -130,7 +130,7 @@ export default function ZendityAcademyPage() {
             {!seriesComplete && seriesCourses.length > 0 && (
                 <div className="bg-slate-900 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-6">
                     <div className="flex-1">
-                        <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Serie Protocolos Zendity</p>
+                        <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-2">Serie Protocolos Zendity</p>
                         <div className="w-full bg-slate-700 rounded-full h-2">
                             <div 
                                 className="bg-teal-500 h-2 rounded-full transition-all duration-700"
@@ -165,7 +165,7 @@ export default function ZendityAcademyPage() {
                     </div>
                 ))
             ) : (
-                <div className="p-16 text-center text-slate-400 font-medium bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
+                <div className="p-16 text-center text-slate-500 font-medium bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
                     <h3 className="text-xl font-bold text-slate-700">El Directorio está al día</h3>
                     <p className="mt-2 text-slate-500">No hay certificaciones nuevas requeridas para tu rol en este momento.</p>
                 </div>

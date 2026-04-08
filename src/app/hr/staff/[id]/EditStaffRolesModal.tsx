@@ -126,7 +126,7 @@ export default function EditStaffRolesModal({ employee, onUpdate }: EditRolesPro
                                             </button>
                                         ))}
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-2 ml-1">Selecciona uno o más permisos para extender sus accesos.</p>
+                                    <p className="text-[10px] font-bold text-slate-500 mt-2 ml-1">Selecciona uno o más permisos para extender sus accesos.</p>
                                 </div>
 
                                 <button

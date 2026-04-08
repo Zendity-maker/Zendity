@@ -232,7 +232,7 @@ export default function CorporateCalendarPage() {
                     <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-slate-800">Nueva Operación</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-2 bg-slate-100 rounded-full">X</button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-600 font-bold p-2 bg-slate-100 rounded-full">X</button>
                         </div>
 
                         <form onSubmit={handleCreate} className="space-y-4">
@@ -339,7 +339,7 @@ export default function CorporateCalendarPage() {
                                                 }} className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-bold text-slate-800">{patient.name}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400">Piso / Cuarto: {patient.roomNumber || 'N/A'}</span>
+                                                    <span className="text-[10px] font-bold text-slate-500">Piso / Cuarto: {patient.roomNumber || 'N/A'}</span>
                                                 </div>
                                             </label>
                                         )) : (

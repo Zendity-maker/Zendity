@@ -65,7 +65,7 @@ export default async function ZendityAdminPage() {
                         <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-blue-400">
                             <BuildingOfficeIcon className="w-5 h-5" />
                         </div>
-                        <h3 className="text-slate-400 font-medium">Sedes Activas</h3>
+                        <h3 className="text-slate-500 font-medium">Sedes Activas</h3>
                     </div>
                     <p className="text-4xl font-bold text-white relative z-10">{activeSedes}</p>
                     <div className="mt-2 text-sm text-emerald-400 flex items-center gap-1">
@@ -79,7 +79,7 @@ export default async function ZendityAdminPage() {
                         <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400">
                             <CurrencyDollarIcon className="w-5 h-5" />
                         </div>
-                        <h3 className="text-slate-400 font-medium">Est. Monthly Recurring (MRR)</h3>
+                        <h3 className="text-slate-500 font-medium">Est. Monthly Recurring (MRR)</h3>
                     </div>
                     <p className="text-4xl font-bold text-white relative z-10">${totalMRR.toLocaleString()}</p>
                     <div className="mt-2 text-sm text-slate-500">Facturación SaaS Proyectada</div>
@@ -91,7 +91,7 @@ export default async function ZendityAdminPage() {
                         <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 text-purple-400">
                             <UsersIcon className="w-5 h-5" />
                         </div>
-                        <h3 className="text-slate-400 font-medium">Pacientes bajo Gestión</h3>
+                        <h3 className="text-slate-500 font-medium">Pacientes bajo Gestión</h3>
                     </div>
                     <p className="text-4xl font-bold text-white relative z-10">{totalPatients}</p>
                     <div className="mt-2 text-sm text-slate-500">En todo el ecosistema Zendity</div>
@@ -103,12 +103,12 @@ export default async function ZendityAdminPage() {
                 <div className="p-6 border-b border-slate-800/80 flex items-center justify-between">
                     <h2 className="text-lg font-bold text-white">Directorio de Sedes (Tenants)</h2>
                     <div className="relative">
-                        <input type="text" placeholder="Buscar sede o dueño..." className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 w-64" />
+                        <input type="text" placeholder="Buscar sede o dueño..." className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 w-64" />
                     </div>
                 </div>
                 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-400">
+                    <table className="w-full text-left text-sm text-slate-500">
                         <thead className="bg-slate-950/50 text-xs uppercase font-semibold text-slate-500 border-b border-slate-800/80">
                             <tr>
                                 <th className="px-6 py-4">Facilidad (Sede)</th>
@@ -130,7 +130,7 @@ export default async function ZendityAdminPage() {
                                 <tr key={sede.id} className="hover:bg-slate-800/20 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 font-bold text-slate-300">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 font-bold text-slate-500">
                                                 {sede.name.charAt(0)}
                                             </div>
                                             <div>
@@ -140,21 +140,21 @@ export default async function ZendityAdminPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-slate-300">{sede.ownerName || 'Sin asignar'}</div>
+                                        <div className="text-slate-500">{sede.ownerName || 'Sin asignar'}</div>
                                         <div className="text-xs text-slate-500">{sede.ownerEmail || 'Email no registrado'}</div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider ${
                                             sede.subscriptionPlan === 'ENTERPRISE' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
                                             sede.subscriptionPlan === 'PRO' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                                            'bg-slate-800 text-slate-400 border border-slate-700'
+                                            'bg-slate-800 text-slate-500 border border-slate-700'
                                         }`}>
                                             {sede.subscriptionPlan}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex flex-col items-center">
-                                            <span className="text-slate-300 font-medium">{sede._count.patients} <span className="text-slate-600 font-normal">/ {sede.capacity}</span></span>
+                                            <span className="text-slate-500 font-medium">{sede._count.patients} <span className="text-slate-600 font-normal">/ {sede.capacity}</span></span>
                                             <div className="w-16 h-1.5 bg-slate-800 rounded-full mt-1.5 overflow-hidden">
                                                 <div 
                                                     className={`h-full rounded-full ${sede._count.patients / (sede.capacity || 50) > 0.9 ? 'bg-red-500' : 'bg-emerald-500'}`}

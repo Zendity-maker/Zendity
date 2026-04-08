@@ -68,7 +68,7 @@ export default function EmarTabletTimeline() {
       <div className="bg-slate-900 text-white p-8 shadow-2xl sticky top-0 z-10 flex justify-between items-center rounded-b-3xl">
         <div>
           <h1 className="text-4xl font-black tracking-tight">Ruta Clínica (eMAR)</h1>
-          <p className="text-slate-300 mt-2 text-lg font-medium">Turno Actual. Filtrado: Solo Pendientes.</p>
+          <p className="text-slate-500 mt-2 text-lg font-medium">Turno Actual. Filtrado: Solo Pendientes.</p>
         </div>
         <button 
           onClick={handlePRN}
@@ -80,12 +80,12 @@ export default function EmarTabletTimeline() {
 
       <div className="max-w-5xl mx-auto p-4 mt-6">
         {loading ? (
-          <p className="text-center text-slate-400 font-bold text-2xl mt-16 animate-pulse">Cargando Ruta de Medicación...</p>
+          <p className="text-center text-slate-500 font-bold text-2xl mt-16 animate-pulse">Cargando Ruta de Medicación...</p>
         ) : pendingDoses.length === 0 ? (
           <div className="bg-white rounded-[3rem] p-24 text-center shadow-sm border-2 border-dashed border-slate-200 mt-10">
             <span className="text-7xl mb-6 block">☕️</span>
-            <h2 className="text-4xl font-black text-slate-300">Ruta Despejada</h2>
-            <p className="text-slate-400 mt-4 text-xl font-medium">No tienes medicinas pendientes en este bloque horario.</p>
+            <h2 className="text-4xl font-black text-slate-500">Ruta Despejada</h2>
+            <p className="text-slate-500 mt-4 text-xl font-medium">No tienes medicinas pendientes en este bloque horario.</p>
           </div>
         ) : (
           <div className="space-y-8 mt-8">
@@ -98,7 +98,7 @@ export default function EmarTabletTimeline() {
                     <span className="bg-amber-100 text-amber-900 font-black px-4 py-2 rounded-xl text-lg tracking-wider">
                       {dose.scheduledFor} HRS
                     </span>
-                    <span className="text-lg font-bold text-slate-300 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                    <span className="text-lg font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
                       ID: {dose.id.slice(0, 5).toUpperCase()}
                     </span>
                   </div>

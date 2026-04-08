@@ -24,7 +24,7 @@ export default function DateFilter() {
     return (
         <div className="no-print flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-                <label className="text-slate-400 text-xs">Desde</label>
+                <label className="text-slate-500 text-xs">Desde</label>
                 <input
                     type="date"
                     value={from}
@@ -33,7 +33,7 @@ export default function DateFilter() {
                 />
             </div>
             <div className="flex items-center gap-2">
-                <label className="text-slate-400 text-xs">Hasta</label>
+                <label className="text-slate-500 text-xs">Hasta</label>
                 <input
                     type="date"
                     value={to}
@@ -50,7 +50,7 @@ export default function DateFilter() {
             {(from || to) && (
                 <button
                     onClick={clear}
-                    className="text-slate-400 hover:text-white text-sm transition-colors"
+                    className="text-slate-500 hover:text-white text-sm transition-colors"
                 >
                     Limpiar
                 </button>

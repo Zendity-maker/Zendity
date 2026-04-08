@@ -157,7 +157,7 @@ export default function HREvaluatePage() {
                     {/* Cuestionario Interactivo Módulo Dinámico */}
                     <div className="md:col-span-2">
                         {!selectedEmp ? (
-                            <div className="h-full min-h-[400px] border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center text-slate-400 bg-white/50">
+                            <div className="h-full min-h-[400px] border-2 border-dashed border-slate-200 rounded-3xl flex items-center justify-center text-slate-500 bg-white/50">
                                 <p className="font-medium flex flex-col items-center gap-2"><span></span> Selecciona un empleado del padrón para cargar su rúbrica específica.</p>
                             </div>
                         ) : (
@@ -167,7 +167,7 @@ export default function HREvaluatePage() {
                                     <div className="flex justify-between items-center relative z-10">
                                         <div>
                                             <h2 className="text-xl font-bold">Rúbrica: {selectedEmp.role === 'NURSE' || selectedEmp.role === 'CAREGIVER' ? 'Métricas Clínicas' : selectedEmp.role === 'MAINTENANCE' ? 'SLA Infraestructura' : 'Métricas Directivas'}</h2>
-                                            <p className="text-slate-400 text-sm mt-1">Evaluando a: <span className="text-white font-medium">{selectedEmp.name}</span></p>
+                                            <p className="text-slate-500 text-sm mt-1">Evaluando a: <span className="text-white font-medium">{selectedEmp.name}</span></p>
                                         </div>
                                         <div className="flex items-center gap-3 relative z-10">
                                             {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
@@ -250,7 +250,7 @@ export default function HREvaluatePage() {
                                     )}
 
                                     <div className="pt-6 mt-6 border-t border-slate-100 flex justify-between items-center">
-                                        <p className="text-xs text-slate-400 max-w-xs">Tus inputs afectarán el Cumplimiento Anual y podrían causar bloqueos de turno según la política de Zendity.</p>
+                                        <p className="text-xs text-slate-500 max-w-xs">Tus inputs afectarán el Cumplimiento Anual y podrían causar bloqueos de turno según la política de Zendity.</p>
                                         <button onClick={handleSubmit} disabled={submitting} className={`bg-slate-900 hover:bg-black text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all ${submitting ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-teal-500/20 active:scale-95'}`}>
                                             {submitting ? 'Evaluando...' : 'Guardar y Certificar'}
                                         </button>

@@ -159,7 +159,7 @@ export default function SupervisorDashboardPage() {
                         <Brain className="w-12 h-12 text-teal-400" />
                         Triage & Supervisión Corporativa
                     </h1>
-                    <p className="text-xl text-slate-300 font-medium max-w-2xl">
+                    <p className="text-xl text-slate-500 font-medium max-w-2xl">
                         Centro de Control Logístico B2B. Asigna horarios del Staff y apóyate en Zendi AI para redactar reportes disciplinarios o de mérito.
                     </p>
                 </div>
@@ -172,7 +172,7 @@ export default function SupervisorDashboardPage() {
                         <Activity className="w-8 h-8 text-rose-500 animate-pulse" />
                         Monitor de Misión (Live)
                     </h2>
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-500 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Sincronizado
                     </div>
                 </div>
@@ -215,8 +215,8 @@ export default function SupervisorDashboardPage() {
                     </div>
                 ) : (
                     <div className="py-16 flex flex-col items-center justify-center gap-4">
-                        <Loader2 className="w-10 h-10 animate-spin text-slate-300" />
-                        <span className="font-bold text-slate-400">Reuniendo telemetría de Zendity Care...</span>
+                        <Loader2 className="w-10 h-10 animate-spin text-slate-500" />
+                        <span className="font-bold text-slate-500">Reuniendo telemetría de Zendity Care...</span>
                     </div>
                 )}
             </div>
@@ -332,7 +332,7 @@ export default function SupervisorDashboardPage() {
 
                     <div className="flex-1 flex flex-col gap-6">
                         <div className="flex-1">
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Borrador del Supervisor</label>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Borrador del Supervisor</label>
                             <textarea
                                 value={rawMemo}
                                 onChange={e => setRawMemo(e.target.value)}
@@ -358,7 +358,7 @@ export default function SupervisorDashboardPage() {
                                 <label className="block text-xs font-bold text-emerald-500 uppercase tracking-widest mb-2 flex items-center gap-2">
                                     <CheckCircle2 className="w-4 h-4" /> Resultado Corporativo
                                 </label>
-                                <div className="bg-slate-900 text-slate-300 p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                <div className="bg-slate-900 text-slate-500 p-6 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap font-medium">
                                     {processedMemo}
                                 </div>
                                 <button

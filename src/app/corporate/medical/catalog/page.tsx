@@ -215,7 +215,7 @@ export default function MedicalCatalogPage() {
 
                 {/* Condiciones Médicas (Navegación Horizontal) */}
                 <div className="flex overflow-x-auto p-4 gap-2 border-b border-gray-100 bg-gray-50/50 scrollbar-hide items-center">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2 flex-shrink-0">Filtrar Condición:</span>
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest mr-2 flex-shrink-0">Filtrar Condición:</span>
                     {conditions.map((cond) => (
                         <button
                             key={cond}
@@ -238,7 +238,7 @@ export default function MedicalCatalogPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
-                    <span className="text-sm text-gray-400 font-medium">Mostrando {filteredMeds.length} items</span>
+                    <span className="text-sm text-gray-500 font-medium">Mostrando {filteredMeds.length} items</span>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -255,21 +255,21 @@ export default function MedicalCatalogPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-gray-400">
+                                    <td colSpan={4} className="p-8 text-center text-gray-500">
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-teal-600" />
                                         Sincronizando con Base de Datos...
                                     </td>
                                 </tr>
                             ) : paginatedMeds.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-gray-400">
+                                    <td colSpan={4} className="p-8 text-center text-gray-500">
                                         No hay drogas en el inventario. Haz clic en "Escáner IA" para tomarle foto a las recetas.
                                     </td>
                                 </tr>
                             ) : (
                                 paginatedMeds.map((med) => (
                                     <tr key={med.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                        <td className="p-4 font-mono text-xs text-gray-400">MED-{med.id.split('-')[0].toUpperCase()}</td>
+                                        <td className="p-4 font-mono text-xs text-gray-500">MED-{med.id.split('-')[0].toUpperCase()}</td>
                                         <td className="p-4">
                                             <p className="font-bold text-gray-900 uppercase">{med.name}</p>
                                             <p className="text-xs text-gray-500 font-medium mt-0.5">{med.dosage}  Vía {med.route}</p>
@@ -292,7 +292,7 @@ export default function MedicalCatalogPage() {
                                                     </span>
                                                 )}
                                                 {!med.isControlled && !med.requiresFridge && !med.withFood && (
-                                                    <span className="text-xs text-gray-400 italic">Estándar</span>
+                                                    <span className="text-xs text-gray-500 italic">Estándar</span>
                                                 )}
                                             </div>
                                         </td>
@@ -302,7 +302,7 @@ export default function MedicalCatalogPage() {
                                         <td className="p-4 text-center text-sm font-medium">
                                             <button
                                                 onClick={() => setEditingMed(med)}
-                                                className="text-gray-400 hover:text-zendity-teal hover:bg-teal-50 p-2 rounded-xl transition-all"
+                                                className="text-gray-500 hover:text-zendity-teal hover:bg-teal-50 p-2 rounded-xl transition-all"
                                                 title="Editar Molécula"
                                             >
                                                 <Edit2 className="w-5 h-5 mx-auto" />
@@ -368,7 +368,7 @@ export default function MedicalCatalogPage() {
                                 onClick={() => fileInputRef.current?.click()}
                                 className="border-2 border-dashed border-gray-300 rounded-2xl p-10 hover:border-fuchsia-500 hover:bg-fuchsia-50 transition-colors cursor-pointer group"
                             >
-                                <ImageDown className="w-10 h-10 text-gray-400 group-hover:text-fuchsia-500 mx-auto mb-4" />
+                                <ImageDown className="w-10 h-10 text-gray-500 group-hover:text-fuchsia-500 mx-auto mb-4" />
                                 <span className="font-medium text-gray-600 group-hover:text-fuchsia-700">Explorar / Abrir Cámara</span>
                             </div>
                         )}

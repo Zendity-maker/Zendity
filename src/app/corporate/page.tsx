@@ -266,7 +266,7 @@ export default function CorporateDashboardPage() {
                                         <h4 className="text-sm font-bold text-slate-800">{mod.title}</h4>
                                         <p className="text-xs text-slate-500">{mod.desc}</p>
                                     </div>
-                                    <div className="text-slate-300"></div>
+                                    <div className="text-slate-500"></div>
                                 </Link>
                             ))}
                         </div>
@@ -284,15 +284,15 @@ export default function CorporateDashboardPage() {
                         <div className="flex flex-col h-[600px] -mt-4">
                             {!activeThread ? (
                                 <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                                    <p className="text-sm font-bold text-slate-400 mb-4 px-1">Consultas y Requerimientos de Familiares</p>
+                                    <p className="text-sm font-bold text-slate-500 mb-4 px-1">Consultas y Requerimientos de Familiares</p>
                                     {inboxThreads.length === 0 ? (
-                                        <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-bold">Sin mensajes hoy. </div>
+                                        <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 font-bold">Sin mensajes hoy. </div>
                                     ) : (
                                         inboxThreads.map((thread: any, idx) => (
                                             <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                                                 <div>
                                                     <h4 className="font-black text-slate-800 text-lg group-hover:text-teal-600">{thread.patient.name}</h4>
-                                                    <p className="text-xs text-slate-400 font-bold uppercase">Cuarto {thread.patient.room}  {thread.messages.length} Mensajes Totales</p>
+                                                    <p className="text-xs text-slate-500 font-bold uppercase">Cuarto {thread.patient.room}  {thread.messages.length} Mensajes Totales</p>
                                                 </div>
                                                 {thread.unreadCount > 0 && (
                                                     <span className="bg-rose-500 text-white font-black text-sm px-3 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
@@ -305,7 +305,7 @@ export default function CorporateDashboardPage() {
                                 <div className="flex flex-col h-full bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative">
                                     {/* Hilo Específico */}
                                     <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                                        <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-400 hover:text-slate-800 font-bold px-2 py-1 bg-slate-100 rounded-lg">← Volver</button>
+                                        <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-500 hover:text-slate-800 font-bold px-2 py-1 bg-slate-100 rounded-lg">← Volver</button>
                                         <span className="font-black text-slate-800 text-lg">{activeThread.patient.name}</span>
                                     </div>
 
@@ -315,7 +315,7 @@ export default function CorporateDashboardPage() {
                                             return (
                                                 <div key={msg.id} className={`max-w-[85%] p-4 rounded-2xl ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-none shadow-md' : 'bg-white border border-slate-200 text-slate-800 self-start rounded-bl-none shadow-sm'}`}>
                                                     <p className="text-sm font-medium">{msg.content}</p>
-                                                    <div className={`text-[10px] mt-2 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
+                                                    <div className={`text-[10px] mt-2 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-500'}`}>
                                                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {isStaff && ''}
                                                     </div>
                                                 </div>

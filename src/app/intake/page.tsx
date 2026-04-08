@@ -84,7 +84,7 @@ export default function ZendityIntakePage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Identidad & Demográfica</h3>
+                            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">Identidad & Demográfica</h3>
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Nombre Completo del Residente</label>
@@ -108,7 +108,7 @@ export default function ZendityIntakePage() {
                                     <option value="GREEN"> Grupo Verde (Autónomos)</option>
                                     <option value="BLUE"> Grupo Azul (Especializados)</option>
                                 </select>
-                                <p className="text-[11px] text-slate-400 mt-1 font-medium">Asigna un color para balancear la carga de los Cuidadores.</p>
+                                <p className="text-[11px] text-slate-500 mt-1 font-medium">Asigna un color para balancear la carga de los Cuidadores.</p>
                             </div>
 
                             <div>
@@ -122,7 +122,7 @@ export default function ZendityIntakePage() {
                         </div>
 
                         <div className="space-y-6">
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Expediente Médico Raw</h3>
+                            <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">Expediente Médico Raw</h3>
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">Diagnósticos (Separados por coma)</label>
@@ -157,7 +157,7 @@ export default function ZendityIntakePage() {
                     </div>
 
                     <div className="pt-6 mt-6 flex justify-end items-center gap-4 border-t border-slate-100">
-                        <p className="text-xs text-slate-400 font-medium">Al presionar el botón, se iniciará el Flujo en Cascada.</p>
+                        <p className="text-xs text-slate-500 font-medium">Al presionar el botón, se iniciará el Flujo en Cascada.</p>
                         <button
                             type="submit"
                             disabled={submitting}

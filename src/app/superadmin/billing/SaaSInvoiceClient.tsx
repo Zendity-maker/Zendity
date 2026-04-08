@@ -172,7 +172,7 @@ export default function SaaSInvoiceClient() {
                                         </div>
                                     </td>
                                     <td className="p-4 hidden md:table-cell">
-                                        <div className="text-sm text-slate-300">Emisión: {format(new Date(inv.issueDate), "dd MMM yyyy", { locale: es })}</div>
+                                        <div className="text-sm text-slate-500">Emisión: {format(new Date(inv.issueDate), "dd MMM yyyy", { locale: es })}</div>
                                         <div className="text-xs text-slate-500 mt-1">Expira: <span className="text-amber-400/80">{format(new Date(inv.dueDate), "dd MMM yyyy", { locale: es })}</span></div>
                                     </td>
                                     <td className="p-4">
@@ -228,7 +228,7 @@ export default function SaaSInvoiceClient() {
                         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
                             <div>
                                 <h3 className="text-xl font-bold text-white">Emitir Facturacion SaaS</h3>
-                                <p className="text-xs text-slate-400 mt-1">Cobra el fee mensual de licencia B2B a un cliente (Asilo).</p>
+                                <p className="text-xs text-slate-500 mt-1">Cobra el fee mensual de licencia B2B a un cliente (Asilo).</p>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-white transition-colors bg-slate-800 hover:bg-slate-700 w-8 h-8 flex items-center justify-center rounded-full"></button>
                         </div>
@@ -238,7 +238,7 @@ export default function SaaSInvoiceClient() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Cliente B2B (Asilo)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cliente B2B (Asilo)</label>
                                         <select
                                             value={selectedHqId}
                                             onChange={(e) => setSelectedHqId(e.target.value)}
@@ -252,7 +252,7 @@ export default function SaaSInvoiceClient() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Fecha Límite Pago</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha Límite Pago</label>
                                         <input
                                             type="date"
                                             value={dueDate}
@@ -265,7 +265,7 @@ export default function SaaSInvoiceClient() {
 
                                 <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800 space-y-4">
                                     <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                                        <h4 className="text-sm font-bold text-slate-300">Líneas de Facturación</h4>
+                                        <h4 className="text-sm font-bold text-slate-500">Líneas de Facturación</h4>
                                         <button type="button" onClick={handleAddItem} className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg text-teal-400 font-bold transition-colors">
                                             + Añadir Cargo
                                         </button>
@@ -294,7 +294,7 @@ export default function SaaSInvoiceClient() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Tasa Impuestos (%)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tasa Impuestos (%)</label>
                                         <input
                                             type="number" step="0.01" min="0" placeholder="Ej. 11.5 para IVU"
                                             value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))}
@@ -302,7 +302,7 @@ export default function SaaSInvoiceClient() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total Estimado</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Estimado</label>
                                         <div className="w-full bg-slate-900 border border-slate-800 text-teal-400 rounded-xl p-3 font-black text-xl flex items-center justify-between">
                                             <span>Monto Final:</span>
                                             <span>
@@ -313,7 +313,7 @@ export default function SaaSInvoiceClient() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Términos y Notas (Opcional)</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Términos y Notas (Opcional)</label>
                                     <textarea
                                         rows={2} placeholder="Ej. El cargo incluye 30 usuarios B2B adicionales."
                                         value={notes} onChange={(e) => setNotes(e.target.value)}
@@ -324,7 +324,7 @@ export default function SaaSInvoiceClient() {
                         </div>
 
                         <div className="p-6 border-t border-slate-800 bg-slate-900/80 flex justify-end gap-3">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-xl text-slate-300 hover:bg-slate-800 font-bold transition-colors">Cancelar</button>
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 rounded-xl text-slate-500 hover:bg-slate-800 font-bold transition-colors">Cancelar</button>
                             <button type="submit" form="saas-invoice-form" disabled={isSubmitting} className="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-8 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_15px_rgba(20,184,166,0.2)]">
                                 {isSubmitting ? "Autenticando..." : "Timbrar y Emitir Factura B2B"}
                             </button>
