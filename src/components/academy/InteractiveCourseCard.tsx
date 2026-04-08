@@ -137,6 +137,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 body: JSON.stringify({ requestType: 'quiz', courseId: course.id })
             });
             const data = await res.json();
+            console.log('[Academy Quiz] API response:', JSON.stringify(data, null, 2));
             const quizData = data?.data?.quiz || [];
             if (quizData.length > 0) {
                 setQuestions(quizData.map((q: any) => ({
