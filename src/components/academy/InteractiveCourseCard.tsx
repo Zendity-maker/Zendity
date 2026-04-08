@@ -325,7 +325,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                         target.style.display = 'none';
                         const parent = target.parentElement;
                         if (parent) {
-                            parent.innerHTML = `<div class="w-full h-40 bg-gradient-to-br from-teal-600 to-slate-800 flex items-center justify-center"><span class="text-5xl">${course.emoji || '📘'}</span></div>`;
+                            parent.innerHTML = `<div style="width:100%;height:160px;background:linear-gradient(135deg,#0F6E56,#1E293B);display:flex;align-items:center;justify-content:center;"><span style="font-size:2rem;opacity:0.3">📘</span></div>`;
                         }
                     }}
                 />

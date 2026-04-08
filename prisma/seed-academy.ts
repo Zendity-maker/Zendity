@@ -7,6 +7,7 @@ const courses = [
   {
     code: "CIERRE_TURNO_101",
     emoji: '📋',
+    imageUrl: 'https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=800&q=80',
     title: "Proceso de Cierre de Turno",
     description: "Aprende el flujo completo para cerrar tu turno correctamente en Zendity: pre-scan automático, resolución de blockers, notas de handover y firma electrónica.",
     category: "Operaciones de Piso",
@@ -101,6 +102,7 @@ Si debes salir y no puedes resolver los blockers, puedes usar el Override Forzad
   {
     code: "ADMISION_RESIDENTES_101",
     emoji: '🏥',
+    imageUrl: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?w=800&q=80',
     title: "Admisión de Nuevos Residentes",
     description: "Domina el flujo completo de admisión: desde el primer contacto familiar en el CRM hasta la activación clínica del perfil del residente en Zendity.",
     category: "Área Clínica",
@@ -175,6 +177,7 @@ Cuando el Director activa el perfil:
   {
     code: "EMAR_101",
     emoji: '💊',
+    imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&q=80',
     title: "Administración de Medicamentos — eMAR",
     description: "Aprende a usar el registro electrónico de medicamentos: la regla de los 5 correctos, los estados del eMAR, el manejo de rechazos y medicamentos PRN.",
     category: "Área Clínica",
@@ -256,6 +259,7 @@ Solo se administran cuando el residente presenta la condición que los justifica
   {
     code: "INCIDENTES_CAIDA_101",
     emoji: '⚠️',
+    imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&q=80',
     title: "Respuesta a Incidentes de Caída",
     description: "Aprende a responder correctamente ante una caída: evaluación inicial, documentación en Zendity, cadena de notificaciones y medidas preventivas post-incidente.",
     category: "Seguridad Clínica",
@@ -348,6 +352,7 @@ Describe paso a paso qué debes hacer, incluyendo por qué NO debes levantarla i
   {
     code: "HANDOVER_101",
     emoji: '🤝',
+    imageUrl: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=800&q=80',
     title: "Handover de Enfermería y Relevo de Turno",
     description: "Domina el proceso de entrega formal del turno: qué documentar, cómo hacerlo en Zendity, y la diferencia entre el handover presencial, supervisado y virtual.",
     category: "Operaciones de Piso",
@@ -416,6 +421,7 @@ Un residente tuvo un episodio de agitación a las 8pm que se calmó solo, no req
   {
     code: "ZENDI_AI_101",
     emoji: '🤖',
+    imageUrl: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=800&q=80',
     title: "Uso de Zendi AI en la Práctica Diaria",
     description: "Aprende a sacarle el máximo provecho a Zendi AI: el botón flotante, ZendiAssist en campos de escritura, los 5 modos especializados y el Prólogo del Turno.",
     category: "Tecnología Zendity",
@@ -497,6 +503,7 @@ Describe cómo usarías el botón ✦ de ZendiAssist en este contexto. ¿Qué mo
   {
     code: "ACCESO_ROLES_101",
     emoji: '🔐',
+    imageUrl: 'https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&q=80',
     title: "Acceso, Roles y Seguridad en Zendity",
     description: "Entiende el sistema RBAC de Zendity: qué puede hacer cada rol, cómo crear y desactivar usuarios, y las buenas prácticas de seguridad del PIN.",
     category: "Tecnología Zendity",
@@ -585,6 +592,7 @@ Si tu tablet con sesión activa se pierde:
   {
     code: "MANTENIMIENTO_101",
     emoji: '🔧',
+    imageUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=80',
     title: "Planta Física y Mantenimiento",
     description: "Aprende a gestionar los tickets de mantenimiento en Zendity, el flujo de cotizaciones con el Director, las inspecciones preventivas y la coordinación con el equipo de piso.",
     category: "Operaciones de Sede",
@@ -690,6 +698,7 @@ async function main() {
                     durationMins: course.durationMins,
                     bonusCompliance: course.bonusCompliance,
                     emoji: course.emoji || null,
+                    imageUrl: course.imageUrl || null,
                     isGlobal: true,
                     isActive: true
                 }
@@ -706,6 +715,7 @@ async function main() {
                     durationMins: course.durationMins,
                     bonusCompliance: course.bonusCompliance,
                     emoji: course.emoji || null,
+                    imageUrl: course.imageUrl || null,
                     isGlobal: true,
                     isActive: true
                 }
