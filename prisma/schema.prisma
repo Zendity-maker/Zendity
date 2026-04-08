@@ -699,6 +699,7 @@ model Course {
   videoUrl        String?
   category        String   @default("General") // Puesto o Categoría
   imageUrl        String? // Fotografía del curso
+  emoji           String? // Emoji visual para la card (fallback si no hay imageUrl)
   isActive        Boolean  @default(true)
   isGlobal        Boolean  @default(false)
   targetRole      String?  // Si tiene valor, solo ese rol puede verlo. Ej: "DIRECTOR", "SUPERVISOR"

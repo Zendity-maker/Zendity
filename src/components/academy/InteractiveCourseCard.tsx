@@ -316,7 +316,19 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all">
             {/* Course image */}
             {course.imageUrl ? (
-                <img src={course.imageUrl} alt={course.title} className="w-full h-40 object-cover" />
+                <img
+                    src={course.imageUrl}
+                    alt={course.title}
+                    className="w-full h-40 object-cover"
+                    onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                            parent.innerHTML = `<div class="w-full h-40 bg-gradient-to-br from-teal-600 to-slate-800 flex items-center justify-center"><span class="text-5xl">${course.emoji || '📘'}</span></div>`;
+                        }
+                    }}
+                />
             ) : (
                 <div className="w-full h-40 bg-gradient-to-br from-teal-600 to-slate-800 flex items-center justify-center">
                     <span className="text-5xl">{course.emoji || '📘'}</span>

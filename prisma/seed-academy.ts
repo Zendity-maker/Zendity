@@ -6,6 +6,7 @@ const HQ_ID = "b2ac0700-f937-4085-9595-dcf81a2e5e30";
 const courses = [
   {
     code: "CIERRE_TURNO_101",
+    emoji: '📋',
     title: "Proceso de Cierre de Turno",
     description: "Aprende el flujo completo para cerrar tu turno correctamente en Zendity: pre-scan automático, resolución de blockers, notas de handover y firma electrónica.",
     category: "Operaciones de Piso",
@@ -99,6 +100,7 @@ Si debes salir y no puedes resolver los blockers, puedes usar el Override Forzad
   },
   {
     code: "ADMISION_RESIDENTES_101",
+    emoji: '🏥',
     title: "Admisión de Nuevos Residentes",
     description: "Domina el flujo completo de admisión: desde el primer contacto familiar en el CRM hasta la activación clínica del perfil del residente en Zendity.",
     category: "Área Clínica",
@@ -172,6 +174,7 @@ Cuando el Director activa el perfil:
   },
   {
     code: "EMAR_101",
+    emoji: '💊',
     title: "Administración de Medicamentos — eMAR",
     description: "Aprende a usar el registro electrónico de medicamentos: la regla de los 5 correctos, los estados del eMAR, el manejo de rechazos y medicamentos PRN.",
     category: "Área Clínica",
@@ -252,6 +255,7 @@ Solo se administran cuando el residente presenta la condición que los justifica
   },
   {
     code: "INCIDENTES_CAIDA_101",
+    emoji: '⚠️',
     title: "Respuesta a Incidentes de Caída",
     description: "Aprende a responder correctamente ante una caída: evaluación inicial, documentación en Zendity, cadena de notificaciones y medidas preventivas post-incidente.",
     category: "Seguridad Clínica",
@@ -343,6 +347,7 @@ Describe paso a paso qué debes hacer, incluyendo por qué NO debes levantarla i
   },
   {
     code: "HANDOVER_101",
+    emoji: '🤝',
     title: "Handover de Enfermería y Relevo de Turno",
     description: "Domina el proceso de entrega formal del turno: qué documentar, cómo hacerlo en Zendity, y la diferencia entre el handover presencial, supervisado y virtual.",
     category: "Operaciones de Piso",
@@ -410,6 +415,7 @@ Un residente tuvo un episodio de agitación a las 8pm que se calmó solo, no req
   },
   {
     code: "ZENDI_AI_101",
+    emoji: '🤖',
     title: "Uso de Zendi AI en la Práctica Diaria",
     description: "Aprende a sacarle el máximo provecho a Zendi AI: el botón flotante, ZendiAssist en campos de escritura, los 5 modos especializados y el Prólogo del Turno.",
     category: "Tecnología Zendity",
@@ -490,6 +496,7 @@ Describe cómo usarías el botón ✦ de ZendiAssist en este contexto. ¿Qué mo
   },
   {
     code: "ACCESO_ROLES_101",
+    emoji: '🔐',
     title: "Acceso, Roles y Seguridad en Zendity",
     description: "Entiende el sistema RBAC de Zendity: qué puede hacer cada rol, cómo crear y desactivar usuarios, y las buenas prácticas de seguridad del PIN.",
     category: "Tecnología Zendity",
@@ -577,6 +584,7 @@ Si tu tablet con sesión activa se pierde:
   },
   {
     code: "MANTENIMIENTO_101",
+    emoji: '🔧',
     title: "Planta Física y Mantenimiento",
     description: "Aprende a gestionar los tickets de mantenimiento en Zendity, el flujo de cotizaciones con el Director, las inspecciones preventivas y la coordinación con el equipo de piso.",
     category: "Operaciones de Sede",
@@ -681,6 +689,7 @@ async function main() {
                     category: course.category,
                     durationMins: course.durationMins,
                     bonusCompliance: course.bonusCompliance,
+                    emoji: course.emoji || null,
                     isGlobal: true,
                     isActive: true
                 }
@@ -696,6 +705,7 @@ async function main() {
                     category: course.category,
                     durationMins: course.durationMins,
                     bonusCompliance: course.bonusCompliance,
+                    emoji: course.emoji || null,
                     isGlobal: true,
                     isActive: true
                 }
