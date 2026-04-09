@@ -1254,7 +1254,7 @@ export default function ZendityCareTabletPage() {
                         <button onClick={() => router.push('/academy')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>🎓</span> Academy
                         </button>
-                        <button onClick={() => router.push('/hr/staff')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => router.push('/care/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>👤</span> Mi Perfil
                         </button>
                         {user?.photoUrl ? (
