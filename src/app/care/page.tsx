@@ -11,7 +11,6 @@ import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
-import IncomingShiftBriefing from "@/components/care/IncomingShiftBriefing";
 import ZendiAssist from "@/components/ZendiAssist";
 import { Toaster, toast } from 'sonner';
 
@@ -48,8 +47,10 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | "INCOMING_SHIFT_BRIEFING" | null>(null);
-    const [isNightMode, setIsNightMode] = useState(false);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
+
+    const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
+    const [isNightMode, setIsNightMode] = useState(() => isNightHours());
     const [hospitalReason, setHospitalReason] = useState("");
     const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
@@ -58,6 +59,15 @@ export default function ZendityCareTabletPage() {
     const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
     const [zendiToast, setZendiToast] = useState("");
+
+    // Auto-toggle Night Rounds Mode entre 10pm y 6am
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const shouldBeNight = isNightHours();
+            setIsNightMode(prev => { if (prev !== shouldBeNight) return shouldBeNight; return prev; });
+        }, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Form States & Shadow AI
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
@@ -1232,7 +1242,6 @@ export default function ZendityCareTabletPage() {
                         <span>{isNightMode ? '☀️ Modo Normal' : '🌙 Modo Rondas'}</span>
                     </button>
                     <button onClick={() => router.push('/cuidadores')} className="px-6 py-3 font-bold bg-white/10 hover:bg-white/20 rounded-xl transition-colors hidden md:block">Life Plans (PAI)</button>
-                    <button onClick={() => setModalType('INCOMING_SHIFT_BRIEFING')} className="px-5 py-3 font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg transition-colors">Simular Inicio</button>
                     <button onClick={handleLogoutAttempt} className="px-6 py-3 font-black bg-slate-900 border-2 border-slate-700 text-white rounded-xl shadow-lg hover:scale-105 transition-all">Entregar Turno</button>
                 </div>
             </div>
@@ -2201,23 +2210,6 @@ export default function ZendityCareTabletPage() {
                 }}
             />
 
-            {/* FASE NUEVA: INCOMING SHIFT BRIEFING */}
-            <IncomingShiftBriefing
-                isOpen={modalType === 'INCOMING_SHIFT_BRIEFING'}
-                userName={user?.name || "Cuidador"}
-                shiftName="Turno de Guardia"
-                novelties={[
-                    { patientName: "Residente A", description: "Rehusó medicamentos hace 2 horas.", level: "PENDING" },
-                ]}
-                onAccept={() => {
-                    alert("Responsabilidad Clínica Aceptada. Iniciando jornada.");
-                    setModalType(null);
-                }}
-                onBypass={() => {
-                    alert("Modo de Acceso Temporal (Urgencia) activado bajo auditoría.");
-                    setModalType(null);
-                }}
-            />
 
             {/* FASE 32: Floating Action Hub Trigger (REMOVED to Header) */}
             {/*
