@@ -19,7 +19,6 @@ export const authOptions: NextAuthOptions = {
 
                 const user = await prisma.user.findUnique({
                     where: { email: credentials.email },
-                    include: { headquarters: true },
                 });
 
                 if (user) {
@@ -30,15 +29,14 @@ export const authOptions: NextAuthOptions = {
                         id: user.id,
                         name: user.name,
                         email: user.email,
-                        role: user.role,
-                        headquartersId: user.headquartersId,
-                        photoUrl: user.photoUrl || user.image || null,
+                        r: user.role,
+                        h: user.headquartersId,
+                        p: user.photoUrl || null,
                     } as any;
                 }
 
                 const family = await prisma.familyMember.findUnique({
                     where: { email: credentials.email },
-                    include: { headquarters: true }
                 });
 
                 if (family) {
@@ -49,8 +47,8 @@ export const authOptions: NextAuthOptions = {
                         id: family.patientId,
                         name: family.name,
                         email: family.email,
-                        role: "FAMILY",
-                        headquartersId: family.headquartersId,
+                        r: "FAMILY",
+                        h: family.headquartersId,
                     } as any;
                 }
 
@@ -64,23 +62,20 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                token.id = user.id;
-                token.email = user.email;
-                token.name = user.name;
-                token.role = (user as any).role;
-                token.headquartersId = (user as any).headquartersId;
-                token.photoUrl = (user as any).photoUrl || null;
+                token.i = user.id;
+                token.r = (user as any).r;
+                token.h = (user as any).h;
+                token.p = (user as any).p || null;
             }
+            console.log('JWT SIZE:', JSON.stringify(token).length, 'bytes');
             return token;
         },
         async session({ session, token }) {
             if (session.user) {
-                session.user.id = token.id as string;
-                session.user.email = token.email as string;
-                session.user.name = token.name as string;
-                session.user.role = token.role as string;
-                session.user.headquartersId = token.headquartersId as string;
-                (session.user as any).photoUrl = token.photoUrl || null;
+                session.user.id = token.i as string;
+                session.user.role = token.r as string;
+                session.user.headquartersId = token.h as string;
+                (session.user as any).photoUrl = token.p || null;
             }
             return session;
         },
@@ -88,6 +83,18 @@ export const authOptions: NextAuthOptions = {
     session: {
         strategy: "jwt",
         maxAge: 8 * 60 * 60,
+    },
+    cookies: {
+        sessionToken: {
+            name: '__Secure-next-auth.session-token',
+            options: {
+                httpOnly: true,
+                sameSite: 'lax' as const,
+                path: '/',
+                secure: true,
+                maxAge: 8 * 60 * 60
+            }
+        }
     },
     secret: process.env.NEXTAUTH_SECRET || "ZenditySecretKey123!Secure!2026",
 };
