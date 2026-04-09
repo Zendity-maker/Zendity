@@ -68,12 +68,10 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
+                token.email = user.email;
+                token.name = user.name;
                 token.role = (user as any).role;
-                token.secondaryRoles = Array.isArray((user as any).secondaryRoles)
-                    ? (user as any).secondaryRoles.slice(0, 3)
-                    : [];
                 token.headquartersId = (user as any).headquartersId;
-                token.headquartersName = (user as any).headquartersName;
                 token.photoUrl = (user as any).photoUrl || null;
             }
             return token;
@@ -81,10 +79,10 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             if (session.user) {
                 session.user.id = token.id as string;
+                session.user.email = token.email as string;
+                session.user.name = token.name as string;
                 session.user.role = token.role as string;
-                session.user.secondaryRoles = (token.secondaryRoles as string[]) || [];
                 session.user.headquartersId = token.headquartersId as string;
-                session.user.headquartersName = token.headquartersName as string;
                 (session.user as any).photoUrl = token.photoUrl || null;
             }
             return session;
