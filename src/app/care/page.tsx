@@ -1268,6 +1268,31 @@ export default function ZendityCareTabletPage() {
                 </div>
             )}
 
+            {/* Nav secundario para NURSE */}
+            {user?.role === 'NURSE' && (
+                <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[88px] z-30">
+                    <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => router.push('/care/vitals')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                            <span>💉</span> Vitales
+                        </button>
+                        <button onClick={() => router.push('/academy')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                            <span>🎓</span> Academy
+                        </button>
+                        <button onClick={() => router.push('/care/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                            <span>👤</span> Mi Perfil
+                        </button>
+                        {user?.photoUrl ? (
+                            <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500" />
+                        ) : (
+                            <div className="w-9 h-9 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-sm">
+                                {user?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* SPRINT 1 UX: Contextual SLA Banner (Estable, Pendiente, Advertencia, Crítico) */}
             {fastActions.length > 0 && (
                 <div className={`text-white px-8 py-4 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4 transition-all ${fastActions.length > 2 ? 'bg-rose-600' : (fastActions.length > 1 ? 'bg-amber-600' : 'bg-emerald-600')}`}>

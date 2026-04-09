@@ -12,7 +12,7 @@ export default function CaregiverProfilePage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user && user.role !== "CAREGIVER") {
+        if (user && !["CAREGIVER", "NURSE"].includes(user.role || "")) {
             router.replace("/care");
             return;
         }
@@ -69,7 +69,7 @@ export default function CaregiverProfilePage() {
                     </div>
                 )}
                 <h1 className="text-xl font-semibold text-white mb-1">{user?.name || "Cuidadora"}</h1>
-                <p className="text-teal-400 text-sm font-medium mb-1">Cuidadora</p>
+                <p className="text-teal-400 text-sm font-medium mb-1">{user?.role === "NURSE" ? "Enfermera" : "Cuidadora"}</p>
                 <p className="text-slate-400 text-sm">{user?.email || ""}</p>
             </div>
 

@@ -1,7 +1,79 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
+export async function GET(req: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
+        }
 
+        const hqId = (session.user as any).headquartersId;
+        const { searchParams } = new URL(req.url);
+        const patientId = searchParams.get('patientId');
+
+        if (patientId) {
+            // MODO B — Historial por residente
+            const from = searchParams.get('from');
+            const to = searchParams.get('to');
+            const dateFrom = from ? new Date(from + 'T00:00:00') : new Date(Date.now() - 7 * 86400000);
+            const dateTo = to ? new Date(to + 'T23:59:59.999') : new Date();
+
+            const vitals = await prisma.vitalSigns.findMany({
+                where: {
+                    patientId,
+                    patient: { headquartersId: hqId },
+                    createdAt: { gte: dateFrom, lte: dateTo }
+                },
+                include: {
+                    patient: { select: { id: true, name: true, colorGroup: true, roomNumber: true } },
+                    measuredBy: { select: { name: true } }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            return NextResponse.json({ success: true, vitals });
+        } else {
+            // MODO A — Vitales del dia
+            const dateParam = searchParams.get('date');
+            const targetDate = dateParam ? new Date(dateParam + 'T00:00:00') : new Date();
+            const startOfDay = new Date(targetDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(targetDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const vitals = await prisma.vitalSigns.findMany({
+                where: {
+                    patient: { headquartersId: hqId },
+                    createdAt: { gte: startOfDay, lte: endOfDay }
+                },
+                include: {
+                    patient: { select: { id: true, name: true, colorGroup: true, roomNumber: true } },
+                    measuredBy: { select: { name: true } }
+                },
+                orderBy: [
+                    { patient: { colorGroup: 'asc' } },
+                    { patient: { name: 'asc' } },
+                    { createdAt: 'desc' }
+                ]
+            });
+
+            // Residentes activos para mostrar los que no tienen vitales hoy
+            const activePatients = await prisma.patient.findMany({
+                where: { headquartersId: hqId, status: 'ACTIVE' },
+                select: { id: true, name: true, colorGroup: true, roomNumber: true },
+                orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }]
+            });
+
+            return NextResponse.json({ success: true, vitals, activePatients });
+        }
+    } catch (error: any) {
+        console.error("Care Vitals GET Error:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
 
 export async function POST(req: Request) {
     try {
