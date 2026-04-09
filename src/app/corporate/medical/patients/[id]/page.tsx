@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
@@ -14,9 +15,11 @@ import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("clinical");
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [savingColor, setSavingColor] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -262,6 +265,31 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         a.click();
     };
 
+    const canEditColor = ['DIRECTOR', 'ADMIN', 'NURSE'].includes(user?.role || '');
+
+    const handleColorGroup = async (color: string) => {
+        if (!canEditColor || savingColor) return;
+        setSavingColor(true);
+        try {
+            const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ colorGroup: color })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPatientData((prev: any) => ({ ...prev, colorGroup: color }));
+                setToast({ msg: `Grupo de color actualizado a ${color}`, type: 'ok' });
+            } else {
+                setToast({ msg: data.error || 'Error actualizando color', type: 'err' });
+            }
+        } catch {
+            setToast({ msg: 'Error de conexion', type: 'err' });
+        } finally {
+            setSavingColor(false);
+        }
+    };
+
     if (isLoading) {
         return <div className="min-h-screen bg-neutral-50 p-6 flex items-center justify-center font-bold text-slate-500">Cargando expediente corporativo...</div>;
     }
@@ -363,6 +391,41 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         )}
                     </div>
                 </div>
+
+                {/* Grupo de Color */}
+                {patientData?.status === 'ACTIVE' && (
+                    <div className="bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-700/50">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-white font-bold text-sm uppercase tracking-widest">Grupo de Color</h3>
+                            {!canEditColor && <span className="text-slate-500 text-xs font-medium">Solo lectura</span>}
+                        </div>
+                        <div className="flex gap-3">
+                            {[
+                                { key: 'RED', bg: 'bg-red-500', ring: 'ring-red-500', label: 'Rojo' },
+                                { key: 'YELLOW', bg: 'bg-yellow-400', ring: 'ring-yellow-400', label: 'Amarillo' },
+                                { key: 'GREEN', bg: 'bg-green-500', ring: 'ring-green-500', label: 'Verde' },
+                                { key: 'BLUE', bg: 'bg-blue-500', ring: 'ring-blue-500', label: 'Azul' },
+                            ].map(c => {
+                                const isActive = patientData?.colorGroup === c.key;
+                                return (
+                                    <button
+                                        key={c.key}
+                                        onClick={() => handleColorGroup(c.key)}
+                                        disabled={!canEditColor || savingColor}
+                                        className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl transition-all ${
+                                            isActive
+                                                ? `${c.bg} ring-2 ring-offset-2 ring-offset-slate-900 ${c.ring} scale-105 shadow-lg`
+                                                : `bg-slate-800 hover:bg-slate-700 ${canEditColor ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`
+                                        }`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full ${c.bg} ${isActive ? 'ring-2 ring-white' : ''}`} />
+                                        <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>{c.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Simulador de Pestañas de Historial */}
                 <div className="border-b border-neutral-200">

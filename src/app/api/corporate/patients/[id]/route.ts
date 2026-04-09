@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 
 
@@ -89,6 +91,33 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         return NextResponse.json({ success: true, patient: updated });
     } catch (error: any) {
         console.error("Update Patient Error:", error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN', 'NURSE'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: "No autorizado para cambiar el grupo de color." }, { status: 403 });
+        }
+
+        const { id } = await params;
+        const { colorGroup } = await req.json();
+
+        const validGroups = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'UNASSIGNED'];
+        if (!colorGroup || !validGroups.includes(colorGroup)) {
+            return NextResponse.json({ success: false, error: "Grupo de color invalido." }, { status: 400 });
+        }
+
+        const updated = await prisma.patient.update({
+            where: { id },
+            data: { colorGroup }
+        });
+
+        return NextResponse.json({ success: true, patient: updated });
+    } catch (error: any) {
+        console.error("Patch ColorGroup Error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
