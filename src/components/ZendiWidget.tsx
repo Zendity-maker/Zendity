@@ -140,7 +140,12 @@ export default function ZendiWidget() {
                             <div className={`w-3 h-3 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : (isSpeaking ? 'bg-teal-400 animate-pulse' : 'bg-slate-600')}`}></div>
                             <h3 className="font-black text-white text-sm tracking-widest uppercase">ZENDI AI</h3>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white font-bold opacity-50"></button>
+                        <button
+                            onClick={() => setIsOpen(false)}
+                            className="text-slate-500 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-700"
+                        >
+                            ✕
+                        </button>
                     </div>
 
                     <div className="p-5 space-y-4 min-h-[150px] max-h-[300px] overflow-y-auto">
