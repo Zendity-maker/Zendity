@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-const HQ_ID = "b2ac0700-f937-4085-9595-dcf81a2e5e30";
+const HQ_ID = process.env.SEED_HQ_ID || "b2ac0700-f937-4085-9595-dcf81a2e5e30";
 
 const roleCourses = [
   {
