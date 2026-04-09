@@ -16,7 +16,8 @@ export default function MasterPatientDirectory() {
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL"); // ALL, ACTIVE, TEMPORARY_LEAVE, DISCHARGED
+    const [statusFilter, setStatusFilter] = useState("ALL");
+    const [view, setView] = useState<'list' | 'color'>('list');
 
     useEffect(() => {
         const fetchPatients = async () => {
@@ -36,13 +37,20 @@ export default function MasterPatientDirectory() {
         fetchPatients();
     }, []);
 
+    const getLastName = (name: string) => {
+        const parts = name.trim().split(/\s+/);
+        return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    };
+
     const filteredPatients = useMemo(() => {
-        return patients.filter((p) => {
-            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.roomNumber.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
-            return matchesSearch && matchesStatus;
-        });
+        return patients
+            .filter((p) => {
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (p.roomNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            })
+            .sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name), 'es'));
     }, [patients, searchTerm, statusFilter]);
 
     const getStatusBadge = (status: string, leaveType?: string) => {
@@ -119,68 +127,115 @@ export default function MasterPatientDirectory() {
                         <button onClick={() => setStatusFilter('TEMPORARY_LEAVE')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'TEMPORARY_LEAVE' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>Ausentes / Hospital</button>
                         <button onClick={() => setStatusFilter('DISCHARGED')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'DISCHARGED' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-slate-700'}`}>Residentes dados de baja</button>
                     </div>
-                </div>
 
-                {/* Patient Table Directory */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-200">
-                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Residente</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden md:table-cell">Habitación</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Estatus</th>
-                                    <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredPatients.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                            No se encontraron residentes con esos criterios.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredPatients.map((patient) => (
-                                        <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black overflow-hidden relative ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                        {patient.photoUrl ? (
-                                                            <img src={patient.photoUrl} alt={patient.name} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <UserIcon className="w-6 h-6" />
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-black text-slate-800 text-base">{patient.name}</p>
-                                                        <p className="text-sm font-medium text-slate-500 hidden md:block group-hover:text-indigo-600 transition-colors">ID: {patient.id.split('-')[0].toUpperCase()}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 hidden md:table-cell">
-                                                <span className="font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
-                                                    {patient.roomNumber}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {getStatusBadge(patient.status, patient.leaveType)}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <Link
-                                                    href={`/corporate/medical/patients/${patient.id}`}
-                                                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group-hover:scale-110"
-                                                >
-                                                    <ArrowRightIcon className="w-5 h-5" />
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                        <button onClick={() => setView('list')} title="Vista lista" className={`px-3 py-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                        <button onClick={() => setView('color')} title="Vista por grupo de color" className={`px-3 py-2 rounded-lg transition-colors ${view === 'color' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>
+                            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><circle cx="6" cy="6" r="3.5" className="fill-red-500" /><circle cx="14" cy="6" r="3.5" className="fill-yellow-400" /><circle cx="6" cy="14" r="3.5" className="fill-green-500" /><circle cx="14" cy="14" r="3.5" className="fill-blue-500" /></svg>
+                        </button>
                     </div>
                 </div>
+
+                {/* Patient Directory — List or Color View */}
+                {view === 'list' ? (
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50/50 border-b border-slate-200">
+                                        <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Residente</th>
+                                        <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden md:table-cell">Habitacion</th>
+                                        <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Estatus</th>
+                                        <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Accion</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredPatients.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                                No se encontraron residentes con esos criterios.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredPatients.map((patient) => (
+                                            <tr key={patient.id} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-12 h-12 rounded-full flex flex-shrink-0 items-center justify-center font-black overflow-hidden relative ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : patient.status === 'TEMPORARY_LEAVE' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {patient.photoUrl ? (
+                                                                <img src={patient.photoUrl} alt={patient.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <UserIcon className="w-6 h-6" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-black text-slate-800 text-base">{patient.name}</p>
+                                                            <p className="text-sm font-medium text-slate-500 hidden md:block group-hover:text-indigo-600 transition-colors">ID: {patient.id.split('-')[0].toUpperCase()}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 hidden md:table-cell">
+                                                    <span className="font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
+                                                        {patient.roomNumber}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {getStatusBadge(patient.status, patient.leaveType)}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Link
+                                                        href={`/corporate/medical/patients/${patient.id}`}
+                                                        className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group-hover:scale-110"
+                                                    >
+                                                        <ArrowRightIcon className="w-5 h-5" />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-6">
+                        {[
+                            { key: 'RED', label: 'Rojo', bg: 'bg-red-500', border: 'border-red-200' },
+                            { key: 'YELLOW', label: 'Amarillo', bg: 'bg-yellow-400', border: 'border-yellow-200' },
+                            { key: 'GREEN', label: 'Verde', bg: 'bg-green-500', border: 'border-green-200' },
+                            { key: 'BLUE', label: 'Azul', bg: 'bg-blue-500', border: 'border-blue-200' },
+                            { key: 'UNASSIGNED', label: 'Sin Asignar', bg: 'bg-slate-400', border: 'border-slate-200' },
+                        ].map(group => {
+                            const groupPatients = filteredPatients.filter(p => (p.colorGroup || 'UNASSIGNED') === group.key);
+                            if (groupPatients.length === 0) return null;
+                            return (
+                                <div key={group.key} className={`bg-white rounded-2xl shadow-sm border ${group.border} overflow-hidden`}>
+                                    <div className={`${group.bg} px-6 py-3 flex items-center justify-between`}>
+                                        <h3 className="text-white font-black text-sm uppercase tracking-widest">{group.label}</h3>
+                                        <span className="text-white/80 text-xs font-bold">{groupPatients.length} residente{groupPatients.length !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+                                        {groupPatients.map(patient => (
+                                            <Link key={patient.id} href={`/corporate/medical/patients/${patient.id}`} className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-slate-50 transition-colors group">
+                                                <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ${patient.status === 'ACTIVE' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                    {patient.photoUrl ? (
+                                                        <img src={patient.photoUrl} alt={patient.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <UserIcon className="w-6 h-6" />
+                                                    )}
+                                                </div>
+                                                <p className="font-bold text-slate-800 text-sm text-center leading-tight group-hover:text-indigo-600 transition-colors">{patient.name}</p>
+                                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{patient.roomNumber || 'S/N'}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
             </div>
         </div>
