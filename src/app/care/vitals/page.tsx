@@ -28,10 +28,22 @@ function CellValue({ field, value }: { field: string; value: number | null | und
     return <span className={critical ? "text-red-400 font-black" : "text-slate-200"}>{field === "temperature" ? value.toFixed(1) : value}</span>;
 }
 
+function PrintCellValue({ field, value }: { field: string; value: number | null | undefined }) {
+    if (value == null) return <>—</>;
+    const critical = isCritical(field, value);
+    const display = field === "temperature" ? (value as number).toFixed(1) : String(value);
+    return critical ? <strong>{display} *</strong> : <>{display}</>;
+}
+
 export default function VitalsPage() {
     const { user } = useAuth();
     const router = useRouter();
     const [tab, setTab] = useState<"today" | "history">("today");
+
+    // HQ info
+    const [hqInfo, setHqInfo] = useState<{ name: string; address: string; phone: string; email: string }>({
+        name: "", address: "", phone: "", email: ""
+    });
 
     // Today state
     const [todayVitals, setTodayVitals] = useState<any[]>([]);
@@ -56,6 +68,26 @@ export default function VitalsPage() {
         }
     }, [user, router]);
 
+    // Fetch HQ info
+    useEffect(() => {
+        const hqId = user?.hqId || user?.headquartersId;
+        if (!hqId) return;
+        fetch(`/api/corporate?headquartersId=${hqId}`)
+            .then(r => r.json())
+            .then(data => {
+                const hq = data?.headquarters || data;
+                setHqInfo({
+                    name: hq?.name || user?.hqName || "",
+                    address: hq?.billingAddress || "",
+                    phone: hq?.ownerPhone || "",
+                    email: hq?.ownerEmail || ""
+                });
+            })
+            .catch(() => {
+                setHqInfo({ name: user?.hqName || "", address: "", phone: "", email: "" });
+            });
+    }, [user]);
+
     const fetchToday = useCallback(async () => {
         try {
             const today = new Date().toISOString().split("T")[0];
@@ -73,14 +105,12 @@ export default function VitalsPage() {
         }
     }, []);
 
-    // Fetch today on mount + polling
     useEffect(() => {
         fetchToday();
         const interval = setInterval(fetchToday, 30000);
         return () => clearInterval(interval);
     }, [fetchToday]);
 
-    // Fetch all patients for history dropdown (reuse activePatients)
     useEffect(() => {
         if (activePatients.length > 0) {
             setAllPatients([...activePatients].sort((a, b) => a.name.localeCompare(b.name, "es")));
@@ -111,9 +141,9 @@ export default function VitalsPage() {
         return { ...group, patients: patsWithVitals };
     }).filter(g => g.patients.length > 0);
 
-    const printTitle = tab === "today"
-        ? `Vitales — ${new Date().toLocaleDateString("es-PR", { year: "numeric", month: "long", day: "numeric" })}`
-        : `Vitales — ${allPatients.find(p => p.id === selectedPatient)?.name || "Residente"}`;
+    const todayFormatted = new Date().toLocaleDateString("es-PR", { year: "numeric", month: "long", day: "numeric" });
+    const nowFormatted = new Date().toLocaleString("es-PR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const selectedPatientData = allPatients.find(p => p.id === selectedPatient);
 
     if (!user || !ALLOWED_ROLES.includes(user.role || "")) return null;
 
@@ -121,28 +151,134 @@ export default function VitalsPage() {
         <>
             <style>{`
                 @media print {
+                    @page { margin: 2cm; }
+                    body, html { background: white !important; color: black !important; font-family: Arial, sans-serif !important; font-size: 11px !important; }
+                    * { box-shadow: none !important; text-shadow: none !important; }
                     .no-print { display: none !important; }
-                    .print-only { display: block !important; }
-                    body { background: white !important; color: black !important; }
-                    table { border-collapse: collapse; width: 100%; }
-                    th, td { border: 1px solid #ccc; padding: 6px 8px; font-size: 11px; color: black; }
-                    th { background: #f1f5f9; font-weight: bold; }
-                    .print-group-header { font-size: 14px; font-weight: bold; margin: 16px 0 8px; page-break-after: avoid; }
-                    .print-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-                    .print-subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
-                    .vitals-table-wrapper { page-break-inside: avoid; margin-bottom: 16px; }
+                    #print-document { display: block !important; }
+                    #print-document table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+                    #print-document th, #print-document td { border: 1px solid #999; padding: 5px 8px; font-size: 11px; color: black; text-align: left; }
+                    #print-document th { background: #e2e8f0; font-weight: bold; font-size: 10px; text-transform: uppercase; }
+                    .print-group-section { page-break-inside: avoid; margin-bottom: 20px; }
+                    .print-group-title { font-size: 13px; font-weight: bold; padding: 4px 8px; background: #f1f5f9; border: 1px solid #999; border-bottom: none; }
+                    .print-header-block { margin-bottom: 20px; }
+                    .print-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9px; color: #666; border-top: 1px solid #ccc; padding-top: 4px; }
                 }
             `}</style>
 
-            <div className="min-h-screen bg-slate-900 text-white print:bg-white print:text-black">
-                {/* Print header */}
-                <div className="print-only hidden px-8 pt-8">
-                    <p className="print-title">{printTitle}</p>
-                    <p className="print-subtitle">Zendity Healthcare — {user?.hqName || ""}</p>
+            {/* ════════ PRINT DOCUMENT (hidden on screen) ════════ */}
+            <div id="print-document" className="hidden" style={{ display: 'none' }}>
+                {/* Header institucional */}
+                <div className="print-header-block">
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '2px' }}>{hqInfo.name || "Zendity Healthcare"}</div>
+                    {hqInfo.address && <div style={{ fontSize: '11px' }}>{hqInfo.address}</div>}
+                    <div style={{ fontSize: '11px' }}>
+                        {hqInfo.phone && <span>Tel: {hqInfo.phone}</span>}
+                        {hqInfo.phone && hqInfo.email && <span> | </span>}
+                        {hqInfo.email && <span>{hqInfo.email}</span>}
+                    </div>
+                    <hr style={{ borderTop: '2px solid black', margin: '8px 0' }} />
+
+                    {tab === "today" ? (
+                        <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px', margin: '12px 0 4px' }}>
+                            Reporte de Signos Vitales — {todayFormatted}
+                        </div>
+                    ) : (
+                        <div style={{ textAlign: 'center', margin: '12px 0 4px' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Historial de Signos Vitales — {selectedPatientData?.name || "Residente"}</div>
+                            <div style={{ fontSize: '11px', color: '#444' }}>Periodo: {dateFrom} al {dateTo}</div>
+                        </div>
+                    )}
+
+                    <div style={{ fontSize: '10px', color: '#666', textAlign: 'center', marginBottom: '4px' }}>
+                        Generado el {nowFormatted} por {user?.name || "Sistema"}
+                    </div>
+                    <hr style={{ borderTop: '1px solid black', margin: '8px 0 16px' }} />
                 </div>
 
+                {/* Body — Tab Hoy */}
+                {tab === "today" && groupedToday.map(group => (
+                    <div key={group.key} className="print-group-section">
+                        <div className="print-group-title">{group.label}</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Residente</th><th>Hab.</th><th>Sistolica</th><th>Diastolica</th>
+                                    <th>Temp °F</th><th>Pulso</th><th>Glucosa</th><th>Tomado por</th><th>Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {group.patients.map(pat => {
+                                    if (pat.vitals.length === 0) {
+                                        return (
+                                            <tr key={pat.id}>
+                                                <td><strong>{pat.name}</strong></td>
+                                                <td>{pat.roomNumber || "—"}</td>
+                                                <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+                                            </tr>
+                                        );
+                                    }
+                                    return pat.vitals.map((v: any, idx: number) => (
+                                        <tr key={v.id}>
+                                            {idx === 0 && <td rowSpan={pat.vitals.length}><strong>{pat.name}</strong></td>}
+                                            {idx === 0 && <td rowSpan={pat.vitals.length}>{pat.roomNumber || "—"}</td>}
+                                            <td><PrintCellValue field="systolic" value={v.systolic} /></td>
+                                            <td><PrintCellValue field="diastolic" value={v.diastolic} /></td>
+                                            <td><PrintCellValue field="temperature" value={v.temperature} /></td>
+                                            <td><PrintCellValue field="heartRate" value={v.heartRate} /></td>
+                                            <td><PrintCellValue field="glucose" value={v.glucose} /></td>
+                                            <td>{v.measuredBy?.name || "—"}</td>
+                                            <td>{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
+                                        </tr>
+                                    ));
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+
+                {/* Body — Tab Historial */}
+                {tab === "history" && historyVitals.length > 0 && (
+                    <div className="print-group-section">
+                        {selectedPatientData && (
+                            <div style={{ marginBottom: '8px', fontSize: '11px' }}>
+                                <strong>Residente:</strong> {selectedPatientData.name} | <strong>Habitacion:</strong> {selectedPatientData.roomNumber || "S/N"} | <strong>Grupo:</strong> {selectedPatientData.colorGroup || "Sin asignar"}
+                            </div>
+                        )}
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th><th>Hora</th><th>Sistolica</th><th>Diastolica</th>
+                                    <th>Temp °F</th><th>Pulso</th><th>Glucosa</th><th>Tomado por</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {historyVitals.map((v: any) => (
+                                    <tr key={v.id}>
+                                        <td>{new Date(v.createdAt).toLocaleDateString("es-PR")}</td>
+                                        <td>{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
+                                        <td><PrintCellValue field="systolic" value={v.systolic} /></td>
+                                        <td><PrintCellValue field="diastolic" value={v.diastolic} /></td>
+                                        <td><PrintCellValue field="temperature" value={v.temperature} /></td>
+                                        <td><PrintCellValue field="heartRate" value={v.heartRate} /></td>
+                                        <td><PrintCellValue field="glucose" value={v.glucose} /></td>
+                                        <td>{v.measuredBy?.name || "—"}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* Leyenda y pie */}
+                <div style={{ fontSize: '10px', color: '#666', marginTop: '16px' }}>* Valor fuera de rango normal</div>
+                <div className="print-footer">Zendity Healthcare Management Platform — Documento Confidencial</div>
+            </div>
+
+            {/* ════════ SCREEN UI ════════ */}
+            <div className="min-h-screen bg-slate-900 text-white no-print">
                 {/* Screen header */}
-                <div className="no-print px-6 py-4 flex items-center justify-between border-b border-slate-700">
+                <div className="px-6 py-4 flex items-center justify-between border-b border-slate-700">
                     <div className="flex items-center gap-4">
                         <button onClick={() => router.push("/care")} className="text-slate-400 hover:text-white text-sm font-medium transition-colors">← Volver</button>
                         <h1 className="text-xl font-black text-white tracking-tight">Vitales</h1>
@@ -153,7 +289,7 @@ export default function VitalsPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="no-print px-6 py-3 flex gap-2 border-b border-slate-800">
+                <div className="px-6 py-3 flex gap-2 border-b border-slate-800">
                     <button onClick={() => setTab("today")} className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors ${tab === "today" ? "bg-teal-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}>Hoy</button>
                     <button onClick={() => setTab("history")} className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors ${tab === "history" ? "bg-teal-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"}`}>Historial</button>
                 </div>
@@ -163,7 +299,7 @@ export default function VitalsPage() {
                     {tab === "today" && (
                         <div>
                             {lastUpdated && (
-                                <p className="text-slate-500 text-xs mb-4 no-print">Actualizado a las {lastUpdated.toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
+                                <p className="text-slate-500 text-xs mb-4">Actualizado a las {lastUpdated.toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</p>
                             )}
 
                             {loadingToday ? (
@@ -173,31 +309,31 @@ export default function VitalsPage() {
                             ) : (
                                 <div className="space-y-6">
                                     {groupedToday.map(group => (
-                                        <div key={group.key} className="vitals-table-wrapper">
-                                            <div className={`print-group-header ${group.text} font-black text-sm uppercase tracking-widest mb-3`}>{group.label}</div>
-                                            <div className={`${group.bg} border ${group.border} rounded-2xl overflow-hidden print:rounded-none print:border-slate-300`}>
+                                        <div key={group.key}>
+                                            <div className={`${group.text} font-black text-sm uppercase tracking-widest mb-3`}>{group.label}</div>
+                                            <div className={`${group.bg} border ${group.border} rounded-2xl overflow-hidden`}>
                                                 <div className="overflow-x-auto">
                                                     <table className="w-full text-left">
                                                         <thead>
-                                                            <tr className="border-b border-slate-700/50 print:border-slate-300">
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Residente</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Hab.</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Sistolica</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Diastolica</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Temp (F)</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Pulso</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Glucosa</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Tomado por</th>
-                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Hora</th>
+                                                            <tr className="border-b border-slate-700/50">
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Residente</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Hab.</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Sistolica</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Diastolica</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Temp (F)</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Pulso</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Glucosa</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Tomado por</th>
+                                                                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Hora</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-slate-700/30 print:divide-slate-200">
+                                                        <tbody className="divide-y divide-slate-700/30">
                                                             {group.patients.map(pat => {
                                                                 if (pat.vitals.length === 0) {
                                                                     return (
                                                                         <tr key={pat.id} className="text-sm">
-                                                                            <td className="px-4 py-3 font-bold text-slate-300 print:text-black">{pat.name}</td>
-                                                                            <td className="px-4 py-3 text-slate-400 print:text-black">{pat.roomNumber || "—"}</td>
+                                                                            <td className="px-4 py-3 font-bold text-slate-300">{pat.name}</td>
+                                                                            <td className="px-4 py-3 text-slate-400">{pat.roomNumber || "—"}</td>
                                                                             <td className="px-4 py-3"><span className="text-slate-600">—</span></td>
                                                                             <td className="px-4 py-3"><span className="text-slate-600">—</span></td>
                                                                             <td className="px-4 py-3"><span className="text-slate-600">—</span></td>
@@ -210,19 +346,15 @@ export default function VitalsPage() {
                                                                 }
                                                                 return pat.vitals.map((v: any, idx: number) => (
                                                                     <tr key={v.id} className="text-sm">
-                                                                        {idx === 0 ? (
-                                                                            <td className="px-4 py-3 font-bold text-slate-300 print:text-black" rowSpan={pat.vitals.length}>{pat.name}</td>
-                                                                        ) : null}
-                                                                        {idx === 0 ? (
-                                                                            <td className="px-4 py-3 text-slate-400 print:text-black" rowSpan={pat.vitals.length}>{pat.roomNumber || "—"}</td>
-                                                                        ) : null}
+                                                                        {idx === 0 && <td className="px-4 py-3 font-bold text-slate-300" rowSpan={pat.vitals.length}>{pat.name}</td>}
+                                                                        {idx === 0 && <td className="px-4 py-3 text-slate-400" rowSpan={pat.vitals.length}>{pat.roomNumber || "—"}</td>}
                                                                         <td className="px-4 py-3"><CellValue field="systolic" value={v.systolic} /></td>
                                                                         <td className="px-4 py-3"><CellValue field="diastolic" value={v.diastolic} /></td>
                                                                         <td className="px-4 py-3"><CellValue field="temperature" value={v.temperature} /></td>
                                                                         <td className="px-4 py-3"><CellValue field="heartRate" value={v.heartRate} /></td>
                                                                         <td className="px-4 py-3"><CellValue field="glucose" value={v.glucose} /></td>
-                                                                        <td className="px-4 py-3 text-slate-400 text-xs print:text-black">{v.measuredBy?.name || "—"}</td>
-                                                                        <td className="px-4 py-3 text-slate-400 text-xs print:text-black">{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
+                                                                        <td className="px-4 py-3 text-slate-400 text-xs">{v.measuredBy?.name || "—"}</td>
+                                                                        <td className="px-4 py-3 text-slate-400 text-xs">{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
                                                                     </tr>
                                                                 ));
                                                             })}
@@ -240,7 +372,7 @@ export default function VitalsPage() {
                     {/* ── TAB HISTORIAL ── */}
                     {tab === "history" && (
                         <div>
-                            <div className="flex flex-col sm:flex-row gap-3 mb-6 no-print">
+                            <div className="flex flex-col sm:flex-row gap-3 mb-6">
                                 <select
                                     value={selectedPatient}
                                     onChange={e => setSelectedPatient(e.target.value)}
@@ -259,32 +391,32 @@ export default function VitalsPage() {
                             </div>
 
                             {historyVitals.length > 0 ? (
-                                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden print:rounded-none print:border-slate-300">
+                                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left">
                                             <thead>
-                                                <tr className="border-b border-slate-700 print:border-slate-300">
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Fecha</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Hora</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Sistolica</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Diastolica</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Temp (F)</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Pulso</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Glucosa</th>
-                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider print:text-black">Tomado por</th>
+                                                <tr className="border-b border-slate-700">
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Hora</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Sistolica</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Diastolica</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Temp (F)</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Pulso</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Glucosa</th>
+                                                    <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Tomado por</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-700/30 print:divide-slate-200">
+                                            <tbody className="divide-y divide-slate-700/30">
                                                 {historyVitals.map((v: any) => (
                                                     <tr key={v.id} className="text-sm">
-                                                        <td className="px-4 py-3 text-slate-300 print:text-black">{new Date(v.createdAt).toLocaleDateString("es-PR")}</td>
-                                                        <td className="px-4 py-3 text-slate-400 print:text-black">{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
+                                                        <td className="px-4 py-3 text-slate-300">{new Date(v.createdAt).toLocaleDateString("es-PR")}</td>
+                                                        <td className="px-4 py-3 text-slate-400">{new Date(v.createdAt).toLocaleTimeString("es-PR", { hour: "2-digit", minute: "2-digit" })}</td>
                                                         <td className="px-4 py-3"><CellValue field="systolic" value={v.systolic} /></td>
                                                         <td className="px-4 py-3"><CellValue field="diastolic" value={v.diastolic} /></td>
                                                         <td className="px-4 py-3"><CellValue field="temperature" value={v.temperature} /></td>
                                                         <td className="px-4 py-3"><CellValue field="heartRate" value={v.heartRate} /></td>
                                                         <td className="px-4 py-3"><CellValue field="glucose" value={v.glucose} /></td>
-                                                        <td className="px-4 py-3 text-slate-400 text-xs print:text-black">{v.measuredBy?.name || "—"}</td>
+                                                        <td className="px-4 py-3 text-slate-400 text-xs">{v.measuredBy?.name || "—"}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
