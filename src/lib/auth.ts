@@ -34,6 +34,7 @@ export const authOptions: NextAuthOptions = {
                         secondaryRoles: user.secondaryRoles || [],
                         headquartersId: user.headquartersId,
                         headquartersName: user.headquarters.name,
+                        photoUrl: user.photoUrl || user.image || null,
                     } as any;
                 }
 
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
                     : [];
                 token.headquartersId = (user as any).headquartersId;
                 token.headquartersName = (user as any).headquartersName;
+                token.photoUrl = (user as any).photoUrl || null;
             }
             return token;
         },
@@ -83,6 +85,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.secondaryRoles = (token.secondaryRoles as string[]) || [];
                 session.user.headquartersId = token.headquartersId as string;
                 session.user.headquartersName = token.headquartersName as string;
+                (session.user as any).photoUrl = token.photoUrl || null;
             }
             return session;
         },

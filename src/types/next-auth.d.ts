@@ -8,6 +8,7 @@ declare module "next-auth" {
         secondaryRoles?: string[]
         headquartersId: string
         headquartersName: string
+        photoUrl?: string | null
     }
 
     interface Session {
@@ -17,6 +18,7 @@ declare module "next-auth" {
             secondaryRoles?: string[]
             headquartersId: string
             headquartersName: string
+            photoUrl?: string | null
         } & DefaultSession["user"]
     }
 }
@@ -28,5 +30,6 @@ declare module "next-auth/jwt" {
         secondaryRoles?: string[]
         headquartersId: string
         headquartersName: string
+        photoUrl?: string | null
     }
 }
