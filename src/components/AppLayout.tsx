@@ -19,6 +19,7 @@ const clinicalNavigation = [
     { name: 'Intake (Admitir)', href: '/intake', icon: UserPlus },
     { name: 'Med & Zoning', href: '/med', icon: Pill },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
+    { name: 'Vitales', href: '/care/vitals', icon: Activity },
     { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
     { name: 'Handovers Clínicos', href: '/nursing/handovers', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
@@ -195,6 +196,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         clinicalNavigation.map((item) => {
                             // FASE 30: Hide Cabina Supervisor from ordinary Caregivers
                             if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
+                            // Vitales: solo NURSE, SUPERVISOR, DIRECTOR, ADMIN
+                            if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
 
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
