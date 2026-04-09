@@ -19,7 +19,6 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [activeTab, setActiveTab] = useState("clinical");
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [savingColor, setSavingColor] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,8 +66,8 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
 
     const [showEditModal, setShowEditModal] = useState(false);
     const [editForm, setEditForm] = useState({
-        name: "", roomNumber: "", dateOfBirth: "", 
-        diet: "", allergies: "", diagnoses: "",
+        name: "", roomNumber: "", dateOfBirth: "",
+        diet: "", allergies: "", diagnoses: "", colorGroup: "",
         idCardUrl: "", medicalPlanUrl: "", medicareCardUrl: ""
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -86,7 +85,8 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             diagnoses: patientData?.intakeData?.diagnoses || "",
             idCardUrl: patientData?.idCardUrl || "",
             medicalPlanUrl: patientData?.medicalPlanUrl || "",
-            medicareCardUrl: patientData?.medicareCardUrl || ""
+            medicareCardUrl: patientData?.medicareCardUrl || "",
+            colorGroup: patientData?.colorGroup || "UNASSIGNED"
         });
         setShowEditModal(true);
     };
@@ -265,31 +265,6 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         a.click();
     };
 
-    const canEditColor = ['DIRECTOR', 'ADMIN', 'NURSE'].includes(user?.role || '');
-
-    const handleColorGroup = async (color: string) => {
-        if (!canEditColor || savingColor) return;
-        setSavingColor(true);
-        try {
-            const res = await fetch(`/api/corporate/patients/${params.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ colorGroup: color })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setPatientData((prev: any) => ({ ...prev, colorGroup: color }));
-                setToast({ msg: `Grupo de color actualizado a ${color}`, type: 'ok' });
-            } else {
-                setToast({ msg: data.error || 'Error actualizando color', type: 'err' });
-            }
-        } catch {
-            setToast({ msg: 'Error de conexion', type: 'err' });
-        } finally {
-            setSavingColor(false);
-        }
-    };
-
     if (isLoading) {
         return <div className="min-h-screen bg-neutral-50 p-6 flex items-center justify-center font-bold text-slate-500">Cargando expediente corporativo...</div>;
     }
@@ -391,41 +366,6 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         )}
                     </div>
                 </div>
-
-                {/* Grupo de Color */}
-                {patientData?.status === 'ACTIVE' && (
-                    <div className="bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-700/50">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-white font-bold text-sm uppercase tracking-widest">Grupo de Color</h3>
-                            {!canEditColor && <span className="text-slate-500 text-xs font-medium">Solo lectura</span>}
-                        </div>
-                        <div className="flex gap-3">
-                            {[
-                                { key: 'RED', bg: 'bg-red-500', ring: 'ring-red-500', label: 'Rojo' },
-                                { key: 'YELLOW', bg: 'bg-yellow-400', ring: 'ring-yellow-400', label: 'Amarillo' },
-                                { key: 'GREEN', bg: 'bg-green-500', ring: 'ring-green-500', label: 'Verde' },
-                                { key: 'BLUE', bg: 'bg-blue-500', ring: 'ring-blue-500', label: 'Azul' },
-                            ].map(c => {
-                                const isActive = patientData?.colorGroup === c.key;
-                                return (
-                                    <button
-                                        key={c.key}
-                                        onClick={() => handleColorGroup(c.key)}
-                                        disabled={!canEditColor || savingColor}
-                                        className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl transition-all ${
-                                            isActive
-                                                ? `${c.bg} ring-2 ring-offset-2 ring-offset-slate-900 ${c.ring} scale-105 shadow-lg`
-                                                : `bg-slate-800 hover:bg-slate-700 ${canEditColor ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`
-                                        }`}
-                                    >
-                                        <div className={`w-6 h-6 rounded-full ${c.bg} ${isActive ? 'ring-2 ring-white' : ''}`} />
-                                        <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}>{c.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
 
                 {/* Simulador de Pestañas de Historial */}
                 <div className="border-b border-neutral-200">
@@ -630,6 +570,37 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Diagnósticos Principales</label>
                                 <textarea value={editForm.diagnoses} onChange={e => setEditForm({...editForm, diagnoses: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none min-h-[60px]" placeholder="Ej: Hipertensión, Diabetes Tipo 2..." />
                             </div>
+
+                            {['DIRECTOR', 'ADMIN', 'NURSE'].includes(user?.role || '') && (
+                                <div className="pt-4 border-t border-slate-100">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Grupo de Color</label>
+                                    <div className="flex gap-3">
+                                        {[
+                                            { key: 'RED', bg: 'bg-red-500', ring: 'ring-red-500', label: 'Rojo' },
+                                            { key: 'YELLOW', bg: 'bg-yellow-400', ring: 'ring-yellow-400', label: 'Amarillo' },
+                                            { key: 'GREEN', bg: 'bg-green-500', ring: 'ring-green-500', label: 'Verde' },
+                                            { key: 'BLUE', bg: 'bg-blue-500', ring: 'ring-blue-500', label: 'Azul' },
+                                        ].map(c => {
+                                            const isActive = editForm.colorGroup === c.key;
+                                            return (
+                                                <button
+                                                    key={c.key}
+                                                    type="button"
+                                                    onClick={() => setEditForm({ ...editForm, colorGroup: c.key })}
+                                                    className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl transition-all ${
+                                                        isActive
+                                                            ? `bg-slate-100 ring-2 ring-offset-2 ${c.ring} scale-105`
+                                                            : 'bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                                    }`}
+                                                >
+                                                    <div className={`w-6 h-6 rounded-full ${c.bg} ${isActive ? 'ring-2 ring-white shadow-lg' : ''}`} />
+                                                    <span className={`text-xs font-bold ${isActive ? 'text-slate-800' : 'text-slate-500'}`}>{c.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="pt-4 border-t border-slate-100">
                                 <h4 className="font-bold text-slate-800 mb-4 tracking-tight">Documentos Vitales (Fotos)</h4>

@@ -46,7 +46,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const {
             name, roomNumber, dateOfBirth,
-            allergies, diagnoses, diet,
+            allergies, diagnoses, diet, colorGroup,
             idCardUrl, medicalPlanUrl, medicareCardUrl
         } = body;
 
@@ -59,6 +59,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             diet,
             dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         };
+
+        if (colorGroup) updateData.colorGroup = colorGroup;
 
         // Only update photos if explicitly passed in to avoid overwriting with nulls if undefined
         if (idCardUrl !== undefined) updateData.idCardUrl = idCardUrl;
