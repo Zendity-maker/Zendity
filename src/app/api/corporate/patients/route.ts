@@ -14,10 +14,11 @@ export async function GET(req: Request) {
 
         const hqId = (session.user as any).headquartersId;
 
-        // Obtain ALL patients without filtering by isActive = true (We need Temporary Leave and Discharged too)
+        // Solo residentes activos y en licencia temporal. DISCHARGED y DECEASED se excluyen del directorio.
         const patients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
             },
             orderBy: [
                 { status: 'asc' }, // ACTIVE first

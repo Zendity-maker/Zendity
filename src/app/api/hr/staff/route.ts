@@ -20,7 +20,7 @@ export async function GET(request: Request) {
         const hqId = session.user.headquartersId;
 
         const staff = await prisma.user.findMany({
-            where: { headquartersId: hqId },
+            where: { headquartersId: hqId, isActive: true },
             select: {
                 id: true,
                 name: true,
