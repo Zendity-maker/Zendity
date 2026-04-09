@@ -29,10 +29,18 @@ export async function GET(req: Request) {
                 where: {
                     isActive: true,
                     OR: [
+                        // Protocolos globales — visibles para todos
                         { isGlobal: true, targetRole: null },
-                        { headquartersId: hqId, targetRole: null },
+                        // Manuales por rol — solo el rol del usuario
                         { targetRole: userRole }
-                    ]
+                    ],
+                    // Excluir cursos de otras sedes (solo globales o de esta sede)
+                    AND: {
+                        OR: [
+                            { headquartersId: hqId },
+                            { isGlobal: true }
+                        ]
+                    }
                 },
                 orderBy: [{ isGlobal: 'desc' }, { createdAt: 'asc' }]
             });

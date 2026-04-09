@@ -225,7 +225,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
     const completeCourse = async () => {
         try {
-            await fetch('/api/academy/complete', {
+            await fetch('/api/academy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
