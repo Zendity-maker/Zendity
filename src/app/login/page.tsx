@@ -118,6 +118,14 @@ export default function LoginPage() {
                     </button>
                 </form>
 
+                <div className="mt-6 text-center">
+                    <a
+                        href="/clear-session.html"
+                        className="text-xs text-slate-500 hover:text-teal-400 transition-colors underline underline-offset-2"
+                    >
+                        ¿Problemas para entrar? Haz clic aquí
+                    </a>
+                </div>
 
             </div>
         </div>
