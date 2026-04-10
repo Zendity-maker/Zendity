@@ -9,6 +9,9 @@ export function middleware(request: NextRequest) {
   console.log('COOKIE HEADER SIZE:', cookieHeader.length, 'bytes')
   console.log('COOKIE NAMES:', cookies.map(c => c.name).join(', '))
 
+  const reqCookieHeader = request.headers.get('cookie') || ''
+  console.log('REQUEST COOKIE HEADER BYTES:', Buffer.byteLength(reqCookieHeader, 'utf8'))
+
   const response = NextResponse.next()
 
   const fragmentedCookies = cookies.filter(c => c.name.match(/next-auth.*\.\d+$/))
