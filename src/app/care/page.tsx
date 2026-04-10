@@ -1251,10 +1251,10 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
                     <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => router.push('/academy')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => { alert('Academy clicked'); router.push('/academy'); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>🎓</span> Academy
                         </button>
-                        <button onClick={() => router.push('/care/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => { alert('Perfil clicked'); router.push('/care/profile'); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>👤</span> Mi Perfil
                         </button>
                         {user?.photoUrl ? (
@@ -1273,13 +1273,13 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
                     <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => router.push('/care/vitals')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => { alert('Vitales clicked'); router.push('/care/vitals'); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>💉</span> Vitales
                         </button>
-                        <button onClick={() => router.push('/academy')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => { alert('Academy clicked'); router.push('/academy'); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>🎓</span> Academy
                         </button>
-                        <button onClick={() => router.push('/care/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <button onClick={() => { alert('Perfil clicked'); router.push('/care/profile'); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>👤</span> Mi Perfil
                         </button>
                         {user?.photoUrl ? (
