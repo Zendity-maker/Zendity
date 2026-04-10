@@ -82,8 +82,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    if (loading || !user) return null;
-
     // Rutas full-screen que tienen su propio layout (sin sidebar ni topbar de AppLayout)
     const isFullScreenRoute =
         pathname === "/login" ||
@@ -94,6 +92,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (isFullScreenRoute) {
         return <div className="w-full h-full">{children}</div>;
     }
+
+    if (loading || !user) return null;
 
     // Determinar Workspace Activo basado en la ruta interactiva ("Clinical" vs "Corporate")
     const isCorporateWorkspace = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr");

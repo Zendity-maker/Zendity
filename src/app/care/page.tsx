@@ -2248,7 +2248,7 @@ export default function ZendityCareTabletPage() {
                             body: JSON.stringify({ shiftSessionId: activeSession.id, forceEnd: true }) // Bypass for MVP demo
                         });
                         alert("Turno Entregado. Has protegido tus registros para auditoría mediante Zendi.");
-                        router.push('/login');
+                        await logout();
                         return true;
                     } catch (e) {
                         alert("Error finalizando turno localmente.");
