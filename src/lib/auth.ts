@@ -68,6 +68,10 @@ export const authOptions: NextAuthOptions = {
                 token.p = (user as any).p || null;
             }
             console.log('JWT SIZE:', JSON.stringify(token).length, 'bytes');
+            console.log('TOKEN KEYS:', Object.keys(token).join(', '));
+            console.log('TOKEN DETAIL:', JSON.stringify(Object.fromEntries(
+                Object.entries(token).map(([k, v]) => [k, typeof v === 'string' ? v.substring(0, 50) : typeof v])
+            )));
             return token;
         },
         async session({ session, token }) {
