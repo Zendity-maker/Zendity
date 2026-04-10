@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
@@ -1252,12 +1251,12 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
                     <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
                     <div className="flex items-center gap-3">
-                        <Link href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <a href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>🎓</span> Academy
-                        </Link>
-                        <Link href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        </a>
+                        <a href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>👤</span> Mi Perfil
-                        </Link>
+                        </a>
                         {user?.photoUrl ? (
                             <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500" />
                         ) : (
@@ -1274,15 +1273,15 @@ export default function ZendityCareTabletPage() {
                 <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
                     <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
                     <div className="flex items-center gap-3">
-                        <Link href="/care/vitals" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        <a href="/care/vitals" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>💉</span> Vitales
-                        </Link>
-                        <Link href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        </a>
+                        <a href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>🎓</span> Academy
-                        </Link>
-                        <Link href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
+                        </a>
+                        <a href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
                             <span>👤</span> Mi Perfil
-                        </Link>
+                        </a>
                         {user?.photoUrl ? (
                             <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500" />
                         ) : (
