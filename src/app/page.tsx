@@ -61,12 +61,13 @@ export default function InsightsDashboard() {
     fetchInsights();
   }, []);
 
-  // --- Family Link Polling ---
+  // --- Family Link Polling (solo Staff, no Family) ---
   useEffect(() => {
+    if (!user || user.role === "FAMILY") return;
     fetchMessages();
     const interval = setInterval(fetchMessages, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const fetchMessages = async () => {
     try {

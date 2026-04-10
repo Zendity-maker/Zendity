@@ -82,14 +82,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    if (loading) return null;
+    if (loading || !user) return null;
 
-    const isAuthRoute = pathname === "/login";
-    const isFamilyRoute = pathname.startsWith("/family");
-    const isWallRoute = pathname.startsWith("/wall");
+    // Rutas full-screen que tienen su propio layout (sin sidebar ni topbar de AppLayout)
+    const isFullScreenRoute =
+        pathname === "/login" ||
+        pathname.startsWith("/care") ||
+        pathname.startsWith("/family") ||
+        pathname.startsWith("/wall");
 
-    // Si estamos en auth, family o wall, renderizamos sin sidebar unificado (tienen su propio layout)
-    if (isAuthRoute || isFamilyRoute || isWallRoute) {
+    if (isFullScreenRoute) {
         return <div className="w-full h-full">{children}</div>;
     }
 
