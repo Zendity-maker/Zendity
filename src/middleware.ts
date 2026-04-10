@@ -2,18 +2,19 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
+  const cookies = request.cookies.getAll()
+  const cookieHeader = request.headers.get('cookie') || ''
+
+  console.log('COOKIE COUNT:', cookies.length)
+  console.log('COOKIE HEADER SIZE:', cookieHeader.length, 'bytes')
+  console.log('COOKIE NAMES:', cookies.map(c => c.name).join(', '))
+
   const response = NextResponse.next()
 
-  // Limpiar cookies fragmentadas viejas de NextAuth que causan error 494
-  const cookieNames = [...request.cookies.getAll().map(c => c.name)]
-  const fragmentedCookies = cookieNames.filter(name =>
-    name.includes('next-auth.session-token.') && name.match(/\.\d+$/)
-  )
-
+  const fragmentedCookies = cookies.filter(c => c.name.match(/next-auth.*\.\d+$/))
   if (fragmentedCookies.length > 0) {
-    fragmentedCookies.forEach(cookieName => {
-      response.cookies.delete(cookieName)
-    })
+    console.log('DELETING FRAGMENTED:', fragmentedCookies.map(c => c.name).join(', '))
+    fragmentedCookies.forEach(c => response.cookies.delete(c.name))
   }
 
   return response
