@@ -90,21 +90,32 @@ export const authOptions: NextAuthOptions = {
             return session;
         },
     },
-    session: {
-        strategy: "jwt",
-        maxAge: 8 * 60 * 60,
-    },
     cookies: {
         sessionToken: {
-            name: '__Secure-next-auth.session-token',
+            name: '__Host-next-auth.session-token',
             options: {
                 httpOnly: true,
                 sameSite: 'lax' as const,
                 path: '/',
                 secure: true,
-                maxAge: 8 * 60 * 60
             }
+        },
+        callbackUrl: {
+            name: '__Host-next-auth.callback-url',
+            options: { sameSite: 'lax' as const, path: '/', secure: true }
+        },
+        csrfToken: {
+            name: '__Host-next-auth.csrf-token',
+            options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: true }
         }
+    },
+    session: {
+        strategy: 'jwt' as const,
+        maxAge: 8 * 60 * 60,
+        updateAge: 60 * 60,
+    },
+    jwt: {
+        maxAge: 8 * 60 * 60,
     },
     secret: process.env.NEXTAUTH_SECRET || "ZenditySecretKey123!Secure!2026",
 };
