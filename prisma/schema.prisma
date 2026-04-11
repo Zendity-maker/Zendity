@@ -108,6 +108,12 @@ model Headquarters {
   cleaningAreas    CleaningArea[]
   cleaningLogs     CleaningLog[]
   cleaningRequests CleaningRequest[]
+
+  // Social Work Module
+  socialWorkNotes    SocialWorkNote[]
+  socialWorkTasks    SocialWorkTask[]
+  socialWorkBenefits SocialWorkBenefit[]
+  specialistVisits   SpecialistVisit[]
 }
 
 // =======================
@@ -217,6 +223,12 @@ model User {
   cleaningLogs CleaningLog[]
   cleaningRequestsCreated  CleaningRequest[] @relation("CleaningRequestsCreated")
   cleaningRequestsAssigned CleaningRequest[] @relation("CleaningRequestsAssigned")
+
+  // Social Work Module
+  socialWorkNotes        SocialWorkNote[]
+  socialWorkTasks        SocialWorkTask[]
+  socialWorkTasksAssigned SocialWorkTask[] @relation("SocialWorkTasksAssigned")
+  specialistVisits       SpecialistVisit[]
 }
 
 model Account {
@@ -470,6 +482,12 @@ model Patient {
   TriageTicket        TriageTicket[]
   HandoverPatientNote HandoverPatientNote[]
   CalendarEvent       CalendarEvent[]
+
+  // Social Work Module
+  socialWorkNotes    SocialWorkNote[]
+  socialWorkTasks    SocialWorkTask[]
+  socialWorkBenefits SocialWorkBenefit[]
+  specialistVisits   SpecialistVisit[]
 }
 
 // =======================
@@ -2058,4 +2076,77 @@ model CleaningRequest {
   requestedBy     User           @relation("CleaningRequestsCreated", fields: [requestedById], references: [id])
   assignedTo      User?          @relation("CleaningRequestsAssigned", fields: [assignedToId], references: [id])
   area            CleaningArea?  @relation(fields: [areaId], references: [id])
+}
+
+// =======================
+// SOCIAL WORK MODULE
+// =======================
+
+model SocialWorkNote {
+  id              String   @id @default(uuid())
+  patientId       String
+  headquartersId  String
+  createdById     String
+  content         String   @db.Text
+  category        String   @default("GENERAL") // GENERAL | FAMILY | BENEFITS | LEGAL | INCIDENT
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+}
+
+model SocialWorkTask {
+  id               String    @id @default(uuid())
+  patientId        String
+  headquartersId   String
+  createdById      String
+  assignedToId     String?
+  title            String
+  description      String?
+  category         String    @default("FOLLOW_UP") // FOLLOW_UP | DOCUMENT | FAMILY | APPOINTMENT | BENEFIT
+  status           String    @default("PENDING")   // PENDING | IN_PROGRESS | COMPLETED | CANCELLED
+  priority         String    @default("NORMAL")    // LOW | NORMAL | HIGH | URGENT
+  dueDate          DateTime?
+  completedAt      DateTime?
+  isZendiSuggested Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
+  patient          Patient        @relation(fields: [patientId], references: [id])
+  createdBy        User           @relation(fields: [createdById], references: [id])
+  assignedTo       User?          @relation("SocialWorkTasksAssigned", fields: [assignedToId], references: [id])
+  headquarters     Headquarters   @relation(fields: [headquartersId], references: [id])
+}
+
+model SocialWorkBenefit {
+  id              String    @id @default(uuid())
+  patientId       String
+  headquartersId  String
+  type            String    // MEDICARE | MEDICAID | SNAP | PENSION | OTHER
+  status          String    @default("ACTIVE") // ACTIVE | EXPIRED | PENDING | UNKNOWN
+  details         String?
+  expirationDate  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+}
+
+model SpecialistVisit {
+  id              String   @id @default(uuid())
+  patientId       String
+  headquartersId  String
+  specialistType  String   // DOCTOR | PODIATRIST | PSYCHOLOGIST | DENTIST | PSYCHIATRIST | OTHER
+  specialistName  String?
+  visitDate       DateTime
+  nextVisitDate   DateTime?
+  notes           String?
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  patient         Patient        @relation(fields: [patientId], references: [id])
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
 }
