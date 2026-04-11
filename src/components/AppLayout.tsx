@@ -51,6 +51,7 @@ const corporateNavigationSections = [
             { name: "UPPs (Úlceras)", href: "/corporate/medical/upp-dashboard", icon: Activity },
             { name: "eMAR Audit", href: "/corporate/medical/emar", icon: Pill },
             { name: "Catálogo Farmacia", href: "/corporate/medical/catalog", icon: Package },
+            { name: "Trabajo Social", href: "/corporate/social", icon: Users },
         ]
     },
     {
