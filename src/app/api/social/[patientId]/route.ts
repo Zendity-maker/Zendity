@@ -5,14 +5,13 @@ import { prisma } from '@/lib/prisma';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
 
-export async function GET(req: Request, { params }: { params: { patientId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ patientId: string }> }) {
     try {
+        const { patientId } = await params;
         const session = await getServerSession(authOptions);
         if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
-
-        const { patientId } = params;
         const hqId = (session.user as any).headquartersId;
 
         const [notes, tasks, benefits, specialistVisits, patient] = await Promise.all([
