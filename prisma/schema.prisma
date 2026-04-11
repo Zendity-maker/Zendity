@@ -103,6 +103,11 @@ model Headquarters {
   // FASE 67: Schedule Builder
   schedules            Schedule[]
   shiftColorAssignments ShiftColorAssignment[]
+
+  // Cleaning & Sanitization Module
+  cleaningAreas    CleaningArea[]
+  cleaningLogs     CleaningLog[]
+  cleaningRequests CleaningRequest[]
 }
 
 // =======================
@@ -207,6 +212,11 @@ model User {
   notifications         Notification[]
   accounts              Account[]
   sessions              Session[]
+
+  // Cleaning & Sanitization Module
+  cleaningLogs CleaningLog[]
+  cleaningRequestsCreated  CleaningRequest[] @relation("CleaningRequestsCreated")
+  cleaningRequestsAssigned CleaningRequest[] @relation("CleaningRequestsAssigned")
 }
 
 model Account {
@@ -358,6 +368,7 @@ enum Role {
   SUPERVISOR
   MAINTENANCE
   KITCHEN
+  CLEANING
   INVESTOR // FASE 12: Read-Only Partners Dashboard
 }
 
@@ -1990,4 +2001,61 @@ model AcademyAssignment {
   user           User         @relation(fields: [userId], references: [id])
 
   @@index([headquartersId, userId, moduleCode])
+}
+
+// =======================
+// CLEANING & SANITIZACIÓN
+// =======================
+
+model CleaningArea {
+  id              String   @id @default(uuid())
+  headquartersId  String
+  name            String
+  floor           String   // "FIRST_FLOOR" | "SECOND_FLOOR"
+  category        String   // "BATHROOM" | "ROOM" | "COMMON" | "TRASH"
+  roomNumber      String?
+  requiresPhoto   Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  order           Int      @default(0)
+
+  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
+  logs            CleaningLog[]
+  requests        CleaningRequest[]
+}
+
+model CleaningLog {
+  id              String   @id @default(uuid())
+  areaId          String
+  cleanedById     String
+  headquartersId  String
+  status          String   @default("COMPLETED") // COMPLETED | SKIPPED
+  photoUrl        String?
+  photoRequested  Boolean  @default(false)
+  notes           String?
+  cleanedAt       DateTime @default(now())
+
+  area            CleaningArea   @relation(fields: [areaId], references: [id])
+  cleanedBy       User           @relation(fields: [cleanedById], references: [id])
+  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+}
+
+model CleaningRequest {
+  id              String    @id @default(uuid())
+  headquartersId  String
+  requestedById   String
+  areaId          String?
+  areaName        String
+  description     String
+  photoUrl        String?
+  status          String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | EXPIRED
+  priority        String    @default("NORMAL")  // NORMAL | URGENT
+  expiresAt       DateTime
+  assignedToId    String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+  requestedBy     User           @relation("CleaningRequestsCreated", fields: [requestedById], references: [id])
+  assignedTo      User?          @relation("CleaningRequestsAssigned", fields: [assignedToId], references: [id])
+  area            CleaningArea?  @relation(fields: [areaId], references: [id])
 }

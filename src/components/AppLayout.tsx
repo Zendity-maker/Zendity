@@ -10,7 +10,7 @@ import {
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell,
-    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor
+    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -35,6 +35,7 @@ const corporateNavigationSections = [
             { name: "Cierre de Turno", href: "/corporate/shift-closure", icon: LayoutDashboard },
             { name: "Triage Center", href: "/corporate/triage", icon: ShieldAlert },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
+            { name: "Limpieza & Sanitización", href: "/corporate/cleaning", icon: SprayCan },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
@@ -86,6 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const isFullScreenRoute =
         pathname === "/login" ||
         pathname.startsWith("/care") ||
+        pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
         pathname.startsWith("/wall");
 
