@@ -57,7 +57,8 @@ export async function POST(req: Request) {
                         userId: s.userId,
                         date: new Date(s.date),
                         shiftType: s.shiftType,
-                        colorGroup: s.colorGroup
+                        colorGroup: s.colorGroup || null,
+                        notes: s.notes || null
                     }))
                 }
             },

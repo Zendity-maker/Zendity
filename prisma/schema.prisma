@@ -264,7 +264,8 @@ model ScheduledShift {
   userId           String
   date             DateTime
   shiftType        ShiftType
-  colorGroup       String
+  colorGroup       String?
+  notes            String?
   isAbsent         Boolean    @default(false)
   absentMarkedAt   DateTime?
   absentMarkedById String?

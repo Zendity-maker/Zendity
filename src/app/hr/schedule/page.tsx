@@ -9,14 +9,15 @@ const SHIFT_LABELS: Record<string, string> = {
     NIGHT: "Nocturno 10PM–6AM"
 };
 
-const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL"];
+const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "NONE"];
 
 const COLOR_STYLES: Record<string, string> = {
     RED: "bg-red-100 text-red-700 border-red-200",
     YELLOW: "bg-yellow-100 text-yellow-700 border-yellow-200",
     GREEN: "bg-green-100 text-green-700 border-green-200",
     BLUE: "bg-blue-100 text-blue-700 border-blue-200",
-    ALL: "bg-slate-100 text-slate-700 border-slate-200"
+    ALL: "bg-slate-100 text-slate-700 border-slate-200",
+    NONE: "bg-slate-600 text-white border-slate-500"
 };
 
 function getMondayOf(date: Date) {
@@ -44,7 +45,8 @@ type ShiftEntry = {
     userName: string;
     date: string;
     shiftType: string;
-    colorGroup: string;
+    colorGroup: string | null;
+    notes?: string;
     isAbsent?: boolean;
 };
 
@@ -165,7 +167,8 @@ export default function ScheduleBuilderPage() {
                         userId: s.userId,
                         date: s.date,
                         shiftType: s.shiftType,
-                        colorGroup: s.colorGroup
+                        colorGroup: s.colorGroup || null,
+                        notes: s.notes || null
                     }))
                 })
             })
@@ -341,8 +344,8 @@ export default function ScheduleBuilderPage() {
                                 {dayShifts.map(shift => (
                                     <div key={shift.tempId} className="bg-slate-50 rounded-xl p-2 border border-slate-100 space-y-1.5">
                                         <div className="flex items-center justify-between">
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup]}`}>
-                                                {shift.colorGroup}
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
+                                                {shift.colorGroup || 'Sin color'}
                                             </span>
                                             <button onClick={() => removeShift(shift.tempId)} className="text-slate-500 hover:text-red-500 transition-colors">
                                                 <Trash2 className="w-3 h-3" />
@@ -367,14 +370,21 @@ export default function ScheduleBuilderPage() {
                                             ))}
                                         </select>
                                         <select
-                                            value={shift.colorGroup}
-                                            onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value)}
+                                            value={shift.colorGroup || 'NONE'}
+                                            onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
                                             className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                         >
                                             {COLOR_OPTIONS.map(c => (
-                                                <option key={c} value={c}>{c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
+                                                <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
                                             ))}
                                         </select>
+                                        <input
+                                            type="text"
+                                            value={shift.notes || ''}
+                                            onChange={e => updateShift(shift.tempId, 'notes', e.target.value)}
+                                            placeholder="Notas del turno (opcional)"
+                                            className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-500 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
+                                        />
                                         {!shift.isAbsent ? (
                                             <button
                                                 onClick={() => markAbsent(shift)}
