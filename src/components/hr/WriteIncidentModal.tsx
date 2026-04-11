@@ -49,7 +49,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     // Role-based filtering
     const isDirectorView = user?.role === 'DIRECTOR';
     const administrativeStaff = fullRoster.filter(e => e.role === 'DIRECTOR' || e.role === 'ADMIN' || e.role === 'HR');
-    const availableEmployees = isDirectorView ? fullRoster : fullRoster.filter(e => e.role === 'NURSE' || e.role === 'CAREGIVER' || e.role === 'MAINTENANCE');
+    const availableEmployees = isDirectorView ? fullRoster : fullRoster.filter(e => e.role === 'NURSE' || e.role === 'CAREGIVER' || e.role === 'MAINTENANCE' || e.role === 'CLEANING');
 
     useEffect(() => {
         if (isOpen) {

@@ -17,7 +17,8 @@ export default function HRCommsPage() {
         { id: "NURSE", label: "Solo Enfermeras (LPN/RN)", icon: "" },
         { id: "CAREGIVER", label: "Solo Cuidadoras", icon: "" },
         { id: "KITCHEN", label: "Solo Cocina y Dietas", icon: "" },
-        { id: "MAINTENANCE", label: "Solo Mantenimiento", icon: "" }
+        { id: "MAINTENANCE", label: "Solo Mantenimiento", icon: "" },
+        { id: "CLEANING", label: "Solo Limpieza", icon: "" }
     ];
 
     const handleRoleToggle = (roleId: string) => {

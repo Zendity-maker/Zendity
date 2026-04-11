@@ -102,6 +102,7 @@ export default function EditStaffRolesModal({ employee, onUpdate }: EditRolesPro
                                         <option value="INVESTOR">Socio / Inversor</option>
                                         <option value="KITCHEN">Cocina y Nutrición</option>
                                         <option value="MAINTENANCE">Mantenimiento</option>
+                                        <option value="CLEANING">Limpieza & Sanitización</option>
                                     </select>
                                 </div>
 
@@ -113,6 +114,7 @@ export default function EditStaffRolesModal({ employee, onUpdate }: EditRolesPro
                                             { id: 'NURSE', label: 'Enfermería' },
                                             { id: 'KITCHEN', label: 'Cocina' },
                                             { id: 'MAINTENANCE', label: 'Mantenimiento' },
+                                            { id: 'CLEANING', label: 'Limpieza' },
                                             { id: 'SOCIAL_WORKER', label: 'Social' },
                                             { id: 'SUPERVISOR', label: 'Supervisor' }
                                         ].map(r => (
