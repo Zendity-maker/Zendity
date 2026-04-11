@@ -28,7 +28,13 @@ export async function GET(req: Request) {
                 status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
             },
             include: {
-                medications: { include: { medication: true } },
+                medications: {
+                    where: {
+                        isActive: true,
+                        status: { in: ['ACTIVE', 'PRN'] }
+                    },
+                    include: { medication: true }
+                },
                 lifePlan: true,
                 mealLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },

@@ -14,6 +14,27 @@ import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import ZendiAssist from "@/components/ZendiAssist";
 import { Toaster, toast } from 'sonner';
 
+function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 14) return 'MORNING';
+    if (hour >= 14 && hour < 22) return 'EVENING';
+    return 'NIGHT';
+}
+
+function getMedsForCurrentShift(medications: any[]) {
+    const shift = getCurrentShift();
+    return medications.filter(m => {
+        if (!m.scheduleTimes) return false;
+        const times = m.scheduleTimes.split(',').map((t: string) => t.trim());
+        return times.some((time: string) => {
+            const hour = parseInt(time.split(':')[0]);
+            if (shift === 'NIGHT') return hour >= 22 || hour <= 5;
+            if (shift === 'MORNING') return hour >= 6 && hour <= 13;
+            return hour >= 14 && hour <= 21; // EVENING
+        });
+    });
+}
+
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
@@ -640,7 +661,7 @@ export default function ZendityCareTabletPage() {
 
         setSubmitting(true);
         try {
-            const medicationIds = activePatient.medications.map((m: any) => m.id);
+            const medicationIds = getMedsForCurrentShift(activePatient.medications).map((m: any) => m.id);
             if (medicationIds.length === 0) return alert("No hay medicamentos para procesar.");
 
             let finalNotes = "Administrado de manera rutinaria";
@@ -1813,21 +1834,21 @@ export default function ZendityCareTabletPage() {
                                     </a>
                                 </div>
                                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-inner max-h-40 overflow-y-auto">
-                                    {activePatient?.medications?.length > 0 ? (
-                                        activePatient.medications.map((m: any) => (
+                                    {getMedsForCurrentShift(activePatient?.medications || []).length > 0 ? (
+                                        getMedsForCurrentShift(activePatient.medications).map((m: any) => (
                                             <div key={m.id} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
                                                 <div>
                                                     <p className="font-bold text-slate-800">{m.medication.name}</p>
-                                                    <p className="text-xs text-slate-500">{m.medication.dosage} @ {m.scheduleTime}</p>
+                                                    <p className="text-xs text-slate-500">{m.medication.dosage} @ {m.scheduleTimes}</p>
                                                 </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="text-sm font-bold text-slate-500 text-center py-4">No hay medicamentos pautados pendientes.</p>
+                                        <p className="text-sm font-bold text-slate-500 text-center py-4">No hay medicamentos pautados para este turno.</p>
                                     )}
                                 </div>
 
-                                {activePatient?.medications?.length > 0 && (
+                                {getMedsForCurrentShift(activePatient?.medications || []).length > 0 && (
                                     <div className="pt-2">
 
                                         <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl mb-4 text-center">
@@ -2014,7 +2035,7 @@ export default function ZendityCareTabletPage() {
                                                                         <span className="bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold text-xs">{m.medication?.category || 'General'}</span>
                                                                         {m.medication?.isControlled && <span className="text-rose-600 font-black ml-2 text-xs border border-rose-200 px-1 rounded">Controlado</span>}
                                                                     </td>
-                                                                    <td className="py-3 px-4 text-slate-600 font-medium">{m.scheduleTime}  {m.medication?.route}</td>
+                                                                    <td className="py-3 px-4 text-slate-600 font-medium">{m.scheduleTimes}  {m.medication?.route}</td>
                                                                 </tr>
                                                             ))
                                                         ) : (
