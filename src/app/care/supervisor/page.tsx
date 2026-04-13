@@ -7,6 +7,7 @@ import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCirc
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
+import InfoTooltip from "@/components/ui/InfoTooltip";
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -457,17 +458,17 @@ export default function SupervisorDashboardPage() {
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
                             <Users className="w-8 h-8 text-teal-600 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.activeCaregivers : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">En Piso</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-1">En Piso <InfoTooltip text="Cuidadores con sesión activa en este momento. No incluye personal programado que aún no ha hecho login." /></p>
                         </div>
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
                             <Droplets className="w-8 h-8 text-slate-500 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.liveStats.baths : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Baños</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-1">Baños <InfoTooltip text="Registros de baño completados en el turno actual. Se actualiza cada vez que un cuidador documenta el aseo de un residente." /></p>
                         </div>
                         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-colors hover:border-slate-300">
                             <Coffee className="w-8 h-8 text-slate-500 mb-3" />
                             <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? Object.values(liveData.liveStats.meals).reduce((a:any, b:any) => a + b, 0) : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Dietas</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-1">Dietas <InfoTooltip text="Comidas documentadas en el turno. Incluye desayuno, almuerzo y cena según el horario del turno activo." /></p>
                         </div>
                         
                         {/* Indicador de Incidentes (Crítico si > 0) */}
@@ -476,8 +477,8 @@ export default function SupervisorDashboardPage() {
                             <p className={`text-4xl font-black leading-none ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-700' : 'text-slate-800'}`}>
                                 {liveData ? liveData.liveStats.incidents : "-"}
                             </p>
-                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
-                                Incidentes
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-1 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                                Incidentes <InfoTooltip text="Tickets de triage abiertos o sin resolver. Se vuelve rojo cuando hay incidentes activos que requieren atención inmediata." />
                             </p>
                         </div>
                     </div>
@@ -489,8 +490,8 @@ export default function SupervisorDashboardPage() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                <h3 className="text-white font-black text-sm uppercase tracking-widest">
-                                    Personal No Presentado
+                                <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                                    Personal No Presentado <InfoTooltip text="Empleados programados en el horario que no han iniciado sesión. Usa 'Marcar Ausente' para activar la redistribución automática de residentes entre el equipo activo." />
                                 </h3>
                                 <span className="bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded-full">
                                     {progMissing.length}
@@ -578,7 +579,7 @@ export default function SupervisorDashboardPage() {
                                         <Sparkles className="w-7 h-7 text-amber-600 animate-pulse" />
                                     </div>
                                     <div>
-                                        <p className="text-amber-900 font-black text-sm uppercase tracking-widest mb-1">Zendi ATC: Ruido Operativo Estructural</p>
+                                        <p className="text-amber-900 font-black text-sm uppercase tracking-widest mb-1 flex items-center gap-2">Zendi ATC: Ruido Operativo Estructural <InfoTooltip text="Air Traffic Control — Zendi detecta automáticamente cuando un cuidador tiene 3 o más tareas pendientes simultáneas o cuando hay múltiples residentes vulnerables sin atención reciente." /></p>
                                         <p className="text-amber-700 font-bold text-sm">
                                             {[
                                                 pxClusters > 0 ? `${pxClusters} Clúster(s) de Vulnerabilidad Múltiple` : null,
@@ -603,6 +604,7 @@ export default function SupervisorDashboardPage() {
                                 <div>
                                     <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                                         <Activity className="w-8 h-8 text-teal-600" /> Inbox Operativo
+                                        <InfoTooltip text="Tickets clínicos ordenados por urgencia: INMINENTE (rojo) requiere acción inmediata, ATENCIÓN (ámbar) en las próximas 2 horas, RUTINA (gris) antes del cierre del turno." />
                                     </h2>
                                     <p className="text-slate-500 font-medium mt-1">
                                         Tickets clínicos, preventivos y reportes familiares en espera.
@@ -687,12 +689,17 @@ export default function SupervisorDashboardPage() {
 
                                                         // Action Block: Fast dispatch
                                                         return (
-                                                            <button 
-                                                                onClick={() => setDispatchingTicket(ticket)} 
-                                                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-[1.5rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 group"
-                                                            >
-                                                                <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> Despachar (1-Click)
-                                                            </button>
+                                                            <div className="w-full flex flex-col items-center gap-2">
+                                                                <button
+                                                                    onClick={() => setDispatchingTicket(ticket)}
+                                                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-5 rounded-[1.5rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 group"
+                                                                >
+                                                                    <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> Despachar (1-Click)
+                                                                </button>
+                                                                <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                                    <InfoTooltip text="Asigna este ticket a un cuidador en piso. Zendi sugiere automáticamente al cuidador con menor carga de tareas activas." position="left" />
+                                                                </span>
+                                                            </div>
                                                         );
                                                     })()}
                                                 </div>
@@ -743,6 +750,7 @@ export default function SupervisorDashboardPage() {
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="font-extrabold text-slate-800 text-xl flex items-center gap-3">
                                         <Users className="w-6 h-6 text-teal-600" /> En Piso
+                                        <InfoTooltip text="Sesiones activas del turno. Una sesión ZOMBIE (borde rojo) significa que un cuidador lleva más de 12 horas logueado sin cerrar su turno — requiere intervención del supervisor." />
                                     </h3>
                                     <span className="bg-slate-100 text-slate-500 font-black px-4 py-1.5 rounded-full shadow-inner">{enPiso.length}</span>
                                 </div>
@@ -786,6 +794,7 @@ export default function SupervisorDashboardPage() {
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
                             <h3 className="font-extrabold text-slate-800 text-xl mb-6 flex items-center gap-3">
                                 <AlertTriangle className="w-6 h-6 text-amber-500" /> Brechas Handovers
+                                <InfoTooltip text="Turnos que terminaron sin que el cuidador firmara el cierre oficial. Cada brecha es un riesgo legal y clínico — el equipo entrante no tiene el traspaso documentado." />
                             </h3>
                             {(!liveData || missingHandovers.length === 0) ? (
                                 <div className="bg-slate-50 p-6 rounded-[1.5rem] flex items-start gap-4 border border-slate-100">
@@ -852,6 +861,7 @@ export default function SupervisorDashboardPage() {
                             <div>
                                 <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
                                     <CalendarClock className="w-6 h-6 text-teal-400" /> Inspección Zonal
+                                    <InfoTooltip text="Registro de ronda del supervisor. Al firmar confirmas que inspeccionaste el área físicamente. Queda en el log de auditoría con tu nombre, hora y fecha." />
                                 </h3>
                                 <select
                                     value={roundForm.area}

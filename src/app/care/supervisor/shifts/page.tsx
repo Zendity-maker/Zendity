@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import InfoTooltip from "@/components/ui/InfoTooltip";
 
 interface Employee {
     id: string;
@@ -362,27 +363,33 @@ export default function ShiftSchedulerPage() {
 
             <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div className="flex flex-wrap items-center gap-4">
-                    <span className="font-bold border-r pr-4 text-slate-700"> Motor Ocupacional AI</span>
+                    <span className="font-bold border-r pr-4 text-slate-700 flex items-center gap-2"> Motor Ocupacional AI <InfoTooltip text="Número mínimo de cuidadores que deben estar asignados en cada turno. Zendi usa estos números como regla base al generar el horario automático." /></span>
                     <label className="text-sm font-medium flex items-center gap-2">AM (6a-2p): <input type="number" value={aiRuleAM} onChange={e => setAiRuleAM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
                     <label className="text-sm font-medium flex items-center gap-2">PM (2p-10p): <input type="number" value={aiRulePM} onChange={e => setAiRulePM(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
                     <label className="text-sm font-medium flex items-center gap-2">Noche (10p-6a): <input type="number" value={aiRuleNight} onChange={e => setAiRuleNight(Number(e.target.value))} className="w-16 border rounded px-2 py-1" /></label>
                 </div>
 
                 <div className="flex gap-4">
-                    <button
-                        onClick={handleAIGenerate}
-                        disabled={isGeneratingAI || employees.length === 0}
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
-                    >
-                        {isGeneratingAI ? <span className="animate-pulse"> Generando...</span> : <> Automatizar con IA</>}
-                    </button>
-                    <button
-                        onClick={handlePublishPDF}
-                        disabled={isPublishing || shifts.length === 0}
-                        className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
-                    >
-                        {isPublishing ? <span className="animate-pulse"> Enviando...</span> : <> Aprobar y Enviar (PDF)</>}
-                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={handleAIGenerate}
+                            disabled={isGeneratingAI || employees.length === 0}
+                            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
+                        >
+                            {isGeneratingAI ? <span className="animate-pulse"> Generando...</span> : <> Automatizar con IA</>}
+                        </button>
+                        <InfoTooltip text="Zendi genera el horario completo de la semana respetando el staff mínimo definido, los días libres de cada empleado y una distribución equitativa de turnos." />
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={handlePublishPDF}
+                            disabled={isPublishing || shifts.length === 0}
+                            className="bg-indigo-900 hover:bg-slate-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all"
+                        >
+                            {isPublishing ? <span className="animate-pulse"> Enviando...</span> : <> Aprobar y Enviar (PDF)</>}
+                        </button>
+                        <InfoTooltip text="Genera un PDF del horario y lo envía por email a todo el personal asignado. Una vez enviado, los empleados pueden verlo desde su perfil en Zéndity." />
+                    </div>
                 </div>
             </div>
 
@@ -423,7 +430,7 @@ export default function ShiftSchedulerPage() {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Color de Zona (Opc.)</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 flex items-center gap-1">Color de Zona (Opc.) <InfoTooltip text="El color de zona define qué grupo de residentes atiende el cuidador en ese turno. Debe coincidir con la zonificación del directorio de residentes." position="right" /></label>
                                 <div className="flex flex-wrap gap-2">
                                     {ZONE_COLORS.map(color => (
                                         <button
