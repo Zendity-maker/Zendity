@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { HeartCrack } from "lucide-react";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
@@ -37,6 +38,11 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [newDiet, setNewDiet] = useState("Regular (Sólida)");
     const [hospReason, setHospReason] = useState("");
     const [isHospitalizing, setIsHospitalizing] = useState(false);
+
+    // Deceased from TEMPORARY_LEAVE
+    const [showDeceasedFromLeaveModal, setShowDeceasedFromLeaveModal] = useState(false);
+    const [deceasedFromLeaveReason, setDeceasedFromLeaveReason] = useState("");
+    const [isProcessingDeceased, setIsProcessingDeceased] = useState(false);
 
     // Toast State
     const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
@@ -211,6 +217,34 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         }
     };
 
+    const handleDeceasedFromLeave = async () => {
+        setIsProcessingDeceased(true);
+        try {
+            const res = await fetch(`/api/corporate/patients/${params.id}/discharge`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: 'DECEASED',
+                    reason: deceasedFromLeaveReason,
+                    date: new Date()
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: "Fallecimiento registrado. Expediente congelado.", type: 'ok' });
+                setShowDeceasedFromLeaveModal(false);
+                setDeceasedFromLeaveReason("");
+                fetchPatientData();
+            } else {
+                setToast({ msg: data.error || "Error al registrar fallecimiento.", type: 'err' });
+            }
+        } catch (e) {
+            setToast({ msg: "Error de conexión.", type: 'err' });
+        } finally {
+            setIsProcessingDeceased(false);
+        }
+    };
+
     const handlePatientAction = async (action: string) => {
         try {
             const res = await fetch(`/api/corporate/patients/${params.id}/discharge`, {
@@ -356,9 +390,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             </>
                         )}
                         {patientData?.status === 'TEMPORARY_LEAVE' && (
-                            <button onClick={() => handlePatientAction('RETURN')} className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                <UserIcon className="w-5 h-5" /> Retornar a la Residencia
-                            </button>
+                            <>
+                                <button onClick={() => handlePatientAction('RETURN')} className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                    <UserIcon className="w-5 h-5" /> {patientData.leaveType === 'HOSPITAL' ? 'Alta Hospitalaria — Retornar' : 'Retornar a la Residencia'}
+                                </button>
+                                <button onClick={() => setShowDeceasedFromLeaveModal(true)} className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                    <HeartCrack className="w-5 h-5" /> Registrar Fallecimiento
+                                </button>
+                            </>
                         )}
                         {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && (
                             <button onClick={downloadHistoryReport} className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
@@ -673,6 +712,54 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 className="flex-1 py-4 rounded-[2rem] bg-rose-600 text-white font-black text-sm uppercase tracking-widest hover:bg-rose-700 transition-colors disabled:opacity-40"
                             >
                                 {isHospitalizing ? "Registrando..." : "Confirmar Traslado"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: FALLECIMIENTO DESDE TEMPORARY_LEAVE */}
+            {showDeceasedFromLeaveModal && (
+                <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-red-100">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <HeartCrack className="w-5 h-5 text-red-600" />
+                            </div>
+                            <h3 className="text-2xl font-black text-slate-800">Registrar Fallecimiento</h3>
+                        </div>
+                        <p className="text-slate-500 font-medium mb-6 leading-relaxed">
+                            ¿Confirmas el fallecimiento de <strong className="text-red-600">{patientData?.name}</strong>?
+                            <br />
+                            <span className="text-red-500 text-sm font-bold">Esta acción es permanente.</span>
+                        </p>
+
+                        <div className="space-y-4 mb-8">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notas (lugar, fecha, causa si se conoce)</label>
+                                <textarea
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium text-slate-700 h-28 focus:outline-none focus:ring-2 focus:ring-red-400"
+                                    placeholder="Ej: Fallecimiento en Hospital Municipal. Causa: Insuficiencia cardíaca..."
+                                    value={deceasedFromLeaveReason}
+                                    onChange={(e) => setDeceasedFromLeaveReason(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 pt-4 border-t border-slate-100">
+                            <button
+                                onClick={() => { setShowDeceasedFromLeaveModal(false); setDeceasedFromLeaveReason(""); }}
+                                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleDeceasedFromLeave}
+                                disabled={!deceasedFromLeaveReason.trim() || isProcessingDeceased}
+                                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-500/30 transition-colors disabled:opacity-40"
+                            >
+                                {isProcessingDeceased ? "Registrando..." : "Confirmar Fallecimiento"}
                             </button>
                         </div>
                     </div>
