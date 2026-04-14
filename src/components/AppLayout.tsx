@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
-    ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell,
+    ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
@@ -82,7 +82,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { user, logout, loading } = useAuth();
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>('collapsed');
+    const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+    useEffect(() => {
+        const w = window.innerWidth;
+        if (w > 1024) setSidebarMode('expanded');
+        else if (w >= 768) setSidebarMode('collapsed');
+        else setSidebarMode('hidden');
+    }, []);
+
+    const isSidebarCollapsed = sidebarMode === 'collapsed';
+    const isSidebarVisible = sidebarMode !== 'hidden';
+
+    const toggleSidebar = () => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setMobileDrawerOpen(v => !v);
+        } else {
+            setSidebarMode(prev => prev === 'expanded' ? 'collapsed' : 'expanded');
+        }
+    };
 
     // Rutas full-screen que tienen su propio layout (sin sidebar ni topbar de AppLayout)
     const isFullScreenRoute =
@@ -111,8 +130,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
             <ZendiWidget />
 
-            {/* Unified Sidebar */}
-            <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} border-r flex flex-col shadow-sm transition-all duration-300 flex-shrink-0 z-50 ${sidebarBg}`}>
+            {/* Unified Sidebar — hidden on mobile, collapsible on tablet */}
+            <aside className={`${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-4 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
@@ -224,8 +243,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {/* User Profile / Logout */}
                 <div className="p-4 border-t border-opacity-20 border-current flex flex-col gap-2">
                     <button
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        className={`hidden md:flex items-center justify-center p-2 rounded-lg transition-colors border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                        onClick={() => setSidebarMode(prev => prev === 'expanded' ? 'collapsed' : 'expanded')}
+                        className={`flex items-center justify-center p-2 rounded-lg transition-colors border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
                         title={isSidebarCollapsed ? "Expandir Menú" : "Contraer Menú"}
                     >
                         {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -269,10 +288,79 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
             </aside>
 
+            {/* Mobile Drawer Overlay */}
+            {mobileDrawerOpen && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileDrawerOpen(false)} />
+                    <aside className={`absolute left-0 top-0 bottom-0 w-64 border-r flex flex-col shadow-xl animate-in slide-in-from-left duration-200 ${sidebarBg}`}>
+                        <div className="h-16 flex items-center justify-between px-4 border-b border-opacity-20 border-current">
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src={isCorporateWorkspace ? "/brand/zendity_logo_white.svg" : "/brand/zendity_logo_primary.svg"}
+                                    alt="Zendity"
+                                    className="h-8 w-auto object-contain"
+                                />
+                            </div>
+                            <button onClick={() => setMobileDrawerOpen(false)} className="p-1.5 rounded-lg hover:bg-black/10 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+                            {isCorporateWorkspace ? (
+                                corporateNavigationSections.map((section, idx) => (
+                                    <div key={idx} className="mb-5">
+                                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-3">{section.title}</h3>
+                                        <ul className="space-y-1">
+                                            {section.links.map((link) => {
+                                                const isCurrent = pathname === link.href || (link.href !== '/corporate' && pathname?.startsWith(link.href));
+                                                const Icon = link.icon;
+                                                return (
+                                                    <li key={link.name}>
+                                                        <Link href={link.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
+                                                            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
+                                                            <span className="truncate">{link.name}</span>
+                                                        </Link>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                ))
+                            ) : (
+                                clinicalNavigation.map((item) => {
+                                    if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
+                                    if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
+                                    const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
+                                            <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
+                                            <span className="truncate">{item.name}</span>
+                                        </Link>
+                                    );
+                                })
+                            )}
+                        </nav>
+                        <div className="p-3 border-t border-opacity-20 border-current space-y-2">
+                            <Link href={isCorporateWorkspace ? `/corporate/hr/staff/${user?.id}` : `/hr/staff/${user?.id}`} onClick={() => setMobileDrawerOpen(false)} className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl shadow-sm border bg-indigo-50 border-indigo-200 text-indigo-700">
+                                <UserIcon className="w-4 h-4 shrink-0" /> Mi Perfil
+                            </Link>
+                            <button onClick={logout} className={`w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl shadow-sm border ${isCorporateWorkspace ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
+                                <span>🚪</span> Cerrar Sesión
+                            </button>
+                        </div>
+                    </aside>
+                </div>
+            )}
+
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
                 {/* Unified Topbar */}
-                <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-8 z-40 sticky top-0 shadow-sm flex-shrink-0">
+                <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 md:px-8 z-40 sticky top-0 shadow-sm flex-shrink-0 gap-3">
+                    {/* Hamburger — visible on mobile always, on tablet/desktop as extra toggle */}
+                    <button onClick={toggleSidebar} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors shrink-0 md:hidden">
+                        <Menu className="w-5 h-5 text-slate-600" />
+                    </button>
                     <div className="flex items-center flex-1 max-w-xl">
                         {isCorporateWorkspace && user?.role === "ADMIN" ? (
                             <div className="relative w-full group">
