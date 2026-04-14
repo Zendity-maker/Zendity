@@ -1824,6 +1824,7 @@ model TriageTicket {
 
   description    String  @db.Text
   resolutionNote String? @db.Text
+  followUpNotes  Json?   // Array de { authorId, authorName, note, createdAt }
 
   assignedToId String?
   resolvedById String?

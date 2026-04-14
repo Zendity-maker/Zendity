@@ -1,14 +1,44 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// PATCH — Actualizar estado, asignar, o resolver un TriageTicket
+// PATCH — Actualizar estado, asignar, resolver, o agregar nota de seguimiento
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { ticketId, status, assignedToId, resolutionNote, resolvedById } = body;
+        const { ticketId, status, assignedToId, resolutionNote, resolvedById, followUpNote } = body;
 
         if (!ticketId) {
             return NextResponse.json({ success: false, error: 'ticketId requerido' }, { status: 400 });
+        }
+
+        // Si es una nota de seguimiento, la agregamos al array JSON sin cambiar status
+        if (followUpNote) {
+            const current = await prisma.triageTicket.findUnique({
+                where: { id: ticketId },
+                select: { followUpNotes: true }
+            });
+
+            const existingNotes = Array.isArray(current?.followUpNotes) ? current.followUpNotes : [];
+            const updatedNotes = [
+                ...existingNotes,
+                {
+                    authorId: followUpNote.authorId,
+                    authorName: followUpNote.authorName,
+                    note: followUpNote.note,
+                    createdAt: new Date().toISOString(),
+                }
+            ];
+
+            const ticket = await prisma.triageTicket.update({
+                where: { id: ticketId },
+                data: { followUpNotes: updatedNotes },
+                include: {
+                    patient: { select: { id: true, name: true } },
+                    assignedTo: { select: { id: true, name: true, role: true } },
+                }
+            });
+
+            return NextResponse.json({ success: true, ticket });
         }
 
         const updateData: any = {};
@@ -38,7 +68,7 @@ export async function PATCH(req: Request) {
             data: updateData,
             include: {
                 patient: { select: { id: true, name: true } },
-                assignedTo: { select: { id: true, name: true } },
+                assignedTo: { select: { id: true, name: true, role: true } },
             }
         });
 

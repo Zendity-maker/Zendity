@@ -3,7 +3,14 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, AlertTriangle, AlertOctagon, Wrench, ClipboardList, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send } from "lucide-react";
+import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle } from "lucide-react";
+
+interface FollowUpNote {
+    authorId: string;
+    authorName: string;
+    note: string;
+    createdAt: string;
+}
 
 interface TriageTicketData {
     id: string;
@@ -17,6 +24,7 @@ interface TriageTicketData {
     isVoided: boolean;
     description: string;
     resolutionNote: string | null;
+    followUpNotes: FollowUpNote[] | null;
     assignedToId: string | null;
     resolvedById: string | null;
     createdAt: string;
@@ -35,14 +43,14 @@ const PRIORITY_CONFIG: Record<string, { bg: string; label: string; icon: string 
     LOW: { bg: 'bg-slate-100 text-slate-600 border-slate-200', label: 'Bajo', icon: '⚪' },
 };
 
-const ORIGIN_CONFIG: Record<string, { bg: string; label: string; icon: string }> = {
-    DAILY_LOG: { bg: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Clínico', icon: '🩺' },
-    INCIDENT: { bg: 'bg-slate-200 text-slate-700 border-slate-300', label: 'Mantenimiento', icon: '🔧' },
-    COMPLAINT: { bg: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Queja', icon: '📋' },
-    FALL: { bg: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Caída', icon: '🚨' },
-    EMAR_MISS: { bg: 'bg-indigo-100 text-indigo-700 border-indigo-200', label: 'eMAR', icon: '📊' },
-    CRON_SYSTEM: { bg: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Sistema', icon: '⚙️' },
-    MANUAL: { bg: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Manual', icon: '✏️' },
+const ORIGIN_CONFIG: Record<string, { bg: string; label: string; icon: string; targetRole: string; targetLabel: string }> = {
+    DAILY_LOG: { bg: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Clínico', icon: '🩺', targetRole: 'NURSE', targetLabel: 'Enfermería' },
+    INCIDENT: { bg: 'bg-slate-200 text-slate-700 border-slate-300', label: 'Mantenimiento', icon: '🔧', targetRole: 'MAINTENANCE', targetLabel: 'Planta Física' },
+    COMPLAINT: { bg: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Queja Familiar', icon: '📋', targetRole: 'ADMIN', targetLabel: 'Administración' },
+    FALL: { bg: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Caída', icon: '🚨', targetRole: 'NURSE', targetLabel: 'Enfermería + Director' },
+    EMAR_MISS: { bg: 'bg-indigo-100 text-indigo-700 border-indigo-200', label: 'eMAR', icon: '📊', targetRole: 'NURSE', targetLabel: 'Enfermería' },
+    CRON_SYSTEM: { bg: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Sistema', icon: '⚙️', targetRole: 'ADMIN', targetLabel: 'Administración' },
+    MANUAL: { bg: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Manual', icon: '✏️', targetRole: 'SUPERVISOR', targetLabel: 'Supervisor' },
 };
 
 const STATUS_CONFIG: Record<string, { bg: string; label: string }> = {
@@ -58,8 +66,14 @@ export default function TriageCenterPage() {
     const [staff, setStaff] = useState<any[]>([]);
     const [showResolved, setShowResolved] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+    // Resolución
     const [resolutionNote, setResolutionNote] = useState("");
     const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+    // Notas de seguimiento
+    const [followUpText, setFollowUpText] = useState("");
+    const [addingNoteToId, setAddingNoteToId] = useState<string | null>(null);
 
     const hqId = user?.hqId || user?.headquartersId || '';
 
@@ -93,7 +107,6 @@ export default function TriageCenterPage() {
         fetchStaff();
     }, [user, showResolved]);
 
-    // Auto-refresh cada 30s
     useEffect(() => {
         if (!hqId) return;
         const interval = setInterval(fetchTickets, 30000);
@@ -109,9 +122,7 @@ export default function TriageCenterPage() {
                 body: JSON.stringify({ ticketId, ...payload })
             });
             const data = await res.json();
-            if (data.success) {
-                await fetchTickets();
-            }
+            if (data.success) await fetchTickets();
         } catch (e) { console.error(e); }
         finally { setUpdatingId(null); }
     };
@@ -120,10 +131,33 @@ export default function TriageCenterPage() {
         await updateTicket(ticketId, {
             status: 'RESOLVED',
             resolvedById: user?.id,
-            resolutionNote: resolutionNote || 'Resuelto por el Director',
+            resolutionNote: resolutionNote || 'Resuelto sin nota adicional.',
         });
         setResolvingId(null);
         setResolutionNote("");
+    };
+
+    const handleAddFollowUp = async (ticketId: string) => {
+        if (!followUpText.trim()) return;
+        await updateTicket(ticketId, {
+            followUpNote: {
+                authorId: user?.id,
+                authorName: user?.name || 'Director',
+                note: followUpText.trim(),
+            }
+        });
+        setAddingNoteToId(null);
+        setFollowUpText("");
+    };
+
+    const getRelevantStaff = (originType: string) => {
+        const config = ORIGIN_CONFIG[originType];
+        if (!config) return staff;
+        const targetRole = config.targetRole;
+        // Mostrar primero los del rol target, luego el resto
+        const target = staff.filter((s: any) => s.role === targetRole);
+        const rest = staff.filter((s: any) => s.role !== targetRole);
+        return [...target, ...rest];
     };
 
     const timeAgo = (dateStr: string) => {
@@ -138,7 +172,7 @@ export default function TriageCenterPage() {
 
     const openTickets = tickets.filter(t => t.status !== 'RESOLVED');
     const criticalCount = openTickets.filter(t => t.priority === 'CRITICAL').length;
-    const highCount = openTickets.filter(t => t.priority === 'HIGH').length;
+    const inProgressCount = openTickets.filter(t => t.status === 'IN_PROGRESS').length;
 
     if (loading) {
         return (
@@ -161,9 +195,9 @@ export default function TriageCenterPage() {
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                         <ShieldAlert className="w-10 h-10 text-indigo-600" /> Centro de Triage
                     </h1>
-                    <p className="text-slate-500 font-medium mt-1">Vista unificada de todos los reportes operativos, clínicos y familiares.</p>
+                    <p className="text-slate-500 font-medium mt-1">Seguimiento de reportes clínicos, mantenimiento y familiares — sin SLA automático.</p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                     {criticalCount > 0 && (
                         <div className="bg-rose-50 border border-rose-200 px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm">
                             <AlertOctagon className="w-5 h-5 text-rose-600 animate-pulse" />
@@ -171,8 +205,13 @@ export default function TriageCenterPage() {
                             <span className="text-rose-600 text-xs font-bold uppercase tracking-wider">Críticos</span>
                         </div>
                     )}
+                    <div className="bg-amber-50 border border-amber-200 px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm">
+                        <Activity className="w-5 h-5 text-amber-600" />
+                        <span className="font-black text-amber-800 text-lg">{inProgressCount}</span>
+                        <span className="text-amber-600 text-xs font-bold uppercase tracking-wider">En Proceso</span>
+                    </div>
                     <div className="bg-white border border-slate-200 px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm">
-                        <Activity className="w-5 h-5 text-indigo-600" />
+                        <ShieldAlert className="w-5 h-5 text-indigo-600" />
                         <span className="font-black text-slate-800 text-lg">{openTickets.length}</span>
                         <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Activos</span>
                     </div>
@@ -209,6 +248,8 @@ export default function TriageCenterPage() {
                         const borderColor = ticket.priority === 'CRITICAL' ? 'border-l-rose-500' :
                             ticket.priority === 'HIGH' ? 'border-l-amber-500' :
                             ticket.priority === 'MEDIUM' ? 'border-l-yellow-400' : 'border-l-slate-300';
+                        const relevantStaff = getRelevantStaff(ticket.originType);
+                        const followUps: FollowUpNote[] = Array.isArray(ticket.followUpNotes) ? ticket.followUpNotes : [];
 
                         return (
                             <div key={ticket.id} className={`bg-white rounded-2xl border border-slate-200 border-l-[6px] ${borderColor} shadow-sm transition-all hover:shadow-md ${isResolved ? 'opacity-60' : ''}`}>
@@ -233,6 +274,16 @@ export default function TriageCenterPage() {
                                             )}
                                         </div>
 
+                                        {/* Routing hint */}
+                                        {ticket.status === 'OPEN' && (
+                                            <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+                                                <span>Destino sugerido:</span>
+                                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold border border-slate-200">
+                                                    {originCfg.targetLabel}
+                                                </span>
+                                            </div>
+                                        )}
+
                                         {/* Description */}
                                         <p className="text-base font-bold text-slate-800 leading-relaxed">
                                             {ticket.description.length > 200 ? ticket.description.substring(0, 200) + '...' : ticket.description}
@@ -252,15 +303,33 @@ export default function TriageCenterPage() {
                                             </span>
                                             {ticket.assignedTo && (
                                                 <span className="flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-100">
-                                                    <Send className="w-3 h-3" /> {ticket.assignedTo.name}
+                                                    <Send className="w-3 h-3" /> {ticket.assignedTo.name} <span className="text-indigo-400">({ticket.assignedTo.role})</span>
                                                 </span>
                                             )}
                                             {ticket.resolvedBy && (
                                                 <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-100">
-                                                    <CheckCircle2 className="w-3 h-3" /> Resuelto por {ticket.resolvedBy.name}
+                                                    <CheckCircle2 className="w-3 h-3" /> Cerrado por {ticket.resolvedBy.name}
                                                 </span>
                                             )}
                                         </div>
+
+                                        {/* Follow-up notes timeline */}
+                                        {followUps.length > 0 && (
+                                            <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                                                    <MessageSquarePlus className="w-3 h-3" /> Notas de Seguimiento ({followUps.length})
+                                                </p>
+                                                {followUps.map((n, idx) => (
+                                                    <div key={idx} className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="font-bold text-slate-700">{n.authorName}</span>
+                                                            <span className="text-slate-400">{timeAgo(n.createdAt)}</span>
+                                                        </div>
+                                                        <p className="text-slate-600 font-medium">{n.note}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
                                         {/* Resolution note */}
                                         {ticket.resolutionNote && (
@@ -271,27 +340,38 @@ export default function TriageCenterPage() {
                                         )}
                                     </div>
 
-                                    {/* Actions */}
+                                    {/* Actions Panel */}
                                     {!isResolved && (
-                                        <div className="shrink-0 flex flex-col gap-2 w-full lg:w-56">
-                                            {/* Assign dropdown */}
-                                            <div className="relative">
-                                                <select
-                                                    value={ticket.assignedToId || ''}
-                                                    onChange={(e) => updateTicket(ticket.id, { assignedToId: e.target.value || null })}
-                                                    disabled={updatingId === ticket.id}
-                                                    className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 pr-8 disabled:opacity-50"
-                                                >
-                                                    <option value="">Asignar a...</option>
-                                                    {staff.map((s: any) => (
-                                                        <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                        <div className="shrink-0 flex flex-col gap-3 w-full lg:w-60">
+
+                                            {/* Smart Assign Dropdown — filtered by ticket type */}
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                                                    Asignar a {originCfg.targetLabel}
+                                                </label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={ticket.assignedToId || ''}
+                                                        onChange={(e) => updateTicket(ticket.id, { assignedToId: e.target.value || null })}
+                                                        disabled={updatingId === ticket.id}
+                                                        className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500 pr-8 disabled:opacity-50"
+                                                    >
+                                                        <option value="">Seleccionar responsable...</option>
+                                                        {relevantStaff.map((s: any, i: number) => {
+                                                            const isTarget = s.role === originCfg.targetRole;
+                                                            return (
+                                                                <option key={s.id} value={s.id}>
+                                                                    {isTarget ? '★ ' : ''}{s.name} ({s.role})
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                                </div>
                                             </div>
 
-                                            {/* Status buttons */}
-                                            {ticket.status === 'OPEN' && (
+                                            {/* Status: OPEN → IN_PROGRESS */}
+                                            {ticket.status === 'OPEN' && !ticket.assignedToId && (
                                                 <button
                                                     onClick={() => updateTicket(ticket.id, { status: 'IN_PROGRESS' })}
                                                     disabled={updatingId === ticket.id}
@@ -301,9 +381,45 @@ export default function TriageCenterPage() {
                                                 </button>
                                             )}
 
+                                            {/* Add follow-up note */}
+                                            {addingNoteToId === ticket.id ? (
+                                                <div className="space-y-2">
+                                                    <textarea
+                                                        value={followUpText}
+                                                        onChange={(e) => setFollowUpText(e.target.value)}
+                                                        placeholder="Nota de progreso..."
+                                                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 resize-none h-20"
+                                                        autoFocus
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleAddFollowUp(ticket.id)}
+                                                            disabled={updatingId === ticket.id || !followUpText.trim()}
+                                                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1"
+                                                        >
+                                                            <Send className="w-3 h-3" /> Agregar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setAddingNoteToId(null); setFollowUpText(""); }}
+                                                            className="px-3 bg-slate-100 text-slate-600 font-bold py-2 rounded-xl text-xs hover:bg-slate-200"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => { setAddingNoteToId(ticket.id); setFollowUpText(""); }}
+                                                    className="w-full bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+                                                >
+                                                    <MessageSquarePlus className="w-3.5 h-3.5" /> Nota de Seguimiento
+                                                </button>
+                                            )}
+
                                             {/* Resolve */}
                                             {resolvingId === ticket.id ? (
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 border-t border-slate-100 pt-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 block">Cerrar Ticket</label>
                                                     <input
                                                         type="text"
                                                         value={resolutionNote}
@@ -318,7 +434,7 @@ export default function TriageCenterPage() {
                                                             disabled={updatingId === ticket.id}
                                                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50"
                                                         >
-                                                            Confirmar
+                                                            Confirmar Cierre
                                                         </button>
                                                         <button
                                                             onClick={() => { setResolvingId(null); setResolutionNote(""); }}
@@ -330,7 +446,7 @@ export default function TriageCenterPage() {
                                                 </div>
                                             ) : (
                                                 <button
-                                                    onClick={() => setResolvingId(ticket.id)}
+                                                    onClick={() => { setResolvingId(ticket.id); setResolutionNote(""); }}
                                                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95"
                                                 >
                                                     Resolver Ticket
