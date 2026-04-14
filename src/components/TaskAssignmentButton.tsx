@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export default function TaskAssignmentButton({
   user,
@@ -113,15 +114,19 @@ export default function TaskAssignmentButton({
     </button>
   );
 
+  // Portal: renderizar modal en document.body para escapar de overflow-hidden y stacking contexts del padre
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => { setPortalTarget(document.body); }, []);
+
   return (
     <>
       <button onClick={handleOpen} className={buttonStyle}>
         <span>⚡</span> {buttonLabel}
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4 backdrop-blur-sm isolate">
-          <div className="bg-white rounded-xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative z-[101] max-h-[90vh] flex flex-col text-left">
+      {isOpen && portalTarget && createPortal(
+        <div className="fixed inset-0 bg-black/75 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
+          <div className="bg-white rounded-xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative z-[10000] max-h-[90vh] flex flex-col text-left" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setIsOpen(false)}
               className="absolute top-4 right-4 w-10 h-10 md:w-12 md:h-12 bg-slate-100 text-slate-500 rounded-full font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors z-20"
@@ -201,7 +206,8 @@ export default function TaskAssignmentButton({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        portalTarget
       )}
     </>
   );
