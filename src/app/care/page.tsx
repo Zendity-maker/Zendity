@@ -84,7 +84,8 @@ export default function ZendityCareTabletPage() {
     // Sidebar & Grid View States
     const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
     const [mobileDrawer, setMobileDrawer] = useState(false);
-    const [gridView, setGridView] = useState<'1col' | '2col'>(() => typeof window !== 'undefined' && window.innerWidth >= 768 ? '2col' : '1col');
+    const [gridView, setGridView] = useState<'1col' | '2col'>('1col');
+    useEffect(() => { if (window.innerWidth >= 768) setGridView('2col'); }, []);
 
     // Auto-toggle Night Rounds Mode entre 10pm y 6am
     useEffect(() => {
@@ -1475,7 +1476,7 @@ export default function ZendityCareTabletPage() {
                                     </button>
                                 </div>
                             </div>
-                            <div className={`grid gap-6 ${gridView === '2col' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-2xl'}`}>
+                            <div className={`grid ${gridView === '2col' ? 'grid-cols-2 gap-3' : 'grid-cols-1 max-w-2xl mx-auto gap-6'}`}>
                                 {patients.map(p => {
                                     const isAbsent = p.status === 'TEMPORARY_LEAVE';
                                     
