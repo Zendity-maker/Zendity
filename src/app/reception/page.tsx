@@ -240,7 +240,7 @@ export default function ReceptionKiosk() {
     // ── Bienvenida al montar — solo una vez ─────────────────────────────────
     useEffect(() => {
         const timer = setTimeout(() => {
-            speak('Bienvenido a Vivid Senior Living Cupey. Soy Zendi, su asistente de recepción.');
+            speak('Bienvenido a Vivid Senior Living Coo-peh-y. Soy Zendi, su asistente de recepción.');
         }, 800);
         return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
