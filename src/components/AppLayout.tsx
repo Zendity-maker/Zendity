@@ -10,7 +10,8 @@ import {
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
-    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan
+    LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
+    Info, AlertTriangle, CheckCircle2, Users as UsersIcon
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -84,7 +85,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>('collapsed');
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
+    const notifRef = useRef<HTMLDivElement>(null);
 
     // Click-outside handler for workspace switcher
     useEffect(() => {
@@ -97,6 +102,81 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [workspaceMenuOpen]);
+
+    // Click-outside handler for notification panel
+    useEffect(() => {
+        if (!notifOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+                setNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [notifOpen]);
+
+    // Fetch notifications on mount and periodically
+    const fetchNotifications = React.useCallback(async () => {
+        if (!user?.id) return;
+        try {
+            const res = await fetch(`/api/notifications?userId=${user.id}`);
+            const data = await res.json();
+            if (data.success) {
+                setNotifications(data.notifications);
+                setUnreadCount(data.unreadCount);
+            }
+        } catch (e) {
+            console.error('Error fetching notifications', e);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (user?.id) {
+            fetchNotifications();
+            const interval = setInterval(fetchNotifications, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [user?.id, fetchNotifications]);
+
+    const markAllRead = async () => {
+        if (!user?.id || unreadCount === 0) return;
+        try {
+            await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, all: true }),
+            });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            setUnreadCount(0);
+        } catch (e) {
+            console.error('Error marking notifications read', e);
+        }
+    };
+
+    const timeAgo = (dateStr: string) => {
+        const now = Date.now();
+        const diff = now - new Date(dateStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'ahora';
+        if (mins < 60) return `hace ${mins}m`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `hace ${hrs}h`;
+        const days = Math.floor(hrs / 24);
+        return `hace ${days}d`;
+    };
+
+    const notifIcon = (type: string) => {
+        switch (type) {
+            case 'warning': case 'SHIFT_ALERT': case 'EMAR_ALERT':
+                return <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />;
+            case 'success': case 'ACADEMY': case 'COURSE_COMPLETED':
+                return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
+            case 'FAMILY_VISIT':
+                return <UsersIcon className="w-4 h-4 text-indigo-500 shrink-0" />;
+            default:
+                return <Info className="w-4 h-4 text-blue-500 shrink-0" />;
+        }
+    };
 
     useEffect(() => {
         const w = window.innerWidth;
@@ -397,11 +477,57 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         )}
                     </div>
 
-                    <div className="flex items-center space-x-6">
-                        <button className="relative p-2 text-slate-400 hover:text-zendity-teal hover:bg-soft-mist rounded-full transition-all focus:outline-none">
+                    <div ref={notifRef} className="relative flex items-center">
+                        <button
+                            onClick={() => setNotifOpen(!notifOpen)}
+                            className="relative p-2 text-slate-400 hover:text-zendity-teal hover:bg-soft-mist rounded-full transition-all focus:outline-none"
+                        >
                             <Bell className="w-5 h-5" />
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-rose-500 rounded-full border-2 border-white text-[10px] font-bold text-white leading-none px-1">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </button>
+
+                        {notifOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                                    <h4 className="font-bold text-sm text-slate-800">Notificaciones</h4>
+                                    {unreadCount > 0 && (
+                                        <button
+                                            onClick={markAllRead}
+                                            className="text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                                        >
+                                            Marcar todas leidas
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="max-h-80 overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="p-8 text-center">
+                                            <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                            <p className="text-sm text-slate-400 font-medium">Sin notificaciones</p>
+                                        </div>
+                                    ) : (
+                                        notifications.map(n => (
+                                            <div
+                                                key={n.id}
+                                                className={`px-4 py-3 border-b border-slate-50 flex items-start gap-3 transition-colors ${!n.isRead ? 'bg-teal-50/60' : 'hover:bg-slate-50'}`}
+                                            >
+                                                <div className="mt-0.5">{notifIcon(n.type)}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-sm truncate ${!n.isRead ? 'font-semibold text-slate-800' : 'font-medium text-slate-600'}`}>{n.title}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                                                </div>
+                                                <span className="text-[10px] text-slate-400 font-medium shrink-0 mt-0.5">{timeAgo(n.createdAt)}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </header>
 
