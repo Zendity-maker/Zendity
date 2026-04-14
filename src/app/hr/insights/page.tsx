@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, AlertTriangle, AlertOctagon, BrainCircuit } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, AlertOctagon, BrainCircuit, FileText, CheckCircle2 } from 'lucide-react';
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
 interface RedFlag {
@@ -30,6 +30,9 @@ export default function ZendiInsightsPage() {
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
     const [employeesList, setEmployeesList] = useState<any[]>([]);
 
+    // Disciplinary Reports
+    const [incidents, setIncidents] = useState<any[]>([]);
+
     useEffect(() => {
         if (!user) return;
         async function fetchInsights() {
@@ -50,6 +53,13 @@ export default function ZendiInsightsPage() {
                     setEmployeesList(staffData);
                 } else if (staffData.success && Array.isArray(staffData.staff)) {
                     setEmployeesList(staffData.staff);
+                }
+
+                // Fetch disciplinary reports for this HQ
+                const incRes = await fetch(`/api/hr/incidents?hqId=${hqId}`);
+                const incData = await incRes.json();
+                if (incData.success && Array.isArray(incData.incidents)) {
+                    setIncidents(incData.incidents);
                 }
                 
             } catch (err) {
@@ -167,6 +177,101 @@ export default function ZendiInsightsPage() {
                         ))}
                     </div>
                 )}
+            </div>
+
+            {/* Reportes Disciplinarios Recientes */}
+            <div className="space-y-6">
+                {(() => {
+                    const now = new Date();
+                    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const thisMonthIncidents = incidents.filter(i => new Date(i.createdAt) >= monthStart);
+
+                    const timeAgo = (dateStr: string) => {
+                        const diff = now.getTime() - new Date(dateStr).getTime();
+                        const mins = Math.floor(diff / 60000);
+                        if (mins < 60) return `hace ${mins} min`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `hace ${hrs}h`;
+                        const days = Math.floor(hrs / 24);
+                        if (days < 30) return `hace ${days}d`;
+                        return new Date(dateStr).toLocaleDateString('es-PR', { month: 'short', day: 'numeric' });
+                    };
+
+                    const typeBadge = (type: string) => {
+                        switch (type) {
+                            case 'TERMINATION': return { bg: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Despido' };
+                            case 'SUSPENSION': return { bg: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Suspensión' };
+                            default: return { bg: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Amonestación' };
+                        }
+                    };
+
+                    return (
+                        <>
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-slate-600" /> Reportes Disciplinarios
+                                </h2>
+                                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold ring-1 ring-slate-200 shadow-sm">
+                                    {thisMonthIncidents.length} este mes
+                                </span>
+                            </div>
+
+                            {incidents.length === 0 ? (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-10 text-center">
+                                    <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                                    <h3 className="text-lg font-black text-emerald-800 mb-1">Sin reportes disciplinarios este mes</h3>
+                                    <p className="text-emerald-600 font-medium text-sm">No se han emitido amonestaciones, suspensiones ni terminaciones.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {incidents.slice(0, 10).map((inc: any) => {
+                                        const badge = typeBadge(inc.type);
+                                        const empName = inc.employee?.name || 'Empleado';
+                                        const empRole = inc.employee?.role || '';
+                                        const supName = inc.supervisor?.name || 'Supervisor';
+
+                                        return (
+                                            <button
+                                                key={inc.id}
+                                                onClick={() => router.push(`/hr/staff/${inc.employeeId}`)}
+                                                className="w-full bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 hover:border-slate-300 hover:shadow-sm transition-all text-left group"
+                                            >
+                                                {/* Avatar */}
+                                                <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-black flex items-center justify-center text-lg shrink-0 group-hover:bg-slate-200 transition-colors">
+                                                    {empName.charAt(0)}
+                                                </div>
+
+                                                {/* Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className="font-bold text-slate-800 text-sm">{empName}</p>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{empRole}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-0.5 truncate">Emitido por: {supName}</p>
+                                                </div>
+
+                                                {/* Badge tipo */}
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border shrink-0 ${badge.bg}`}>
+                                                    {badge.label}
+                                                </span>
+
+                                                {/* Fecha */}
+                                                <span className="text-xs font-medium text-slate-400 shrink-0 w-20 text-right">
+                                                    {timeAgo(inc.createdAt)}
+                                                </span>
+
+                                                {/* Arrow */}
+                                                <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </>
+                    );
+                })()}
             </div>
 
             {/* Incident Modal Triggered by Action Click */}
