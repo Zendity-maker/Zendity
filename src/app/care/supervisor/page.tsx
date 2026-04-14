@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { CaregiverSession, TriageTicket, FastActionAssignment, LiveDataPayload, MissingHandover } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert, FileText } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
+import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -228,6 +229,8 @@ export default function SupervisorDashboardPage() {
 
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
+
+    const [incidentModalOpen, setIncidentModalOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -838,9 +841,16 @@ export default function SupervisorDashboardPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Zendi AI Writer */}
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
-                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-6">
-                                <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
-                            </h3>
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                    <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
+                                </h3>
+                                <button onClick={() => setIncidentModalOpen(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all">
+                                    <FileText className="w-4 h-4" />
+                                    Reporte Disciplinario
+                                </button>
+                            </div>
                             <ZendiAssist
                                 value={rawMemo}
                                 onChange={setRawMemo}
@@ -993,6 +1003,19 @@ export default function SupervisorDashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* Modal de Reporte Disciplinario HR */}
+            <WriteIncidentModal
+                isOpen={incidentModalOpen}
+                onClose={() => setIncidentModalOpen(false)}
+                hqId={user?.hqId || user?.headquartersId || ''}
+                supervisorId={user?.id || ''}
+                employees={staff}
+                onSuccess={() => {
+                    setIncidentModalOpen(false);
+                    setToast({ msg: 'Reporte disciplinario creado exitosamente.', type: 'ok' });
+                }}
+            />
         </div>
     );
 }
