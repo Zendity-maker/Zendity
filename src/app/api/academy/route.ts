@@ -34,7 +34,7 @@ export async function GET(req: Request) {
                         { targetRole: userRole }
                     ]
                 },
-                orderBy: [{ isGlobal: 'desc' }, { createdAt: 'asc' }]
+                orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
             });
             return NextResponse.json({ success: true, catalog });
         }

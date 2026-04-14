@@ -768,6 +768,7 @@ model Course {
   category        String   @default("General") // Puesto o Categoría
   imageUrl        String? // Fotografía del curso
   emoji           String? // Emoji visual para la card (fallback si no hay imageUrl)
+  order           Int      @default(0) // Orden de aparicion en la Academy
   isActive        Boolean  @default(true)
   isGlobal        Boolean  @default(false)
   targetRole      String?  // Si tiene valor, solo ese rol puede verlo. Ej: "DIRECTOR", "SUPERVISOR"

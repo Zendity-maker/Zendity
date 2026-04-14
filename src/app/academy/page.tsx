@@ -5,6 +5,22 @@ import { useAuth } from "@/context/AuthContext";
 import InteractiveCourseCard from "@/components/academy/InteractiveCourseCard";
 import { generateZendityMasterCertificate } from "@/components/academy/CertificateGenerator";
 
+// Orden fijo de categorías en la Academy
+const CATEGORY_ORDER = [
+    "Roles y Acceso",
+    "Operaciones de Piso",
+    "Protocolos Clinicos",
+    "Tecnologia Zendity",
+];
+
+// Los 16 cursos oficiales del programa de certificación
+const ALL_COURSE_IDS = [
+    "ACCESO_ROLES_101", "DIRECTOR_101", "ADMIN_101",
+    "CUIDADOR_101", "SUPERVISOR_101", "ENFERMERA_101", "TURNO_NOCTURNO_101", "PLANTA_FISICA_101",
+    "ADMISION_101", "EMAR_101", "CAIDAS_101", "HANDOVER_101",
+    "CIERRE_TURNO_101", "ZENDI_AI_101", "LIMPIEZA_101", "TRABAJO_SOCIAL_101",
+];
+
 export default function ZendityAcademyPage() {
     const { user } = useAuth();
     const [courses, setCourses] = useState<any[]>([]);
@@ -44,28 +60,30 @@ export default function ZendityAcademyPage() {
         return enrollment ? enrollment.status : 'PENDING';
     };
 
-    // Helper to group courses
-    const groupedCourses = courses.reduce((acc: any, course: any) => {
+    // Agrupar cursos por categoría, respetando el orden de CATEGORY_ORDER
+    const groupedCourses: Record<string, any[]> = {};
+    for (const cat of CATEGORY_ORDER) {
+        const matching = courses
+            .filter(c => (c.category || "General") === cat)
+            .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        if (matching.length > 0) {
+            groupedCourses[cat] = matching;
+        }
+    }
+    // Atrapar categorías no listadas en CATEGORY_ORDER (fallback)
+    for (const course of courses) {
         const cat = course.category || "General";
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(course);
-        return acc;
-    }, {});
+        if (!CATEGORY_ORDER.includes(cat)) {
+            if (!groupedCourses[cat]) groupedCourses[cat] = [];
+            groupedCourses[cat].push(course);
+        }
+    }
 
-    const PROTOCOL_SERIES_CODES = [
-        "CIERRE_TURNO_101",
-        "ADMISION_RESIDENTES_101", 
-        "EMAR_101",
-        "INCIDENTES_CAIDA_101",
-        "HANDOVER_101",
-        "ZENDI_AI_101",
-        "ACCESO_ROLES_101",
-        "MANTENIMIENTO_101"
-    ];
-
-    const seriesCourses = courses.filter(c => PROTOCOL_SERIES_CODES.includes(c.moduleCode || c.code || c.id));
+    // Progreso de certificación: todos los 16 cursos oficiales
+    const seriesCourses = courses.filter(c => ALL_COURSE_IDS.includes(c.id));
     const completedSeriesCourses = seriesCourses.filter(c => getCourseStatus(c.id) === 'COMPLETED');
-    const seriesComplete = seriesCourses.length === 8 && completedSeriesCourses.length === 8;
+    const totalSeries = ALL_COURSE_IDS.length;
+    const seriesComplete = seriesCourses.length === totalSeries && completedSeriesCourses.length === totalSeries;
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500 pb-10">
@@ -74,15 +92,15 @@ export default function ZendityAcademyPage() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -z-0"></div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2 text-indigo-300">
-                        <img 
-                            src="/brand/zendity_logo_white.svg" 
-                            alt="Zendity Logo" 
-                            className="h-8 w-auto object-contain drop-shadow-sm opacity-90" 
+                        <img
+                            src="/brand/zendity_logo_white.svg"
+                            alt="Zendity Logo"
+                            className="h-8 w-auto object-contain drop-shadow-sm opacity-90"
                         />
                         <h2 className="text-sm font-black uppercase tracking-widest">Zendity Academy</h2>
                     </div>
-                    <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Centro Oficial de Certificación</h1>
-                    <p className="text-indigo-200/70 font-medium max-w-md">Catálogo formativo para {user?.name || "Zendity"}</p>
+                    <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Centro Oficial de Certificaci&oacute;n</h1>
+                    <p className="text-indigo-200/70 font-medium max-w-md">Cat&aacute;logo formativo para {user?.name || "Zendity"}</p>
                 </div>
 
                 <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 min-w-[220px] relative z-10 flex gap-4 items-center">
@@ -103,8 +121,8 @@ export default function ZendityAcademyPage() {
                 <div className="bg-red-50 border border-red-200 p-5 rounded-2xl flex items-center gap-4 relative overflow-hidden shadow-sm">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-red-100 rounded-bl-full -z-10 opacity-50"></div>
                     <div>
-                        <p className="font-black text-red-800 text-sm tracking-wide uppercase">Riesgo de Operación Clínica</p>
-                        <p className="text-sm text-red-900/80 font-medium mt-1">Tu puntaje de certificación está bajo lo requerido. Completa los cursos pendientes para evitar bloqueos de Punch-In en tus siguientes turnos.</p>
+                        <p className="font-black text-red-800 text-sm tracking-wide uppercase">Riesgo de Operaci&oacute;n Cl&iacute;nica</p>
+                        <p className="text-sm text-red-900/80 font-medium mt-1">Tu puntaje de certificaci&oacute;n est&aacute; bajo lo requerido. Completa los cursos pendientes para evitar bloqueos de Punch-In en tus siguientes turnos.</p>
                     </div>
                 </div>
             )}
@@ -113,9 +131,9 @@ export default function ZendityAcademyPage() {
             {seriesComplete && (
                 <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-teal-900 rounded-3xl p-8 border border-teal-500/30 shadow-2xl flex items-center justify-between gap-6">
                     <div>
-                        <p className="text-teal-400 font-black text-xs uppercase tracking-widest mb-2">🏆 Serie Completa</p>
+                        <p className="text-teal-400 font-black text-xs uppercase tracking-widest mb-2">&#127942; Serie Completa</p>
                         <h3 className="text-white font-black text-2xl mb-1">Personal Adiestrado en Zendity</h3>
-                        <p className="text-slate-500 text-sm">Has completado los 8 protocolos oficiales de operación. Descarga tu Certificado Maestro.</p>
+                        <p className="text-slate-500 text-sm">Has completado los {totalSeries} protocolos oficiales de operaci&oacute;n. Descarga tu Certificado Maestro.</p>
                     </div>
                     <button
                         onClick={() => generateZendityMasterCertificate(user?.name || 'Empleado', new Date().toLocaleDateString('es-PR'))}
@@ -130,26 +148,29 @@ export default function ZendityAcademyPage() {
             {!seriesComplete && seriesCourses.length > 0 && (
                 <div className="bg-slate-900 rounded-2xl p-6 border border-slate-700/50 flex items-center gap-6">
                     <div className="flex-1">
-                        <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-2">Serie Protocolos Zendity</p>
+                        <p className="text-slate-500 text-xs font-black uppercase tracking-widest mb-2">Programa de Certificaci&oacute;n Zendity</p>
                         <div className="w-full bg-slate-700 rounded-full h-2">
-                            <div 
+                            <div
                                 className="bg-teal-500 h-2 rounded-full transition-all duration-700"
-                                style={{width: `${(completedSeriesCourses.length / 8) * 100}%`}}
+                                style={{width: `${(completedSeriesCourses.length / totalSeries) * 100}%`}}
                             />
                         </div>
                     </div>
-                    <span className="text-white font-black text-2xl shrink-0">{completedSeriesCourses.length}<span className="text-slate-500 text-base">/8</span></span>
+                    <span className="text-white font-black text-2xl shrink-0">{completedSeriesCourses.length}<span className="text-slate-500 text-base">/{totalSeries}</span></span>
                 </div>
             )}
 
-            {/* Cursos por Puesto / Categoría */}
+            {/* Cursos por Categor&iacute;a */}
             {Object.keys(groupedCourses).length > 0 ? (
                 Object.keys(groupedCourses).map(category => (
                     <div key={category} className="space-y-6">
                         <div className="flex items-center gap-3">
-                            <h3 className="text-2xl font-black text-slate-800 capitalize">
-                                Certificaciones: {category.toLowerCase()}
+                            <h3 className="text-2xl font-black text-slate-800">
+                                {category}
                             </h3>
+                            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                                {groupedCourses[category].length} {groupedCourses[category].length === 1 ? 'curso' : 'cursos'}
+                            </span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                             {groupedCourses[category].map((course: any) => (
@@ -166,11 +187,10 @@ export default function ZendityAcademyPage() {
                 ))
             ) : (
                 <div className="p-16 text-center text-slate-500 font-medium bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center">
-                    <h3 className="text-xl font-bold text-slate-700">El Directorio está al día</h3>
+                    <h3 className="text-xl font-bold text-slate-700">El Directorio est&aacute; al d&iacute;a</h3>
                     <p className="mt-2 text-slate-500">No hay certificaciones nuevas requeridas para tu rol en este momento.</p>
                 </div>
             )}
         </div>
     );
 }
-

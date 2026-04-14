@@ -11,6 +11,7 @@ export interface AcademySeedCourse {
     bonusCompliance: number;
     emoji: string;
     category?: string;
+    order?: number;
 }
 
 export const ACADEMY_SEED_COURSES: AcademySeedCourse[] = [
@@ -25,6 +26,8 @@ export const ACADEMY_SEED_COURSES: AcademySeedCourse[] = [
     durationMins: 25,
     bonusCompliance: 75,
     emoji: '🔐',
+    category: 'Roles y Acceso',
+    order: 1,
     content: `---META---
 TITULO: Acceso y Roles en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende la importancia de la seguridad de datos, los roles del sistema, y puede identificar situaciones donde debe proteger las credenciales y escalar un problema de acceso.
@@ -355,6 +358,8 @@ EXPLICACION: Zendity es una herramienta que complementa tu experticia profesiona
     durationMins: 30,
     bonusCompliance: 100,
     emoji: '📋',
+    category: 'Protocolos Clinicos',
+    order: 9,
     content: `---META---
 TITULO: Proceso de Admision en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende el flujo completo de admision desde el CRM hasta la creacion automatizada del expediente. Debe demostrar conocimiento de cada etapa del pipeline y que datos son criticos.
@@ -690,6 +695,8 @@ EXPLICACION: Las familias acceden a traves de un portal separado, completamente 
     durationMins: 35,
     bonusCompliance: 125,
     emoji: '💊',
+    category: 'Protocolos Clinicos',
+    order: 10,
     content: `---META---
 TITULO: eMAR - Administracion Electronica de Medicamentos
 PROMPT_ZENDI: Evalua si el empleado comprende el flujo completo de administracion de medicamentos en el eMAR, los protocolos de seguridad (verificacion, documentacion, excepciones) y puede describir como manejar situaciones comunes como rechazos o dosis omitidas.
@@ -1048,7 +1055,8 @@ EXPLICACION: Cada registro del eMAR es evidencia legal porque documenta con prec
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '🔒',
-    category: 'Protocolos Operativos',
+    category: 'Tecnologia Zendity',
+    order: 13,
     content: `---META---
 TITULO: Proceso de Cierre de Turno
 PROMPT_ZENDI: Evalua si el empleado comprende el proceso completo de cierre de turno, incluyendo pre-scan, resolucion de blockers y warnings, y la importancia de no dejar sesiones zombi.
@@ -1287,7 +1295,8 @@ EXPLICACION: La firma electronica de Zendity tiene validez legal segun las regul
     durationMins: 30,
     bonusCompliance: 10,
     emoji: '🤝',
-    category: 'Protocolos Operativos',
+    category: 'Protocolos Clinicos',
+    order: 12,
     content: `---META---
 TITULO: Handover de Enfermeria y Relevo de Turno
 PROMPT_ZENDI: Evalua si el empleado comprende los tipos de handover, la documentacion requerida y como manejar situaciones donde el turno saliente dejo pendientes criticos.
@@ -1526,7 +1535,8 @@ EXPLICACION: Zendity tiene un boton dedicado de escalado que envia al supervisor
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '🤖',
-    category: 'Protocolos Operativos',
+    category: 'Tecnologia Zendity',
+    order: 14,
     content: `---META---
 TITULO: Uso de Zendi AI en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende las capacidades y limites de Zendi AI, cuando usarla como apoyo y cuando el criterio clinico humano es indispensable.
@@ -1766,7 +1776,8 @@ EXPLICACION: La evaluacion de cambios clinicos en un residente y la decision de 
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '⚠️',
-    category: 'Protocolos Operativos',
+    category: 'Protocolos Clinicos',
+    order: 11,
     content: `---META---
 TITULO: Protocolo de Respuesta a Caidas
 PROMPT_ZENDI: Evalua si el empleado conoce el protocolo de respuesta a caidas, incluyendo la regla de no mover, la evaluacion de severidad, la documentacion en Zendity y el escalado correcto.
@@ -2079,7 +2090,8 @@ EXPLICACION: Despues de una caida, se realiza un ajuste ambiental que incluye in
     durationMins: 30,
     bonusCompliance: 10,
     emoji: '💚',
-    category: 'Protocolos Operativos',
+    category: 'Operaciones de Piso',
+    order: 4,
     content: `---META---
 TITULO: El Cuidador en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende su flujo de trabajo diario como cuidador en Zendity, desde el inicio del turno hasta el cierre, incluyendo eMAR y manejo de MISSED.
@@ -2386,7 +2398,8 @@ EXPLICACION: Las sesiones zombi indican un cierre de turno incompleto, lo que af
     durationMins: 30,
     bonusCompliance: 10,
     emoji: '👁️',
-    category: 'Protocolos Operativos',
+    category: 'Operaciones de Piso',
+    order: 5,
     content: `---META---
 TITULO: El Supervisor en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende las responsabilidades del supervisor en Zendity, incluyendo monitoreo en tiempo real, deteccion de sesiones zombi, y gestion de MISSED.
@@ -2701,7 +2714,8 @@ EXPLICACION: El cierre administrativo firmado con PIN es evidencia oficial de qu
     durationMins: 30,
     bonusCompliance: 10,
     emoji: '🩺',
-    category: 'Protocolos Operativos',
+    category: 'Operaciones de Piso',
+    order: 6,
     content: `---META---
 TITULO: La Enfermera en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende la autoridad clinica de enfermeria en Zendity, incluyendo el manejo de HELD, escalas de evaluacion y protocolos de escalado.
@@ -3003,7 +3017,8 @@ EXPLICACION: Un handover incompleto compromete la seguridad del residente. Medic
     durationMins: 35,
     bonusCompliance: 10,
     emoji: '🏛️',
-    category: 'Protocolos Operativos',
+    category: 'Roles y Acceso',
+    order: 2,
     content: `---META---
 TITULO: El Director en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende las responsabilidades del Director en Zendity, incluyendo activacion clinica, monitoreo de compliance y uso del CRM para admisiones.
@@ -3297,7 +3312,8 @@ EXPLICACION: Las notificaciones push al Director incluyen alertas criticas como 
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '📊',
-    category: 'Protocolos Operativos',
+    category: 'Roles y Acceso',
+    order: 3,
     content: `---META---
 TITULO: El Administrador en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende las funciones y limites del rol Admin en Zendity, incluyendo que puede hacer de forma autonoma y que requiere autorizacion del Director.
@@ -3616,7 +3632,8 @@ EXPLICACION: La trazabilidad completa es clave. El Admin registra cada accion y 
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '🌙',
-    category: 'Protocolos Operativos',
+    category: 'Operaciones de Piso',
+    order: 7,
     content: `---META---
 TITULO: Turno Nocturno del Cuidador
 PROMPT_ZENDI: Evalua si el empleado comprende los protocolos especificos del turno nocturno, incluyendo la toma de decisiones autonoma, el escalado remoto y la documentacion de incidentes.
@@ -3845,7 +3862,8 @@ EXPLICACION: Si el cierre no se completa, los items pendientes se transfieren co
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '🔧',
-    category: 'Protocolos Operativos',
+    category: 'Operaciones de Piso',
+    order: 8,
     content: `---META---
 TITULO: Planta Fisica y Mantenimiento en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende el flujo de trabajo de mantenimiento en Zendity, incluyendo creacion de tickets, prioridades SLA y manejo de emergencias.
@@ -4074,7 +4092,8 @@ EXPLICACION: Las emergencias que afectan areas de residentes se reportan automat
     durationMins: 20,
     bonusCompliance: 10,
     emoji: '🧹',
-    category: 'Protocolos Operativos',
+    category: 'Tecnologia Zendity',
+    order: 15,
     content: `---META---
 TITULO: Limpieza y Sanitizacion en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende el flujo de trabajo de limpieza en Zendity, incluyendo registro de areas, evidencia fotografica obligatoria y metricas de cumplimiento.
@@ -4303,7 +4322,8 @@ EXPLICACION: Un score bajo puede ser sintoma de sobrecarga de trabajo, necesidad
     durationMins: 25,
     bonusCompliance: 10,
     emoji: '🫂',
-    category: 'Protocolos Operativos',
+    category: 'Tecnologia Zendity',
+    order: 16,
     content: `---META---
 TITULO: Trabajo Social en Zendity
 PROMPT_ZENDI: Evalua si el empleado comprende las herramientas de trabajo social en Zendity, incluyendo el dashboard global, seguimiento de beneficios y coordinacion de servicios.
@@ -4545,6 +4565,7 @@ async function main() {
                 bonusCompliance: course.bonusCompliance,
                 emoji: course.emoji,
                 category: course.category || 'General',
+                order: course.order || 0,
                 isGlobal: true,
             },
             create: {
@@ -4557,6 +4578,7 @@ async function main() {
                 bonusCompliance: course.bonusCompliance,
                 emoji: course.emoji,
                 category: course.category || 'General',
+                order: course.order || 0,
                 isGlobal: true,
             }
         })
