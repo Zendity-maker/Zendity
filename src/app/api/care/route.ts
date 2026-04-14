@@ -68,6 +68,8 @@ export async function GET(req: Request) {
                 startTime: { gte: todayStart, lte: todayEnd },
                 type: { not: 'INFRASTRUCTURE' },
                 assignedToId: null,
+                targetPopulation: { not: 'STAFF' },
+                title: { not: { startsWith: 'Ronda de Supervisor' } },
                 OR: [
                     { targetPopulation: 'ALL' },
                     { targetGroups: { has: color } },

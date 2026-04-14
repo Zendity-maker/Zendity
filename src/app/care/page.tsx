@@ -81,6 +81,11 @@ export default function ZendityCareTabletPage() {
 
     const [zendiToast, setZendiToast] = useState("");
 
+    // Mis Reportes de Hoy
+    const [myReports, setMyReports] = useState<any[]>([]);
+    const [showMyReports, setShowMyReports] = useState(false);
+    const [loadingMyReports, setLoadingMyReports] = useState(false);
+
     // Sidebar & Grid View States
     const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
     const [mobileDrawer, setMobileDrawer] = useState(false);
@@ -395,6 +400,22 @@ export default function ZendityCareTabletPage() {
         setIsSpeaking(false);
         setBriefingMode(false);
         fetchPatients(selectedColor!);
+        fetchMyReports();
+    };
+
+    const fetchMyReports = async () => {
+        if (!user?.id) return;
+        setLoadingMyReports(true);
+        try {
+            const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch(`/api/care/my-reports?authorId=${user.id}&hqId=${hqId}`);
+            const data = await res.json();
+            if (data.success) setMyReports(data.reports);
+        } catch (e) {
+            console.error("Error fetching my reports:", e);
+        } finally {
+            setLoadingMyReports(false);
+        }
     };
     // ==========================================
 
@@ -1015,6 +1036,7 @@ export default function ZendityCareTabletPage() {
                 setModalType(null);
                 setHubDescription("");
                 setHubPhotoBase64(null);
+                fetchMyReports(); // Refrescar historial de reportes del cuidador
             } else {
                 alert("Error al enviar reporte: " + data.error);
             }
@@ -1414,6 +1436,58 @@ export default function ZendityCareTabletPage() {
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Mis Reportes de Hoy (Action Hub) */}
+                {myReports.length > 0 && (
+                    <div className="mb-8">
+                        <button
+                            onClick={() => setShowMyReports(!showMyReports)}
+                            className="w-full flex items-center justify-between bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 p-4 rounded-2xl transition-all shadow-sm"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white text-lg">
+                                    <ClipboardList className="w-5 h-5" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-indigo-900 text-sm">Mis Reportes de Hoy</p>
+                                    <p className="text-xs text-indigo-600 font-medium">{myReports.length} reporte{myReports.length !== 1 ? 's' : ''} enviado{myReports.length !== 1 ? 's' : ''} al supervisor</p>
+                                </div>
+                            </div>
+                            <svg className={`w-5 h-5 text-indigo-400 transition-transform ${showMyReports ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        {showMyReports && (
+                            <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-2">
+                                {myReports.map((r: any) => {
+                                    const typeConfig: Record<string, { bg: string; icon: string }> = {
+                                        CLINICAL: { bg: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🩺' },
+                                        UPP_ALERT: { bg: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200', icon: '🩹' },
+                                        MAINTENANCE: { bg: 'bg-slate-100 text-slate-700 border-slate-200', icon: '🔧' },
+                                        COMPLAINT: { bg: 'bg-orange-100 text-orange-700 border-orange-200', icon: '📋' },
+                                    };
+                                    const cfg = typeConfig[r.type] || typeConfig.CLINICAL;
+                                    const timeStr = new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    return (
+                                        <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
+                                            <span className="text-xl">{cfg.icon}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cfg.bg}`}>
+                                                        {r.label}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-400">{timeStr}</span>
+                                                    {r.resolved && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Resuelto</span>}
+                                                </div>
+                                                <p className="text-xs text-slate-600 font-medium mt-1 truncate">{r.patientName} — {r.description.substring(0, 80)}{r.description.length > 80 ? '...' : ''}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -22,10 +22,12 @@ export async function POST(req: Request) {
                 headquartersId: hqId,
                 title: `Ronda de Supervisor: ${area}`,
                 description: `Auditoría: ${isClean ? 'Limpio ' : 'Sucio '} | Segurida: ${isSafe ? 'Seguro ' : 'Caídas '} \nNotas: ${notes || 'N/A'}`,
-                type: 'OTHER', // For now, mapping INFRASTRUCTURE/ROUNDS to OTHER if it doesn't exist in the enum, or we can use OTHER. Let's stick to OTHER.
+                type: 'INFRASTRUCTURE',
+                targetPopulation: 'STAFF',
+                assignedToId: supervisorId,
                 startTime: new Date(),
                 endTime: new Date(),
-                status: 'RESOLVED', // Rounds are instantly resolved since they are audits.
+                status: 'RESOLVED',
             }
         });
 

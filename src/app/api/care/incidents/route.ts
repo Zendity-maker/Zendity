@@ -41,7 +41,7 @@ export async function POST(req: Request) {
                     headquartersId,
                     title: `Reporte de Mantenimiento / Operación [Severidad: ${severity}]`,
                     description: `[Firmado por Cuidador ID: ${biometricSignature}] - ${description}`,
-                    type: "OTHER",
+                    type: "INFRASTRUCTURE",
                     patientId: patientId || null,
                     startTime: new Date(),
                     endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours resolve time ETA

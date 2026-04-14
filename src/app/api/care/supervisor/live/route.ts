@@ -48,7 +48,8 @@ export async function GET(req: Request) {
             briefing,
             endedSchedules,
             todayHandovers,
-            activeFastActions
+            activeFastActions,
+            clinicalAlerts
         ] = await Promise.all([
             // 1. Cuidadores Activos
             prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: todayStart } }, include: { caregiver: true } }),
@@ -71,7 +72,9 @@ export async function GET(req: Request) {
             // 10. Handovers enviados hoy
             prisma.shiftHandover.findMany({ where: { headquartersId: hqId, createdAt: { gte: twelveHrsAgo } }, select: { outgoingNurseId: true, shiftType: true } }),
             // 11. Fast Actions Activas
-            prisma.fastActionAssignment.findMany({ where: { headquartersId: hqId, status: 'PENDING', expiresAt: { gt: new Date() } }, include: { caregiver: true }, orderBy: { createdAt: 'desc' } })
+            prisma.fastActionAssignment.findMany({ where: { headquartersId: hqId, status: 'PENDING', expiresAt: { gt: new Date() } }, include: { caregiver: true }, orderBy: { createdAt: 'desc' } }),
+            // 12. Alertas Clínicas del Action Hub (DailyLog con isClinicalAlert = true, últimas 24h)
+            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 })
         ]);
 
         // ============================================================================
@@ -113,6 +116,23 @@ export async function GET(req: Request) {
                 patientName: inc.patient?.name || 'N/A',
                 urgency: urg,
                 createdAt: inc.reportedAt,
+            });
+        });
+
+        // Integrar Alertas Clínicas del Action Hub (DailyLog isClinicalAlert)
+        clinicalAlerts.forEach((log: any) => {
+            const isUPP = (log.notes || '').includes('[ALERTA UPP');
+            triageFeed.push({
+                id: `clinical_${log.id}`,
+                sourceId: log.id,
+                sourceType: 'CLINICAL_ALERT',
+                category: isUPP ? 'UPP_PIEL' : 'CLINICO_CRITICO',
+                title: isUPP ? 'Alerta UPP/Piel (Cuidador)' : 'Alerta Clínica (Cuidador)',
+                description: log.notes || 'Alerta clínica sin descripción',
+                patientId: log.patient?.id || null,
+                patientName: log.patient?.name || 'N/A',
+                urgency: isUPP ? 'ATENCION' : 'ATENCION',
+                createdAt: log.createdAt,
             });
         });
 

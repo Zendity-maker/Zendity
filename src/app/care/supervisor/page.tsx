@@ -751,6 +751,11 @@ export default function SupervisorDashboardPage() {
                                                                 <Sparkles className="w-3 h-3" /> Zendi Agrupación
                                                             </span>
                                                         )}
+                                                        {ticket.sourceType === 'CLINICAL_ALERT' && (
+                                                            <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-100 font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+                                                                <AlertTriangle className="w-3 h-3" /> {ticket.category === 'UPP_PIEL' ? 'Alerta UPP' : 'Alerta Clínica'}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <h3 className="text-xl font-bold text-slate-800 leading-tight mb-2">
                                                         {ticket.title}
