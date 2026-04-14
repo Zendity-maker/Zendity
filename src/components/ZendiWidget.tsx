@@ -184,25 +184,19 @@ export default function ZendiWidget() {
                 </div>
             )}
 
-            {/* Botón Flotante Global (Trigger) */}
+            {/* Botón Flotante Global (Pill Trigger) */}
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="group relative flex flex-col items-center gap-1.5"
+                    className="group flex items-center gap-2.5 bg-teal-600 hover:bg-teal-500 rounded-full px-4 py-3 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-300"
                 >
-                    <div className="relative w-16 h-16">
-                        <span className="absolute inset-0 rounded-full bg-teal-500 opacity-50 animate-ping" style={{ animationDuration: '3s' }}></span>
-                        <span className="absolute inset-0 rounded-full border-2 border-teal-400 opacity-40 scale-110 animate-pulse" style={{ animationDuration: '3s' }}></span>
-                        <span className={`relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all group-hover:scale-105 ${isSpeaking ? 'bg-teal-400' : 'bg-teal-500'}`}>
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M7 8C7 6.9 7.9 6 9 6H19C20.1 6 21 6.9 21 8V14C21 15.1 20.1 16 19 16H16L12 22V16H9C7.9 16 7 15.1 7 14V8Z" fill="white" fillOpacity="0.95"/>
-                                <circle cx="11" cy="11" r="1.2" fill="#1D9E75"/>
-                                <circle cx="14" cy="11" r="1.2" fill="#1D9E75"/>
-                                <circle cx="17" cy="11" r="1.2" fill="#1D9E75"/>
-                            </svg>
-                        </span>
-                    </div>
-                    <span className="text-[11px] font-black uppercase tracking-widest text-teal-600 drop-shadow-sm">
+                    {isSpeaking && (
+                        <span className="w-2 h-2 rounded-full bg-teal-300 animate-pulse shrink-0" />
+                    )}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="none" className="shrink-0">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span className="text-[13px] font-medium text-white tracking-[0.2px]">
                         Zendi
                     </span>
                 </button>
