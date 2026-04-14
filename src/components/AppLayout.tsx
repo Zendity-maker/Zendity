@@ -165,6 +165,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return `hace ${days}d`;
     };
 
+    const getNotifUrl = (notif: any): string | null => {
+        switch (notif.type) {
+            case 'SHIFT_ALERT':      return '/care/supervisor';
+            case 'EMAR_ALERT':       return '/care/supervisor';
+            case 'COURSE_COMPLETED': return '/academy';
+            case 'FAMILY_VISIT':     return '/reception';
+            case 'TRIAGE':           return '/corporate/triage';
+            case 'HANDOVER':         return '/care/supervisor';
+            default:                 return null;
+        }
+    };
+
+    const handleNotifClick = async (notif: any) => {
+        // 1. Mark as read
+        if (!notif.isRead) {
+            try {
+                await fetch('/api/notifications', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user?.id, ids: [notif.id] }),
+                });
+                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            } catch (e) {
+                console.error('Error marking notification read', e);
+            }
+        }
+        // 2. Close panel
+        setNotifOpen(false);
+        // 3. Navigate if URL exists
+        const url = getNotifUrl(notif);
+        if (url) router.push(url);
+    };
+
     const notifIcon = (type: string) => {
         switch (type) {
             case 'warning': case 'SHIFT_ALERT': case 'EMAR_ALERT':
@@ -511,19 +545,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             <p className="text-sm text-slate-400 font-medium">Sin notificaciones</p>
                                         </div>
                                     ) : (
-                                        notifications.map(n => (
-                                            <div
-                                                key={n.id}
-                                                className={`px-4 py-3 border-b border-slate-50 flex items-start gap-3 transition-colors ${!n.isRead ? 'bg-teal-50/60' : 'hover:bg-slate-50'}`}
-                                            >
-                                                <div className="mt-0.5">{notifIcon(n.type)}</div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm truncate ${!n.isRead ? 'font-semibold text-slate-800' : 'font-medium text-slate-600'}`}>{n.title}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                                        notifications.map(n => {
+                                            const url = getNotifUrl(n);
+                                            return (
+                                                <div
+                                                    key={n.id}
+                                                    onClick={() => handleNotifClick(n)}
+                                                    className={`px-4 py-3 border-b border-slate-50 flex items-start gap-3 transition-colors cursor-pointer ${!n.isRead ? 'bg-teal-50/60 hover:bg-teal-100/60' : 'hover:bg-slate-50'}`}
+                                                >
+                                                    <div className="mt-0.5">{notifIcon(n.type)}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-sm truncate ${!n.isRead ? 'font-semibold text-slate-800' : 'font-medium text-slate-600'}`}>{n.title}</p>
+                                                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{n.message}</p>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+                                                        <span className="text-[10px] text-slate-400 font-medium">{timeAgo(n.createdAt)}</span>
+                                                        {url && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
+                                                    </div>
                                                 </div>
-                                                <span className="text-[10px] text-slate-400 font-medium shrink-0 mt-0.5">{timeAgo(n.createdAt)}</span>
-                                            </div>
-                                        ))
+                                            );
+                                        })
+
                                     )}
                                 </div>
                             </div>
