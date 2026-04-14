@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -84,6 +84,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
     const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>('collapsed');
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+    const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
+
+    // Click-outside handler for workspace switcher
+    useEffect(() => {
+        if (!workspaceMenuOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (workspaceSwitcherRef.current && !workspaceSwitcherRef.current.contains(e.target as Node)) {
+                setWorkspaceMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [workspaceMenuOpen]);
 
     useEffect(() => {
         const w = window.innerWidth;
@@ -155,33 +168,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         )}
                     </div>
 
-                    {/* Workspace Selector (Solo para roles compatibles) */}
-                    {(user?.role === "ADMIN" || user?.role === "DIRECTOR" || user?.role === "SUPERVISOR") && !isSidebarCollapsed && (
-                        <button
-                            onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
-                            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
-                        >
-                            <ChevronDown className="w-4 h-4 opacity-70" />
-                        </button>
-                    )}
-
-                    {workspaceMenuOpen && (
-                        <div className="absolute top-16 left-4 right-4 bg-white rounded-xl shadow-xl border border-slate-200 p-2 text-slate-800 animate-in fade-in slide-in-from-top-2 z-50">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2 mt-1">Cambiar Entorno</p>
-                            <button
-                                onClick={() => { router.push("/"); setWorkspaceMenuOpen(false); }}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${!isCorporateWorkspace ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                            >
-                                <Stethoscope className="w-4 h-4" /> Entorno Clínico
-                            </button>
-                            <button
-                                onClick={() => { router.push("/corporate"); setWorkspaceMenuOpen(false); }}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${isCorporateWorkspace ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
-                            >
-                                <Building2 className="w-4 h-4" /> Global Corporativo
-                            </button>
-                        </div>
-                    )}
                 </div>
 
                 {/* Navigation Links */}
@@ -361,6 +347,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <button onClick={toggleSidebar} className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors shrink-0 lg:hidden">
                         <Menu className="w-5 h-5 text-slate-600" />
                     </button>
+
+                    {/* Workspace Switcher — topbar, siempre accesible */}
+                    {(user?.role === "ADMIN" || user?.role === "DIRECTOR" || user?.role === "SUPERVISOR") && (
+                        <div ref={workspaceSwitcherRef} className="relative shrink-0">
+                            <button
+                                onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold border transition-all shadow-sm ${isCorporateWorkspace ? 'bg-slate-900 text-white border-slate-700 hover:bg-slate-800' : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'}`}
+                            >
+                                {isCorporateWorkspace ? <Building2 className="w-3.5 h-3.5" /> : <Stethoscope className="w-3.5 h-3.5" />}
+                                <span className="hidden sm:inline">{isCorporateWorkspace ? 'Corporate HQ' : 'Clinical Care'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${workspaceMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {workspaceMenuOpen && (
+                                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2 mt-1">Cambiar Entorno</p>
+                                    <button
+                                        onClick={() => { router.push("/"); setWorkspaceMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${!isCorporateWorkspace ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    >
+                                        <Stethoscope className="w-4 h-4" /> {"Entorno Clínico"}
+                                    </button>
+                                    <button
+                                        onClick={() => { router.push("/corporate"); setWorkspaceMenuOpen(false); }}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${isCorporateWorkspace ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    >
+                                        <Building2 className="w-4 h-4" /> Global Corporativo
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className="flex items-center flex-1 max-w-xl">
                         {isCorporateWorkspace && user?.role === "ADMIN" ? (
                             <div className="relative w-full group">
