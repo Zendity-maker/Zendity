@@ -21,13 +21,26 @@ function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
     return 'NIGHT';
 }
 
+function parseTimeTo24h(timeStr: string): number {
+    if (!timeStr) return 0;
+    const upper = timeStr.toUpperCase().trim();
+    const isPM = upper.includes('PM');
+    const isAM = upper.includes('AM');
+    const timePart = upper.replace('AM', '').replace('PM', '').trim();
+    const hours = parseInt(timePart.split(':')[0]);
+
+    if (isPM && hours !== 12) return hours + 12;
+    if (isAM && hours === 12) return 0;
+    return hours;
+}
+
 function getMedsForCurrentShift(medications: any[]) {
     const shift = getCurrentShift();
     return medications.filter(m => {
         if (!m.scheduleTimes) return false;
         const times = m.scheduleTimes.split(',').map((t: string) => t.trim());
         return times.some((time: string) => {
-            const hour = parseInt(time.split(':')[0]);
+            const hour = parseTimeTo24h(time);
             if (shift === 'NIGHT') return hour >= 22 || hour <= 5;
             if (shift === 'MORNING') return hour >= 6 && hour <= 13;
             return hour >= 14 && hour <= 21; // EVENING
