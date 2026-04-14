@@ -131,7 +131,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ZendiWidget />
 
             {/* Unified Sidebar — hidden on mobile, collapsible on tablet */}
-            <aside className={`${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
+            <aside className={`${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col h-screen shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-4 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
@@ -185,7 +185,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Navigation Links */}
-                <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
+                <nav className="flex-1 min-h-0 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
                     {isCorporateWorkspace ? (
                         corporateNavigationSections.map((section, idx) => (
                             <div key={idx} className="mb-6">
