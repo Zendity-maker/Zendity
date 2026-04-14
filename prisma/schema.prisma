@@ -1743,6 +1743,8 @@ enum TicketOriginType {
   EMAR_MISS
   DAILY_LOG
   INCIDENT
+  COMPLAINT
+  FALL
   CRON_SYSTEM
   MANUAL
 }

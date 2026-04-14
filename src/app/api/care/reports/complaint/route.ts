@@ -32,6 +32,19 @@ export async function POST(req: Request) {
             }
         });
 
+        // Auto-crear TriageTicket para queja
+        await prisma.triageTicket.create({
+            data: {
+                headquartersId: patient.headquartersId,
+                patientId: patient.id,
+                originType: 'COMPLAINT',
+                originReferenceId: complaint.id,
+                priority: 'MEDIUM',
+                status: 'OPEN',
+                description: complaint.description,
+            }
+        });
+
         return NextResponse.json({ success: true, complaint });
     } catch (error: any) {
         console.error("Care Complaint POST Error:", error);

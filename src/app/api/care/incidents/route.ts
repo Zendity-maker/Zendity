@@ -30,6 +30,22 @@ export async function POST(req: Request) {
                 }
             });
 
+            // Auto-crear TriageTicket para caída
+            const fallPatient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true } });
+            if (fallPatient) {
+                await prisma.triageTicket.create({
+                    data: {
+                        headquartersId: fallPatient.headquartersId,
+                        patientId,
+                        originType: 'FALL',
+                        originReferenceId: incident.id,
+                        priority: 'CRITICAL',
+                        status: 'OPEN',
+                        description: `Caída reportada: ${description || 'Sin descripción'}`,
+                    }
+                });
+            }
+
             return NextResponse.json({ success: true, incident, riskAssessment });
         }
 
@@ -46,6 +62,19 @@ export async function POST(req: Request) {
                     startTime: new Date(),
                     endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours resolve time ETA
                     photoUrl: photoUrl || null // FASE 37
+                }
+            });
+
+            // Auto-crear TriageTicket para mantenimiento
+            await prisma.triageTicket.create({
+                data: {
+                    headquartersId,
+                    patientId: patientId || null,
+                    originType: 'INCIDENT',
+                    originReferenceId: event.id,
+                    priority: 'MEDIUM',
+                    status: 'OPEN',
+                    description: `${event.title}: ${description}`,
                 }
             });
 

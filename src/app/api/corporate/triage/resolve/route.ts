@@ -1,68 +1,48 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-
-
+// PATCH — Actualizar estado, asignar, o resolver un TriageTicket
 export async function PATCH(req: Request) {
     try {
-        const { ticketId, moduleName, actionTaken, authorId, patientId, ticketTitle, familyMessage } = await req.json();
+        const body = await req.json();
+        const { ticketId, status, assignedToId, resolutionNote, resolvedById } = body;
 
-        if (!ticketId || !moduleName) {
-            return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
+        if (!ticketId) {
+            return NextResponse.json({ success: false, error: 'ticketId requerido' }, { status: 400 });
         }
 
-        let updatedTicket: any = null;
+        const updateData: any = {};
 
-        switch (moduleName) {
-            case 'COMPLAINT':
-                updatedTicket = await prisma.complaint.update({
-                    where: { id: ticketId },
-                    data: { status: 'RESOLVED' }
-                });
-                break;
-            case 'INCIDENT':
-                updatedTicket = await prisma.headquartersEvent.update({
-                    where: { id: ticketId },
-                    data: { status: 'RESOLVED' }
-                });
-                break;
-            case 'CLINICAL_ALERT':
-                updatedTicket = await prisma.dailyLog.update({
-                    where: { id: ticketId },
-                    data: { isResolved: true } // FASE 33 FLAG
-                });
-                break;
-            default:
-                return NextResponse.json({ success: false, error: 'Invalid moduleName' }, { status: 400 });
+        if (status) {
+            updateData.status = status;
+            if (status === 'RESOLVED') {
+                updateData.resolvedAt = new Date();
+                if (resolvedById) updateData.resolvedById = resolvedById;
+                if (resolutionNote) updateData.resolutionNote = resolutionNote;
+            }
         }
 
-        // FASE 66: Crear ClinicalNote (Reporte Triage) en el perfil
-        if (actionTaken && patientId && authorId) {
-            await prisma.clinicalNote.create({
-                data: {
-                    patientId,
-                    authorId,
-                    title: `Resolución de Ticket: ${ticketTitle || moduleName}`,
-                    content: actionTaken,
-                    type: "TRIAGE_RESOLUTION"
+        if (assignedToId !== undefined) {
+            updateData.assignedToId = assignedToId || null;
+            // Auto-mover a IN_PROGRESS al asignar (si estaba OPEN)
+            if (assignedToId && !status) {
+                const current = await prisma.triageTicket.findUnique({ where: { id: ticketId }, select: { status: true } });
+                if (current?.status === 'OPEN') {
+                    updateData.status = 'IN_PROGRESS';
                 }
-            });
+            }
         }
 
-        // FASE 66: Crear Mensaje Familiar Opcional Propuesto por Zendi
-        if (familyMessage && patientId && authorId) {
-            await prisma.familyMessage.create({
-                data: {
-                    patientId,
-                    senderType: 'STAFF',
-                    senderId: authorId,
-                    content: familyMessage,
-                    isRead: false
-                }
-            });
-        }
+        const ticket = await prisma.triageTicket.update({
+            where: { id: ticketId },
+            data: updateData,
+            include: {
+                patient: { select: { id: true, name: true } },
+                assignedTo: { select: { id: true, name: true } },
+            }
+        });
 
-        return NextResponse.json({ success: true, updatedTicket });
+        return NextResponse.json({ success: true, ticket });
 
     } catch (e: any) {
         console.error("Triage Resolve Error:", e);

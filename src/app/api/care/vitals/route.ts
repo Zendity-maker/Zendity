@@ -129,16 +129,35 @@ export async function POST(req: Request) {
                 });
             }
         } else if (type === 'LOG') {
-            await prisma.dailyLog.create({
+            const isClinicalAlert = data.isAlert === true;
+            const dailyLog = await prisma.dailyLog.create({
                 data: {
                     patientId,
                     authorId,
                     foodIntake: parseInt(data.foodIntake || "100"),
                     bathCompleted: data.bathCompleted === true,
                     notes: data.notes,
-                    isClinicalAlert: data.isAlert === true,
+                    isClinicalAlert,
                 }
             });
+
+            // Auto-crear TriageTicket para alertas clínicas/UPP
+            if (isClinicalAlert) {
+                const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true } });
+                if (patient) {
+                    await prisma.triageTicket.create({
+                        data: {
+                            headquartersId: patient.headquartersId,
+                            patientId,
+                            originType: 'DAILY_LOG',
+                            originReferenceId: dailyLog.id,
+                            priority: 'HIGH',
+                            status: 'OPEN',
+                            description: data.notes || 'Alerta clínica sin descripción',
+                        }
+                    });
+                }
+            }
         }
 
         return NextResponse.json({ success: true, message: `Registro ${type} guardado con éxito en PAI` });
