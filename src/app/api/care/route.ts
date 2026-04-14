@@ -65,7 +65,13 @@ export async function GET(req: Request) {
         const events = await prisma.headquartersEvent.findMany({
             where: {
                 headquartersId: hqId,
-                startTime: { gte: todayStart, lte: todayEnd }
+                startTime: { gte: todayStart, lte: todayEnd },
+                type: { not: 'INFRASTRUCTURE' },
+                assignedToId: null,
+                OR: [
+                    { targetPopulation: 'ALL' },
+                    { targetGroups: { has: color } },
+                ],
             },
             include: {
                 patient: { select: { id: true, name: true } }
