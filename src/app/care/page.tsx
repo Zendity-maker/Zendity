@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -80,6 +80,11 @@ export default function ZendityCareTabletPage() {
     const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
     const [zendiToast, setZendiToast] = useState("");
+
+    // Sidebar & Grid View States
+    const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
+    const [mobileDrawer, setMobileDrawer] = useState(false);
+    const [gridView, setGridView] = useState<'1col' | '2col'>(() => typeof window !== 'undefined' && window.innerWidth >= 768 ? '2col' : '1col');
 
     // Auto-toggle Night Rounds Mode entre 10pm y 6am
     useEffect(() => {
@@ -1221,98 +1226,151 @@ export default function ZendityCareTabletPage() {
         </div>
     );
 
+    const shiftLabel = getCurrentShift() === 'MORNING' ? 'Mañana' : getCurrentShift() === 'EVENING' ? 'Tarde' : 'Noche';
+    const colorChipMap: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-amber-400', GREEN: 'bg-emerald-500', BLUE: 'bg-blue-500' };
+
+    const sidebarLinks = [
+        ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
+        { href: '#', icon: '⚡', label: 'Acciones', onClick: () => { setHubAction(null); setModalType('HUB'); } },
+        ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
+        { href: '/academy', icon: '🎓', label: 'Academy' },
+        { href: '/care/profile', icon: '👤', label: 'Mi Perfil' },
+        { href: '/cuidadores', icon: '📋', label: 'Life Plans' },
+    ];
+
+    const notifCount = fastActions.length;
+
     return (
-        <div className="min-h-screen bg-slate-100 pb-20">
+        <div className="min-h-screen bg-slate-100 pb-20 flex">
             <Toaster position="top-center" richColors />
-            <div className={`w-full ${hexColor} py-6 px-8 shadow-md flex justify-between items-center text-white sticky top-0 z-40`}>
-                <div className="flex items-center gap-4">
-                    {user && (
-                        <div className="flex items-center gap-3">
-                            <ZendiCameraEnhancer 
-                                targetId={user.id} 
-                                isStaff={true} 
-                                currentPhotoUrl={user?.photoUrl} 
-                                placeholderInitials={user.name?.charAt(0) || "?"}
-                            />
-                            {user.complianceScore !== undefined && (
-                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-black text-xs uppercase tracking-widest border border-white/30 ${getZendityRank(user.complianceScore).badge}`}>
-                                    <span className="text-lg">{getZendityRank(user.complianceScore).icon}</span>
-                                    <div className="flex flex-col">
-                                        <span className="leading-none">{getZendityRank(user.complianceScore).label}</span>
-                                        <span className="text-[9px] opacity-80 mt-0.5">{user.complianceScore} Pts</span>
-                                    </div>
-                                </div>
-                            )}
+
+            {/* ===== SIDEBAR — Desktop/Tablet (collapsible) ===== */}
+            <aside className={`hidden md:flex flex-col bg-slate-800 border-r border-slate-700 sticky top-0 h-screen z-30 transition-all duration-200 ${sidebarOpen ? 'w-48' : 'w-14'}`}>
+                <div className={`flex items-center gap-2 px-3 py-4 border-b border-slate-700 ${sidebarOpen ? 'justify-start' : 'justify-center'}`}>
+                    <span className="text-teal-400 text-lg">⚕</span>
+                    {sidebarOpen && <span className="text-teal-400 font-black text-sm tracking-widest uppercase whitespace-nowrap">Zendity</span>}
+                </div>
+                <nav className="flex-1 py-3 space-y-1 overflow-y-auto">
+                    {sidebarLinks.map((link, i) => (
+                        <a
+                            key={i}
+                            href={link.onClick ? undefined : link.href}
+                            onClick={(e) => { if (link.onClick) { e.preventDefault(); link.onClick(); setMobileDrawer(false); } }}
+                            className={`flex items-center gap-3 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors rounded-lg mx-2 ${sidebarOpen ? 'px-3 py-2.5' : 'px-0 py-2.5 justify-center'}`}
+                            title={!sidebarOpen ? link.label : undefined}
+                        >
+                            <span className="text-lg leading-none shrink-0">{link.icon}</span>
+                            {sidebarOpen && <span className="text-sm font-bold whitespace-nowrap">{link.label}</span>}
+                        </a>
+                    ))}
+                </nav>
+                <div className={`border-t border-slate-700 px-3 py-3 ${sidebarOpen ? '' : 'flex justify-center'}`}>
+                    {user?.photoUrl ? (
+                        <img src={user.photoUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover border-2 border-teal-500" />
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-xs">
+                            {user?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
                         </div>
                     )}
-                    <h1 className="text-3xl font-black flex items-center gap-3">
-                         Zendity Care
-                        <span className="text-base font-bold uppercase tracking-widest bg-white/20 px-4 py-1.5 rounded-full">Grupo {selectedColor}</span>
-                    </h1>
                 </div>
-                <div className="flex items-center gap-4">
-                    {(user?.role === "SUPERVISOR" || user?.role === "DIRECTOR" || user?.role === "ADMIN") && (
-                        <button onClick={() => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); }} className="px-5 py-3 font-black bg-white text-indigo-700 rounded-xl shadow-lg border border-indigo-200 hover:scale-105 transition-all flex items-center gap-2">
-                            <span></span> Asignar Tarea
-                        </button>
+            </aside>
+
+            {/* ===== MOBILE DRAWER OVERLAY ===== */}
+            {mobileDrawer && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileDrawer(false)} />
+                    <aside className="absolute left-0 top-0 bottom-0 w-64 bg-slate-800 border-r border-slate-700 flex flex-col animate-in slide-in-from-left duration-200">
+                        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-700">
+                            <span className="text-teal-400 font-black text-sm tracking-widest uppercase flex items-center gap-2"><span className="text-lg">⚕</span> Zendity</span>
+                            <button onClick={() => setMobileDrawer(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+                        </div>
+                        <nav className="flex-1 py-3 space-y-1 overflow-y-auto">
+                            {sidebarLinks.map((link, i) => (
+                                <a
+                                    key={i}
+                                    href={link.onClick ? undefined : link.href}
+                                    onClick={(e) => { if (link.onClick) { e.preventDefault(); link.onClick(); } setMobileDrawer(false); }}
+                                    className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors rounded-lg mx-2"
+                                >
+                                    <span className="text-lg leading-none">{link.icon}</span>
+                                    <span className="text-sm font-bold">{link.label}</span>
+                                </a>
+                            ))}
+                        </nav>
+                    </aside>
+                </div>
+            )}
+
+            {/* ===== MAIN CONTENT AREA ===== */}
+            <div className="flex-1 flex flex-col min-w-0">
+
+            {/* ===== TOPBAR REORGANIZADO ===== */}
+            <div className="w-full bg-slate-800 py-3 px-4 md:px-6 shadow-md flex items-center gap-3 text-white sticky top-0 z-40">
+                {/* Hamburger */}
+                <button
+                    onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) { setMobileDrawer(!mobileDrawer); } else { setSidebarOpen(!sidebarOpen); } }}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors shrink-0"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
+
+                {/* Brand */}
+                <h1 className="text-lg md:text-xl font-black whitespace-nowrap hidden sm:block">Zéndity Care</h1>
+
+                {/* Divider */}
+                <div className="w-px h-7 bg-slate-600 hidden sm:block shrink-0" />
+
+                {/* Chips: Turno + Grupo */}
+                <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
+                        {getCurrentShift() === 'MORNING' ? '☀️' : getCurrentShift() === 'EVENING' ? '🌅' : '🌙'} {shiftLabel}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
+                        <span className={`w-2.5 h-2.5 rounded-full ${colorChipMap[selectedColor!] || 'bg-slate-500'}`} /> {selectedColor}
+                    </span>
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Action buttons */}
+                <button
+                    onClick={() => setIsNightMode(!isNightMode)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${isNightMode ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                >
+                    {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    <span className="hidden lg:inline">{isNightMode ? 'Normal' : 'Rondas'}</span>
+                </button>
+
+                {/* Notifications bell */}
+                <button
+                    onClick={() => { setHubAction(null); setModalType('HUB'); }}
+                    className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-slate-600 transition-colors"
+                >
+                    <Bell className="w-4.5 h-4.5" />
+                    {notifCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-slate-800">{notifCount}</span>
                     )}
-                    <button onClick={() => { setHubAction(null); setModalType('HUB'); }} className="px-5 py-3 font-black bg-slate-900 text-white rounded-xl shadow-lg hover:scale-105 transition-all flex items-center gap-2">
-                        <span></span> Acciones Rápidas
-                    </button>
-                    <button onClick={() => setIsNightMode(!isNightMode)} className={`px-5 py-3 font-black rounded-xl shadow-lg transition-all flex items-center gap-2 ${isNightMode ? 'bg-indigo-200 text-indigo-900 border-2 border-indigo-400' : 'bg-indigo-900 text-indigo-300'}`}>
-                        <span>{isNightMode ? '☀️ Modo Normal' : '🌙 Modo Rondas'}</span>
-                    </button>
-                    <button onClick={() => router.push('/cuidadores')} className="px-6 py-3 font-bold bg-white/10 hover:bg-white/20 rounded-xl transition-colors hidden md:block">Life Plans (PAI)</button>
-                    <button onClick={handleLogoutAttempt} className="px-6 py-3 font-black bg-slate-900 border-2 border-slate-700 text-white rounded-xl shadow-lg hover:scale-105 transition-all">Entregar Turno</button>
-                </div>
+                </button>
+
+                {/* Entregar Turno */}
+                <button
+                    onClick={handleLogoutAttempt}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold transition-all whitespace-nowrap"
+                >
+                    <ClipboardList className="w-4 h-4" />
+                    <span className="hidden lg:inline">Entregar Turno</span>
+                </button>
+
+                {/* Avatar */}
+                {user?.photoUrl ? (
+                    <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500 shrink-0" />
+                ) : (
+                    <div className="w-9 h-9 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-xs shrink-0">
+                        {user?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
+                    </div>
+                )}
             </div>
-
-            {/* Nav secundario para CAREGIVER */}
-            {user?.role === 'CAREGIVER' && (
-                <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
-                    <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
-                    <div className="flex items-center gap-3">
-                        <a href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
-                            <span>🎓</span> Academy
-                        </a>
-                        <a href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
-                            <span>👤</span> Mi Perfil
-                        </a>
-                        {user?.photoUrl ? (
-                            <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500" />
-                        ) : (
-                            <div className="w-9 h-9 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-sm">
-                                {user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Nav secundario para NURSE */}
-            {user?.role === 'NURSE' && (
-                <div className="bg-slate-900 border-b border-slate-700 px-8 py-2.5 flex items-center justify-between sticky top-[104px] z-50">
-                    <span className="text-teal-400 font-black text-sm tracking-widest uppercase hidden md:block">Zendity</span>
-                    <div className="flex items-center gap-3">
-                        <a href="/care/vitals" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
-                            <span>💉</span> Vitales
-                        </a>
-                        <a href="/academy" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
-                            <span>🎓</span> Academy
-                        </a>
-                        <a href="/care/profile" className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">
-                            <span>👤</span> Mi Perfil
-                        </a>
-                        {user?.photoUrl ? (
-                            <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500" />
-                        ) : (
-                            <div className="w-9 h-9 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-sm">
-                                {user?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* SPRINT 1 UX: Contextual SLA Banner (Estable, Pendiente, Advertencia, Crítico) */}
             {fastActions.length > 0 && (
@@ -1402,7 +1460,22 @@ export default function ZendityCareTabletPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                            <>
+                            {/* Grid View Toggle Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    Residentes <span className="text-sm font-bold text-slate-400">({patients.length})</span>
+                                </h2>
+                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+                                    <button onClick={() => setGridView('1col')} className={`p-2 rounded-md transition-colors ${gridView === '1col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Una columna">
+                                        <LayoutList className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => setGridView('2col')} className={`p-2 rounded-md transition-colors ${gridView === '2col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Dos columnas">
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className={`grid gap-6 ${gridView === '2col' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-2xl'}`}>
                                 {patients.map(p => {
                                     const isAbsent = p.status === 'TEMPORARY_LEAVE';
                                     
@@ -1502,27 +1575,33 @@ export default function ZendityCareTabletPage() {
                                         )}
                                     </div>
 
-                                    <div className={`p-5 grid grid-cols-2 gap-4 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-teal-500 hover:text-teal-700 transition-all shadow-sm active:scale-95">
-                                            <span className="text-3xl drop-shadow-sm leading-none">❤️</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Vitales</span>
-                                        </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm active:scale-95">
-                                            <span className="text-3xl drop-shadow-sm leading-none">📝</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Bitácora</span>
-                                        </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl flex items-center justify-center gap-3 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-4 focus:ring-teal-300/50 active:scale-95">
-                                            <span className="text-3xl drop-shadow-sm leading-none">💊</span><span className="text-base font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
-                                        </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-700 font-black rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm mt-1 active:scale-95">
-                                            <span className="text-2xl leading-none">⚠️</span> <span className="text-xs uppercase tracking-widest mt-0.5">Alerta Caída</span>
-                                        </button>
-                                        <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-slate-800 hover:bg-slate-900 border-2 border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors mt-1 active:scale-95">
-                                            <span className="text-2xl leading-none">🚑</span> <span className="text-xs uppercase tracking-widest mt-0.5">Trasladar ER</span>
-                                        </button>
+                                    <div className={`p-5 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        <div className={`grid gap-3 ${gridView === '2col' ? 'grid-cols-2' : 'grid-cols-2'}`}>
+                                            <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-teal-500 hover:text-teal-700 transition-all shadow-sm active:scale-95">
+                                                <span className="text-3xl drop-shadow-sm leading-none">❤️</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Vitales</span>
+                                            </button>
+                                            <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm active:scale-95">
+                                                <span className="text-3xl drop-shadow-sm leading-none">📝</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Bitácora</span>
+                                            </button>
+                                            <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl flex items-center justify-center gap-3 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-4 focus:ring-teal-300/50 active:scale-95">
+                                                <span className="text-3xl drop-shadow-sm leading-none">💊</span><span className="text-base font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
+                                            </button>
+                                        </div>
+                                        {/* Emergency actions — separated by divider */}
+                                        <div className="border-t border-slate-200 mt-3 pt-3 grid grid-cols-2 gap-3">
+                                            <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-700 font-black rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95">
+                                                <span className="text-2xl leading-none">⚠️</span> <span className="text-xs uppercase tracking-widest mt-0.5">Alerta Caída</span>
+                                            </button>
+                                            <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-slate-800 hover:bg-slate-900 border-2 border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors active:scale-95">
+                                                <span className="text-2xl leading-none">🚑</span> <span className="text-xs uppercase tracking-widest mt-0.5">Trasladar ER</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
+                    </>
                 )}
                 </>
             )}
@@ -2299,6 +2378,7 @@ export default function ZendityCareTabletPage() {
                     <span className="leading-tight">{zendiToast}</span>
                 </div>
             )}
+            </div>{/* end flex-1 main content */}
         </div>
     );
 }
