@@ -21,6 +21,14 @@ export async function GET(req: Request) {
         const now = new Date();
         const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
+        // FIX 2: Inyectar fecha real para que GPT no invente "[Fecha actual]"
+        const fechaHoy = new Date().toLocaleDateString('es-PR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+
         for (const hq of hqs) {
             // 1. Obtener todos los pacientes de esta sede
             const patients = await prisma.patient.findMany({
@@ -83,20 +91,21 @@ export async function GET(req: Request) {
                 if (missedMeds.length > 0) promptData += `MEDICAMENTOS NO ADMINISTRADOS:\n${missedMeds.map(m => `- ${m.patientMedication.patient.name}: ${m.patientMedication.medication.name} (${m.status}) - Razón: ${m.notes || 'N/A'}`).join('\n')}\n\n`;
             }
 
-            // 4. OpenAI Prompt Engineering (Zendi Persona)
+            // 4. OpenAI Prompt Engineering (Zendi Persona) — FIX 3: Resumen día completo
             const prompt = `
-            Eres Zendi AI, la Inteligencia Clínica de la residencia geriátrica Zendity.
-            Son las 5:45 AM. Es el momento de entregar el turno al equipo de la mañana.
-            A continuación, tienes los datos de lo ocurrido durante la noche.
-            
-            Tu objetivo es redactar el "Morning Briefing" (Resumen Ejecutivo) para el Supervisor de Enfermería entrante.
-            Reglas:
-            - Usa un tono extremadamente profesional, médico pero enfocado a la geriatría (empático).
-            - Organiza la información en "viñetas" de markdown claras.
-            - Resalta en **negrita** los nombres de los pacientes o medicamentos críticos.
-            - Si la noche fue tranquila, redacta un mensaje positivo, breve y motivador para el nuevo turno.
-            - NO inventes datos. Usa solo la información proporcionada.
-            - Sé directo (1 o 2 párrafos introductorios máximo + las viñetas de eventos).
+            Eres Zendi AI generando el Morning Briefing del Supervisor para ${fechaHoy}.
+            Resume el día anterior COMPLETO — los 3 turnos (diurno, vespertino y nocturno) de la sede ${hq.name}.
+
+            Incluye:
+            - Incidentes ocurridos
+            - Medicamentos MISSED sin resolver
+            - Cambios en estado de residentes
+            - Desempeño del equipo y tareas pendientes para hoy
+
+            Tono ejecutivo y directo. Formato markdown con viñetas claras.
+            Resalta en **negrita** los nombres de los pacientes o medicamentos críticos.
+            Si no hubo eventos relevantes, redacta un mensaje positivo, breve y motivador.
+            NO inventes datos. Usa solo la información proporcionada.
 
             DATOS OCURRIDOS:
             ${promptData}
@@ -104,7 +113,8 @@ export async function GET(req: Request) {
 
             const completion = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
-                messages: [{ role: "user", content: prompt }]
+                messages: [{ role: "user", content: prompt }],
+                max_tokens: 400,
             });
 
             const aiSummary = completion.choices[0].message.content || "Error compilando el resumen de Zendi AI.";
