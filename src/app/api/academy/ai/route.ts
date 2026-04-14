@@ -92,21 +92,35 @@ MASTER MATERIAL:
 ${masterMaterial}
 `;
     } else if (requestType === 'reflection') {
-      const { userResponse } = body;
+      const { userResponse, promptZendi, terminosClave, preguntaReflexion } = body;
+
+      // Use course-specific evaluation context if available, otherwise fallback to generic
+      const evaluationCriteria = promptZendi
+          ? `INSTRUCCIONES DE EVALUACION ESPECIFICAS DEL CURSO:\n${promptZendi}\n\nTERMINOS CLAVE que el alumno debe demostrar comprension de:\n${terminosClave}`
+          : `Evalua si la respuesta demuestra mentalidad de Liderazgo Transformador, profesionalismo, y si incorpora herramientas sistemicas.`;
+
+      const reflectionQ = preguntaReflexion
+          ? `La pregunta de reflexion fue: "${preguntaReflexion}"`
+          : `El alumno describio como aplicaria el conocimiento del curso en su trabajo.`;
+
       prompt = `
-Eres la Profesora Zendi, líder de transformación institucional de Zendity Academy.
-El alumno acaba de leer el MASTER MATERIAL y respondió a una "Dinámica de Reflexión" basada en el Plan Estratégico de DECEP.
+Eres la Profesora Zendi, lider educativa de Zendity Academy.
+El alumno completo el curso "${course.title}" y respondio a una pregunta de reflexion.
+${reflectionQ}
+
 Su respuesta fue: "${userResponse}"
 
-TUS INSTRUCCIONES:
-1. Evalúa si la respuesta demuestra mentalidad de Liderazgo Transformador (y no de "Supervisor-Jefe" reactivo), profesionalismo, y si incorpora herramientas sistémicas (como Criterios MATER o uso de datos).
-2. Genera un feedback corto (2 párrafos máximo) con críticas constructivas, felicitándolo si evidencia mentalidad proactiva y orientada a la resolución.
-3. Determina si la respuesta es "Aprobada" (apta profesionalmente y estratégica) o "Rechazada" (reactiva, antiética o inespecífica).
+${evaluationCriteria}
 
-OUTPUT OBLIGATORIO: Genera ÚNICAMENTE este JSON:
+TUS INSTRUCCIONES:
+1. Evalua si la respuesta demuestra comprension profunda del material y aplica los conceptos clave del curso.
+2. Genera un feedback corto (2 parrafos maximo) con criticas constructivas, felicitandolo si evidencia comprension real y aplicacion practica.
+3. Determina si la respuesta es "Aprobada" (demuestra comprension real y aplicacion practica) o "Rechazada" (superficial, generica o incorrecta).
+
+OUTPUT OBLIGATORIO: Genera UNICAMENTE este JSON:
 {
   "approved": true/false,
-  "feedback": "Tu evaluación escrita como Zendi AI..."
+  "feedback": "Tu evaluacion escrita como Zendi AI..."
 }
 
 MASTER MATERIAL PARA REFERENCIA:

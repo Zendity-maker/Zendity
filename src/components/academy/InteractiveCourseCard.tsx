@@ -1,23 +1,31 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { generateZendityCertificate } from './CertificateGenerator';
 
-type Stage = 'IDLE' | 'LESSON_INTRO' | 'LESSON_BLOCKS' | 'BLOCK_CHECK' | 'QUIZ' | 'REFLECTION' | 'RESULT' | 'COMPLETED';
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-interface MCQ {
+type Stage = 'IDLE' | 'INTRO' | 'READING' | 'SECTION_QUIZ' | 'SECTION_RESULT' | 'REFLECTION' | 'RESULT' | 'COMPLETED';
+
+interface SectionQuestion {
     question: string;
     options: string[];
-    correct: number;
+    correctIndex: number;
     explanation: string;
 }
 
-interface LessonBlock {
+interface ParsedSection {
+    number: number;
     title: string;
-    content: string;
-    checkQuestion?: string;
-    checkOptions?: string[];
-    checkCorrect?: number;
+    lectura: string;
+    preguntas: SectionQuestion[];
+}
+
+interface CourseMeta {
+    titulo: string;
+    promptZendi: string;
+    terminosClave: string;
+    preguntaReflexion: string;
 }
 
 interface Props {
@@ -27,24 +35,93 @@ interface Props {
     onCourseCompleted?: () => void;
 }
 
+// ── Standalone Parsers ─────────────────────────────────────────────────────────
+
+function parseQuestions(raw: string): SectionQuestion[] {
+    const questions: SectionQuestion[] = [];
+    const qBlocks = raw.split(/(?=P:\s)/);
+
+    for (const block of qBlocks) {
+        if (!block.trim().startsWith('P:')) continue;
+        const lines = block.trim().split('\n');
+        const question = lines[0].replace(/^P:\s*/, '').trim();
+        const options: string[] = [];
+        let correctIndex = -1;
+        let explanation = '';
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            if (line.startsWith('EXPLICACION:')) {
+                explanation = line.replace('EXPLICACION:', '').trim();
+                continue;
+            }
+            const optMatch = line.match(/^(\*?)([a-d])\)\s*(.*)/);
+            if (optMatch) {
+                if (optMatch[1] === '*') correctIndex = options.length;
+                options.push(optMatch[3]);
+            }
+        }
+
+        if (question && options.length >= 2 && correctIndex >= 0) {
+            questions.push({ question, options, correctIndex, explanation });
+        }
+    }
+    return questions;
+}
+
+function parseCourseContent(content: string): { meta: CourseMeta; sections: ParsedSection[] } {
+    const meta: CourseMeta = { titulo: '', promptZendi: '', terminosClave: '', preguntaReflexion: '' };
+    if (!content) return { meta, sections: [] };
+
+    // Extract META block
+    const metaMatch = content.match(/---META---([\s\S]*?)(?=---SECCION_)/);
+    if (metaMatch) {
+        const m = metaMatch[1];
+        meta.titulo = m.match(/TITULO:\s*(.*)/)?.[1]?.trim() || '';
+        meta.promptZendi = m.match(/PROMPT_ZENDI:\s*(.*)/)?.[1]?.trim() || '';
+        meta.terminosClave = m.match(/TERMINOS_CLAVE:\s*(.*)/)?.[1]?.trim() || '';
+        const refMatch = m.match(/PREGUNTA_REFLEXION:\s*([\s\S]*?)(?=\n(?:TITULO|PROMPT_ZENDI|TERMINOS_CLAVE):|$)/);
+        meta.preguntaReflexion = refMatch?.[1]?.trim() || '';
+    }
+
+    // Extract each SECCION block
+    const sections: ParsedSection[] = [];
+    const sectionRegex = /---SECCION_(\d+)---([\s\S]*?)(?=---SECCION_\d+---|$)/g;
+    let match;
+    while ((match = sectionRegex.exec(content)) !== null) {
+        const num = parseInt(match[1]);
+        const body = match[2];
+        const lecturaMatch = body.match(/LECTURA:\s*([\s\S]*?)(?=PREGUNTAS:)/);
+        const preguntasMatch = body.match(/PREGUNTAS:\s*([\s\S]*?)$/);
+        const lectura = lecturaMatch?.[1]?.trim() || '';
+        const preguntasRaw = preguntasMatch?.[1]?.trim() || '';
+        const preguntas = parseQuestions(preguntasRaw);
+        const titleMatch = lectura.match(/^#+\s*(.*)/m);
+        const title = titleMatch?.[1]?.trim() || `Seccion ${num}`;
+        sections.push({ number: num, title, lectura, preguntas });
+    }
+
+    return { meta, sections };
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export default function InteractiveCourseCard({ course, user, initialStatus, onCourseCompleted }: Props) {
     const [stage, setStage] = useState<Stage>(initialStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE');
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Lesson
-    const [blocks, setBlocks] = useState<LessonBlock[]>([]);
-    const [currentBlock, setCurrentBlock] = useState(0);
-    const [blockAnswer, setBlockAnswer] = useState<number | null>(null);
-    const [blockFeedback, setBlockFeedback] = useState('');
+    // Course structure
+    const [courseMeta, setCourseMeta] = useState<CourseMeta | null>(null);
+    const [sections, setSections] = useState<ParsedSection[]>([]);
+    const [currentSection, setCurrentSection] = useState(0);
 
-    // Quiz
-    const [questions, setQuestions] = useState<MCQ[]>([]);
+    // Section quiz
     const [currentQ, setCurrentQ] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
-    const [correctCount, setCorrectCount] = useState(0);
-    const [quizAnswers, setQuizAnswers] = useState<boolean[]>([]);
+    const [sectionCorrect, setSectionCorrect] = useState(0);
+    const [sectionScores, setSectionScores] = useState<number[]>([]);
 
     // Reflection
     const [reflection, setReflection] = useState('');
@@ -58,7 +135,8 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
     const hqId = (user as any)?.hqId || (user as any)?.headquartersId || '';
 
-    // Check lock on mount
+    // ── Effects ────────────────────────────────────────────────────────────────
+
     useEffect(() => {
         if (!user?.id || !course?.id) return;
         fetch(`/api/academy?employeeId=${user.id}&hqId=${hqId}`)
@@ -72,7 +150,6 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
             }).catch(() => null);
     }, [user?.id, course?.id, hqId]);
 
-    // Lock countdown
     useEffect(() => {
         if (!lockedUntil) return;
         const interval = setInterval(() => {
@@ -85,92 +162,53 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         return () => clearInterval(interval);
     }, [lockedUntil]);
 
-    // Split course content into blocks
-    const parseBlocks = useCallback((content: string): LessonBlock[] => {
-        if (!content) return [];
-        const sections = content.split(/(?=#{1,3}\s)/);
-        return sections
-            .filter(s => s.trim().length > 50)
-            .slice(0, 5)
-            .map(s => {
-                const lines = s.trim().split('\n');
-                const title = lines[0].replace(/^#+\s*/, '').trim() || 'Seccion';
-                const body = lines.slice(1).join('\n').trim();
-                return { title, content: body || s };
-            });
-    }, []);
+    // ── Actions ────────────────────────────────────────────────────────────────
 
-    const startLesson = async () => {
-        setLoading(true);
+    const startLesson = () => {
         setError('');
-        try {
-            if (course.content) {
-                const parsed = parseBlocks(course.content);
-                setBlocks(parsed.length > 0 ? parsed : [{ title: course.title, content: course.content }]);
-            } else {
-                // Generate flashcard-style blocks via AI
-                const res = await fetch('/api/academy/ai', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ requestType: 'flashcards', courseId: course.id })
-                });
-                const data = await res.json();
-                const cards = data?.data?.flashcards || [];
-                setBlocks(cards.map((c: any) => ({ title: c.title, content: c.content })));
-            }
-            setCurrentBlock(0);
-            setStage('LESSON_INTRO');
-        } catch (e) {
-            setError('Error cargando el material. Intenta de nuevo.');
-        } finally {
-            setLoading(false);
-        }
+        if (!course.content) { setError('Este curso no tiene contenido disponible.'); return; }
+
+        const { meta, sections: parsed } = parseCourseContent(course.content);
+        if (parsed.length === 0) { setError('El formato del curso no es compatible.'); return; }
+
+        setCourseMeta(meta);
+        setSections(parsed);
+        setCurrentSection(0);
+        setSectionScores([]);
+        setReflection('');
+        setReflectionResult(null);
+        setStage('INTRO');
     };
 
-    const startQuiz = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const res = await fetch('/api/academy/ai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ requestType: 'quiz', courseId: course.id })
-            });
-            const data = await res.json();
-            console.log('[Academy Quiz] API response:', JSON.stringify(data, null, 2));
-            const quizData = data?.data?.quiz || [];
-            if (quizData.length > 0) {
-                setQuestions(quizData.map((q: any) => ({
-                    question: q.question,
-                    options: q.options,
-                    correct: q.options.indexOf(q.correctAnswer),
-                    explanation: q.explanation
-                })));
-                setCurrentQ(0);
-                setCorrectCount(0);
-                setQuizAnswers([]);
-                setSelectedAnswer(null);
-                setShowExplanation(false);
-                setStage('QUIZ');
-            } else {
-                setError('No se pudo generar el examen. Intenta de nuevo.');
-            }
-        } catch (e) {
-            setError('Error generando el examen.');
-        } finally {
-            setLoading(false);
-        }
+    const resetSectionQuiz = () => {
+        setCurrentQ(0);
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        setSectionCorrect(0);
     };
 
-    const handleBlockNext = () => {
-        setBlockAnswer(null);
-        setBlockFeedback('');
-        if (currentBlock < blocks.length - 1) {
-            setCurrentBlock(prev => prev + 1);
-            setStage('LESSON_BLOCKS');
+    const goToReading = () => {
+        resetSectionQuiz();
+        setStage('READING');
+    };
+
+    const goToSectionQuiz = () => {
+        const section = sections[currentSection];
+        if (!section || section.preguntas.length === 0) {
+            setSectionScores(prev => [...prev, 100]);
+            advanceAfterSection();
+            return;
+        }
+        resetSectionQuiz();
+        setStage('SECTION_QUIZ');
+    };
+
+    const advanceAfterSection = () => {
+        if (currentSection < sections.length - 1) {
+            setCurrentSection(prev => prev + 1);
+            goToReading();
         } else {
-            // All blocks done — go to quiz
-            startQuiz();
+            setStage('REFLECTION');
         }
     };
 
@@ -178,19 +216,19 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         if (showExplanation) return;
         setSelectedAnswer(idx);
         setShowExplanation(true);
-        const isCorrect = idx === questions[currentQ].correct;
-        if (isCorrect) setCorrectCount(prev => prev + 1);
-        setQuizAnswers(prev => [...prev, isCorrect]);
+        const isCorrect = idx === sections[currentSection].preguntas[currentQ].correctIndex;
+        if (isCorrect) setSectionCorrect(prev => prev + 1);
     };
 
     const handleNextQuestion = () => {
-        if (currentQ < questions.length - 1) {
+        const section = sections[currentSection];
+        if (currentQ < section.preguntas.length - 1) {
             setCurrentQ(prev => prev + 1);
             setSelectedAnswer(null);
             setShowExplanation(false);
         } else {
-            // Quiz done — go to reflection
-            setStage('REFLECTION');
+            // All questions answered — show section result
+            setStage('SECTION_RESULT');
         }
     };
 
@@ -207,13 +245,16 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 body: JSON.stringify({
                     requestType: 'reflection',
                     courseId: course.id,
-                    userResponse: reflection
+                    userResponse: reflection,
+                    promptZendi: courseMeta?.promptZendi || '',
+                    terminosClave: courseMeta?.terminosClave || '',
+                    preguntaReflexion: courseMeta?.preguntaReflexion || '',
                 })
             });
             const data = await res.json();
             const result = data?.data || data;
             setReflectionResult({ approved: result.approved, feedback: result.feedback });
-            if (result.approved && correctCount >= Math.ceil(questions.length * 0.8)) {
+            if (result.approved) {
                 await completeCourse();
             }
         } catch {
@@ -222,6 +263,10 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
             setReflectionLoading(false);
         }
     };
+
+    const totalScore = sectionScores.length > 0
+        ? Math.round(sectionScores.reduce((a, b) => a + b, 0) / sectionScores.length)
+        : 0;
 
     const completeCourse = async () => {
         try {
@@ -232,7 +277,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                     employeeId: user.id,
                     courseId: course.id,
                     hqId,
-                    examScore: Math.round((correctCount / questions.length) * 100)
+                    examScore: totalScore
                 })
             });
             setStage('RESULT');
@@ -256,9 +301,12 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         setStage('IDLE');
     };
 
-    const progressPct = questions.length > 0 ? Math.round((currentQ / questions.length) * 100) : 0;
+    const sectionQuizProgress = sections[currentSection]?.preguntas.length > 0
+        ? Math.round((currentQ / sections[currentSection].preguntas.length) * 100)
+        : 0;
 
-    // -- LOCKED ---------------------------------------------------------------
+    // ── RENDER: LOCKED ─────────────────────────────────────────────────────────
+
     if (lockedUntil) return (
         <div className="bg-white rounded-2xl border border-red-200 p-6 text-center">
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -271,7 +319,8 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         </div>
     );
 
-    // -- COMPLETED ------------------------------------------------------------
+    // ── RENDER: COMPLETED ──────────────────────────────────────────────────────
+
     if (stage === 'COMPLETED' || initialStatus === 'COMPLETED') return (
         <div className="bg-white rounded-2xl border border-teal-200 p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -292,40 +341,49 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         </div>
     );
 
-    // -- RESULT ---------------------------------------------------------------
+    // ── RENDER: RESULT ─────────────────────────────────────────────────────────
+
     if (stage === 'RESULT') return (
-        <div className="bg-white rounded-2xl border border-teal-300 p-8 text-center">
-            <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-8">
+            <div className="w-20 h-20 bg-teal-700 rounded-full flex items-center justify-center mb-6 border-4 border-teal-500">
                 <span className="text-4xl">🏆</span>
             </div>
-            <h3 className="font-black text-slate-800 text-xl mb-2">Certificado obtenido!</h3>
-            <p className="text-slate-500 mb-1">Puntuacion: <span className="font-black text-teal-600">{Math.round((correctCount / questions.length) * 100)}%</span></p>
-            <p className="text-slate-500 text-sm mb-6">Has completado <span className="font-bold">{course.title}</span></p>
+            <h3 className="text-white font-black text-2xl mb-2">Certificado obtenido!</h3>
+            <p className="text-slate-400 mb-1">Puntuacion promedio: <span className="font-black text-teal-400">{totalScore}%</span></p>
+            <p className="text-slate-500 text-sm mb-2">{sections.length} secciones completadas</p>
+            <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                {sectionScores.map((s, i) => (
+                    <span key={i} className="bg-teal-900/50 text-teal-400 text-xs font-bold px-2 py-1 rounded-lg">
+                        S{i + 1}: {s}%
+                    </span>
+                ))}
+            </div>
+            <p className="text-slate-500 text-sm mb-8">Has completado <span className="font-bold text-white">{course.title}</span></p>
             <button
                 onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
-                className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-3 rounded-xl transition-all"
+                className="w-full max-w-sm bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
             >
                 Descargar mi Certificado
             </button>
-            <button onClick={() => setStage('COMPLETED')} className="w-full mt-2 text-slate-500 text-sm py-2">Cerrar</button>
+            <button onClick={() => setStage('COMPLETED')} className="mt-3 text-slate-500 text-sm py-2 hover:text-slate-400">Cerrar</button>
         </div>
     );
 
-    // -- IDLE -----------------------------------------------------------------
+    // ── RENDER: IDLE ───────────────────────────────────────────────────────────
+
     if (stage === 'IDLE') return (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all">
-            {/* Course image */}
             {course.imageUrl ? (
-                <img
-                    src={course.imageUrl}
-                    alt={course.title}
-                    className="w-full h-40 object-cover"
+                <img src={course.imageUrl} alt={course.title} className="w-full h-40 object-cover"
                     onError={(e) => {
                         const target = e.currentTarget;
                         target.style.display = 'none';
                         const parent = target.parentElement;
                         if (parent) {
-                            parent.innerHTML = `<div style="width:100%;height:160px;background:linear-gradient(135deg,#0F6E56,#1E293B);display:flex;align-items:center;justify-content:center;"><span style="font-size:2rem;opacity:0.3">📘</span></div>`;
+                            const fallback = document.createElement('div');
+                            fallback.style.cssText = 'width:100%;height:160px;background:linear-gradient(135deg,#0F6E56,#1E293B);display:flex;align-items:center;justify-content:center;';
+                            fallback.innerHTML = '<span style="font-size:3rem;">📘</span>';
+                            parent.insertBefore(fallback, target);
                         }
                     }}
                 />
@@ -337,33 +395,25 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
             <div className="p-5">
                 <div className="flex items-start justify-between mb-2">
                     <h3 className="font-black text-slate-800 text-sm leading-tight flex-1">{course.title}</h3>
-                    {strikes > 0 && (
-                        <span className="text-xs text-red-500 font-bold ml-2">{strikes}/3</span>
-                    )}
+                    {strikes > 0 && <span className="text-xs text-red-500 font-bold ml-2">{strikes}/3</span>}
                 </div>
                 <p className="text-slate-500 text-xs mb-4 line-clamp-2">{course.description}</p>
                 <div className="flex gap-2">
-                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded-full">
-                        +{course.bonusCompliance || 50} PTS
-                    </span>
-                    <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">
-                        {course.durationMins || 15} min
-                    </span>
+                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded-full">+{course.bonusCompliance || 50} PTS</span>
+                    <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{course.durationMins || 15} min</span>
                 </div>
                 {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
-                <button
-                    onClick={startLesson}
-                    disabled={loading}
-                    className="mt-4 w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-black py-3 rounded-xl transition-all text-sm"
-                >
-                    {loading ? 'Cargando...' : 'Comenzar leccion'}
+                <button onClick={startLesson}
+                    className="mt-4 w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-3 rounded-xl transition-all text-sm">
+                    Comenzar leccion
                 </button>
             </div>
         </div>
     );
 
-    // -- LESSON INTRO ---------------------------------------------------------
-    if (stage === 'LESSON_INTRO') return (
+    // ── RENDER: INTRO ──────────────────────────────────────────────────────────
+
+    if (stage === 'INTRO') return (
         <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
             <div className="bg-teal-700 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -384,77 +434,81 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 <h2 className="text-white font-black text-2xl mb-3">Hola! Soy Zendi</h2>
                 <p className="text-slate-300 text-lg mb-2">Tu profesora para este curso.</p>
                 <p className="text-slate-500 max-w-md mb-4">
-                    Vamos a aprender <span className="text-teal-400 font-bold">{course.title}</span> en {blocks.length} bloques.
-                    Despues tendras un examen de 5 preguntas y una pregunta de razonamiento que yo misma corregire.
+                    Vamos a estudiar <span className="text-teal-400 font-bold">{course.title}</span> en {sections.length} secciones.
+                    Cada seccion tiene una lectura y preguntas que debes aprobar al 80% para avanzar.
+                    Al final, una pregunta de reflexion que yo misma corregire.
                 </p>
-                <div className="flex gap-4 text-sm text-slate-500 mb-8">
-                    <span>📚 {blocks.length} bloques</span>
-                    <span>❓ 5 preguntas</span>
+                <div className="flex flex-wrap gap-4 text-sm text-slate-500 mb-8 justify-center">
+                    <span>📖 {sections.length} secciones</span>
+                    <span>❓ {sections.reduce((a, s) => a + s.preguntas.length, 0)} preguntas</span>
                     <span>💭 1 reflexion</span>
                     <span>🎓 Certificado</span>
                 </div>
-                <button
-                    onClick={() => setStage('LESSON_BLOCKS')}
-                    className="bg-teal-600 hover:bg-teal-500 text-white font-black px-10 py-4 rounded-2xl transition-all text-lg"
-                >
+                <button onClick={goToReading}
+                    className="bg-teal-600 hover:bg-teal-500 text-white font-black px-10 py-4 rounded-2xl transition-all text-lg">
                     Empezamos! →
                 </button>
             </div>
         </div>
     );
 
-    // -- LESSON BLOCKS --------------------------------------------------------
-    if (stage === 'LESSON_BLOCKS' && blocks.length > 0) {
-        const block = blocks[currentBlock];
+    // ── RENDER: READING ────────────────────────────────────────────────────────
+
+    if (stage === 'READING' && sections.length > 0) {
+        const section = sections[currentSection];
         return (
             <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
-                {/* Header */}
+                {/* Header with section progress */}
                 <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
                     <button onClick={() => setStage('IDLE')} className="text-slate-500 hover:text-white text-sm">✕</button>
-                    <div className="flex gap-1">
-                        {blocks.map((_, i) => (
-                            <div key={i} className={`h-1.5 rounded-full transition-all ${i < currentBlock ? 'bg-teal-500 w-6' : i === currentBlock ? 'bg-teal-400 w-8' : 'bg-slate-600 w-6'}`} />
+                    <div className="flex gap-1.5">
+                        {sections.map((_, i) => (
+                            <div key={i} className={`h-2 rounded-full transition-all ${
+                                i < currentSection ? 'bg-teal-500 w-6' :
+                                i === currentSection ? 'bg-teal-400 w-8' :
+                                'bg-slate-600 w-6'
+                            }`} />
                         ))}
                     </div>
-                    <span className="text-slate-500 text-xs">{currentBlock + 1}/{blocks.length}</span>
+                    <span className="text-slate-500 text-xs font-bold">Seccion {currentSection + 1}/{sections.length}</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
-                    {/* Block title */}
+                    {/* Section title */}
                     <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-sm font-black">{currentBlock + 1}</span>
+                            <span className="text-white text-sm font-black">{currentSection + 1}</span>
                         </div>
-                        <h2 className="text-white font-black text-xl">{block.title}</h2>
+                        <h2 className="text-white font-black text-xl">{section.title}</h2>
                     </div>
 
-                    {/* Content */}
+                    {/* Lecture content */}
                     <div className="bg-slate-800 rounded-2xl p-6 mb-6 prose prose-invert prose-sm max-w-none">
-                        <ReactMarkdown
-                            components={{
-                                h3: ({children}) => <h3 className="text-teal-400 font-bold text-base mt-4 mb-2">{children}</h3>,
-                                p: ({children}) => <p className="text-slate-200 leading-relaxed mb-3">{children}</p>,
-                                ul: ({children}) => <ul className="space-y-1 mb-3">{children}</ul>,
-                                li: ({children}) => <li className="text-slate-300 flex gap-2"><span className="text-teal-400 flex-shrink-0">•</span><span>{children}</span></li>,
-                                strong: ({children}) => <strong className="text-teal-300 font-bold">{children}</strong>,
-                                blockquote: ({children}) => <blockquote className="border-l-4 border-teal-500 pl-4 italic text-slate-500">{children}</blockquote>,
-                            }}
-                        >
-                            {block.content}
+                        <ReactMarkdown components={{
+                            h1: ({children}) => <h1 className="text-teal-400 font-black text-lg mt-2 mb-3">{children}</h1>,
+                            h2: ({children}) => <h2 className="text-teal-400 font-bold text-base mt-4 mb-2">{children}</h2>,
+                            h3: ({children}) => <h3 className="text-teal-400 font-bold text-base mt-4 mb-2">{children}</h3>,
+                            p: ({children}) => <p className="text-slate-200 leading-relaxed mb-3">{children}</p>,
+                            ul: ({children}) => <ul className="space-y-1 mb-3">{children}</ul>,
+                            li: ({children}) => <li className="text-slate-300 flex gap-2"><span className="text-teal-400 flex-shrink-0">•</span><span>{children}</span></li>,
+                            strong: ({children}) => <strong className="text-teal-300 font-bold">{children}</strong>,
+                            blockquote: ({children}) => <blockquote className="border-l-4 border-teal-500 pl-4 italic text-slate-400">{children}</blockquote>,
+                        }}>
+                            {section.lectura}
                         </ReactMarkdown>
                     </div>
 
                     {/* Zendi tip */}
-                    <div className="bg-teal-900/40 border border-teal-700 rounded-xl p-4 mb-6 flex gap-3">
+                    <div className="bg-teal-900/40 border border-teal-700 rounded-xl p-4 flex gap-3">
                         <span className="text-2xl flex-shrink-0">💡</span>
                         <div>
                             <p className="text-teal-400 text-xs font-bold mb-1">Zendi dice:</p>
                             <p className="text-slate-300 text-sm">
-                                {currentBlock === 0
-                                    ? 'Lee con calma. Cada bloque te prepara para las preguntas del examen.'
-                                    : currentBlock === blocks.length - 1
-                                    ? 'Ultimo bloque! Al terminar pasaremos al examen. Listo?'
-                                    : 'Bien. Sigue asi. Estas construyendo el conocimiento paso a paso.'}
+                                {currentSection === 0
+                                    ? `Lee con calma. Al terminar responderas ${section.preguntas.length} preguntas sobre esta seccion.`
+                                    : currentSection === sections.length - 1
+                                    ? 'Ultima seccion! Despues de las preguntas viene tu reflexion final.'
+                                    : `Seccion ${currentSection + 1} de ${sections.length}. Necesitas 80% para avanzar.`}
                             </p>
                         </div>
                     </div>
@@ -462,44 +516,41 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
                 {/* Footer */}
                 <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
-                    <button
-                        onClick={handleBlockNext}
-                        disabled={loading}
-                        className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all"
-                    >
-                        {loading
-                            ? 'Preparando examen...'
-                            : currentBlock < blocks.length - 1
-                            ? `Siguiente bloque →`
-                            : 'Entendido! Ir al examen →'}
+                    <button onClick={goToSectionQuiz}
+                        className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all">
+                        {section.preguntas.length > 0
+                            ? `Ir a las preguntas (${section.preguntas.length}) →`
+                            : 'Continuar →'}
                     </button>
                 </div>
             </div>
         );
     }
 
-    // -- QUIZ -----------------------------------------------------------------
-    if (stage === 'QUIZ' && questions.length > 0) {
-        const q = questions[currentQ];
-        const isLast = currentQ === questions.length - 1;
+    // ── RENDER: SECTION QUIZ ───────────────────────────────────────────────────
+
+    if (stage === 'SECTION_QUIZ' && sections[currentSection]?.preguntas.length > 0) {
+        const section = sections[currentSection];
+        const q = section.preguntas[currentQ];
+        const isLastQ = currentQ === section.preguntas.length - 1;
 
         return (
             <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
                 {/* Header */}
                 <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
                     <div>
-                        <p className="text-teal-400 text-xs font-bold">EXAMEN OFICIAL</p>
-                        <p className="text-white text-sm font-bold">{course.title}</p>
+                        <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">Seccion {currentSection + 1} — Preguntas</p>
+                        <p className="text-white text-sm font-bold">{section.title}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-slate-500 text-xs">{currentQ + 1} de {questions.length}</p>
-                        <p className="text-teal-400 text-xs font-bold">{correctCount} correctas</p>
+                        <p className="text-slate-500 text-xs">{currentQ + 1} de {section.preguntas.length}</p>
+                        <p className="text-teal-400 text-xs font-bold">{sectionCorrect} correctas</p>
                     </div>
                 </div>
 
-                {/* Progress */}
+                {/* Progress bar */}
                 <div className="h-1.5 bg-slate-700">
-                    <div className="h-full bg-teal-500 transition-all duration-500" style={{width: `${progressPct}%`}} />
+                    <div className="h-full bg-teal-500 transition-all duration-500" style={{ width: `${sectionQuizProgress}%` }} />
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
@@ -511,22 +562,18 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
                     {/* Options */}
                     <div className="space-y-3 mb-6">
-                        {q.options.map((opt: string, i: number) => {
+                        {q.options.map((opt, i) => {
                             let style = 'border-slate-700 bg-slate-800 text-slate-200';
                             if (showExplanation) {
-                                if (i === q.correct) style = 'border-teal-500 bg-teal-900/40 text-teal-300';
-                                else if (i === selectedAnswer && i !== q.correct) style = 'border-red-500 bg-red-900/30 text-red-300';
+                                if (i === q.correctIndex) style = 'border-teal-500 bg-teal-900/40 text-teal-300';
+                                else if (i === selectedAnswer && i !== q.correctIndex) style = 'border-red-500 bg-red-900/30 text-red-300';
                                 else style = 'border-slate-700 bg-slate-800/50 text-slate-500';
                             } else if (selectedAnswer === i) {
                                 style = 'border-teal-500 bg-teal-900/40 text-teal-300';
                             }
                             return (
-                                <button
-                                    key={i}
-                                    onClick={() => handleAnswer(i)}
-                                    disabled={showExplanation}
-                                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all font-medium ${style}`}
-                                >
+                                <button key={i} onClick={() => handleAnswer(i)} disabled={showExplanation}
+                                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all font-medium ${style}`}>
                                     <span className="font-black mr-3 text-slate-500">{['A', 'B', 'C', 'D'][i]}.</span>
                                     {opt}
                                 </button>
@@ -536,19 +583,23 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
 
                     {/* Explanation */}
                     {showExplanation && (
-                        <div className={`rounded-2xl p-5 mb-4 border ${selectedAnswer === q.correct ? 'bg-teal-900/30 border-teal-700' : 'bg-red-900/20 border-red-800'}`}>
+                        <div className={`rounded-2xl p-5 mb-4 border ${
+                            selectedAnswer === q.correctIndex ? 'bg-teal-900/30 border-teal-700' : 'bg-red-900/20 border-red-800'
+                        }`}>
                             <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xl">{selectedAnswer === q.correct ? '✅' : '❌'}</span>
-                                <p className={`font-black text-sm ${selectedAnswer === q.correct ? 'text-teal-400' : 'text-red-400'}`}>
-                                    {selectedAnswer === q.correct ? 'Correcto!' : 'Incorrecto'}
+                                <span className="text-xl">{selectedAnswer === q.correctIndex ? '✅' : '❌'}</span>
+                                <p className={`font-black text-sm ${selectedAnswer === q.correctIndex ? 'text-teal-400' : 'text-red-400'}`}>
+                                    {selectedAnswer === q.correctIndex ? 'Correcto!' : 'Incorrecto'}
                                 </p>
                             </div>
-                            <div className="flex gap-2 items-start">
-                                <div className="w-7 h-7 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-xs font-black text-white">Z</span>
+                            {q.explanation && (
+                                <div className="flex gap-2 items-start">
+                                    <div className="w-7 h-7 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-xs font-black text-white">Z</span>
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed">{q.explanation}</p>
                                 </div>
-                                <p className="text-slate-300 text-sm leading-relaxed">{q.explanation}</p>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -556,11 +607,9 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 {/* Footer */}
                 {showExplanation && (
                     <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
-                        <button
-                            onClick={handleNextQuestion}
-                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
-                        >
-                            {isLast ? 'Ver pregunta de reflexion →' : 'Siguiente pregunta →'}
+                        <button onClick={handleNextQuestion}
+                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all">
+                            {isLastQ ? 'Ver resultado de seccion →' : 'Siguiente pregunta →'}
                         </button>
                     </div>
                 )}
@@ -568,34 +617,110 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         );
     }
 
-    // -- REFLECTION -----------------------------------------------------------
+    // ── RENDER: SECTION RESULT ────────────────────────────────────────────────
+
+    if (stage === 'SECTION_RESULT') {
+        const section = sections[currentSection];
+        const total = section?.preguntas.length || 0;
+        const pct = total > 0 ? Math.round((sectionCorrect / total) * 100) : 100;
+        const needed = Math.ceil(total * 0.8);
+        const passed = sectionCorrect >= needed;
+        const isLast = currentSection >= sections.length - 1;
+
+        const handleContinue = () => {
+            const scorePct = total > 0 ? Math.round((sectionCorrect / total) * 100) : 100;
+            setSectionScores(prev => [...prev, scorePct]);
+            advanceAfterSection();
+        };
+
+        return (
+            <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-8">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 border-4 ${
+                    passed ? 'bg-teal-700 border-teal-500' : 'bg-amber-900/50 border-amber-600'
+                }`}>
+                    <span className="text-4xl">{passed ? '✅' : '📖'}</span>
+                </div>
+
+                <h3 className="text-white font-black text-xl mb-2">
+                    {passed ? `Seccion ${currentSection + 1} aprobada!` : `Seccion ${currentSection + 1} no aprobada`}
+                </h3>
+
+                <p className={`font-bold mb-1 ${passed ? 'text-teal-400' : 'text-amber-400'}`}>
+                    {sectionCorrect}/{total} correctas ({pct}%)
+                </p>
+
+                {passed ? (
+                    <p className="text-slate-500 text-sm mb-8">
+                        {isLast ? 'Todas las secciones completadas!' : `Faltan ${sections.length - currentSection - 1} secciones mas.`}
+                    </p>
+                ) : (
+                    <p className="text-slate-500 text-sm mb-8">
+                        Necesitas al menos {needed}/{total} (80%) para avanzar.
+                    </p>
+                )}
+
+                {passed && sectionScores.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-8 justify-center">
+                        {sectionScores.map((s, i) => (
+                            <span key={i} className="bg-teal-900/50 text-teal-400 text-xs font-bold px-2.5 py-1 rounded-lg">
+                                S{i + 1}: {s}%
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {passed ? (
+                    <button onClick={handleContinue}
+                        className="w-full max-w-sm bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all">
+                        {isLast ? 'Ir a la reflexion final →' : 'Siguiente seccion →'}
+                    </button>
+                ) : (
+                    <>
+                        <button onClick={goToReading}
+                            className="w-full max-w-sm bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all mb-3">
+                            Releer seccion y reintentar →
+                        </button>
+                        <button onClick={handleFail}
+                            className="text-slate-500 text-xs py-2 hover:text-slate-400">
+                            Abandonar curso ({strikes + 1}/3 intento)
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    // ── RENDER: REFLECTION ─────────────────────────────────────────────────────
+
     if (stage === 'REFLECTION') {
-        const passed = correctCount >= Math.ceil(questions.length * 0.8);
+        const reflectionQuestion = courseMeta?.preguntaReflexion
+            || 'Basandote en lo que aprendiste en este curso, describe una situacion real en tu trabajo donde aplicarias este conocimiento. Que harias diferente a partir de hoy?';
+
         return (
             <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col">
                 <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
                     <div>
-                        <p className="text-teal-400 text-xs font-bold">PREGUNTA DE RAZONAMIENTO</p>
+                        <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">Reflexion Final</p>
                         <p className="text-white text-sm font-bold">{course.title}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${passed ? 'bg-teal-900 text-teal-400' : 'bg-red-900 text-red-400'}`}>
-                            {correctCount}/{questions.length} correctas
+                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-teal-900 text-teal-400">
+                            Promedio: {totalScore}%
                         </span>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Score summary */}
-                    <div className={`rounded-2xl p-4 mb-6 ${passed ? 'bg-teal-900/30 border border-teal-700' : 'bg-amber-900/20 border border-amber-700'}`}>
-                        <p className={`font-black text-sm mb-1 ${passed ? 'text-teal-400' : 'text-amber-400'}`}>
-                            {passed ? `Excelente! ${correctCount} de ${questions.length} correctas` : `${correctCount} de ${questions.length} correctas — necesitas la reflexion para aprobar`}
-                        </p>
-                        <p className="text-slate-500 text-xs">
-                            {passed
-                                ? 'Supera la reflexion final para obtener tu certificado.'
-                                : 'Esta es tu oportunidad de demostrar que entendiste el material.'}
-                        </p>
+                    <div className="rounded-2xl p-4 mb-6 bg-teal-900/30 border border-teal-700">
+                        <p className="text-teal-400 font-black text-sm mb-2">Todas las secciones aprobadas!</p>
+                        <div className="flex flex-wrap gap-2">
+                            {sectionScores.map((s, i) => (
+                                <span key={i} className="bg-teal-900/50 text-teal-400 text-xs font-bold px-2 py-1 rounded-lg">
+                                    S{i + 1}: {s}%
+                                </span>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Zendi question */}
@@ -604,19 +729,13 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                             <div className="w-10 h-10 bg-teal-700 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span className="text-lg">👩‍🏫</span>
                             </div>
-                            <div>
-                                <p className="text-teal-400 text-xs font-bold">Profesora Zendi pregunta:</p>
-                            </div>
+                            <p className="text-teal-400 text-xs font-bold">Profesora Zendi pregunta:</p>
                         </div>
-                        <p className="text-white font-bold text-lg leading-relaxed">
-                            Basandote en lo que aprendiste en este curso, describe una situacion real en tu trabajo donde aplicarias este conocimiento. Que harias diferente a partir de hoy?
-                        </p>
+                        <p className="text-white font-bold text-lg leading-relaxed">{reflectionQuestion}</p>
                     </div>
 
-                    {/* Text area */}
-                    <textarea
-                        value={reflection}
-                        onChange={e => setReflection(e.target.value)}
+                    {/* Textarea */}
+                    <textarea value={reflection} onChange={e => setReflection(e.target.value)}
                         placeholder="Escribe tu respuesta aqui. Se especifico — Zendi evaluara la profundidad de tu comprension..."
                         rows={6}
                         className="w-full bg-slate-800 border border-slate-600 focus:border-teal-500 rounded-2xl p-4 text-white text-sm resize-none outline-none mb-2 placeholder:text-slate-600"
@@ -636,10 +755,8 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                             </div>
                             <p className="text-slate-300 text-sm leading-relaxed">{reflectionResult.feedback}</p>
                             {!reflectionResult.approved && (
-                                <button
-                                    onClick={() => { setReflectionResult(null); }}
-                                    className="mt-3 text-amber-400 text-xs font-bold hover:text-amber-300"
-                                >
+                                <button onClick={() => setReflectionResult(null)}
+                                    className="mt-3 text-amber-400 text-xs font-bold hover:text-amber-300">
                                     Mejorar mi respuesta
                                 </button>
                             )}
@@ -650,29 +767,21 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 {/* Footer */}
                 {(!reflectionResult || !reflectionResult.approved) && (
                     <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
-                        <button
-                            onClick={handleReflection}
+                        <button onClick={handleReflection}
                             disabled={reflectionLoading || reflection.trim().length < 10}
-                            className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white font-black py-4 rounded-2xl transition-all"
-                        >
+                            className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white font-black py-4 rounded-2xl transition-all">
                             {reflectionLoading ? 'Zendi esta evaluando...' : 'Enviar respuesta a Zendi →'}
                         </button>
-                        {!passed && (
-                            <button
-                                onClick={handleFail}
-                                className="w-full mt-2 text-slate-500 text-xs py-2 hover:text-slate-500"
-                            >
-                                Abandonar y reintentar despues
-                            </button>
-                        )}
+                        <button onClick={handleFail}
+                            className="w-full mt-2 text-slate-500 text-xs py-2 hover:text-slate-400">
+                            Abandonar y reintentar despues
+                        </button>
                     </div>
                 )}
                 {reflectionResult?.approved && (
                     <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
-                        <button
-                            onClick={() => setStage('RESULT')}
-                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
-                        >
+                        <button onClick={() => setStage('RESULT')}
+                            className="w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all">
                             Ver mi certificado 🎓
                         </button>
                     </div>
