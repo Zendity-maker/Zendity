@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { CaregiverSession, TriageTicket, FastActionAssignment, LiveDataPayload, MissingHandover } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert, FileText } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Play, Square, Volume2, AlertTriangle, Info, ShieldAlert, FileText, Clock, XCircle, ChevronDown } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
@@ -264,6 +264,51 @@ export default function SupervisorDashboardPage() {
     const [isDispatching, setIsDispatching] = useState(false);
 
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);
+
+    // Fast Actions: countdown tick + history
+    const [tickNow, setTickNow] = useState(Date.now());
+    const [showTaskHistory, setShowTaskHistory] = useState(false);
+    const [taskHistory, setTaskHistory] = useState<any[]>([]);
+    const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const tick = setInterval(() => setTickNow(Date.now()), 30000);
+        return () => clearInterval(tick);
+    }, []);
+
+    const fetchTaskHistory = async () => {
+        if (!user) return;
+        const hqId = user.hqId || user.headquartersId || '';
+        try {
+            const res = await fetch(`/api/care/supervisor/live?hqId=${hqId}`);
+            const data = await res.json();
+            // activeFastActions only has PENDING; we need COMPLETED/FAILED from today
+            // Use a lightweight direct query
+        } catch (e) { console.error(e); }
+    };
+
+    const handleUpdateTaskStatus = async (id: string, status: 'COMPLETED' | 'FAILED') => {
+        setUpdatingTaskId(id);
+        try {
+            const res = await fetch('/api/care/fast-actions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status }),
+            });
+            const data = await res.json();
+            if (data.success || data.task) {
+                setToast({ msg: status === 'COMPLETED' ? 'Tarea completada ✓' : 'Tarea marcada como fallida', type: status === 'COMPLETED' ? 'ok' : 'err' });
+                fetchLiveData(); // Refresh live data to remove from pending
+            } else {
+                setToast({ msg: data.error || 'Error actualizando tarea', type: 'err' });
+            }
+        } catch (e) {
+            console.error(e);
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setUpdatingTaskId(null);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -883,6 +928,144 @@ export default function SupervisorDashboardPage() {
                         </div>
 
                     </div>
+
+                    {/* FILA 2.5 — Tareas Activas (Fast Actions SLA) */}
+                    {(() => {
+                        const pendingActions: FastActionAssignment[] = liveData?.activeFastActions?.filter((fa: FastActionAssignment) => fa.status === 'PENDING') || [];
+                        const hasCritical = pendingActions.some((fa: FastActionAssignment) => {
+                            const remaining = new Date(fa.expiresAt).getTime() - tickNow;
+                            return remaining < 5 * 60 * 1000;
+                        });
+
+                        const getSlaColor = (expiresAt: string | Date) => {
+                            const remaining = new Date(expiresAt).getTime() - tickNow;
+                            if (remaining <= 0) return { bg: 'bg-rose-100 border-rose-300', text: 'text-rose-700', label: 'VENCIDO', pulse: true };
+                            if (remaining < 5 * 60 * 1000) return { bg: 'bg-rose-50 border-rose-200', text: 'text-rose-600', label: formatCountdown(remaining), pulse: true };
+                            if (remaining < 10 * 60 * 1000) return { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-600', label: formatCountdown(remaining), pulse: false };
+                            return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-600', label: formatCountdown(remaining), pulse: false };
+                        };
+
+                        function formatCountdown(ms: number): string {
+                            const totalSec = Math.max(0, Math.floor(ms / 1000));
+                            const min = Math.floor(totalSec / 60);
+                            const sec = totalSec % 60;
+                            return `${min}:${sec.toString().padStart(2, '0')}`;
+                        }
+
+                        return (
+                            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                                        <Activity className="w-6 h-6 text-indigo-600" /> Tareas Activas
+                                        <InfoTooltip text="Fast Actions con SLA de 15 minutos. Cada tarea asignada a un cuidador tiene un temporizador. Si se vence, se penaliza automáticamente el Score de Cumplimiento (-5 puntos)." />
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        {hasCritical && (
+                                            <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse flex items-center gap-1">
+                                                <Siren className="w-3 h-3" /> SLA Crítico
+                                            </span>
+                                        )}
+                                        <span className={`font-black px-4 py-1.5 rounded-full shadow-inner text-sm ${pendingActions.length > 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {pendingActions.length}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {pendingActions.length === 0 ? (
+                                    <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[2rem] flex items-center gap-4">
+                                        <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
+                                        <div>
+                                            <p className="font-bold text-emerald-800">Sin tareas activas — turno en orden</p>
+                                            <p className="text-xs text-emerald-600 mt-0.5">Todas las asignaciones han sido completadas o no hay pendientes.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {pendingActions.map((fa: FastActionAssignment) => {
+                                            const sla = getSlaColor(fa.expiresAt);
+                                            const caregiverName = (fa as any).caregiver?.name || 'Cuidador';
+                                            const isUpdating = updatingTaskId === fa.id;
+                                            return (
+                                                <div key={fa.id} className={`flex items-center gap-4 p-4 rounded-[1.5rem] border-2 transition-all ${sla.bg}`}>
+                                                    {/* Avatar */}
+                                                    <div className="w-11 h-11 rounded-full bg-white border border-slate-200 text-slate-700 font-black flex items-center justify-center text-lg shrink-0 shadow-sm">
+                                                        {caregiverName.charAt(0)}
+                                                    </div>
+
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-bold text-slate-800 text-sm leading-tight">{caregiverName}</p>
+                                                        <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{fa.description}</p>
+                                                    </div>
+
+                                                    {/* Countdown */}
+                                                    <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-black text-sm shrink-0 ${sla.text} ${sla.pulse ? 'animate-pulse' : ''}`}>
+                                                        <Clock className="w-4 h-4" />
+                                                        {sla.label}
+                                                    </div>
+
+                                                    {/* Actions */}
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <button
+                                                            onClick={() => handleUpdateTaskStatus(fa.id, 'COMPLETED')}
+                                                            disabled={isUpdating}
+                                                            className="w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+                                                            title="Completada"
+                                                        >
+                                                            {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateTaskStatus(fa.id, 'FAILED')}
+                                                            disabled={isUpdating}
+                                                            className="w-10 h-10 rounded-xl bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-all active:scale-95 disabled:opacity-50"
+                                                            title="Fallida"
+                                                        >
+                                                            <XCircle className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Historial colapsable */}
+                                <button
+                                    onClick={() => {
+                                        setShowTaskHistory(!showTaskHistory);
+                                        if (!showTaskHistory && taskHistory.length === 0) {
+                                            // Fetch history: COMPLETED and FAILED from today
+                                            const hqId = user?.hqId || user?.headquartersId || '';
+                                            fetch(`/api/care/fast-actions?caregiverId=__ALL__&hqId=${hqId}&history=true`)
+                                                .catch(() => {});
+                                            // History comes from the already-expired tasks auto-failed in live data
+                                            // For now, show a placeholder — real history would need a dedicated endpoint
+                                        }
+                                    }}
+                                    className="mt-4 w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest transition-colors"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${showTaskHistory ? 'rotate-180' : ''}`} />
+                                    {showTaskHistory ? 'Ocultar historial' : 'Ver historial del día'}
+                                </button>
+
+                                {showTaskHistory && (
+                                    <div className="mt-2 bg-slate-50 rounded-[1.5rem] border border-slate-100 p-4">
+                                        {(() => {
+                                            // Show expired tasks from liveData (they would have been auto-failed)
+                                            // The live endpoint only returns PENDING + not expired, so completed/failed aren't in liveData
+                                            // Show a message that the history is based on the current session
+                                            return (
+                                                <div className="text-center py-4">
+                                                    <p className="text-xs text-slate-500 font-medium">Las tareas completadas o fallidas durante este turno se reflejan automáticamente en el Score de Cumplimiento de cada cuidador.</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1">Historial detallado disponible en el módulo de RRHH → Evaluaciones.</p>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {/* FILA 3 — Generador HR + Inspección Zonal */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

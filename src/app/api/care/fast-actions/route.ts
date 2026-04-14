@@ -89,18 +89,20 @@ export async function POST(req: Request) {
     }
 }
 
-// FASE 11: PATCH - Complete a fast action
+// FASE 11: PATCH - Complete or Fail a fast action
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { taskId } = body;
+        // Support both { taskId } (legacy caregiver) and { id, status } (supervisor)
+        const id = body.id || body.taskId;
+        const targetStatus: 'COMPLETED' | 'FAILED' = body.status || 'COMPLETED';
 
-        if (!taskId) {
-            return NextResponse.json({ success: false, error: "taskId is required" }, { status: 400 });
+        if (!id) {
+            return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
         }
 
         const task = await prisma.fastActionAssignment.findUnique({
-            where: { id: taskId }
+            where: { id }
         });
 
         if (!task) {
@@ -113,18 +115,31 @@ export async function PATCH(req: Request) {
 
         const now = new Date();
 
-        // Si expiró durante la ejecución, fallarla.
-        if (now > task.expiresAt) {
+        // Si el supervisor la marca como FAILED manualmente
+        if (targetStatus === 'FAILED') {
             await prisma.fastActionAssignment.update({
-                where: { id: taskId },
-                data: { status: 'FAILED' }
+                where: { id },
+                data: { status: 'FAILED', completedAt: now }
             });
 
             await prisma.user.update({
                 where: { id: task.caregiverId },
-                data: {
-                    complianceScore: { decrement: 5 }
-                }
+                data: { complianceScore: { decrement: 5 } }
+            });
+
+            return NextResponse.json({ success: true, message: "Task marked as FAILED. 5 points deducted." });
+        }
+
+        // Si expiró durante la ejecución, fallarla automáticamente.
+        if (now > task.expiresAt) {
+            await prisma.fastActionAssignment.update({
+                where: { id },
+                data: { status: 'FAILED', completedAt: now }
+            });
+
+            await prisma.user.update({
+                where: { id: task.caregiverId },
+                data: { complianceScore: { decrement: 5 } }
             });
 
             return NextResponse.json({ success: false, error: "Task expired. Marked as FAILED and 5 points deducted." }, { status: 400 });
@@ -132,7 +147,7 @@ export async function PATCH(req: Request) {
 
         // Caso de éxito: Completar a tiempo
         const updatedTask = await prisma.fastActionAssignment.update({
-            where: { id: taskId },
+            where: { id },
             data: {
                 status: 'COMPLETED',
                 completedAt: now
