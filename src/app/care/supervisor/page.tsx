@@ -224,8 +224,41 @@ export default function SupervisorDashboardPage() {
 
     const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
 
-    const [roundForm, setRoundForm] = useState({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
+    // Zone Inspection Rounds (structured)
+    const FLOORS = [
+        { floor: 1, zones: ['Habitaciones 1-10', 'Baños P1', 'Comedor', 'Recepción', 'Pasillo Principal'] },
+        { floor: 2, zones: ['Habitaciones 11-20', 'Baños P2', 'Sala de Estar P2', 'Pasillo P2'] },
+    ];
+    const ROUND_TYPES = [
+        { id: 'INICIO', label: 'Ronda 1 — Inicio de Turno', time: '9:00 AM' },
+        { id: 'MEDIO', label: 'Ronda 2 — Medio Turno', time: '12:30 PM' },
+        { id: 'CIERRE', label: 'Ronda 3 — Cierre', time: '5:30 PM' },
+    ];
+    const [selectedRound, setSelectedRound] = useState('INICIO');
+    const [selectedFloor, setSelectedFloor] = useState(1);
+    const [zoneChecks, setZoneChecks] = useState<Record<string, { limpieza: boolean; seguridad: boolean; residentes: boolean; equipo: boolean; observations: string }>>({});
     const [isSavingRound, setIsSavingRound] = useState(false);
+    const [todayInspections, setTodayInspections] = useState<any[]>([]);
+
+    const initZoneChecks = () => {
+        const checks: Record<string, { limpieza: boolean; seguridad: boolean; residentes: boolean; equipo: boolean; observations: string }> = {};
+        FLOORS.forEach(f => f.zones.forEach(z => { checks[`${f.floor}-${z}`] = { limpieza: false, seguridad: false, residentes: false, equipo: false, observations: '' }; }));
+        return checks;
+    };
+
+    useEffect(() => { setZoneChecks(initZoneChecks()); }, []);
+
+    const fetchTodayInspections = async () => {
+        if (!user) return;
+        try {
+            const hqId = user.hqId || user.headquartersId || '';
+            const res = await fetch(`/api/care/zone-inspection?hqId=${hqId}`);
+            const data = await res.json();
+            if (data.success) setTodayInspections(data.inspections || []);
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => { if (user) fetchTodayInspections(); }, [user]);
 
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
@@ -382,26 +415,40 @@ export default function SupervisorDashboardPage() {
     const handleSaveRound = async () => {
         if (!user) return;
         setIsSavingRound(true);
+        const hqId = user.hqId || user.headquartersId || '';
+        const currentFloorZones = FLOORS.find(f => f.floor === selectedFloor)?.zones || [];
+        let savedCount = 0;
         try {
-            const hqId = user.hqId || user.headquartersId || "hq-demo-1";
-            const res = await fetch("/api/care/supervisor/rounds", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    hqId,
-                    supervisorId: user.id,
-                    ...roundForm
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                setToast({ msg: "Ronda Guardada: " + roundForm.area, type: 'ok' });
-                setRoundForm({ area: "Pasillo A", isClean: false, isSafe: false, notes: "" });
+            for (const zoneName of currentFloorZones) {
+                const key = `${selectedFloor}-${zoneName}`;
+                const check = zoneChecks[key];
+                if (!check) continue;
+                const res = await fetch('/api/care/zone-inspection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        headquartersId: hqId,
+                        supervisorId: user.id,
+                        roundType: selectedRound,
+                        floor: selectedFloor,
+                        zoneName,
+                        checklistData: { limpieza: check.limpieza, seguridad: check.seguridad, residentes: check.residentes, equipo: check.equipo },
+                        observations: check.observations || null,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) savedCount++;
+            }
+            if (savedCount > 0) {
+                setToast({ msg: `Ronda ${selectedRound} Piso ${selectedFloor}: ${savedCount} zonas registradas ✓`, type: 'ok' });
+                setZoneChecks(initZoneChecks());
+                fetchTodayInspections();
             } else {
-                setToast({ msg: "Error guardando ronda: " + data.error, type: 'err' });
+                setToast({ msg: 'Error guardando ronda.', type: 'err' });
             }
         } catch (error) {
             console.error(error);
+            setToast({ msg: 'Error de conexión.', type: 'err' });
         } finally {
             setIsSavingRound(false);
         }
@@ -866,42 +913,87 @@ export default function SupervisorDashboardPage() {
                             )}
                         </div>
 
-                        {/* Housekeeping Check In */}
-                        <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-800 flex flex-col justify-between">
-                            <div>
-                                <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
-                                    <CalendarClock className="w-6 h-6 text-teal-400" /> Inspección Zonal
-                                    <InfoTooltip text="Registro de ronda del supervisor. Al firmar confirmas que inspeccionaste el área físicamente. Queda en el log de auditoría con tu nombre, hora y fecha." />
-                                </h3>
-                                <select
-                                    value={roundForm.area}
-                                    onChange={(e) => setRoundForm({ ...roundForm, area: e.target.value })}
-                                    className="w-full bg-slate-800 text-slate-100 font-medium rounded-[2rem] px-5 py-4 border border-slate-700 focus:outline-none focus:border-teal-500 appearance-none mb-6 text-sm"
-                                >
-                                    <option value="Pasillo A (Cuartos 1-10)">Pasillo A (Cuartos 1-10)</option>
-                                    <option value="Pasillo B (Cuartos 11-20)">Pasillo B (Cuartos 11-20)</option>
-                                </select>
-                                <div className="flex gap-4 mb-6">
-                                    <button
-                                        onClick={() => setRoundForm({ ...roundForm, isClean: !roundForm.isClean })}
-                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isClean ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-500'}`}
-                                    >
-                                        Zona Limpia
-                                    </button>
-                                    <button
-                                        onClick={() => setRoundForm({ ...roundForm, isSafe: !roundForm.isSafe })}
-                                        className={`flex-1 py-4 rounded-[2rem] text-xs uppercase tracking-widest font-black transition-colors border shadow-sm ${roundForm.isSafe ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-500'}`}
-                                    >
-                                        Zona Segura
-                                    </button>
-                                </div>
+                        {/* Inspección Zonal Estructurada */}
+                        <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-800">
+                            <h3 className="text-xl font-black text-white flex items-center gap-3 mb-6">
+                                <CalendarClock className="w-6 h-6 text-teal-400" /> Rondas de Inspección
+                                <InfoTooltip text="3 rondas por turno. Cada zona se evalúa con 4 criterios: Limpieza, Seguridad, Residentes y Equipo. Queda en el log de auditoría con firma electrónica." />
+                            </h3>
+
+                            {/* Selector de Ronda */}
+                            <div className="flex gap-2 mb-4">
+                                {ROUND_TYPES.map(r => {
+                                    const completedCount = todayInspections.filter(i => i.roundType === r.id).length;
+                                    return (
+                                        <button key={r.id} onClick={() => setSelectedRound(r.id)}
+                                            className={`flex-1 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black transition-all border relative ${selectedRound === r.id ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-700 text-slate-500 hover:border-slate-500'}`}>
+                                            {r.id === 'INICIO' ? '🌅' : r.id === 'MEDIO' ? '☀️' : '🌙'} {r.id}
+                                            <span className="block text-[8px] opacity-70 mt-0.5">{r.time}</span>
+                                            {completedCount > 0 && (
+                                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{completedCount}</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
+
+                            {/* Selector de Piso */}
+                            <div className="flex gap-2 mb-5">
+                                {FLOORS.map(f => (
+                                    <button key={f.floor} onClick={() => setSelectedFloor(f.floor)}
+                                        className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${selectedFloor === f.floor ? 'bg-white text-slate-900 border-white' : 'bg-transparent border-slate-700 text-slate-500 hover:border-slate-500'}`}>
+                                        Piso {f.floor} ({f.zones.length} zonas)
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Checklist por Zona */}
+                            <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar mb-5">
+                                {(FLOORS.find(f => f.floor === selectedFloor)?.zones || []).map(zoneName => {
+                                    const key = `${selectedFloor}-${zoneName}`;
+                                    const check = zoneChecks[key] || { limpieza: false, seguridad: false, residentes: false, equipo: false, observations: '' };
+                                    const checkCount = [check.limpieza, check.seguridad, check.residentes, check.equipo].filter(Boolean).length;
+                                    const alreadyDone = todayInspections.some(i => i.roundType === selectedRound && i.floor === selectedFloor && i.zoneName === zoneName);
+
+                                    return (
+                                        <div key={key} className={`p-4 rounded-2xl border transition-all ${alreadyDone ? 'bg-emerald-950/30 border-emerald-800/50' : 'bg-slate-800/50 border-slate-700/50'}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-bold text-white flex items-center gap-2">
+                                                    {alreadyDone && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                                                    {zoneName}
+                                                </span>
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${checkCount === 4 ? 'bg-emerald-500/20 text-emerald-400' : checkCount > 0 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-500'}`}>
+                                                    {checkCount}/4
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-1.5 mb-2">
+                                                {(['limpieza', 'seguridad', 'residentes', 'equipo'] as const).map(field => (
+                                                    <button key={field}
+                                                        onClick={() => setZoneChecks(prev => ({ ...prev, [key]: { ...prev[key], [field]: !prev[key]?.[field] } }))}
+                                                        className={`py-2 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all border ${check[field] ? 'bg-teal-500 border-teal-500 text-slate-900' : 'bg-transparent border-slate-600 text-slate-500 hover:border-slate-400'}`}>
+                                                        {field === 'limpieza' ? '🧹' : field === 'seguridad' ? '🛡️' : field === 'residentes' ? '👥' : '⚙️'} {field.slice(0, 4).toUpperCase()}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={check.observations}
+                                                onChange={(e) => setZoneChecks(prev => ({ ...prev, [key]: { ...prev[key], observations: e.target.value } }))}
+                                                placeholder="Observaciones (opcional)"
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-teal-500"
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Firma Electrónica */}
                             <button
                                 onClick={handleSaveRound}
                                 disabled={isSavingRound}
                                 className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-4 rounded-[2rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                             >
-                                {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : "Registrar Firma Electrónica"}
+                                {isSavingRound ? <Loader2 className="w-5 h-5 animate-spin" /> : `Firmar Ronda ${selectedRound} — Piso ${selectedFloor}`}
                             </button>
                         </div>
                     </div>

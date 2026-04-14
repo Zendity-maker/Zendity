@@ -114,6 +114,9 @@ model Headquarters {
   socialWorkTasks    SocialWorkTask[]
   socialWorkBenefits SocialWorkBenefit[]
   specialistVisits   SpecialistVisit[]
+
+  // Zone Inspection Rounds
+  zoneInspections ZoneInspection[]
 }
 
 // =======================
@@ -229,6 +232,9 @@ model User {
   socialWorkTasks        SocialWorkTask[]
   socialWorkTasksAssigned SocialWorkTask[] @relation("SocialWorkTasksAssigned")
   specialistVisits       SpecialistVisit[]
+
+  // Zone Inspection Rounds
+  zoneInspections ZoneInspection[]
 }
 
 model Account {
@@ -2150,4 +2156,24 @@ model SpecialistVisit {
   patient         Patient        @relation(fields: [patientId], references: [id])
   createdBy       User           @relation(fields: [createdById], references: [id])
   headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+}
+
+// =======================
+// ZONE INSPECTION ROUNDS (Supervisor)
+// =======================
+
+model ZoneInspection {
+  id             String    @id @default(uuid())
+  headquartersId String
+  supervisorId   String
+  roundType      String    // INICIO | MEDIO | CIERRE
+  floor          Int       // 1 | 2
+  zoneName       String
+  checklistData  Json      // { limpieza: bool, seguridad: bool, residentes: bool, equipo: bool }
+  observations   String?   @db.Text
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  supervisor   User         @relation(fields: [supervisorId], references: [id])
 }
