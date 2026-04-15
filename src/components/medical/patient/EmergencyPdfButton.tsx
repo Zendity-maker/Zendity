@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { ExclamationTriangleIcon, PhotoIcon, DocumentArrowDownIcon } from "@heroicons/react/24/outline";
+
 
 interface EmergencyPdfButtonProps {
     patientId: string;
@@ -101,111 +101,119 @@ export default function EmergencyPdfButton({ patientId, className, children }: E
             </button>
 
             {patientData && (
-                <div ref={printRef} className="w-[794px] min-h-[1123px] p-12 mx-auto box-border font-sans" style={{ position: 'absolute', top: '-10000px', left: '-10000px', backgroundColor: '#ffffff', color: '#1e293b' }}>
-                    {/* Header Institucional */}
-                    <div className="flex justify-between items-center pb-6 mb-8 border-b-4" style={{ borderColor: '#1e293b' }}>
-                        <div className="flex items-center gap-4">
-                            {patientData?.headquarters?.logoUrl && (
-                                <img src={patientData.headquarters.logoUrl} alt="Logo Sede" className="h-16 w-auto object-contain" crossOrigin="anonymous" />
-                            )}
-                            <div>
-                                <h1 className="text-3xl font-black tracking-tight" style={{ color: '#0f172a' }}>DOSSIER MÉDICO DE EMERGENCIA</h1>
-                                <p className="text-sm font-bold mt-1 uppercase tracking-widest" style={{ color: '#64748b' }}>{patientData?.headquarters?.name || 'Zendity Medical Protocol'}</p>
-                            </div>
+                <div ref={printRef} className="w-[794px] min-h-[1123px] mx-auto box-border" style={{ position: 'absolute', top: '-10000px', left: '-10000px', backgroundColor: '#ffffff', color: '#1e293b', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+
+                    {/* ── Branded Header Band ── */}
+                    <div style={{ backgroundColor: '#0F172A', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <div style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 300, letterSpacing: '1px' }}>vivid senior living</div>
+                            <div style={{ color: '#5EEAD4', fontSize: '11px', fontWeight: 500, marginTop: '2px' }}>Cupey, Puerto Rico</div>
                         </div>
-                        <div className="text-right">
-                            <p className="font-bold" style={{ color: '#1e293b' }}>Fecha de Impresión:</p>
-                            <p className="text-sm" style={{ color: '#475569' }}>{new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 600, letterSpacing: '3px', textTransform: 'uppercase' }}>Dossier Medico de Emergencia</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: '#5EEAD4', fontSize: '11px', fontWeight: 500 }}>Powered by Zendity</div>
+                            <div style={{ color: '#94A3B8', fontSize: '9px', marginTop: '2px' }}>{new Date().toLocaleDateString('es-PR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                         </div>
                     </div>
 
-                    {/* Basic Info Row */}
-                    <div className="flex items-start gap-8 mb-10">
+                    {/* ── Facility Info Bar ── */}
+                    <div style={{ backgroundColor: '#F1F5F9', padding: '10px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', fontSize: '9px', color: '#64748B', fontWeight: 600 }}>
+                        <span>{patientData?.headquarters?.name || 'Vivid Senior Living Cupey'}</span>
+                        <span>Calle Arroyo #178 S-91, San Juan PR 00926</span>
+                        <span>Tel: (787) 239-6858</span>
+                    </div>
+
+                    {/* ── Patient Identity Band ── */}
+                    <div style={{ backgroundColor: '#F8FAFC', padding: '16px 40px', borderBottom: '3px solid #14B8A6', display: 'flex', alignItems: 'center', gap: '20px' }}>
                         {patientData?.photoUrl ? (
-                            <img src={patientData.photoUrl} alt="Foto Paciente" crossOrigin="anonymous" className="w-32 h-32 rounded-xl object-cover border-2 shadow-sm" style={{ borderColor: '#e2e8f0' }} />
+                            <img src={patientData.photoUrl} alt="Foto" crossOrigin="anonymous" style={{ width: '72px', height: '72px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #E2E8F0' }} />
                         ) : (
-                            <div className="w-32 h-32 rounded-xl border-2 flex items-center justify-center" style={{ backgroundColor: '#f1f5f9', borderColor: '#e2e8f0', color: '#94a3b8' }}>
-                                <PhotoIcon className="w-12 h-12" />
+                            <div style={{ width: '72px', height: '72px', borderRadius: '10px', backgroundColor: '#F1F5F9', border: '2px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '28px' }}>
+                                &#128100;
                             </div>
                         )}
-
-                        <div className="flex-1">
-                            <h2 className="text-4xl font-black mb-4" style={{ color: '#0f172a' }}>{patientData?.name}</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 rounded-lg border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                                    <p className="text-xs font-bold uppercase" style={{ color: '#64748b' }}>Habitación</p>
-                                    <p className="text-lg font-bold" style={{ color: '#0f172a' }}>{patientData?.roomNumber || "N/A"}</p>
-                                </div>
-                                <div className="p-3 rounded-lg border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                                    <p className="text-xs font-bold uppercase" style={{ color: '#64748b' }}>Dieta</p>
-                                    <p className="text-lg font-bold" style={{ color: '#0f172a' }}>{patientData?.diet || "N/A"}</p>
-                                </div>
-                                <div className="p-3 rounded-lg border col-span-2" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                                    <p className="text-xs font-bold uppercase" style={{ color: '#64748b' }}>ID del Sistema</p>
-                                    <p className="text-sm font-mono" style={{ color: '#475569' }}>{patientData?.id}</p>
-                                </div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A', marginBottom: '6px' }}>{patientData?.name}</div>
+                            <div style={{ display: 'flex', gap: '12px', fontSize: '10px', color: '#475569', fontWeight: 600 }}>
+                                <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Hab. {patientData?.roomNumber || 'N/A'}</span>
+                                {patientData?.colorGroup && (
+                                    <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Grupo {patientData.colorGroup}</span>
+                                )}
+                                <span style={{ backgroundColor: '#E2E8F0', padding: '3px 10px', borderRadius: '6px' }}>Dieta: {patientData?.diet || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Critical Alerts (Allergies) */}
-                    <div className="mb-10 p-6 border-2 rounded-xl" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca' }}>
-                        <h3 className="font-bold uppercase tracking-wider mb-2 flex items-center gap-2" style={{ color: '#991b1b' }}>
-                            <ExclamationTriangleIcon className="w-5 h-5" /> ALERGIAS CRÍTICAS REGISTRADAS
-                        </h3>
-                        {intake?.allergies ? (
-                            <p className="text-xl font-bold" style={{ color: '#7f1d1d' }}>{intake.allergies}</p>
-                        ) : (
-                            <p className="italic" style={{ color: '#b91c1c' }}>No documentadas en el sistema al momento de la extracción.</p>
-                        )}
-                    </div>
+                    {/* ── Content ── */}
+                    <div style={{ padding: '24px 40px', fontSize: '11px', color: '#1E293B', lineHeight: 1.7 }}>
 
-                    {/* Diagnoses */}
-                    <div className="mb-10">
-                        <h3 className="text-lg font-bold border-b-2 pb-2 mb-4 uppercase tracking-wider" style={{ color: '#1e293b', borderColor: '#e2e8f0' }}>Cuadro Clínico Base</h3>
-                        {intake?.diagnoses ? (
-                            <div className="text-base leading-relaxed font-medium" style={{ color: '#334155' }}>
-                                {intake.diagnoses.split('\n').map((line: string, i: number) => (
-                                    <p key={i} className="mb-2"> {line.replace(/^- /, '')}</p>
-                                ))}
+                        {/* Critical Allergies Alert */}
+                        <div style={{ borderLeft: '4px solid #EF4444', backgroundColor: '#FEF2F2', padding: '12px 16px', marginBottom: '20px', borderRadius: '0 8px 8px 0' }}>
+                            <div style={{ fontSize: '9px', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>Alergias Criticas Registradas</div>
+                            {intake?.allergies ? (
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: '#7F1D1D' }}>{intake.allergies}</div>
+                            ) : (
+                                <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#B91C1C' }}>No documentadas en el sistema al momento de la extraccion.</div>
+                            )}
+                        </div>
+
+                        {/* Diagnoses */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
+                                Cuadro Clinico Base
                             </div>
-                        ) : (
-                            <p className="italic" style={{ color: '#64748b' }}>No hay historial de diagnósticos transcrito en este módulo.</p>
-                        )}
-                    </div>
-
-                    {/* Medications */}
-                    <div>
-                        <h3 className="text-lg font-bold border-b-2 pb-2 mb-4 uppercase tracking-wider" style={{ color: '#1e293b', borderColor: '#e2e8f0' }}>Plan Farmacológico Activo (eMAR)</h3>
-                        {meds.length > 0 ? (
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="text-sm font-bold uppercase" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>
-                                        <th className="p-3 border" style={{ borderColor: '#e2e8f0' }}>Medicamento</th>
-                                        <th className="p-3 border" style={{ borderColor: '#e2e8f0' }}>Dosis</th>
-                                        <th className="p-3 border" style={{ borderColor: '#e2e8f0' }}>Frecuencia / Pauta</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {meds.map((m: any) => (
-                                        <tr key={m.id} className="text-sm font-medium" style={{ color: '#1e293b' }}>
-                                            <td className="p-3 border font-bold" style={{ borderColor: '#e2e8f0' }}>{m.medication?.name}</td>
-                                            <td className="p-3 border" style={{ borderColor: '#e2e8f0' }}>{m.medication?.dosage}</td>
-                                            <td className="p-3 border" style={{ borderColor: '#e2e8f0' }}>{m.frequency}</td>
-                                        </tr>
+                            {intake?.diagnoses ? (
+                                <div style={{ fontSize: '11px', lineHeight: 1.8 }}>
+                                    {intake.diagnoses.split('\n').map((line: string, i: number) => (
+                                        <div key={i} style={{ marginBottom: '4px' }}>{line.replace(/^- /, '• ')}</div>
                                     ))}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <p className="italic" style={{ color: '#64748b' }}>Sin medicamentos administrados rutinariamente registrados en eMAR.</p>
-                        )}
+                                </div>
+                            ) : (
+                                <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#64748B' }}>No hay historial de diagnosticos transcrito en este modulo.</div>
+                            )}
+                        </div>
+
+                        {/* Medications Table */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
+                                Plan Farmacologico Activo (eMAR) — {meds.length} medicamentos
+                            </div>
+                            {meds.length > 0 ? (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                    <thead>
+                                        <tr style={{ backgroundColor: '#0F172A', color: '#FFFFFF' }}>
+                                            <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Medicamento</th>
+                                            <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Dosis</th>
+                                            <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Frecuencia / Pauta</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {meds.map((m: any, i: number) => (
+                                            <tr key={m.id} style={{ backgroundColor: i % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                                                <td style={{ padding: '5px 10px', borderBottom: '1px solid #E2E8F0', fontWeight: 600, color: '#0F172A' }}>{m.medication?.name}</td>
+                                                <td style={{ padding: '5px 10px', borderBottom: '1px solid #E2E8F0' }}>{m.medication?.dosage}</td>
+                                                <td style={{ padding: '5px 10px', borderBottom: '1px solid #E2E8F0' }}>{m.frequency}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#64748B' }}>Sin medicamentos activos registrados en eMAR.</div>
+                            )}
+                        </div>
+
+                        {/* System ID */}
+                        <div style={{ fontSize: '8px', color: '#94A3B8', marginTop: '16px' }}>
+                            ID del Sistema: {patientData?.id}
+                        </div>
                     </div>
 
-                    {/* Footer Warning */}
-                    <div className="absolute bottom-12 left-12 right-12 text-center border-t pt-6" style={{ borderColor: '#cbd5e1' }}>
-                        <p className="text-xs font-bold" style={{ color: '#64748b' }}>
-                            Este documento es confidencial y de uso exclusivo para profesionales de salud e intervenciones de emergencia (HIPAA Compliant Protocol).
-                        </p>
+                    {/* ── Branded Footer ── */}
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, borderTop: '2px solid #14B8A6', padding: '10px 40px', fontSize: '8px', color: '#64748B', display: 'flex', justifyContent: 'space-between', fontWeight: 600, backgroundColor: '#FFFFFF' }}>
+                        <span>Documento Medico Confidencial — Vivid Senior Living Cupey | HIPAA Compliant Protocol</span>
+                        <span>Generado por Zendity Healthcare Platform</span>
                     </div>
                 </div>
             )}
