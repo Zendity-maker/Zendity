@@ -30,7 +30,14 @@ export async function GET(
                 mealLogs: true,
                 serviceVisits: true,
                 intakeData: true,
-                lifePlan: true
+                lifePlan: true,
+                TriageTicket: {
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        assignedTo: { select: { name: true, role: true } },
+                        resolvedBy: { select: { name: true } }
+                    }
+                }
             }
         });
 

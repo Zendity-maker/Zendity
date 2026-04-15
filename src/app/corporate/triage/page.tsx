@@ -292,11 +292,14 @@ export default function TriageCenterPage() {
                                         {/* Meta */}
                                         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium flex-wrap">
                                             {ticket.patient && (
-                                                <span className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                                                <Link
+                                                    href={`/corporate/medical/patients/${ticket.patient.id}`}
+                                                    className="flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors"
+                                                >
                                                     <User className="w-3 h-3" />
-                                                    {ticket.patient.name}
+                                                    <span className="underline decoration-dotted underline-offset-2">{ticket.patient.name}</span>
                                                     {ticket.patient.roomNumber && <span className="text-slate-400">· Hab. {ticket.patient.roomNumber}</span>}
-                                                </span>
+                                                </Link>
                                             )}
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" /> {timeAgo(ticket.createdAt)}
