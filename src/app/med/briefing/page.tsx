@@ -365,7 +365,7 @@ export default function MedicalBriefingPage() {
                     </div>
 
                     {/* ── Content ── */}
-                    <div style={{ padding: '20px 24px', fontSize: '11px', color: '#1E293B', lineHeight: 1.7 }}>
+                    <div style={{ padding: '20px 24px 48px 24px', fontSize: '11px', color: '#1E293B', lineHeight: 1.7 }}>
 
                         {/* Red Flags Banner */}
                         {active.redFlags.length > 0 && (
@@ -500,7 +500,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Diagnoses */}
                         {active.rawData.diagnoses && (
-                            <div style={{ marginBottom: '16px' }}>
+                            <div style={{ marginBottom: '0px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Cuadro Clinico Base (Intake)
                                 </div>
@@ -514,7 +514,7 @@ export default function MedicalBriefingPage() {
                     </div>
 
                     {/* ── Footer ── */}
-                    <div style={{ borderTop: '2px solid #14B8A6', padding: '10px 40px', fontSize: '8px', color: '#64748B', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <div style={{ borderTop: '2px solid #14B8A6', marginTop: '24px', padding: '12px 40px', fontSize: '8px', color: '#64748B', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
                         <span>Documento Medico Confidencial — {active.rawData.hqName || 'Vivid Senior Living'} | HIPAA Compliant Protocol</span>
                         <span>Generado por Zendity Healthcare Platform</span>
                     </div>
