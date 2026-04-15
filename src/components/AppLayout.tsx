@@ -83,7 +83,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { user, logout, loading } = useAuth();
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
-    const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>('collapsed');
+    const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>(
+        typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'expanded' : 'collapsed'
+    );
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -214,7 +216,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const w = window.innerWidth;
-        if (w > 1024) setSidebarMode('expanded');
+        if (w >= 1024) setSidebarMode('expanded');
         else if (w >= 768) setSidebarMode('collapsed');
         else setSidebarMode('hidden');
     }, []);
@@ -307,7 +309,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                     title={isSidebarCollapsed ? link.name : undefined}
                                                     className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
                                                 >
-                                                    <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
+                                                    <Icon className={`shrink-0 ${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
                                                     {!isSidebarCollapsed && <span className="truncate">{link.name}</span>}
                                                 </Link>
                                             </li>
@@ -332,7 +334,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     title={isSidebarCollapsed ? item.name : undefined}
                                     className={`flex items-center gap-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
                                 >
-                                    <Icon className={`w-[18px] h-[18px] shrink-0 ${isSidebarCollapsed ? 'mr-0' : ''}`} strokeWidth={isCurrent ? 2.5 : 2} />
+                                    <Icon className={`shrink-0 ${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
                                     {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                                 </Link>
                             )
