@@ -168,20 +168,24 @@ export default function MedicalBriefingPage() {
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfPageHeight = pdf.internal.pageSize.getHeight();
-            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+            const margin = 10;
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeightScaled = (canvas.height * imgWidth) / canvas.width;
 
-            // Multi-page support
-            let heightLeft = imgHeight;
+            // Multi-page support with margins
+            let heightLeft = imgHeightScaled;
             let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pdfPageHeight;
+            // First page
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeightScaled);
+            heightLeft -= (pdfPageHeight - margin);
 
+            // Subsequent pages
             while (heightLeft > 0) {
-                position = -(pdfPageHeight * (Math.ceil((imgHeight - heightLeft) / pdfPageHeight)));
+                position = heightLeft - imgHeightScaled;
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pdfPageHeight;
+                pdf.addImage(imgData, 'PNG', margin, position + margin, imgWidth, imgHeightScaled);
+                heightLeft -= (pdfPageHeight - margin * 2);
             }
 
             pdf.autoPrint();
@@ -320,7 +324,7 @@ export default function MedicalBriefingPage() {
             {active && (
                 <div
                     ref={pdfRef}
-                    style={{ position: 'absolute', top: '-10000px', left: '-10000px', display: 'none', width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                    style={{ position: 'absolute', top: '-10000px', left: '-10000px', display: 'none', width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', fontFamily: 'system-ui, -apple-system, sans-serif', paddingBottom: '40px' }}
                 >
                     {/* ── Header Band ── */}
                     <div style={{ backgroundColor: '#0F172A', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -361,11 +365,11 @@ export default function MedicalBriefingPage() {
                     </div>
 
                     {/* ── Content ── */}
-                    <div style={{ padding: '24px 40px', fontSize: '11px', color: '#1E293B', lineHeight: 1.7 }}>
+                    <div style={{ padding: '20px 24px', fontSize: '11px', color: '#1E293B', lineHeight: 1.7 }}>
 
                         {/* Red Flags Banner */}
                         {active.redFlags.length > 0 && (
-                            <div style={{ borderLeft: '4px solid #EF4444', backgroundColor: '#FEF2F2', padding: '10px 16px', marginBottom: '20px', borderRadius: '0 8px 8px 0' }}>
+                            <div style={{ borderLeft: '4px solid #EF4444', backgroundColor: '#FEF2F2', padding: '10px 16px', marginBottom: '16px', borderRadius: '0 8px 8px 0' }}>
                                 <div style={{ fontSize: '9px', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '6px' }}>Red Flags — Atencion Requerida</div>
                                 {active.redFlags.map((f, i) => (
                                     <div key={i} style={{ fontSize: '11px', fontWeight: 700, color: '#7F1D1D', marginBottom: '2px' }}>&#x26A0; {f}</div>
@@ -375,7 +379,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Allergies Alert */}
                         {active.rawData.allergies && (
-                            <div style={{ borderLeft: '4px solid #EF4444', backgroundColor: '#FEF2F2', padding: '10px 16px', marginBottom: '20px', borderRadius: '0 8px 8px 0' }}>
+                            <div style={{ borderLeft: '4px solid #EF4444', backgroundColor: '#FEF2F2', padding: '10px 16px', marginBottom: '16px', borderRadius: '0 8px 8px 0' }}>
                                 <div style={{ fontSize: '9px', fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>Alergias Criticas</div>
                                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#7F1D1D' }}>{active.rawData.allergies}</div>
                             </div>
@@ -383,7 +387,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Section: Vital Signs Table */}
                         {active.rawData.vitals.length > 0 && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Signos Vitales — Ultimos 30 Dias ({active.rawData.vitals.length} registros)
                                 </div>
@@ -425,7 +429,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Section: Active Medications */}
                         {active.rawData.medications.length > 0 && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Plan Farmacologico Activo (eMAR) — {active.rawData.medications.length} medicamentos
                                 </div>
@@ -455,7 +459,7 @@ export default function MedicalBriefingPage() {
                         )}
 
                         {/* Section: AI Narrative */}
-                        <div style={{ marginBottom: '20px' }}>
+                        <div style={{ marginBottom: '16px' }}>
                             <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                 Analisis Clinico Zendi AI — Ultimos 30 Dias
                             </div>
@@ -466,7 +470,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Section: Clinical Alerts */}
                         {active.rawData.clinicalAlerts.length > 0 && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Alertas Clinicas Reportadas ({active.rawData.clinicalAlerts.length})
                                 </div>
@@ -481,7 +485,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Section: Falls */}
                         {active.rawData.falls.length > 0 && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Caidas Reportadas ({active.rawData.falls.length})
                                 </div>
@@ -496,7 +500,7 @@ export default function MedicalBriefingPage() {
 
                         {/* Diagnoses */}
                         {active.rawData.diagnoses && (
-                            <div style={{ marginBottom: '20px' }}>
+                            <div style={{ marginBottom: '16px' }}>
                                 <div style={{ backgroundColor: '#E1F5EE', color: '#0F6E56', padding: '6px 12px', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', borderRadius: '4px' }}>
                                     Cuadro Clinico Base (Intake)
                                 </div>
