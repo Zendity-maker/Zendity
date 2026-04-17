@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
+import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -835,9 +836,18 @@ export default function SupervisorDashboardPage() {
                                         {zombis.map((s: CaregiverSession) => {
                                             const h = (nowTime - new Date(s.startTime).getTime()) / 3600000;
                                             return (
-                                                <div key={s.id} className="bg-white border border-rose-200 p-4 rounded-[2rem] flex justify-between items-center shadow-sm">
-                                                    <span className="font-bold text-slate-800 text-sm">{s.caregiver?.name}</span>
-                                                    <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-wider">{h.toFixed(1)}h ABIERTA</span>
+                                                <div key={s.id} className="bg-white border border-rose-200 p-4 rounded-[2rem] flex flex-wrap justify-between items-center gap-3 shadow-sm">
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <span className="font-bold text-slate-800 text-sm truncate">{s.caregiver?.name}</span>
+                                                        <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-wider shrink-0">{h.toFixed(1)}h ABIERTA</span>
+                                                    </div>
+                                                    <ForceCloseShiftButton
+                                                        shiftSessionId={s.id}
+                                                        caregiverName={s.caregiver?.name || 'Cuidador'}
+                                                        hoursOpen={h}
+                                                        variant="zombie"
+                                                        onClosed={fetchLiveData}
+                                                    />
                                                 </div>
                                             );
                                         })}
@@ -881,6 +891,13 @@ export default function SupervisorDashboardPage() {
                                                             </div>
                                                         )}
                                                         <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
+                                                        <ForceCloseShiftButton
+                                                            shiftSessionId={s.id}
+                                                            caregiverName={s.caregiver?.name || 'Cuidador'}
+                                                            hoursOpen={hrs}
+                                                            variant="active"
+                                                            onClosed={fetchLiveData}
+                                                        />
                                                     </div>
                                                 </div>
                                             );

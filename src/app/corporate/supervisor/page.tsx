@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren } from "lucide-react";
+import { Brain, CalendarClock, Users, Loader2, Sparkles, Send, Trash2, CheckCircle2, Activity, Droplets, Coffee, Siren, Clock, UserX } from "lucide-react";
+import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 
 export default function SupervisorDashboardPage() {
     const { user } = useAuth();
@@ -220,6 +221,61 @@ export default function SupervisorDashboardPage() {
                     </div>
                 )}
             </div>
+
+            {/* SESIONES ACTIVAS — visible solo a DIRECTOR y ADMIN */}
+            {user && ['DIRECTOR', 'ADMIN'].includes((user as any).role) && liveData?.activeSessions && (
+                <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                            <UserX className="w-7 h-7 text-rose-500" />
+                            Sesiones Activas ({liveData.activeSessions.length})
+                        </h2>
+                        <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                            Auto-refresh: 15s
+                        </span>
+                    </div>
+
+                    {liveData.activeSessions.length === 0 ? (
+                        <div className="py-10 flex flex-col items-center justify-center text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                            <CheckCircle2 className="w-10 h-10 text-emerald-400 mb-3" />
+                            <p className="text-slate-500 font-bold">Sin sesiones activas actualmente.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {liveData.activeSessions.map((s: any) => {
+                                const hrs = (Date.now() - new Date(s.startTime).getTime()) / 3600000;
+                                const isZombie = hrs >= 12;
+                                return (
+                                    <div
+                                        key={s.id}
+                                        className={`p-5 rounded-2xl border flex items-center justify-between gap-4 ${isZombie ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm shrink-0 ${isZombie ? 'bg-rose-100 text-rose-700' : 'bg-teal-100 text-teal-700'}`}>
+                                                {s.caregiver?.name?.substring(0, 2).toUpperCase() || '??'}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-800 truncate">{s.caregiver?.name || 'Cuidador'}</p>
+                                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" /> {hrs.toFixed(1)}h abierta
+                                                    {isZombie && <span className="text-rose-600 ml-1">· ZOMBIE</span>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <ForceCloseShiftButton
+                                            shiftSessionId={s.id}
+                                            caregiverName={s.caregiver?.name || 'Cuidador'}
+                                            hoursOpen={hrs}
+                                            variant={isZombie ? 'zombie' : 'active'}
+                                            onClosed={fetchLiveData}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* BANDEJA DE TRIAJE (QUEJAS) FASE 30 */}
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
