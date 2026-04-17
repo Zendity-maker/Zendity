@@ -1224,6 +1224,7 @@ enum ShiftType {
   MORNING
   EVENING
   NIGHT
+  SUPERVISOR_DAY
 }
 
 enum HandoverStatus {

@@ -6,7 +6,15 @@ import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User } 
 const SHIFT_LABELS: Record<string, string> = {
     MORNING: "Diurno 6AM–2PM",
     EVENING: "Vespertino 2PM–10PM",
-    NIGHT: "Nocturno 10PM–6AM"
+    NIGHT: "Nocturno 10PM–6AM",
+    SUPERVISOR_DAY: "Supervisor 9AM–6PM"
+};
+
+const SHIFT_STYLES: Record<string, string> = {
+    MORNING: "bg-amber-50 text-amber-700 border-amber-200",
+    EVENING: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    NIGHT: "bg-slate-100 text-slate-700 border-slate-200",
+    SUPERVISOR_DAY: "bg-purple-100 text-purple-700 border-purple-300"
 };
 
 const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "NONE"];
@@ -342,8 +350,11 @@ export default function ScheduleBuilderPage() {
                             </div>
                             <div className="space-y-2 flex-1">
                                 {dayShifts.map(shift => (
-                                    <div key={shift.tempId} className="bg-slate-50 rounded-xl p-2 border border-slate-100 space-y-1.5">
-                                        <div className="flex items-center justify-between">
+                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
+                                        <div className="flex items-center justify-between gap-1">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
+                                            </span>
                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
                                                 {shift.colorGroup || 'Sin color'}
                                             </span>
@@ -365,9 +376,12 @@ export default function ScheduleBuilderPage() {
                                             onChange={e => updateShift(shift.tempId, 'shiftType', e.target.value)}
                                             className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                         >
-                                            {Object.entries(SHIFT_LABELS).map(([k, v]) => (
-                                                <option key={k} value={k}>{v}</option>
-                                            ))}
+                                            {Object.entries(SHIFT_LABELS).map(([k, v]) => {
+                                                // SUPERVISOR_DAY solo disponible si el empleado es SUPERVISOR
+                                                const assignedStaff = staff.find(s => s.id === shift.userId);
+                                                if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
+                                                return <option key={k} value={k}>{v}</option>;
+                                            })}
                                         </select>
                                         <select
                                             value={shift.colorGroup || 'NONE'}
@@ -422,14 +436,15 @@ export default function ScheduleBuilderPage() {
                     <Clock className="w-5 h-5 text-teal-500" />
                     Resumen de la semana
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
-                    {['MORNING', 'EVENING', 'NIGHT'].map(type => {
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {['MORNING', 'EVENING', 'NIGHT', 'SUPERVISOR_DAY'].map(type => {
                         const count = shifts.filter(s => s.shiftType === type).length;
+                        const isSupervisor = type === 'SUPERVISOR_DAY';
                         return (
-                            <div key={type} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">{SHIFT_LABELS[type]}</p>
-                                <p className="text-2xl font-black text-slate-800">{count}</p>
-                                <p className="text-xs text-slate-500">turnos programados</p>
+                            <div key={type} className={`rounded-xl p-4 border ${isSupervisor ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
+                                <p className={`text-xs font-black uppercase tracking-widest mb-1 ${isSupervisor ? 'text-purple-700' : 'text-slate-500'}`}>{SHIFT_LABELS[type]}</p>
+                                <p className={`text-2xl font-black ${isSupervisor ? 'text-purple-800' : 'text-slate-800'}`}>{count}</p>
+                                <p className={`text-xs ${isSupervisor ? 'text-purple-600' : 'text-slate-500'}`}>turnos programados</p>
                             </div>
                         );
                     })}
