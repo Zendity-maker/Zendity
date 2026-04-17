@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SystemAuditAction, NursingHandoverStatus, FlagReason } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
 
+const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
 export async function POST(req: Request) {
     try {
+        // Validación de sesión (antes no había nada)
+        const authSession = await getServerSession(authOptions);
+        if (!authSession?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+        const invokerId = (authSession.user as any).id;
+        const invokerRole = (authSession.user as any).role;
+        const invokerHqId = (authSession.user as any).headquartersId;
+
         const { shiftSessionId, handoverData, signature, forceEnd } = await req.json();
 
         if (!shiftSessionId) {
@@ -18,6 +31,14 @@ export async function POST(req: Request) {
 
         if (!session) {
             return NextResponse.json({ success: false, error: "Turno no encontrado" }, { status: 404 });
+        }
+
+        // Autorización: (1) el propio cuidador puede cerrar su turno, o
+        // (2) SUPERVISOR/DIRECTOR/ADMIN de la misma sede puede cerrarlo.
+        const isOwner = session.caregiverId === invokerId;
+        const isSupervisor = SUPERVISOR_ROLES.includes(invokerRole) && session.headquartersId === invokerHqId;
+        if (!isOwner && !isSupervisor) {
+            return NextResponse.json({ success: false, error: "No tienes permiso para cerrar este turno" }, { status: 403 });
         }
 
         if (session.actualEndTime && !forceEnd) {
@@ -102,18 +123,20 @@ export async function POST(req: Request) {
                     }
                 });
 
-                // Auditoría Strict
+                // Auditoría Strict — performedById es el invocador real, no el dueño
                 await tx.systemAuditLog.create({
                     data: {
                         headquartersId: session.headquartersId,
                         entityName: 'ShiftSession-HandoverUnion',
                         entityId: session.id,
                         action: SystemAuditAction.SIGNED_OUT,
-                        performedById: session.caregiverId,
-                        payloadChanges: { 
-                            handoverId: shiftHandover.id, 
-                            tasksExempted: handoverData.justifications, 
-                            zendiApproved: true 
+                        performedById: invokerId,
+                        payloadChanges: {
+                            handoverId: shiftHandover.id,
+                            tasksExempted: handoverData.justifications,
+                            zendiApproved: true,
+                            closedBySupervisor: !isOwner,
+                            ownerCaregiverId: session.caregiverId,
                         }
                     }
                 });
@@ -137,14 +160,18 @@ export async function POST(req: Request) {
             }
         });
 
-        // Trackear abandono
+        // Trackear abandono — performedById es el invocador real
         await prisma.systemAuditLog.create({
             data: {
                 headquartersId: session.headquartersId,
                 entityName: 'ShiftSession',
                 entityId: session.id,
                 action: SystemAuditAction.SYSTEM_ABANDONED,
-                performedById: session.caregiverId
+                performedById: invokerId,
+                payloadChanges: {
+                    closedBySupervisor: !isOwner,
+                    ownerCaregiverId: session.caregiverId,
+                }
             }
         });
 
