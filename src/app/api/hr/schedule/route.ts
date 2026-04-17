@@ -58,7 +58,11 @@ export async function POST(req: Request) {
                         date: new Date(s.date),
                         shiftType: s.shiftType,
                         colorGroup: s.colorGroup || null,
-                        notes: s.notes || null
+                        notes: s.notes || null,
+                        isManual: s.isManual || false,
+                        customStartTime: s.customStartTime ? new Date(s.customStartTime) : null,
+                        customEndTime: s.customEndTime ? new Date(s.customEndTime) : null,
+                        customDescription: s.customDescription || null
                     }))
                 }
             },

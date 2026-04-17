@@ -56,7 +56,17 @@ type ShiftEntry = {
     colorGroup: string | null;
     notes?: string;
     isAbsent?: boolean;
+    isManual?: boolean;
+    customStartTime?: string | null; // ISO string
+    customEndTime?: string | null;
+    customDescription?: string | null;
 };
+
+function formatTimeLabel(iso: string | null | undefined) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase().replace(' ', '');
+}
 
 export default function ScheduleBuilderPage() {
     const { user } = useAuth();
@@ -75,6 +85,15 @@ export default function ScheduleBuilderPage() {
         countdown: number;
     } | null>(null);
     const [processingAbsent, setProcessingAbsent] = useState<string | null>(null);
+
+    // Turno Manual Modal
+    const [manualModal, setManualModal] = useState<{ date: Date } | null>(null);
+    const [manualForm, setManualForm] = useState({
+        userId: '',
+        startTime: '10:00',
+        endTime: '15:00',
+        description: ''
+    });
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -113,7 +132,11 @@ export default function ScheduleBuilderPage() {
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
-                    isAbsent: sh.isAbsent || false
+                    isAbsent: sh.isAbsent || false,
+                    isManual: sh.isManual || false,
+                    customStartTime: sh.customStartTime || null,
+                    customEndTime: sh.customEndTime || null,
+                    customDescription: sh.customDescription || null
                 }));
                 setShifts(loaded);
             } else {
@@ -135,6 +158,44 @@ export default function ScheduleBuilderPage() {
             colorGroup: 'GREEN'
         };
         setShifts(prev => [...prev, newShift]);
+    };
+
+    const openManualModal = (date: Date) => {
+        if (!staff.length) return;
+        setManualForm({
+            userId: staff[0].id,
+            startTime: '10:00',
+            endTime: '15:00',
+            description: ''
+        });
+        setManualModal({ date });
+    };
+
+    const confirmManualShift = () => {
+        if (!manualModal) return;
+        const { date } = manualModal;
+        const dateStr = date.toISOString().split('T')[0];
+        const [sh, sm] = manualForm.startTime.split(':').map(Number);
+        const [eh, em] = manualForm.endTime.split(':').map(Number);
+        const start = new Date(date);
+        start.setHours(sh, sm, 0, 0);
+        const end = new Date(date);
+        end.setHours(eh, em, 0, 0);
+        const found = staff.find(s => s.id === manualForm.userId);
+        const newShift: ShiftEntry = {
+            tempId: `temp-${Date.now()}`,
+            userId: manualForm.userId,
+            userName: found?.name || '',
+            date: dateStr,
+            shiftType: 'MORNING', // fallback required by enum; visual driven by isManual
+            colorGroup: null,
+            isManual: true,
+            customStartTime: start.toISOString(),
+            customEndTime: end.toISOString(),
+            customDescription: manualForm.description || null
+        };
+        setShifts(prev => [...prev, newShift]);
+        setManualModal(null);
     };
 
     const updateShift = (tempId: string, field: string, value: string) => {
@@ -176,7 +237,11 @@ export default function ScheduleBuilderPage() {
                         date: s.date,
                         shiftType: s.shiftType,
                         colorGroup: s.colorGroup || null,
-                        notes: s.notes || null
+                        notes: s.notes || null,
+                        isManual: s.isManual || false,
+                        customStartTime: s.customStartTime || null,
+                        customEndTime: s.customEndTime || null,
+                        customDescription: s.customDescription || null
                     }))
                 })
             })
@@ -350,14 +415,22 @@ export default function ScheduleBuilderPage() {
                             </div>
                             <div className="space-y-2 flex-1">
                                 {dayShifts.map(shift => (
-                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
+                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${shift.isManual ? 'bg-teal-50 border-teal-200' : shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
                                         <div className="flex items-center justify-between gap-1">
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
-                                                {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
-                                            </span>
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
-                                                {shift.colorGroup || 'Sin color'}
-                                            </span>
+                                            {shift.isManual ? (
+                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-teal-100 text-teal-700 border-teal-300">
+                                                    {formatTimeLabel(shift.customStartTime)}–{formatTimeLabel(shift.customEndTime)}
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                        {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
+                                                    </span>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
+                                                        {shift.colorGroup || 'Sin color'}
+                                                    </span>
+                                                </>
+                                            )}
                                             <button onClick={() => removeShift(shift.tempId)} className="text-slate-500 hover:text-red-500 transition-colors">
                                                 <Trash2 className="w-3 h-3" />
                                             </button>
@@ -371,27 +444,36 @@ export default function ScheduleBuilderPage() {
                                                 <option key={s.id} value={s.id}>{s.name}</option>
                                             ))}
                                         </select>
-                                        <select
-                                            value={shift.shiftType}
-                                            onChange={e => updateShift(shift.tempId, 'shiftType', e.target.value)}
-                                            className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
-                                        >
-                                            {Object.entries(SHIFT_LABELS).map(([k, v]) => {
-                                                // SUPERVISOR_DAY solo disponible si el empleado es SUPERVISOR
-                                                const assignedStaff = staff.find(s => s.id === shift.userId);
-                                                if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
-                                                return <option key={k} value={k}>{v}</option>;
-                                            })}
-                                        </select>
-                                        <select
-                                            value={shift.colorGroup || 'NONE'}
-                                            onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
-                                            className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
-                                        >
-                                            {COLOR_OPTIONS.map(c => (
-                                                <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
-                                            ))}
-                                        </select>
+                                        {!shift.isManual && (
+                                            <>
+                                                <select
+                                                    value={shift.shiftType}
+                                                    onChange={e => updateShift(shift.tempId, 'shiftType', e.target.value)}
+                                                    className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                                >
+                                                    {Object.entries(SHIFT_LABELS).map(([k, v]) => {
+                                                        // SUPERVISOR_DAY solo disponible si el empleado es SUPERVISOR
+                                                        const assignedStaff = staff.find(s => s.id === shift.userId);
+                                                        if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
+                                                        return <option key={k} value={k}>{v}</option>;
+                                                    })}
+                                                </select>
+                                                <select
+                                                    value={shift.colorGroup || 'NONE'}
+                                                    onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                                    className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                                >
+                                                    {COLOR_OPTIONS.map(c => (
+                                                        <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
+                                                    ))}
+                                                </select>
+                                            </>
+                                        )}
+                                        {shift.isManual && shift.customDescription && (
+                                            <p className="text-[10px] text-teal-700 font-medium italic px-1 leading-tight">
+                                                {shift.customDescription}
+                                            </p>
+                                        )}
                                         <input
                                             type="text"
                                             value={shift.notes || ''}
@@ -419,12 +501,21 @@ export default function ScheduleBuilderPage() {
                                     </div>
                                 ))}
                             </div>
-                            <button
-                                onClick={() => addShift(day)}
-                                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-1.5 transition-all border border-dashed border-slate-200 hover:border-teal-300"
-                            >
-                                <Plus className="w-3 h-3" /> Agregar turno
-                            </button>
+                            <div className="mt-2 flex gap-1">
+                                <button
+                                    onClick={() => addShift(day)}
+                                    className="flex-1 flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-1.5 transition-all border border-dashed border-slate-200 hover:border-teal-300"
+                                >
+                                    <Plus className="w-3 h-3" /> Turno
+                                </button>
+                                <button
+                                    onClick={() => openManualModal(day)}
+                                    className="flex-1 flex items-center justify-center gap-1 text-[11px] font-bold text-teal-600 hover:text-white hover:bg-teal-500 rounded-xl py-1.5 transition-all border border-dashed border-teal-300"
+                                    title="Turno con hora personalizada"
+                                >
+                                    <Clock className="w-3 h-3" /> Manual
+                                </button>
+                            </div>
                         </div>
                     );
                 })}
@@ -487,6 +578,81 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         </div>
+
+        {manualModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                            <Clock className="w-5 h-5 text-teal-600" />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-800">Turno Manual</h3>
+                            <p className="text-sm text-slate-500">{formatDate(manualModal.date)} — hora personalizada</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Empleado</label>
+                            <select
+                                value={manualForm.userId}
+                                onChange={e => setManualForm(f => ({ ...f, userId: e.target.value }))}
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                            >
+                                {staff.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name} — {s.role}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Hora inicio</label>
+                                <input
+                                    type="time"
+                                    value={manualForm.startTime}
+                                    onChange={e => setManualForm(f => ({ ...f, startTime: e.target.value }))}
+                                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Hora fin</label>
+                                <input
+                                    type="time"
+                                    value={manualForm.endTime}
+                                    onChange={e => setManualForm(f => ({ ...f, endTime: e.target.value }))}
+                                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción (opcional)</label>
+                            <input
+                                type="text"
+                                value={manualForm.description}
+                                onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
+                                placeholder="Ej: Cobertura emergencia, capacitación..."
+                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex gap-3 mt-5">
+                        <button
+                            onClick={() => setManualModal(null)}
+                            className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={confirmManualShift}
+                            disabled={!manualForm.userId || manualForm.startTime >= manualForm.endTime}
+                            className="flex-1 py-2.5 text-sm font-bold text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 rounded-xl transition-all"
+                        >
+                            Agregar turno
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
         {absentModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">

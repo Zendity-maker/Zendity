@@ -299,6 +299,12 @@ model ScheduledShift {
   absentMarkedById String?
   createdAt        DateTime   @default(now())
 
+  // FASE 80: Turnos manuales con hora personalizada
+  isManual         Boolean    @default(false)
+  customStartTime  DateTime?
+  customEndTime    DateTime?
+  customDescription String?
+
   schedule         Schedule   @relation(fields: [scheduleId], references: [id])
   user             User       @relation(fields: [userId], references: [id])
   colorAssignments ShiftColorAssignment[]
