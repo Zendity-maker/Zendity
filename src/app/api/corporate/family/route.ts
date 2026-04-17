@@ -39,6 +39,7 @@ export async function GET(req: Request) {
                 id: true,
                 name: true,
                 email: true,
+                phone: true,
                 accessLevel: true,
                 isRegistered: true,
                 inviteExpiry: true,

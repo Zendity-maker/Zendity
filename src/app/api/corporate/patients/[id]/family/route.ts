@@ -48,10 +48,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         const hqId = (session.user as any).headquartersId;
-        const { name, email, passcode, accessLevel } = await req.json();
+        const { name, email, phone, passcode, accessLevel } = await req.json();
 
-        if (!name || !email || !passcode) {
-            return NextResponse.json({ success: false, error: "Debe proveer Nombre, Email y PIN." }, { status: 400 });
+        if (!name || !email) {
+            return NextResponse.json({ success: false, error: "Debe proveer al menos Nombre y Email." }, { status: 400 });
         }
 
         // Check if email already exists globally (emails must be unique across the system for family members)
@@ -59,8 +59,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             where: { email: email }
         });
 
+        // Si ya existe, actualizar (upsert-like) — útil desde el wizard de admisión
         if (existingEmail) {
-            return NextResponse.json({ success: false, error: "El email ingresado ya está asociado a otra cuenta." }, { status: 400 });
+            if (existingEmail.patientId !== patientId || existingEmail.headquartersId !== hqId) {
+                return NextResponse.json({ success: false, error: "El email ingresado ya está asociado a otra cuenta." }, { status: 400 });
+            }
+            const updated = await prisma.familyMember.update({
+                where: { id: existingEmail.id },
+                data: {
+                    name,
+                    ...(phone !== undefined ? { phone: phone || null } : {}),
+                    ...(passcode !== undefined ? { passcode } : {}),
+                    ...(accessLevel !== undefined ? { accessLevel: accessLevel || "Full" } : {}),
+                }
+            });
+            return NextResponse.json({ success: true, familyMember: updated, updated: true });
         }
 
         const newFamilyMember = await prisma.familyMember.create({
@@ -69,14 +82,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 headquartersId: hqId,
                 name,
                 email,
-                passcode,
+                phone: phone || null,
+                passcode: passcode || null,
                 accessLevel: accessLevel || "Full"
             }
         });
 
         // -------------------------------------------------------------
         // FASE 66: B2C ONBOARDING WELCOME EMAIL
+        // Solo se envía si hay passcode — el flujo moderno usa /invite (token 7d)
         // -------------------------------------------------------------
+        if (!passcode) {
+            return NextResponse.json({ success: true, familyMember: newFamilyMember });
+        }
         try {
             const hq = await prisma.headquarters.findUnique({
                 where: { id: hqId },

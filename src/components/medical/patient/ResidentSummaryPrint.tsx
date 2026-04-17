@@ -31,6 +31,11 @@ interface FullPatientData {
     idCardUrl: string | null;
     medicalPlanUrl: string | null;
     medicareCardUrl: string | null;
+    // FASE 82 — datos legales y de seguro
+    ssnLastFour: string | null;
+    insurancePlanName: string | null;
+    insurancePolicyNumber: string | null;
+    preferredHospital: string | null;
     headquarters: {
         id: string;
         name: string;
@@ -69,6 +74,7 @@ interface FullPatientData {
         id: string;
         name: string;
         email: string;
+        phone: string | null;
         accessLevel: string;
         isRegistered: boolean;
     }>;
@@ -251,6 +257,9 @@ export default function ResidentSummaryPrint({
                                     <div>
                                         <p className="font-black text-[10px] text-slate-500 uppercase tracking-widest">Familiar</p>
                                         <p className="text-slate-700 font-bold">{primaryFamily?.name || 'No registrado'}</p>
+                                        {primaryFamily?.phone && (
+                                            <p className="text-slate-500 text-[11px] font-mono mt-0.5">{primaryFamily.phone}</p>
+                                        )}
                                     </div>
                                     <div>
                                         <p className="font-black text-[10px] text-rose-600 uppercase tracking-widest">Alergias</p>
@@ -413,6 +422,11 @@ export default function ResidentSummaryPrint({
                         {primaryFamily ? (
                             <div style={{ marginBottom: '14px' }}>
                                 <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '12px' }}>{primaryFamily.name}</div>
+                                {primaryFamily.phone && (
+                                    <div style={{ color: '#0F172A', fontSize: '12px', fontWeight: 700, marginTop: '2px', fontFamily: 'Courier, monospace' }}>
+                                        {primaryFamily.phone}
+                                    </div>
+                                )}
                                 <div style={{ color: '#475569', fontSize: '10px', marginTop: '2px' }}>
                                     {primaryFamily.email}
                                 </div>
@@ -429,7 +443,12 @@ export default function ResidentSummaryPrint({
                         <SectionTitle color={VIVID_NAVY}>Contacto de Emergencia</SectionTitle>
                         <div style={{ marginBottom: '14px', fontSize: '11px' }}>
                             {primaryFamily ? (
-                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{primaryFamily.name}<br/>
+                                <div style={{ fontWeight: 600, color: '#0F172A' }}>
+                                    {primaryFamily.name}
+                                    {primaryFamily.phone && (
+                                        <><br/><span style={{ fontFamily: 'Courier, monospace', fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>{primaryFamily.phone}</span></>
+                                    )}
+                                    <br/>
                                     <span style={{ fontSize: '10px', color: '#475569', fontWeight: 500 }}>{primaryFamily.email}</span>
                                 </div>
                             ) : (
@@ -437,14 +456,28 @@ export default function ResidentSummaryPrint({
                             )}
                         </div>
 
-                        {/* Seguro Social */}
+                        {/* Hospital preferido de transferencia */}
+                        <SectionTitle color={VIVID_NAVY}>Hospital de Transferencia</SectionTitle>
+                        <div style={{ marginBottom: '14px', fontSize: '12px', fontWeight: 700, color: data.preferredHospital ? '#0F172A' : '#94A3B8', fontStyle: data.preferredHospital ? 'normal' : 'italic' }}>
+                            {data.preferredHospital || '—'}
+                        </div>
+
+                        {/* Seguro Social — últimos 4 dígitos HIPAA Safe Harbor */}
                         <SectionTitle color={VIVID_NAVY}>Seguro Social</SectionTitle>
-                        <div style={{ marginBottom: '14px', fontFamily: 'Courier, monospace', fontSize: '13px', fontWeight: 700, color: '#475569', letterSpacing: '2px' }}>
-                            XXX-XX-XXXX
+                        <div style={{ marginBottom: '14px', fontFamily: 'Courier, monospace', fontSize: '13px', fontWeight: 700, color: data.ssnLastFour ? '#0F172A' : '#94A3B8', letterSpacing: '2px' }}>
+                            {data.ssnLastFour ? `XXX-XX-${data.ssnLastFour}` : 'No documentado'}
                         </div>
 
                         {/* Plan Médico — Tarjeta de seguro */}
                         <SectionTitle color={VIVID_NAVY}>Plan Médico</SectionTitle>
+                        {(data.insurancePlanName || data.insurancePolicyNumber) && (
+                            <div style={{ marginBottom: '8px', fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
+                                {data.insurancePlanName || '—'}
+                                {data.insurancePolicyNumber && (
+                                    <span style={{ color: '#475569', fontWeight: 500, fontFamily: 'Courier, monospace' }}> · {data.insurancePolicyNumber}</span>
+                                )}
+                            </div>
+                        )}
                         <div style={{ marginBottom: '12px' }}>
                             {data.medicalPlanUrl ? (
                                 <img

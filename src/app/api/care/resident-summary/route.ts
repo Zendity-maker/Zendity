@@ -48,7 +48,8 @@ export async function GET(req: Request) {
                 familyMembers: {
                     orderBy: [{ accessLevel: 'asc' }, { name: 'asc' }],
                     select: {
-                        id: true, name: true, email: true, accessLevel: true, isRegistered: true,
+                        id: true, name: true, email: true, phone: true,
+                        accessLevel: true, isRegistered: true,
                     }
                 }
             }
