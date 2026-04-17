@@ -11,14 +11,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Faltan identificadores para registrar el baño." }, { status: 400 });
         }
 
-        // Sistema Antimartingala (Cooldown de 10 minutos por cuidador)
-        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        // Anti doble-click: cooldown de 2 minutos por (cuidadora + residente)
+        // Permite bañar múltiples residentes seguidos; solo bloquea registrar
+        // dos veces al MISMO residente en una ventana corta.
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
         const recentBath = await prisma.bathLog.findFirst({
             where: {
                 caregiverId,
+                patientId,
                 timeLogged: {
-                    gte: tenMinutesAgo
+                    gte: twoMinutesAgo
                 }
             }
         });
@@ -27,7 +30,7 @@ export async function POST(req: Request) {
             return NextResponse.json({
                 success: false,
                 error: "COOLDOWN_ACTIVE",
-                message: "Por protocolo, debes esperar al menos 10 minutos entre cada registro de baño."
+                message: "Este baño ya fue registrado recientemente para este residente. Espera un momento."
             }, { status: 429 });
         }
 
