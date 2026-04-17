@@ -46,16 +46,28 @@ export async function PATCH(req: Request) {
             include: {
                 lifePlan: true,
                 headquarters: {
-                    select: { name: true, logoUrl: true }
+                    select: { name: true, logoUrl: true, phone: true, billingAddress: true }
                 },
                 medications: {
                     where: { isActive: true },
                     include: {
                         medication: true
                     }
+                },
+                intakeData: true,
+                vitalSigns: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 2
                 }
             }
         });
+
+        // Info del autor para el resumen impreso
+        const authorId = caregiverId || session?.user?.id;
+        const author = authorId ? await prisma.user.findUnique({
+            where: { id: authorId },
+            select: { name: true, role: true }
+        }) : null;
 
         // 2. Opcionalmente registrar estp como un Ticket/Reporte Clinico (Hub)
         await prisma.dailyLog.create({
@@ -69,7 +81,13 @@ export async function PATCH(req: Request) {
             }
         });
 
-        return NextResponse.json({ success: true, patient: updatedPatient });
+        return NextResponse.json({
+            success: true,
+            patient: updatedPatient,
+            author: author,
+            transferReason: reason,
+            transferDate: new Date().toISOString(),
+        });
 
     } catch (error: any) {
         console.error("Create Hospitalization Error:", error);

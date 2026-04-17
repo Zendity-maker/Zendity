@@ -14,6 +14,7 @@ import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWorkTab";
+import HospitalTransferPrint from "@/components/medical/patient/HospitalTransferPrint";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
@@ -38,6 +39,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [newDiet, setNewDiet] = useState("Regular (Sólida)");
     const [hospReason, setHospReason] = useState("");
     const [isHospitalizing, setIsHospitalizing] = useState(false);
+
+    // Transfer print modal
+    const [transferData, setTransferData] = useState<any | null>(null);
 
     // Deceased from TEMPORARY_LEAVE
     const [showDeceasedFromLeaveModal, setShowDeceasedFromLeaveModal] = useState(false);
@@ -203,10 +207,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             });
             const data = await res.json();
             if (data.success) {
-                setToast({ msg: "Traslado hospitalario registrado. Triage notificado.", type: 'ok' });
                 setHospModal(false);
+                // Abre modal con resumen imprimible
+                setTransferData({
+                    patient: data.patient,
+                    author: data.author,
+                    transferReason: data.transferReason || hospReason.trim(),
+                    transferDate: data.transferDate || new Date().toISOString(),
+                });
                 setHospReason("");
-                router.refresh();
             } else {
                 setToast({ msg: data.error || "Error al registrar hospitalización.", type: 'err' });
             }
@@ -215,6 +224,11 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
         } finally {
             setIsHospitalizing(false);
         }
+    };
+
+    const closeTransferModal = () => {
+        setTransferData(null);
+        fetchPatientData(); // refresca status del paciente en la UI
     };
 
     const handleDeceasedFromLeave = async () => {
@@ -773,6 +787,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 >
                     {toast.msg}
                 </div>
+            )}
+
+            {/* Resumen imprimible tras hospitalización */}
+            {transferData && (
+                <HospitalTransferPrint
+                    data={transferData}
+                    onClose={closeTransferModal}
+                />
             )}
         </div>
     );
