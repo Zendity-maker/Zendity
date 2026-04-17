@@ -11,6 +11,7 @@ import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
+import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
 import ZendiAssist from "@/components/ZendiAssist";
 import { Toaster, toast } from 'sonner';
 
@@ -920,6 +921,8 @@ export default function ZendityCareTabletPage() {
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
+    const [printingFallId, setPrintingFallId] = useState<string | null>(null);
+
     const submitFall = async () => {
         setSubmitting(true);
         try {
@@ -939,7 +942,11 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setFallProtocol({ consciousness: true, bleeding: false, painLevel: 5 });
                 setModalType(null);
-                alert(` Alerta Roja enviada al Mando de Enfermería Central. Severidad: ${data.derivedSeverity || 'reportada'}.`);
+                // Si el cuidador acepta, abrimos el PDF de Reporte de Incidente
+                const wantsPrint = confirm(`Alerta Roja enviada (Severidad: ${data.derivedSeverity || 'reportada'}). ¿Imprimir Reporte de Incidente ahora?`);
+                if (wantsPrint && data.incident?.id) {
+                    setPrintingFallId(data.incident.id);
+                }
             } else {
                 alert(` Error: ${data.error || 'No se pudo registrar la caída'}`);
             }
@@ -2468,6 +2475,14 @@ export default function ZendityCareTabletPage() {
                     <span className="text-3xl animate-pulse"></span>
                     <span className="leading-tight">{zendiToast}</span>
                 </div>
+            )}
+
+            {/* PDF Incident Report de caída — se abre tras reportar si el cuidador confirma */}
+            {printingFallId && (
+                <FallIncidentPrint
+                    fallIncidentId={printingFallId}
+                    onClose={() => setPrintingFallId(null)}
+                />
             )}
             </div>{/* end flex-1 main content */}
         </div>

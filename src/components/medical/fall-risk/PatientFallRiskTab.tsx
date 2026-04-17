@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ClipboardDocumentCheckIcon, ExclamationTriangleIcon, MapPinIcon, HeartIcon } from "@heroicons/react/24/outline";
 import { Loader2, AlertTriangle, Printer } from "lucide-react";
+import FallIncidentPrint from "./FallIncidentPrint";
 
 interface FallIncident {
     id: string;
@@ -48,10 +49,11 @@ const RISK_COLOR: Record<string, string> = {
 const fmtDateTime = (iso: string) =>
     new Date(iso).toLocaleString('es-PR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-export default function PatientFallRiskTab({ patientId, onPrintReport }: { patientId?: string; onPrintReport?: (fallId: string) => void }) {
+export default function PatientFallRiskTab({ patientId }: { patientId?: string }) {
     const [data, setData] = useState<FallRiskData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [printingFallId, setPrintingFallId] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!patientId) { setLoading(false); return; }
@@ -169,14 +171,12 @@ export default function PatientFallRiskTab({ patientId, onPrintReport }: { patie
                                             </p>
                                         </div>
                                     </div>
-                                    {onPrintReport && (
-                                        <button
-                                            onClick={() => onPrintReport(fi.id)}
-                                            className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors"
-                                        >
-                                            <Printer className="w-3.5 h-3.5" /> Imprimir Reporte
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={() => setPrintingFallId(fi.id)}
+                                        className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        <Printer className="w-3.5 h-3.5" /> Imprimir Reporte
+                                    </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -202,6 +202,14 @@ export default function PatientFallRiskTab({ patientId, onPrintReport }: { patie
                         );
                     })}
                 </div>
+            )}
+
+            {/* PDF Incident Report modal */}
+            {printingFallId && (
+                <FallIncidentPrint
+                    fallIncidentId={printingFallId}
+                    onClose={() => setPrintingFallId(null)}
+                />
             )}
         </div>
     );
