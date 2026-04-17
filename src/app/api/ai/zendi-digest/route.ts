@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
+import { notifyRoles } from '@/lib/notifications';
 
 
 const openai = new OpenAI({
@@ -86,6 +87,17 @@ export async function POST(req: Request) {
 
         const resultJson = completion.choices[0].message.content;
         const result = JSON.parse(resultJson || '{"notes":[]}');
+
+        // Notificar a SUPERVISOR/NURSE/CAREGIVER que el resumen está disponible
+        if (Array.isArray(result.notes) && result.notes.length > 0) {
+            try {
+                await notifyRoles(headquartersId, ['SUPERVISOR', 'NURSE', 'CAREGIVER'], {
+                    type: 'HANDOVER',
+                    title: 'Resumen de turno disponible',
+                    message: 'Zendi generó el resumen del turno. Toca para leer.',
+                });
+            } catch (e) { console.error('[notify HANDOVER]', e); }
+        }
 
         return NextResponse.json(result);
 
