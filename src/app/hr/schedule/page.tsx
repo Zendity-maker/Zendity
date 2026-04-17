@@ -88,6 +88,11 @@ export default function ScheduleBuilderPage() {
     const [hqBranding, setHqBranding] = useState<{ name: string; logoUrl: string | null }>({ name: 'Vivid Senior Living', logoUrl: null });
     const printRef = useRef<HTMLDivElement>(null);
 
+    // Modal conflicto DRAFT existente
+    const [draftConflict, setDraftConflict] = useState<{ existingScheduleId: string; shiftCount: number; createdAt: string } | null>(null);
+    const [deletingDraft, setDeletingDraft] = useState(false);
+    const canDeleteDraft = !!user && ['DIRECTOR', 'ADMIN'].includes((user as any).role);
+
     useEffect(() => {
         fetch('/api/public/hq/branding')
             .then(r => r.json())
@@ -267,6 +272,31 @@ export default function ScheduleBuilderPage() {
         }
     };
 
+    const postSchedule = async (overwrite: boolean) => {
+        const res = await fetch('/api/hr/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hqId,
+                weekStartDate: weekStart.toISOString(),
+                createdByUserId: user?.id,
+                overwrite,
+                shifts: shifts.map(s => ({
+                    userId: s.userId,
+                    date: s.date,
+                    shiftType: s.shiftType,
+                    colorGroup: s.colorGroup || null,
+                    notes: s.notes || null,
+                    isManual: s.isManual || false,
+                    customStartTime: s.customStartTime || null,
+                    customEndTime: s.customEndTime || null,
+                    customDescription: s.customDescription || null
+                }))
+            })
+        });
+        return { status: res.status, data: await res.json() };
+    };
+
     const saveSchedule = async () => {
         if (shifts.length === 0) {
             alert('Agrega al menos un turno antes de guardar.');
@@ -278,33 +308,59 @@ export default function ScheduleBuilderPage() {
         }
         setSaving(true);
         try {
-            console.log('[Schedule] Guardando:', { hqId, shifts: shifts.length, userId: user?.id });
-            const res = await fetch('/api/hr/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    hqId,
-                    weekStartDate: weekStart.toISOString(),
-                    createdByUserId: user?.id,
-                    shifts: shifts.map(s => ({
-                        userId: s.userId,
-                        date: s.date,
-                        shiftType: s.shiftType,
-                        colorGroup: s.colorGroup || null,
-                        notes: s.notes || null,
-                        isManual: s.isManual || false,
-                        customStartTime: s.customStartTime || null,
-                        customEndTime: s.customEndTime || null,
-                        customDescription: s.customDescription || null
-                    }))
-                })
-            })
-            const data = await res.json();
+            const { status, data } = await postSchedule(false);
             if (data.success) {
                 setDraftId(data.schedule.id);
                 alert('✓ Horario guardado como borrador');
+            } else if (status === 409 && data.conflict === 'DRAFT_EXISTS') {
+                // Abrir modal de confirmación
+                setDraftConflict({
+                    existingScheduleId: data.existingScheduleId,
+                    shiftCount: data.shiftCount,
+                    createdAt: data.createdAt,
+                });
+            } else if (status === 409 && data.status === 'PUBLISHED') {
+                alert('Ya existe un horario PUBLICADO para esta semana. Usa "Editar horario publicado" primero.');
+            } else {
+                alert(data.error || 'Error guardando el horario');
             }
         } catch (e) { alert('Error guardando el horario'); } finally { setSaving(false); }
+    };
+
+    const confirmOverwriteDraft = async () => {
+        setSaving(true);
+        try {
+            const { data } = await postSchedule(true);
+            if (data.success) {
+                setDraftId(data.schedule.id);
+                setDraftConflict(null);
+                alert('✓ Borrador sobrescrito con los turnos actuales.');
+            } else {
+                alert(data.error || 'Error al sobrescribir');
+            }
+        } catch {
+            alert('Error de conexión');
+        } finally { setSaving(false); }
+    };
+
+    const deleteExistingDraft = async () => {
+        if (!draftConflict) return;
+        const dateStr = new Date(draftConflict.createdAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' });
+        if (!confirm(`¿Eliminar borrador del ${dateStr} (${draftConflict.shiftCount} turnos)?\nEsta acción no se puede deshacer.`)) return;
+        setDeletingDraft(true);
+        try {
+            const res = await fetch(`/api/hr/schedule/${draftConflict.existingScheduleId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                setDraftConflict(null);
+                alert('✓ Borrador eliminado. Ahora puedes volver a guardar.');
+                fetchSchedule();
+            } else {
+                alert(data.error || 'Error eliminando borrador');
+            }
+        } catch {
+            alert('Error de conexión');
+        } finally { setDeletingDraft(false); }
     };
 
     const publishSchedule = async () => {
@@ -799,6 +855,63 @@ export default function ScheduleBuilderPage() {
             hqLogoUrl={hqBranding.logoUrl}
             generatedByName={user?.name || 'Supervisor'}
         />
+
+        {/* Modal conflicto DRAFT existente */}
+        {draftConflict && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-xl font-black">!</div>
+                        <div>
+                            <h3 className="font-black text-slate-800">Borrador existente</h3>
+                            <p className="text-xs font-bold text-amber-700">Ya hay un borrador para esta semana</p>
+                        </div>
+                    </div>
+                    <div className="px-6 py-5 space-y-4">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm">
+                            <div className="flex justify-between mb-2">
+                                <span className="text-slate-500 font-bold">Creado:</span>
+                                <span className="text-slate-800 font-bold">
+                                    {new Date(draftConflict.createdAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-500 font-bold">Turnos:</span>
+                                <span className="text-slate-800 font-black">{draftConflict.shiftCount}</span>
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                            Si sobrescribes, el borrador anterior será <strong>reemplazado</strong> por los {shifts.length} turnos actuales. Esta acción no se puede deshacer.
+                        </p>
+                    </div>
+                    <div className="px-6 py-4 border-t border-slate-100 flex gap-3 flex-wrap">
+                        <button
+                            onClick={() => setDraftConflict(null)}
+                            disabled={saving || deletingDraft}
+                            className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50"
+                        >
+                            Cancelar
+                        </button>
+                        {canDeleteDraft && (
+                            <button
+                                onClick={deleteExistingDraft}
+                                disabled={saving || deletingDraft}
+                                className="flex-1 py-2.5 text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                {deletingDraft ? 'Eliminando...' : 'Eliminar borrador'}
+                            </button>
+                        )}
+                        <button
+                            onClick={confirmOverwriteDraft}
+                            disabled={saving || deletingDraft}
+                            className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors disabled:opacity-50"
+                        >
+                            {saving ? 'Sobrescribiendo...' : 'Sobrescribir'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         </>
     );
 }
