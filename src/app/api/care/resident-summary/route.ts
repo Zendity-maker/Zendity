@@ -49,6 +49,7 @@ export async function GET(req: Request) {
                     orderBy: [{ accessLevel: 'asc' }, { name: 'asc' }],
                     select: {
                         id: true, name: true, email: true, phone: true,
+                        relationship: true,
                         accessLevel: true, isRegistered: true,
                     }
                 }

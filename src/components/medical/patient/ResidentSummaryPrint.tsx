@@ -36,6 +36,8 @@ interface FullPatientData {
     insurancePlanName: string | null;
     insurancePolicyNumber: string | null;
     preferredHospital: string | null;
+    // FASE 84 — dirección previa
+    address: string | null;
     headquarters: {
         id: string;
         name: string;
@@ -75,6 +77,7 @@ interface FullPatientData {
         name: string;
         email: string;
         phone: string | null;
+        relationship: string | null;
         accessLevel: string;
         isRegistered: boolean;
     }>;
@@ -256,7 +259,12 @@ export default function ResidentSummaryPrint({
                                 <div className="space-y-2">
                                     <div>
                                         <p className="font-black text-[10px] text-slate-500 uppercase tracking-widest">Familiar</p>
-                                        <p className="text-slate-700 font-bold">{primaryFamily?.name || 'No registrado'}</p>
+                                        <p className="text-slate-700 font-bold">
+                                            {primaryFamily?.name || 'No registrado'}
+                                            {primaryFamily?.relationship && (
+                                                <span className="text-slate-500 font-medium"> ({primaryFamily.relationship})</span>
+                                            )}
+                                        </p>
                                         {primaryFamily?.phone && (
                                             <p className="text-slate-500 text-[11px] font-mono mt-0.5">{primaryFamily.phone}</p>
                                         )}
@@ -421,7 +429,12 @@ export default function ResidentSummaryPrint({
                         <SectionTitle color={VIVID_NAVY}>Familiar / Encargado</SectionTitle>
                         {primaryFamily ? (
                             <div style={{ marginBottom: '14px' }}>
-                                <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '12px' }}>{primaryFamily.name}</div>
+                                <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '12px' }}>
+                                    {primaryFamily.name}
+                                    {primaryFamily.relationship && (
+                                        <span style={{ color: '#475569', fontWeight: 500 }}> ({primaryFamily.relationship})</span>
+                                    )}
+                                </div>
                                 {primaryFamily.phone && (
                                     <div style={{ color: '#0F172A', fontSize: '12px', fontWeight: 700, marginTop: '2px', fontFamily: 'Courier, monospace' }}>
                                         {primaryFamily.phone}
@@ -445,6 +458,9 @@ export default function ResidentSummaryPrint({
                             {primaryFamily ? (
                                 <div style={{ fontWeight: 600, color: '#0F172A' }}>
                                     {primaryFamily.name}
+                                    {primaryFamily.relationship && (
+                                        <span style={{ color: '#475569', fontWeight: 500 }}> ({primaryFamily.relationship})</span>
+                                    )}
                                     {primaryFamily.phone && (
                                         <><br/><span style={{ fontFamily: 'Courier, monospace', fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>{primaryFamily.phone}</span></>
                                     )}
@@ -455,6 +471,16 @@ export default function ResidentSummaryPrint({
                                 <div style={{ color: '#94A3B8', fontStyle: 'italic' }}>Ver familiar encargado</div>
                             )}
                         </div>
+
+                        {/* Dirección Previa — solo si existe */}
+                        {data.address && (
+                            <>
+                                <SectionTitle color={VIVID_NAVY}>Dirección Previa</SectionTitle>
+                                <div style={{ marginBottom: '14px', fontSize: '11px', fontWeight: 600, color: '#0F172A', lineHeight: 1.4 }}>
+                                    {data.address}
+                                </div>
+                            </>
+                        )}
 
                         {/* Hospital preferido de transferencia */}
                         <SectionTitle color={VIVID_NAVY}>Hospital de Transferencia</SectionTitle>

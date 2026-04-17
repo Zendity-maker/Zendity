@@ -2,16 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { UserPlus, Mail, Trash2, Send, X, Loader2, UserCircle } from "lucide-react";
+import { UserPlus, Mail, Trash2, Send, X, Loader2, UserCircle, Pencil, Phone } from "lucide-react";
 
 interface FamilyMember {
     id: string;
     name: string;
     email: string;
+    phone?: string | null;
+    relationship?: string | null;
     accessLevel: string;
     isRegistered: boolean;
     inviteExpiry: string | null;
 }
+
+const RELATIONSHIP_OPTIONS = ["Hijo/a", "Esposo/a", "Nieto/a", "Hermano/a", "Otro"];
 
 interface Toast {
     msg: string;
@@ -34,7 +38,15 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const [resendingId, setResendingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    // Edit modal
+    const [editOpen, setEditOpen] = useState(false);
+    const [editTarget, setEditTarget] = useState<FamilyMember | null>(null);
+    const [editForm, setEditForm] = useState({ name: "", phone: "", relationship: "", accessLevel: "Full" });
+    const [editSaving, setEditSaving] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+
     const canDelete = user && ["DIRECTOR", "ADMIN"].includes((user as any).role);
+    const canEdit = user && ["DIRECTOR", "ADMIN", "SUPERVISOR"].includes((user as any).role);
 
     useEffect(() => {
         fetchMembers();
@@ -136,6 +148,50 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
         }
     };
 
+    const openEdit = (m: FamilyMember) => {
+        setEditTarget(m);
+        setEditForm({
+            name: m.name || "",
+            phone: m.phone || "",
+            relationship: m.relationship || "",
+            accessLevel: m.accessLevel || "Full",
+        });
+        setEditError(null);
+        setEditOpen(true);
+    };
+
+    const handleEditSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editTarget) return;
+        setEditError(null);
+        setEditSaving(true);
+        try {
+            const res = await fetch(`/api/corporate/family/${editTarget.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: editForm.name.trim(),
+                    phone: editForm.phone.trim() || null,
+                    relationship: editForm.relationship || null,
+                    accessLevel: editForm.accessLevel,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setToast({ msg: `${editForm.name.trim()} actualizado`, type: "ok" });
+                setEditOpen(false);
+                setEditTarget(null);
+                fetchMembers();
+            } else {
+                setEditError(data.error || "Error guardando cambios");
+            }
+        } catch {
+            setEditError("Error de conexión");
+        } finally {
+            setEditSaving(false);
+        }
+    };
+
     const accessLabel = (level: string) => level === "Read-Only" ? "Solo lectura" : "Acceso completo";
 
     return (
@@ -207,11 +263,31 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                     <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                                         <Mail className="w-3 h-3" /> {m.email}
                                     </div>
+                                    {(m.relationship || m.phone) && (
+                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
+                                            {m.relationship && <span className="font-semibold text-slate-600">{m.relationship}</span>}
+                                            {m.relationship && m.phone && <span className="text-slate-300">·</span>}
+                                            {m.phone && (
+                                                <span className="inline-flex items-center gap-1">
+                                                    <Phone className="w-3 h-3" /> {m.phone}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Actions */}
-                                {!m.isRegistered && (
-                                    <div className="flex gap-2 flex-shrink-0">
+                                <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                                    {canEdit && (
+                                        <button
+                                            onClick={() => openEdit(m)}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg transition-colors"
+                                            title="Editar familiar"
+                                        >
+                                            <Pencil className="w-3 h-3" /> Editar
+                                        </button>
+                                    )}
+                                    {!m.isRegistered && (
                                         <button
                                             onClick={() => handleResend(m)}
                                             disabled={resendingId === m.id}
@@ -220,30 +296,18 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                             Reenviar
                                         </button>
-                                        {canDelete && (
-                                            <button
-                                                onClick={() => handleDelete(m)}
-                                                disabled={deletingId === m.id}
-                                                className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                                            >
-                                                {deletingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                                Eliminar
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {m.isRegistered && canDelete && (
-                                    <div className="flex gap-2 flex-shrink-0">
+                                    )}
+                                    {canDelete && (
                                         <button
                                             onClick={() => handleDelete(m)}
                                             disabled={deletingId === m.id}
                                             className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                         >
                                             {deletingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                            Revocar
+                                            {m.isRegistered ? "Revocar" : "Eliminar"}
                                         </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -343,6 +407,129 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                         <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</>
                                     ) : (
                                         <>Enviar invitación</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Modal */}
+            {editOpen && editTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center">
+                                    <Pencil className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-800">Editar familiar</h3>
+                                    <p className="text-xs text-slate-500 font-medium truncate max-w-[220px]">{editTarget.email}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => { setEditOpen(false); setEditTarget(null); }}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSave} className="px-6 py-5 space-y-4">
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Nombre del familiar
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editForm.name}
+                                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Email (no editable)
+                                </label>
+                                <input
+                                    type="email"
+                                    readOnly
+                                    value={editTarget.email}
+                                    className="w-full bg-slate-100 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 cursor-not-allowed"
+                                />
+                                <p className="text-[11px] text-slate-400 font-medium mt-1">El email es el identificador único; si cambió, elimine este registro y cree uno nuevo.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Teléfono
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={editForm.phone}
+                                    onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                                    placeholder="787-555-1234"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Relación con el residente
+                                </label>
+                                <select
+                                    value={editForm.relationship}
+                                    onChange={e => setEditForm(f => ({ ...f, relationship: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                >
+                                    <option value="">— Sin especificar —</option>
+                                    {RELATIONSHIP_OPTIONS.map(r => (
+                                        <option key={r} value={r}>{r}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Nivel de acceso
+                                </label>
+                                <select
+                                    value={editForm.accessLevel}
+                                    onChange={e => setEditForm(f => ({ ...f, accessLevel: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                >
+                                    <option value="Full">Acceso completo</option>
+                                    <option value="Read-Only">Solo lectura</option>
+                                </select>
+                            </div>
+
+                            {editError && (
+                                <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs font-bold text-rose-700">
+                                    {editError}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setEditOpen(false); setEditTarget(null); }}
+                                    className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editSaving || !editForm.name.trim()}
+                                    className="flex-1 py-2.5 text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                >
+                                    {editSaving ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                                    ) : (
+                                        <>Guardar cambios</>
                                     )}
                                 </button>
                             </div>

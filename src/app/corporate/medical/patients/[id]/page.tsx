@@ -81,7 +81,11 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [editForm, setEditForm] = useState({
         name: "", roomNumber: "", dateOfBirth: "",
         diet: "", allergies: "", diagnoses: "", colorGroup: "",
-        idCardUrl: "", medicalPlanUrl: "", medicareCardUrl: ""
+        idCardUrl: "", medicalPlanUrl: "", medicareCardUrl: "",
+        // FASE 82 — datos legales y de seguro
+        ssnLastFour: "", insurancePlanName: "", insurancePolicyNumber: "", preferredHospital: "",
+        // FASE 84 — dirección previa
+        address: ""
     });
     const [isSaving, setIsSaving] = useState(false);
     const idInputRef = useRef<HTMLInputElement>(null);
@@ -99,7 +103,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             idCardUrl: patientData?.idCardUrl || "",
             medicalPlanUrl: patientData?.medicalPlanUrl || "",
             medicareCardUrl: patientData?.medicareCardUrl || "",
-            colorGroup: patientData?.colorGroup || "UNASSIGNED"
+            colorGroup: patientData?.colorGroup || "UNASSIGNED",
+            // FASE 82 — datos legales y de seguro
+            ssnLastFour: patientData?.ssnLastFour || "",
+            insurancePlanName: patientData?.insurancePlanName || "",
+            insurancePolicyNumber: patientData?.insurancePolicyNumber || "",
+            preferredHospital: patientData?.preferredHospital || "",
+            // FASE 84 — dirección previa
+            address: patientData?.address || ""
         });
         setShowEditModal(true);
     };
@@ -640,6 +651,67 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Diagnósticos Principales</label>
                                 <textarea value={editForm.diagnoses} onChange={e => setEditForm({...editForm, diagnoses: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none min-h-[60px]" placeholder="Ej: Hipertensión, Diabetes Tipo 2..." />
+                            </div>
+
+                            {/* FASE 82/84 — Datos Legales y Seguro */}
+                            <div className="pt-4 border-t border-slate-100">
+                                <h4 className="font-bold text-slate-800 mb-1 tracking-tight">Datos Legales y Seguro</h4>
+                                <p className="text-xs text-slate-500 mb-4 font-medium">Información sensible para trámites con hospitales, aseguradoras y agencias reguladoras.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">SSN (últimos 4 dígitos)</label>
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            value={editForm.ssnLastFour}
+                                            onChange={e => setEditForm({...editForm, ssnLastFour: e.target.value.replace(/\D/g, '').slice(0, 4)})}
+                                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none font-mono tracking-widest"
+                                            placeholder="••••"
+                                        />
+                                        <p className="text-[11px] text-slate-400 mt-1 font-medium">HIPAA: solo se almacenan los últimos 4 dígitos.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Hospital Preferido de Traslado</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.preferredHospital}
+                                            onChange={e => setEditForm({...editForm, preferredHospital: e.target.value})}
+                                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none"
+                                            placeholder="Ej: Hospital Auxilio Mutuo"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Plan Médico</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.insurancePlanName}
+                                            onChange={e => setEditForm({...editForm, insurancePlanName: e.target.value})}
+                                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none"
+                                            placeholder="Ej: MCS, Triple-S, Medicare"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Número de Contrato / Póliza</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.insurancePolicyNumber}
+                                            onChange={e => setEditForm({...editForm, insurancePolicyNumber: e.target.value})}
+                                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none font-mono"
+                                            placeholder="Ej: ABC-123456789"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Dirección Previa del Residente</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.address}
+                                            onChange={e => setEditForm({...editForm, address: e.target.value})}
+                                            className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:border-indigo-500 outline-none"
+                                            placeholder="Ej: Calle Luna 123, Urb. Los Pinos, San Juan, PR 00926"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             {['DIRECTOR', 'ADMIN', 'NURSE'].includes(user?.role || '') && (
