@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
+import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
-    Info, AlertTriangle, CheckCircle2, Users as UsersIcon
+    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -90,6 +91,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [notifOpen, setNotifOpen] = useState(false);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [staffChatOpen, setStaffChatOpen] = useState(false);
+    const [staffChatUnread, setStaffChatUnread] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -175,6 +178,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             case 'FAMILY_VISIT':     return '/reception';
             case 'TRIAGE':           return '/corporate/triage';
             case 'HANDOVER':         return '/care/supervisor';
+            case 'STAFF_MESSAGE':    return 'STAFF_CHAT'; // Sentinel — abre el panel, no navega
             default:                 return null;
         }
     };
@@ -194,11 +198,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 console.error('Error marking notification read', e);
             }
         }
-        // 2. Close panel
+        // 2. Close notif panel
         setNotifOpen(false);
-        // 3. Navigate if URL exists
+        // 3. Action según tipo
         const url = getNotifUrl(notif);
-        if (url) router.push(url);
+        if (url === 'STAFF_CHAT') {
+            setStaffChatOpen(true);
+        } else if (url) {
+            router.push(url);
+        }
     };
 
     const notifIcon = (type: string) => {
@@ -209,6 +217,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 return <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />;
             case 'FAMILY_VISIT':
                 return <UsersIcon className="w-4 h-4 text-indigo-500 shrink-0" />;
+            case 'STAFF_MESSAGE':
+                return <MessageSquare className="w-4 h-4 text-teal-500 shrink-0" />;
             default:
                 return <Info className="w-4 h-4 text-blue-500 shrink-0" />;
         }
@@ -258,6 +268,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
             <ZendiWidget />
+
+            {/* FASE 81: Chat interno staff (oculto para FAMILY) */}
+            {user?.role !== 'FAMILY' && (
+                <StaffChat
+                    open={staffChatOpen}
+                    onClose={() => setStaffChatOpen(false)}
+                    onUnreadChange={setStaffChatUnread}
+                />
+            )}
 
             {/* Unified Sidebar — hidden on mobile, collapsible on tablet */}
             <aside className={`${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col h-screen shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
@@ -512,6 +531,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             </span>
                         )}
                     </div>
+
+                    {/* Chat interno staff — botón con badge (oculto para FAMILY) */}
+                    {user?.role !== 'FAMILY' && (
+                        <button
+                            onClick={() => setStaffChatOpen(v => !v)}
+                            className="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-soft-mist rounded-full transition-all focus:outline-none"
+                            title="Chat interno"
+                        >
+                            <MessageSquare className="w-5 h-5" />
+                            {staffChatUnread > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-teal-500 rounded-full border-2 border-white text-[10px] font-bold text-white leading-none px-1">
+                                    {staffChatUnread > 9 ? '9+' : staffChatUnread}
+                                </span>
+                            )}
+                        </button>
+                    )}
 
                     <div ref={notifRef} className="relative flex items-center">
                         <button
