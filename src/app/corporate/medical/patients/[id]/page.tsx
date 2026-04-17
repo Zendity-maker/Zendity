@@ -4,7 +4,7 @@ import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
-import { HeartCrack } from "lucide-react";
+import { HeartCrack, FileText } from "lucide-react";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
@@ -14,7 +14,7 @@ import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWorkTab";
-import HospitalTransferPrint from "@/components/medical/patient/HospitalTransferPrint";
+import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
@@ -40,8 +40,10 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const [hospReason, setHospReason] = useState("");
     const [isHospitalizing, setIsHospitalizing] = useState(false);
 
-    // Transfer print modal
+    // Transfer print modal (flujo hospitalización)
     const [transferData, setTransferData] = useState<any | null>(null);
+    // Resumen on-demand (botón prominente, independiente de hospitalización)
+    const [summaryOpen, setSummaryOpen] = useState(false);
 
     // Deceased from TEMPORARY_LEAVE
     const [showDeceasedFromLeaveModal, setShowDeceasedFromLeaveModal] = useState(false);
@@ -380,7 +382,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full md:w-auto mt-4 md:mt-0">
+                        {/* Botón Resumen de Residente — SIEMPRE visible */}
+                        <button
+                            onClick={() => setSummaryOpen(true)}
+                            className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm"
+                            title="Genera PDF oficial con datos clínicos, medicamentos, alergias y tarjetas"
+                        >
+                            <FileText className="w-5 h-5" /> Imprimir Resumen
+                        </button>
                         {patientData?.status === 'ACTIVE' && (
                             <>
                                 <Link href={`/corporate/medical/patients/${patientData.id}/pai`} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
@@ -789,10 +799,23 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 </div>
             )}
 
-            {/* Resumen imprimible tras hospitalización */}
+            {/* Resumen on-demand (botón Imprimir Resumen) */}
+            {summaryOpen && patientData?.id && (
+                <ResidentSummaryPrint
+                    patientId={patientData.id}
+                    onClose={() => setSummaryOpen(false)}
+                />
+            )}
+
+            {/* Resumen post-hospitalización (flujo automático tras hospitalizar) */}
             {transferData && (
-                <HospitalTransferPrint
-                    data={transferData}
+                <ResidentSummaryPrint
+                    patientId={transferData.patient?.id || patientData?.id}
+                    transferReason={transferData.transferReason}
+                    authorName={transferData.author?.name}
+                    authorRole={transferData.author?.role}
+                    transferDate={transferData.transferDate}
+                    titleOverride="Resumen de Traslado Hospitalario"
                     onClose={closeTransferModal}
                 />
             )}
