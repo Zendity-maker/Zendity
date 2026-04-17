@@ -225,6 +225,16 @@ export default function SupervisorDashboardPage() {
 
     const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
 
+    // UPP activas (Úlceras por Presión)
+    const [activeUlcers, setActiveUlcers] = useState<any[]>([]);
+    const fetchActiveUlcers = async () => {
+        try {
+            const res = await fetch('/api/care/upp');
+            const data = await res.json();
+            if (data.success) setActiveUlcers(data.ulcers);
+        } catch (e) { console.error('[UPP supervisor fetch]', e); }
+    };
+
     // Zone Inspection Rounds (structured)
     const FLOORS = [
         { floor: 1, zones: ['Habitaciones 1-10', 'Baños P1', 'Comedor', 'Recepción', 'Pasillo Principal'] },
@@ -315,7 +325,11 @@ export default function SupervisorDashboardPage() {
         if (user) {
             fetchSupervisorData();
             fetchLiveData();
-            const interval = setInterval(fetchLiveData, 15000);
+            fetchActiveUlcers();
+            const interval = setInterval(() => {
+                fetchLiveData();
+                fetchActiveUlcers();
+            }, 15000);
             return () => clearInterval(interval);
         }
     }, [user]);
@@ -905,6 +919,40 @@ export default function SupervisorDashboardPage() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* Úlceras Activas (solo si hay) */}
+                            {activeUlcers.length > 0 && (
+                                <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border-2 border-rose-200">
+                                    <h3 className="font-extrabold text-rose-700 text-lg mb-4 flex items-center gap-3">
+                                        <Siren className="w-5 h-5" /> Úlceras Activas ({activeUlcers.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {activeUlcers.slice(0, 8).map((u: any) => {
+                                            const days = Math.floor((Date.now() - new Date(u.identifiedAt).getTime()) / (1000 * 60 * 60 * 24));
+                                            const isCritical = u.stage >= 3;
+                                            return (
+                                                <div key={u.id} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${isCritical ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100'}`}>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-sm text-slate-800 truncate">{u.patient?.name}</p>
+                                                        <p className="text-[11px] text-slate-500 font-medium truncate">{u.bodyLocation}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${isCritical ? 'bg-rose-600 text-white' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
+                                                            Stg {u.stage}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-slate-500">{days}d</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {activeUlcers.length > 8 && (
+                                            <p className="text-[11px] text-slate-400 font-bold text-center pt-2">
+                                                + {activeUlcers.length - 8} más en el tablero
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* COLUMNA 2 — Brechas Handover */}
