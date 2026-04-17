@@ -110,7 +110,7 @@ export default function ScheduleBuilderPage() {
             // La API puede devolver array directo O { success, staff }
             const staffList = Array.isArray(data) ? data : (data.staff || data.employees || []);
             setStaff(staffList.filter((s: any) =>
-                ['CAREGIVER', 'SUPERVISOR', 'NURSE'].includes(s.role)
+                ['CAREGIVER', 'SUPERVISOR', 'NURSE', 'CLEANING'].includes(s.role)
             ));
         } catch (e) { console.error(e); }
     };
@@ -414,14 +414,23 @@ export default function ScheduleBuilderPage() {
                                 {formatDate(day)}
                             </div>
                             <div className="space-y-2 flex-1">
-                                {dayShifts.map(shift => (
-                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${shift.isManual ? 'bg-teal-50 border-teal-200' : shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
+                                {dayShifts.map(shift => {
+                                    const assignedStaff = staff.find(s => s.id === shift.userId);
+                                    const isCleaning = assignedStaff?.role === 'CLEANING';
+                                    return (
+                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${isCleaning ? 'bg-orange-50 border-orange-200' : shift.isManual ? 'bg-teal-50 border-teal-200' : shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
                                         <div className="flex items-center justify-between gap-1">
-                                            {shift.isManual ? (
+                                            {isCleaning && (
+                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-orange-100 text-orange-700 border-orange-300">
+                                                    Limpieza
+                                                </span>
+                                            )}
+                                            {!isCleaning && shift.isManual && (
                                                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-teal-100 text-teal-700 border-teal-300">
                                                     {formatTimeLabel(shift.customStartTime)}–{formatTimeLabel(shift.customEndTime)}
                                                 </span>
-                                            ) : (
+                                            )}
+                                            {!isCleaning && !shift.isManual && (
                                                 <>
                                                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
                                                         {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
@@ -441,7 +450,10 @@ export default function ScheduleBuilderPage() {
                                             className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                         >
                                             {staff.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                <option key={s.id} value={s.id}>
+                                                    {s.name}
+                                                    {s.role === 'CLEANING' ? ' · Limpieza' : s.role === 'SUPERVISOR' ? ' · Supervisor' : s.role === 'NURSE' ? ' · Enfermero/a' : ''}
+                                                </option>
                                             ))}
                                         </select>
                                         {!shift.isManual && (
@@ -499,7 +511,8 @@ export default function ScheduleBuilderPage() {
                                             </div>
                                         )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             <div className="mt-2 flex gap-1">
                                 <button
