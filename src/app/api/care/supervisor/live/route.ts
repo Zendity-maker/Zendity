@@ -28,8 +28,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "headquartersId is required" }, { status: 400 });
         }
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        // FIX timezone: ventana rodante de 24h en vez de "medianoche UTC del servidor",
+        // que deja el dashboard vacío cada noche cuando UTC cruza 00:00.
+        const todayStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const twelveHrsAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
 
