@@ -49,7 +49,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             allergies, diagnoses, diet, colorGroup,
             idCardUrl, medicalPlanUrl, medicareCardUrl, photoUrl,
             // FASE 82 — datos legales y de seguro
-            ssnLastFour, insurancePlanName, insurancePolicyNumber, preferredHospital
+            ssnLastFour, insurancePlanName, insurancePolicyNumber, preferredHospital,
+            // FASE 84 — dirección previa
+            address,
         } = body;
 
         const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -78,6 +80,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (insurancePlanName !== undefined) updateData.insurancePlanName = insurancePlanName || null;
         if (insurancePolicyNumber !== undefined) updateData.insurancePolicyNumber = insurancePolicyNumber || null;
         if (preferredHospital !== undefined) updateData.preferredHospital = preferredHospital || null;
+
+        // FASE 84 — dirección previa
+        if (address !== undefined) updateData.address = address || null;
 
         // IntakeData solo se toca si vienen allergies o diagnoses en el body
         if (allergies !== undefined || diagnoses !== undefined) {

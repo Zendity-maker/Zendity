@@ -451,6 +451,7 @@ model Patient {
   insurancePlanName     String? // "MCS", "Triple-S", "Medicare", etc.
   insurancePolicyNumber String? // Número de contrato / póliza
   preferredHospital     String? // Hospital preferido para traslados
+  address               String? // FASE 84: Dirección previa del residente
 
   createdAt DateTime @default(now())
 
@@ -650,6 +651,7 @@ model FamilyMember {
   name           String
   email          String  @unique
   phone          String? // FASE 82: Teléfono de contacto (para Resumen de Residente)
+  relationship   String? // FASE 84: "Hijo", "Esposa", "Nieto", etc.
   passcode       String? // PIN familiar (ej. 889900)
   accessLevel    String // e.g., "Full", "Read-Only"
 
