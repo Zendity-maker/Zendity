@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { saveIntakeDraft, submitIntake } from "@/actions/intake/intake.actions";
-import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare } from "lucide-react";
+import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare, FileText, Upload, Phone, CreditCard, ShieldCheck, Hospital, X as XIcon } from "lucide-react";
 
 export default function IntakeWizardPage() {
   const router = useRouter();
@@ -33,6 +33,29 @@ export default function IntakeWizardPage() {
     bradenScore: 23,
     rawMedications: "",
   });
+
+  // TAB 5 — Documentos e Identificación
+  const [tab5Data, setTab5Data] = useState({
+    dateOfBirth: "",
+    roomNumber: "",
+    ssnLastFour: "",
+    insurancePlanName: "",
+    insurancePolicyNumber: "",
+    preferredHospital: "",
+    photoUrl: "",
+    medicalPlanUrl: "",
+    medicareCardUrl: "",
+    idCardUrl: "",
+  });
+  const [tab5Family, setTab5Family] = useState({
+    id: "",
+    name: "",
+    email: "",
+    phone: "",
+    accessLevel: "Full",
+  });
+  const [tab5Saving, setTab5Saving] = useState(false);
+  const [tab5Error, setTab5Error] = useState<string | null>(null);
 
   // Debounced Auto-Save
   useEffect(() => {
@@ -120,12 +143,147 @@ export default function IntakeWizardPage() {
     setIsSaving(false);
   };
 
-  const tabs = [ 
+  const tabs = [
     { num: 1, title: "Identidad Base", desc: "Demografía y HQ", icon: User },
     { num: 2, title: "Triage Clínico", desc: "Alergias y Dx", icon: Stethoscope },
     { num: 3, title: "PAI y Riesgos", desc: "Dieta, UPP, Caídas", icon: Activity },
     { num: 4, title: "Log Farmacológico", desc: "eMAR Borrador", icon: Pill },
+    { num: 5, title: "Documentos e Identificación", desc: "Seguro, ID, Familiar", icon: FileText },
   ];
+
+  // Cargar datos del Patient + FamilyMember cuando entra al Tab 5
+  useEffect(() => {
+    if (activeTab !== 5 || !formData.patientId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [pRes, fRes] = await Promise.all([
+          fetch(`/api/care/resident-summary?patientId=${formData.patientId}`),
+          fetch(`/api/corporate/family?patientId=${formData.patientId}`),
+        ]);
+        const pData = await pRes.json();
+        const fData = await fRes.json();
+        if (cancelled) return;
+        if (pData.success && pData.patient) {
+          const p = pData.patient;
+          setTab5Data({
+            dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split("T")[0] : "",
+            roomNumber: p.roomNumber || "",
+            ssnLastFour: p.ssnLastFour || "",
+            insurancePlanName: p.insurancePlanName || "",
+            insurancePolicyNumber: p.insurancePolicyNumber || "",
+            preferredHospital: p.preferredHospital || "",
+            photoUrl: p.photoUrl || "",
+            medicalPlanUrl: p.medicalPlanUrl || "",
+            medicareCardUrl: p.medicareCardUrl || "",
+            idCardUrl: p.idCardUrl || "",
+          });
+        }
+        if (fData.success && fData.familyMembers?.length > 0) {
+          const primary = fData.familyMembers.find((f: any) => f.accessLevel === "Full") || fData.familyMembers[0];
+          setTab5Family({
+            id: primary.id || "",
+            name: primary.name || "",
+            email: primary.email || "",
+            phone: primary.phone || "",
+            accessLevel: primary.accessLevel || "Full",
+          });
+        }
+      } catch (e) {
+        console.error("[Tab5 load]", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, formData.patientId]);
+
+  const saveTab5Patient = async () => {
+    if (!formData.patientId) return;
+    setTab5Saving(true);
+    setTab5Error(null);
+    try {
+      const res = await fetch(`/api/corporate/patients/${formData.patientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateOfBirth: tab5Data.dateOfBirth || null,
+          roomNumber: tab5Data.roomNumber || null,
+          ssnLastFour: tab5Data.ssnLastFour || null,
+          insurancePlanName: tab5Data.insurancePlanName || null,
+          insurancePolicyNumber: tab5Data.insurancePolicyNumber || null,
+          preferredHospital: tab5Data.preferredHospital || null,
+          photoUrl: tab5Data.photoUrl || null,
+          medicalPlanUrl: tab5Data.medicalPlanUrl || null,
+          medicareCardUrl: tab5Data.medicareCardUrl || null,
+          idCardUrl: tab5Data.idCardUrl || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Error guardando datos del residente");
+    } catch (e: any) {
+      setTab5Error(e.message || "Error guardando");
+    } finally {
+      setTab5Saving(false);
+    }
+  };
+
+  const saveTab5Family = async () => {
+    if (!formData.patientId || !tab5Family.name || !tab5Family.email) {
+      setTab5Error("Nombre y email del familiar son requeridos");
+      return;
+    }
+    setTab5Saving(true);
+    setTab5Error(null);
+    try {
+      const res = await fetch(`/api/corporate/patients/${formData.patientId}/family`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: tab5Family.name,
+          email: tab5Family.email,
+          phone: tab5Family.phone || null,
+          accessLevel: tab5Family.accessLevel,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Error guardando familiar");
+      setTab5Family(prev => ({ ...prev, id: data.familyMember?.id || prev.id }));
+    } catch (e: any) {
+      setTab5Error(e.message || "Error guardando");
+    } finally {
+      setTab5Saving(false);
+    }
+  };
+
+  // Auto-save Tab 5 Patient fields (debounced 2s)
+  useEffect(() => {
+    if (activeTab !== 5 || !formData.patientId) return;
+    const t = setTimeout(() => { saveTab5Patient(); }, 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab5Data]);
+
+  // Uploader reutilizable: redimensiona a JPEG 70%, devuelve base64
+  const handleImageUpload = (field: keyof typeof tab5Data, maxWidth: number = 800) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, w, h);
+        const base64 = canvas.toDataURL("image/jpeg", 0.7);
+        setTab5Data(prev => ({ ...prev, [field]: base64 }));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center py-6 px-4 md:px-8 font-sans">
@@ -521,11 +679,276 @@ export default function IntakeWizardPage() {
                    </div>
                 )}
 
+                {activeTab === 5 && (
+                   <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex-1 flex flex-col">
+                      <div className="mb-10">
+                        <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-4">
+                          <FileText className="w-10 h-10 text-teal-600" /> Documentos e Identificación
+                        </h2>
+                        <p className="text-slate-500 font-bold text-lg mt-3">
+                          Datos legales, tarjetas y contacto de emergencia — aparecen en el Resumen de Residente oficial.
+                        </p>
+                      </div>
+
+                      {!formData.patientId && (
+                        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 text-sm font-bold text-amber-800">
+                          <AlertCircle className="w-5 h-5 inline mr-2" />
+                          Completa la Identidad Base primero para habilitar este bloque.
+                        </div>
+                      )}
+
+                      {formData.patientId && (
+                      <div className="space-y-8">
+
+                        {/* SECCIÓN 1 — Datos del residente */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <User className="w-5 h-5 text-teal-600" /> Datos del residente
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Fecha de nacimiento</label>
+                              <input
+                                type="date"
+                                value={tab5Data.dateOfBirth}
+                                onChange={(e) => setTab5Data(p => ({ ...p, dateOfBirth: e.target.value }))}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Habitación</label>
+                              <input
+                                type="text"
+                                value={tab5Data.roomNumber}
+                                onChange={(e) => setTab5Data(p => ({ ...p, roomNumber: e.target.value }))}
+                                placeholder="Ej: 12B"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">
+                                Seguro Social (últimos 4 dígitos)
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={4}
+                                pattern="[0-9]{4}"
+                                value={tab5Data.ssnLastFour}
+                                onChange={(e) => setTab5Data(p => ({ ...p, ssnLastFour: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                                placeholder="####"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold font-mono text-slate-800 focus:outline-none focus:border-teal-400 tracking-widest"
+                              />
+                              <p className="text-[10px] text-slate-500 font-bold mt-1">Solo los últimos 4 dígitos por HIPAA</p>
+                            </div>
+                          </div>
+                        </section>
+
+                        {/* SECCIÓN 2 — Plan médico */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <ShieldCheck className="w-5 h-5 text-teal-600" /> Plan médico y traslados
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Nombre del plan</label>
+                              <input
+                                type="text"
+                                value={tab5Data.insurancePlanName}
+                                onChange={(e) => setTab5Data(p => ({ ...p, insurancePlanName: e.target.value }))}
+                                placeholder="Ej: MCS, Triple-S, Medicare"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Número de contrato</label>
+                              <input
+                                type="text"
+                                value={tab5Data.insurancePolicyNumber}
+                                onChange={(e) => setTab5Data(p => ({ ...p, insurancePolicyNumber: e.target.value }))}
+                                placeholder="Ej: 125 13 6458 00"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold font-mono text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">
+                                <Hospital className="w-3.5 h-3.5 inline mr-1" /> Hospital preferido de traslado
+                              </label>
+                              <input
+                                type="text"
+                                value={tab5Data.preferredHospital}
+                                onChange={(e) => setTab5Data(p => ({ ...p, preferredHospital: e.target.value }))}
+                                placeholder="Ej: Centro Médico de PR"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                          </div>
+                        </section>
+
+                        {/* SECCIÓN 3 — Documentos / imágenes */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-teal-600" /> Documentos (imágenes)
+                          </h3>
+                          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5 flex gap-3">
+                            <AlertCircle className="w-5 h-5 text-indigo-600 shrink-0" />
+                            <p className="text-sm text-indigo-800 font-medium leading-relaxed">
+                              Estos documentos se almacenan de forma segura y aparecen en el <b>Resumen de Residente</b> para emergencias.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <UploadCard
+                              label="Foto del residente"
+                              value={tab5Data.photoUrl}
+                              onUpload={handleImageUpload("photoUrl", 400)}
+                              onClear={() => setTab5Data(p => ({ ...p, photoUrl: "" }))}
+                              color="teal"
+                            />
+                            <UploadCard
+                              label="Tarjeta de seguro médico"
+                              value={tab5Data.medicalPlanUrl}
+                              onUpload={handleImageUpload("medicalPlanUrl")}
+                              onClear={() => setTab5Data(p => ({ ...p, medicalPlanUrl: "" }))}
+                              color="indigo"
+                            />
+                            <UploadCard
+                              label="Tarjeta Medicare"
+                              hint="(opcional)"
+                              value={tab5Data.medicareCardUrl}
+                              onUpload={handleImageUpload("medicareCardUrl")}
+                              onClear={() => setTab5Data(p => ({ ...p, medicareCardUrl: "" }))}
+                              color="slate"
+                            />
+                            <UploadCard
+                              label="ID gubernamental"
+                              value={tab5Data.idCardUrl}
+                              onUpload={handleImageUpload("idCardUrl")}
+                              onClear={() => setTab5Data(p => ({ ...p, idCardUrl: "" }))}
+                              color="amber"
+                            />
+                          </div>
+                        </section>
+
+                        {/* SECCIÓN 4 — Contacto de emergencia / familiar */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border-y border-r border-slate-200 border-l-[8px] border-l-teal-500 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <Phone className="w-5 h-5 text-teal-600" /> Contacto de emergencia / Familiar principal
+                          </h3>
+                          <p className="text-sm text-slate-500 font-medium mb-5">
+                            Este familiar aparecerá como contacto primario en el Resumen de Residente para paramédicos.
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Nombre completo</label>
+                              <input
+                                type="text"
+                                value={tab5Family.name}
+                                onChange={(e) => setTab5Family(p => ({ ...p, name: e.target.value }))}
+                                placeholder="Ej: María Pérez"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Email</label>
+                              <input
+                                type="email"
+                                value={tab5Family.email}
+                                onChange={(e) => setTab5Family(p => ({ ...p, email: e.target.value }))}
+                                placeholder="maria@email.com"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Teléfono</label>
+                              <input
+                                type="tel"
+                                value={tab5Family.phone}
+                                onChange={(e) => setTab5Family(p => ({ ...p, phone: e.target.value }))}
+                                placeholder="Ej: 787-555-1234"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Nivel de acceso</label>
+                              <select
+                                value={tab5Family.accessLevel}
+                                onChange={(e) => setTab5Family(p => ({ ...p, accessLevel: e.target.value }))}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              >
+                                <option value="Full">Acceso completo</option>
+                                <option value="Read-Only">Solo lectura</option>
+                              </select>
+                            </div>
+                          </div>
+                          <button
+                            onClick={saveTab5Family}
+                            disabled={tab5Saving || !tab5Family.name || !tab5Family.email}
+                            className="mt-5 px-6 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black rounded-xl text-sm transition-colors flex items-center gap-2"
+                          >
+                            {tab5Saving ? (<><Save className="w-4 h-4 animate-spin" /> Guardando...</>) : (<><CheckCircle className="w-4 h-4" /> {tab5Family.id ? "Actualizar familiar" : "Guardar familiar"}</>)}
+                          </button>
+                        </section>
+
+                        {tab5Error && (
+                          <div className="bg-rose-50 border-2 border-rose-200 rounded-xl p-4 text-sm font-bold text-rose-700">
+                            {tab5Error}
+                          </div>
+                        )}
+                      </div>
+                      )}
+                   </div>
+                )}
+
             </div>
           </div>
         </div>
       </div>
 
+    </div>
+  );
+}
+
+/* Card reutilizable para uploads de imágenes */
+function UploadCard({ label, hint, value, onUpload, onClear, color }: {
+  label: string;
+  hint?: string;
+  value: string;
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClear: () => void;
+  color: "teal" | "indigo" | "amber" | "slate";
+}) {
+  const colorMap = {
+    teal: { border: "border-teal-200", bg: "bg-teal-50", text: "text-teal-700" },
+    indigo: { border: "border-indigo-200", bg: "bg-indigo-50", text: "text-indigo-700" },
+    amber: { border: "border-amber-200", bg: "bg-amber-50", text: "text-amber-700" },
+    slate: { border: "border-slate-200", bg: "bg-slate-50", text: "text-slate-700" },
+  }[color];
+
+  return (
+    <div className={`rounded-2xl border-2 border-dashed ${colorMap.border} p-4 ${colorMap.bg}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-xs font-black uppercase tracking-wider ${colorMap.text}`}>{label}</span>
+        {hint && <span className="text-[9px] text-slate-500 font-bold">{hint}</span>}
+      </div>
+      {value ? (
+        <div className="relative">
+          <img src={value} alt={label} className="w-full h-24 object-cover rounded-lg border border-white shadow-sm" />
+          <button
+            onClick={onClear}
+            className="absolute top-1 right-1 bg-white rounded-full p-1 shadow hover:bg-rose-50"
+            type="button"
+          >
+            <XIcon className="w-3 h-3 text-rose-500" />
+          </button>
+        </div>
+      ) : (
+        <label className={`flex flex-col items-center justify-center h-24 cursor-pointer rounded-lg bg-white/50 hover:bg-white transition-colors ${colorMap.text}`}>
+          <Upload className="w-5 h-5 mb-1" />
+          <span className="text-[10px] font-bold">Subir imagen</span>
+          <input type="file" accept="image/*" onChange={onUpload} className="hidden" />
+        </label>
+      )}
     </div>
   );
 }
