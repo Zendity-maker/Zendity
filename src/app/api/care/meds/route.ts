@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-
+import { notifyRoles } from '@/lib/notifications';
 
 export async function POST(req: Request) {
     try {
@@ -33,6 +32,29 @@ export async function POST(req: Request) {
                     }
                 }
             });
+        }
+
+        // Notificación EMAR_ALERT cuando el medicamento no se administra
+        if (adminStatus === 'OMITTED' || adminStatus === 'MISSED') {
+            try {
+                const patientMed = await prisma.patientMedication.findUnique({
+                    where: { id: patientMedicationId },
+                    include: {
+                        patient: { select: { name: true, headquartersId: true } },
+                        medication: { select: { name: true } }
+                    }
+                });
+                if (patientMed?.patient) {
+                    const schedule = patientMed.scheduleTimes || 'sin horario';
+                    const medName = patientMed.medication?.name || 'medicamento';
+                    const statusLabel = adminStatus === 'OMITTED' ? 'omitido' : 'no administrado';
+                    await notifyRoles(patientMed.patient.headquartersId, ['SUPERVISOR', 'NURSE'], {
+                        type: 'EMAR_ALERT',
+                        title: 'Medicamento no administrado',
+                        message: `${patientMed.patient.name} — ${medName} (${schedule}) ${statusLabel}`,
+                    });
+                }
+            } catch (e) { console.error('[notify EMAR_ALERT]', e); }
         }
 
         return NextResponse.json({ success: true, administration: admin });
