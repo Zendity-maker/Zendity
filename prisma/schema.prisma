@@ -117,6 +117,9 @@ model Headquarters {
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
+
+  // FASE 81: Staff Internal Chat
+  staffMessages StaffMessage[]
 }
 
 // =======================
@@ -235,6 +238,10 @@ model User {
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
+
+  // FASE 81: Staff Internal Chat
+  sentStaffMessages     StaffMessage[] @relation("SentStaffMessages")
+  receivedStaffMessages StaffMessage[] @relation("ReceivedStaffMessages")
 }
 
 model Account {
@@ -2186,4 +2193,25 @@ model ZoneInspection {
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   supervisor   User         @relation(fields: [supervisorId], references: [id])
+}
+
+// =======================
+// FASE 81: STAFF INTERNAL CHAT
+// =======================
+model StaffMessage {
+  id             String   @id @default(uuid())
+  headquartersId String
+  senderId       String
+  content        String   @db.Text
+  type           String   @default("DIRECT") // DIRECT | BROADCAST
+  recipientId    String? // null = broadcast a toda la sede
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  sender       User         @relation("SentStaffMessages", fields: [senderId], references: [id])
+  recipient    User?        @relation("ReceivedStaffMessages", fields: [recipientId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([headquartersId, type, createdAt])
+  @@index([recipientId, isRead])
 }
