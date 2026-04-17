@@ -279,8 +279,7 @@ export default function VitalsPage() {
             <div className="min-h-screen bg-slate-900 text-white no-print">
                 {/* Screen header */}
                 <div className="px-6 py-4 flex items-center justify-between border-b border-slate-700">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.push("/care")} className="text-slate-400 hover:text-white text-sm font-medium transition-colors">← Volver</button>
+                    <div className="flex items-center gap-4 pl-32">
                         <h1 className="text-xl font-black text-white tracking-tight">Vitales</h1>
                     </div>
                     <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors border border-slate-700">

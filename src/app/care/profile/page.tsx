@@ -45,18 +45,10 @@ export default function CaregiverProfilePage() {
 
     return (
         <div className="min-h-screen bg-slate-900 text-white pb-20">
-            {/* Header */}
-            <div className="px-6 py-4">
-                <button
-                    onClick={() => router.push("/care")}
-                    className="text-slate-400 hover:text-white text-sm font-medium flex items-center gap-2 transition-colors"
-                >
-                    ← Volver
-                </button>
-            </div>
+            {/* Header — BackToDashboard se renderiza en AppLayout (top-left) */}
 
             {/* Identidad */}
-            <div className="flex flex-col items-center px-6 pt-4 pb-10">
+            <div className="flex flex-col items-center px-6 pt-16 pb-10">
                 {user?.photoUrl ? (
                     <img
                         src={user.photoUrl}

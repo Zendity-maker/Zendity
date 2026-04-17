@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
+import BackToDashboard from "./ui/BackToDashboard";
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
@@ -251,7 +252,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         pathname.startsWith("/wall");
 
     if (isFullScreenRoute) {
-        return <div className="w-full h-full">{children}</div>;
+        const showBackButton = pathname.startsWith('/care') && pathname !== '/care';
+        return (
+            <div className="w-full h-full">
+                {showBackButton && <BackToDashboard />}
+                {children}
+            </div>
+        );
     }
 
     if (loading || !user) return null;
