@@ -1,8 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import {  Role } from '@prisma/client';
-
-
+import { Role } from '@prisma/client';
 
 export async function GET(req: Request, { params }: any) {
     try {
@@ -15,8 +13,8 @@ export async function GET(req: Request, { params }: any) {
             return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
         }
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Ventana rodante de 7 días (FIX: antes era 30 días, acumulativo)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
         let kpis: Record<string, any> = {};
 
@@ -28,28 +26,28 @@ export async function GET(req: Request, { params }: any) {
         // ============================================
         if (user.role === Role.CAREGIVER) {
             // ADL Completion Rate (Baños + Comidas)
-            const thirtyDaysBath = await prisma.bathLog.count({
-                where: { caregiverId: userId, timeLogged: { gte: thirtyDaysAgo } }
+            const sevenDaysBath = await prisma.bathLog.count({
+                where: { caregiverId: userId, timeLogged: { gte: sevenDaysAgo } }
             });
-            const thirtyDaysMeal = await prisma.mealLog.count({
-                where: { caregiverId: userId, timeLogged: { gte: thirtyDaysAgo } }
+            const sevenDaysMeal = await prisma.mealLog.count({
+                where: { caregiverId: userId, timeLogged: { gte: sevenDaysAgo } }
             });
             // Total ADLs as Volume
-            const adlVolume = thirtyDaysBath + thirtyDaysMeal;
+            const adlVolume = sevenDaysBath + sevenDaysMeal;
 
             // Handover Punctuality (HandoverCompleted en ShiftSession vs Total)
             const totalShifts = await prisma.shiftSession.count({
-                where: { caregiverId: userId, startTime: { gte: thirtyDaysAgo } }
+                where: { caregiverId: userId, startTime: { gte: sevenDaysAgo } }
             });
             const completedHandovers = await prisma.shiftSession.count({
-                where: { caregiverId: userId, handoverCompleted: true, startTime: { gte: thirtyDaysAgo } }
+                where: { caregiverId: userId, handoverCompleted: true, startTime: { gte: sevenDaysAgo } }
             });
 
             const handoverRate = totalShifts === 0 ? 100 : Math.round((completedHandovers / totalShifts) * 100);
 
             // Early Warning Rate (Clinical Alerts raised)
             const earlyWarnings = await prisma.dailyLog.count({
-                where: { authorId: userId, isClinicalAlert: true, createdAt: { gte: thirtyDaysAgo } }
+                where: { authorId: userId, isClinicalAlert: true, createdAt: { gte: sevenDaysAgo } }
             });
 
             kpis = {
@@ -66,22 +64,22 @@ export async function GET(req: Request, { params }: any) {
         else if (user.role === Role.NURSE || user.role === Role.SUPERVISOR || user.role === Role.DIRECTOR) {
             // eMAR Accuracy Score
             const totalMeds = await prisma.medicationAdministration.count({
-                where: { administeredById: userId, administeredAt: { gte: thirtyDaysAgo } }
+                where: { administeredById: userId, administeredAt: { gte: sevenDaysAgo } }
             });
             const omittedMeds = await prisma.medicationAdministration.count({
-                where: { administeredById: userId, status: 'OMITTED', administeredAt: { gte: thirtyDaysAgo } }
+                where: { administeredById: userId, status: 'OMITTED', administeredAt: { gte: sevenDaysAgo } }
             });
 
             const emarAccuracy = totalMeds === 0 ? 100 : Math.round(((totalMeds - omittedMeds) / totalMeds) * 100);
 
             // Clinical Notes Consistency
             const clinicalNotes = await prisma.medicationAuditLog.count({
-                where: { authorId: userId, createdAt: { gte: thirtyDaysAgo } }
+                where: { authorId: userId, createdAt: { gte: sevenDaysAgo } }
             });
 
             // Turnaround de Relevos Cero-Errores
             const totalHandoversGiven = await prisma.shiftHandover.count({
-                where: { outgoingNurseId: userId, createdAt: { gte: thirtyDaysAgo } }
+                where: { outgoingNurseId: userId, createdAt: { gte: sevenDaysAgo } }
             });
 
             // Respuesta a Triage (Mocked Metric para UX)
@@ -101,7 +99,7 @@ export async function GET(req: Request, { params }: any) {
         else if (user.role === Role.MAINTENANCE) {
             // En fase actual Mantenimiento Tickets no tienen Assignee directo en DB aún, mapeamos como HeadquartersEvents genéricos o mock.
             const resolvedTickets = await prisma.headquartersEvent.count({
-                where: { type: 'INFRASTRUCTURE', status: 'RESOLVED', startTime: { gte: thirtyDaysAgo } }
+                where: { type: 'INFRASTRUCTURE', status: 'RESOLVED', startTime: { gte: sevenDaysAgo } }
             });
 
             kpis = {
@@ -133,7 +131,7 @@ export async function GET(req: Request, { params }: any) {
                 complianceScore: user.complianceScore
             },
             kpis,
-            period: "Últimos 30 Días"
+            period: "Últimos 7 Días"
         });
 
     } catch (error) {
