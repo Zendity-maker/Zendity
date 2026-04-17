@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeftIcon, PlusIcon, TrashIcon, PrinterIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import ZendiEnhanceTextarea from "@/components/medical/pai/ZendiEnhanceTextarea";
 
 export default function PAICreatorPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
@@ -237,7 +238,14 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Diagnósticos y Resumen</label>
-                                <textarea value={clinicalSummary} onChange={e => setClinicalSummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Demencia vascular moderada, HTA..." />
+                                <ZendiEnhanceTextarea
+                                    value={clinicalSummary}
+                                    onChange={setClinicalSummary}
+                                    fieldLabel="Resumen Clínico"
+                                    patientName={patientInfo?.name || ""}
+                                    placeholder="Demencia vascular moderada, HTA..."
+                                    className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none focus:outline-none"
+                                />
                             </div>
                         </div>
                     </div>
@@ -264,7 +272,14 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     </div>
                     <div className="mt-4">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Resumen Interdisciplinario Global</label>
-                        <textarea value={interdisciplinarySummary} onChange={e => setInterdisciplinarySummary(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="El residente conserva capacidad parcial para..." />
+                        <ZendiEnhanceTextarea
+                            value={interdisciplinarySummary}
+                            onChange={setInterdisciplinarySummary}
+                            fieldLabel="Resumen Interdisciplinario Global"
+                            patientName={patientInfo?.name || ""}
+                            placeholder="El residente conserva capacidad parcial para..."
+                            className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none focus:outline-none"
+                        />
                     </div>
                 </div>
 
@@ -280,7 +295,14 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             <div key={i} className="flex flex-col gap-2 bg-indigo-50/50 p-4 border border-indigo-100 rounded-xl relative">
                                 <div className="absolute top-4 right-4 text-indigo-200 font-black text-2xl opacity-50">#{i + 1}</div>
                                 <input className="w-full md:w-3/4 bg-white p-2.5 rounded-lg border font-black text-indigo-900 border-indigo-200" placeholder="Objetivo (Ej. Prevenir Caídas)" value={g.objective} onChange={e => { const copy = [...goals]; copy[i].objective = e.target.value; setGoals(copy); }} />
-                                <textarea className="w-full bg-white p-2.5 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-500 h-16 resize-none text-slate-900 placeholder:text-indigo-300 focus:border-indigo-400" placeholder="Acción / Intervención Concreta" value={g.action} onChange={e => { const copy = [...goals]; copy[i].action = e.target.value; setGoals(copy); }} />
+                                <ZendiEnhanceTextarea
+                                    value={g.action}
+                                    onChange={(newVal) => { const copy = [...goals]; copy[i].action = newVal; setGoals(copy); }}
+                                    fieldLabel={`Intervención del objetivo: ${g.objective || 'PAI'}`}
+                                    patientName={patientInfo?.name || ""}
+                                    placeholder="Acción / Intervención Concreta"
+                                    className="w-full bg-white p-2.5 pb-10 rounded-lg border font-medium text-sm text-slate-900 placeholder:text-slate-500 h-20 resize-none focus:border-indigo-400 focus:outline-none"
+                                />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     <div><label className="text-[10px] font-bold text-slate-500 uppercase">Responsable</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-bold text-slate-900 placeholder:text-slate-500" value={g.responsible} onChange={e => { const copy = [...goals]; copy[i].responsible = e.target.value; setGoals(copy); }} /></div>
                                     <div><label className="text-[10px] font-bold text-slate-500 uppercase">Frecuencia</label><input className="w-full bg-white p-2 rounded-lg border text-sm font-medium text-slate-900 placeholder:text-slate-500" value={g.frequency} onChange={e => { const copy = [...goals]; copy[i].frequency = e.target.value; setGoals(copy); }} /></div>
@@ -319,19 +341,47 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Educación al Cuidador / Familia</label>
-                            <textarea value={familyEducation} onChange={e => setFamilyEducation(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Se orienta sobre prevención de caídas..." />
+                            <ZendiEnhanceTextarea
+                                value={familyEducation}
+                                onChange={setFamilyEducation}
+                                fieldLabel="Educación Familiar"
+                                patientName={patientInfo?.name || ""}
+                                placeholder="Se orienta sobre prevención de caídas..."
+                                className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-28 resize-none focus:outline-none"
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Preferencias del Residente</label>
-                            <textarea value={preferences} onChange={e => setPreferences(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Música suave, rutinas consistentes..." />
+                            <ZendiEnhanceTextarea
+                                value={preferences}
+                                onChange={setPreferences}
+                                fieldLabel="Preferencias del Residente"
+                                patientName={patientInfo?.name || ""}
+                                placeholder="Música suave, rutinas consistentes..."
+                                className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-28 resize-none focus:outline-none"
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Método de Monitoreo</label>
-                            <textarea value={monitoringMethod} onChange={e => setMonitoringMethod(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Notas de enfermería, reportes zendity..." />
+                            <ZendiEnhanceTextarea
+                                value={monitoringMethod}
+                                onChange={setMonitoringMethod}
+                                fieldLabel="Método de Monitoreo"
+                                patientName={patientInfo?.name || ""}
+                                placeholder="Notas de enfermería, reportes zendity..."
+                                className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none focus:outline-none"
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Criterios de Revisión Temprana</label>
-                            <textarea value={revisionCriteria} onChange={e => setRevisionCriteria(e.target.value)} className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-20 resize-none text-slate-900 placeholder:text-slate-500 focus:border-indigo-400" placeholder="Hospitalización, deterioro funcional..." />
+                            <ZendiEnhanceTextarea
+                                value={revisionCriteria}
+                                onChange={setRevisionCriteria}
+                                fieldLabel="Criterios de Revisión"
+                                patientName={patientInfo?.name || ""}
+                                placeholder="Hospitalización, deterioro funcional..."
+                                className="w-full mt-1 bg-slate-50 border border-slate-200 p-3 pb-10 rounded-xl font-medium text-slate-900 placeholder:text-slate-500 placeholder:font-normal focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all h-24 resize-none focus:outline-none"
+                            />
                         </div>
                     </div>
                 </div>
