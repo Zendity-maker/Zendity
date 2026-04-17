@@ -11,14 +11,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Datos incompletos o census inválido (requiere caregiverId, headquartersId, initialCensus)" }, { status: 400 });
         }
 
-        // Verificar si ya hay una sesión activa
+        // FIX: Auto-cerrar sesiones huérfanas del mismo cuidador (>14h sin cerrar).
+        // Evita que queden sesiones fantasma si el tablet no cierra sesión explícitamente.
+        const fourteenHoursAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+        const autoClosed = await prisma.shiftSession.updateMany({
+            where: {
+                caregiverId,
+                actualEndTime: null,
+                startTime: { lt: fourteenHoursAgo }
+            },
+            data: {
+                actualEndTime: new Date()
+            }
+        });
+        if (autoClosed.count > 0) {
+            console.log(`[shift/start] Auto-cerradas ${autoClosed.count} sesiones huérfanas del cuidador ${caregiverId}`);
+        }
+
+        // Verificar si ya hay una sesión activa reciente (últimas 14h)
         const activeSession = await prisma.shiftSession.findFirst({
             where: {
                 caregiverId,
                 actualEndTime: null, // Sigue activa
-                startTime: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0)) // De hoy
-                }
+                startTime: { gte: fourteenHoursAgo }
             }
         });
 
@@ -77,13 +92,13 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "caregiverId es requerido" }, { status: 400 });
         }
 
+        // Ventana rodante de 14h (no "hoy UTC") para evitar falsos negativos al cruzar medianoche UTC
+        const fourteenHoursAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
         const activeSession = await prisma.shiftSession.findFirst({
             where: {
                 caregiverId,
                 actualEndTime: null,
-                startTime: {
-                    gte: new Date(new Date().setHours(0, 0, 0, 0))
-                }
+                startTime: { gte: fourteenHoursAgo }
             }
         });
 
