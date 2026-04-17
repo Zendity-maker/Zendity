@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/lib/notifications';
 
 export async function POST(request: Request) {
     try {
@@ -29,6 +30,20 @@ export async function POST(request: Request) {
                     }
                 });
             }
+
+            // Notificar al mismo usuario que completó el curso
+            try {
+                const course = await prisma.course.findUnique({
+                    where: { id: courseId },
+                    select: { title: true }
+                });
+                const courseName = course?.title || 'el curso';
+                await notifyUser(userId, {
+                    type: 'COURSE_COMPLETED',
+                    title: '¡Curso completado!',
+                    message: `Completaste '${courseName}'. Tu certificado está listo.`,
+                });
+            } catch (e) { console.error('[notify COURSE_COMPLETED]', e); }
 
             return NextResponse.json({ success: true, unblocked: user?.isShiftBlocked }, { status: 200 });
         }
