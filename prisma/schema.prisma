@@ -960,6 +960,7 @@ model VitalSigns {
   temperature  Float
   heartRate    Int
   glucose      Int?
+  spo2         Int? // FASE 83: Saturación de oxígeno (SpO2) — alerta crítica si < 94
   createdAt    DateTime @default(now())
 
   patient    Patient @relation(fields: [patientId], references: [id])

@@ -85,40 +85,75 @@ export async function GET(req: Request) {
     }
 }
 
+const ALLOWED_POST_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { patientId, authorId, type, data } = body;
+        // ── Seguridad (FIX 2) ──
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+        const invokerId = (session.user as any).id;
+        const invokerRole = (session.user as any).role;
+        const invokerHqId = (session.user as any).headquartersId;
+        if (!ALLOWED_POST_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ success: false, error: "Rol no autorizado para registrar vitales" }, { status: 403 });
+        }
 
-        if (!patientId || !authorId || !type || !data) {
+        const body = await req.json();
+        const { patientId, type, data } = body;
+
+        if (!patientId || !type || !data) {
             return NextResponse.json({ success: false, error: "Faltan parámetros de vitales" }, { status: 400 });
+        }
+
+        // Tenant check: el paciente debe estar en la sede del invocador
+        const patientCheck = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId: invokerHqId },
+            select: { id: true }
+        });
+        if (!patientCheck) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede" }, { status: 404 });
         }
 
         if (type === 'VITALS') {
             if (!data.sys || !data.dia || !data.hr || !data.temp) {
-                return NextResponse.json({ success: false, error: "Datos vitales incompletos" }, { status: 400 });
+                return NextResponse.json({ success: false, error: "Datos vitales incompletos: sistólica, diastólica, pulso y temperatura son obligatorios" }, { status: 400 });
             }
 
             const sys = parseInt(data.sys);
             const dia = parseInt(data.dia);
             const temp = parseFloat(data.temp);
+            const hr = parseInt(data.hr);
+            const glucose = data.glucose ? parseInt(data.glucose) : null;
+            const spo2 = data.spo2 ? parseInt(data.spo2) : null;
+
+            // ── FIX 3: Detección unidad temperatura ──
+            // Si temp < 45 → Celsius (valores humanos típicos 35-42°C). Convertir a °F para el threshold.
+            // Si temp ≥ 45 → Fahrenheit (valores humanos típicos 95-106°F).
+            const tempF = temp < 45 ? (temp * 9 / 5) + 32 : temp;
 
             let isCritical = false;
             let criticalMessage = "";
 
             if (sys > 140 || dia > 90) { isCritical = true; criticalMessage = "Posible crisis hipertensiva detectada."; }
             else if (sys < 90) { isCritical = true; criticalMessage = "Posible cuadro de hipotensión."; }
-            else if (temp > 100.4) { isCritical = true; criticalMessage = "Fiebre sistémica detectada."; }
+            else if (tempF > 100.4) { isCritical = true; criticalMessage = `Fiebre sistémica detectada (${temp < 45 ? `${temp}°C` : `${temp}°F`}).`; }
+            // SpO2 crítica si < 94%
+            else if (spo2 !== null && spo2 < 94) { isCritical = true; criticalMessage = `Hipoxemia detectada (SpO2 ${spo2}%).`; }
 
+            // measuredById: SIEMPRE session.user.id (no confiamos en body)
             await prisma.vitalSigns.create({
                 data: {
                     patientId,
-                    measuredById: authorId,
+                    measuredById: invokerId,
                     systolic: sys,
                     diastolic: dia,
-                    heartRate: parseInt(data.hr),
+                    heartRate: hr,
                     temperature: temp,
-                    glucose: data.glucose ? parseInt(data.glucose) : null,
+                    glucose,
+                    spo2,
                 }
             });
 
@@ -143,7 +178,7 @@ export async function POST(req: Request) {
             const dailyLog = await prisma.dailyLog.create({
                 data: {
                     patientId,
-                    authorId,
+                    authorId: invokerId,
                     foodIntake: parseInt(data.foodIntake || "100"),
                     bathCompleted: data.bathCompleted === true,
                     notes: data.notes,

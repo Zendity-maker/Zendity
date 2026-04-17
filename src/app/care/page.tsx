@@ -117,6 +117,8 @@ export default function ZendityCareTabletPage() {
 
     // Form States & Shadow AI
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+    // Campos con error al intentar guardar vitales sin completar (sys/dia/hr/temp obligatorios)
+    const [vitalsErrors, setVitalsErrors] = useState<{ sys: boolean; dia: boolean; hr: boolean; temp: boolean }>({ sys: false, dia: false, hr: false, temp: false });
     const [fastActions, setFastActions] = useState<any[]>([]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
@@ -626,12 +628,24 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitVitals = async () => {
-        if (!vitals.sys || !vitals.temp) return;
+        // Validación sincronizada con backend: sys, dia, hr, temp son obligatorios
+        const missing = {
+            sys: !vitals.sys,
+            dia: !vitals.dia,
+            hr: !vitals.hr,
+            temp: !vitals.temp,
+        };
+        const hasMissing = missing.sys || missing.dia || missing.hr || missing.temp;
+        if (hasMissing) {
+            setVitalsErrors(missing);
+            alert("Completa los campos obligatorios: Sistólica, Diastólica, Pulso y Temperatura.");
+            return;
+        }
+        setVitalsErrors({ sys: false, dia: false, hr: false, temp: false });
         setSubmitting(true);
         try {
             const payload = {
                 patientId: activePatient.id,
-                authorId: user?.id,
                 type: 'VITALS',
                 data: vitals
             };
@@ -644,7 +658,7 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
                 refreshPatientsSilently(selectedColor!);
-                
+
                 if (data.criticalAlert) {
                     alert(data.message);
                     setDailyLog({ bathCompleted: false, foodIntake: 100, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
@@ -667,7 +681,6 @@ export default function ZendityCareTabletPage() {
         try {
             const payload = {
                 patientId: activePatient.id,
-                authorId: user?.id,
                 type: 'LOG',
                 data: { ...dailyLog, isAlert: dailyLog.notes.toLowerCase().includes("alerta") }
             };
@@ -1855,10 +1868,10 @@ export default function ZendityCareTabletPage() {
                                 )}
 
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-                                    <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => setVitals({ ...vitals, sys: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
-                                    <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => setVitals({ ...vitals, dia: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
-                                    <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => setVitals({ ...vitals, hr: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all" />
-                                    <input type="number" placeholder="Temp °F (Ej 98.6)" value={vitals.temp} onChange={e => setVitals({ ...vitals, temp: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => { setVitals({ ...vitals, sys: e.target.value }); if (vitalsErrors.sys) setVitalsErrors({ ...vitalsErrors, sys: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.sys ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
+                                    <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => { setVitals({ ...vitals, dia: e.target.value }); if (vitalsErrors.dia) setVitalsErrors({ ...vitalsErrors, dia: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.dia ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
+                                    <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => { setVitals({ ...vitals, hr: e.target.value }); if (vitalsErrors.hr) setVitalsErrors({ ...vitalsErrors, hr: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.hr ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
+                                    <input type="number" placeholder="Temp °F o °C (Ej 98.6 / 37)" value={vitals.temp} onChange={e => { setVitals({ ...vitals, temp: e.target.value }); if (vitalsErrors.temp) setVitalsErrors({ ...vitalsErrors, temp: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.temp ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
                                     <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                     <input type="number" placeholder="Glucosa mg/dL" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                 </div>
