@@ -927,18 +927,21 @@ export default function ZendityCareTabletPage() {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     patientId: activePatient.id,
-                    headquartersId: user?.hqId || user?.headquartersId || "hq-demo-1",
                     type: 'FALL',
-                    severity: 'HIGH',
-                    description: `Residente sufrió caída. Consciente: ${fallProtocol.consciousness}, Sangrado: ${fallProtocol.bleeding}, Dolor Escala 1-10: ${fallProtocol.painLevel}`,
-                    biometricSignature: user?.id || "emergency-bypass"
+                    // Campos estructurados — severidad/riskLevel se derivan en el backend
+                    conscious: fallProtocol.consciousness,
+                    bleeding: fallProtocol.bleeding,
+                    painLevel: fallProtocol.painLevel,
+                    description: `Residente sufrió caída. Consciente: ${fallProtocol.consciousness ? 'Sí' : 'No'}, Sangrado: ${fallProtocol.bleeding ? 'Sí' : 'No'}, Dolor ${fallProtocol.painLevel}/10`,
                 })
             });
             const data = await res.json();
             if (data.success) {
                 setFallProtocol({ consciousness: true, bleeding: false, painLevel: 5 });
                 setModalType(null);
-                alert(" Alerta Roja enviada al Mando de Enfermería Central.")
+                alert(` Alerta Roja enviada al Mando de Enfermería Central. Severidad: ${data.derivedSeverity || 'reportada'}.`);
+            } else {
+                alert(` Error: ${data.error || 'No se pudo registrar la caída'}`);
             }
         } catch (e) {
             console.error(e);
