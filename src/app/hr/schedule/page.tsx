@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, Printer, Loader2 } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, Printer, Loader2, X } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
@@ -71,6 +71,23 @@ function formatTimeLabel(iso: string | null | undefined) {
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase().replace(' ', '');
 }
 
+/** Convierte ISO string a "HH:MM" en hora local para el input type="time". */
+function extractHHMM(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+}
+
+/** Combina una fecha base (YYYY-MM-DD) con HH:MM y devuelve ISO. */
+function combineDateAndTime(dateStr: string, hhmm: string): string {
+    const [h, m] = hhmm.split(':').map(Number);
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setHours(h, m, 0, 0);
+    return d.toISOString();
+}
+
 export default function ScheduleBuilderPage() {
     const { user } = useAuth();
     const hqId = (user as any)?.hqId || (user as any)?.headquartersId || "";
@@ -108,14 +125,8 @@ export default function ScheduleBuilderPage() {
     } | null>(null);
     const [processingAbsent, setProcessingAbsent] = useState<string | null>(null);
 
-    // Turno Manual Modal
-    const [manualModal, setManualModal] = useState<{ date: Date } | null>(null);
-    const [manualForm, setManualForm] = useState({
-        userId: '',
-        startTime: '10:00',
-        endTime: '15:00',
-        description: ''
-    });
+    // Errores de validación del inline manual (por tempId)
+    const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -182,42 +193,55 @@ export default function ScheduleBuilderPage() {
         setShifts(prev => [...prev, newShift]);
     };
 
-    const openManualModal = (date: Date) => {
-        if (!staff.length) return;
-        setManualForm({
-            userId: staff[0].id,
-            startTime: '10:00',
-            endTime: '15:00',
-            description: ''
-        });
-        setManualModal({ date });
+    /**
+     * Activa modo manual inline en el card:
+     * setea isManual=true + defaults 10:00/15:00 en la fecha del shift.
+     */
+    const enterManualMode = (tempId: string) => {
+        setShifts(prev => prev.map(s => {
+            if (s.tempId !== tempId) return s;
+            const startISO = combineDateAndTime(s.date, s.customStartTime ? extractHHMM(s.customStartTime) : '10:00');
+            const endISO = combineDateAndTime(s.date, s.customEndTime ? extractHHMM(s.customEndTime) : '15:00');
+            return {
+                ...s,
+                isManual: true,
+                customStartTime: startISO,
+                customEndTime: endISO,
+            };
+        }));
+        setManualErrors(prev => { const next = { ...prev }; delete next[tempId]; return next; });
     };
 
-    const confirmManualShift = () => {
-        if (!manualModal) return;
-        const { date } = manualModal;
-        const dateStr = date.toISOString().split('T')[0];
-        const [sh, sm] = manualForm.startTime.split(':').map(Number);
-        const [eh, em] = manualForm.endTime.split(':').map(Number);
-        const start = new Date(date);
-        start.setHours(sh, sm, 0, 0);
-        const end = new Date(date);
-        end.setHours(eh, em, 0, 0);
-        const found = staff.find(s => s.id === manualForm.userId);
-        const newShift: ShiftEntry = {
-            tempId: `temp-${Date.now()}`,
-            userId: manualForm.userId,
-            userName: found?.name || '',
-            date: dateStr,
-            shiftType: 'MORNING', // fallback required by enum; visual driven by isManual
-            colorGroup: null,
-            isManual: true,
-            customStartTime: start.toISOString(),
-            customEndTime: end.toISOString(),
-            customDescription: manualForm.description || null
-        };
-        setShifts(prev => [...prev, newShift]);
-        setManualModal(null);
+    /** Sale de modo manual y vuelve a MORNING por default. */
+    const exitManualMode = (tempId: string) => {
+        setShifts(prev => prev.map(s => s.tempId === tempId
+            ? { ...s, isManual: false, customStartTime: null, customEndTime: null, customDescription: null, shiftType: 'MORNING', colorGroup: s.colorGroup || 'GREEN' }
+            : s));
+        setManualErrors(prev => { const next = { ...prev }; delete next[tempId]; return next; });
+    };
+
+    /** Actualiza una de las horas (start/end) inline con validación. */
+    const updateManualTime = (tempId: string, field: 'start' | 'end', hhmm: string) => {
+        setShifts(prev => prev.map(s => {
+            if (s.tempId !== tempId) return s;
+            const newISO = combineDateAndTime(s.date, hhmm);
+            const nextShift = field === 'start'
+                ? { ...s, customStartTime: newISO }
+                : { ...s, customEndTime: newISO };
+
+            // Validación: inicio debe ser antes que fin
+            if (nextShift.customStartTime && nextShift.customEndTime) {
+                const ss = new Date(nextShift.customStartTime).getTime();
+                const ee = new Date(nextShift.customEndTime).getTime();
+                setManualErrors(prevErr => {
+                    const next = { ...prevErr };
+                    if (ss >= ee) next[tempId] = 'Hora inválida: inicio debe ser antes que fin';
+                    else delete next[tempId];
+                    return next;
+                });
+            }
+            return nextShift;
+        }));
     };
 
     const updateShift = (tempId: string, field: string, value: string) => {
@@ -570,15 +594,22 @@ export default function ScheduleBuilderPage() {
                                             <>
                                                 <select
                                                     value={shift.shiftType}
-                                                    onChange={e => updateShift(shift.tempId, 'shiftType', e.target.value)}
+                                                    onChange={e => {
+                                                        if (e.target.value === '__MANUAL__') {
+                                                            enterManualMode(shift.tempId);
+                                                        } else {
+                                                            updateShift(shift.tempId, 'shiftType', e.target.value);
+                                                        }
+                                                    }}
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
                                                     {Object.entries(SHIFT_LABELS).map(([k, v]) => {
-                                                        // SUPERVISOR_DAY solo disponible si el empleado es SUPERVISOR
                                                         const assignedStaff = staff.find(s => s.id === shift.userId);
                                                         if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
                                                         return <option key={k} value={k}>{v}</option>;
                                                     })}
+                                                    <option disabled>──────────</option>
+                                                    <option value="__MANUAL__">✏️ Horario manual...</option>
                                                 </select>
                                                 <select
                                                     value={shift.colorGroup || 'NONE'}
@@ -591,10 +622,46 @@ export default function ScheduleBuilderPage() {
                                                 </select>
                                             </>
                                         )}
-                                        {shift.isManual && shift.customDescription && (
-                                            <p className="text-[10px] text-teal-700 font-medium italic px-1 leading-tight">
-                                                {shift.customDescription}
-                                            </p>
+                                        {shift.isManual && (
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-1">
+                                                    <input
+                                                        type="time"
+                                                        value={extractHHMM(shift.customStartTime)}
+                                                        onChange={e => updateManualTime(shift.tempId, 'start', e.target.value)}
+                                                        onKeyDown={e => { if (e.key === 'Escape') exitManualMode(shift.tempId); }}
+                                                        className={`flex-1 text-[11px] bg-white border rounded-lg px-1.5 py-1 font-bold text-teal-700 focus:outline-none focus:border-teal-500 ${manualErrors[shift.tempId] ? 'border-red-400' : 'border-teal-300'}`}
+                                                        autoFocus
+                                                    />
+                                                    <span className="text-[10px] text-teal-600 font-bold">→</span>
+                                                    <input
+                                                        type="time"
+                                                        value={extractHHMM(shift.customEndTime)}
+                                                        onChange={e => updateManualTime(shift.tempId, 'end', e.target.value)}
+                                                        onKeyDown={e => { if (e.key === 'Escape') exitManualMode(shift.tempId); }}
+                                                        className={`flex-1 text-[11px] bg-white border rounded-lg px-1.5 py-1 font-bold text-teal-700 focus:outline-none focus:border-teal-500 ${manualErrors[shift.tempId] ? 'border-red-400' : 'border-teal-300'}`}
+                                                    />
+                                                    <button
+                                                        onClick={() => exitManualMode(shift.tempId)}
+                                                        className="text-slate-400 hover:text-slate-700 transition-colors shrink-0"
+                                                        title="Salir de modo manual"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                {manualErrors[shift.tempId] && (
+                                                    <p className="text-[10px] text-red-600 font-bold px-1">{manualErrors[shift.tempId]}</p>
+                                                )}
+                                                <select
+                                                    value={shift.colorGroup || 'NONE'}
+                                                    onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                                    className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                                >
+                                                    {COLOR_OPTIONS.map(c => (
+                                                        <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         )}
                                         <input
                                             type="text"
@@ -624,21 +691,12 @@ export default function ScheduleBuilderPage() {
                                     );
                                 })}
                             </div>
-                            <div className="mt-2 flex gap-1">
-                                <button
-                                    onClick={() => addShift(day)}
-                                    className="flex-1 flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-1.5 transition-all border border-dashed border-slate-200 hover:border-teal-300"
-                                >
-                                    <Plus className="w-3 h-3" /> Turno
-                                </button>
-                                <button
-                                    onClick={() => openManualModal(day)}
-                                    className="flex-1 flex items-center justify-center gap-1 text-[11px] font-bold text-teal-600 hover:text-white hover:bg-teal-500 rounded-xl py-1.5 transition-all border border-dashed border-teal-300"
-                                    title="Turno con hora personalizada"
-                                >
-                                    <Clock className="w-3 h-3" /> Manual
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => addShift(day)}
+                                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-bold text-slate-500 hover:text-teal-600 hover:bg-teal-50 rounded-xl py-2 transition-all border border-dashed border-slate-200 hover:border-teal-300"
+                            >
+                                <Plus className="w-3 h-3" /> Agregar turno
+                            </button>
                         </div>
                     );
                 })}
@@ -715,81 +773,6 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         </div>
-
-        {manualModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-300">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-teal-600" />
-                        </div>
-                        <div>
-                            <h3 className="font-black text-slate-800">Turno Manual</h3>
-                            <p className="text-sm text-slate-500">{formatDate(manualModal.date)} — hora personalizada</p>
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Empleado</label>
-                            <select
-                                value={manualForm.userId}
-                                onChange={e => setManualForm(f => ({ ...f, userId: e.target.value }))}
-                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
-                            >
-                                {staff.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name} — {s.role}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Hora inicio</label>
-                                <input
-                                    type="time"
-                                    value={manualForm.startTime}
-                                    onChange={e => setManualForm(f => ({ ...f, startTime: e.target.value }))}
-                                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Hora fin</label>
-                                <input
-                                    type="time"
-                                    value={manualForm.endTime}
-                                    onChange={e => setManualForm(f => ({ ...f, endTime: e.target.value }))}
-                                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">Descripción (opcional)</label>
-                            <input
-                                type="text"
-                                value={manualForm.description}
-                                onChange={e => setManualForm(f => ({ ...f, description: e.target.value }))}
-                                placeholder="Ej: Cobertura emergencia, capacitación..."
-                                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex gap-3 mt-5">
-                        <button
-                            onClick={() => setManualModal(null)}
-                            className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={confirmManualShift}
-                            disabled={!manualForm.userId || manualForm.startTime >= manualForm.endTime}
-                            className="flex-1 py-2.5 text-sm font-bold text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 rounded-xl transition-all"
-                        >
-                            Agregar turno
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
 
         {absentModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
