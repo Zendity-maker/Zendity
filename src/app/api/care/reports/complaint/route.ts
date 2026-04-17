@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { notifyRoles } from '@/lib/notifications';
 
 
 
@@ -44,6 +45,15 @@ export async function POST(req: Request) {
                 description: complaint.description,
             }
         });
+
+        // Notificar a SUPERVISOR/NURSE/DIRECTOR
+        try {
+            await notifyRoles(patient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                type: 'TRIAGE',
+                title: 'Nuevo ticket de Triage',
+                message: `${patient.name} — Queja familiar: ${(description || 'sin descripción').substring(0, 120)}`,
+            });
+        } catch (e) { console.error('[notify TRIAGE complaint]', e); }
 
         return NextResponse.json({ success: true, complaint });
     } catch (error: any) {

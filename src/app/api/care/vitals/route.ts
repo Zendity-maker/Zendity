@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { notifyRoles } from '@/lib/notifications';
 
 export async function GET(req: Request) {
     try {
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
 
             // Auto-crear TriageTicket para alertas clínicas/UPP
             if (isClinicalAlert) {
-                const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true } });
+                const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true, name: true } });
                 if (patient) {
                     await prisma.triageTicket.create({
                         data: {
@@ -156,6 +157,15 @@ export async function POST(req: Request) {
                             description: data.notes || 'Alerta clínica sin descripción',
                         }
                     });
+
+                    // Notificar a SUPERVISOR/NURSE/DIRECTOR de la sede
+                    try {
+                        await notifyRoles(patient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                            type: 'TRIAGE',
+                            title: 'Nuevo ticket de Triage',
+                            message: `${patient.name} — Alerta clínica: ${(data.notes || 'sin descripción').substring(0, 120)}`,
+                        });
+                    } catch (e) { console.error('[notify TRIAGE vitals]', e); }
                 }
             }
         }

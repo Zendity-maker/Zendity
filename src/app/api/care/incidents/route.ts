@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { notifyRoles } from '@/lib/notifications';
 
 
 
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
             });
 
             // Auto-crear TriageTicket para caída
-            const fallPatient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true } });
+            const fallPatient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true, name: true } });
             if (fallPatient) {
                 await prisma.triageTicket.create({
                     data: {
@@ -44,6 +45,15 @@ export async function POST(req: Request) {
                         description: `Caída reportada: ${description || 'Sin descripción'}`,
                     }
                 });
+
+                // Notificar a SUPERVISOR/NURSE/DIRECTOR de la sede
+                try {
+                    await notifyRoles(fallPatient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                        type: 'TRIAGE',
+                        title: 'Nuevo ticket de Triage',
+                        message: `${fallPatient.name} — Caída reportada: ${(description || 'sin descripción').substring(0, 120)}`,
+                    });
+                } catch (e) { console.error('[notify TRIAGE fall]', e); }
             }
 
             return NextResponse.json({ success: true, incident, riskAssessment });
@@ -77,6 +87,22 @@ export async function POST(req: Request) {
                     description: `${event.title}: ${description}`,
                 }
             });
+
+            // Notificar a SUPERVISOR/NURSE/DIRECTOR
+            try {
+                let patientName = 'Residente';
+                if (patientId) {
+                    const p = await prisma.patient.findUnique({ where: { id: patientId }, select: { name: true } });
+                    patientName = p?.name || patientName;
+                } else {
+                    patientName = 'Reporte operativo';
+                }
+                await notifyRoles(headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                    type: 'TRIAGE',
+                    title: 'Nuevo ticket de Triage',
+                    message: `${patientName} — Mantenimiento: ${(description || 'sin descripción').substring(0, 120)}`,
+                });
+            } catch (e) { console.error('[notify TRIAGE incident]', e); }
 
             return NextResponse.json({ success: true, event });
         }
