@@ -17,7 +17,17 @@ export default function IntakeWizardPage() {
   
   const [tempMedName, setTempMedName] = useState("");
   const [tempMedTimes, setTempMedTimes] = useState<string[]>([]);
-  const LOCAL_AVAILABLE_TIMES = ["06:00 AM", "08:00 AM", "02:00 PM", "05:00 PM", "08:00 PM", "10:00 PM", "PRN"];
+  const LOCAL_AVAILABLE_TIMES = [
+    "05:00 AM",
+    "06:00 AM",
+    "08:00 AM",
+    "12:00 PM",
+    "02:00 PM",
+    "05:00 PM",
+    "08:00 PM",
+    "10:00 PM",
+    "PRN"
+  ];
 
   const [formData, setFormData] = useState({
     patientId: "",
