@@ -1,7 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, Printer, Loader2 } from "lucide-react";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import SchedulePrintView from "@/components/hr/SchedulePrintView";
 
 const SHIFT_LABELS: Record<string, string> = {
     MORNING: "Diurno 6AM–2PM",
@@ -79,6 +82,20 @@ export default function ScheduleBuilderPage() {
     const [draftId, setDraftId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // Impresión PDF
+    const [exporting, setExporting] = useState(false);
+    const [hqBranding, setHqBranding] = useState<{ name: string; logoUrl: string | null }>({ name: 'Vivid Senior Living', logoUrl: null });
+    const printRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        fetch('/api/public/hq/branding')
+            .then(r => r.json())
+            .then(d => {
+                if (d.success && d.hq) setHqBranding({ name: d.hq.name, logoUrl: d.hq.logoUrl });
+            })
+            .catch(() => null);
+    }, []);
     const [absentModal, setAbsentModal] = useState<{
         shift: any;
         result: any;
@@ -211,6 +228,43 @@ export default function ScheduleBuilderPage() {
 
     const removeShift = (tempId: string) => {
         setShifts(prev => prev.filter(s => s.tempId !== tempId));
+    };
+
+    const handlePrintSchedule = async () => {
+        if (!printRef.current) return;
+        setExporting(true);
+        try {
+            printRef.current.style.display = 'block';
+            await new Promise(r => setTimeout(r, 500));
+
+            const canvas = await html2canvas(printRef.current, {
+                scale: 2, useCORS: true, logging: false, allowTaint: true,
+            });
+            printRef.current.style.display = 'none';
+
+            const imgData = canvas.toDataURL('image/png');
+            // Landscape A4 para una página completa
+            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const margin = 8;
+            const imgWidth = pdfWidth - (margin * 2);
+            const imgHeightScaled = (canvas.height * imgWidth) / canvas.width;
+
+            // Si cabe en una página, centrar verticalmente; si no, desde el tope
+            const yOffset = imgHeightScaled < pdfHeight - (margin * 2)
+                ? margin + (pdfHeight - (margin * 2) - imgHeightScaled) / 2
+                : margin;
+
+            pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, Math.min(imgHeightScaled, pdfHeight - (margin * 2)));
+            pdf.autoPrint();
+            window.open(pdf.output('bloburl'), '_blank');
+        } catch (err) {
+            console.error('Print schedule error:', err);
+            alert('Error generando el PDF del horario.');
+        } finally {
+            setExporting(false);
+        }
     };
 
     const saveSchedule = async () => {
@@ -564,7 +618,21 @@ export default function ScheduleBuilderPage() {
                         <p className="text-xs text-slate-500">{publishedSchedule ? 'Horario publicado — el equipo puede verlo' : 'Borrador — aún no visible para el equipo'}</p>
                     </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
+                    {/* Botón imprimir — solo DIRECTOR, ADMIN, HR */}
+                    {user && ['DIRECTOR', 'ADMIN'].includes((user as any).role) && shifts.length > 0 && (
+                        <button
+                            onClick={handlePrintSchedule}
+                            disabled={exporting}
+                            className="px-5 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
+                        >
+                            {exporting ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                            ) : (
+                                <><Printer className="w-4 h-4" /> Imprimir horario</>
+                            )}
+                        </button>
+                    )}
                     <button
                         onClick={saveSchedule}
                         disabled={saving || shifts.length === 0}
@@ -718,6 +786,19 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         )}
+
+        {/* Offscreen render para impresión */}
+        <SchedulePrintView
+            ref={printRef}
+            weekStart={weekStart}
+            weekDays={weekDays}
+            shifts={shifts}
+            staff={staff}
+            isPublished={!!publishedSchedule}
+            hqName={hqBranding.name}
+            hqLogoUrl={hqBranding.logoUrl}
+            generatedByName={user?.name || 'Supervisor'}
+        />
         </>
     );
 }
