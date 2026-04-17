@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         const todayStart = startOfDay(new Date());
         const todayEnd = endOfDay(new Date());
 
-        const patients = await prisma.patient.findMany({
+        const patientsRaw = await prisma.patient.findMany({
             where: {
                 colorGroup: color as any,
                 headquartersId: hqId,
@@ -62,6 +62,17 @@ export async function GET(req: Request) {
             orderBy: { name: 'asc' }
         });
 
+        // FASE 80: Residentes en hospital permanecen en el censo (con badge),
+        // pero sus medicamentos NO aparecen en el eMAR activo del turno.
+        const patients = patientsRaw.map(p => {
+            if (p.status === 'TEMPORARY_LEAVE') {
+                return { ...p, medications: [] };
+            }
+            return p;
+        });
+
+        const hospitalizedCount = patientsRaw.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
+
         const events = await prisma.headquartersEvent.findMany({
             where: {
                 headquartersId: hqId,
@@ -81,7 +92,7 @@ export async function GET(req: Request) {
             orderBy: { startTime: 'asc' }
         });
 
-        return NextResponse.json({ success: true, patients, events });
+        return NextResponse.json({ success: true, patients, events, hospitalizedCount });
     } catch (error: any) {
         console.error("Care Fetch Error:", error);
         return NextResponse.json({ success: false, error: "Error: " + (error.message || String(error)) }, { status: 500 });
