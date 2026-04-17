@@ -246,6 +246,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // Rutas full-screen que tienen su propio layout (sin sidebar ni topbar de AppLayout)
     const isFullScreenRoute =
         pathname === "/login" ||
+        pathname === "/reception" ||
         pathname.startsWith("/care") ||
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
