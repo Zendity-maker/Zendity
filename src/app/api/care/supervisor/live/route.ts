@@ -50,7 +50,8 @@ export async function GET(req: Request) {
             endedSchedules,
             todayHandovers,
             activeFastActions,
-            clinicalAlerts
+            clinicalAlerts,
+            fallIncidents,
         ] = await Promise.all([
             // 1. Cuidadores Activos
             prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: todayStart } }, include: { caregiver: true } }),
@@ -75,7 +76,14 @@ export async function GET(req: Request) {
             // 11. Fast Actions Activas
             prisma.fastActionAssignment.findMany({ where: { headquartersId: hqId, status: 'PENDING', expiresAt: { gt: new Date() } }, include: { caregiver: true }, orderBy: { createdAt: 'desc' } }),
             // 12. Alertas Clínicas del Action Hub (DailyLog con isClinicalAlert = true, últimas 24h)
-            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 })
+            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            // 13. Caídas recientes (FallIncident — NO Incident genérico)
+            prisma.fallIncident.findMany({
+                where: { patient: { headquartersId: hqId }, incidentDate: { gte: twentyFourHrsAgo } },
+                include: { patient: { select: { id: true, name: true, colorGroup: true } } },
+                orderBy: { incidentDate: 'desc' },
+                take: 10,
+            }),
         ]);
 
         // ============================================================================
@@ -97,6 +105,24 @@ export async function GET(req: Request) {
                 patientName: c.patient?.name || 'Ámbito General',
                 urgency: isMaint ? 'RUTINA' : 'ATENCION',
                 createdAt: c.createdAt,
+            });
+        });
+
+        // Integrar Caídas reales (FallIncident — NO el modelo Incident genérico)
+        fallIncidents.forEach((fi: any) => {
+            const urg = fi.severity === 'SEVERE' || fi.severity === 'FATAL' ? 'INMINENTE'
+                : fi.severity === 'MILD' ? 'ATENCION' : 'RUTINA';
+            triageFeed.push({
+                id: `fall_${fi.id}`,
+                sourceId: fi.id,
+                sourceType: 'INCIDENT',
+                category: 'CLINICO_CRITICO',
+                title: `Caída Reportada (${fi.severity})`,
+                description: `${fi.location} — ${fi.interventions}${fi.notes ? ' · ' + fi.notes : ''}`,
+                patientId: fi.patientId || null,
+                patientName: fi.patient?.name || 'N/A',
+                urgency: urg,
+                createdAt: fi.incidentDate,
             });
         });
 
@@ -251,6 +277,7 @@ export async function GET(req: Request) {
             pendingComplaints: pendingComplaintsList,
             triageFeed: finalTriage,
             activeFastActions,
+            fallIncidents, // Caídas reales últimas 24h (FallIncident, no Incident genérico)
             morningBriefing: briefing?.aiSummaryReport || null
         });
 

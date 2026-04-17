@@ -53,6 +53,18 @@ export interface LiveStats {
     triageInbox: number;
 }
 
+export interface FallIncidentLive {
+    id: string;
+    patientId: string;
+    location: string;
+    severity: 'NONE' | 'MILD' | 'SEVERE' | 'FATAL';
+    interventions: string;
+    notes: string | null;
+    incidentDate: string;
+    reportedAt: string;
+    patient?: { id: string; name: string; colorGroup?: string | null } | null;
+}
+
 export interface LiveDataPayload {
     hqId: string;
     timestamp: string;
@@ -63,4 +75,5 @@ export interface LiveDataPayload {
     morningBriefing: string | null;
     missingHandovers: MissingHandover[];
     activeFastActions: FastActionAssignment[];
+    fallIncidents?: FallIncidentLive[];
 }

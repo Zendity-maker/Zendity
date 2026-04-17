@@ -491,7 +491,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         {activeTab === "clinical" && <PatientClinicalSummaryTab patientData={patientData} onRefresh={fetchPatientData} />}
                         {activeTab === "meds" && <PatientEMARTab patientId={params.id as string} />}
                         {activeTab === "upps" && <PatientUlcersTab patientId={params.id as string} />}
-                        {activeTab === "falls" && <PatientFallRiskTab />}
+                        {activeTab === "falls" && <PatientFallRiskTab patientId={params.id as string} />}
                         {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
                         {activeTab === "social" && <PatientSocialWorkTab patientId={params.id as string} />}
                         {activeTab === "billing" && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}

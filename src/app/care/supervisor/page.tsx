@@ -953,6 +953,39 @@ export default function SupervisorDashboardPage() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Caídas Hoy (solo si hay) */}
+                            {liveData?.fallIncidents && liveData.fallIncidents.length > 0 && (
+                                <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border-2 border-rose-300">
+                                    <h3 className="font-extrabold text-rose-700 text-lg mb-4 flex items-center gap-3">
+                                        <Siren className="w-5 h-5 animate-pulse" /> Caídas Hoy ({liveData.fallIncidents.length})
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {liveData.fallIncidents.slice(0, 6).map((fi: any) => {
+                                            const isCritical = fi.severity === 'SEVERE' || fi.severity === 'FATAL';
+                                            const time = new Date(fi.incidentDate).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+                                            return (
+                                                <div key={fi.id} className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${isCritical ? 'bg-rose-50 border-rose-300' : 'bg-amber-50 border-amber-200'}`}>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-sm text-slate-800 truncate">{fi.patient?.name}</p>
+                                                        <p className="text-[11px] text-slate-500 font-medium truncate">
+                                                            {time} · {fi.location} · {fi.interventions.substring(0, 80)}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${isCritical ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}`}>
+                                                        {isCritical ? 'CRÍTICO' : fi.severity}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                        {liveData.fallIncidents.length > 6 && (
+                                            <p className="text-[11px] text-slate-400 font-bold text-center pt-2">
+                                                + {liveData.fallIncidents.length - 6} más
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* COLUMNA 2 — Brechas Handover */}

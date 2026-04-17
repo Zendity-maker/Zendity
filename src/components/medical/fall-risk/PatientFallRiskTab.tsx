@@ -1,155 +1,208 @@
 "use client";
 
-import { useState } from "react";
-import { PlusIcon, ExclamationTriangleIcon, ClipboardDocumentCheckIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useCallback } from "react";
+import { ClipboardDocumentCheckIcon, ExclamationTriangleIcon, MapPinIcon, HeartIcon } from "@heroicons/react/24/outline";
+import { Loader2, AlertTriangle, Printer } from "lucide-react";
 
-// MOCK DATA (Simulando fetches de NextJS/Prisma)
-const MOCK_TIMELINE: any[] = [];
+interface FallIncident {
+    id: string;
+    patientId: string;
+    location: string;
+    severity: 'NONE' | 'MILD' | 'SEVERE' | 'FATAL';
+    interventions: string;
+    notes: string | null;
+    incidentDate: string;
+    reportedAt: string;
+}
 
-export default function PatientFallRiskTab() {
-    const [isAssessing, setIsAssessing] = useState(false);
-    const [isReportingFall, setIsReportingFall] = useState(false);
+interface FallRiskAssessment {
+    id: string;
+    riskLevel: 'LOW' | 'MODERATE' | 'HIGH';
+    morseScore: number | null;
+    factors: string | null;
+    evaluatedAt: string;
+    nextReviewAt: string | null;
+    evaluator: { name: string; role: string } | null;
+}
+
+interface FallRiskData {
+    patient: { id: string; name: string; downtonRisk: boolean };
+    fallIncidents: FallIncident[];
+    riskAssessments: FallRiskAssessment[];
+    currentRiskLevel: 'LOW' | 'MODERATE' | 'HIGH';
+}
+
+const SEVERITY_COLOR: Record<string, { bg: string; text: string; badge: string }> = {
+    FATAL: { bg: 'bg-rose-50 border-rose-300', text: 'text-rose-800', badge: 'bg-rose-700 text-white' },
+    SEVERE: { bg: 'bg-rose-50 border-rose-200', text: 'text-rose-700', badge: 'bg-rose-600 text-white' },
+    MILD: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', badge: 'bg-amber-500 text-white' },
+    NONE: { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', badge: 'bg-slate-400 text-white' },
+};
+
+const RISK_COLOR: Record<string, string> = {
+    HIGH: 'bg-rose-100 text-rose-700 border-rose-200',
+    MODERATE: 'bg-amber-100 text-amber-700 border-amber-200',
+    LOW: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+};
+
+const fmtDateTime = (iso: string) =>
+    new Date(iso).toLocaleString('es-PR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+export default function PatientFallRiskTab({ patientId, onPrintReport }: { patientId?: string; onPrintReport?: (fallId: string) => void }) {
+    const [data, setData] = useState<FallRiskData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = useCallback(async () => {
+        if (!patientId) { setLoading(false); return; }
+        try {
+            const res = await fetch(`/api/care/fall-risk?patientId=${patientId}`);
+            const json = await res.json();
+            if (json.success) setData(json);
+            else setError(json.error || 'Error cargando datos');
+        } catch (e) {
+            setError('Error de conexión');
+        } finally {
+            setLoading(false);
+        }
+    }, [patientId]);
+
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    if (loading) {
+        return (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                <Loader2 className="w-8 h-8 text-slate-300 animate-spin mx-auto mb-3" />
+                <p className="text-sm font-bold text-slate-400">Cargando historial de caídas...</p>
+            </div>
+        );
+    }
+
+    if (error || !data) {
+        return (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 text-center">
+                <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+                <p className="text-sm font-bold text-rose-700">{error || 'Error cargando datos'}</p>
+            </div>
+        );
+    }
+
+    const { patient, fallIncidents, riskAssessments, currentRiskLevel } = data;
+    const lastAssessment = riskAssessments[0];
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-100 overflow-hidden">
-            {/* Cabecera y Controles */}
-            <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-slate-50">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <ClipboardDocumentCheckIcon className="w-5 h-5 text-indigo-500" />
-                        Historial de Movilidad y Caídas
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-1">Escala de Morse y Bitácora de Sucesos</p>
+        <div className="space-y-6">
+            {/* ── Header con badge de riesgo ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                            <ClipboardDocumentCheckIcon className="w-6 h-6 text-indigo-500" />
+                            Historial de Caídas y Riesgo
+                        </h2>
+                        <p className="text-sm text-slate-500 font-medium mt-1">
+                            {fallIncidents.length} caída(s) registrada(s) · {riskAssessments.length} evaluación(es) de riesgo
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className={`px-4 py-2 rounded-xl border-2 font-black text-sm uppercase tracking-wider ${RISK_COLOR[currentRiskLevel]}`}>
+                            Riesgo: {currentRiskLevel}
+                        </div>
+                        {patient.downtonRisk && (
+                            <div className="px-4 py-2 rounded-xl border-2 bg-rose-50 text-rose-700 border-rose-200 font-black text-sm uppercase tracking-wider flex items-center gap-1">
+                                <HeartIcon className="w-4 h-4" /> Downton +
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                        onClick={() => setIsAssessing(true)}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-4 px-6 rounded-xl shadow-sm transition flex items-center justify-center gap-2 text-sm border border-indigo-200 min-h-[56px] active:scale-95"
-                    >
-                        <ClipboardDocumentCheckIcon className="w-5 h-5" />
-                        Escala Morse (Evaluación)
-                    </button>
-                    <button
-                        onClick={() => setIsReportingFall(true)}
-                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm min-h-[56px] active:scale-95"
-                    >
-                        <ExclamationTriangleIcon className="w-5 h-5" />
-                        Reportar Caída (Emerg.)
-                    </button>
-                </div>
+
+                {/* Último assessment */}
+                {lastAssessment && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Última evaluación</p>
+                            <p className="font-bold text-slate-800">{fmtDateTime(lastAssessment.evaluatedAt)}</p>
+                            {lastAssessment.evaluator && (
+                                <p className="text-xs text-slate-500">{lastAssessment.evaluator.name} ({lastAssessment.evaluator.role})</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Score Morse</p>
+                            <p className="font-bold text-slate-800">{lastAssessment.morseScore ?? 'No aplicado'}</p>
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Factores</p>
+                            <p className="text-xs text-slate-700 font-medium leading-tight line-clamp-3">{lastAssessment.factors || '—'}</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {MOCK_TIMELINE.length === 0 ? (
-                <div className="p-12 flex flex-col items-center justify-center text-center bg-white">
-                    <div className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mb-4 border border-slate-100">
-                        <ExclamationTriangleIcon className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-800">Sin Reportes Registrados</h3>
-                    <p className="text-slate-500 font-medium max-w-sm mt-2">
-                        No hay evaluaciones de riesgo de caídas ni incidentes reportados para este residente bajo el protocolo de Triage.
-                    </p>
+            {/* ── Timeline de caídas ── */}
+            {fallIncidents.length === 0 ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-10 text-center">
+                    <HeartIcon className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+                    <h3 className="text-base font-black text-emerald-800 mb-1">Sin caídas registradas</h3>
+                    <p className="text-sm text-emerald-700 font-medium">El residente no tiene caídas documentadas en el sistema.</p>
                 </div>
             ) : (
-                <div className="p-8">
-                    <div className="relative border-l-2 border-indigo-100 ml-3 space-y-10 pl-8">
-                        {MOCK_TIMELINE.map((entry) => (
-                            <div key={entry.id} className="relative">
+                <div className="space-y-3">
+                    <h3 className="text-sm font-black text-slate-600 uppercase tracking-widest">Timeline de caídas</h3>
+                    {fallIncidents.map((fi, idx) => {
+                        const style = SEVERITY_COLOR[fi.severity] || SEVERITY_COLOR.MILD;
+                        return (
+                            <div key={fi.id} className={`border-2 rounded-xl p-4 ${style.bg}`}>
+                                <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.badge}`}>
+                                            <ExclamationTriangleIcon className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h4 className={`font-black ${style.text}`}>Caída #{fallIncidents.length - idx}</h4>
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${style.badge}`}>
+                                                    {fi.severity}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium mt-0.5">
+                                                {fmtDateTime(fi.incidentDate)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {onPrintReport && (
+                                        <button
+                                            onClick={() => onPrintReport(fi.id)}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            <Printer className="w-3.5 h-3.5" /> Imprimir Reporte
+                                        </button>
+                                    )}
+                                </div>
 
-                                {/* Icono del Timeline */}
-                                {entry.type === 'ASSESSMENT' ? (
-                                    <div className="absolute -left-[42px] top-1 w-8 h-8 rounded-full bg-indigo-100 border-4 border-white flex items-center justify-center">
-                                        <ClipboardDocumentCheckIcon className="w-4 h-4 text-indigo-600" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                            <MapPinIcon className="w-3 h-3" /> Ubicación
+                                        </p>
+                                        <p className={`font-bold ${style.text}`}>{fi.location}</p>
                                     </div>
-                                ) : (
-                                    <div className="absolute -left-[42px] top-1 w-8 h-8 rounded-full bg-rose-100 border-4 border-white flex items-center justify-center animate-pulse">
-                                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-600" />
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Evaluación clínica</p>
+                                        <p className={`font-medium text-slate-700 text-xs`}>{fi.interventions}</p>
                                     </div>
-                                )}
+                                </div>
 
-                                {/* Tarjeta de Contenido */}
-                                {entry.type === 'ASSESSMENT' ? (
-                                    <div className="bg-white border text-sm border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-bold text-slate-800">Evaluación Paramétrica (Morse)</h3>
-                                                <p className="text-xs text-slate-500 mt-0.5">{entry.date}  <span className="text-indigo-600">{entry.nurse}</span></p>
-                                            </div>
-                                            <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider 
-                                                ${entry.riskLevel === 'HIGH' ? 'bg-rose-100 text-rose-700' :
-                                                    entry.riskLevel === 'MODERATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                                Riesgo {entry.riskLevel} (Score: {entry.morseScore})
-                                            </div>
-                                        </div>
-                                        <p className="text-slate-600 mt-3">{entry.notes}</p>
-                                    </div>
-                                ) : (
-                                    <div className="bg-rose-50 border text-sm border-rose-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-bold text-rose-800">Incidente Registrado: ¡Caída Fuerte!</h3>
-                                                <p className="text-xs text-rose-600 mt-0.5">{entry.date}  <span className="font-medium underline">{entry.nurse}</span></p>
-                                            </div>
-                                            <div className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-200 text-rose-800">
-                                                Lugar: {entry.location}
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wide">Desarrollo del Accidente</p>
-                                                <p className="text-rose-900 font-medium mt-1">{entry.notes}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wide">Medidas Tomadas (Severidad: {entry.severity})</p>
-                                                <p className="text-rose-900 font-medium mt-1">{entry.action}</p>
-                                            </div>
-                                        </div>
+                                {fi.notes && (
+                                    <div className="mt-3 pt-3 border-t border-white/50">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Notas del cuidador</p>
+                                        <p className="text-xs text-slate-700 italic leading-relaxed">"{fi.notes}"</p>
                                     </div>
                                 )}
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
                 </div>
             )}
-
-            {/* Simulated Modals (For visual completeness in tests) */}
-            {
-                isAssessing && (
-                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-                        <div className="bg-white p-6 rounded-2xl w-96 shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4">Nueva Escala de Morse</h3>
-                            <div className="space-y-4">
-                                <p className="text-sm text-gray-500">¿Ha tenido caídas previas (últimos 3 meses)?</p>
-                                <select className="w-full border rounded-lg p-2 text-sm"><option>Sí (25 puntos)</option><option>No (0 puntos)</option></select>
-                                <div className="mt-8 flex justify-end gap-3 w-full">
-                                    <button onClick={() => setIsAssessing(false)} className="px-6 py-4 text-sm font-bold text-gray-600 bg-gray-50 flex-1 rounded-xl">Cancelar</button>
-                                    <button onClick={() => setIsAssessing(false)} className="px-6 py-4 bg-indigo-600 text-white flex-1 rounded-xl text-sm font-bold shadow-md active:scale-95">Guardar Evaluación</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {
-                isReportingFall && (
-                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-                        <div className="bg-white p-6 rounded-2xl w-[500px] shadow-2xl border-2 border-rose-500">
-                            <h3 className="font-bold text-lg text-rose-600 mb-4 flex items-center gap-2">
-                                <ExclamationTriangleIcon className="w-6 h-6" /> Declarar Emergencia
-                            </h3>
-                            <div className="space-y-4">
-                                <div><label className="text-xs font-bold">Lugar Exacto de la Caída</label><input type="text" className="w-full border rounded-lg p-2 mt-1" placeholder="Ej. Baño 102B" /></div>
-                                <div><label className="text-xs font-bold">Novedades Clínicas</label><textarea className="w-full border rounded-lg p-2 mt-1 h-20" placeholder="Descripción física..."></textarea></div>
-                                <div className="mt-8 flex justify-end gap-3 w-full">
-                                    <button onClick={() => setIsReportingFall(false)} className="px-6 py-4 text-sm font-bold text-gray-600 bg-gray-50 flex-1 rounded-xl">Cancelar</button>
-                                    <button onClick={() => setIsReportingFall(false)} className="px-6 py-4 bg-rose-600 text-white flex-1 rounded-xl text-sm font-bold shadow-md active:scale-95">Registrar Incidente Modal</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-        </div >
+        </div>
     );
 }
