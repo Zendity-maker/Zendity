@@ -446,6 +446,12 @@ model Patient {
   medicalPlanUrl  String?
   medicareCardUrl String?
 
+  // FASE 82: Datos legales y de seguro (Resumen de Residente)
+  ssnLastFour           String? // Solo últimos 4 dígitos (HIPAA Safe Harbor)
+  insurancePlanName     String? // "MCS", "Triple-S", "Medicare", etc.
+  insurancePolicyNumber String? // Número de contrato / póliza
+  preferredHospital     String? // Hospital preferido para traslados
+
   createdAt DateTime @default(now())
 
   headquarters   Headquarters        @relation(fields: [headquartersId], references: [id])
@@ -643,6 +649,7 @@ model FamilyMember {
   patientId      String
   name           String
   email          String  @unique
+  phone          String? // FASE 82: Teléfono de contacto (para Resumen de Residente)
   passcode       String? // PIN familiar (ej. 889900)
   accessLevel    String // e.g., "Full", "Read-Only"
 
