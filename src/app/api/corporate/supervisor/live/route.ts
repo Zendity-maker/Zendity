@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { todayStartAST } from '@/lib/dates';
 
 
 
@@ -15,8 +16,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "headquartersId is required" }, { status: 400 });
         }
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        const todayStart = todayStartAST();
 
         // 1. Cuidadores Activos (Turnos Abiertos)
         const activeSessions = await prisma.shiftSession.findMany({

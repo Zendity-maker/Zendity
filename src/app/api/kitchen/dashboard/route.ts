@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
                 where: {
                     headquartersId: hqId!,
                     date: {
-                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                        gte: todayStartAST(),
                         lt: new Date(new Date().setHours(23, 59, 59, 999))
                     }
                 }

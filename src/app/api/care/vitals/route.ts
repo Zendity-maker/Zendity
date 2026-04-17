@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(req: Request) {
     try {
@@ -39,11 +40,19 @@ export async function GET(req: Request) {
         } else {
             // MODO A — Vitales del dia
             const dateParam = searchParams.get('date');
-            const targetDate = dateParam ? new Date(dateParam + 'T00:00:00') : new Date();
-            const startOfDay = new Date(targetDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(targetDate);
-            endOfDay.setHours(23, 59, 59, 999);
+            let startOfDay: Date;
+            let endOfDay: Date;
+            if (dateParam) {
+                const targetDate = new Date(dateParam + 'T00:00:00');
+                startOfDay = new Date(targetDate);
+                startOfDay.setHours(0, 0, 0, 0);
+                endOfDay = new Date(targetDate);
+                endOfDay.setHours(23, 59, 59, 999);
+            } else {
+                // Sin param: ventana rodante de 24h (AST-safe)
+                startOfDay = todayStartAST();
+                endOfDay = new Date();
+            }
 
             const vitals = await prisma.vitalSigns.findMany({
                 where: {

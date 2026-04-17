@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { startOfDay, endOfDay } from 'date-fns';
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(request: Request) {
     try {
@@ -12,8 +12,8 @@ export async function GET(request: Request) {
         }
 
         const hqId = session.user.headquartersId;
-        const todayStart = startOfDay(new Date());
-        const todayEnd = endOfDay(new Date());
+        const todayStart = todayStartAST();
+        const todayEnd = new Date();
 
         // Traer Staff para armar los horarios
         const staff = await prisma.user.findMany({

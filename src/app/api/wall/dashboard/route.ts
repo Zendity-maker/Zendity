@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(req: Request) {
     try {
@@ -12,8 +11,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "Headquarters ID Required" }, { status: 400 });
         }
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        const todayStart = todayStartAST();
 
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);

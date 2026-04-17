@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SystemAuditAction, NursingHandoverStatus, FlagReason } from '@prisma/client';
+import { todayStartAST } from '@/lib/dates';
 
 export async function POST(req: Request) {
     try {
@@ -41,8 +42,7 @@ export async function POST(req: Request) {
                 
                 // 1. Crear o Actualizar el Documento Legal de Handover
                 // Nota: Usamos upsert por la restricción global @@unique([headquartersId, shiftDate, shiftType])
-                const startOfDay = new Date();
-                startOfDay.setHours(0,0,0,0);
+                const startOfDay = todayStartAST();
 
                 // Insertar el Handover
                 const shiftHandover = await tx.nursingHandover.upsert({

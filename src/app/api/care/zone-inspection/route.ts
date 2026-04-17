@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { todayStartAST } from '@/lib/dates';
 
 // GET — Obtener rondas de inspección del día actual
 export async function GET(req: Request) {
@@ -11,8 +12,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const hqId = searchParams.get('hqId') || session.user.headquartersId;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = todayStartAST();
 
     try {
         const inspections = await prisma.zoneInspection.findMany({

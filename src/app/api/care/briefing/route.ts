@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { todayStartAST } from '@/lib/dates';
 
 
 
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
                 healthAppointments: {
                     where: {
                         appointmentDate: {
-                            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                            gte: todayStartAST(),
                             lt: new Date(new Date().setHours(23, 59, 59, 999))
                         }
                     }
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         });
 
         // 2. Obtener Eventos Institucionales del Calendario para HOY aplicables a este grupo
-        const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+        const todayStart = todayStartAST();
         const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
         
         const hqEvents = await prisma.headquartersEvent.findMany({

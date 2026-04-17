@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { todayStartAST } from '@/lib/dates';
 
 
 
@@ -22,8 +23,7 @@ export async function GET(req: Request) {
         }
 
         // 1. Check if there are pending moments for this user today
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = todayStartAST();
 
         const existingPendingMoments = await prisma.zendiFamilyMoment.findMany({
             where: {

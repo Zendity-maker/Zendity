@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
@@ -9,8 +10,7 @@ export async function GET(req: Request) {
 
     const hqId = new URL(req.url).searchParams.get('hqId') || session.user.headquartersId;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = todayStartAST();
 
     // Consultas en paralelo: staff + sesiones activas (ShiftSession.actualEndTime = null)
     const [staff, activeSessions] = await Promise.all([

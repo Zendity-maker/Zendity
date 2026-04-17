@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format } from 'date-fns';
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(req: Request) {
     try {
@@ -12,8 +13,8 @@ export async function GET(req: Request) {
         }
 
         const hqId = (session.user as any).headquartersId;
-        const todayStart = startOfDay(new Date());
-        const todayEnd = endOfDay(new Date());
+        const todayStart = todayStartAST();
+        const todayEnd = new Date();
 
         // 1. Obtener todos los residentes de la HQ que tengan medicación activa
         const patients = await prisma.patient.findMany({

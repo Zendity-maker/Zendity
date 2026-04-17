@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay } from 'date-fns';
+import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -18,8 +18,8 @@ export async function GET(req: Request) {
 
         console.log("CARE API CALLED WITH:", { color, hqId });
 
-        const todayStart = startOfDay(new Date());
-        const todayEnd = endOfDay(new Date());
+        const todayStart = todayStartAST();
+        const todayEnd = new Date();
 
         const patientsRaw = await prisma.patient.findMany({
             where: {
