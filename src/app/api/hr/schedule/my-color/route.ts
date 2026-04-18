@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
+import { todayStartAST } from '@/lib/dates';
 
 export async function GET(req: Request) {
     try {
@@ -14,7 +15,10 @@ export async function GET(req: Request) {
 
         const today = new Date();
 
-        // Buscar asignacion directa en ShiftColorAssignment
+        // Resolver color del día (asignación directa → roster publicado)
+        let resolvedColor: string | null = null;
+        let source: 'assignment' | 'roster' | 'none' = 'none';
+
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
             where: {
                 userId,
@@ -25,25 +29,52 @@ export async function GET(req: Request) {
         });
 
         if (colorAssignment) {
-            return NextResponse.json({ success: true, color: colorAssignment.color, source: 'assignment' });
+            resolvedColor = colorAssignment.color;
+            source = 'assignment';
+        } else {
+            const todayShift = await prisma.scheduledShift.findFirst({
+                where: {
+                    userId,
+                    date: { gte: startOfDay(today), lte: endOfDay(today) },
+                    isAbsent: false,
+                    schedule: {
+                        headquartersId: hqId,
+                        status: 'PUBLISHED'
+                    }
+                },
+                orderBy: { date: 'desc' }
+            });
+            if (todayShift) {
+                resolvedColor = todayShift.colorGroup;
+                source = 'roster';
+            }
         }
 
-        // Fallback: buscar en el roster del Schedule publicado para hoy
-        const todayShift = await prisma.scheduledShift.findFirst({
-            where: {
-                userId,
-                date: { gte: startOfDay(today), lte: endOfDay(today) },
-                isAbsent: false,
-                schedule: {
+        // FIX solitario: si el color resuelto NO es null y NO es 'ALL',
+        // contar cuántos ShiftSessions abiertos hay hoy en la sede.
+        // Si hay ≤ 1 sesión activa, el cuidador es único → ve todos los residentes.
+        if (resolvedColor && resolvedColor !== 'ALL') {
+            const activeSessions = await prisma.shiftSession.count({
+                where: {
                     headquartersId: hqId,
-                    status: 'PUBLISHED'
+                    actualEndTime: null,
+                    startTime: { gte: todayStartAST() }
                 }
-            },
-            orderBy: { date: 'desc' }
-        });
+            });
 
-        if (todayShift) {
-            return NextResponse.json({ success: true, color: todayShift.colorGroup, source: 'roster' });
+            if (activeSessions <= 1) {
+                return NextResponse.json({
+                    success: true,
+                    color: 'ALL',
+                    auto: true,
+                    originalColor: resolvedColor,
+                    source,
+                });
+            }
+        }
+
+        if (resolvedColor) {
+            return NextResponse.json({ success: true, color: resolvedColor, source });
         }
 
         return NextResponse.json({ success: true, color: null, source: 'none' });

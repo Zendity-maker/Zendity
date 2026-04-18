@@ -21,9 +21,14 @@ export async function GET(req: Request) {
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 
+        // Cuidador solitario / turno "Todos": sin filtro por colorGroup
+        const colorFilter = (!color || color === 'ALL')
+            ? {}
+            : { colorGroup: color as any };
+
         const patientsRaw = await prisma.patient.findMany({
             where: {
-                colorGroup: color as any,
+                ...colorFilter,
                 headquartersId: hqId,
                 status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
             },

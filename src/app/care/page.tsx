@@ -243,11 +243,12 @@ export default function ZendityCareTabletPage() {
                     if (hq) {
                         const colorRes = await fetch(`/api/hr/schedule/my-color?userId=${user.id}&hqId=${hq}`);
                         const colorData = await colorRes.json();
-                        if (colorData.success && colorData.color && colorData.color !== 'ALL') {
-                            // Hay asignacion activa en el roster
-                            setSelectedColor(colorData.color);
-                            localStorage.setItem('zendityCareShiftColor', colorData.color);
-                            const patientRes = await fetch(`/api/care?color=${colorData.color}&hqId=${hq}`);
+                        if (colorData.success && colorData.color) {
+                            // color puede ser un grupo (RED/YELLOW/...) o 'ALL' (cuidador solitario o turno asignado "Todos")
+                            const effective = colorData.color;
+                            setSelectedColor(effective);
+                            localStorage.setItem('zendityCareShiftColor', effective);
+                            const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
                             const patientData = await patientRes.json();
                             if (patientData.success) {
                                 setPatients(patientData.patients || []);
@@ -1133,6 +1134,13 @@ export default function ZendityCareTabletPage() {
                         <button onClick={() => startTurnAndBriefing("GREEN")} className="h-40 rounded-3xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">VERDE</button>
                         <button onClick={() => startTurnAndBriefing("BLUE")} className="h-40 rounded-3xl bg-blue-500 hover:bg-blue-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">AZUL</button>
                     </div>
+                    <button
+                        onClick={() => startTurnAndBriefing("ALL")}
+                        className="mt-6 w-full h-16 rounded-3xl bg-slate-800 hover:bg-slate-900 text-white font-black text-lg tracking-wide shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                        title="Úsalo si eres el único cuidador en turno — verás todos los residentes sin filtro de color"
+                    >
+                        Todos los residentes (cuidador único)
+                    </button>
                 </div>
             </div>
         );
@@ -1286,7 +1294,8 @@ export default function ZendityCareTabletPage() {
     );
 
     const shiftLabel = getCurrentShift() === 'MORNING' ? 'Mañana' : getCurrentShift() === 'EVENING' ? 'Tarde' : 'Noche';
-    const colorChipMap: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-amber-400', GREEN: 'bg-emerald-500', BLUE: 'bg-blue-500' };
+    const colorChipMap: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-amber-400', GREEN: 'bg-emerald-500', BLUE: 'bg-blue-500', ALL: 'bg-slate-600' };
+    const colorLabel = (c: string | null) => c === 'ALL' ? 'TODOS' : (c || '');
 
     const sidebarLinks = [
         ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
@@ -1385,7 +1394,7 @@ export default function ZendityCareTabletPage() {
                         {getCurrentShift() === 'MORNING' ? '☀️' : getCurrentShift() === 'EVENING' ? '🌅' : '🌙'} {shiftLabel}
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
-                        <span className={`w-2.5 h-2.5 rounded-full ${colorChipMap[selectedColor!] || 'bg-slate-500'}`} /> {selectedColor}
+                        <span className={`w-2.5 h-2.5 rounded-full ${colorChipMap[selectedColor!] || 'bg-slate-500'}`} /> {colorLabel(selectedColor)}
                     </span>
                 </div>
 
