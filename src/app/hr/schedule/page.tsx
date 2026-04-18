@@ -165,6 +165,7 @@ export default function ScheduleBuilderPage() {
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
+                    notes: sh.notes || '',
                     isAbsent: sh.isAbsent || false,
                     isManual: sh.isManual || false,
                     customStartTime: sh.customStartTime || null,
