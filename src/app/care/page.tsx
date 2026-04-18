@@ -1605,41 +1605,106 @@ export default function ZendityCareTabletPage() {
                     <>
                         {isNightMode ? (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-                                <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-indigo-100 p-8 rounded-3xl shadow-xl border border-indigo-700/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-                                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-20"></div>
-                                     <div className="relative z-10">
-                                         <h2 className="text-3xl font-black flex items-center gap-4 text-white">🌙 Night Rounds Mode</h2>
-                                         <p className="text-indigo-300 font-bold mt-2 text-lg">Modo Ultra-Rápido: Registra rondas bi-horarias y cambios de pañal en 1 solo tap.</p>
-                                     </div>
-                                     <div className="bg-indigo-800/80 border border-indigo-600 px-6 py-4 rounded-2xl text-center shadow-inner relative z-10 backdrop-blur-sm shadow-xl mt-4 md:mt-0 w-full md:w-auto">
-                                         <span className="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1">Hora Local del Turno</span>
-                                         <span className="block text-4xl sm:text-5xl font-black font-mono text-white leading-none tracking-tight">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                     </div>
+                                {/* Page banner — paleta warm oscura consistente con topbar */}
+                                <div className="bg-[#1F2D3A] border border-[#2a3b4d] rounded-[20px] px-6 py-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="font-display text-2xl font-semibold flex items-center gap-3 text-white">🌙 Night Rounds Mode</h2>
+                                        <p className="text-[#94a3b8] font-medium mt-1 text-sm">Modo Ultra-Rápido: registra rondas bi-horarias y cambios de pañal en 1 solo tap.</p>
+                                    </div>
+                                    <div className="bg-[#0f172a] border border-[#2a3b4d] px-5 py-3 rounded-[14px] text-center w-full md:w-auto">
+                                        <span className="block text-[10px] font-semibold text-[#94a3b8] uppercase tracking-widest mb-1">Hora Local del Turno</span>
+                                        <span className="block font-display text-3xl sm:text-4xl font-semibold text-white leading-none tracking-tight">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
                                 </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {patients.map(p => (
-                                        <div key={p.id} className="bg-slate-800 border-[3px] border-slate-700 p-6 rounded-[2rem] text-white flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-colors">
-                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center font-black text-xl text-slate-500 backdrop-blur-sm">FUERA DE EDIFICIO</div>}
-                                            <div className="flex justify-between items-start mb-6 align-top">
-                                                <h3 className="text-2xl font-black text-white pr-4 leading-tight">{p.name}</h3>
-                                                {p.posturalChanges?.length > 0 && <span className="bg-teal-500/20 text-teal-300 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-teal-500/30 shrink-0 text-center">ROTADO: <br className="hidden md:block" /> {new Date(p.posturalChanges[p.posturalChanges.length-1].performedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>}
+                                    {patients.map(p => {
+                                        const lastRotationNight = p.posturalChanges?.length > 0 ? new Date(p.posturalChanges[0].performedAt) : null;
+                                        const hoursElapsedNight = lastRotationNight ? (Date.now() - lastRotationNight.getTime()) / (1000 * 60 * 60) : 0;
+                                        const minsElapsedNight = lastRotationNight ? Math.round((Date.now() - lastRotationNight.getTime()) / 60000) : 0;
+                                        const isVencidoNight = hoursElapsedNight > 2.05;
+                                        const initials = (p.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2) || p.name.charAt(0)).toUpperCase();
+
+                                        return (
+                                        <div key={p.id} className="bg-[#1F2D3A] border border-[#2a3b4d] rounded-[20px] text-white flex flex-col relative overflow-hidden transition-colors hover:border-[#3CC6C4]/40">
+                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex items-center justify-center font-display text-lg font-semibold text-[#94a3b8] backdrop-blur-sm">FUERA DE EDIFICIO</div>}
+
+                                            {/* ===== HEADER BANNER ===== */}
+                                            <div className="bg-[#1F2D3A] border-b border-[#2a3b4d] px-4 py-3 flex justify-between items-center gap-3">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-10 h-10 rounded-[12px] bg-[#0F6B78] flex items-center justify-center shrink-0">
+                                                        <span className="font-display text-white text-sm font-semibold">{initials}</span>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-display text-white text-[15px] font-semibold leading-tight truncate">{p.name}</p>
+                                                        <p className="text-[11px] text-[#94a3b8] leading-tight mt-0.5 truncate">Hab {p.roomNumber || '—'}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                                    <span className="inline-flex items-center gap-1 bg-[#1e293b] text-[#94a3b8] border border-white/10 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap">
+                                                        🌙 Turno Noche
+                                                    </span>
+                                                    {p.vitalsOrders?.length > 0 && (() => {
+                                                        const order = p.vitalsOrders[0];
+                                                        const expiresAt = new Date(order.expiresAt);
+                                                        const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
+                                                        const expired = minsLeft <= 0;
+                                                        return (
+                                                            <span className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap ${
+                                                                expired
+                                                                    ? 'bg-[#D9534F]/20 text-[#fca5a5] border border-[#D9534F]/40'
+                                                                    : 'bg-[#3CC6C4]/15 text-[#3CC6C4] border border-[#3CC6C4]/30'
+                                                            }`}>
+                                                                🩺 {expired ? `Vitales vencidas` : `Vitales ${minsLeft}m`}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3 z-10">
-                                                <button onClick={() => logNightRound(p.id, 'SECO')} disabled={isSavingFastAction} className="py-5 bg-slate-700 hover:bg-slate-600 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 border border-slate-600 shadow-sm transition-all active:scale-95 disabled:opacity-50 text-[13px] tracking-wide text-center px-2">
-                                                    <span className="text-3xl drop-shadow-sm mb-1 leading-none">✅</span> Pañal Seco
-                                                </button>
-                                                <button onClick={() => logNightRound(p.id, 'HUMEDO')} disabled={isSavingFastAction} className="py-5 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/50 text-indigo-300 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-50 text-[13px] tracking-wide text-center px-1">
-                                                    <span className="text-3xl drop-shadow-sm mb-1 leading-none">💧</span> Cambio (Orina)
-                                                </button>
-                                                <button onClick={() => logNightRound(p.id, 'EVACUACION')} disabled={isSavingFastAction} className="py-5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/50 text-amber-300 rounded-2xl font-bold flex flex-col items-center gap-2 shadow-sm transition-all col-span-2 active:scale-95 disabled:opacity-50 text-base shadow-inner">
-                                                    <span className="text-4xl drop-shadow-sm mb-1 leading-none">💩</span> Cambio (Evacuación)
+
+                                            {/* ===== ROTADO strip (si hay rondas registradas) ===== */}
+                                            {p.posturalChanges?.length > 0 && lastRotationNight && (
+                                                <div className="px-4 py-2 border-b border-[#2a3b4d] flex items-center gap-2 flex-wrap">
+                                                    <span className={`text-[10px] font-semibold uppercase tracking-wider rounded-md px-2 py-0.5 border ${
+                                                        isVencidoNight
+                                                            ? 'bg-[#D9534F]/15 text-[#fca5a5] border-[#D9534F]/40'
+                                                            : 'bg-[#3CC6C4]/15 text-[#3CC6C4] border-[#3CC6C4]/30'
+                                                    }`}>
+                                                        Rotado · {lastRotationNight.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                    <span className="text-[10px] text-[#94a3b8] font-medium">
+                                                        hace {minsElapsedNight} min
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* ===== BOTONES DE RONDA ===== */}
+                                            <div className="p-4">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button onClick={() => logNightRound(p.id, 'SECO')} disabled={isSavingFastAction} className="py-5 bg-[#3CC6C4]/15 hover:bg-[#3CC6C4]/25 border border-[#3CC6C4]/30 text-[#3CC6C4] rounded-2xl font-semibold flex flex-col items-center justify-center gap-1.5 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-50 text-[13px] tracking-wide text-center px-2">
+                                                        <span className="text-3xl leading-none">✅</span> Pañal Seco
+                                                    </button>
+                                                    <button onClick={() => logNightRound(p.id, 'HUMEDO')} disabled={isSavingFastAction} className="py-5 bg-[#3CC6C4]/15 hover:bg-[#3CC6C4]/25 border border-[#3CC6C4]/30 text-[#3CC6C4] rounded-2xl font-semibold flex flex-col items-center justify-center gap-1.5 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-50 text-[13px] tracking-wide text-center px-1">
+                                                        <span className="text-3xl leading-none">💧</span> Cambio (Orina)
+                                                    </button>
+                                                    <button onClick={() => logNightRound(p.id, 'EVACUACION')} disabled={isSavingFastAction} className="py-5 bg-[#E5A93D]/15 hover:bg-[#E5A93D]/25 border border-[#E5A93D]/30 text-[#E5A93D] rounded-2xl font-semibold flex flex-col items-center gap-1.5 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-50 text-base col-span-2">
+                                                        <span className="text-4xl leading-none">💩</span> Cambio (Evacuación)
+                                                    </button>
+                                                </div>
+                                                <button
+                                                    onClick={() => logNightRound(p.id, 'ROTACION')}
+                                                    disabled={isSavingFastAction}
+                                                    className={`mt-3 w-full py-5 rounded-2xl font-semibold uppercase tracking-widest flex items-center justify-center gap-3 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-50 text-[13px] sm:text-sm text-white ${
+                                                        isVencidoNight ? 'bg-[#D9534F] hover:opacity-90' : 'bg-[#0F6B78] hover:opacity-90'
+                                                    }`}
+                                                >
+                                                    <span className="text-2xl leading-none">🔄</span>
+                                                    {isVencidoNight ? 'Rotación VENCIDA — Ejecutar' : 'Rotación Postural 2Hrs'}
                                                 </button>
                                             </div>
-                                            <button onClick={() => logNightRound(p.id, 'ROTACION')} disabled={isSavingFastAction} className="mt-4 w-full py-5 bg-teal-500 hover:bg-teal-400 text-teal-950 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-lg shadow-teal-500/30 active:scale-95 disabled:opacity-50 text-[13px] sm:text-sm z-10 border-b-4 border-teal-700 active:border-b-0 active:mt-5 active:mb-[-4px]">
-                                                <span className="text-2xl leading-none">🔄</span> Rotación Postural 2Hrs
-                                            </button>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : (
