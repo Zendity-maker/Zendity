@@ -1340,7 +1340,7 @@ export default function ZendityCareTabletPage() {
     const notifCount = fastActions.length;
 
     return (
-        <div className="min-h-screen bg-slate-100 pb-20 flex">
+        <div className="min-h-screen bg-[#f5f5f4] pb-20 flex [scroll-behavior:smooth]">
             <Toaster position="top-center" richColors />
 
             {/* ===== SIDEBAR — Desktop/Tablet (collapsible) ===== */}
@@ -1403,36 +1403,67 @@ export default function ZendityCareTabletPage() {
             {/* ===== MAIN CONTENT AREA ===== */}
             <div className="flex-1 flex flex-col min-w-0">
 
-            {/* ===== TOPBAR REORGANIZADO ===== */}
-            <div className="w-full bg-slate-800 py-3 px-4 md:px-6 shadow-md flex items-center gap-3 text-white sticky top-0 z-40">
+            {/* ===== TOPBAR — Dirección Cálido y Táctil ===== */}
+            <div className="w-full bg-[#1F2D3A] py-3 px-4 md:px-6 flex items-center gap-3 text-white sticky top-0 z-40 shadow-[0_1px_0_rgba(0,0,0,0.2)]">
                 {/* Hamburger */}
                 <button
                     onClick={() => { if (typeof window !== 'undefined' && window.innerWidth < 768) { setMobileDrawer(!mobileDrawer); } else { setSidebarOpen(!sidebarOpen); } }}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors shrink-0"
+                    className="w-10 h-10 flex items-center justify-center rounded-[10px] bg-white/10 hover:bg-white/15 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] shrink-0"
                 >
                     <Menu className="w-5 h-5" />
                 </button>
 
                 {/* Brand */}
-                <h1 className="text-lg md:text-xl font-black whitespace-nowrap hidden sm:block">Zéndity Care</h1>
+                <h1 className="font-display text-base font-semibold tracking-tight whitespace-nowrap hidden sm:block">Zéndity Care</h1>
 
                 {/* Divider */}
-                <div className="w-px h-7 bg-slate-600 hidden sm:block shrink-0" />
+                <div className="w-px h-6 bg-white/15 hidden sm:block shrink-0" />
 
                 {/* Chips: Turno + Grupo */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
-                        {getCurrentShift() === 'MORNING' ? '☀️' : getCurrentShift() === 'EVENING' ? '🌅' : '🌙'} {shiftLabel}
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
-                        <span className={`w-2.5 h-2.5 rounded-full ${colorChipMap[selectedColor!] || 'bg-slate-500'}`} /> {colorLabel(selectedColor)}
-                    </span>
+                    {(() => {
+                        const shift = getCurrentShift();
+                        const shiftStyles =
+                            shift === 'MORNING' ? 'bg-[#fef3c7] text-[#92400e]' :
+                            shift === 'EVENING' ? 'bg-[#dbeafe] text-[#1e40af]' :
+                            'bg-[#1e293b] text-[#94a3b8] border border-white/10';
+                        const shiftLabelClean =
+                            shift === 'MORNING' ? 'Mañana' :
+                            shift === 'EVENING' ? 'Tarde' : 'Noche';
+                        return (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap ${shiftStyles}`}>
+                                {shift === 'MORNING' ? '☀️' : shift === 'EVENING' ? '🌅' : '🌙'} {shiftLabelClean}
+                            </span>
+                        );
+                    })()}
+                    {(() => {
+                        const zoneStyles: Record<string, string> = {
+                            RED: 'bg-[#fee2e2] text-[#991b1b]',
+                            YELLOW: 'bg-[#fef3c7] text-[#92400e]',
+                            GREEN: 'bg-[#dcfce7] text-[#166534]',
+                            BLUE: 'bg-[#dbeafe] text-[#1e40af]',
+                            ALL: 'bg-white/10 text-white',
+                        };
+                        const dotMap: Record<string, string> = {
+                            RED: 'bg-[#D9534F]',
+                            YELLOW: 'bg-[#E5A93D]',
+                            GREEN: 'bg-[#22A06B]',
+                            BLUE: 'bg-[#3B82F6]',
+                            ALL: 'bg-white/70',
+                        };
+                        const key = (selectedColor && selectedColor.includes(',')) ? 'ALL' : (selectedColor || 'ALL');
+                        return (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap ${zoneStyles[key] || zoneStyles.ALL}`}>
+                                <span className={`w-2 h-2 rounded-full ${dotMap[key] || dotMap.ALL}`} /> {colorLabel(selectedColor)}
+                            </span>
+                        );
+                    })()}
                     {colorSource === 'AUTO_FALLBACK' && (
                         <span
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/30 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[8px] bg-[#E5A93D]/15 text-[#fbbf24] border border-[#E5A93D]/30 text-[10px] font-semibold whitespace-nowrap"
                             title="El Schedule Builder no tiene horario publicado para hoy. Esta distribución es temporal y puede cambiar si llega otra cuidadora."
                         >
-                            ⚠️ Distribución automática — horario oficial pendiente
+                            ⚠ Auto
                         </span>
                     )}
                 </div>
@@ -1440,10 +1471,10 @@ export default function ZendityCareTabletPage() {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Action buttons */}
+                {/* Night mode toggle */}
                 <button
                     onClick={() => setIsNightMode(!isNightMode)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${isNightMode ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                    className={`flex items-center gap-1.5 px-3 h-9 rounded-[10px] text-[11px] font-semibold whitespace-nowrap transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] ${isNightMode ? 'bg-[#3CC6C4] text-[#1F2D3A]' : 'bg-white/10 text-white hover:opacity-85'}`}
                 >
                     {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                     <span className="hidden lg:inline">{isNightMode ? 'Normal' : 'Rondas'}</span>
@@ -1452,18 +1483,18 @@ export default function ZendityCareTabletPage() {
                 {/* Notifications bell */}
                 <button
                     onClick={() => { setHubAction(null); setModalType('HUB'); }}
-                    className="relative w-10 h-10 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-slate-600 transition-colors"
+                    className="relative w-9 h-9 flex items-center justify-center rounded-[10px] bg-white/10 hover:opacity-85 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97]"
                 >
-                    <Bell className="w-4.5 h-4.5" />
+                    <Bell className="w-4 h-4" />
                     {notifCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-slate-800">{notifCount}</span>
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#D9534F] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#1F2D3A]">{notifCount}</span>
                     )}
                 </button>
 
-                {/* Entregar Turno */}
+                {/* Entregar Turno — outline blanco */}
                 <button
                     onClick={handleLogoutAttempt}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold transition-all whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 h-9 rounded-[10px] border border-white/30 hover:border-white/60 bg-transparent text-[11px] font-semibold whitespace-nowrap transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97]"
                 >
                     <ClipboardList className="w-4 h-4" />
                     <span className="hidden lg:inline">Entregar Turno</span>
@@ -1471,9 +1502,9 @@ export default function ZendityCareTabletPage() {
 
                 {/* Avatar */}
                 {user?.photoUrl ? (
-                    <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-teal-500 shrink-0" />
+                    <img src={user.photoUrl} alt={user.name} className="w-9 h-9 rounded-[10px] object-cover shrink-0" />
                 ) : (
-                    <div className="w-9 h-9 rounded-full bg-teal-700 border-2 border-teal-500 flex items-center justify-center text-white font-black text-xs shrink-0">
+                    <div className="w-9 h-9 rounded-[10px] bg-[#3CC6C4] flex items-center justify-center text-[#1F2D3A] font-display font-semibold text-xs shrink-0">
                         {user?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
                     </div>
                 )}
@@ -1634,7 +1665,7 @@ export default function ZendityCareTabletPage() {
                                     </button>
                                 </div>
                             </div>
-                            <div className={`grid ${gridView === '2col' ? 'grid-cols-2 gap-3' : 'grid-cols-1 max-w-2xl mx-auto gap-6'}`}>
+                            <div className={`grid ${gridView === '2col' ? 'grid-cols-2 gap-3' : 'grid-cols-1 max-w-2xl mx-auto gap-3'}`}>
                                 {patients.map(p => {
                                     const isAbsent = p.status === 'TEMPORARY_LEAVE';
                                     
@@ -1646,113 +1677,202 @@ export default function ZendityCareTabletPage() {
                                     const isWarning = hoursElapsed >= 1.75 && hoursElapsed <= 2.05;
 
                                     return (
-                                <div key={p.id} className={`bg-white rounded-2xl overflow-hidden shadow-xl border-t-8 border-t-${hexColor.split('-')[1]}-500 transform transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
+                                <div key={p.id} className={`bg-[#fafaf9] rounded-[20px] border border-[#e7e5e4] overflow-hidden transition-all relative ${isAbsent ? 'opacity-70 saturate-50' : ''}`}>
+                                    {/* Zone accent stripe (static mapping — Tailwind JIT-safe) */}
+                                    <div className={`h-1.5 w-full ${
+                                        selectedColor === 'RED' ? 'bg-[#D9534F]' :
+                                        selectedColor === 'YELLOW' ? 'bg-[#E5A93D]' :
+                                        selectedColor === 'GREEN' ? 'bg-[#22A06B]' :
+                                        selectedColor === 'BLUE' ? 'bg-[#3B82F6]' :
+                                        'bg-[#C9D4D8]'
+                                    }`} />
+
                                     {isAbsent && (
                                         <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
-                                            <div className="bg-amber-100 border border-amber-300 text-amber-800 px-6 py-2 rounded-full font-black flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105">
-                                                <span className="text-2xl"></span> Residente Fuera de Instalaciones ({p.leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})
+                                            <div className="bg-[#fef3c7] border border-[#fde68a] text-[#92400e] px-6 py-2 rounded-full font-semibold flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105">
+                                                Residente Fuera ({p.leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})
                                             </div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); returnResident(p.id); }}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition pointer-events-auto"
+                                                className="bg-[#22A06B] hover:opacity-90 text-white px-5 py-2 rounded-xl font-semibold shadow-lg transition pointer-events-auto"
                                             >
                                                 Registrar Retorno al Piso
                                             </button>
                                         </div>
                                     )}
-                                    <div className="p-6 pb-4 border-b border-slate-100">
-                                        <div className="flex justify-between items-start">
-                                            <h2 className="text-2xl font-black text-slate-800 leading-tight">{p.name}</h2>
-                                            <ZendiCameraEnhancer 
-                                                targetId={p.id} 
-                                                isStaff={false} 
-                                                currentPhotoUrl={p.photoUrl} 
-                                                placeholderInitials={p.name.charAt(0)} 
+
+                                    {/* ===== HEADER ===== */}
+                                    <div className="flex items-start gap-3 px-4 pt-4 pb-3 border-b border-[#e7e5e4]">
+                                        <div className="w-12 h-12 rounded-[14px] bg-[#1F2D3A] overflow-hidden shrink-0 flex items-center justify-center text-white font-display font-semibold">
+                                            <ZendiCameraEnhancer
+                                                targetId={p.id}
+                                                isStaff={false}
+                                                currentPhotoUrl={p.photoUrl}
+                                                placeholderInitials={(p.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2) || p.name.charAt(0)).toUpperCase()}
                                                 onUploadSuccess={() => fetchPatients(selectedColor!)}
                                             />
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-2 mt-3">
-                                            {p.lifePlan && p.lifePlan.dietDetails && <p className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 shadow-sm">PAI: {p.lifePlan.dietDetails}</p>}
-                                            {p.nortonRisk && <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-1 rounded-md border border-amber-200 shadow-sm flex items-center gap-1"><span>🛡️</span> Alto Riesgo Piel</p>}
-                                            {p.pressureUlcers?.length > 0 && <p className="text-[10px] font-black uppercase tracking-widest text-white bg-rose-600 px-2 py-1 rounded-md shadow-sm flex items-center gap-1"><span>🚨</span> UPP Activa</p>}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-display text-[17px] font-semibold text-[#1F2D3A] leading-tight truncate">{p.name}</h3>
+                                            <p className="text-[12px] text-[#78716c] font-medium leading-snug truncate mt-0.5">
+                                                Hab {p.roomNumber || '—'}{(p.lifePlan?.dietDetails || p.diet) ? ` · ${p.lifePlan?.dietDetails || p.diet}` : ''}
+                                            </p>
+                                            {(p.nortonRisk || p.pressureUlcers?.length > 0) && (
+                                                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                                    {p.nortonRisk && <span className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded-md">Alto riesgo piel</span>}
+                                                    {p.pressureUlcers?.length > 0 && <span className="text-[10px] font-semibold text-white bg-[#D9534F] px-1.5 py-0.5 rounded-md">UPP activa</span>}
+                                                </div>
+                                            )}
                                         </div>
+                                    </div>
 
-                                        {/* FASE UPP: Zendi SLA Timer para Rotación Postural */}
-                                        {p.nortonRisk && lastRotation && (
-                                            <div className={`mt-4 p-3 rounded-xl border-2 flex items-center justify-between shadow-sm transition-all ${isVencido ? 'bg-rose-50 border-rose-300' : (isWarning ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200')}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <span className={`text-2xl ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-500' : 'text-slate-500')}`}>⏳</span>
-                                                    <div>
-                                                        <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-800' : (isWarning ? 'text-amber-800' : 'text-slate-500')}`}>SLA Zendi: Rotar 2H</p>
-                                                        <p className={`text-sm font-bold leading-none ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-700')}`}>
-                                                            {hoursElapsed.toFixed(1)} hrs <span className="text-xs font-medium opacity-70">/ 2.0 hrs req.</span>
-                                                        </p>
-                                                    </div>
+                                    {/* ===== STATUS STRIP (4 cols) ===== */}
+                                    {(() => {
+                                        const medsForShift = getMedsForCurrentShift(p.medications || []);
+                                        const bathDone = p.bathLogs?.length > 0;
+                                        const mealsCount = p.mealLogs?.length || 0;
+                                        const rotationLabel = !p.nortonRisk ? 'N/A' : (isVencido ? 'Atrasado' : isWarning ? 'Próxima' : 'Al día');
+                                        const rotationColor = !p.nortonRisk ? 'text-[#a8a29e]' : (isVencido ? 'text-[#D9534F]' : isWarning ? 'text-[#E5A93D]' : 'text-[#22A06B]');
+                                        return (
+                                            <div className="grid grid-cols-4 bg-white border-b border-[#e7e5e4]">
+                                                <div className="px-2.5 py-[10px] border-r border-[#e7e5e4]">
+                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">🛁</span> Baño</p>
+                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${bathDone ? 'text-[#22A06B]' : 'text-[#E5A93D]'}`}>{bathDone ? 'Listo' : 'Pendiente'}</p>
                                                 </div>
-                                                <div className="text-right border-l pl-3 border-opacity-20 border-black flex flex-col items-end gap-1">
-                                                    <p className={`text-[10px] w-full block font-black uppercase tracking-widest leading-none mb-1 ${isVencido ? 'text-rose-600' : (isWarning ? 'text-amber-600' : 'text-slate-500')}`}> {isVencido ? '¡RETRASO SLA!' : (isWarning ? 'Próxima' : 'Piel En Regla')} </p>
-                                                    <p className="text-xs font-bold text-slate-500 leading-none">Pos. {p.posturalChanges[0]?.position?.split(' ')[0] || 'N/A'}</p>
-                                                    
-                                                    {/* Quick Action Rotation */}
-                                                    <div className="flex bg-white rounded-lg overflow-hidden border border-slate-200 mt-1 shadow-sm shadow-slate-200/50">
-                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Izquierdo'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 border-r border-slate-100 transition-colors">👈 Izq</button>
-                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Supino'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 border-r border-slate-100 transition-colors">⬆️ Sup</button>
-                                                        <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Derecho'); }} className="px-2 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-teal-50 hover:text-teal-700 transition-colors">👉 Der</button>
-                                                    </div>
+                                                <div className="px-2.5 py-[10px] border-r border-[#e7e5e4]">
+                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">🍽</span> Comidas</p>
+                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${mealsCount >= 3 ? 'text-[#22A06B]' : mealsCount > 0 ? 'text-[#1F2D3A]' : 'text-[#E5A93D]'}`}>{mealsCount}/3 comidas</p>
                                                 </div>
-                                            </div>
-                                        )}
-
-
-                                        {/* FASE 66: AT-A-GLANCE DAILY PROGRESS BADGES */}
-                                        <div className="flex gap-3 mt-5 pt-4 border-t border-slate-100">
-                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.bathLogs?.length > 0 ? 'bg-sky-100 text-sky-700 border border-sky-200' : 'bg-slate-100 text-slate-500 opacity-60 border border-transparent'}`}>
-                                                <span className="text-base">🚿</span> Baño
-                                            </div>
-                                            <div className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm ${p.mealLogs?.length > 0 ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-slate-100 text-slate-500 opacity-60 border border-transparent'}`}>
-                                                <span className="text-base">🍽️</span> {p.mealLogs?.length || 0}/3 Comidas
-                                            </div>
-                                        </div>
-
-                                        {p.vitalSigns?.length > 0 && (
-                                            <div className="mt-4 bg-teal-50 border-2 border-teal-200 hover:bg-teal-100 transition-colors cursor-pointer rounded-xl p-4 shadow-sm flex items-center justify-between" onClick={(e) => { e.stopPropagation(); setActivePatient(p); setModalType('VITALS_HISTORY'); }}>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="bg-teal-500 text-white rounded-full p-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>
-                                                    <div>
-                                                        <p className="text-xs font-black text-teal-800 uppercase tracking-widest leading-none mb-1">Vitales del Turno</p>
-                                                        <p className="text-[11px] font-bold text-teal-700 leading-none">
-                                                            P: {p.vitalSigns[0]?.systolic}/{p.vitalSigns[0]?.diastolic} | HR: {p.vitalSigns[0]?.heartRate} | T: {p.vitalSigns[0]?.temperature}°
-                                                        </p>
-                                                    </div>
+                                                <div className="px-2.5 py-[10px] border-r border-[#e7e5e4]">
+                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">🔄</span> Rotación</p>
+                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${rotationColor}`}>{rotationLabel}</p>
                                                 </div>
-                                                <div className="text-right border-l border-teal-200 pl-3">
-                                                    <span className="text-[9px] w-full block text-teal-600 font-bold uppercase tracking-widest leading-none mb-1">Última Toma</span>
-                                                    <span className="font-black text-teal-900 leading-none">{new Date(p.vitalSigns[0]?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                    <span className="text-[9px] font-bold text-teal-600/80 block mt-1 uppercase">por {p.vitalSigns[0]?.user?.name?.split(' ')[0] || 'Staff'}</span>
+                                                <div className="px-2.5 py-[10px]">
+                                                    <p className="text-[10px] uppercase tracking-wide text-[#a8a29e] font-medium leading-none flex items-center gap-1"><span className="text-sm">💊</span> Meds PM</p>
+                                                    <p className={`text-[12px] font-medium mt-1.5 leading-none ${medsForShift.length > 0 ? 'text-[#E5A93D]' : 'text-[#22A06B]'}`}>{medsForShift.length > 0 ? 'Pendiente' : 'Listo'}</p>
                                                 </div>
                                             </div>
+                                        );
+                                    })()}
+
+                                    {/* ===== VITALES CHIPS ===== */}
+                                    <div
+                                        className={`bg-white border-b border-[#e7e5e4] px-4 py-2.5 flex items-center gap-1.5 flex-wrap ${p.vitalSigns?.length > 0 ? 'cursor-pointer hover:bg-[#fafaf9]' : ''}`}
+                                        onClick={() => { if (p.vitalSigns?.length > 0) { setActivePatient(p); setModalType('VITALS_HISTORY'); } }}
+                                    >
+                                        {p.vitalSigns?.length > 0 ? (() => {
+                                            const v = p.vitalSigns[0];
+                                            const tempNum = parseFloat(v.temperature);
+                                            const spo2Num = parseFloat(v.spo2);
+                                            const tempAlert = !isNaN(tempNum) && (tempNum > 99 || tempNum < 96);
+                                            const spo2Alert = !isNaN(spo2Num) && spo2Num > 0 && spo2Num < 94;
+                                            return (
+                                                <>
+                                                    {v.systolic && v.diastolic && (
+                                                        <span className="px-[9px] py-1 rounded-md text-[11px] font-medium bg-[#e1f5ee] text-[#0F6B78]">PA {v.systolic}/{v.diastolic}</span>
+                                                    )}
+                                                    {v.heartRate && (
+                                                        <span className="px-[9px] py-1 rounded-md text-[11px] font-medium bg-[#e1f5ee] text-[#0F6B78]">FC {v.heartRate}</span>
+                                                    )}
+                                                    {v.temperature && (
+                                                        <span className={`px-[9px] py-1 rounded-md text-[11px] font-medium ${tempAlert ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#dcfce7] text-[#166534]'}`}>T {v.temperature}°</span>
+                                                    )}
+                                                    {v.spo2 && (
+                                                        <span className={`px-[9px] py-1 rounded-md text-[11px] font-medium ${spo2Alert ? 'bg-[#fee2e2] text-[#991b1b]' : 'bg-[#dcfce7] text-[#166534]'}`}>SpO₂ {v.spo2}%</span>
+                                                    )}
+                                                    <span className="ml-auto text-[10px] text-[#a8a29e] font-medium whitespace-nowrap">
+                                                        {new Date(v.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · por {v.user?.name?.split(' ')[0] || 'Staff'}
+                                                    </span>
+                                                </>
+                                            );
+                                        })() : (
+                                            <span className="px-[9px] py-1 rounded-md text-[11px] font-medium bg-[#f5f5f4] text-[#78716c]">Sin vitales hoy</span>
                                         )}
                                     </div>
 
-                                    <div className={`p-5 bg-slate-50/50 rounded-b-[2.5rem] ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        <div className={`grid gap-3 ${gridView === '2col' ? 'grid-cols-2' : 'grid-cols-2'}`}>
-                                            <button onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-teal-500 hover:text-teal-700 transition-all shadow-sm active:scale-95">
-                                                <span className="text-3xl drop-shadow-sm leading-none">❤️</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Vitales</span>
+                                    {/* ===== UPP SLA TIMER (solo Norton risk con datos de rotación) ===== */}
+                                    {p.nortonRisk && lastRotation && (
+                                        <div className={`mx-4 mt-3 p-3 rounded-xl border flex items-center justify-between transition-all ${isVencido ? 'bg-[#fee2e2] border-[#fecaca]' : (isWarning ? 'bg-[#fef3c7] border-[#fde68a]' : 'bg-[#e1f5ee] border-[#3CC6C4]/30')}`}>
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className={`text-lg leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#E5A93D]' : 'text-[#0F6B78]')}`}>⏳</span>
+                                                <div className="min-w-0">
+                                                    <p className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-1 ${isVencido ? 'text-[#991b1b]' : (isWarning ? 'text-[#92400e]' : 'text-[#0F6B78]')}`}>SLA Rotación 2h</p>
+                                                    <p className={`text-[11px] font-semibold leading-none ${isVencido ? 'text-[#D9534F]' : (isWarning ? 'text-[#92400e]' : 'text-[#1F2D3A]')}`}>
+                                                        {hoursElapsed.toFixed(1)}h <span className="font-normal opacity-70">/ 2.0h · Pos. {p.posturalChanges[0]?.position?.split(' ')[0] || 'N/A'}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex bg-white rounded-lg overflow-hidden border border-[#e7e5e4] shrink-0">
+                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Izquierdo'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] border-r border-[#e7e5e4] transition-colors">Izq</button>
+                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Supino'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] border-r border-[#e7e5e4] transition-colors">Sup</button>
+                                                <button onClick={(e) => { e.stopPropagation(); logNightRound(p.id, 'ROTACION', 'Derecho'); }} className="px-2 py-1.5 text-[10px] font-semibold text-[#1F2D3A] hover:bg-[#e1f5ee] hover:text-[#0F6B78] transition-colors">Der</button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ===== ACTION GRID ===== */}
+                                    <div className={`px-4 pt-2.5 pb-3.5 ${isAbsent ? 'pointer-events-none' : ''}`}>
+                                        {/* Row 1 — 3 cols: Vitales / Bitácora / Preventiva */}
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            <button
+                                                onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }}
+                                                className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                            >
+                                                <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                </svg>
+                                                <span className="text-[12px] font-medium text-[#1F2D3A]">Vitales</span>
                                             </button>
-                                            <button onClick={() => { setActivePatient(p); setModalType('LOG'); }} className="py-5 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center gap-3 hover:border-indigo-400 hover:text-indigo-700 transition-all shadow-sm active:scale-95">
-                                                <span className="text-3xl drop-shadow-sm leading-none">📝</span><span className="text-sm font-black text-slate-700 uppercase tracking-widest mt-0.5">Bitácora</span>
+                                            <button
+                                                onClick={() => { setActivePatient(p); setModalType('LOG'); }}
+                                                className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                            >
+                                                <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                                </svg>
+                                                <span className="text-[12px] font-medium text-[#1F2D3A]">Bitácora</span>
                                             </button>
-                                            <button onClick={() => { setActivePatient(p); setModalType('MEDS'); }} className="py-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl flex items-center justify-center gap-3 hover:from-teal-100 hover:to-emerald-100 col-span-2 shadow-sm transition-all focus:ring-4 focus:ring-teal-300/50 active:scale-95">
-                                                <span className="text-3xl drop-shadow-sm leading-none">💊</span><span className="text-base font-black text-teal-800 uppercase tracking-widest">Medicamentos</span>
+                                            <button
+                                                onClick={() => { setActivePatient(p); setSelectedSymptom(null); setModalType('PREVENTIVE'); }}
+                                                className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                            >
+                                                <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                </svg>
+                                                <span className="text-[12px] font-medium text-[#1F2D3A]">Preventiva</span>
                                             </button>
                                         </div>
-                                        {/* Emergency actions — separated by divider */}
-                                        <div className="border-t border-slate-200 mt-3 pt-3 grid grid-cols-2 gap-3">
-                                            <button onClick={() => { setActivePatient(p); setModalType('FALL'); }} className="w-full py-4 bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-700 font-black rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95">
-                                                <span className="text-2xl leading-none">⚠️</span> <span className="text-xs uppercase tracking-widest mt-0.5">Alerta Caída</span>
+
+                                        {/* Row 2 — Medicamentos full width con badge de pendientes */}
+                                        {(() => {
+                                            const medsForShift = getMedsForCurrentShift(p.medications || []);
+                                            return (
+                                                <button
+                                                    onClick={() => { setActivePatient(p); setModalType('MEDS'); }}
+                                                    className="mt-1.5 w-full h-[52px] bg-[#0F6B78] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[14px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90 relative"
+                                                >
+                                                    <span className="text-lg leading-none">💊</span>
+                                                    <span>Medicamentos</span>
+                                                    {medsForShift.length > 0 && (
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#D9534F] text-white text-[11px] font-bold min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center leading-none">{medsForShift.length}</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })()}
+
+                                        {/* Row 3 — Alerta Caída + Trasladar ER */}
+                                        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                                            <button
+                                                onClick={() => { setActivePatient(p); setModalType('FALL'); }}
+                                                className="min-h-[52px] bg-[#fffbeb] border border-[#fde68a] text-[#92400e] rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                            >
+                                                <span className="text-base leading-none">⚠</span> Alerta Caída
                                             </button>
-                                            <button onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }} className="w-full py-4 bg-slate-800 hover:bg-slate-900 border-2 border-slate-800 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors active:scale-95">
-                                                <span className="text-2xl leading-none">🚑</span> <span className="text-xs uppercase tracking-widest mt-0.5">Trasladar ER</span>
+                                            <button
+                                                onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }}
+                                                className="min-h-[52px] bg-[#1F2D3A] text-white rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90"
+                                            >
+                                                <span className="text-base leading-none">🚑</span> Trasladar ER
                                             </button>
                                         </div>
                                     </div>
