@@ -44,6 +44,7 @@ export async function GET(req: Request) {
                 lifePlan: true,
                 mealLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },
+                    distinct: ['mealType'],
                     select: { id: true, mealType: true }
                 },
                 vitalSigns: {
