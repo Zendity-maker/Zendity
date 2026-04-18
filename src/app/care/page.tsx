@@ -56,6 +56,9 @@ export default function ZendityCareTabletPage() {
     const { user, logout } = useAuth();
     const router = useRouter();
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
+    // Fuente del color: 'assignment' | 'roster' | 'AUTO_FALLBACK' | null
+    // 'AUTO_FALLBACK' dispara badge amber — el Schedule Builder no tiene roster publicado.
+    const [colorSource, setColorSource] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -259,8 +262,10 @@ export default function ZendityCareTabletPage() {
                         const colorData = await colorRes.json();
                         if (colorData.success && colorData.color) {
                             // color puede ser un grupo (RED/YELLOW/...) o 'ALL' (cuidador solitario o turno asignado "Todos")
+                            // o lista separada por comas (ej. "RED,YELLOW") en AUTO_FALLBACK con 2 cuidadoras.
                             const effective = colorData.color;
                             setSelectedColor(effective);
+                            setColorSource(colorData.source || null);
                             localStorage.setItem('zendityCareShiftColor', effective);
                             const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
                             const patientData = await patientRes.json();
@@ -276,6 +281,7 @@ export default function ZendityCareTabletPage() {
                     const storedColor = localStorage.getItem('zendityCareShiftColor');
                     if (storedColor) {
                         setSelectedColor(storedColor);
+                        setColorSource(null); // localStorage → sin metadata de fuente
                         const patientRes = await fetch(`/api/care?color=${storedColor}&hqId=${hq}`);
                         const patientData = await patientRes.json();
                         if (patientData.success) {
@@ -1315,7 +1321,12 @@ export default function ZendityCareTabletPage() {
 
     const shiftLabel = getCurrentShift() === 'MORNING' ? 'Mañana' : getCurrentShift() === 'EVENING' ? 'Tarde' : 'Noche';
     const colorChipMap: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-amber-400', GREEN: 'bg-emerald-500', BLUE: 'bg-blue-500', ALL: 'bg-slate-600' };
-    const colorLabel = (c: string | null) => c === 'ALL' ? 'TODOS' : (c || '');
+    const colorLabel = (c: string | null) => {
+        if (!c) return '';
+        if (c === 'ALL') return 'TODOS';
+        if (c.includes(',')) return c.split(',').map(s => s.trim()).join(' + ');
+        return c;
+    };
 
     const sidebarLinks = [
         ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
@@ -1409,13 +1420,21 @@ export default function ZendityCareTabletPage() {
                 <div className="w-px h-7 bg-slate-600 hidden sm:block shrink-0" />
 
                 {/* Chips: Turno + Grupo */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
                         {getCurrentShift() === 'MORNING' ? '☀️' : getCurrentShift() === 'EVENING' ? '🌅' : '🌙'} {shiftLabel}
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-700 text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
                         <span className={`w-2.5 h-2.5 rounded-full ${colorChipMap[selectedColor!] || 'bg-slate-500'}`} /> {colorLabel(selectedColor)}
                     </span>
+                    {colorSource === 'AUTO_FALLBACK' && (
+                        <span
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/30 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+                            title="El Schedule Builder no tiene horario publicado para hoy. Esta distribución es temporal y puede cambiar si llega otra cuidadora."
+                        >
+                            ⚠️ Distribución automática — horario oficial pendiente
+                        </span>
+                    )}
                 </div>
 
                 {/* Spacer */}
