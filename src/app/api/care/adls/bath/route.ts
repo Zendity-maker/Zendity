@@ -1,14 +1,30 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-
-
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(req: Request) {
     try {
+        // Auth + rol clínico/operativo
+        const session = await getServerSession(authOptions);
+        if (!session || !['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
+        }
+
+        const sessionHqId = (session.user as any).headquartersId;
         const { patientId, caregiverId, shiftSessionId } = await req.json();
 
         if (!patientId || !caregiverId || !shiftSessionId) {
             return NextResponse.json({ success: false, error: "Faltan identificadores para registrar el baño." }, { status: 400 });
+        }
+
+        // Tenant check — el residente DEBE pertenecer a la sede de la sesión
+        const patient = await prisma.patient.findUnique({
+            where: { id: patientId },
+            select: { headquartersId: true }
+        });
+        if (!patient || patient.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede." }, { status: 404 });
         }
 
         // Anti doble-click: cooldown de 2 minutos por (cuidadora + residente)

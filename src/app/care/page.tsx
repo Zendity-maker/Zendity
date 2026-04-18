@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -121,6 +121,20 @@ export default function ZendityCareTabletPage() {
     const [vitalsErrors, setVitalsErrors] = useState<{ sys: boolean; dia: boolean; hr: boolean; temp: boolean }>({ sys: false, dia: false, hr: false, temp: false });
     const [fastActions, setFastActions] = useState<any[]>([]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
+
+    // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
+    // del residente activo, NO de un flag global en dailyLog.
+    // Antes: setDailyLog(bathCompleted=true) marcaba TODOS los botones de baño
+    // como disabled al cambiar de residente. Ahora el botón refleja el estado
+    // real del `activePatient` y se habilita correctamente por paciente.
+    const bathCompletedToday = useMemo(() => {
+        if (!activePatient?.bathLogs || activePatient.bathLogs.length === 0) return false;
+        const today = new Date();
+        return activePatient.bathLogs.some((log: any) => {
+            const logDate = new Date(log.timeLogged || log.createdAt);
+            return logDate.toDateString() === today.toDateString();
+        });
+    }, [activePatient]);
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
     const [prnNote, setPrnNote] = useState("");
     const [omissionNote, setOmissionNote] = useState("");
@@ -457,7 +471,7 @@ export default function ZendityCareTabletPage() {
             const h = new Date().getHours();
             const m = new Date().getMinutes();
             if (h === 10 && m === 0) setZendiToast("Zendity: Recuerda que la ventana de desayunos cierra en 60 minutos.");
-            if (h === 9 && m === 30) setZendiToast("Zendity: Últimos 30 minutos para registrar baños del turno AM. Recuerda el cooldown de 10 minutos.");
+            if (h === 9 && m === 30) setZendiToast("Zendity: Últimos 30 minutos para registrar baños del turno AM. Recuerda el cooldown de 2 minutos por residente.");
             if (h === 11 && m === 0) setZendiToast("Zendity: La ventana de almuerzos está oficialmente abierta.");
             if (h === 16 && m === 0) setZendiToast("Zendity: La ventana de cenas está oficialmente abierta.");
 
@@ -765,7 +779,13 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 alert(" Baño registrado al sistema central.");
-                setDailyLog({ ...dailyLog, bathCompleted: true });
+                // BUG FIX: añadir el nuevo BathLog al activePatient para que
+                // `bathCompletedToday` (useMemo) se recalcule y el botón se
+                // deshabilite SOLO para este residente, no para los demás.
+                setActivePatient((prev: any) => prev ? {
+                    ...prev,
+                    bathLogs: [...(prev.bathLogs || []), data.bath || { timeLogged: new Date().toISOString() }]
+                } : prev);
                 refreshPatientsSilently(selectedColor!);
             } else {
                 alert(` Alerta: ${data.message || data.error}`);
@@ -1899,10 +1919,10 @@ export default function ZendityCareTabletPage() {
                                 {selectedColor && (
                                     <div className="bg-sky-50 border border-sky-100 p-3 rounded-2xl">
                                         <h4 className="font-black text-sky-800 text-base mb-2"> Higiene Matutina</h4>
-                                        <button onClick={handleBathLog} disabled={submitting || dailyLog.bathCompleted} className={`w-full py-3 rounded-xl font-bold transition-all ${dailyLog.bathCompleted ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/30 active:scale-95'}`}>
-                                            {dailyLog.bathCompleted ? "Baño Registrado " : "Completar Baño de 6AM - 10AM"}
+                                        <button onClick={handleBathLog} disabled={submitting || bathCompletedToday} className={`w-full py-3 rounded-xl font-bold transition-all ${bathCompletedToday ? 'bg-sky-200 text-sky-500 cursor-not-allowed' : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/30 active:scale-95'}`}>
+                                            {bathCompletedToday ? "Baño Registrado " : "Completar Baño de 6AM - 10AM"}
                                         </button>
-                                        <p className="text-[10px] font-bold text-sky-600/60 mt-1.5 text-center uppercase tracking-wider">Protegido por 10-Min Cooldown</p>
+                                        <p className="text-[10px] font-bold text-sky-600/60 mt-1.5 text-center uppercase tracking-wider">Protegido por cooldown de 2 minutos</p>
                                     </div>
                                 )}
 
