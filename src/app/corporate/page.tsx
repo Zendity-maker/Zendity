@@ -7,12 +7,18 @@ export default function CorporateDashboardPage() {
     const [selectedFacility, setSelectedFacility] = useState("ALL");
     const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([{ id: "ALL", name: " Consolidado Global (Todas las Sedes)" }]);
     const [rankingData, setRankingData] = useState<any[]>([]);
-    const [kpis, setKpis] = useState({
+    const [kpis, setKpis] = useState<{
+        activeHqs: number;
+        totalCapacity: number | null;
+        totalPatients: number;
+        totalCriticalIncidents: number;
+        globalMedCompliance: number | null;
+    }>({
         activeHqs: 0,
-        totalCapacity: 0,
+        totalCapacity: null,
         totalPatients: 0,
         totalCriticalIncidents: 0,
-        globalMedCompliance: 0
+        globalMedCompliance: null
     });
     const [loading, setLoading] = useState(true);
 
@@ -176,10 +182,32 @@ export default function CorporateDashboardPage() {
             {/* 2. Top-Level KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                    { label: "Sedes Activas", value: kpis.activeHqs.toString(), sub: `Capacidad Total: ${kpis.totalCapacity} camas`, icon: "", color: "bg-blue-50 text-blue-700 border-blue-100" },
-                    { label: "Residentes Actuales", value: kpis.totalPatients.toString(), sub: `${kpis.totalCapacity > 0 ? Math.round((kpis.totalPatients / kpis.totalCapacity) * 100) : 0}% Ocupación`, icon: "", color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
-                    { label: "Incidentes Críticos", value: kpis.totalCriticalIncidents.toString(), sub: "Consolidado total", icon: "", color: "bg-red-50 text-red-700 border-red-100" },
-                    { label: "Cumplimiento Salud", value: `${kpis.globalMedCompliance}%`, sub: "Global eMAR", icon: "", color: "bg-purple-50 text-purple-700 border-purple-100" }
+                    {
+                        label: "Sedes Activas",
+                        value: kpis.activeHqs.toString(),
+                        sub: kpis.totalCapacity !== null ? `Capacidad Total: ${kpis.totalCapacity} camas` : "Capacidad no registrada",
+                        color: "bg-blue-50 text-blue-700 border-blue-100"
+                    },
+                    {
+                        label: "Residentes Actuales",
+                        value: kpis.totalPatients.toString(),
+                        sub: (kpis.totalCapacity !== null && kpis.totalCapacity > 0)
+                            ? `${Math.round((kpis.totalPatients / kpis.totalCapacity) * 100)}% Ocupación`
+                            : "— Ocupación (sin capacidad)",
+                        color: "bg-emerald-50 text-emerald-700 border-emerald-100"
+                    },
+                    {
+                        label: "Incidentes Críticos",
+                        value: kpis.totalCriticalIncidents.toString(),
+                        sub: "Consolidado total",
+                        color: "bg-red-50 text-red-700 border-red-100"
+                    },
+                    {
+                        label: "Cumplimiento Salud",
+                        value: kpis.globalMedCompliance !== null ? `${kpis.globalMedCompliance}%` : '—',
+                        sub: kpis.globalMedCompliance !== null ? "Global eMAR" : "Sin administraciones registradas",
+                        color: "bg-purple-50 text-purple-700 border-purple-100"
+                    }
                 ].map((kpi, i) => (
                     <div key={i} className={`rounded-2xl p-5 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
                         <div className="flex justify-between items-start">
@@ -187,7 +215,6 @@ export default function CorporateDashboardPage() {
                                 <p className="text-xs font-bold uppercase tracking-wider opacity-80">{kpi.label}</p>
                                 <h3 className="text-3xl font-black mt-1">{kpi.value}</h3>
                             </div>
-                            <div className="text-2xl opacity-80">{kpi.icon}</div>
                         </div>
                         <p className="text-xs font-medium mt-3 opacity-90">{kpi.sub}</p>
                     </div>
@@ -224,18 +251,27 @@ export default function CorporateDashboardPage() {
                                                 {row.facility}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`px-2.5 py-1 rounded font-bold text-xs ${row.empScore >= 90 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    {row.empScore}/100
-                                                </span>
+                                                {row.empScore !== null && row.empScore !== undefined ? (
+                                                    <span className={`px-2.5 py-1 rounded font-bold text-xs ${row.empScore >= 90 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                        {row.empScore}/100
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-400 font-bold text-xs" title="Sin evaluaciones registradas">—</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <span className="text-amber-400 text-base"></span>
+                                                {row.famSatisfaction !== null && row.famSatisfaction !== undefined ? (
                                                     <span className="font-bold text-slate-700">{row.famSatisfaction}%</span>
-                                                </div>
+                                                ) : (
+                                                    <span className="text-slate-400 font-bold text-xs" title="Sin encuestas de satisfacción familiar">—</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className="font-bold text-teal-700">{row.medsCompliance}%</span>
+                                                {row.medsCompliance !== null && row.medsCompliance !== undefined ? (
+                                                    <span className="font-bold text-teal-700">{row.medsCompliance}%</span>
+                                                ) : (
+                                                    <span className="text-slate-400 font-bold text-xs" title="Sin administraciones de medicamentos">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
