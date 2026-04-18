@@ -626,6 +626,7 @@ model MedicationAdministration {
 
   scheduledFor   String?
   scheduledTime  DateTime? // FASE eMAR Integral: Timestamp estricto de agenda
+  scheduleTime   String?   // Slot del pack ("8:00 AM", "12:00 PM") usado por el flujo de pack del tablet cuidador
   administeredAt DateTime? // Modificado a opcional porque PENDING no tiene adminAt
   createdAt      DateTime  @default(now())
 
