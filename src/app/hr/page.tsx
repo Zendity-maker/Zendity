@@ -5,6 +5,32 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { UserCog, Award, UserPlus, ClipboardCheck, Users, Search } from 'lucide-react';
 
+// Formateador de fecha relativa en español
+function formatRelative(dateIso: string | null): string {
+  if (!dateIso) return '';
+  const diff = Date.now() - new Date(dateIso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `hace ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `hace ${days}d`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `hace ${weeks} sem`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `hace ${months} mes${months === 1 ? '' : 'es'}`;
+  const years = Math.floor(days / 365);
+  return `hace ${years} año${years === 1 ? '' : 's'}`;
+}
+
+function formatExactDate(dateIso: string | null): string {
+  if (!dateIso) return '';
+  return new Date(dateIso).toLocaleDateString('es-PR', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
 export default function HRScorecardPage() {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -103,7 +129,21 @@ export default function HRScorecardPage() {
                   </td>
                   <td className="px-6 py-4 text-slate-600 font-semibold">{emp.role}</td>
                   <td className="px-6 py-4 text-center text-slate-500 font-medium">
-                    <span className="bg-slate-100 px-3 py-1 rounded-md text-xs border border-slate-200/60"></span>
+                    {emp.lastEvalDate ? (
+                      <span
+                        className="bg-slate-100 text-slate-700 px-3 py-1 rounded-md text-xs border border-slate-200/60 font-bold"
+                        title={formatExactDate(emp.lastEvalDate)}
+                      >
+                        {formatRelative(emp.lastEvalDate)}
+                      </span>
+                    ) : (
+                      <span
+                        className="bg-amber-50 text-amber-700 px-3 py-1 rounded-md text-xs border border-amber-200/60 font-bold"
+                        title="Este empleado aún no tiene evaluaciones en su expediente"
+                      >
+                        Sin evaluar
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
                     {emp.complianceScore >= 90 ? (

@@ -37,7 +37,47 @@ export async function GET(request: Request) {
             orderBy: { name: 'asc' }
         });
 
-        return NextResponse.json(staff);
+        // Última evaluación por empleado (agrupado por employeeId, max createdAt)
+        const staffIds = staff.map(s => s.id);
+        const lastEvals = staffIds.length > 0
+            ? await prisma.employeeEvaluation.groupBy({
+                by: ['employeeId'],
+                where: { employeeId: { in: staffIds } },
+                _max: { createdAt: true },
+            })
+            : [];
+
+        // Para cada last eval, obtenemos también el score del registro más reciente
+        const lastEvalDetails = lastEvals.length > 0
+            ? await prisma.employeeEvaluation.findMany({
+                where: {
+                    OR: lastEvals.map(le => ({
+                        employeeId: le.employeeId,
+                        createdAt: le._max.createdAt || undefined,
+                    })),
+                },
+                select: { employeeId: true, createdAt: true, score: true },
+            })
+            : [];
+
+        const lastEvalByEmployee = new Map<string, { createdAt: Date; score: number }>();
+        for (const e of lastEvalDetails) {
+            // Si por casualidad hay dos con el mismo createdAt exacto, nos quedamos con el primero
+            if (!lastEvalByEmployee.has(e.employeeId)) {
+                lastEvalByEmployee.set(e.employeeId, { createdAt: e.createdAt, score: e.score });
+            }
+        }
+
+        const staffWithLastEval = staff.map(s => {
+            const le = lastEvalByEmployee.get(s.id);
+            return {
+                ...s,
+                lastEvalDate: le?.createdAt || null,
+                lastEvalScore: le?.score ?? null,
+            };
+        });
+
+        return NextResponse.json(staffWithLastEval);
     } catch (error) {
         console.error('API Error:', error);
         return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 });

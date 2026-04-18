@@ -3,7 +3,13 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-
+// Formateador de mes abreviado en español (Ej: "Ene 26")
+const MONTH_ABBR_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const formatMonthLabel = (date: Date): string => {
+    const m = MONTH_ABBR_ES[date.getMonth()];
+    const y = String(date.getFullYear()).slice(-2);
+    return `${m} ${y}`;
+};
 
 export async function GET(
     req: Request,
@@ -29,21 +35,28 @@ export async function GET(
             return NextResponse.json({ success: false, error: "Empleado no encontrado" }, { status: 404 });
         }
 
-        // Generar un historial de desempeño (Scores) simulado basado en el complianceScore actual
-        // En Fase 55+ esto vendría de una tabla real de Evaluaciones
-        const baseScore = employee.complianceScore || 75;
-        const months = ["Oct", "Nov", "Dic", "Ene", "Feb", "Mar"];
-        const performanceHistory = months.map(month => {
-            // Generar una variación de -5 a +5 puntos alrededor del baseScore, sin pasarse de 100
-            const variation = Math.floor(Math.random() * 11) - 5;
-            let score = baseScore + variation;
-            if (score > 100) score = 100;
-            if (score < 0) score = 0;
-            return { month, score };
+        // Historial de desempeño REAL desde EmployeeEvaluation
+        // Tomamos las últimas 6 evaluaciones en orden cronológico ascendente
+        const realEvals = await prisma.employeeEvaluation.findMany({
+            where: { employeeId },
+            orderBy: { createdAt: 'desc' },
+            take: 6,
+            select: {
+                score: true,
+                createdAt: true,
+                evaluatorId: true,
+            },
         });
 
-        // Asegurar que el último mes (Marzo) refleje exactamente el score actual
-        performanceHistory[5].score = baseScore;
+        // Invertimos para mostrar del más antiguo al más reciente en el chart
+        const performanceHistory = realEvals
+            .slice()
+            .reverse()
+            .map(ev => ({
+                month: formatMonthLabel(new Date(ev.createdAt)),
+                score: ev.score,
+                date: ev.createdAt,
+            }));
 
         return NextResponse.json({
             success: true,

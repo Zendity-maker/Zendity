@@ -374,37 +374,50 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         </div>
 
                         <div className="flex-1 min-h-[300px] w-full mt-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={performanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis
-                                        dataKey="month"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
-                                        dy={10}
-                                    />
-                                    <YAxis
-                                        domain={[0, 100]}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
-                                    />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 600 }}
-                                        cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="score"
-                                        name="Desempeño Z-Score"
-                                        stroke="#6366f1"
-                                        strokeWidth={4}
-                                        activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
-                                        dot={{ r: 5, fill: "#fff", strokeWidth: 2 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            {performanceData && performanceData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={performanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                        <XAxis
+                                            dataKey="month"
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
+                                            dy={10}
+                                        />
+                                        <YAxis
+                                            domain={[0, 100]}
+                                            axisLine={false}
+                                            tickLine={false}
+                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 600 }}
+                                            cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="score"
+                                            name="Desempeño Z-Score"
+                                            stroke="#6366f1"
+                                            strokeWidth={4}
+                                            activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
+                                            dot={{ r: 5, fill: "#fff", strokeWidth: 2 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full py-10 text-center bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl">
+                                    <ChartBarIcon className="w-10 h-10 text-slate-300 mb-3" />
+                                    <p className="text-sm font-bold text-slate-600">Sin evaluaciones registradas</p>
+                                    <p className="text-xs text-slate-500 font-medium mt-1 max-w-xs">
+                                        Este empleado aún no tiene evaluaciones formales en su expediente. Registra una auditoría desde el módulo de Desempeño.
+                                    </p>
+                                    <Link href="/hr/evaluate" className="mt-4 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition-colors">
+                                        Iniciar Auditoría
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </div>
 
