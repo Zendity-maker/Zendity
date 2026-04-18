@@ -1,11 +1,31 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
 
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
 
 export async function GET() {
     try {
+        // ── Seguridad (tenant + rol) ──
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        const role = (session.user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const hqId = (session.user as any).headquartersId;
+        if (!hqId) {
+            return NextResponse.json({ success: false, error: 'Usuario sin sede asignada' }, { status: 400 });
+        }
+
+        // EmployeeEvaluation SOLO de la sede del usuario
         const evaluations = await prisma.employeeEvaluation.findMany({
+            where: { headquartersId: hqId },
             include: { employee: true, headquarters: true },
             orderBy: { createdAt: 'asc' }
         });
@@ -47,7 +67,7 @@ export async function GET() {
         });
 
         // 2. Leaderboard: Empleados y sus Tendencias (UP, DOWN, STABLE)
-        const employeeStatsMap: Record<string, { name: string, role: string, hq: string, scores: number[] }> = {};
+        const employeeStatsMap: Record<string, { name: string, role: string, hq: string, photoUrl: string | null, scores: number[] }> = {};
 
         evaluations.forEach(ev => {
             const empId = ev.employeeId;
@@ -56,6 +76,7 @@ export async function GET() {
                     name: ev.employee.name,
                     role: ev.employee.role,
                     hq: ev.headquarters.name,
+                    photoUrl: (ev.employee as any).photoUrl || null,
                     scores: []
                 };
             }
@@ -79,6 +100,7 @@ export async function GET() {
                 name: emp.name,
                 role: emp.role,
                 hq: emp.hq,
+                photoUrl: emp.photoUrl,
                 currentScore,
                 trend
             };
@@ -91,10 +113,23 @@ export async function GET() {
             return b.currentScore - a.currentScore;
         });
 
-        // 3. Occupancy & Clinical Risk Heatmap (FASE 67 Predictive Analytics)
-        const headquartersAll = await prisma.headquarters.findMany({ select: { id: true, name: true, capacity: true } });
+        // 3. Promedio GLOBAL real (sobre todas las evaluaciones, no solo HQ[0])
+        const allScores = evaluations.map(e => e.score);
+        const globalAvg = allScores.length > 0
+            ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+            : 0;
+
+        // 4. Occupancy & Clinical Risk Heatmap (FASE 67 Predictive Analytics)
+        // Solo la sede del usuario (no cross-tenant)
+        const headquartersAll = await prisma.headquarters.findMany({
+            where: { id: hqId },
+            select: { id: true, name: true, capacity: true }
+        });
         const activePatients = await prisma.patient.findMany({
-            where: { status: { not: "DISCHARGED" } },
+            where: {
+                headquartersId: hqId,
+                status: { not: "DISCHARGED" }
+            },
             select: { id: true, name: true, roomNumber: true, downtonRisk: true, headquartersId: true }
         });
 
@@ -123,11 +158,12 @@ export async function GET() {
                 };
             });
 
-        return NextResponse.json({ 
-            success: true, 
-            chartData, 
-            leaderboard, 
+        return NextResponse.json({
+            success: true,
+            chartData,
+            leaderboard,
             headquarters: Array.from(headquartersSet),
+            globalAvg,
             occupancyData,
             clinicalRisk
         });

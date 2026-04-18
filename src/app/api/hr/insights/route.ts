@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
 
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId');
-
+        // ── Seguridad (tenant + rol) ──
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        const role = (session.user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const hqId = (session.user as any).headquartersId;
         if (!hqId) {
-            return NextResponse.json({ error: "Sede inválida" }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Usuario sin sede asignada' }, { status: 400 });
         }
 
         // 1. Fetch Staff with low compliance scores

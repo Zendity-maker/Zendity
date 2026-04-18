@@ -25,6 +25,7 @@ export default function InsightsDashboard() {
   const [headquarters, setHeadquarters] = useState<string[]>([]);
   const [occupancyData, setOccupancyData] = useState<any[]>([]);
   const [clinicalRisk, setClinicalRisk] = useState<any[]>([]);
+  const [globalAvg, setGlobalAvg] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -51,6 +52,7 @@ export default function InsightsDashboard() {
           setHeadquarters(data.headquarters);
           setOccupancyData(data.occupancyData || []);
           setClinicalRisk(data.clinicalRisk || []);
+          setGlobalAvg(typeof data.globalAvg === 'number' ? data.globalAvg : 0);
         }
       } catch (err) {
         console.error("Error loading insights:", err);
@@ -194,9 +196,7 @@ export default function InsightsDashboard() {
             </div>
             <div className="mt-4 flex items-baseline gap-2">
               <span className="text-4xl font-black text-slate-800 tracking-tight">
-                {chartData.length > 0 ? (
-                  chartData[chartData.length - 1][headquarters[0]] || 0
-                ) : 0}
+                {globalAvg}
               </span>
               <span className="text-xs font-bold text-slate-500 uppercase">Pts</span>
             </div>
