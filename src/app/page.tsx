@@ -1,21 +1,53 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 import {
   MessageSquare, Download, TrendingUp, TrendingDown, Minus,
-  ArrowRight, Activity, Users, Building, X, AlertOctagon, BarChart3, MapPin
+  ArrowRight, Activity, Users, Building, X, AlertOctagon, BarChart3, MapPin,
+  Droplets, Utensils, Pill, UserCheck, HeartPulse, AlertTriangle, ShieldAlert, Sparkles, Clock
 } from 'lucide-react';
 
 interface LeaderboardItem {
   name: string;
   role: string;
   hq: string;
+  photoUrl?: string | null;
   currentScore: number;
   trend: "UP" | "DOWN" | "STABLE";
+}
+
+interface LiveStats {
+  activeCaregivers: number;
+  baths: number;
+  mealsServed: number;
+  pendingMeds: number;
+}
+
+interface ClinicalAlerts {
+  falls: { count: number };
+  upps: { count: number; items: Array<{ patientId: string; patientName: string; room: string | null }> };
+  omittedMeds: { count: number };
+  criticalVitals: { count: number };
+}
+
+interface ResidentStats {
+  active: number;
+  hospital: number;
+  leave: number;
+  downtonRisk: number;
+}
+
+interface DigestData {
+  id: string;
+  shiftType: string;
+  summary: string;
+  createdAt: string;
+  outgoingNurse: string | null;
 }
 
 export default function InsightsDashboard() {
@@ -28,6 +60,18 @@ export default function InsightsDashboard() {
   const [globalAvg, setGlobalAvg] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // Widgets nuevos
+  const [liveStats, setLiveStats] = useState<LiveStats>({ activeCaregivers: 0, baths: 0, mealsServed: 0, pendingMeds: 0 });
+  const [clinicalAlerts, setClinicalAlerts] = useState<ClinicalAlerts>({
+    falls: { count: 0 },
+    upps: { count: 0, items: [] },
+    omittedMeds: { count: 0 },
+    criticalVitals: { count: 0 },
+  });
+  const [residentStats, setResidentStats] = useState<ResidentStats>({ active: 0, hospital: 0, leave: 0, downtonRisk: 0 });
+  const [digest, setDigest] = useState<DigestData | null>(null);
+  const [fallHotspots, setFallHotspots] = useState<Array<{ id: string; patientId: string; name: string; room: string | null }>>([]);
 
   // Family Link (Fase 13)
   const [showInbox, setShowInbox] = useState(false);
@@ -62,6 +106,95 @@ export default function InsightsDashboard() {
     }
     fetchInsights();
   }, []);
+
+  // ── Widgets adicionales: turno, alertas clínicas, residentes, digest ──
+  useEffect(() => {
+    if (!user || user.role === 'FAMILY') return;
+    const hqId = user?.hqId || user?.headquartersId;
+    if (!hqId) return;
+
+    const fetchWidgetData = async () => {
+      try {
+        const [liveRes, alertsRes, careRes, digestRes] = await Promise.all([
+          fetch(`/api/care/supervisor/live?hqId=${hqId}`).catch(() => null),
+          fetch(`/api/insights/clinical-alerts`).catch(() => null),
+          fetch(`/api/care?color=ALL&hqId=${hqId}`).catch(() => null),
+          fetch(`/api/insights/digest`).catch(() => null),
+        ]);
+
+        // Widget A — Actividad del Turno
+        if (liveRes && liveRes.ok) {
+          const live = await liveRes.json();
+          if (live.success) {
+            const meals = live.liveStats?.meals || {};
+            const totalMeals = Object.values(meals as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+            setLiveStats({
+              activeCaregivers: live.activeCaregivers || 0,
+              baths: live.liveStats?.baths || 0,
+              mealsServed: totalMeals,
+              pendingMeds: 0, // se completa desde careRes más abajo
+            });
+          }
+        }
+
+        // Widget B — Alertas Clínicas
+        if (alertsRes && alertsRes.ok) {
+          const alerts = await alertsRes.json();
+          if (alerts.success) {
+            setClinicalAlerts({
+              falls: { count: alerts.falls?.count || 0 },
+              upps: { count: alerts.upps?.count || 0, items: alerts.upps?.items || [] },
+              omittedMeds: { count: alerts.omittedMeds?.count || 0 },
+              criticalVitals: { count: alerts.criticalVitals?.count || 0 },
+            });
+            // Hotspots de caídas para integrar en heatmap clínico
+            const fallItems = (alerts.falls?.items || []).slice(0, 10).map((f: any) => ({
+              id: f.id,
+              patientId: f.patientId,
+              name: f.patientName,
+              room: f.room,
+            }));
+            setFallHotspots(fallItems);
+          }
+        }
+
+        // Widget C — Estado de Residentes + meds pendientes
+        if (careRes && careRes.ok) {
+          const care = await careRes.json();
+          if (care.success) {
+            const patients: any[] = care.patients || [];
+            const active = patients.filter(p => p.status === 'ACTIVE').length;
+            const hospital = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
+            const leave = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType !== 'HOSPITAL').length;
+            const downtonRisk = patients.filter(p => p.downtonRisk).length;
+            setResidentStats({ active, hospital, leave, downtonRisk });
+
+            // Contar meds PENDING del turno (medications[].administrations[].status === PENDING del día)
+            // Aproximación: # medications activas x residentes ACTIVE (tendencia de carga)
+            let pending = 0;
+            patients.forEach(p => {
+              if (p.status === 'ACTIVE' && Array.isArray(p.medications)) {
+                pending += p.medications.length;
+              }
+            });
+            setLiveStats(prev => ({ ...prev, pendingMeds: pending }));
+          }
+        }
+
+        // Widget D — Zendi Digest
+        if (digestRes && digestRes.ok) {
+          const dig = await digestRes.json();
+          if (dig.success && dig.digest) {
+            setDigest(dig.digest);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading widget data:', err);
+      }
+    };
+
+    fetchWidgetData();
+  }, [user]);
 
   // --- Family Link Polling (solo Staff, no Family) ---
   useEffect(() => {
@@ -223,6 +356,174 @@ export default function InsightsDashboard() {
           </div>
         </div>
 
+        {/* WIDGET A — Actividad del Turno Actual */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <Activity className="w-5 h-5 text-teal-600" /> Actividad del Turno Actual
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Telemetría en vivo del piso clínico</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><UserCheck className="w-3.5 h-3.5" /></div>
+                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Cuidadores</p>
+              </div>
+              <p className="text-3xl font-black text-slate-800">{liveStats.activeCaregivers}</p>
+              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">En piso ahora</p>
+            </div>
+            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Droplets className="w-3.5 h-3.5" /></div>
+                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Baños</p>
+              </div>
+              <p className="text-3xl font-black text-slate-800">{liveStats.baths}</p>
+              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Completados hoy</p>
+            </div>
+            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Utensils className="w-3.5 h-3.5" /></div>
+                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Comidas</p>
+              </div>
+              <p className="text-3xl font-black text-slate-800">{liveStats.mealsServed}</p>
+              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Servidas hoy</p>
+            </div>
+            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Pill className="w-3.5 h-3.5" /></div>
+                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Meds</p>
+              </div>
+              <p className="text-3xl font-black text-slate-800">{liveStats.pendingMeds}</p>
+              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Activos en eMAR</p>
+            </div>
+          </div>
+        </div>
+
+        {/* WIDGET B — Alertas Clínicas Activas */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-rose-600" /> Alertas Clínicas Activas
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Eventos que requieren atención del equipo clínico</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Caídas 24h', count: clinicalAlerts.falls.count, icon: <AlertTriangle className="w-3.5 h-3.5" />, href: '/corporate/medical/fall-risk' },
+              { label: 'UPPs Activas', count: clinicalAlerts.upps.count, icon: <AlertOctagon className="w-3.5 h-3.5" />, href: '/corporate/medical/upp-dashboard' },
+              { label: 'Meds Omitidos', count: clinicalAlerts.omittedMeds.count, icon: <Pill className="w-3.5 h-3.5" />, href: '/corporate/medical/emar' },
+              { label: 'Vitales Críticos', count: clinicalAlerts.criticalVitals.count, icon: <HeartPulse className="w-3.5 h-3.5" />, href: '/care/vitals' },
+            ].map((a, i) => {
+              const isAlert = a.count > 0;
+              return (
+                <Link
+                  key={i}
+                  href={a.href}
+                  className={`group rounded-xl p-4 border transition-all hover:shadow-sm ${isAlert ? 'bg-rose-50/60 border-rose-200 hover:border-rose-300' : 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'}`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-md ${isAlert ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {a.icon}
+                    </div>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${isAlert ? 'text-rose-700' : 'text-emerald-700'}`}>{a.label}</p>
+                  </div>
+                  <p className={`text-3xl font-black ${isAlert ? 'text-rose-700' : 'text-emerald-700'}`}>{a.count}</p>
+                  <p className={`text-[10px] font-semibold mt-0.5 flex items-center gap-1 ${isAlert ? 'text-rose-500' : 'text-emerald-600'}`}>
+                    {isAlert ? 'Requiere revisión' : 'Sin alertas'}
+                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* WIDGET C + D en 2 cols */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* WIDGET C — Estado de Residentes */}
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
+            <div className="mb-5">
+              <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-600" /> Estado de Residentes
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Censo actual de la sede</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4">
+                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-1">Activos</p>
+                <p className="text-3xl font-black text-indigo-700">{residentStats.active}</p>
+                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">En residencia</p>
+              </div>
+              <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
+                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Hospital</p>
+                <p className="text-3xl font-black text-amber-700">{residentStats.hospital}</p>
+                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Traslado temporal</p>
+              </div>
+              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4">
+                <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1">Licencia</p>
+                <p className="text-3xl font-black text-blue-700">{residentStats.leave}</p>
+                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Permiso familiar</p>
+              </div>
+              <div className="bg-rose-50/60 border border-rose-100 rounded-xl p-4">
+                <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-1">Downton Risk</p>
+                <p className="text-3xl font-black text-rose-700">{residentStats.downtonRisk}</p>
+                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Alto riesgo caída</p>
+              </div>
+            </div>
+          </div>
+
+          {/* WIDGET D — Zendi Digest del Día */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-xl p-6 shadow-sm border border-slate-700 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-teal-400/10 blur-3xl rounded-full"></div>
+            <div className="mb-5 relative">
+              <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-teal-400" /> Zendi Digest del Día
+              </h3>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">Resumen clínico del último turno</p>
+            </div>
+            {digest ? (
+              <div className="relative space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-400/30">
+                    Turno {digest.shiftType === 'MORNING' ? 'Mañana' : digest.shiftType === 'EVENING' ? 'Tarde' : 'Noche'}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {(() => {
+                      const mins = Math.floor((Date.now() - new Date(digest.createdAt).getTime()) / 60000);
+                      if (mins < 60) return `hace ${mins} min`;
+                      const hrs = Math.floor(mins / 60);
+                      if (hrs < 24) return `hace ${hrs}h`;
+                      return `hace ${Math.floor(hrs / 24)}d`;
+                    })()}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-100 leading-relaxed line-clamp-6">
+                  {digest.summary}
+                </p>
+                {digest.outgoingNurse && (
+                  <p className="text-[11px] text-slate-400 font-medium pt-2 border-t border-slate-700">
+                    Generado por Zendi · Turno entregado por {digest.outgoingNurse}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="relative flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-700/50 border border-slate-600 flex items-center justify-center mb-3">
+                  <Sparkles className="w-5 h-5 text-slate-500" />
+                </div>
+                <p className="text-sm font-bold text-slate-300">Sin resumen aún</p>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">Zendi generará el digest al cierre del próximo turno</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Master Chart - Recharts */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80">
           <div className="mb-8">
@@ -302,9 +603,17 @@ export default function InsightsDashboard() {
                   <tr key={i} className={`hover:bg-slate-50/80 transition-colors group ${emp.trend === 'DOWN' ? 'bg-rose-50/20' : ''}`}>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-200/60 shadow-inner group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
-                          {emp.name.substring(0, 2).toUpperCase()}
-                        </div>
+                        {emp.photoUrl ? (
+                          <img
+                            src={emp.photoUrl}
+                            alt={emp.name}
+                            className="w-9 h-9 rounded-xl object-cover border border-slate-200/60 shadow-inner"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-600 border border-slate-200/60 shadow-inner group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
+                            {emp.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
                         <span className="font-bold text-slate-800 text-sm">{emp.name}</span>
                       </div>
                     </td>
@@ -347,15 +656,18 @@ export default function InsightsDashboard() {
                   <div className="flex justify-between text-sm font-bold">
                     <span className="text-slate-700">{hq.hqName}</span>
                     <span className={hq.rate >= 90 ? 'text-rose-600' : 'text-slate-500'}>
-                      {hq.installed} / {hq.capacity} ({hq.rate}%)
+                      {hq.rate}%
                     </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200/50">
-                    <div 
-                      className={`h-3 rounded-full transition-all duration-1000 ${hq.rate >= 90 ? 'bg-gradient-to-r from-rose-500 to-rose-400' : hq.rate >= 75 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-teal-500 to-teal-400'}`} 
+                    <div
+                      className={`h-3 rounded-full transition-all duration-1000 ${hq.rate >= 90 ? 'bg-gradient-to-r from-rose-500 to-rose-400' : hq.rate >= 75 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-teal-500 to-teal-400'}`}
                       style={{ width: `${hq.rate}%` }}
                     ></div>
                   </div>
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    <span className="font-black text-slate-700">{hq.installed}</span> de <span className="font-black text-slate-700">{hq.capacity}</span> camas ocupadas
+                  </p>
                 </div>
               ))}
             </div>
@@ -368,16 +680,43 @@ export default function InsightsDashboard() {
                 <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                   <AlertOctagon className="w-5 h-5 text-rose-600" /> Mapa de Calor Clínico
                 </h3>
-                <p className="text-sm text-slate-500 font-medium mt-1">Riesgo Inminente de Caídas (Downton Hotspots)</p>
+                <p className="text-sm text-slate-500 font-medium mt-1">Downton (rojo) + caídas últimas 24h (naranja)</p>
               </div>
-              <span className="bg-rose-100 text-rose-700 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-rose-200 animate-pulse">
-                {clinicalRisk.length} Alertas
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="bg-rose-100 text-rose-700 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-rose-200">
+                  {clinicalRisk.length} Downton
+                </span>
+                {fallHotspots.length > 0 && (
+                  <span className="bg-orange-100 text-orange-700 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-orange-200 animate-pulse">
+                    {fallHotspots.length} Caídas 24h
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
+              {/* Caídas 24h — naranja */}
+              {fallHotspots.map((pt, idx) => (
+                <div key={`fall-${idx}`} className="p-4 bg-orange-50 border border-orange-200 hover:border-orange-300 rounded-xl transition-all group">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-black shadow-inner">
+                      {pt.name?.charAt(0) || '?'}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm group-hover:text-orange-700 transition-colors leading-tight">{pt.name}</h4>
+                      <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-slate-500" /> Cuarto {pt.room || 'N/A'}
+                      </p>
+                      <span className="inline-block mt-2 text-[9px] uppercase tracking-widest font-bold bg-white text-orange-600 px-2 py-0.5 rounded border border-orange-200">
+                        Caída 24h
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Downton Risk — rojo */}
               {clinicalRisk.map((pt, idx) => (
-                <div key={idx} className="p-4 bg-rose-50 border border-rose-100 hover:border-rose-300 rounded-xl transition-all group">
+                <div key={`downton-${idx}`} className="p-4 bg-rose-50 border border-rose-100 hover:border-rose-300 rounded-xl transition-all group">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black shadow-inner">
                       {pt.name.charAt(0)}
@@ -388,13 +727,13 @@ export default function InsightsDashboard() {
                         <MapPin className="w-3 h-3 text-slate-500" /> Cuarto {pt.room || 'N/A'}
                       </p>
                       <span className="inline-block mt-2 text-[9px] uppercase tracking-widest font-bold bg-white text-rose-600 px-2 py-0.5 rounded border border-rose-200">
-                        {pt.hqName}
+                        Downton
                       </span>
                     </div>
                   </div>
                 </div>
               ))}
-              {clinicalRisk.length === 0 && (
+              {clinicalRisk.length === 0 && fallHotspots.length === 0 && (
                 <div className="col-span-2 text-center py-10 bg-emerald-50 text-emerald-600 font-bold border border-emerald-100 border-dashed rounded-xl">
                    Riesgo Cero Reportado Globalmente
                 </div>
