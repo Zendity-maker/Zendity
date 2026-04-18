@@ -21,14 +21,11 @@ export async function GET(req: Request) {
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 
-        // Cuidador solitario / turno "Todos": sin filtro por colorGroup
-        // Multi-color (AUTO_FALLBACK con 2 cuidadoras, ej. "RED,YELLOW"):
-        // usar `IN` para devolver residentes de cualquiera de los colores listados.
+        // Cuidador solitario / turno "Todos": sin filtro por colorGroup.
+        // Color específico → filtrar por ese color.
         const colorFilter = (!color || color === 'ALL')
             ? {}
-            : color.includes(',')
-                ? { colorGroup: { in: color.split(',').map(c => c.trim()) as any } }
-                : { colorGroup: color as any };
+            : { colorGroup: color as any };
 
         const patientsRaw = await prisma.patient.findMany({
             where: {

@@ -3,32 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
 
-/**
- * Fallback determinista cuando no hay horario publicado ni asignación manual.
- * Garantiza que TODO residente ACTIVE quede cubierto por alguna cuidadora
- * mientras el Schedule oficial se publica.
- *
- *   1 cuidadora  → 'ALL'                     (ve a todos)
- *   2 cuidadoras → RED+YELLOW / GREEN+BLUE   (dividido en 2 bloques)
- *   3 cuidadoras → RED / YELLOW / BLUE       (uno por color activo)
- *   4+ cuidadoras → RED / YELLOW / GREEN / BLUE (round-robin)
- *
- * Las combinaciones ("RED,YELLOW") se filtran vía `colorGroup IN (…)` en
- * /api/care/route.ts.
- */
-function autoFallbackColor(position: number, totalActive: number): string {
-    if (totalActive <= 1) return 'ALL';
-    if (totalActive === 2) {
-        return position === 0 ? 'RED,YELLOW' : 'GREEN,BLUE';
-    }
-    if (totalActive === 3) {
-        const palette = ['RED', 'YELLOW', 'BLUE'];
-        return palette[position] || 'ALL';
-    }
-    const palette = ['RED', 'YELLOW', 'GREEN', 'BLUE'];
-    return palette[position % palette.length];
-}
-
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -43,7 +17,7 @@ export async function GET(req: Request) {
 
         // Resolver color del día (prioridad: asignación manual → roster publicado)
         let resolvedColor: string | null = null;
-        let source: 'assignment' | 'roster' | 'AUTO_FALLBACK' | 'none' = 'none';
+        let source: 'assignment' | 'roster' | 'none' = 'none';
 
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
             where: {
@@ -103,34 +77,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, color: resolvedColor, source });
         }
 
-        // ─── AUTO_FALLBACK ──────────────────────────────────────────────
-        // Sin roster publicado ni asignación manual: asignar color
-        // determinísticamente en función de la posición (orden de clock-in)
-        // entre las sesiones activas de la sede.
-        // No se persiste en DB — es efímero y muta si llegan/salen cuidadoras.
-        const activeSessions = await prisma.shiftSession.findMany({
-            where: {
-                headquartersId: hqId,
-                actualEndTime: null,
-                startTime: { gte: todayStartAST() }
-            },
-            orderBy: { startTime: 'asc' },
-            select: { caregiverId: true }
-        });
-
-        const position = activeSessions.findIndex(s => s.caregiverId === userId);
-        if (position >= 0) {
-            const autoColor = autoFallbackColor(position, activeSessions.length);
-            return NextResponse.json({
-                success: true,
-                color: autoColor,
-                source: 'AUTO_FALLBACK',
-                message: 'Sin horario publicado — distribución automática temporal',
-                position,
-                totalActive: activeSessions.length,
-            });
-        }
-
+        // Sin asignación manual ni roster publicado → color null.
+        // El tablet muestra el selector manual / fallback localStorage.
         return NextResponse.json({ success: true, color: null, source: 'none' });
 
     } catch (error) {

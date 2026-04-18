@@ -56,9 +56,6 @@ export default function ZendityCareTabletPage() {
     const { user, logout } = useAuth();
     const router = useRouter();
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
-    // Fuente del color: 'assignment' | 'roster' | 'AUTO_FALLBACK' | null
-    // 'AUTO_FALLBACK' dispara badge amber — el Schedule Builder no tiene roster publicado.
-    const [colorSource, setColorSource] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -262,10 +259,8 @@ export default function ZendityCareTabletPage() {
                         const colorData = await colorRes.json();
                         if (colorData.success && colorData.color) {
                             // color puede ser un grupo (RED/YELLOW/...) o 'ALL' (cuidador solitario o turno asignado "Todos")
-                            // o lista separada por comas (ej. "RED,YELLOW") en AUTO_FALLBACK con 2 cuidadoras.
                             const effective = colorData.color;
                             setSelectedColor(effective);
-                            setColorSource(colorData.source || null);
                             localStorage.setItem('zendityCareShiftColor', effective);
                             const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
                             const patientData = await patientRes.json();
@@ -281,7 +276,6 @@ export default function ZendityCareTabletPage() {
                     const storedColor = localStorage.getItem('zendityCareShiftColor');
                     if (storedColor) {
                         setSelectedColor(storedColor);
-                        setColorSource(null); // localStorage → sin metadata de fuente
                         const patientRes = await fetch(`/api/care?color=${storedColor}&hqId=${hq}`);
                         const patientData = await patientRes.json();
                         if (patientData.success) {
@@ -1324,7 +1318,6 @@ export default function ZendityCareTabletPage() {
     const colorLabel = (c: string | null) => {
         if (!c) return '';
         if (c === 'ALL') return 'TODOS';
-        if (c.includes(',')) return c.split(',').map(s => s.trim()).join(' + ');
         return c;
     };
 
@@ -1451,21 +1444,13 @@ export default function ZendityCareTabletPage() {
                             BLUE: 'bg-[#3B82F6]',
                             ALL: 'bg-white/70',
                         };
-                        const key = (selectedColor && selectedColor.includes(',')) ? 'ALL' : (selectedColor || 'ALL');
+                        const key = selectedColor || 'ALL';
                         return (
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-semibold whitespace-nowrap ${zoneStyles[key] || zoneStyles.ALL}`}>
                                 <span className={`w-2 h-2 rounded-full ${dotMap[key] || dotMap.ALL}`} /> {colorLabel(selectedColor)}
                             </span>
                         );
                     })()}
-                    {colorSource === 'AUTO_FALLBACK' && (
-                        <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[8px] bg-[#E5A93D]/15 text-[#fbbf24] border border-[#E5A93D]/30 text-[10px] font-semibold whitespace-nowrap"
-                            title="El Schedule Builder no tiene horario publicado para hoy. Esta distribución es temporal y puede cambiar si llega otra cuidadora."
-                        >
-                            ⚠ Auto
-                        </span>
-                    )}
                 </div>
 
                 {/* Spacer */}
