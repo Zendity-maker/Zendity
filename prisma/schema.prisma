@@ -120,6 +120,9 @@ model Headquarters {
 
   // FASE 81: Staff Internal Chat
   staffMessages StaffMessage[]
+
+  // Órdenes de toma de vitales
+  vitalsOrders VitalsOrder[]
 }
 
 // =======================
@@ -242,6 +245,10 @@ model User {
   // FASE 81: Staff Internal Chat
   sentStaffMessages     StaffMessage[] @relation("SentStaffMessages")
   receivedStaffMessages StaffMessage[] @relation("ReceivedStaffMessages")
+
+  // Órdenes de toma de vitales
+  vitalsOrdersGiven    VitalsOrder[] @relation("OrderedVitals")
+  vitalsOrdersReceived VitalsOrder[] @relation("AssignedVitals")
 }
 
 model Account {
@@ -344,6 +351,41 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
+}
+
+// =======================
+// VITALS ORDER — Órdenes de toma de vitales a petición (Supervisor/Enfermería)
+// =======================
+
+model VitalsOrder {
+  id             String            @id @default(uuid())
+  headquartersId String
+  patientId      String
+  orderedById    String
+  caregiverId    String?
+  reason         String?
+  orderedAt      DateTime          @default(now())
+  expiresAt      DateTime
+  completedAt    DateTime?
+  lateReason     String?
+  reminderSentAt DateTime?
+  status         VitalsOrderStatus @default(PENDING)
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  orderedBy    User         @relation("OrderedVitals", fields: [orderedById], references: [id])
+  caregiver    User?        @relation("AssignedVitals", fields: [caregiverId], references: [id])
+
+  @@index([patientId, status])
+  @@index([headquartersId, status])
+  @@index([caregiverId, status])
+}
+
+enum VitalsOrderStatus {
+  PENDING
+  COMPLETED_ON_TIME
+  COMPLETED_LATE
+  EXPIRED
 }
 
 // =======================
@@ -514,6 +556,9 @@ model Patient {
   socialWorkTasks    SocialWorkTask[]
   socialWorkBenefits SocialWorkBenefit[]
   specialistVisits   SpecialistVisit[]
+
+  // Órdenes de toma de vitales
+  vitalsOrders VitalsOrder[]
 }
 
 // =======================
