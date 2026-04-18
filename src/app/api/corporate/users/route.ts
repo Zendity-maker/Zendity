@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 export async function GET(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerRole = (session.user as any).role;
+        const hqId = (session.user as any).headquartersId;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
-        const hqId = searchParams.get('headquartersId');
         const rolesParam = searchParams.get('role'); // e.g. "NURSE,CAREGIVER"
 
         let rolesFilter: any = undefined;
@@ -14,9 +25,10 @@ export async function GET(request: Request) {
             rolesFilter = { in: rolesParam.split(',') };
         }
 
+        // headquartersId SIEMPRE de session.user — nunca del query string
         const users = await prisma.user.findMany({
             where: {
-                ...(hqId && { headquartersId: hqId }),
+                headquartersId: hqId,
                 ...(rolesFilter && { role: rolesFilter }),
                 isDeleted: false,
                 isShiftBlocked: false

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import sgMail from '@sendgrid/mail';
 
 export const dynamic = 'force-dynamic';
@@ -8,22 +10,44 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-
+// Datos disciplinarios — solo SUPERVISOR/DIRECTOR/ADMIN (RR.HH.)
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { employeeId, supervisorId, headquartersId, type, description, signatureBase64 } = body;
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerId = (session.user as any).id;
+        const invokerRole = (session.user as any).role;
+        const hqId = (session.user as any).headquartersId;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-        if (!employeeId || !supervisorId || !headquartersId || !type || !description) {
+        const body = await req.json();
+        const { employeeId, type, description, signatureBase64 } = body;
+
+        if (!employeeId || !type || !description) {
             return NextResponse.json({ success: false, error: 'Faltan datos requeridos.' }, { status: 400 });
         }
 
+        // Tenant check: empleado debe pertenecer a la sede del invocador
+        const employee = await prisma.user.findFirst({
+            where: { id: employeeId, headquartersId: hqId },
+            select: { id: true }
+        });
+        if (!employee) {
+            return NextResponse.json({ success: false, error: 'Empleado no encontrado' }, { status: 404 });
+        }
+
+        // supervisorId SIEMPRE del session, headquartersId SIEMPRE del session
         const newIncident = await prisma.incidentReport.create({
             data: {
                 employeeId,
-                supervisorId,
-                headquartersId,
+                supervisorId: invokerId,
+                headquartersId: hqId,
                 type,
                 description,
                 signatureBase64: signatureBase64 || null,
@@ -103,17 +127,31 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerRole = (session.user as any).role;
+        const hqId = (session.user as any).headquartersId;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
+
         const { searchParams } = new URL(req.url);
         const employeeId = searchParams.get('employeeId');
-        const hqId = searchParams.get('hqId');
 
-        if (!hqId && !employeeId) return NextResponse.json({ success: false, error: 'Faltan parámetros' }, { status: 400 });
-
-        const whereClause: any = {};
+        // headquartersId SIEMPRE del session — nunca del query string.
+        // employeeId opcional para filtrar, pero debe pertenecer a la sede.
+        const whereClause: any = { headquartersId: hqId };
         if (employeeId) {
+            const employee = await prisma.user.findFirst({
+                where: { id: employeeId, headquartersId: hqId },
+                select: { id: true }
+            });
+            if (!employee) {
+                return NextResponse.json({ success: false, error: 'Empleado no encontrado' }, { status: 404 });
+            }
             whereClause.employeeId = employeeId;
-        } else {
-            whereClause.headquartersId = hqId;
         }
 
         const incidents = await prisma.incidentReport.findMany({

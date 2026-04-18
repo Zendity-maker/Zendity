@@ -1,12 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
 
 export async function GET() {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerRole = (session.user as any).role;
+        const hqId = (session.user as any).headquartersId;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
+
+        // headquartersId SIEMPRE de session.user — nunca del query string
         const staffList = await prisma.user.findMany({
             where: {
+                headquartersId: hqId,
                 isDeleted: false,
                 role: {
                     in: ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'NURSE', 'CAREGIVER', 'SOCIAL_WORKER', 'KITCHEN', 'MAINTENANCE']
