@@ -4,8 +4,8 @@ import { MedStatus } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
-// NOTA: CAREGIVER NO está autorizado a bulk-administer medicamentos.
-const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// CAREGIVER puede firmar medicamentos vía este endpoint (flujo 1-a-1 desde la tablet).
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {

@@ -173,7 +173,7 @@ export default function ZendityCareTabletPage() {
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
     const [prnNote, setPrnNote] = useState("");
     const [omissionNote, setOmissionNote] = useState("");
-    const [activeMedAction, setActiveMedAction] = useState<'ADMINISTER_ALL' | 'PRN' | 'OMISSION' | null>(null);
+    const [activeMedAction, setActiveMedAction] = useState<'PRN' | 'OMISSION' | null>(null);
     const sigCanvas = useRef<any>(null); // FASE 60: eMAR Digital Signature
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
@@ -756,12 +756,12 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const submitBulkMeds = async (action: 'ADMINISTER_ALL' | 'PRN' | 'OMISSION') => {
+    const submitBulkMeds = async (action: 'PRN' | 'OMISSION') => {
         if (action === 'PRN' && !prnNote.trim()) return alert("Especifique qué medicamento PRN se administra.");
         if (action === 'OMISSION' && !omissionNote.trim()) return alert("Debe especificar la razón clínica de descontinuar/omitir.");
 
         let signatureBase64 = null;
-        if ((action === 'ADMINISTER_ALL' || action === 'PRN') && sigCanvas.current) {
+        if (action === 'PRN' && sigCanvas.current) {
             if (sigCanvas.current.isEmpty()) {
                 return alert(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
             }
@@ -773,7 +773,7 @@ export default function ZendityCareTabletPage() {
             const medicationIds = getMedsForCurrentShift(activePatient.medications).map((m: any) => m.id);
             if (medicationIds.length === 0) return alert("No hay medicamentos para procesar.");
 
-            let finalNotes = "Administrado de manera rutinaria";
+            let finalNotes = "";
             if (action === 'PRN') finalNotes = `SOS/PRN Aplicado: ${prnNote}`;
             if (action === 'OMISSION') finalNotes = `Omitido/Rechazado: ${omissionNote}`;
 
@@ -782,7 +782,6 @@ export default function ZendityCareTabletPage() {
                 body: JSON.stringify({
                     action,
                     medicationIds,
-                    administeredById: user?.id,
                     notes: finalNotes,
                     signatureBase64
                 })
@@ -2459,8 +2458,9 @@ export default function ZendityCareTabletPage() {
                                             </div>
                                         )}
 
-                                        {/* FASE 60: eMAR Digital Signature Canvas */}
-                                        {(activeMedAction === 'ADMINISTER_ALL' || activeMedAction === 'PRN' || !activeMedAction) && (
+                                        {/* FASE 60: eMAR Digital Signature Canvas — solo para PRN (S.O.S). */}
+                                        {/* La administración rutinaria se firma 1-a-1 desde la lista de eMAR, no aquí. */}
+                                        {activeMedAction === 'PRN' && (
                                             <div className="mb-5 animate-in fade-in">
                                                 <div className="flex justify-between items-end mb-2">
                                                     <label className="text-sm font-black text-slate-700 block">Firma Clínica (Requerida)</label>
@@ -2468,10 +2468,10 @@ export default function ZendityCareTabletPage() {
                                                 </div>
                                                 <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden touch-none relative">
                                                     <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-200 pointer-events-none"></div>
-                                                    <SignatureCanvas 
-                                                        ref={sigCanvas} 
+                                                    <SignatureCanvas
+                                                        ref={sigCanvas}
                                                         penColor="#334155"
-                                                        canvasProps={{className: 'signature-canvas w-full h-32 cursor-crosshair'}} 
+                                                        canvasProps={{className: 'signature-canvas w-full h-32 cursor-crosshair'}}
                                                     />
                                                 </div>
                                                 <p className="text-[10px] text-center font-bold text-slate-500 mt-2 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
@@ -2479,12 +2479,6 @@ export default function ZendityCareTabletPage() {
                                         )}
 
                                         <div className="grid grid-cols-2 gap-3">
-                                            {(!activeMedAction || activeMedAction === 'ADMINISTER_ALL') && (
-                                                <button onClick={() => submitBulkMeds('ADMINISTER_ALL')} disabled={submitting} className="col-span-2 py-4 bg-emerald-500 hover:bg-emerald-600 active:scale-95 transition-all text-white font-black text-xl rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
-                                                     Registrar Administración
-                                                </button>
-                                            )}
-
                                             {(!activeMedAction || activeMedAction === 'PRN') && (
                                                 <button onClick={() => activeMedAction === 'PRN' ? submitBulkMeds('PRN') : setActiveMedAction('PRN')} disabled={submitting} className={`${activeMedAction === 'PRN' ? 'col-span-2' : ''} py-4 bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md flex justify-center items-center gap-2`}>
                                                      {activeMedAction === 'PRN' ? 'Confirmar PRN' : 'Dar dosis PRN'}
