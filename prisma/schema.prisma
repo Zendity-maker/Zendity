@@ -1211,7 +1211,7 @@ model ShiftHandover {
   headquartersId String
 
   shiftType       ShiftType // MORNING (6am-2pm), EVENING (2pm-10pm), NIGHT (10pm-6am)
-  outgoingNurseId String // Enfermera que entrega el turno
+  outgoingNurseId String? // Enfermera que entrega el turno (Null si lo generó Zendi AI sin usuario base)
   incomingNurseId String? // Enfermera que recibe el turno (Null si aún no lo ha aceptado)
 
   status     HandoverStatus @default(PENDING) // PENDING, ACCEPTED
@@ -1219,7 +1219,7 @@ model ShiftHandover {
   acceptedAt DateTime?
 
   headquarters  Headquarters   @relation(fields: [headquartersId], references: [id])
-  outgoingNurse User           @relation("OutgoingNurse", fields: [outgoingNurseId], references: [id])
+  outgoingNurse User?          @relation("OutgoingNurse", fields: [outgoingNurseId], references: [id])
   incomingNurse User?          @relation("IncomingNurse", fields: [incomingNurseId], references: [id])
   notes         HandoverNote[]
 

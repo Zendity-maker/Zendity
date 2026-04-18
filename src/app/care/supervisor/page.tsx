@@ -670,9 +670,28 @@ export default function SupervisorDashboardPage() {
 
                 {/* ZENDI ZONES (Briefing & ATC Detection) */}
                 <div className="flex flex-col gap-6">
-                    {liveData?.morningBriefing && (
+                    {liveData?.morningBriefing ? (
                         <ZendiMorningBriefing text={liveData.morningBriefing} />
-                    )}
+                    ) : liveData ? (
+                        <div className="bg-slate-800 rounded-[2rem] p-6 shadow-xl border border-slate-700 flex items-center gap-5">
+                            <div className="w-12 h-12 rounded-2xl bg-slate-700 flex items-center justify-center shrink-0">
+                                <Clock className="w-6 h-6 text-slate-400" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 text-teal-400 font-bold text-[10px] uppercase tracking-widest mb-1">
+                                    <Sparkles className="w-3.5 h-3.5" /> Zendi AI Engine
+                                </div>
+                                <p className="text-slate-300 font-semibold text-sm">
+                                    El briefing de Zendi estará disponible a las 5:45 AM.
+                                </p>
+                                <p className="text-slate-500 text-xs font-medium mt-1">
+                                    {liveData.lastBriefingAt
+                                        ? `Última actualización: ${new Date(liveData.lastBriefingAt).toLocaleString('es-PR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                        : 'Aún no se ha generado un briefing para esta sede.'}
+                                </p>
+                            </div>
+                        </div>
+                    ) : null}
 
                     {/* ATC Detection */}
                     {(() => {

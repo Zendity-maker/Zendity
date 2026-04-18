@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { todayStartAST } from '@/lib/dates';
 
 export interface TriageTicket {
     id: string;
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
 
         // FIX timezone: ventana rodante de 24h en vez de "medianoche UTC del servidor",
         // que deja el dashboard vacío cada noche cuando UTC cruza 00:00.
-        const todayStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const todayStart = todayStartAST();
         const twelveHrsAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
 
@@ -52,6 +53,7 @@ export async function GET(req: Request) {
             activeFastActions,
             clinicalAlerts,
             fallIncidents,
+            lastBriefingEver,
         ] = await Promise.all([
             // 1. Cuidadores Activos
             prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: todayStart } }, include: { caregiver: true } }),
@@ -83,6 +85,12 @@ export async function GET(req: Request) {
                 include: { patient: { select: { id: true, name: true, colorGroup: true } } },
                 orderBy: { incidentDate: 'desc' },
                 take: 10,
+            }),
+            // 14. Último handover con briefing AI (sin filtro de fecha) — para el estado vacío
+            prisma.shiftHandover.findFirst({
+                where: { headquartersId: hqId, aiSummaryReport: { not: null } },
+                orderBy: { createdAt: 'desc' },
+                select: { createdAt: true },
             }),
         ]);
 
@@ -278,7 +286,8 @@ export async function GET(req: Request) {
             triageFeed: finalTriage,
             activeFastActions,
             fallIncidents, // Caídas reales últimas 24h (FallIncident, no Incident genérico)
-            morningBriefing: briefing?.aiSummaryReport || null
+            morningBriefing: briefing?.aiSummaryReport || null,
+            lastBriefingAt: lastBriefingEver?.createdAt?.toISOString() || null,
         });
 
     } catch (error) {

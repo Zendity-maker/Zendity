@@ -73,6 +73,7 @@ export interface LiveDataPayload {
     activeSessions: CaregiverSession[];
     triageFeed: TriageTicket[];
     morningBriefing: string | null;
+    lastBriefingAt: string | null;
     missingHandovers: MissingHandover[];
     activeFastActions: FastActionAssignment[];
     fallIncidents?: FallIncidentLive[];

@@ -120,33 +120,43 @@ export async function GET(req: Request) {
             const aiSummary = completion.choices[0].message.content || "Error compilando el resumen de Zendi AI.";
 
             // 5. Crear el ShiftHandover formal en la base de datos
-            // Buscamos un Admin o Director de la sede para firmarlo como Outgoing Nurse, 
-            // ya que Prisma exige el ID. De lo contrario, Zendi actuaría "En nombre de" la sede.
-            const systemUser = await prisma.user.findFirst({
-                where: { headquartersId: hq.id, role: { in: ['ADMIN', 'DIRECTOR'] } }
+            // Orden de fallback para firmarlo como Outgoing Nurse:
+            //   1. ADMIN/DIRECTOR activo de la sede
+            //   2. SUPERVISOR activo de la sede
+            //   3. null → Zendi actúa "En nombre de" la sede (outgoingNurseId es nullable)
+            let systemUser = await prisma.user.findFirst({
+                where: { headquartersId: hq.id, role: { in: ['ADMIN', 'DIRECTOR'] }, isActive: true }
             });
 
-            if (systemUser) {
-                const newHandover = await prisma.shiftHandover.create({
-                    data: {
-                        headquartersId: hq.id,
-                        shiftType: 'MORNING', // Se entrega en la mañana para el turno de la mañana
-                        outgoingNurseId: systemUser.id, // Opcionalmente, deberíamos hacer outgoingNurseId nullable en futuras fases
-                        status: 'PENDING',
-                        aiSummaryReport: aiSummary,
-                        ...(patientIds.length > 0 ? {
-                            notes: {
-                                create: {
-                                    patientId: patientIds[0], // Cabecera simbólica
-                                    clinicalNotes: "Morning Briefing autogenerado por Zendi AI a las 5:45 AM.",
-                                    isCritical: !noEvents
-                                }
-                            }
-                        } : {})
-                    }
+            if (!systemUser) {
+                systemUser = await prisma.user.findFirst({
+                    where: { headquartersId: hq.id, role: 'SUPERVISOR', isActive: true }
                 });
-                results.push({ hq: hq.name, handoverId: newHandover.id });
             }
+
+            if (!systemUser) {
+                console.log(`Zendi Cron: sede ${hq.name} sin ADMIN/DIRECTOR/SUPERVISOR activo — handover firmado por Zendi AI (outgoingNurseId=null)`);
+            }
+
+            const newHandover = await prisma.shiftHandover.create({
+                data: {
+                    headquartersId: hq.id,
+                    shiftType: 'MORNING', // Se entrega en la mañana para el turno de la mañana
+                    outgoingNurseId: systemUser?.id ?? null, // Nullable: si no hay usuario base, Zendi firma solo
+                    status: 'PENDING',
+                    aiSummaryReport: aiSummary,
+                    ...(patientIds.length > 0 ? {
+                        notes: {
+                            create: {
+                                patientId: patientIds[0], // Cabecera simbólica
+                                clinicalNotes: "Morning Briefing autogenerado por Zendi AI a las 5:45 AM.",
+                                isCritical: !noEvents
+                            }
+                        }
+                    } : {})
+                }
+            });
+            results.push({ hq: hq.name, handoverId: newHandover.id, signedBy: systemUser?.name || 'Zendi AI (sin usuario base)' });
         }
 
         return NextResponse.json({ success: true, processedSites: results.length, results });
