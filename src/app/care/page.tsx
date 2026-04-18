@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X } from "lucide-react";
+import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -13,6 +13,7 @@ import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
 import ZendiAssist from "@/components/ZendiAssist";
+import StaffChat from "@/components/StaffChat";
 import { Toaster, toast } from 'sonner';
 
 function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
@@ -123,6 +124,37 @@ export default function ZendityCareTabletPage() {
     const [lateReasonOpen, setLateReasonOpen] = useState(false);
     const [lateReasonDraft, setLateReasonDraft] = useState("");
     const [fastActions, setFastActions] = useState<any[]>([]);
+    // Chat interno staff + notificaciones (ambos separados del HUB de acciones)
+    const [staffChatOpen, setStaffChatOpen] = useState(false);
+    const [staffChatUnread, setStaffChatUnread] = useState(0);
+    const [notifsOpen, setNotifsOpen] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const notifRef = useRef<HTMLDivElement>(null);
+
+    // Fetch de notificaciones propias (campana del topbar)
+    useEffect(() => {
+        if (!user?.id) return;
+        const load = async () => {
+            try {
+                const res = await fetch(`/api/notifications?userId=${user.id}`);
+                const data = await res.json();
+                if (data.success) setNotifications(data.notifications || []);
+            } catch (e) { console.error('[notifs fetch]', e); }
+        };
+        load();
+        const int = setInterval(load, 30000);
+        return () => clearInterval(int);
+    }, [user?.id]);
+
+    // Click-outside del panel de notificaciones
+    useEffect(() => {
+        if (!notifsOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifsOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [notifsOpen]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
 
     // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
@@ -1338,7 +1370,63 @@ export default function ZendityCareTabletPage() {
         { href: '/cuidadores', icon: '📋', label: 'Life Plans' },
     ];
 
-    const notifCount = fastActions.length;
+    // Campana del topbar → notificaciones reales (no fast actions)
+    const notifCount = notifications.filter(n => !n.isRead).length;
+
+    const markNotifRead = async (id: string) => {
+        try {
+            await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user?.id, ids: [id] }),
+            });
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        } catch (e) { console.error('[mark notif read]', e); }
+    };
+
+    const markAllNotifsRead = async () => {
+        if (notifCount === 0) return;
+        try {
+            await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user?.id, all: true }),
+            });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        } catch (e) { console.error('[mark all notifs read]', e); }
+    };
+
+    const timeAgoShort = (iso: string) => {
+        const diff = Date.now() - new Date(iso).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'ahora';
+        if (mins < 60) return `hace ${mins}m`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `hace ${hrs}h`;
+        const days = Math.floor(hrs / 24);
+        return `hace ${days}d`;
+    };
+
+    const renderNotifIcon = (type: string) => {
+        switch (type) {
+            case 'TRIAGE':           return <AlertTriangle className="w-4 h-4 text-[#fca5a5] shrink-0" />;
+            case 'EMAR_ALERT':
+            case 'SHIFT_ALERT':      return <AlertTriangle className="w-4 h-4 text-[#E5A93D] shrink-0" />;
+            case 'HANDOVER':         return <ClipboardList className="w-4 h-4 text-[#3CC6C4] shrink-0" />;
+            case 'STAFF_MESSAGE':    return <MessageSquare className="w-4 h-4 text-[#93c5fd] shrink-0" />;
+            case 'COURSE_COMPLETED': return <CheckCircle2 className="w-4 h-4 text-[#22A06B] shrink-0" />;
+            case 'FAMILY_VISIT':     return <UsersIcon className="w-4 h-4 text-[#a78bfa] shrink-0" />;
+            default:                 return <Info className="w-4 h-4 text-[#94a3b8] shrink-0" />;
+        }
+    };
+
+    const handleNotifOpen = (notif: any) => {
+        if (!notif.isRead) markNotifRead(notif.id);
+        if (notif.type === 'STAFF_MESSAGE') {
+            setNotifsOpen(false);
+            setStaffChatOpen(true);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#f5f5f4] pb-20 flex [scroll-behavior:smooth]">
@@ -1437,6 +1525,11 @@ export default function ZendityCareTabletPage() {
                             </span>
                         );
                     })()}
+                    {fastActions.length > 0 && (
+                        <span className="inline-flex items-center bg-[#D9534F] text-white text-[9px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 whitespace-nowrap">
+                            {fastActions.length} SLA
+                        </span>
+                    )}
                     {(() => {
                         const zoneStyles: Record<string, string> = {
                             RED: 'bg-[#fee2e2] text-[#991b1b]',
@@ -1473,16 +1566,74 @@ export default function ZendityCareTabletPage() {
                     <span className="hidden lg:inline">{isNightMode ? 'Normal' : 'Rondas'}</span>
                 </button>
 
-                {/* Notifications bell */}
+                {/* Chat interno staff */}
                 <button
-                    onClick={() => { setHubAction(null); setModalType('HUB'); }}
-                    className="relative w-9 h-9 flex items-center justify-center rounded-[10px] bg-white/10 hover:opacity-85 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97]"
+                    onClick={() => setStaffChatOpen(v => !v)}
+                    className="relative w-9 h-9 flex items-center justify-center rounded-[10px] bg-white/10 hover:bg-white/20 transition-colors"
+                    title="Chat interno"
                 >
-                    <Bell className="w-4 h-4" />
-                    {notifCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#D9534F] rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-[#1F2D3A]">{notifCount}</span>
+                    <MessageSquare className="w-4 h-4 text-white" />
+                    {staffChatUnread > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-[#3CC6C4] rounded-full text-[9px] font-bold text-[#1F2D3A] flex items-center justify-center leading-none">
+                            {staffChatUnread > 9 ? '9+' : staffChatUnread}
+                        </span>
                     )}
                 </button>
+
+                {/* Notificaciones reales */}
+                <div ref={notifRef} className="relative">
+                    <button
+                        onClick={() => setNotifsOpen(v => !v)}
+                        className="relative w-9 h-9 flex items-center justify-center rounded-[10px] bg-white/10 hover:bg-white/20 transition-colors"
+                        title="Notificaciones"
+                    >
+                        <Bell className="w-4 h-4 text-white" />
+                        {notifCount > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#D9534F] rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none border-2 border-[#1F2D3A]">
+                                {notifCount > 9 ? '9+' : notifCount}
+                            </span>
+                        )}
+                    </button>
+
+                    {notifsOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-80 bg-[#1F2D3A] border border-[#2a3b4d] rounded-[16px] shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="px-4 py-3 border-b border-[#2a3b4d] flex items-center justify-between">
+                                <h4 className="font-display text-sm font-semibold text-white">Notificaciones</h4>
+                                <div className="flex items-center gap-2">
+                                    {notifCount > 0 && (
+                                        <button onClick={markAllNotifsRead} className="text-[10px] font-semibold text-[#3CC6C4] hover:opacity-80 transition-opacity">
+                                            Marcar todas
+                                        </button>
+                                    )}
+                                    <button onClick={() => setNotifsOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+                                        <X className="w-3.5 h-3.5 text-[#94a3b8]" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="max-h-96 overflow-y-auto">
+                                {notifications.length === 0 ? (
+                                    <div className="px-4 py-10 text-center">
+                                        <Bell className="w-7 h-7 text-[#2a3b4d] mx-auto mb-2" />
+                                        <p className="text-[12px] text-[#94a3b8] font-medium">No hay notificaciones nuevas</p>
+                                    </div>
+                                ) : notifications.map(n => (
+                                    <button
+                                        key={n.id}
+                                        onClick={() => handleNotifOpen(n)}
+                                        className={`w-full text-left px-4 py-3 border-b border-[#2a3b4d] flex items-start gap-3 transition-colors ${!n.isRead ? 'bg-[#3CC6C4]/8 hover:bg-[#3CC6C4]/15' : 'hover:bg-white/5'}`}
+                                    >
+                                        <div className="mt-0.5">{renderNotifIcon(n.type)}</div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[12px] truncate ${!n.isRead ? 'font-semibold text-white' : 'font-medium text-[#cbd5e1]'}`}>{n.title}</p>
+                                            <p className="text-[11px] text-[#94a3b8] mt-0.5 line-clamp-2">{n.message}</p>
+                                        </div>
+                                        <span className="text-[10px] text-[#64748b] font-medium shrink-0 mt-0.5 whitespace-nowrap">{timeAgoShort(n.createdAt)}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Entregar Turno — outline blanco */}
                 <button
@@ -2793,6 +2944,13 @@ export default function ZendityCareTabletPage() {
                     </div>
                 </div>
             )}
+
+            {/* Chat interno staff — montado al final para overlay completo */}
+            <StaffChat
+                open={staffChatOpen}
+                onClose={() => setStaffChatOpen(false)}
+                onUnreadChange={setStaffChatUnread}
+            />
             </div>{/* end flex-1 main content */}
         </div>
     );
