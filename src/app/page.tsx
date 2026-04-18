@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useInterval } from "@/hooks/useInterval";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
@@ -85,126 +86,129 @@ export default function InsightsDashboard() {
   // Colores dinámicos para las líneas de HQ
   const colors = ["#0d9488", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
 
+  // ── Estado de polling / refresh indicator ──
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+  const [isTabVisible, setIsTabVisible] = useState<boolean>(true);
+
+  // Detectar si el tab está visible (para pausar polling en background)
   useEffect(() => {
-    async function fetchInsights() {
-      try {
-        const res = await fetch("/api/insights");
-        const data = await res.json();
-        if (data.success) {
-          setChartData(data.chartData);
-          setLeaderboard(data.leaderboard);
-          setHeadquarters(data.headquarters);
-          setOccupancyData(data.occupancyData || []);
-          setClinicalRisk(data.clinicalRisk || []);
-          setGlobalAvg(typeof data.globalAvg === 'number' ? data.globalAvg : 0);
-        }
-      } catch (err) {
-        console.error("Error loading insights:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchInsights();
+    if (typeof document === "undefined") return;
+    const update = () => setIsTabVisible(document.visibilityState === "visible");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
   }, []);
 
-  // ── Widgets adicionales: turno, alertas clínicas, residentes, digest ──
-  useEffect(() => {
+  // ── Loaders extraídos (reutilizables por polling) ──
+  const loadDashboard = async (showSpinner: boolean) => {
+    if (showSpinner) setLoading(true);
+    try {
+      const res = await fetch("/api/insights");
+      const data = await res.json();
+      if (data.success) {
+        setChartData(data.chartData);
+        setLeaderboard(data.leaderboard);
+        setHeadquarters(data.headquarters);
+        setOccupancyData(data.occupancyData || []);
+        setClinicalRisk(data.clinicalRisk || []);
+        setGlobalAvg(typeof data.globalAvg === 'number' ? data.globalAvg : 0);
+        setLastRefresh(new Date());
+      }
+    } catch (err) {
+      console.error("Error loading insights:", err);
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
+  };
+
+  const loadWidgets = async () => {
     if (!user || user.role === 'FAMILY') return;
     const hqId = user?.hqId || user?.headquartersId;
     if (!hqId) return;
 
-    const fetchWidgetData = async () => {
-      try {
-        const [liveRes, alertsRes, careRes, digestRes] = await Promise.all([
-          fetch(`/api/care/supervisor/live?hqId=${hqId}`).catch(() => null),
-          fetch(`/api/insights/clinical-alerts`).catch(() => null),
-          fetch(`/api/care?color=ALL&hqId=${hqId}`).catch(() => null),
-          fetch(`/api/insights/digest`).catch(() => null),
-        ]);
+    try {
+      const [liveRes, alertsRes, careRes, digestRes] = await Promise.all([
+        fetch(`/api/care/supervisor/live?hqId=${hqId}`).catch(() => null),
+        fetch(`/api/insights/clinical-alerts`).catch(() => null),
+        fetch(`/api/care?color=ALL&hqId=${hqId}`).catch(() => null),
+        fetch(`/api/insights/digest`).catch(() => null),
+      ]);
 
-        // Widget A — Actividad del Turno
-        if (liveRes && liveRes.ok) {
-          const live = await liveRes.json();
-          if (live.success) {
-            const meals = live.liveStats?.meals || {};
-            const totalMeals = Object.values(meals as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
-            setLiveStats({
-              activeCaregivers: live.activeCaregivers || 0,
-              baths: live.liveStats?.baths || 0,
-              mealsServed: totalMeals,
-              pendingMeds: 0, // se completa desde careRes más abajo
-            });
-          }
+      // Widget A — Actividad del Turno
+      if (liveRes && liveRes.ok) {
+        const live = await liveRes.json();
+        if (live.success) {
+          const meals = live.liveStats?.meals || {};
+          const totalMeals = Object.values(meals as Record<string, number>).reduce((a: number, b: number) => a + b, 0);
+          setLiveStats({
+            activeCaregivers: live.activeCaregivers || 0,
+            baths: live.liveStats?.baths || 0,
+            mealsServed: totalMeals,
+            pendingMeds: 0, // se completa desde careRes más abajo
+          });
         }
-
-        // Widget B — Alertas Clínicas
-        if (alertsRes && alertsRes.ok) {
-          const alerts = await alertsRes.json();
-          if (alerts.success) {
-            setClinicalAlerts({
-              falls: { count: alerts.falls?.count || 0 },
-              upps: { count: alerts.upps?.count || 0, items: alerts.upps?.items || [] },
-              omittedMeds: { count: alerts.omittedMeds?.count || 0 },
-              criticalVitals: { count: alerts.criticalVitals?.count || 0 },
-            });
-            // Hotspots de caídas para integrar en heatmap clínico
-            const fallItems = (alerts.falls?.items || []).slice(0, 10).map((f: any) => ({
-              id: f.id,
-              patientId: f.patientId,
-              name: f.patientName,
-              room: f.room,
-            }));
-            setFallHotspots(fallItems);
-          }
-        }
-
-        // Widget C — Estado de Residentes + meds pendientes
-        if (careRes && careRes.ok) {
-          const care = await careRes.json();
-          if (care.success) {
-            const patients: any[] = care.patients || [];
-            const active = patients.filter(p => p.status === 'ACTIVE').length;
-            const hospital = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
-            const leave = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType !== 'HOSPITAL').length;
-            const downtonRisk = patients.filter(p => p.downtonRisk).length;
-            setResidentStats({ active, hospital, leave, downtonRisk });
-
-            // Contar meds PENDING del turno (medications[].administrations[].status === PENDING del día)
-            // Aproximación: # medications activas x residentes ACTIVE (tendencia de carga)
-            let pending = 0;
-            patients.forEach(p => {
-              if (p.status === 'ACTIVE' && Array.isArray(p.medications)) {
-                pending += p.medications.length;
-              }
-            });
-            setLiveStats(prev => ({ ...prev, pendingMeds: pending }));
-          }
-        }
-
-        // Widget D — Zendi Digest
-        if (digestRes && digestRes.ok) {
-          const dig = await digestRes.json();
-          if (dig.success && dig.digest) {
-            setDigest(dig.digest);
-          }
-        }
-      } catch (err) {
-        console.error('Error loading widget data:', err);
       }
-    };
 
-    fetchWidgetData();
-  }, [user]);
+      // Widget B — Alertas Clínicas
+      if (alertsRes && alertsRes.ok) {
+        const alerts = await alertsRes.json();
+        if (alerts.success) {
+          setClinicalAlerts({
+            falls: { count: alerts.falls?.count || 0 },
+            upps: { count: alerts.upps?.count || 0, items: alerts.upps?.items || [] },
+            omittedMeds: { count: alerts.omittedMeds?.count || 0 },
+            criticalVitals: { count: alerts.criticalVitals?.count || 0 },
+          });
+          // Hotspots de caídas para integrar en heatmap clínico
+          const fallItems = (alerts.falls?.items || []).slice(0, 10).map((f: any) => ({
+            id: f.id,
+            patientId: f.patientId,
+            name: f.patientName,
+            room: f.room,
+          }));
+          setFallHotspots(fallItems);
+        }
+      }
 
-  // --- Family Link Polling (solo Staff, no Family) ---
-  useEffect(() => {
-    if (!user || user.role === "FAMILY") return;
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
+      // Widget C — Estado de Residentes + meds pendientes
+      if (careRes && careRes.ok) {
+        const care = await careRes.json();
+        if (care.success) {
+          const patients: any[] = care.patients || [];
+          const active = patients.filter(p => p.status === 'ACTIVE').length;
+          const hospital = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
+          const leave = patients.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType !== 'HOSPITAL').length;
+          const downtonRisk = patients.filter(p => p.downtonRisk).length;
+          setResidentStats({ active, hospital, leave, downtonRisk });
+
+          // Contar meds PENDING del turno (medications[].administrations[].status === PENDING del día)
+          // Aproximación: # medications activas x residentes ACTIVE (tendencia de carga)
+          let pending = 0;
+          patients.forEach(p => {
+            if (p.status === 'ACTIVE' && Array.isArray(p.medications)) {
+              pending += p.medications.length;
+            }
+          });
+          setLiveStats(prev => ({ ...prev, pendingMeds: pending }));
+        }
+      }
+
+      // Widget D — Zendi Digest
+      if (digestRes && digestRes.ok) {
+        const dig = await digestRes.json();
+        if (dig.success && dig.digest) {
+          setDigest(dig.digest);
+        }
+      }
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error('Error loading widget data:', err);
+    }
+  };
 
   const fetchMessages = async () => {
+    if (!user || user.role === "FAMILY") return;
     try {
       const res = await fetch("/api/care/messages");
       const data = await res.json();
@@ -219,6 +223,51 @@ export default function InsightsDashboard() {
       console.error("Error fetching inbox threads", e);
     }
   };
+
+  // ── Carga inicial (una sola vez con spinner) ──
+  useEffect(() => {
+    loadDashboard(true);
+  }, []);
+
+  // ── Carga inicial widgets + inbox cuando user esté disponible ──
+  useEffect(() => {
+    if (!user || user.role === 'FAMILY') return;
+    loadWidgets();
+    fetchMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // ── Polling 30s: pausa automáticamente si el tab está oculto (delay=null) ──
+  const POLL_MS = 30000;
+  const pollDelay = isTabVisible ? POLL_MS : null;
+
+  useInterval(() => { loadDashboard(false); }, pollDelay);
+  useInterval(() => { loadWidgets(); }, pollDelay);
+  useInterval(() => { fetchMessages(); }, pollDelay);
+
+  // Tick de 1s para actualizar el texto "Actualizado hace Xs" (pausa si oculto)
+  useInterval(() => setNow(Date.now()), isTabVisible ? 1000 : null);
+
+  // Refrescar inmediatamente al volver a foco (si ya hubo una carga previa)
+  useEffect(() => {
+    if (isTabVisible && lastRefresh) {
+      loadDashboard(false);
+      loadWidgets();
+      fetchMessages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTabVisible]);
+
+  // Texto relativo del último refresh
+  const refreshLabel = (() => {
+    if (!lastRefresh) return "Actualizando…";
+    const secs = Math.max(0, Math.floor((now - lastRefresh.getTime()) / 1000));
+    if (!isTabVisible) return "Polling en pausa (tab oculto)";
+    if (secs < 5) return "Actualizado ahora";
+    if (secs < 60) return `Actualizado hace ${secs}s`;
+    const mins = Math.floor(secs / 60);
+    return `Actualizado hace ${mins}m`;
+  })();
 
   const sendReply = async (patientId: string) => {
     if (!replyContent.trim()) return;
@@ -287,9 +336,20 @@ export default function InsightsDashboard() {
         <div>
           <h2 className="text-3xl font-black bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent flex items-center gap-3 tracking-tight">
             Zendity <span className="text-teal-500">Insights</span>
+            {/* Dot animado: verde + ping continuo cuando tab visible, gris cuando oculto */}
+            <span className="relative inline-flex w-2.5 h-2.5" aria-hidden="true">
+              {isTabVisible && (
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isTabVisible ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            </span>
           </h2>
-          <p className="text-slate-500 mt-2 font-medium text-sm">
+          <p className="text-slate-500 mt-2 font-medium text-sm flex items-center gap-2">
             Dashboard Maestro de Cumplimiento Multitenant
+            <span className="text-slate-400">·</span>
+            <span className={`text-xs font-semibold ${isTabVisible ? 'text-emerald-600' : 'text-slate-400'}`}>
+              {refreshLabel}
+            </span>
           </p>
         </div>
         <div className="flex space-x-3">

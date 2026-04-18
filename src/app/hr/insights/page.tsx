@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ShieldAlert, AlertTriangle, AlertOctagon, BrainCircuit, FileText, CheckCircle2 } from 'lucide-react';
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+
 interface RedFlag {
     id: string;
     type: 'CRITICAL' | 'HIGH' | 'MEDIUM';
@@ -19,7 +21,7 @@ interface RedFlag {
 }
 
 export default function ZendiInsightsPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const [insights, setInsights] = useState<RedFlag[]>([]);
@@ -33,8 +35,18 @@ export default function ZendiInsightsPage() {
     // Disciplinary Reports
     const [incidents, setIncidents] = useState<any[]>([]);
 
+    // ── Guard de rol: redirigir si no es DIRECTOR/ADMIN/SUPERVISOR ──
     useEffect(() => {
-        if (!user) return;
+        if (authLoading) return;
+        if (!user) return; // AuthContext maneja el redirect a /login
+        if (!ALLOWED_ROLES.includes(user.role as string)) {
+            router.replace('/');
+        }
+    }, [user, authLoading, router]);
+
+    useEffect(() => {
+        if (authLoading || !user) return;
+        if (!ALLOWED_ROLES.includes(user.role as string)) return;
         async function fetchInsights() {
             try {
                 const hqId = user?.hqId || user?.headquartersId || '';
@@ -69,14 +81,17 @@ export default function ZendiInsightsPage() {
             }
         }
         fetchInsights();
-    }, [user]);
+    }, [user, authLoading]);
 
     const handleActionClick = (employeeId: string) => {
         setSelectedEmployeeId(employeeId);
         setIsModalOpen(true);
     };
 
-    if (loading) {
+    // Spinner mientras se verifica sesión, se carga, o el rol no es válido
+    // (evita flash de contenido antes del router.replace)
+    const isAuthorized = !!user && ALLOWED_ROLES.includes(user.role as string);
+    if (authLoading || !user || !isAuthorized || loading) {
         return (
             <div className="flex flex-col items-center justify-center p-20 animate-pulse">
                 <BrainCircuit className="w-16 h-16 text-indigo-400 mb-4 animate-spin-slow" />
