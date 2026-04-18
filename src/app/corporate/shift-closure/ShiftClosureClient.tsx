@@ -81,7 +81,10 @@ export default function ShiftClosureClient({
         setIsSubmitting(false);
         if (res.success) {
             setSuccess('¡El turno ha sido cerrado y firmado con éxito! Auditoría generada.');
-            clearCanvas();
+            // NO limpiamos el canvas post-cierre: la firma permanece visible como
+            // recibo visual del cierre. El botón queda deshabilitado y cambia de
+            // texto a "✓ Turno cerrado" para que no haya ambigüedad sobre si el
+            // cierre ocurrió.
         } else {
             setError(res.message || res.error || 'Ocurrió un error en el servidor.');
         }
@@ -151,37 +154,50 @@ export default function ShiftClosureClient({
 
             <div className="mb-8">
                 <h3 className="font-semibold text-gray-700 mb-2">Firma del Supervisor Saliente</h3>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 touch-none w-full max-w-sm">
+                <div className={`border-2 border-dashed rounded-lg overflow-hidden touch-none w-full max-w-sm transition-all ${success !== '' ? 'border-green-400 bg-green-50/40' : 'border-gray-300 bg-gray-50'}`}>
                     <canvas 
                         ref={canvasRef} 
                         width={380} 
                         height={120} 
-                        onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseOut={stopDrawing}
-                        onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
-                        className="cursor-crosshair w-full"
+                        onMouseDown={success === '' ? startDrawing : undefined}
+                        onMouseMove={success === '' ? draw : undefined}
+                        onMouseUp={success === '' ? stopDrawing : undefined}
+                        onMouseOut={success === '' ? stopDrawing : undefined}
+                        onTouchStart={success === '' ? startDrawing : undefined}
+                        onTouchMove={success === '' ? draw : undefined}
+                        onTouchEnd={success === '' ? stopDrawing : undefined}
+                        className={`w-full ${success !== '' ? 'cursor-default pointer-events-none' : 'cursor-crosshair'}`}
                     />
                 </div>
-                <button onClick={clearCanvas} className="text-xs font-medium text-slate-500 mt-2 hover:text-slate-800 transition">⟳ Limpiar pad de firmas</button>
+                {success === '' ? (
+                    <button onClick={clearCanvas} className="text-xs font-medium text-slate-500 mt-2 hover:text-slate-800 transition">⟳ Limpiar pad de firmas</button>
+                ) : (
+                    <p className="text-xs font-medium text-green-700 mt-2">Firma registrada en el log de auditoría — no editable.</p>
+                )}
             </div>
 
             <button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting || isBlocked || success !== ''}
                 className={`w-full font-bold py-3 px-4 rounded-lg shadow-md transition-all ${
-                    isBlocked 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : isOverridden 
-                        ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                        : 'bg-slate-800 hover:bg-slate-700 text-white'
+                    success !== ''
+                    ? 'bg-green-600 text-white cursor-default'
+                    : isBlocked 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : isOverridden 
+                            ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                            : 'bg-slate-800 hover:bg-slate-700 text-white'
                 }`}
             >
                 {isSubmitting 
                     ? 'Auditando y Cerrando Planta...' 
-                    : isBlocked 
-                        ? 'Cierre Bloqueado (Requiere Override)' 
-                        : isOverridden 
-                            ? '⚠ Forzar Cierre con Novedades' 
-                            : 'Firmar y Cerrar Planta Oficialmente'
+                    : success !== ''
+                        ? '✓ Turno Cerrado — Auditoría Registrada'
+                        : isBlocked 
+                            ? 'Cierre Bloqueado (Requiere Override)' 
+                            : isOverridden 
+                                ? '⚠ Forzar Cierre con Novedades' 
+                                : 'Firmar y Cerrar Planta Oficialmente'
                 }
             </button>
         </div>
