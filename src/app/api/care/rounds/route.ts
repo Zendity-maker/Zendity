@@ -1,14 +1,41 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const data = await req.json();
-        const { patientId, authorId, hqId, type, position } = data; // type: 'SECO' | 'HUMEDO' | 'EVACUACION' | 'ROTACION'
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerId = (session.user as any).id;
+        const invokerRole = (session.user as any).role;
+        const hqId = (session.user as any).headquartersId;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-        if (!patientId || !authorId || !type) {
+        const data = await req.json();
+        const { patientId, type, position } = data; // type: 'SECO' | 'HUMEDO' | 'EVACUACION' | 'ROTACION'
+
+        if (!patientId || !type) {
             return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
         }
+
+        // Tenant check
+        const patient = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId: hqId },
+            select: { id: true }
+        });
+        if (!patient) {
+            return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
+        }
+
+        // authorId SIEMPRE del session — no se confía en body
+        const authorId = invokerId;
 
         if (type === 'ROTACION') {
             await prisma.posturalChangeLog.create({
