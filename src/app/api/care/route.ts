@@ -64,6 +64,12 @@ export async function GET(req: Request) {
                 posturalChanges: {
                     orderBy: { performedAt: 'desc' },
                     take: 1
+                },
+                vitalsOrders: {
+                    where: { status: 'PENDING' },
+                    orderBy: { orderedAt: 'desc' },
+                    take: 1,
+                    select: { id: true, expiresAt: true, reason: true, orderedAt: true }
                 }
             },
             orderBy: { name: 'asc' }

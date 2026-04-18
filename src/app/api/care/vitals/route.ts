@@ -122,6 +122,35 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: false, error: "Datos vitales incompletos: sistólica, diastólica, pulso y temperatura son obligatorios" }, { status: 400 });
             }
 
+            // Ventana de orden a petición: si hay una VitalsOrder PENDING para este residente
+            // y su expiresAt ya pasó, exigimos lateReason (>=20 chars) y aplicamos -2 al complianceScore.
+            const pendingOrder = await prisma.vitalsOrder.findFirst({
+                where: { patientId, status: 'PENDING' },
+                orderBy: { orderedAt: 'desc' },
+                select: { id: true, expiresAt: true }
+            });
+
+            let orderStatusUpdate: 'COMPLETED_ON_TIME' | 'COMPLETED_LATE' | null = null;
+            let applyLatePenalty = false;
+            const lateReasonRaw = typeof data.lateReason === 'string' ? data.lateReason.trim() : '';
+
+            if (pendingOrder) {
+                const isLate = new Date() > pendingOrder.expiresAt;
+                if (isLate) {
+                    if (lateReasonRaw.length < 20) {
+                        return NextResponse.json({
+                            success: false,
+                            requireLateReason: true,
+                            error: "La orden venció. Justifica el retraso (mínimo 20 caracteres)."
+                        }, { status: 400 });
+                    }
+                    orderStatusUpdate = 'COMPLETED_LATE';
+                    applyLatePenalty = true;
+                } else {
+                    orderStatusUpdate = 'COMPLETED_ON_TIME';
+                }
+            }
+
             const sys = parseInt(data.sys);
             const dia = parseInt(data.dia);
             const temp = parseFloat(data.temp);
@@ -156,6 +185,24 @@ export async function POST(req: Request) {
                     spo2,
                 }
             });
+
+            // Cerrar orden pendiente (on-time o late) y aplicar penalidad si aplica
+            if (pendingOrder && orderStatusUpdate) {
+                await prisma.vitalsOrder.update({
+                    where: { id: pendingOrder.id },
+                    data: {
+                        status: orderStatusUpdate,
+                        completedAt: new Date(),
+                        lateReason: applyLatePenalty ? lateReasonRaw : null,
+                    }
+                });
+                if (applyLatePenalty) {
+                    await prisma.user.update({
+                        where: { id: invokerId },
+                        data: { complianceScore: { decrement: 2 } }
+                    });
+                }
+            }
 
             if (isCritical) {
                 // Auto-queue 45-min observation SLA

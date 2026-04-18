@@ -119,6 +119,9 @@ export default function ZendityCareTabletPage() {
     const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
     // Campos con error al intentar guardar vitales sin completar (sys/dia/hr/temp obligatorios)
     const [vitalsErrors, setVitalsErrors] = useState<{ sys: boolean; dia: boolean; hr: boolean; temp: boolean }>({ sys: false, dia: false, hr: false, temp: false });
+    // Orden de vitales vencida → modal de justificación tardía (20 chars mín, -2 cumplimiento)
+    const [lateReasonOpen, setLateReasonOpen] = useState(false);
+    const [lateReasonDraft, setLateReasonDraft] = useState("");
     const [fastActions, setFastActions] = useState<any[]>([]);
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
 
@@ -642,7 +645,7 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const submitVitals = async () => {
+    const submitVitals = async (lateReason?: string) => {
         // Validación sincronizada con backend: sys, dia, hr, temp son obligatorios
         const missing = {
             sys: !vitals.sys,
@@ -662,7 +665,7 @@ export default function ZendityCareTabletPage() {
             const payload = {
                 patientId: activePatient.id,
                 type: 'VITALS',
-                data: vitals
+                data: lateReason ? { ...vitals, lateReason } : vitals
             };
             const res = await fetch("/api/care/vitals", {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -672,6 +675,8 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
             if (data.success) {
                 setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+                setLateReasonOpen(false);
+                setLateReasonDraft("");
                 refreshPatientsSilently(selectedColor!);
 
                 if (data.criticalAlert) {
@@ -681,6 +686,9 @@ export default function ZendityCareTabletPage() {
                 } else {
                     setModalType(null);
                 }
+            } else if (data.requireLateReason) {
+                // Orden vencida → pedir justificación tardía (20 chars mín, -2 cumplimiento)
+                setLateReasonOpen(true);
             } else {
                 alert("Error interno: " + data.error);
             }
@@ -1711,6 +1719,27 @@ export default function ZendityCareTabletPage() {
                                         </div>
                                     </div>
 
+                                    {/* ===== VITALS ORDER BADGE ===== */}
+                                    {p.vitalsOrders?.length > 0 && (() => {
+                                        const order = p.vitalsOrders[0];
+                                        const expiresAt = new Date(order.expiresAt);
+                                        const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
+                                        const expired = minsLeft <= 0;
+                                        const urgent = !expired && minsLeft < 20;
+                                        return (
+                                            <div className={`px-4 py-2 flex items-center gap-2 border-b ${
+                                                expired ? 'bg-[#fef2f2] border-[#fecaca]' : urgent ? 'bg-[#fffbeb] border-[#fde68a]' : 'bg-[#ecfeff] border-[#a5f3fc]'
+                                            }`}>
+                                                <span className="text-sm">{expired ? '⏰' : urgent ? '⏳' : '🩺'}</span>
+                                                <p className={`text-[11px] font-semibold leading-tight flex-1 ${
+                                                    expired ? 'text-[#991b1b]' : urgent ? 'text-[#92400e]' : 'text-[#155e75]'
+                                                }`}>
+                                                    Orden de vitales pendiente · {expired ? `vencida hace ${Math.abs(minsLeft)} min` : `vence en ${minsLeft} min`}
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
+
                                     {/* ===== STATUS STRIP (4 cols) ===== */}
                                     {(() => {
                                         const medsForShift = getMedsForCurrentShift(p.medications || []);
@@ -2029,7 +2058,7 @@ export default function ZendityCareTabletPage() {
                                     <input type="number" placeholder="Glucosa mg/dL" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                 </div>
                                 {aiSuggestion && (<div className="p-5 bg-teal-50 border-2 border-teal-200 rounded-2xl text-teal-800 text-base font-bold shadow-inner flex items-center gap-3"><span className="text-2xl">🧠</span> {aiSuggestion}</div>)}
-                                <button onClick={submitVitals} disabled={submitting} className={`w-full py-6 text-white font-black rounded-2xl mt-4 transition-all shadow-xl flex items-center justify-center gap-3 min-h-[72px] text-xl ${submitting ? 'bg-teal-800 opacity-80 cursor-wait' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'}`}>
+                                <button onClick={() => submitVitals()} disabled={submitting} className={`w-full py-6 text-white font-black rounded-2xl mt-4 transition-all shadow-xl flex items-center justify-center gap-3 min-h-[72px] text-xl ${submitting ? 'bg-teal-800 opacity-80 cursor-wait' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'}`}>
                                     {submitting ? 'Analizando Vitales con Zendi...' : 'Guardar y Analizar Vitales'}
                                 </button>
                             </div>
@@ -2649,6 +2678,55 @@ export default function ZendityCareTabletPage() {
                     fallIncidentId={printingFallId}
                     onClose={() => setPrintingFallId(null)}
                 />
+            )}
+
+            {/* Modal de justificación tardía — orden de vitales vencida */}
+            {lateReasonOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-6">
+                    <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-amber-200 animate-in slide-in-from-bottom-4 duration-300">
+                        <div className="flex items-start gap-4 mb-5">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⏰</div>
+                            <div>
+                                <h3 className="font-black text-slate-800 text-lg leading-tight">Orden de vitales vencida</h3>
+                                <p className="text-slate-500 text-sm font-medium mt-1">Registrar fuera del plazo de 2h aplica <span className="font-black text-amber-700">-2 pts</span> a tu score de cumplimiento. Documenta por qué:</p>
+                            </div>
+                        </div>
+                        <textarea
+                            value={lateReasonDraft}
+                            onChange={e => setLateReasonDraft(e.target.value)}
+                            placeholder="Ej: Atendí crisis respiratoria de otro residente simultáneamente…"
+                            className="w-full bg-slate-50 border-2 border-slate-200 focus:border-amber-400 focus:ring-4 focus:ring-amber-100 outline-none rounded-2xl p-4 text-sm font-medium text-slate-700 min-h-[120px] resize-none transition-all"
+                            maxLength={500}
+                        />
+                        <div className="flex justify-between items-center mt-2 mb-5 text-xs font-bold">
+                            <span className={lateReasonDraft.trim().length < 20 ? 'text-rose-500' : 'text-emerald-600'}>
+                                {lateReasonDraft.trim().length < 20
+                                    ? `Mínimo 20 caracteres (${lateReasonDraft.trim().length}/20)`
+                                    : `✓ Justificación válida (${lateReasonDraft.trim().length} chars)`}
+                            </span>
+                            <span className="text-slate-400">{lateReasonDraft.length}/500</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setLateReasonOpen(false); setLateReasonDraft(""); }}
+                                className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-2xl transition-all active:scale-95"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => submitVitals(lateReasonDraft.trim())}
+                                disabled={lateReasonDraft.trim().length < 20 || submitting}
+                                className={`flex-1 py-4 font-black rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 ${
+                                    lateReasonDraft.trim().length < 20 || submitting
+                                        ? 'bg-amber-200 text-amber-400 cursor-not-allowed'
+                                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/30 active:scale-95'
+                                }`}
+                            >
+                                {submitting ? 'Registrando…' : 'Registrar con justificación'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
             </div>{/* end flex-1 main content */}
         </div>
