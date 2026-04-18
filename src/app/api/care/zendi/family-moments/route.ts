@@ -50,21 +50,42 @@ export async function GET(req: Request) {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        // Find a random patient associated with this HQ
-        const patients = await prisma.patient.findMany({
+        // Elegir el residente con el "family moment" más antiguo (o sin ninguno).
+        // Determinístico y justo: rota entre todos los residentes activos de la
+        // sede sin repetir hasta cubrir a todos. Reemplaza el picker aleatorio
+        // que podía notificar al mismo paciente varias veces y omitir a otros.
+        const candidates = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
                 status: 'ACTIVE'
             },
-            take: 10 // Grab an arbitrary batch
+            include: {
+                zendiFamilyMoments: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { createdAt: true }
+                }
+            }
         });
 
-        if (patients.length === 0) {
+        if (candidates.length === 0) {
             return NextResponse.json({ success: true, moments: [] });
         }
 
-        // Pick a random patient to generate an update for
-        const randomPatient = patients[Math.floor(Math.random() * patients.length)];
+        // Ordenar: primero los que nunca han tenido un momento (null);
+        // luego por createdAt ascendente (el más antiguo primero).
+        // Desempate por id para determinismo total.
+        const sorted = [...candidates].sort((a, b) => {
+            const aLast = a.zendiFamilyMoments[0]?.createdAt ?? null;
+            const bLast = b.zendiFamilyMoments[0]?.createdAt ?? null;
+            if (!aLast && !bLast) return a.id.localeCompare(b.id);
+            if (!aLast) return -1;
+            if (!bLast) return 1;
+            const diff = aLast.getTime() - bLast.getTime();
+            return diff !== 0 ? diff : a.id.localeCompare(b.id);
+        });
+
+        const randomPatient = sorted[0];
 
         // Retrieve some context (e.g. recent logs, vitals) to make the AI message contextual
         const recentLogs = await prisma.dailyLog.findMany({

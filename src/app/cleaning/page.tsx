@@ -184,7 +184,7 @@ export default function CleaningDashboardPage() {
 
     // Open confirm modal
     const openConfirm = (area: CleaningArea) => {
-        const needsPhoto = area.requiresPhoto || Math.random() < 0.3;
+        const needsPhoto = area.requiresPhoto;
         setConfirmArea(area);
         setPhotoRequired(needsPhoto);
         setCapturedPhoto(null);

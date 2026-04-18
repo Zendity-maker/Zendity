@@ -4,6 +4,7 @@ import {  ShiftType } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,14 +28,16 @@ export default async function ShiftClosurePage() {
         }
     });
 
-    // Check if nursing handover was submitted for current shift date
-    const todayMorning = new Date();
-    todayMorning.setHours(0,0,0,0);
-    
+    // Check if nursing handover was submitted for current shift date.
+    // todayStartAST() = ventana rodante de 24h, timezone-safe para AST (PR).
+    // Evita el bug de setHours(0,0,0,0) que ancla a medianoche UTC y en la
+    // tarde-noche de PR salta al "día siguiente" excluyendo el handover real.
+    const todayMorning = todayStartAST();
+
     const handover = await prisma.nursingHandover.findFirst({
         where: {
             headquartersId: hqId,
-            shiftDate: { gte: todayMorning }, // Para simplificar asume el día actual
+            shiftDate: { gte: todayMorning },
             status: { in: ['SUBMITTED', 'ACCEPTED'] }
         }
     });

@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 
 
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
-        // En un escenario real, extraeríamos el familyMemberId de la sesión (ej. JWT).
-        // Usaremos un "hardcode" para demostracion tomando el primer residente.
-        const firstPatient = await prisma.patient.findFirst({
+        // Auth: solo usuarios FAMILY pueden consumir este endpoint.
+        const session = await getServerSession(authOptions);
+        if (!session?.user || (session.user as any).role !== 'FAMILY') {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+
+        // En auth.ts el callback de sesión setea session.user.id = family.patientId
+        // para usuarios FAMILY, así que ya tenemos el patientId ligado a la sesión.
+        const patientId = (session.user as any).id as string;
+        const sessionHqId = (session.user as any).headquartersId as string;
+
+        const patient = await prisma.patient.findUnique({
+            where: { id: patientId },
             include: {
                 wellnessNotes: {
                     include: { author: true },
@@ -17,11 +29,16 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        if (!firstPatient) {
+        if (!patient) {
             return NextResponse.json({ patient: null, diary: [] });
         }
 
-        const diaryEntries = firstPatient.wellnessNotes.map(n => ({
+        // Tenant check: el paciente debe pertenecer a la sede de la sesión.
+        if (patient.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
+        }
+
+        const diaryEntries = patient.wellnessNotes.map(n => ({
             id: n.id,
             date: new Date(n.createdAt).toLocaleString('es-PR', { dateStyle: 'medium', timeStyle: 'short' }),
             author: n.author.name,
@@ -32,15 +49,15 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             patient: {
-                id: firstPatient.id,
-                name: firstPatient.name,
-                room: firstPatient.roomNumber || "Pabellón Principal",
-                diet: firstPatient.diet || "Regular",
-                avatar: firstPatient.name.substring(0, 2).toUpperCase(),
+                id: patient.id,
+                name: patient.name,
+                room: patient.roomNumber || "Pabellón Principal",
+                diet: patient.diet || "Regular",
+                avatar: patient.name.substring(0, 2).toUpperCase(),
                 lastVitals: "Actualizado recientemente"
             },
             diary: diaryEntries,
-            headquartersId: firstPatient.headquartersId
+            headquartersId: patient.headquartersId
         });
 
     } catch (error) {
@@ -51,29 +68,40 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const data = await request.json();
-        const { patientId, hqId, ratingCare, ratingClean, ratingHealth } = data;
+        // Auth: solo FAMILY puede enviar encuestas desde el portal familiar.
+        const session = await getServerSession(authOptions);
+        if (!session?.user || (session.user as any).role !== 'FAMILY') {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
 
-        // Crear un familiar dummy temporalmente si no existe para la simulación
-        let familyMember = await prisma.familyMember.findFirst({
-            where: { patientId }
+        const sessionPatientId = (session.user as any).id as string;
+        const sessionHqId = (session.user as any).headquartersId as string;
+
+        const data = await request.json();
+        const { patientId, ratingCare, ratingClean, ratingHealth } = data;
+
+        // El familiar solo puede evaluar a su propio paciente.
+        if (!patientId || patientId !== sessionPatientId) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
+        }
+
+        // Resolver el FamilyMember real desde la sesión (sin crear dummies).
+        const familyMember = await prisma.familyMember.findFirst({
+            where: { email: (session.user as any).email, patientId: sessionPatientId }
         });
 
         if (!familyMember) {
-            familyMember = await prisma.familyMember.create({
-                data: {
-                    name: "Familiar de Prueba",
-                    email: `test_${Date.now()}@familytest.com`,
-                    accessLevel: "Full",
-                    headquartersId: hqId,
-                    patientId: patientId
-                }
-            });
+            return NextResponse.json({ success: false, error: "Familiar no encontrado" }, { status: 404 });
+        }
+
+        // Tenant check defensivo.
+        if (familyMember.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
         }
 
         const newSurvey = await prisma.familySurvey.create({
             data: {
-                headquartersId: hqId,
+                headquartersId: familyMember.headquartersId,
                 familyMemberId: familyMember.id,
                 ratingCare,
                 ratingClean,

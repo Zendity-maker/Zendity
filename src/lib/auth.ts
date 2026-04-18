@@ -97,5 +97,5 @@ export const authOptions: NextAuthOptions = {
         strategy: "jwt",
         maxAge: 8 * 60 * 60,
     },
-    secret: process.env.NEXTAUTH_SECRET || "ZenditySecretKey123!Secure!2026",
+    secret: process.env.NEXTAUTH_SECRET!,
 };

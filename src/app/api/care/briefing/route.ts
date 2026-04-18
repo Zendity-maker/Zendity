@@ -16,11 +16,11 @@ export async function POST(req: Request) {
             },
             include: {
                 vitalSigns: {
-                    where: { createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } },
+                    where: { createdAt: { gte: todayStartAST() } },
                     orderBy: { createdAt: 'desc' }
                 },
                 dailyLogs: {
-                    where: { createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) } },
+                    where: { createdAt: { gte: todayStartAST() } },
                     orderBy: { createdAt: 'desc' }
                 },
                 healthAppointments: {

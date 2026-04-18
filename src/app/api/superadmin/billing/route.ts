@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 
@@ -40,8 +41,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'Faltan datos requeridos (headquartersId, dueDate, items)' }, { status: 400 });
         }
 
-        // Generate a unique invoice number: ZENDITY-SAAS-{YYYYMM}-{UUID}
-        const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
+        // Generate a unique invoice number: ZEN-{YYMM}-{UUID8}
+        // Usamos crypto.randomUUID() en vez de Math.random() para evitar
+        // enumeración (4 chars base36 ≈ 1.6M combinaciones → vulnerable).
+        const shortId = randomUUID().split('-')[0].toUpperCase();
         const mm = String(new Date().getMonth() + 1).padStart(2, '0');
         const yy = String(new Date().getFullYear()).slice(-2);
         const invoiceNumber = `ZEN-${yy}${mm}-${shortId}`;

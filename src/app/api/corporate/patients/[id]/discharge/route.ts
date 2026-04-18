@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 
 
@@ -8,11 +10,37 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // Auth: solo DIRECTOR/ADMIN pueden dar de alta, baja temporal o declarar
+        // fallecido a un residente. SUPERVISOR puede registrar regreso operativo.
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+
+        const invokerRole = (session.user as any).role as string;
+        const sessionHqId = (session.user as any).headquartersId as string;
+
         const { action, leaveType, date, reason } = await req.json();
         const { id: patientId } = await params;
 
         if (!patientId || !action) {
             return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+        }
+
+        // Role check: DISCHARGED y DECEASED solo DIRECTOR/ADMIN.
+        // TEMPORARY_LEAVE / RETURN también SUPERVISOR.
+        const highRiskActions = ['DISCHARGED', 'DECEASED'];
+        const allowedForHighRisk = ['DIRECTOR', 'ADMIN'];
+        const allowedForLeave = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+
+        if (highRiskActions.includes(action)) {
+            if (!allowedForHighRisk.includes(invokerRole)) {
+                return NextResponse.json({ success: false, error: "Solo DIRECTOR o ADMIN pueden dar de alta o declarar fallecido a un residente" }, { status: 403 });
+            }
+        } else {
+            if (!allowedForLeave.includes(invokerRole)) {
+                return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
+            }
         }
 
         const patient = await prisma.patient.findUnique({
@@ -21,6 +49,11 @@ export async function POST(
 
         if (!patient) {
             return NextResponse.json({ success: false, error: "Patient not found" }, { status: 404 });
+        }
+
+        // Tenant check: el residente debe pertenecer a la sede de la sesión.
+        if (patient.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede" }, { status: 404 });
         }
 
         let updateData: any = {};

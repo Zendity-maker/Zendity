@@ -152,12 +152,12 @@ export default function FamilyDashboard() {
                         <div>
                             <h4 className="font-bold text-teal-200 mb-3 text-xs uppercase tracking-widest pl-1">Protocolos Activos</h4>
                             <div className="flex flex-wrap gap-2">
-                                {resident.lifePlan.activeProtocols?.split(',').map((protocol: string, idx: number) => (
+                                {resident.lifePlan?.activeProtocols?.split(',').map((protocol: string, idx: number) => (
                                     <span key={idx} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-black text-white hover:bg-white/20 transition-colors border border-white/5">
                                         {protocol.trim()}
                                     </span>
                                 ))}
-                                {!resident.lifePlan.activeProtocols && <span className="text-sm font-medium text-teal-200">En fase de recolección de configuraciones.</span>}
+                                {!resident.lifePlan?.activeProtocols && <span className="text-sm font-medium text-teal-200">En fase de recolección de configuraciones.</span>}
                             </div>
                         </div>
                     </div>
