@@ -1,12 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from 'next/link';
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList } from 'lucide-react';
+
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
+
+interface DynamicModules {
+    openTriage: number;
+    unreadFamily: number;
+    draftSchedules: number;
+}
 
 export default function CorporateDashboardPage() {
+    const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const [selectedFacility, setSelectedFacility] = useState("ALL");
     const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([{ id: "ALL", name: " Consolidado Global (Todas las Sedes)" }]);
+    const [canSelectFacility, setCanSelectFacility] = useState(false);
     const [rankingData, setRankingData] = useState<any[]>([]);
+    const [dynamicModules, setDynamicModules] = useState<DynamicModules | null>(null);
     const [kpis, setKpis] = useState<{
         activeHqs: number;
         totalCapacity: number | null;
@@ -29,33 +45,100 @@ export default function CorporateDashboardPage() {
     const [replyContent, setReplyContent] = useState("");
     const [sendingReply, setSendingReply] = useState(false);
 
+    // ── Guard de rol ──
     useEffect(() => {
-        async function loadDashboard() {
-            setLoading(true);
+        if (authLoading) return;
+        if (!user) return;
+        const role = (user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) {
+            router.replace('/');
+        }
+    }, [user, authLoading, router]);
+
+    // ── Cargar dashboard + polling 60s ──
+    useEffect(() => {
+        if (authLoading || !user) return;
+        const role = (user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) return;
+
+        let isMounted = true;
+
+        async function loadDashboard(showSpinner: boolean) {
+            if (showSpinner) setLoading(true);
             try {
-                // Agregar timestamp y cache: 'no-store' para forzar a Next.js a no usar cache de App Router
                 const timestamp = new Date().getTime();
-                const res = await fetch(`/api/corporate?hqId=${selectedFacility}&t=${timestamp}`, { 
-                    cache: 'no-store' 
+                const res = await fetch(`/api/corporate?hqId=${selectedFacility}&t=${timestamp}`, {
+                    cache: 'no-store'
                 });
                 const data = await res.json();
+                if (!isMounted) return;
+
+                if (data.success === false) {
+                    console.warn('[corporate]', data.error);
+                    return;
+                }
 
                 if (data.facilities) {
-                    setFacilities([
-                        { id: "ALL", name: " Consolidado Global (Todas las Sedes)" },
-                        ...data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` }))
-                    ]);
+                    const canSelect = !!data.canSelectFacility;
+                    setCanSelectFacility(canSelect);
+                    if (canSelect) {
+                        setFacilities([
+                            { id: "ALL", name: " Consolidado Global (Todas las Sedes)" },
+                            ...data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` }))
+                        ]);
+                    } else {
+                        // SUPERVISOR: solo su sede, sin opción ALL
+                        setFacilities(data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` })));
+                        // Fijar el selector a la única sede
+                        if (data.effectiveHqId && selectedFacility !== data.effectiveHqId) {
+                            setSelectedFacility(data.effectiveHqId);
+                        }
+                    }
                 }
                 if (data.ranking) setRankingData(data.ranking);
                 if (data.kpis) setKpis(data.kpis);
             } catch (error) {
                 console.error(error);
             } finally {
-                setLoading(false);
+                if (isMounted && showSpinner) setLoading(false);
             }
         }
-        loadDashboard();
-    }, [selectedFacility]);
+
+        loadDashboard(true);
+        const interval = setInterval(() => loadDashboard(false), 60000);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [selectedFacility, user, authLoading]);
+
+    // ── Cargar módulos dinámicos + polling 60s ──
+    useEffect(() => {
+        if (authLoading || !user) return;
+        const role = (user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) return;
+
+        let isMounted = true;
+
+        async function loadModules() {
+            try {
+                const res = await fetch('/api/corporate/modules', { cache: 'no-store' });
+                const data = await res.json();
+                if (isMounted && data.success) {
+                    setDynamicModules(data.modules);
+                }
+            } catch (err) {
+                console.error('[modules]', err);
+            }
+        }
+
+        loadModules();
+        const interval = setInterval(loadModules, 60000);
+        return () => {
+            isMounted = false;
+            clearInterval(interval);
+        };
+    }, [user, authLoading]);
 
     // --- Family Link Polling ---
     useEffect(() => {
@@ -139,20 +222,27 @@ export default function CorporateDashboardPage() {
                 </div>
 
                 <div className="flex items-center space-x-4">
-                    <div className="relative">
-                        <select
-                            value={selectedFacility}
-                            onChange={(e) => setSelectedFacility(e.target.value)}
-                            className="appearance-none bg-white border border-slate-200 text-slate-800 text-sm rounded-xl font-bold px-4 py-2.5 pr-10 hover:border-teal-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-all cursor-pointer"
-                        >
-                            {facilities.map(f => (
-                                <option key={f.id} value={f.id}>{f.name}</option>
-                            ))}
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    {canSelectFacility ? (
+                        <div className="relative">
+                            <select
+                                value={selectedFacility}
+                                onChange={(e) => setSelectedFacility(e.target.value)}
+                                className="appearance-none bg-white border border-slate-200 text-slate-800 text-sm rounded-xl font-bold px-4 py-2.5 pr-10 hover:border-teal-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-all cursor-pointer"
+                            >
+                                {facilities.map(f => (
+                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
                         </div>
-                    </div>
+                    ) : facilities.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl font-bold px-4 py-2.5 inline-flex items-center gap-2 shadow-sm">
+                            <Building2 className="w-4 h-4 text-slate-500" />
+                            {facilities[0].name.trim()}
+                        </div>
+                    )}
 
                     {/* Botón Bandeja Family Link */}
                     <button
@@ -229,7 +319,10 @@ export default function CorporateDashboardPage() {
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                                  Ranking de Desempeño por Sede
                             </h3>
-                            <span className="text-xs font-semibold bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md">Tiempo Real</span>
+                            <span className="text-xs font-semibold bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
+                                Tiempo Real · 60s
+                            </span>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
@@ -289,22 +382,117 @@ export default function CorporateDashboardPage() {
 
 
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-                        <h3 className="text-lg font-bold text-slate-800 mb-4">Módulos Corporativos</h3>
+                        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <span>Módulos Corporativos</span>
+                            {dynamicModules && (dynamicModules.openTriage + dynamicModules.unreadFamily + dynamicModules.draftSchedules) > 0 && (
+                                <span className="text-[10px] font-black uppercase tracking-widest bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full animate-pulse">
+                                    Acción requerida
+                                </span>
+                            )}
+                        </h3>
                         <div className="space-y-3">
-                            {[
-                                { title: 'Portal de Familiares', desc: 'Gestionar diarios y encuestas.', icon: '', active: true, href: '/family' },
-                                { title: 'Evaluaciones RRHH', desc: 'Scorecard de empleados.', icon: '', active: true, href: '/hr' },
-                                { title: 'Auditorías Dept. Familia', desc: 'Reportes regulatorios PR.', icon: '', active: true, href: '/corporate/hq' }
-                            ].map((mod, i) => (
-                                <Link href={mod.href} key={i} className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer ${mod.active ? 'border-slate-200 hover:border-teal-400 hover:shadow-sm bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
-                                    <div className="text-2xl mr-3">{mod.icon}</div>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-slate-800">{mod.title}</h4>
-                                        <p className="text-xs text-slate-500">{mod.desc}</p>
-                                    </div>
-                                    <div className="text-slate-500"></div>
-                                </Link>
-                            ))}
+                            {(() => {
+                                const dm = dynamicModules || { openTriage: 0, unreadFamily: 0, draftSchedules: 0 };
+                                const hasAny = dm.openTriage + dm.unreadFamily + dm.draftSchedules > 0;
+
+                                if (hasAny) {
+                                    // Mostrar cards dinámicas basadas en actividad real
+                                    const items: Array<{
+                                        title: string;
+                                        desc: string;
+                                        href: string;
+                                        count: number;
+                                        badgeTone: 'rose' | 'teal' | 'amber';
+                                        icon: React.ReactNode;
+                                    }> = [];
+
+                                    if (dm.openTriage > 0) {
+                                        items.push({
+                                            title: 'Triage Center',
+                                            desc: `${dm.openTriage} ticket${dm.openTriage === 1 ? '' : 's'} abierto${dm.openTriage === 1 ? '' : 's'} hoy`,
+                                            href: '/corporate/triage',
+                                            count: dm.openTriage,
+                                            badgeTone: 'rose',
+                                            icon: <ShieldAlert className="w-4 h-4" />,
+                                        });
+                                    }
+                                    if (dm.unreadFamily > 0) {
+                                        items.push({
+                                            title: 'Mensajes Familiares',
+                                            desc: `${dm.unreadFamily} mensaje${dm.unreadFamily === 1 ? '' : 's'} sin leer hoy`,
+                                            href: '/corporate/triage',
+                                            count: dm.unreadFamily,
+                                            badgeTone: 'teal',
+                                            icon: <MessageSquare className="w-4 h-4" />,
+                                        });
+                                    }
+                                    if (dm.draftSchedules > 0) {
+                                        items.push({
+                                            title: 'Horario Pendiente',
+                                            desc: `${dm.draftSchedules} horario${dm.draftSchedules === 1 ? '' : 's'} sin publicar`,
+                                            href: '/hr/schedule',
+                                            count: dm.draftSchedules,
+                                            badgeTone: 'amber',
+                                            icon: <CalendarDays className="w-4 h-4" />,
+                                        });
+                                    }
+
+                                    const toneClasses: Record<string, { card: string; badge: string; icon: string }> = {
+                                        rose: {
+                                            card: 'border-rose-200 hover:border-rose-300 bg-rose-50/40',
+                                            badge: 'bg-rose-600 text-white',
+                                            icon: 'bg-rose-100 text-rose-700',
+                                        },
+                                        teal: {
+                                            card: 'border-teal-200 hover:border-teal-300 bg-teal-50/40',
+                                            badge: 'bg-teal-600 text-white',
+                                            icon: 'bg-teal-100 text-teal-700',
+                                        },
+                                        amber: {
+                                            card: 'border-amber-200 hover:border-amber-300 bg-amber-50/40',
+                                            badge: 'bg-amber-600 text-white',
+                                            icon: 'bg-amber-100 text-amber-700',
+                                        },
+                                    };
+
+                                    return items.map((mod, i) => {
+                                        const tone = toneClasses[mod.badgeTone];
+                                        return (
+                                            <Link href={mod.href} key={i} className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer hover:shadow-sm ${tone.card}`}>
+                                                <div className={`w-9 h-9 rounded-lg flex items-center justify-center mr-3 ${tone.icon}`}>
+                                                    {mod.icon}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="text-sm font-bold text-slate-800">{mod.title}</h4>
+                                                    <p className="text-xs text-slate-500 font-medium">{mod.desc}</p>
+                                                </div>
+                                                <span className={`min-w-[26px] h-6 px-2 rounded-full font-black text-xs flex items-center justify-center ${tone.badge}`}>
+                                                    {mod.count}
+                                                </span>
+                                            </Link>
+                                        );
+                                    });
+                                }
+
+                                // Fallback: accesos rápidos estáticos cuando no hay actividad pendiente
+                                const quickLinks = [
+                                    { title: 'Triage Center', desc: 'Sin tickets abiertos hoy', href: '/corporate/triage', icon: <ShieldAlert className="w-4 h-4" /> },
+                                    { title: 'Recursos Humanos', desc: 'Desempeño, evaluaciones y staff', href: '/hr', icon: <Users className="w-4 h-4" /> },
+                                    { title: 'Zendity HQ', desc: 'Auditoría regulatoria', href: '/corporate/hq', icon: <ClipboardList className="w-4 h-4" /> },
+                                ];
+                                return quickLinks.map((mod, i) => (
+                                    <Link href={mod.href} key={i} className="flex items-center p-3 rounded-xl border border-slate-200 bg-white hover:border-teal-400 hover:shadow-sm transition-all cursor-pointer group">
+                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center mr-3 bg-slate-100 text-slate-600 group-hover:bg-teal-50 group-hover:text-teal-700 transition-colors">
+                                            {mod.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-slate-800">{mod.title}</h4>
+                                            <p className="text-xs text-slate-500 font-medium">{mod.desc}</p>
+                                        </div>
+                                        <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-teal-500 transition-colors" />
+                                    </Link>
+                                ));
+                            })()}
                         </div>
                     </div>
                 </div>
