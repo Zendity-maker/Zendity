@@ -91,8 +91,6 @@ model Headquarters {
   // FASE 11: Fast Actions (15-Min)
   fastActionAssignments FastActionAssignment[]
   TriageTicket          TriageTicket[]
-  ShiftClosure          ShiftClosure[]
-  NursingHandover       NursingHandover[]
   SystemAuditLog        SystemAuditLog[]
   CalendarEvent         CalendarEvent[]
 
@@ -212,10 +210,6 @@ model User {
   // FASE 66: MVP Operacional
   triageTicketsAssigned TriageTicket[]    @relation("TicketAssignee")
   triageTicketsResolved TriageTicket[]    @relation("TicketResolver")
-  shiftClosuresOut      ShiftClosure[]    @relation("ShiftClosureOut")
-  shiftClosuresIn       ShiftClosure[]    @relation("ShiftClosureIn")
-  handoversOut          NursingHandover[] @relation("NursingHandoverOut")
-  handoversIn           NursingHandover[] @relation("NursingHandoverIn")
   CalendarEvent         CalendarEvent[]
 
   // FASE 66
@@ -548,7 +542,6 @@ model Patient {
   legalDocs           LegalDocument[]
   ClinicalNote        ClinicalNote[]
   TriageTicket        TriageTicket[]
-  HandoverPatientNote HandoverPatientNote[]
   CalendarEvent       CalendarEvent[]
 
   // Social Work Module
@@ -1273,6 +1266,12 @@ model ShiftHandover {
   aiSummaryReport String? @db.Text
   audioUrl        String?
 
+  // Sprint B: Firma + justificaciones recolectadas por ShiftClosureWizard
+  signature          String?   @db.Text // Firma electrónica del outgoing (base64 o token)
+  signedOutAt        DateTime?
+  justifications     Json?     // { warningId: "REFUSED" | "ASLEEP" | "TRANSFERRED" | ... }
+  handoverCompleted  Boolean   @default(false)
+
   // Enlace a la Sesión de Turno (Fase 44)
   shiftSession ShiftSession?
 }
@@ -1819,18 +1818,6 @@ enum TicketOriginType {
   MANUAL
 }
 
-enum ShiftClosureStatus {
-  ACTIVE
-  CLOSING
-  CLOSED
-}
-
-enum NursingHandoverStatus {
-  DRAFT
-  SUBMITTED
-  ACCEPTED
-}
-
 enum EscalationReason {
   SLA_BREACH_120M
   MANUAL_BY_SUPERVISOR
@@ -1867,15 +1854,6 @@ enum SystemAuditAction {
   VOIDED
 }
 
-enum FlagReason {
-  FALL
-  UPP
-  VITAL_ALERT
-  BEHAVIOR
-  PRN_GIVEN
-  EMAR_OMISSION
-}
-
 // =======================
 // MODELOS DE DOMINIO MVP
 // =======================
@@ -1910,80 +1888,6 @@ model TriageTicket {
   resolvedBy   User?        @relation("TicketResolver", fields: [resolvedById], references: [id])
 
   @@index([headquartersId, status, priority, isEscalated, isVoided])
-}
-
-model ShiftClosure {
-  id             String @id @default(uuid())
-  headquartersId String
-
-  shiftDate DateTime  @db.Date
-  shiftType ShiftType
-
-  supervisorOutId String
-  supervisorInId  String?
-
-  status         ShiftClosureStatus @default(ACTIVE)
-  triageSnapshot Json?
-  handoverNotes  String?            @db.Text
-  zendiDigest    String?            @db.Text // Resumen LLM Asíncrono generable al cerrar
-
-  signatureOutBase64 String?   @db.Text
-  signedOutAt        DateTime?
-  signatureInBase64  String?   @db.Text
-  signedInAt         DateTime?
-
-  isOverridden Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  headquarters  Headquarters @relation(fields: [headquartersId], references: [id])
-  supervisorOut User         @relation("ShiftClosureOut", fields: [supervisorOutId], references: [id])
-  supervisorIn  User?        @relation("ShiftClosureIn", fields: [supervisorInId], references: [id])
-
-  @@unique([headquartersId, shiftDate, shiftType, supervisorOutId])
-  @@index([headquartersId, status])
-}
-
-model NursingHandover {
-  id             String    @id @default(uuid())
-  headquartersId String
-  shiftDate      DateTime  @db.Date
-  shiftType      ShiftType
-
-  nurseOutId String
-  nurseInId  String?
-
-  status NursingHandoverStatus @default(DRAFT)
-
-  signatureOutBase64 String?   @db.Text
-  signedOutAt        DateTime?
-  signatureInBase64  String?   @db.Text
-  signedInAt         DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  headquarters Headquarters          @relation(fields: [headquartersId], references: [id])
-  nurseOut     User                  @relation("NursingHandoverOut", fields: [nurseOutId], references: [id])
-  nurseIn      User?                 @relation("NursingHandoverIn", fields: [nurseInId], references: [id])
-  notes        HandoverPatientNote[]
-
-  @@unique([headquartersId, shiftDate, shiftType, nurseOutId])
-  @@index([headquartersId, status])
-}
-
-model HandoverPatientNote {
-  id                String     @id @default(uuid())
-  nursingHandoverId String
-  patientId         String
-  flagReason        FlagReason
-  nursingNote       String     @db.Text
-
-  createdAt DateTime @default(now())
-
-  handover NursingHandover @relation(fields: [nursingHandoverId], references: [id], onDelete: Cascade)
-  patient  Patient         @relation(fields: [patientId], references: [id])
 }
 
 model SystemAuditLog {

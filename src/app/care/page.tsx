@@ -3158,12 +3158,20 @@ export default function ZendityCareTabletPage() {
                 isOpen={modalType === 'SHIFT_CLOSURE_WIZARD'}
                 onClose={() => setModalType(null)}
                 onFinalize={async (data, signature) => {
-                    console.log("Finalizando turno con:", data, signature);
                     try {
                         const res = await fetch("/api/care/shift/end", {
                             method: "POST", headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ shiftSessionId: activeSession.id, forceEnd: true }) // Bypass for MVP demo
+                            body: JSON.stringify({
+                                shiftSessionId: activeSession.id,
+                                forceEnd: true,
+                                handoverData: data,
+                                signature,
+                            })
                         });
+                        if (!res.ok) {
+                            alert("Error finalizando turno. Intenta nuevamente.");
+                            return false;
+                        }
                         alert("Turno Entregado. Has protegido tus registros para auditoría mediante Zendi.");
                         await logout();
                         return true;

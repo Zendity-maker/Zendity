@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { SystemAuditAction, NursingHandoverStatus, FlagReason } from '@prisma/client';
-import { todayStartAST } from '@/lib/dates';
+import { SystemAuditAction } from '@prisma/client';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        // Validación de sesión (antes no había nada)
         const authSession = await getServerSession(authOptions);
         if (!authSession?.user) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
@@ -45,95 +43,67 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Este turno ya fue finalizado" }, { status: 400 });
         }
 
-        // Determinar el ShiftType lógicamente
+        // Determinar el ShiftType lógicamente (AST, pero el cron de prólogo se
+        // encarga del anclaje 6am; aquí usamos hora local del servidor para shift).
         const now = new Date();
         const hours = now.getHours();
         let shiftTypeDraft: "MORNING" | "EVENING" | "NIGHT" = "NIGHT";
+        if (hours >= 6 && hours < 14) shiftTypeDraft = "MORNING";
+        else if (hours >= 14 && hours < 22) shiftTypeDraft = "EVENING";
 
-        if (hours >= 6 && hours < 14) {
-            shiftTypeDraft = "MORNING";
-        } else if (hours >= 14 && hours < 22) {
-            shiftTypeDraft = "EVENING";
-        }
-
-        // Si se nos envía data de confirmación clínica, integramos la respuesta del Wizard
+        // Flujo 1 — Cierre con Wizard: firma + justificaciones + zendi summary
         if (handoverData && signature) {
-            // Transaction atómica para proteger la continuidad de Floor
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
-                
-                // 1. Crear o Actualizar el Documento Legal de Handover
-                // Nota: Usamos upsert por la restricción global @@unique([headquartersId, shiftDate, shiftType])
-                const startOfDay = todayStartAST();
-
-                // Insertar el Handover
-                const shiftHandover = await tx.nursingHandover.upsert({
-                    where: {
-                        headquartersId_shiftDate_shiftType_nurseOutId: {
-                            headquartersId: session.headquartersId,
-                            shiftDate: startOfDay,
-                            shiftType: shiftTypeDraft,
-                            nurseOutId: session.caregiverId
-                        }
-                    },
-                    update: {
-                        nurseOutId: session.caregiverId,
-                        status: NursingHandoverStatus.SUBMITTED,
-                        signatureOutBase64: signature,
-                        signedOutAt: now,
-                    },
-                    create: {
+                // 1. Crear ShiftHandover canónico
+                const shiftHandover = await tx.shiftHandover.create({
+                    data: {
                         headquartersId: session.headquartersId,
-                        shiftDate: startOfDay,
                         shiftType: shiftTypeDraft,
-                        nurseOutId: session.caregiverId,
-                        status: NursingHandoverStatus.SUBMITTED,
-                        signatureOutBase64: signature,
+                        outgoingNurseId: session.caregiverId,
+                        status: 'PENDING',
+                        aiSummaryReport: handoverData.zendiSummary || "Relevo estándar generado.",
+                        signature,
                         signedOutAt: now,
+                        justifications: handoverData.justifications ?? {},
+                        handoverCompleted: true,
                     }
                 });
 
-                // Insertar las Notas Clínicas Rápidas (Novedades ROJAS/AMARILLAS)
+                // 2. Notas clínicas del wizard (si vinieron selectedPatients)
                 if (handoverData.selectedPatients && Object.keys(handoverData.selectedPatients).length > 0) {
-                    const notesToInsert = Object.entries(handoverData.selectedPatients).map(([patientId, noteStr]) => ({
-                        nursingHandoverId: shiftHandover.id,
-                        patientId,
-                        flagReason: FlagReason.BEHAVIOR, // Ajuste mock rápido, idealmente inferido por Zendi
-                        nursingNote: noteStr as string
-                    }));
-                    
-                    // Cleanup preventivo si Upsert recicló un handover existente
-                    await tx.handoverPatientNote.deleteMany({
-                         where: { nursingHandoverId: shiftHandover.id }
-                    });
-
-                    await tx.handoverPatientNote.createMany({
-                        data: notesToInsert
-                    });
+                    const notesToInsert = Object.entries(handoverData.selectedPatients).map(
+                        ([patientId, noteStr]) => ({
+                            shiftHandoverId: shiftHandover.id,
+                            patientId,
+                            clinicalNotes: noteStr as string,
+                            isCritical: false,
+                        })
+                    );
+                    await tx.handoverNote.createMany({ data: notesToInsert });
                 }
 
-                // ESTRATEGIA ZENDI:
-                // Guardamos el borrador ya validado por el enfermero síncronamente en el ShiftSession
-                // para inmediatez.
+                // 3. Cerrar la sesión de turno
                 const updatedSession = await tx.shiftSession.update({
                     where: { id: shiftSessionId },
                     data: {
                         actualEndTime: now,
                         handoverCompleted: true,
                         aiSummaryReport: handoverData.zendiSummary || "Relevo estándar generado.",
+                        shiftHandoverId: shiftHandover.id,
                     }
                 });
 
-                // Auditoría Strict — performedById es el invocador real, no el dueño
+                // 4. Auditoría
                 await tx.systemAuditLog.create({
                     data: {
                         headquartersId: session.headquartersId,
-                        entityName: 'ShiftSession-HandoverUnion',
-                        entityId: session.id,
+                        entityName: 'ShiftHandover',
+                        entityId: shiftHandover.id,
                         action: SystemAuditAction.SIGNED_OUT,
                         performedById: invokerId,
                         payloadChanges: {
-                            handoverId: shiftHandover.id,
-                            tasksExempted: handoverData.justifications,
+                            shiftSessionId: session.id,
+                            tasksExempted: handoverData.justifications ?? {},
                             zendiApproved: true,
                             closedBySupervisor: !isOwner,
                             ownerCaregiverId: session.caregiverId,
@@ -144,14 +114,10 @@ export async function POST(req: Request) {
                 return [shiftHandover, updatedSession];
             });
 
-            // Disparar procesamiento Background de IA SI FUERA NECESARIO (Simulación)
-            // fetch('https://webhook.zendi.com/analyze-shift...', { method: 'POST' }).catch(() => {});
-
             return NextResponse.json({ success: true, shiftSession: closedSession, handover });
         }
 
-        // Fallback: Finalizar turno administrativo genérico si por alguna razón salta el Wizard
-        // (Modo Override / Abandono del empleado)
+        // Flujo 2 — Cierre sin Wizard (override / abandono): solo cerrar sesión
         const closedSession = await prisma.shiftSession.update({
             where: { id: shiftSessionId },
             data: {
@@ -160,7 +126,6 @@ export async function POST(req: Request) {
             }
         });
 
-        // Trackear abandono — performedById es el invocador real
         await prisma.systemAuditLog.create({
             data: {
                 headquartersId: session.headquartersId,
@@ -178,7 +143,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, shiftSession: closedSession });
 
     } catch (error) {
-        console.error("Shift End/Handover Union Error:", error);
+        console.error("Shift End Error:", error);
         return NextResponse.json({ success: false, error: "Error de Servidor al Consolidar la Guardia" }, { status: 500 });
     }
 }

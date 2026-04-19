@@ -1,4 +1,4 @@
-import { PrismaClient, Role, TicketPriority, TicketOriginType, ShiftType, FlagReason, SystemAuditAction } from '@prisma/client';
+import { PrismaClient, Role, TicketPriority, TicketOriginType, ShiftType, SystemAuditAction } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -52,42 +52,34 @@ async function main() {
       console.log("⚠️ Falla: Bloqueo de Triage no detectado.");
   }
 
-  console.log("4. Probando Nursing Handover con Flag Obligatorio...");
+  console.log("4. Probando ShiftHandover canónico (Sprint B)...");
   try {
-      const notes = [ { patientId: patient.id, flagReason: FlagReason.FALL, nursingNote: "Sufrió caída." } ];
-      const handover = await prisma.nursingHandover.create({
+      const handover = await prisma.shiftHandover.create({
           data: {
               headquartersId: hq.id,
-              shiftDate: new Date(),
               shiftType: ShiftType.MORNING,
-              nurseOutId: nurse.id,
-              notes: { create: notes }
+              outgoingNurseId: nurse.id,
+              status: 'PENDING',
+              signature: 'TEST_SIGNATURE',
+              signedOutAt: new Date(),
+              handoverCompleted: true,
+              justifications: { 'mock-warning-1': 'REFUSED' },
+              notes: {
+                  create: [{ patientId: patient.id, clinicalNotes: "Sufrió caída.", isCritical: true }]
+              }
           }
       });
-      console.log("✓ Handover creado correctamente. ID:", handover.id);
+      console.log("✓ ShiftHandover creado correctamente. ID:", handover.id);
   } catch(e) {
       console.error(e);
   }
 
-  console.log("5. Resolviendo Triage Ticket y Probando Override de Shift Closure...");
+  console.log("5. Resolviendo Triage Ticket...");
   await prisma.triageTicket.update({
       where: { id: tc1.id },
       data: { status: 'RESOLVED', resolutionNote: 'Resuelto en test', resolvedById: supervisor.id }
   });
   console.log("✓ Ticket Resuelto.");
-
-  const closure = await prisma.shiftClosure.create({
-      data: {
-          headquartersId: hq.id,
-          shiftDate: new Date(),
-          shiftType: ShiftType.MORNING,
-          supervisorOutId: supervisor.id,
-          status: 'CLOSING',
-          isOverridden: true,
-          triageSnapshot: { activeTicketsCount: 0 }
-      }
-  });
-  console.log("✓ Shift Closure Override ejecutado exitosamente.");
 
   const auditLogCreate = await prisma.systemAuditLog.create({
       data: { headquartersId: hq.id, entityName: 'TriageTicket', entityId: tc1.id, action: SystemAuditAction.CREATED }
