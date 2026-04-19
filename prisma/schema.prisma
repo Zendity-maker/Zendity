@@ -366,27 +366,33 @@ model Notification {
 // =======================
 
 model VitalsOrder {
-  id             String            @id @default(uuid())
-  headquartersId String
-  patientId      String
-  orderedById    String
-  caregiverId    String?
-  reason         String?
-  orderedAt      DateTime          @default(now())
-  expiresAt      DateTime
-  completedAt    DateTime?
-  lateReason     String?
-  reminderSentAt DateTime?
-  status         VitalsOrderStatus @default(PENDING)
+  id              String            @id @default(uuid())
+  headquartersId  String
+  patientId       String
+  orderedById     String
+  caregiverId     String?
+  reason          String?
+  orderedAt       DateTime          @default(now())
+  expiresAt       DateTime
+  completedAt     DateTime?
+  lateReason      String?
+  reminderSentAt  DateTime?
+  status          VitalsOrderStatus @default(PENDING)
+  // Sprint J: ventana automática al inicio de turno
+  autoCreated     Boolean           @default(false)
+  shiftSessionId  String?
+  penaltyApplied  Boolean           @default(false)
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  patient      Patient      @relation(fields: [patientId], references: [id])
-  orderedBy    User         @relation("OrderedVitals", fields: [orderedById], references: [id])
-  caregiver    User?        @relation("AssignedVitals", fields: [caregiverId], references: [id])
+  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  orderedBy    User          @relation("OrderedVitals", fields: [orderedById], references: [id])
+  caregiver    User?         @relation("AssignedVitals", fields: [caregiverId], references: [id])
+  shiftSession ShiftSession? @relation(fields: [shiftSessionId], references: [id])
 
   @@index([patientId, status])
   @@index([headquartersId, status])
   @@index([caregiverId, status])
+  @@index([shiftSessionId])
 }
 
 enum VitalsOrderStatus {
@@ -1592,6 +1598,7 @@ model ShiftSession {
   bathLogs      BathLog[]
   mealLogs      MealLog[]
   serviceLogs   ServiceVisit[]
+  vitalsOrders  VitalsOrder[]
 }
 
 model BathLog {
