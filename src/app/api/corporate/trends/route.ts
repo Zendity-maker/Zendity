@@ -3,11 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
-const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -51,10 +51,10 @@ export async function GET(request: NextRequest) {
 
         const requestedHqId = request.nextUrl.searchParams.get('hqId');
         let effectiveHqId: string | 'ALL';
-        if (MULTI_HQ_ROLES.includes(role)) {
-            effectiveHqId = (!requestedHqId || requestedHqId === 'ALL') ? 'ALL' : requestedHqId;
-        } else {
-            effectiveHqId = sessionHqId;
+        try {
+            effectiveHqId = await resolveEffectiveHqIdOrAll(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
         }
 
         const daysParam = parseInt(request.nextUrl.searchParams.get('days') || '7', 10);

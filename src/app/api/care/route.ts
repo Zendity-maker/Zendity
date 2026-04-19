@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -8,12 +11,21 @@ export const revalidate = 0;
 // GET: Obtiene residentes filtrados por el Color seleccionado en el turno
 export async function GET(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const color = searchParams.get('color') || 'UNASSIGNED';
-        const hqId = searchParams.get('hqId');
+        const requestedHqId = searchParams.get('hqId');
 
-        if (!hqId) {
-            return NextResponse.json({ success: false, error: "Headquarters ID requerido" }, { status: 400 });
+        // Resolución segura: roles limitados quedan anclados a su sede
+        let hqId: string;
+        try {
+            hqId = await resolveEffectiveHqId(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || "Sede inválida" }, { status: 400 });
         }
 
         console.log("CARE API CALLED WITH:", { color, hqId });

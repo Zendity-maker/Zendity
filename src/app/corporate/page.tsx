@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -88,9 +89,19 @@ function DeltaPill({ value, suffix = '%', inverted = false }: { value: number | 
 export default function CorporateDashboardPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
-    const [selectedFacility, setSelectedFacility] = useState("ALL");
+    const { activeHqId, activeHqName, setActiveHq, accessibleHqs, isMultiHqRole } = useActiveHq();
+    // Compat: mantener el mismo nombre en el resto del archivo, pero ahora proviene del contexto global
+    const selectedFacility = activeHqId;
+    const setSelectedFacility = (id: string | 'ALL') => {
+        if (id === 'ALL') {
+            setActiveHq('ALL', 'Todas las sedes');
+        } else {
+            const hq = accessibleHqs.find(h => h.id === id);
+            setActiveHq(id, hq?.name || 'Sede');
+        }
+    };
     const [facilities, setFacilities] = useState<{ id: string, name: string }[]>([{ id: "ALL", name: " Consolidado Global (Todas las Sedes)" }]);
-    const [canSelectFacility, setCanSelectFacility] = useState(false);
+    const canSelectFacility = isMultiHqRole;
     const [rankingData, setRankingData] = useState<any[]>([]);
     const [dynamicModules, setDynamicModules] = useState<DynamicModules | null>(null);
     const [trends, setTrends] = useState<TrendsData | null>(null);
@@ -180,20 +191,15 @@ export default function CorporateDashboardPage() {
                 }
 
                 if (data.facilities) {
-                    const canSelect = !!data.canSelectFacility;
-                    setCanSelectFacility(canSelect);
-                    if (canSelect) {
+                    // Sedes del selector: la lista ahora vive en el contexto global (accessibleHqs),
+                    // pero mantenemos el array local para preservar el label "Consolidado Global".
+                    if (isMultiHqRole) {
                         setFacilities([
                             { id: "ALL", name: " Consolidado Global (Todas las Sedes)" },
                             ...data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` }))
                         ]);
                     } else {
-                        // SUPERVISOR: solo su sede, sin opción ALL
                         setFacilities(data.facilities.map((f: any) => ({ id: f.id, name: ` ${f.name}` })));
-                        // Fijar el selector a la única sede
-                        if (data.effectiveHqId && selectedFacility !== data.effectiveHqId) {
-                            setSelectedFacility(data.effectiveHqId);
-                        }
                     }
                 }
                 if (data.ranking) setRankingData(data.ranking);

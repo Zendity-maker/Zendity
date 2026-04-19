@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,22 +25,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Usuario sin sede asignada' }, { status: 400 });
     }
 
-    // ── Resolución de hqId según rol ──
-    // DIRECTOR/ADMIN: pueden pedir ALL o cualquier sede (ALL por default si omiten)
-    // SUPERVISOR: SIEMPRE fijado a su propia sede (ignoramos el query param)
+    // ── Resolución de hqId según rol (via hq-resolver) ──
     const requestedHqId = request.nextUrl.searchParams.get('hqId');
     let effectiveHqId: string | 'ALL';
-
-    if (MULTI_HQ_ROLES.includes(role)) {
-      if (!requestedHqId || requestedHqId === 'ALL') {
-        effectiveHqId = 'ALL';
-      } else {
-        // Para una sede específica, aceptamos cualquier id (DIRECTOR/ADMIN son multi-HQ)
-        effectiveHqId = requestedHqId;
-      }
-    } else {
-      // SUPERVISOR: queda anclado a su propia sede, sin importar lo que mande el cliente
-      effectiveHqId = sessionHqId;
+    try {
+      effectiveHqId = await resolveEffectiveHqIdOrAll(session, requestedHqId);
+    } catch (e: any) {
+      return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
     }
 
     // ── Query de sedes ──

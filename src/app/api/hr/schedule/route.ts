@@ -2,15 +2,26 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 const WRITE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 export async function GET(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+        return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const hqId = searchParams.get('hqId');
+    const requestedHqId = searchParams.get('hqId');
     const weekStart = searchParams.get('weekStart');
 
-    if (!hqId) return NextResponse.json({ success: false, error: 'hqId requerido' }, { status: 400 });
+    let hqId: string;
+    try {
+        hqId = await resolveEffectiveHqId(session, requestedHqId);
+    } catch (e: any) {
+        return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
+    }
 
     try {
         const where: any = { headquartersId: hqId };
@@ -55,16 +66,18 @@ export async function POST(req: Request) {
         if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
         const invokerRole = (session.user as any).role;
-        const invokerHqId = (session.user as any).headquartersId;
         if (!WRITE_ROLES.includes(invokerRole)) {
             return NextResponse.json({ success: false, error: 'Solo DIRECTOR, ADMIN o SUPERVISOR pueden editar horarios' }, { status: 403 });
         }
 
-        const { hqId, weekStartDate, createdByUserId, shifts, overwrite } = await req.json();
+        const { hqId: requestedHqId, weekStartDate, createdByUserId, shifts, overwrite } = await req.json();
 
-        // Tenant check
-        if (hqId !== invokerHqId) {
-            return NextResponse.json({ success: false, error: 'Sede no coincide con tu sesión' }, { status: 403 });
+        // Resolución segura: SUPERVISOR queda anclado a su sede; DIRECTOR/ADMIN puede escribir en cualquier sede validada
+        let hqId: string;
+        try {
+            hqId = await resolveEffectiveHqId(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
         }
 
         const existing = await prisma.schedule.findFirst({

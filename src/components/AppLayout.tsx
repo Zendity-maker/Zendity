@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import BackToDashboard from "./ui/BackToDashboard";
@@ -84,7 +85,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user, logout, loading } = useAuth();
+    const { activeHqId, activeHqName, setActiveHq, accessibleHqs, isMultiHqRole } = useActiveHq();
     const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+    const [hqMenuOpen, setHqMenuOpen] = useState(false);
+    const hqSwitcherRef = useRef<HTMLDivElement>(null);
     const [sidebarMode, setSidebarMode] = useState<'expanded' | 'collapsed' | 'hidden'>(
         typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'expanded' : 'collapsed'
     );
@@ -108,6 +112,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [workspaceMenuOpen]);
+
+    // Click-outside handler for HQ switcher
+    useEffect(() => {
+        if (!hqMenuOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (hqSwitcherRef.current && !hqSwitcherRef.current.contains(e.target as Node)) {
+                setHqMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [hqMenuOpen]);
 
     // Sprint G-C: permitir que cualquier página abra el StaffChat vía evento global
     useEffect(() => {
@@ -542,10 +558,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     className="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all placeholder:text-slate-400 text-slate-700"
                                 />
                             </div>
+                        ) : isMultiHqRole ? (
+                            <div ref={hqSwitcherRef} className="relative">
+                                <button
+                                    onClick={() => setHqMenuOpen(v => !v)}
+                                    className="bg-emerald-50 text-emerald-700 text-xs font-bold px-4 py-1.5 rounded-full border border-emerald-200/60 flex items-center gap-2 shadow-sm hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Sede Activa: {activeHqName || 'Todas las sedes'}
+                                    <ChevronDown className={`w-3 h-3 transition-transform ${hqMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {hqMenuOpen && (
+                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-top-2 max-h-80 overflow-y-auto">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2 mt-1">Cambiar Sede</p>
+                                        <button
+                                            onClick={() => { setActiveHq('ALL', 'Todas las sedes'); setHqMenuOpen(false); }}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${activeHqId === 'ALL' ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        >
+                                            <Building2 className="w-4 h-4" /> Todas las sedes
+                                        </button>
+                                        {accessibleHqs.map(hq => (
+                                            <button
+                                                key={hq.id}
+                                                onClick={() => { setActiveHq(hq.id, hq.name); setHqMenuOpen(false); }}
+                                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-bold transition-colors ${activeHqId === hq.id ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                            >
+                                                <Building2 className="w-4 h-4 opacity-60" />
+                                                <span className="truncate text-left">{hq.name}</span>
+                                            </button>
+                                        ))}
+                                        {accessibleHqs.length === 0 && (
+                                            <p className="px-3 py-2 text-[11px] text-slate-400">Cargando sedes…</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-4 py-1.5 rounded-full border border-emerald-200/60 flex items-center gap-2 shadow-sm">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Sede Activa: {user?.hqName || user?.hqId || 'Principal'}
+                                Sede Activa: {activeHqName || user?.hqName || 'Principal'}
                             </span>
                         )}
                     </div>
