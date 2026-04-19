@@ -1736,15 +1736,62 @@ model IncidentReport {
   employeeId      String
   supervisorId    String
   headquartersId  String
-  type            String // 'WARNING', 'SUSPENSION', 'TERMINATION'
+  type            String // Legacy: 'WARNING', 'SUSPENSION', 'TERMINATION' (mantenido por compatibilidad)
   description     String    @db.Text
   signedAt        DateTime?
   signatureBase64 String?   @db.Text
   createdAt       DateTime  @default(now())
 
+  // Sprint C — Módulo Observaciones de Personal
+  severity              HrIncidentSeverity @default(OBSERVATION)
+  category              IncidentCategory @default(OTHER)
+  status                IncidentStatus   @default(DRAFT)
+  pointsDeducted        Int?
+  acknowledgedAt        DateTime?
+  acknowledgedSignature String?          @db.Text
+  employeeResponse      String?          @db.Text
+  respondedAt           DateTime?
+  appealText            String?          @db.Text
+  appealedAt            DateTime?
+  appliedAt             DateTime?
+  dismissedAt           DateTime?
+  directorNote          String?          @db.Text
+  visibleToEmployee     Boolean          @default(false)
+  relatedPatientId      String?
+
   employee   User         @relation("EmployeeIncidents", fields: [employeeId], references: [id])
   supervisor User         @relation("SupervisorIncidents", fields: [supervisorId], references: [id])
   hq         Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([headquartersId, status])
+  @@index([employeeId, status])
+}
+
+enum HrIncidentSeverity {
+  OBSERVATION
+  WARNING
+  SUSPENSION
+  TERMINATION
+}
+
+enum IncidentCategory {
+  PUNCTUALITY
+  PATIENT_CARE
+  HYGIENE
+  BEHAVIOR
+  DOCUMENTATION
+  UNIFORM
+  OTHER
+}
+
+enum IncidentStatus {
+  DRAFT
+  NOTIFIED
+  PENDING_EXPLANATION
+  EXPLANATION_RECEIVED
+  APPLIED
+  DISMISSED
+  CLOSED
 }
 
 // =======================
