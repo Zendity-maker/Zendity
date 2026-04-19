@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireSuperAdmin } from '@/lib/admin-auth';
 
 
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(request: Request, context: any) {
+    const guard = await requireSuperAdmin();
+    if (!guard.ok) return guard.response;
     try {
         const { id } = await context.params;
 

@@ -10,7 +10,7 @@ import { authOptions } from '@/lib/auth';
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['SUPER_ADMIN', 'ADMIN'].includes(session.user.role)) {
+        if (!session || session.user.role !== 'SUPER_ADMIN') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -55,12 +55,14 @@ export async function POST(request: Request) {
             });
 
             // 2. Create the Root Director (Super Admin of that specific HQ)
+            // Sprint I: hash pinCode con bcrypt (legacy plano corregido).
+            const pinHash = await bcrypt.hash(String(directorPinCode), 10);
             const newDirector = await tx.user.create({
                 data: {
                     headquartersId: newHq.id,
                     name: directorName || 'Fundador/Director',
                     email: directorEmail.toLowerCase().trim(),
-                    pinCode: directorPinCode,
+                    pinCode: pinHash,
                     role: Role.DIRECTOR,
                     complianceScore: 100,
                 }

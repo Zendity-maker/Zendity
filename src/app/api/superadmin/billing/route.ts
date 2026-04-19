@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { requireSuperAdmin } from '@/lib/admin-auth';
 
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+    const guard = await requireSuperAdmin();
+    if (!guard.ok) return guard.response;
     try {
         const { searchParams } = new URL(request.url);
         const hqId = searchParams.get('hqId');
@@ -33,6 +36,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const guard = await requireSuperAdmin();
+    if (!guard.ok) return guard.response;
     try {
         const body = await request.json();
         const { headquartersId, dueDate, items, notes, taxRate } = body;
