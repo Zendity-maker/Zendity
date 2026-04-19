@@ -1991,13 +1991,21 @@ export default function ZendityCareTabletPage() {
                                                         const expiresAt = new Date(order.expiresAt);
                                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                                         const expired = minsLeft <= 0;
+                                                        const urgent = !expired && minsLeft < 30;
+                                                        const hh = Math.floor(minsLeft / 60);
+                                                        const mm = minsLeft % 60;
+                                                        const label = expired
+                                                            ? 'Ventana vencida'
+                                                            : `Vence en ${hh > 0 ? `${hh}h ${mm}m` : `${mm}m`}`;
                                                         return (
                                                             <span className={`inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider rounded-full px-2 py-1 whitespace-nowrap ${
                                                                 expired
                                                                     ? 'bg-[#D9534F]/20 text-[#fca5a5] border border-[#D9534F]/40'
-                                                                    : 'bg-[#3CC6C4]/15 text-[#3CC6C4] border border-[#3CC6C4]/30'
+                                                                    : urgent
+                                                                        ? 'bg-[#E5A93D]/20 text-[#fbbf24] border border-[#E5A93D]/40 animate-pulse'
+                                                                        : 'bg-[#3CC6C4]/15 text-[#3CC6C4] border border-[#3CC6C4]/30'
                                                             }`}>
-                                                                🩺 {expired ? `Vitales vencidas` : `Vitales ${minsLeft}m`}
+                                                                🩺 {label}
                                                             </span>
                                                         );
                                                     })()}
@@ -2126,22 +2134,25 @@ export default function ZendityCareTabletPage() {
                                         </div>
                                     </div>
 
-                                    {/* ===== VITALS ORDER BADGE ===== */}
+                                    {/* ===== VITALS ENTRY WINDOW BADGE (Sprint J — 4h desde inicio de turno) ===== */}
                                     {p.vitalsOrders?.length > 0 && (() => {
                                         const order = p.vitalsOrders[0];
                                         const expiresAt = new Date(order.expiresAt);
                                         const minsLeft = Math.round((expiresAt.getTime() - Date.now()) / 60000);
                                         const expired = minsLeft <= 0;
-                                        const urgent = !expired && minsLeft < 20;
+                                        const urgent = !expired && minsLeft < 30;
+                                        const hh = Math.floor(Math.max(minsLeft, 0) / 60);
+                                        const mm = Math.max(minsLeft, 0) % 60;
+                                        const countdown = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
                                         return (
                                             <div className={`px-4 py-2 flex items-center gap-2 border-b ${
-                                                expired ? 'bg-[#fef2f2] border-[#fecaca]' : urgent ? 'bg-[#fffbeb] border-[#fde68a]' : 'bg-[#ecfeff] border-[#a5f3fc]'
+                                                expired ? 'bg-[#fef2f2] border-[#fecaca]' : urgent ? 'bg-[#fffbeb] border-[#fde68a] animate-pulse' : 'bg-[#ecfeff] border-[#a5f3fc]'
                                             }`}>
                                                 <span className="text-sm">{expired ? '⏰' : urgent ? '⏳' : '🩺'}</span>
                                                 <p className={`text-[11px] font-semibold leading-tight flex-1 ${
                                                     expired ? 'text-[#991b1b]' : urgent ? 'text-[#92400e]' : 'text-[#155e75]'
                                                 }`}>
-                                                    Orden de vitales pendiente · {expired ? `vencida hace ${Math.abs(minsLeft)} min` : `vence en ${minsLeft} min`}
+                                                    Vitales de entrada · {expired ? `Ventana vencida hace ${Math.abs(minsLeft)} min` : `Vence en ${countdown}`}
                                                 </p>
                                             </div>
                                         );
@@ -3219,8 +3230,8 @@ export default function ZendityCareTabletPage() {
                         <div className="flex items-start gap-4 mb-5">
                             <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⏰</div>
                             <div>
-                                <h3 className="font-black text-slate-800 text-lg leading-tight">Orden de vitales vencida</h3>
-                                <p className="text-slate-500 text-sm font-medium mt-1">Registrar fuera del plazo de 2h aplica <span className="font-black text-amber-700">-2 pts</span> a tu score de cumplimiento. Documenta por qué:</p>
+                                <h3 className="font-black text-slate-800 text-lg leading-tight">Ventana de vitales vencida</h3>
+                                <p className="text-slate-500 text-sm font-medium mt-1">Registrar fuera de la ventana de 4h aplica <span className="font-black text-amber-700">-2 pts</span> a tu score de cumplimiento. Documenta por qué:</p>
                             </div>
                         </div>
                         <textarea
