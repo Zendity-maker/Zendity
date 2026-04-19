@@ -248,6 +248,9 @@ model User {
   // Órdenes de toma de vitales
   vitalsOrdersGiven    VitalsOrder[] @relation("OrderedVitals")
   vitalsOrdersReceived VitalsOrder[] @relation("AssignedVitals")
+
+  // Sprint G — briefings generados por el director
+  directorBriefings DirectorBriefing[]
 }
 
 model Account {
@@ -2239,4 +2242,24 @@ model StaffMessage {
 
   @@index([headquartersId, type, createdAt])
   @@index([recipientId, isRead])
+}
+
+// =======================
+// Sprint G — Zendi Director Briefing (GPT-4o)
+// Cacheado por día clínico; scope = hqId o 'ALL'.
+// =======================
+model DirectorBriefing {
+    id             String   @id @default(uuid())
+    scope          String   // 'ALL' para consolidado, o un headquartersId
+    generatedAt    DateTime @default(now())
+    clinicalDay    DateTime // Inicio del día clínico (6 AM AST) al que corresponde el briefing
+    summary        String   @db.Text // Texto plano breve (fallback / encabezado)
+    bullets        Json     // [{ priority: 'CRITICAL'|'HIGH'|'MEDIUM'|'LOW', title, description, action }]
+    generatedById  String?
+    model          String   @default("gpt-4o")
+
+    generatedBy User? @relation(fields: [generatedById], references: [id])
+
+    @@unique([scope, clinicalDay])
+    @@index([scope, generatedAt])
 }

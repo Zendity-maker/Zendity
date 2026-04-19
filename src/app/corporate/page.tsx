@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren } from 'lucide-react';
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon } from 'lucide-react';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -95,6 +95,19 @@ export default function CorporateDashboardPage() {
     const [dynamicModules, setDynamicModules] = useState<DynamicModules | null>(null);
     const [trends, setTrends] = useState<TrendsData | null>(null);
     const [trendsLoading, setTrendsLoading] = useState(true);
+
+    // Zendi Director Briefing (Sprint G-B)
+    const [briefing, setBriefing] = useState<{
+        id: string;
+        scope: string;
+        clinicalDay: string;
+        generatedAt: string;
+        summary: string;
+        bullets: Array<{ priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'; title: string; description: string; action: string }>;
+        model: string;
+    } | null>(null);
+    const [briefingLoading, setBriefingLoading] = useState(false);
+    const [briefingError, setBriefingError] = useState<string | null>(null);
     const [kpis, setKpis] = useState<{
         activeHqs: number;
         totalCapacity: number | null;
@@ -239,6 +252,49 @@ export default function CorporateDashboardPage() {
         return () => { isMounted = false; clearInterval(interval); };
     }, [selectedFacility, user, authLoading]);
 
+    // ── Cargar briefing del director al entrar / cambiar de sede ──
+    useEffect(() => {
+        if (authLoading || !user) return;
+        const role = (user as any).role;
+        if (!['DIRECTOR', 'ADMIN'].includes(role)) return;
+
+        let isMounted = true;
+        (async () => {
+            try {
+                const res = await fetch(`/api/corporate/director-briefing?hqId=${selectedFacility}`, { cache: 'no-store' });
+                const data = await res.json();
+                if (isMounted && data.success && data.briefing) {
+                    setBriefing(data.briefing);
+                }
+            } catch (err) {
+                console.error('[briefing GET]', err);
+            }
+        })();
+        return () => { isMounted = false; };
+    }, [selectedFacility, user, authLoading]);
+
+    const regenerateBriefing = async (forceRefresh: boolean) => {
+        setBriefingLoading(true);
+        setBriefingError(null);
+        try {
+            const res = await fetch('/api/corporate/director-briefing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hqId: selectedFacility, forceRefresh }),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                setBriefingError(data.error || 'No se pudo generar briefing');
+            } else {
+                setBriefing(data.briefing);
+            }
+        } catch (err: any) {
+            setBriefingError(err.message || 'Error de red');
+        } finally {
+            setBriefingLoading(false);
+        }
+    };
+
     // --- Family Link Polling ---
     useEffect(() => {
         fetchMessages();
@@ -310,8 +366,108 @@ export default function CorporateDashboardPage() {
         </div>
     );
 
+    const isDirector = user && ['DIRECTOR', 'ADMIN'].includes((user as any).role);
+
+    const priorityStyles: Record<string, { label: string; badge: string; card: string; icon: React.ReactNode }> = {
+        CRITICAL: { label: 'Crítica', badge: 'bg-[#D9534F] text-white', card: 'bg-red-50 border-red-200', icon: <AlertOctagon size={14} /> },
+        HIGH: { label: 'Alta', badge: 'bg-[#E5A93D] text-white', card: 'bg-amber-50 border-amber-200', icon: <AlertOctagon size={14} /> },
+        MEDIUM: { label: 'Media', badge: 'bg-[#0F6B78] text-white', card: 'bg-teal-50 border-teal-200', icon: <Activity size={14} /> },
+        LOW: { label: 'Baja', badge: 'bg-[#22A06B] text-white', card: 'bg-emerald-50 border-emerald-200', icon: <Sparkles size={14} /> },
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* 0. Zendi Director Briefing (solo DIRECTOR/ADMIN) */}
+            {isDirector && (
+                <div className="bg-gradient-to-br from-[#0F6B78]/5 via-white to-[#E5A93D]/5 border border-[#0F6B78]/20 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#0F6B78] text-white flex items-center justify-center">
+                                <Sparkles size={20} />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-[#1F2D3A] tracking-tight flex items-center gap-2">
+                                    Zendi Director Briefing
+                                    {briefing?.model === 'fallback' && (
+                                        <span className="text-[9px] font-bold uppercase tracking-widest bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">heurístico</span>
+                                    )}
+                                </h2>
+                                <p className="text-xs text-slate-500">
+                                    {briefing
+                                        ? `Generado ${new Date(briefing.generatedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })} · ${new Date(briefing.generatedAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'short' })}`
+                                        : 'Asistente estratégico con GPT-4o sobre el snapshot operativo.'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {!briefing && (
+                                <button
+                                    onClick={() => regenerateBriefing(false)}
+                                    disabled={briefingLoading}
+                                    className="bg-[#0F6B78] hover:bg-[#0d5a66] disabled:opacity-60 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm transition-all flex items-center gap-2"
+                                >
+                                    <Sparkles size={14} />
+                                    {briefingLoading ? 'Generando...' : 'Generar briefing'}
+                                </button>
+                            )}
+                            {briefing && (
+                                <button
+                                    onClick={() => regenerateBriefing(true)}
+                                    disabled={briefingLoading}
+                                    className="bg-white border border-[#0F6B78]/30 hover:border-[#0F6B78] text-[#0F6B78] text-sm font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2"
+                                >
+                                    <RefreshCw size={14} className={briefingLoading ? 'animate-spin' : ''} />
+                                    {briefingLoading ? 'Actualizando...' : 'Regenerar'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {briefingError && (
+                        <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3 text-sm mb-3">
+                            {briefingError}
+                        </div>
+                    )}
+
+                    {briefing ? (
+                        <>
+                            <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 mb-3 text-sm text-[#1F2D3A] font-medium leading-relaxed">
+                                {briefing.summary}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                {briefing.bullets.map((b, i) => {
+                                    const s = priorityStyles[b.priority] || priorityStyles.MEDIUM;
+                                    return (
+                                        <div key={i} className={`border rounded-xl p-3 ${s.card}`}>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${s.badge} px-2 py-0.5 rounded`}>
+                                                    {s.icon} {s.label}
+                                                </span>
+                                            </div>
+                                            <h4 className="font-bold text-[#1F2D3A] text-sm mb-1">{b.title}</h4>
+                                            <p className="text-xs text-[#1F2D3A]/75 leading-relaxed mb-2">{b.description}</p>
+                                            <p className="text-xs text-[#0F6B78] font-bold leading-relaxed flex items-start gap-1">
+                                                <ArrowRight size={12} className="mt-0.5 flex-shrink-0" /> {b.action}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : !briefingLoading ? (
+                        <div className="bg-white/60 rounded-xl border border-dashed border-[#0F6B78]/30 p-6 text-center">
+                            <p className="text-sm text-[#1F2D3A]/70 font-medium">
+                                Aún no hay briefing para hoy. Presiona <span className="font-bold text-[#0F6B78]">Generar briefing</span> para crear el análisis del día clínico.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="bg-white/60 rounded-xl border border-[#0F6B78]/20 p-6 text-center animate-pulse">
+                            <p className="text-sm text-[#1F2D3A]/60 font-medium">Zendi está analizando el día clínico...</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* 1. Header & Global Selector */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
