@@ -108,6 +108,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [workspaceMenuOpen]);
 
+    // Sprint G-C: permitir que cualquier página abra el StaffChat vía evento global
+    useEffect(() => {
+        const handler = () => setStaffChatOpen(true);
+        window.addEventListener('zendity:open-staff-chat', handler);
+        return () => window.removeEventListener('zendity:open-staff-chat', handler);
+    }, []);
+
     // Click-outside handler for notification panel
     useEffect(() => {
         if (!notifOpen) return;

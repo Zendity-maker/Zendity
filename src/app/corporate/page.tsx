@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon } from 'lucide-react';
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio } from 'lucide-react';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -95,6 +95,22 @@ export default function CorporateDashboardPage() {
     const [dynamicModules, setDynamicModules] = useState<DynamicModules | null>(null);
     const [trends, setTrends] = useState<TrendsData | null>(null);
     const [trendsLoading, setTrendsLoading] = useState(true);
+
+    // Live chips (Sprint G-C)
+    const [live, setLive] = useState<{
+        chips: {
+            activeCaregivers: number;
+            bathsToday: number;
+            mealsToday: number;
+            incidentsWeek: number;
+            triageOpen: number;
+            handoversPending: number;
+            zombiePatients: number;
+            onHospitalLeave: number;
+        };
+        totals: { activePatients: number; handoversToday: number };
+        timestamp: string;
+    } | null>(null);
 
     // Zendi Director Briefing (Sprint G-B)
     const [briefing, setBriefing] = useState<{
@@ -190,14 +206,38 @@ export default function CorporateDashboardPage() {
         }
 
         loadDashboard(true);
-        const interval = setInterval(() => loadDashboard(false), 60000);
+        const interval = setInterval(() => loadDashboard(false), 30000);
         return () => {
             isMounted = false;
             clearInterval(interval);
         };
     }, [selectedFacility, user, authLoading]);
 
-    // ── Cargar módulos dinámicos + polling 60s ──
+    // ── Live chips (Sprint G-C) + polling 30s ──
+    useEffect(() => {
+        if (authLoading || !user) return;
+        const role = (user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) return;
+
+        let isMounted = true;
+        async function loadLive() {
+            try {
+                const res = await fetch(`/api/corporate/live?hqId=${selectedFacility}`, { cache: 'no-store' });
+                const data = await res.json();
+                if (!isMounted) return;
+                if (data.success) {
+                    setLive({ chips: data.chips, totals: data.totals, timestamp: data.timestamp });
+                }
+            } catch (err) {
+                console.error('[live]', err);
+            }
+        }
+        loadLive();
+        const interval = setInterval(loadLive, 30000);
+        return () => { isMounted = false; clearInterval(interval); };
+    }, [selectedFacility, user, authLoading]);
+
+    // ── Cargar módulos dinámicos + polling 30s ──
     useEffect(() => {
         if (authLoading || !user) return;
         const role = (user as any).role;
@@ -218,7 +258,7 @@ export default function CorporateDashboardPage() {
         }
 
         loadModules();
-        const interval = setInterval(loadModules, 60000);
+        const interval = setInterval(loadModules, 30000);
         return () => {
             isMounted = false;
             clearInterval(interval);
@@ -248,7 +288,7 @@ export default function CorporateDashboardPage() {
         }
 
         loadTrends(true);
-        const interval = setInterval(() => loadTrends(false), 60000);
+        const interval = setInterval(() => loadTrends(false), 30000);
         return () => { isMounted = false; clearInterval(interval); };
     }, [selectedFacility, user, authLoading]);
 
@@ -504,12 +544,21 @@ export default function CorporateDashboardPage() {
                         onClick={() => { setShowInbox(true); setActiveThread(null); }}
                         className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
                     >
-                        <span></span> Chats Familiares
+                        <MessageSquare className="w-4 h-4" /> Chats Familiares
                         {inboxThreads.some(t => t.unreadCount > 0) && (
                             <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
                                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
                             </span>
                         )}
+                    </button>
+
+                    {/* Botón Chat Staff (Sprint G-C) */}
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('zendity:open-staff-chat'))}
+                        className="relative bg-[#0F6B78] hover:bg-[#0d5a66] text-white border border-[#0F6B78] font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                        title="Chat interno del equipo"
+                    >
+                        <Radio className="w-4 h-4" /> Chat Staff
                     </button>
 
                     <Link href="/corporate/hr" className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
@@ -583,6 +632,66 @@ export default function CorporateDashboardPage() {
                         <p className="text-xs font-medium mt-3 opacity-90">{kpi.sub}</p>
                     </div>
                 ))}
+            </div>
+
+            {/* 2.25 Sala de mando — "En este momento" (Sprint G-C) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div>
+                        <h3 className="text-lg font-bold text-[#1F2D3A] tracking-tight flex items-center gap-2">
+                            <Radio size={18} className="text-[#0F6B78]" /> En este momento
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Agregado multi-sede en vivo · polling 30s
+                            {live && ` · sincronizado ${new Date(live.timestamp).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+                        </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#22A06B]/10 text-[#22A06B] border border-[#22A06B]/30 px-2.5 py-1 rounded-full">
+                        <span className="w-1.5 h-1.5 bg-[#22A06B] rounded-full animate-pulse"></span>
+                        En vivo
+                    </span>
+                </div>
+
+                {live ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+                        {[
+                            { label: 'Cuidadores activos', value: live.chips.activeCaregivers, icon: UserCheck, tone: 'teal' },
+                            { label: 'Baños hoy', value: live.chips.bathsToday, icon: Bath, tone: 'sky' },
+                            { label: 'Comidas hoy', value: live.chips.mealsToday, icon: UtensilsCrossed, tone: 'amber' },
+                            { label: 'Incidentes (7d)', value: live.chips.incidentsWeek, icon: AlertOctagon, tone: live.chips.incidentsWeek > 3 ? 'red' : 'slate' },
+                            { label: 'Triage abierto', value: live.chips.triageOpen, icon: Siren, tone: live.chips.triageOpen > 0 ? 'amber' : 'slate' },
+                            { label: 'Handovers pend.', value: live.chips.handoversPending, icon: FileSignature, tone: live.chips.handoversPending > 0 ? 'amber' : 'slate' },
+                            { label: 'Residentes sin actividad', value: live.chips.zombiePatients, icon: Activity, tone: live.chips.zombiePatients > 0 ? 'red' : 'emerald' },
+                            { label: 'En hospital', value: live.chips.onHospitalLeave, icon: Stethoscope, tone: live.chips.onHospitalLeave > 0 ? 'rose' : 'slate' },
+                        ].map((chip, i) => {
+                            const tones: Record<string, string> = {
+                                teal: 'bg-[#0F6B78]/10 text-[#0F6B78] border-[#0F6B78]/20',
+                                sky: 'bg-sky-50 text-sky-700 border-sky-200',
+                                amber: 'bg-amber-50 text-amber-700 border-amber-200',
+                                red: 'bg-red-50 text-red-700 border-red-200',
+                                rose: 'bg-rose-50 text-rose-700 border-rose-200',
+                                emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                slate: 'bg-slate-50 text-slate-700 border-slate-200',
+                            };
+                            const Icon = chip.icon;
+                            return (
+                                <div key={i} className={`rounded-xl border p-3 ${tones[chip.tone]} transition-all`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <Icon size={16} />
+                                        <span className="text-2xl font-black leading-none">{chip.value}</span>
+                                    </div>
+                                    <p className="text-[10px] font-bold uppercase tracking-wide opacity-80 mt-2 leading-tight">{chip.label}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-3 h-20 animate-pulse" />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* 2.5 Tendencias 7 días — 6 gráficas */}
@@ -764,7 +873,7 @@ export default function CorporateDashboardPage() {
                             </h3>
                             <span className="text-xs font-semibold bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
-                                Tiempo Real · 60s
+                                Tiempo Real · 30s
                             </span>
                         </div>
                         <div className="overflow-x-auto">
