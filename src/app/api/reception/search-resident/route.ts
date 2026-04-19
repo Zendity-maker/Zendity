@@ -5,6 +5,7 @@ export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const q = searchParams.get('q') || '';
+        const hqId = searchParams.get('hqId') || null;
 
         if (q.length < 2) {
             return NextResponse.json({ success: true, patients: [] });
@@ -13,9 +14,13 @@ export async function GET(req: Request) {
         // Dividir en palabras para mayor cobertura
         const words = q.trim().split(/\s+/).filter(w => w.length > 1);
 
+        // Filtro opcional por sede (kiosco multi-sede)
+        const hqFilter = hqId ? { headquartersId: hqId } : {};
+
         const raw = await prisma.patient.findMany({
             where: {
                 status: 'ACTIVE',
+                ...hqFilter,
                 AND: words.map(word => ({
                     name: { contains: word, mode: 'insensitive' }
                 }))
@@ -35,6 +40,7 @@ export async function GET(req: Request) {
             const flex = await prisma.patient.findMany({
                 where: {
                     status: 'ACTIVE',
+                    ...hqFilter,
                     OR: words.map(word => ({
                         name: { contains: word, mode: 'insensitive' }
                     }))

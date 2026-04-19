@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { FaMicrophone, FaCheck, FaTimes, FaRedo } from "react-icons/fa";
+
+const INACTIVITY_MS = 60_000; // 60s para reset automático
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 type KioskStep = 'welcome' | 'asking-resident' | 'confirming-resident' | 'asking-name' | 'signing' | 'done';
@@ -38,6 +41,9 @@ interface VisitData {
 
 // ─── Componente Principal ────────────────────────────────────────────────────
 export default function ReceptionKiosk() {
+    const searchParams = useSearchParams();
+    const hqId = searchParams?.get('hqId') || null;
+
     const [step, setStep] = useState<KioskStep>("welcome");
 
     // Display states (usados en JSX para mostrar nombres)
@@ -65,9 +71,14 @@ export default function ReceptionKiosk() {
 
     // Canvas firma
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const canvasWrapRef = useRef<HTMLDivElement>(null);
     const isDrawingRef = useRef(false);
     const lastPosRef = useRef({ x: 0, y: 0 });
     const [hasSigned, setHasSigned] = useState(false);
+    const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 480, height: 180 });
+
+    // Inactividad — resetea a welcome tras INACTIVITY_MS sin actividad
+    const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Referencia al reconocedor activo (para poder detenerlo)
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
@@ -183,7 +194,8 @@ export default function ReceptionKiosk() {
         stopListening();
 
         try {
-            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}`);
+            const hqParam = hqId ? `&hqId=${encodeURIComponent(hqId)}` : '';
+            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}${hqParam}`);
             const data = await res.json();
 
             if (data.patients?.length === 1) {
@@ -285,6 +297,83 @@ export default function ReceptionKiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step]); // Solo reacciona a cambios de step, nunca a 'welcome'
 
+    // ── FIX 4: Timeout de inactividad ────────────────────────────────────────
+    // Cualquier actividad (click/touch/key/change) reinicia el timer.
+    // Si no hay actividad en 60s y el step es intermedio, reset a 'welcome'.
+    const handleInactivityReset = useCallback(() => {
+        stopListening();
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = '';
+            audioRef.current = null;
+        }
+        window.speechSynthesis.cancel();
+
+        setStep('welcome');
+        setResidentName('');
+        setVisitorName('');
+        setVisitorRelation('');
+        setInputText('');
+        setTranscript('');
+        setHasSigned(false);
+        setVisitId(null);
+        setErrorMsg(null);
+        setResidentCandidates([]);
+        setVisitData({ residentName: '', visitorName: '', visitorRelation: '', patientId: null });
+        nameStepAnnouncedRef.current = false;
+        if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        }
+
+        speak('Sesión expirada por inactividad.');
+    }, [speak, stopListening]);
+
+    const resetInactivityTimer = useCallback(() => {
+        if (inactivityTimerRef.current) {
+            clearTimeout(inactivityTimerRef.current);
+            inactivityTimerRef.current = null;
+        }
+        // Solo armar el timer en pasos intermedios
+        if (step === 'welcome' || step === 'done') return;
+        inactivityTimerRef.current = setTimeout(handleInactivityReset, INACTIVITY_MS);
+    }, [step, handleInactivityReset]);
+
+    useEffect(() => {
+        resetInactivityTimer();
+        return () => {
+            if (inactivityTimerRef.current) {
+                clearTimeout(inactivityTimerRef.current);
+                inactivityTimerRef.current = null;
+            }
+        };
+    }, [step, resetInactivityTimer]);
+
+    // ── FIX 5: Canvas firma responsive ───────────────────────────────────────
+    useEffect(() => {
+        const measure = () => {
+            const wrap = canvasWrapRef.current;
+            if (!wrap) return;
+            const parentWidth = wrap.clientWidth;
+            const width = Math.max(240, Math.min(parentWidth - 32, 600));
+            const height = Math.round(width * 0.35);
+            setCanvasSize(prev => (prev.width === width && prev.height === height ? prev : { width, height }));
+        };
+        // Medir al montar y en cada resize (si el canvas ya está montado)
+        measure();
+        window.addEventListener('resize', measure);
+        window.addEventListener('orientationchange', measure);
+        return () => {
+            window.removeEventListener('resize', measure);
+            window.removeEventListener('orientationchange', measure);
+        };
+    }, [step]); // remeasure cuando entramos/salimos del paso signing
+
+    // Al cambiar de tamaño el canvas, se resetea el buffer → limpiar estado
+    useEffect(() => {
+        setHasSigned(false);
+    }, [canvasSize.width, canvasSize.height]);
+
     // ── Canvas Firma ─────────────────────────────────────────────────────────
     const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
         const rect = canvas.getBoundingClientRect();
@@ -368,7 +457,13 @@ export default function ReceptionKiosk() {
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none">
+        <div
+            className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none"
+            onClick={resetInactivityTimer}
+            onTouchStart={resetInactivityTimer}
+            onKeyDown={resetInactivityTimer}
+            onChange={resetInactivityTimer}
+        >
 
             {/* Header */}
             <div className="w-full max-w-2xl mb-6 text-center">
@@ -554,11 +649,11 @@ export default function ReceptionKiosk() {
                     </div>
 
                     {/* Canvas */}
-                    <div className="w-full bg-white rounded-2xl overflow-hidden border-4 border-slate-700 relative">
+                    <div ref={canvasWrapRef} className="w-full bg-white rounded-2xl overflow-hidden border-4 border-slate-700 relative">
                         <canvas
                             ref={canvasRef}
-                            width={480}
-                            height={180}
+                            width={canvasSize.width}
+                            height={canvasSize.height}
                             className="w-full touch-none cursor-crosshair"
                             onMouseDown={startDraw}
                             onMouseMove={draw}

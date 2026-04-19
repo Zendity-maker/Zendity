@@ -28,7 +28,13 @@ export async function POST(req: Request) {
             });
         }
 
-        const hqId = patient?.headquartersId || 'b5d13d84-0a57-42fe-a1ed-bff887ed0c09';
+        if (!patient?.headquartersId) {
+            return NextResponse.json(
+                { success: false, error: 'Residente no encontrado' },
+                { status: 404 }
+            );
+        }
+        const hqId = patient.headquartersId;
 
         // 2. Guardar visita en FamilyVisit
         let visit = null;
