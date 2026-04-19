@@ -270,6 +270,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const isFullScreenRoute =
         pathname === "/login" ||
         pathname === "/reception" ||
+        pathname.startsWith("/admin") ||
         pathname.startsWith("/care") ||
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
