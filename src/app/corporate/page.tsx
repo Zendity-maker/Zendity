@@ -4,7 +4,14 @@ import React, { useState, useEffect } from "react";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList } from 'lucide-react';
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren } from 'lucide-react';
+import {
+    ResponsiveContainer,
+    LineChart, Line,
+    BarChart, Bar,
+    AreaChart, Area,
+    XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+} from 'recharts';
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
@@ -15,6 +22,69 @@ interface DynamicModules {
     draftSchedules: number;
 }
 
+interface TrendsData {
+    days: number;
+    activePatients: number;
+    series: {
+        emar: Array<{ date: string; compliance: number | null; total: number }>;
+        handovers: Array<{ date: string; total: number; signed: number; pending: number; avgLatencyHours: number | null }>;
+        vitals: Array<{ date: string; total: number; abnormal: number }>;
+        triage: Array<{ date: string; opened: number; resolved: number; avgMttrHours: number | null }>;
+        baths: Array<{ date: string; total: number; perPatient: number }>;
+        meals: Array<{ date: string; total: number; uniquePatientMeals: number; coverage: number | null }>;
+    };
+    totals: {
+        emarCurrent: number | null;
+        emarPrev: number | null;
+        handoversCurrentSigned: number;
+        handoversPrevSigned: number;
+        handoversCurrentTotal: number;
+        vitalsCurrentAbnormal: number;
+        vitalsPrevAbnormal: number;
+        triageCurrent: number;
+        triagePrev: number;
+        bathsCurrent: number;
+        bathsPrev: number;
+        mealsCurrent: number;
+        mealsPrev: number;
+    };
+    deltas: {
+        deltaMeds: number | null;
+        deltaHandoversSigned: number | null;
+        deltaVitalsAbnormal: number | null;
+        deltaTriage: number | null;
+        deltaBaths: number | null;
+        deltaMeals: number | null;
+    };
+}
+
+// Formateador de fecha corta para eje X
+function formatShortDate(iso: string): string {
+    const [, m, d] = iso.split('-');
+    return `${d}/${m}`;
+}
+
+// Componente delta pill (flecha + porcentaje)
+function DeltaPill({ value, suffix = '%', inverted = false }: { value: number | null; suffix?: string; inverted?: boolean }) {
+    if (value === null) {
+        return <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400"><Minus size={10} /> s/d</span>;
+    }
+    const positive = value > 0;
+    const negative = value < 0;
+    // inverted=true significa "bajar es bueno" (ej: vitales anómalos, triage)
+    const goodUp = !inverted;
+    const isGood = (positive && goodUp) || (negative && !goodUp);
+    const isBad = (negative && goodUp) || (positive && !goodUp);
+    const color = value === 0 ? 'text-slate-500' : isGood ? 'text-[#22A06B]' : isBad ? 'text-[#D9534F]' : 'text-slate-500';
+    const Icon = value === 0 ? Minus : positive ? TrendingUp : TrendingDown;
+    return (
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${color}`}>
+            <Icon size={10} />
+            {value > 0 ? '+' : ''}{value}{suffix}
+        </span>
+    );
+}
+
 export default function CorporateDashboardPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
@@ -23,6 +93,8 @@ export default function CorporateDashboardPage() {
     const [canSelectFacility, setCanSelectFacility] = useState(false);
     const [rankingData, setRankingData] = useState<any[]>([]);
     const [dynamicModules, setDynamicModules] = useState<DynamicModules | null>(null);
+    const [trends, setTrends] = useState<TrendsData | null>(null);
+    const [trendsLoading, setTrendsLoading] = useState(true);
     const [kpis, setKpis] = useState<{
         activeHqs: number;
         totalCapacity: number | null;
@@ -139,6 +211,33 @@ export default function CorporateDashboardPage() {
             clearInterval(interval);
         };
     }, [user, authLoading]);
+
+    // ── Cargar tendencias + polling 60s ──
+    useEffect(() => {
+        if (authLoading || !user) return;
+        const role = (user as any).role;
+        if (!ALLOWED_ROLES.includes(role)) return;
+
+        let isMounted = true;
+
+        async function loadTrends(showSpinner: boolean) {
+            if (showSpinner) setTrendsLoading(true);
+            try {
+                const res = await fetch(`/api/corporate/trends?hqId=${selectedFacility}&days=7`, { cache: 'no-store' });
+                const data = await res.json();
+                if (!isMounted) return;
+                if (data.success) setTrends(data);
+            } catch (err) {
+                console.error('[trends]', err);
+            } finally {
+                if (isMounted && showSpinner) setTrendsLoading(false);
+            }
+        }
+
+        loadTrends(true);
+        const interval = setInterval(() => loadTrends(false), 60000);
+        return () => { isMounted = false; clearInterval(interval); };
+    }, [selectedFacility, user, authLoading]);
 
     // --- Family Link Polling ---
     useEffect(() => {
@@ -276,7 +375,10 @@ export default function CorporateDashboardPage() {
                         label: "Sedes Activas",
                         value: kpis.activeHqs.toString(),
                         sub: kpis.totalCapacity !== null ? `Capacidad Total: ${kpis.totalCapacity} camas` : "Capacidad no registrada",
-                        color: "bg-blue-50 text-blue-700 border-blue-100"
+                        color: "bg-blue-50 text-blue-700 border-blue-100",
+                        delta: null as number | null,
+                        deltaSuffix: '%',
+                        deltaInverted: false,
                     },
                     {
                         label: "Residentes Actuales",
@@ -284,19 +386,30 @@ export default function CorporateDashboardPage() {
                         sub: (kpis.totalCapacity !== null && kpis.totalCapacity > 0)
                             ? `${Math.round((kpis.totalPatients / kpis.totalCapacity) * 100)}% Ocupación`
                             : "— Ocupación (sin capacidad)",
-                        color: "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        color: "bg-emerald-50 text-emerald-700 border-emerald-100",
+                        delta: null as number | null,
+                        deltaSuffix: '%',
+                        deltaInverted: false,
                     },
                     {
                         label: "Incidentes Críticos",
                         value: kpis.totalCriticalIncidents.toString(),
-                        sub: "Consolidado total",
-                        color: "bg-red-50 text-red-700 border-red-100"
+                        sub: trends ? `Triage semana: ${trends.totals.triageCurrent} (prev ${trends.totals.triagePrev})` : "Consolidado total",
+                        color: "bg-red-50 text-red-700 border-red-100",
+                        delta: trends?.deltas.deltaTriage ?? null,
+                        deltaSuffix: '%',
+                        deltaInverted: true, // bajar es bueno
                     },
                     {
                         label: "Cumplimiento Salud",
                         value: kpis.globalMedCompliance !== null ? `${kpis.globalMedCompliance}%` : '—',
-                        sub: kpis.globalMedCompliance !== null ? "Global eMAR" : "Sin administraciones registradas",
-                        color: "bg-purple-50 text-purple-700 border-purple-100"
+                        sub: trends && trends.totals.emarPrev !== null
+                            ? `Semana: ${trends.totals.emarCurrent ?? '—'}% · prev ${trends.totals.emarPrev}%`
+                            : kpis.globalMedCompliance !== null ? "Global eMAR" : "Sin administraciones registradas",
+                        color: "bg-purple-50 text-purple-700 border-purple-100",
+                        delta: trends?.deltas.deltaMeds ?? null,
+                        deltaSuffix: 'pp',
+                        deltaInverted: false, // subir es bueno
                     }
                 ].map((kpi, i) => (
                     <div key={i} className={`rounded-2xl p-5 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
@@ -305,10 +418,184 @@ export default function CorporateDashboardPage() {
                                 <p className="text-xs font-bold uppercase tracking-wider opacity-80">{kpi.label}</p>
                                 <h3 className="text-3xl font-black mt-1">{kpi.value}</h3>
                             </div>
+                            {kpi.delta !== null && (
+                                <div className="mt-1">
+                                    <DeltaPill value={kpi.delta} suffix={kpi.deltaSuffix} inverted={kpi.deltaInverted} />
+                                </div>
+                            )}
                         </div>
                         <p className="text-xs font-medium mt-3 opacity-90">{kpi.sub}</p>
                     </div>
                 ))}
+            </div>
+
+            {/* 2.5 Tendencias 7 días — 6 gráficas */}
+            <div className="bg-[#fafaf9] rounded-2xl border border-slate-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-[#1F2D3A] tracking-tight flex items-center gap-2">
+                            <Activity size={18} className="text-[#0F6B78]" /> Tendencias · últimos 7 días
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Día clínico 6 AM AST · polling 60s · deltas vs semana anterior</p>
+                    </div>
+                    {trends && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-[#0F6B78]/10 text-[#0F6B78] border border-[#0F6B78]/20 px-2.5 py-1 rounded-full">
+                            {trends.activePatients} residentes activos
+                        </span>
+                    )}
+                </div>
+
+                {trendsLoading && !trends ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="h-56 bg-white rounded-xl border border-slate-200 animate-pulse" />
+                        ))}
+                    </div>
+                ) : !trends ? (
+                    <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-500 text-sm">
+                        Sin datos de tendencia disponibles.
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+
+                        {/* 1. eMAR compliance */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><HeartPulse size={14} className="text-purple-600" /> Cumplimiento eMAR</h4>
+                                    <p className="text-[10px] text-slate-400">% administrado por día</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaMeds} suffix="pp" />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={trends.series.emar.map(d => ({ ...d, date: formatShortDate(d.date), compliance: d.compliance ?? 0 }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Line type="monotone" dataKey="compliance" stroke="#7e22ce" strokeWidth={2.5} dot={{ r: 3 }} name="Cumplimiento %" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* 2. Handovers firmados vs pendientes */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><FileSignature size={14} className="text-[#0F6B78]" /> Handovers firmados</h4>
+                                    <p className="text-[10px] text-slate-400">firmados vs pendientes · {trends.totals.handoversCurrentSigned}/{trends.totals.handoversCurrentTotal}</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaHandoversSigned} />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={trends.series.handovers.map(d => ({ ...d, date: formatShortDate(d.date) }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                                        <Bar dataKey="signed" stackId="a" fill="#22A06B" name="Firmados" radius={[0, 0, 0, 0]} />
+                                        <Bar dataKey="pending" stackId="a" fill="#E5A93D" name="Pendientes" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* 3. Vitales anómalos */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><Activity size={14} className="text-[#D9534F]" /> Vitales anómalos</h4>
+                                    <p className="text-[10px] text-slate-400">fuera de rango clínico · semana: {trends.totals.vitalsCurrentAbnormal}</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaVitalsAbnormal} inverted />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={trends.series.vitals.map(d => ({ ...d, date: formatShortDate(d.date) }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Bar dataKey="abnormal" fill="#D9534F" name="Anómalos" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* 4. Triage — abiertos y resueltos */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><Siren size={14} className="text-[#E5A93D]" /> Actividad de triage</h4>
+                                    <p className="text-[10px] text-slate-400">abiertos vs resueltos · semana: {trends.totals.triageCurrent}</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaTriage} inverted />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={trends.series.triage.map(d => ({ ...d, date: formatShortDate(d.date) }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                                        <Area type="monotone" dataKey="opened" stroke="#E5A93D" fill="#E5A93D" fillOpacity={0.35} name="Abiertos" />
+                                        <Area type="monotone" dataKey="resolved" stroke="#22A06B" fill="#22A06B" fillOpacity={0.35} name="Resueltos" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* 5. Baños por paciente */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><Bath size={14} className="text-sky-600" /> Baños registrados</h4>
+                                    <p className="text-[10px] text-slate-400">total diario · semana: {trends.totals.bathsCurrent}</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaBaths} />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={trends.series.baths.map(d => ({ ...d, date: formatShortDate(d.date) }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Bar dataKey="total" fill="#0F6B78" name="Baños" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* 6. Cobertura de comidas */}
+                        <div className="bg-white rounded-xl border border-slate-200 p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <div>
+                                    <h4 className="text-sm font-bold text-[#1F2D3A] flex items-center gap-1.5"><UtensilsCrossed size={14} className="text-amber-600" /> Cobertura comidas</h4>
+                                    <p className="text-[10px] text-slate-400">% residentes × 3 comidas · semana: {trends.totals.mealsCurrent}</p>
+                                </div>
+                                <DeltaPill value={trends.deltas.deltaMeals} />
+                            </div>
+                            <div className="h-44">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={trends.series.meals.map(d => ({ ...d, date: formatShortDate(d.date), coverage: d.coverage ?? 0 }))}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#64748b' }} />
+                                        <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e7e5e4' }} />
+                                        <Area type="monotone" dataKey="coverage" stroke="#E5A93D" fill="#E5A93D" fillOpacity={0.4} name="Cobertura %" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
