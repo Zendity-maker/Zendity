@@ -144,6 +144,7 @@ model User {
 
   complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
   createdAt       DateTime @default(now())
+  hiredAt         DateTime? // Sprint D: fecha real de ingreso (para detectar cuidador senior del turno)
 
   headquarters     Headquarters               @relation(fields: [headquartersId], references: [id])
   courseEnrolls    UserCourse[]
@@ -176,6 +177,10 @@ model User {
   // FASE 21 Integrations
   handoversGiven    ShiftHandover[] @relation("OutgoingNurse")
   handoversReceived ShiftHandover[] @relation("IncomingNurse")
+
+  // Sprint D: Reportes de Turno
+  seniorHandovers     ShiftHandover[] @relation("SeniorCaregiver")
+  supervisorHandovers ShiftHandover[] @relation("SupervisorSigned")
 
   // FASE 23 Clínico (Prevención de UPPs y Caídas)
   ulcerLogs       UlcerLog[]
@@ -1271,6 +1276,19 @@ model ShiftHandover {
   signedOutAt        DateTime?
   justifications     Json?     // { warningId: "REFUSED" | "ASLEEP" | "TRANSFERRED" | ... }
   handoverCompleted  Boolean   @default(false)
+
+  // Sprint D: Confirmación Senior + Firma Supervisor + Tracking Director
+  seniorCaregiverId    String?
+  seniorConfirmedAt    DateTime?
+  seniorNote           String?   @db.Text
+  supervisorSignedById String?
+  supervisorSignedAt   DateTime?
+  supervisorSignature  String?   @db.Text
+  supervisorNote       String?   @db.Text
+  directorViewedAt     DateTime?
+
+  seniorCaregiver  User? @relation("SeniorCaregiver",   fields: [seniorCaregiverId],    references: [id])
+  supervisorSigned User? @relation("SupervisorSigned",  fields: [supervisorSignedById], references: [id])
 
   // Enlace a la Sesión de Turno (Fase 44)
   shiftSession ShiftSession?
