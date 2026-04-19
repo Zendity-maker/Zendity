@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ActiveHqProvider } from "@/contexts/ActiveHqContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import AppLayout from "@/components/AppLayout";
 import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
@@ -57,10 +58,12 @@ export default function RootLayout({
       >
         <NextAuthProvider>
           <AuthProvider>
-            <AppLayout>
-              <ZendiSpeaker />
-              {children}
-            </AppLayout>
+            <ActiveHqProvider>
+              <AppLayout>
+                <ZendiSpeaker />
+                {children}
+              </AppLayout>
+            </ActiveHqProvider>
           </AuthProvider>
         </NextAuthProvider>
 
