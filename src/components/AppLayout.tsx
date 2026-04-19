@@ -13,7 +13,7 @@ import {
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
-    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare
+    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -58,6 +58,7 @@ const corporateNavigationSections = [
         title: "Recursos Humanos",
         links: [
             { name: "Alertas Zendi AI", href: "/hr/insights", icon: ShieldAlert },
+            { name: "Observaciones de Personal", href: "/hr/incidents", icon: FileWarning },
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },

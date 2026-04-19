@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import SignatureCanvas from 'react-signature-canvas';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "@/context/AuthContext";
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -13,15 +12,39 @@ interface WriteIncidentModalProps {
     onSuccess?: () => void;
 }
 
+type Severity = 'OBSERVATION' | 'WARNING' | 'SUSPENSION' | 'TERMINATION';
+type Category = 'PUNCTUALITY' | 'PATIENT_CARE' | 'HYGIENE' | 'BEHAVIOR' | 'DOCUMENTATION' | 'UNIFORM' | 'OTHER';
+
+const SEVERITY_STYLES: Record<Severity, { label: string; ring: string; bg: string; text: string; border: string }> = {
+    OBSERVATION: { label: 'Observación', ring: 'ring-blue-400', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-300' },
+    WARNING: { label: 'Amonestación', ring: 'ring-amber-400', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300' },
+    SUSPENSION: { label: 'Suspensión', ring: 'ring-orange-400', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-300' },
+    TERMINATION: { label: 'Despido', ring: 'ring-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300' },
+};
+
+const CATEGORY_LABELS: Record<Category, string> = {
+    PUNCTUALITY: 'Puntualidad',
+    PATIENT_CARE: 'Cuidado del Residente',
+    HYGIENE: 'Higiene',
+    BEHAVIOR: 'Conducta',
+    DOCUMENTATION: 'Documentación',
+    UNIFORM: 'Uniforme',
+    OTHER: 'Otro',
+};
+
+const severityToLegacyType = (s: Severity): string =>
+    s === 'OBSERVATION' ? 'WARNING' : s; // legacy enum no tiene OBSERVATION
+
 export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId, employees, onSuccess }: WriteIncidentModalProps) {
-    const [step, setStep] = useState<1 | 2>(1);
     const [employeeId, setEmployeeId] = useState('');
     const [selectedSupervisorId, setSelectedSupervisorId] = useState(supervisorId);
-    const [type, setType] = useState('WARNING');
+    const [severity, setSeverity] = useState<Severity>('OBSERVATION');
+    const [category, setCategory] = useState<Category>('OTHER');
     const [description, setDescription] = useState('');
+    const [directorNote, setDirectorNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [generatingAI, setGeneratingAI] = useState(false);
-    const { user } = useAuth(); // To get supervisor name
+    const { user } = useAuth();
 
     const [fullRoster, setFullRoster] = useState<any[]>(employees);
     const [loadingRoster, setLoadingRoster] = useState(false);
@@ -33,9 +56,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                 try {
                     const res = await fetch(`/api/hr/staff?headquartersId=${hqId}`);
                     const data = await res.json();
-                    if (data.success && data.staff) {
-                        setFullRoster(data.staff);
-                    }
+                    if (data.success && data.staff) setFullRoster(data.staff);
                 } catch (e) {
                     console.error("Failed to fetch full roster");
                 } finally {
@@ -46,10 +67,11 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
         }
     }, [isOpen, hqId]);
 
-    // Role-based filtering
     const isDirectorView = user?.role === 'DIRECTOR';
-    const administrativeStaff = fullRoster.filter(e => e.role === 'DIRECTOR' || e.role === 'ADMIN' || e.role === 'HR');
-    const availableEmployees = isDirectorView ? fullRoster : fullRoster.filter(e => e.role === 'NURSE' || e.role === 'CAREGIVER' || e.role === 'MAINTENANCE' || e.role === 'CLEANING');
+    const administrativeStaff = fullRoster.filter(e => e.role === 'DIRECTOR' || e.role === 'ADMIN' || e.role === 'HR' || e.role === 'SUPERVISOR');
+    const availableEmployees = isDirectorView
+        ? fullRoster
+        : fullRoster.filter(e => ['NURSE', 'CAREGIVER', 'MAINTENANCE', 'CLEANING', 'KITCHEN', 'SOCIAL_WORKER'].includes(e.role));
 
     useEffect(() => {
         if (isOpen) {
@@ -58,36 +80,20 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
         }
     }, [isOpen, employees, user]);
 
-    // Signature reference
-    const sigCanvas = useRef<any>(null);
-
     const handleAIGenerate = async () => {
-        if (!selectedSupervisorId) return alert("Seleccione el Supervisor Emisor primero.");
-        if (!employeeId) return alert("Seleccione un empleado primero.");
-        if (description.trim().length < 5) return alert("Escriba un borrador breve (ej: 'llegó tarde hoy y ayer sin avisar') antes de generar con IA.");
-        
-        const emp = fullRoster.find(e => e.id === employeeId);
-        const sup = fullRoster.find(s => s.id === selectedSupervisorId);
-        
+        if (description.trim().length < 5) {
+            return alert("Escribe un contexto breve (ej: 'llegó tarde tres veces esta semana sin avisar') antes de generar con Zendi.");
+        }
         setGeneratingAI(true);
         try {
             const res = await fetch("/api/hr/incidents/ai-generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    employeeName: emp?.name,
-                    employeeRole: emp?.role,
-                    supervisorName: sup?.name || user?.name || "Representante de RRHH",
-                    type,
-                    briefing: description
-                })
+                body: JSON.stringify({ category, severity, context: description })
             });
             const data = await res.json();
-            if (data.success) {
-                setDescription(data.generatedText);
-            } else {
-                alert("Error de IA: " + data.error);
-            }
+            if (data.success) setDescription(data.generatedText);
+            else alert("Error de IA: " + data.error);
         } catch (e) {
             console.error(e);
             alert("Error de conexión con la IA.");
@@ -96,36 +102,26 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
         }
     };
 
-    const handleSubmit = async (requireSignature: boolean = false) => {
+    const handleSubmit = async () => {
         if (!employeeId || !description || !selectedSupervisorId) return alert("Faltan datos por llenar.");
-        if (step === 1) {
-            setStep(2);
-            return;
-        }
-
-        if (step === 2 && requireSignature && (sigCanvas.current === null || sigCanvas.current.isEmpty())) {
-            return alert("Por favor solicita al empleado que firme en el recuadro blanco, o utiliza el botón de 'Guardar sin Firma (Ausente)'.");
-        }
 
         setSubmitting(true);
         try {
-            const signatureBase64 = (sigCanvas.current === null || sigCanvas.current.isEmpty()) ? null : sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
-
             const res = await fetch("/api/hr/incidents", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    headquartersId: hqId,
-                    supervisorId: selectedSupervisorId,
                     employeeId,
-                    type,
                     description,
-                    signatureBase64
+                    severity,
+                    category,
+                    directorNote: directorNote || undefined,
+                    type: severityToLegacyType(severity),
                 })
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Reporte Disciplinario guardado exitosamente.");
+                alert("Observación guardada como borrador. El director la revisará para decidir.");
                 if (onSuccess) onSuccess();
                 handleClose();
             } else {
@@ -133,23 +129,22 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
             }
         } catch (error) {
             console.error(error);
-            alert("Ocurrió un error al guardar el reporte.");
+            alert("Ocurrió un error al guardar la observación.");
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleClose = () => {
-        setStep(1);
         setEmployeeId('');
         setDescription('');
-        setType('WARNING');
+        setDirectorNote('');
+        setSeverity('OBSERVATION');
+        setCategory('OTHER');
         onClose();
     };
 
     if (!isOpen) return null;
-
-    const selectedEmployee = fullRoster.find(e => e.id === employeeId);
 
     return (
         <AnimatePresence>
@@ -158,16 +153,12 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]"
                 >
                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">
-                                {step === 1 ? 'Redactar Reporte Disciplinario' : 'Firma de Conformidad del Empleado'}
-                            </h2>
-                            <p className="text-sm text-gray-500 mt-1">
-                                {step === 1 ? 'Paso 1: Redacción del Supervisor' : 'Paso 2: Aceptación del Empleado'}
-                            </p>
+                            <h2 className="text-xl font-bold text-gray-900">Nueva Observación de Personal</h2>
+                            <p className="text-sm text-gray-500 mt-1">Se guardará como <strong>Borrador</strong>. El director decide si solicita explicación, aplica o desestima.</p>
                         </div>
                         <button onClick={handleClose} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -176,153 +167,120 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                         </button>
                     </div>
 
-                    <div className="p-6 overflow-y-auto flex-1">
-                        {step === 1 ? (
-                            <div className="space-y-5">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Emisor</label>
-                                        <select
-                                            value={selectedSupervisorId}
-                                            onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                                            className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                    <div className="p-6 overflow-y-auto flex-1 space-y-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Emisor</label>
+                                <select
+                                    value={selectedSupervisorId}
+                                    onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                >
+                                    <option value="">Seleccione el emisor...</option>
+                                    {administrativeStaff.map(sup => (
+                                        <option key={sup.id} value={sup.id}>{sup.name} ({sup.role})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Empleado Involucrado</label>
+                                <select
+                                    value={employeeId}
+                                    onChange={(e) => setEmployeeId(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                >
+                                    <option value="">Seleccione al empleado...</option>
+                                    {availableEmployees.map(emp => (
+                                        <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Severity picker */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Severidad</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {(Object.keys(SEVERITY_STYLES) as Severity[]).map(s => {
+                                    const st = SEVERITY_STYLES[s];
+                                    const active = severity === s;
+                                    return (
+                                        <button
+                                            key={s}
+                                            type="button"
+                                            onClick={() => setSeverity(s)}
+                                            className={`py-3 rounded-xl border-2 text-sm font-bold transition-all ${active ? `${st.bg} ${st.text} ${st.border} ring-2 ${st.ring}` : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
                                         >
-                                            <option value="">Seleccione el emisor...</option>
-                                            {administrativeStaff.map(sup => (
-                                                <option key={sup.id} value={sup.id}>{sup.name} ({sup.role})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Empleado Involucrado</label>
-                                        <select
-                                            value={employeeId}
-                                            onChange={(e) => setEmployeeId(e.target.value)}
-                                            className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
-                                        >
-                                            <option value="">Seleccione al empleado...</option>
-                                            {availableEmployees.map(emp => (
-                                                <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Falta</label>
-                                        <select
-                                            value={type}
-                                            onChange={(e) => setType(e.target.value)}
-                                            className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50"
-                                        >
-                                            <option value="WARNING">Amonestación Escrita (Warning)</option>
-                                            <option value="SUSPENSION">Suspensión Temporal</option>
-                                            <option value="TERMINATION">Despido Justificado</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                                        <input type="text" readOnly value={new Date().toLocaleDateString('es-ES')} className="w-full border border-gray-200 rounded-xl p-3 bg-gray-100 text-gray-500 cursor-not-allowed" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-end mb-1">
-                                        <label className="block text-sm font-medium text-gray-700">Descripción de los Hechos</label>
-                                        <button 
-                                            onClick={handleAIGenerate} 
-                                            disabled={generatingAI}
-                                            className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                                        >
-                                            <SparklesIcon className="w-3.5 h-3.5" />
-                                            {generatingAI ? 'Generando acta...' : 'Redactar Profesionalmente'}
+                                            {st.label}
                                         </button>
-                                    </div>
-                                    <textarea
-                                        rows={6}
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Escriba un borrador breve o los puntos clave, y luego presione 'Redactar Profesionalmente'..."
-                                        className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
-                                    />
-                                </div>
+                                    );
+                                })}
                             </div>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-800">
-                                    <strong>Documento Oficial de Recursos Humanos.</strong> Al firmar este documento, <span className="font-bold">{selectedEmployee?.name}</span> confirma haber leído y entendido los motivos de esta acción disciplinaria.
-                                </div>
+                        </div>
 
-                                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                    <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Hechos Reportados:</h3>
-                                    <p className="text-gray-800 whitespace-pre-wrap text-sm">{description}</p>
-                                    <p className="text-xs font-bold text-gray-500 uppercase mt-4">Acción:</p>
-                                    <p className="text-gray-800 text-sm font-bold">{type === 'WARNING' ? 'Amonestación Escrita' : type === 'SUSPENSION' ? 'Suspensión Temporal' : 'Despido Justificado'}</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Firma del Empleado (Opcional - Si está presente)</label>
-                                    <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-white">
-                                        <SignatureCanvas
-                                            ref={sigCanvas}
-                                            canvasProps={{ className: 'w-full h-40 cursor-crosshair' }}
-                                            penColor="blue"
-                                        />
-                                    </div>
+                        {/* Category picker */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                                {(Object.keys(CATEGORY_LABELS) as Category[]).map(c => (
                                     <button
-                                        onClick={() => sigCanvas.current?.clear()}
-                                        className="text-xs text-gray-500 hover:text-gray-800 mt-2 font-medium"
+                                        key={c}
+                                        type="button"
+                                        onClick={() => setCategory(c)}
+                                        className={`py-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${category === c ? 'bg-teal-50 text-teal-700 border-teal-300 ring-2 ring-teal-400' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
                                     >
-                                        Borrar y volver a firmar
+                                        {CATEGORY_LABELS[c]}
                                     </button>
-                                </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
+
+                        {/* Description with AI */}
+                        <div>
+                            <div className="flex justify-between items-end mb-1">
+                                <label className="block text-sm font-medium text-gray-700">Descripción de los Hechos</label>
+                                <button
+                                    onClick={handleAIGenerate}
+                                    disabled={generatingAI}
+                                    className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                                >
+                                    <SparklesIcon className="w-3.5 h-3.5" />
+                                    {generatingAI ? 'Generando con Zendi...' : 'Generar con Zendi'}
+                                </button>
+                            </div>
+                            <textarea
+                                rows={6}
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Describe los hechos, o escribe un borrador breve y presiona 'Generar con Zendi'..."
+                                className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
+                            />
+                        </div>
+
+                        {/* Director note (optional) */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nota del Director (opcional)</label>
+                            <textarea
+                                rows={2}
+                                value={directorNote}
+                                onChange={(e) => setDirectorNote(e.target.value)}
+                                placeholder="Contexto adicional para el director que revisará esta observación..."
+                                className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
+                            />
+                        </div>
                     </div>
 
-                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center flex-wrap gap-4">
-                        {step === 2 ? (
-                            <button
-                                onClick={() => setStep(1)}
-                                className="px-5 py-2.5 text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm shrink-0"
-                            >
-                                Volver a Redacción
-                            </button>
-                        ) : (
-                            <div></div>
-                        )}
-
-                        {step === 1 ? (
-                            <button
-                                onClick={() => handleSubmit(false)}
-                                disabled={submitting}
-                                className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 shrink-0 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {submitting ? 'Procesando...' : 'Siguiente: Firma (Paso 2)'}
-                                {!submitting && (
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                )}
-                            </button>
-                        ) : (
-                            <div className="flex flex-wrap gap-3">
-                                <button
-                                    onClick={() => handleSubmit(false)}
-                                    disabled={submitting}
-                                    className={`px-5 py-2.5 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-xl transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    Guardar sin Firma (Ausente)
-                                </button>
-                                <button
-                                    onClick={() => handleSubmit(true)}
-                                    disabled={submitting}
-                                    className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                    {submitting ? 'Procesando...' : 'Confirmar Reporte Firmado'}
-                                    {!submitting && (
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                    )}
-                                </button>
-                            </div>
-                        )}
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className={`px-6 py-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {submitting ? 'Guardando borrador...' : 'Guardar como Borrador'}
+                            {!submitting && (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            )}
+                        </button>
                     </div>
                 </motion.div>
             </div>
