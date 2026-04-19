@@ -64,7 +64,6 @@ const corporateNavigationSections = [
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
-            { name: "Zendity Academy", href: "/academy", icon: UserCheck },
         ]
     },
     {
