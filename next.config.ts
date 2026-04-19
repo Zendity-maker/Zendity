@@ -44,6 +44,22 @@ const RECEPTION_PERMISSIONS_POLICY = 'camera=(), microphone=(self), geolocation=
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['pdf-parse'],
+  async redirects() {
+    return [
+      // admin.zendity.com → /admin (panel CEO)
+      {
+        source: '/',
+        destination: '/admin',
+        permanent: false,
+        has: [
+          {
+            type: 'host',
+            value: 'admin.zendity.com',
+          },
+        ],
+      },
+    ];
+  },
   async headers() {
     return [
       // Rutas /reception y subrutas → permiten micrófono del propio origen
