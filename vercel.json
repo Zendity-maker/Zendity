@@ -5,6 +5,10 @@
       "schedule": "45 9 * * *"
     },
     {
+      "path": "/api/cron/clinical-day-start",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/cron/operational",
       "schedule": "0 * * * *"
     },
