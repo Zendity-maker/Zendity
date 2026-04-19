@@ -72,6 +72,7 @@ const corporateNavigationSections = [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
             { name: "Documentos de Admisión", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
+            { name: "Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
@@ -330,7 +331,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     </h3>
                                 )}
                                 <ul className="space-y-1">
-                                    {section.links.map((link) => {
+                                    {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link) => {
                                         const isExact = pathname === link.href;
                                         const isNested = link.href !== '/corporate' && pathname?.startsWith(link.href);
                                         const isCurrent = isExact || isNested;
@@ -448,7 +449,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     <div key={idx} className="mb-5">
                                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-3">{section.title}</h3>
                                         <ul className="space-y-1">
-                                            {section.links.map((link) => {
+                                            {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link) => {
                                                 const isCurrent = pathname === link.href || (link.href !== '/corporate' && pathname?.startsWith(link.href));
                                                 const Icon = link.icon;
                                                 return (

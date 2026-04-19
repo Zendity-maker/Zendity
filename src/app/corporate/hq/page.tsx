@@ -48,10 +48,10 @@ export default function ZendityHQPage() {
 
     const fetchHqs = async () => {
         try {
-            const res = await fetch("/api/superadmin/hqs");
+            const res = await fetch("/api/corporate/headquarters");
             const data = await res.json();
-            if (data.success && Array.isArray(data.hqs)) {
-                const opts = data.hqs.map((h: any) => ({ id: h.id, name: h.name }));
+            if (data.success && Array.isArray(data.headquarters)) {
+                const opts = data.headquarters.map((h: any) => ({ id: h.id, name: h.name }));
                 setHqOptions(opts);
                 if (opts.length > 0 && !selectedHqId) setSelectedHqId(opts[0].id);
             }
