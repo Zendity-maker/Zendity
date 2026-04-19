@@ -10,8 +10,10 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        // Auth: solo DIRECTOR/ADMIN pueden dar de alta, baja temporal o declarar
-        // fallecido a un residente. SUPERVISOR puede registrar regreso operativo.
+        // Auth: solo DIRECTOR/ADMIN pueden dar de alta o declarar fallecido.
+        // TEMPORARY_LEAVE / RETURN también SUPERVISOR, NURSE y CAREGIVER —
+        // el cuidador del turno necesita poder registrar el retorno desde la tarjeta
+        // del paciente en /care (botón "Registrar Retorno al Piso").
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
@@ -28,10 +30,10 @@ export async function POST(
         }
 
         // Role check: DISCHARGED y DECEASED solo DIRECTOR/ADMIN.
-        // TEMPORARY_LEAVE / RETURN también SUPERVISOR.
+        // TEMPORARY_LEAVE / RETURN también SUPERVISOR, NURSE y CAREGIVER.
         const highRiskActions = ['DISCHARGED', 'DECEASED'];
         const allowedForHighRisk = ['DIRECTOR', 'ADMIN'];
-        const allowedForLeave = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+        const allowedForLeave = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'CAREGIVER'];
 
         if (highRiskActions.includes(action)) {
             if (!allowedForHighRisk.includes(invokerRole)) {
