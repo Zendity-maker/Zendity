@@ -50,6 +50,91 @@ function getMedsForCurrentShift(medications: any[]) {
     });
 }
 
+// ── Flujo de packs de medicamentos (tablet cuidador) ──────────────────────────
+// Los meds se agrupan por slot HH:MM dentro del turno. Cada pack comparte firma única.
+// La administración resuelta hoy (ADMINISTERED/OMITTED/REFUSED) se lee de
+// `m.administrations` que el endpoint /api/care ya entrega filtrado al día AST.
+
+// Parse "08:00" / "8:00 AM" / "14:30" → minutos-desde-medianoche (0..1439). -1 si inválido.
+function parseTimeToMinutes(timeStr: string): number {
+    if (!timeStr) return -1;
+    const s = timeStr.trim().toUpperCase();
+    const m = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
+    if (!m) return -1;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3];
+    if (ap === 'PM' && h < 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    if (h < 0 || h > 23 || min < 0 || min > 59) return -1;
+    return h * 60 + min;
+}
+
+// Minutos → etiqueta canónica "8:00 AM" / "12:00 PM" (clave estable para scheduleTime en DB)
+function formatSlotLabel(minutes: number): string {
+    const h24 = Math.floor(minutes / 60);
+    const min = minutes % 60;
+    const ap = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = (h24 % 12) || 12;
+    return `${h12}:${min.toString().padStart(2, '0')} ${ap}`;
+}
+
+// ¿El slot (en minutos) cae en el turno? Mismas ventanas que getMedsForCurrentShift.
+function slotInShift(minutes: number, shift: string): boolean {
+    const h = Math.floor(minutes / 60);
+    if (shift === 'NIGHT') return h >= 22 || h < 6;
+    if (shift === 'MORNING') return h >= 6 && h < 14;
+    return h >= 14 && h < 22; // EVENING
+}
+
+// Agrupa los medicamentos por slot del turno actual.
+// Retorna: [{ label: "8:00 AM", slotMinutes: 480, meds: [PatientMedication...] }, ...]
+// ordenados cronológicamente (NIGHT: 22:00→05:59 continuos).
+function groupMedsByScheduleTime(medications: any[]) {
+    const shift = getCurrentShift();
+    const groups: Record<string, { slotMinutes: number; meds: any[] }> = {};
+    medications.forEach(m => {
+        if (!m.scheduleTimes) return;
+        const times = m.scheduleTimes.split(',').map((t: string) => t.trim());
+        times.forEach((t: string) => {
+            const min = parseTimeToMinutes(t);
+            if (min < 0) return;
+            if (!slotInShift(min, shift)) return;
+            const label = formatSlotLabel(min);
+            if (!groups[label]) groups[label] = { slotMinutes: min, meds: [] };
+            // Evitar duplicar el mismo med en el mismo slot (si CSV repetido)
+            if (!groups[label].meds.find((x: any) => x.id === m.id)) {
+                groups[label].meds.push(m);
+            }
+        });
+    });
+    const entries = Object.entries(groups).map(([label, v]) => ({ label, slotMinutes: v.slotMinutes, meds: v.meds }));
+    entries.sort((a, b) => {
+        if (shift === 'NIGHT') {
+            // 22:00..23:59 va antes que 00:00..05:59
+            const na = a.slotMinutes < 360 ? a.slotMinutes + 1440 : a.slotMinutes;
+            const nb = b.slotMinutes < 360 ? b.slotMinutes + 1440 : b.slotMinutes;
+            return na - nb;
+        }
+        return a.slotMinutes - b.slotMinutes;
+    });
+    return entries;
+}
+
+// Estado hoy del med en ese slot: 'ADMINISTERED' | 'OMITTED' | 'REFUSED' | null
+function slotStatusToday(med: any, slotLabel: string): string | null {
+    const admins = med.administrations || [];
+    const found = admins.find((a: any) =>
+        a.scheduleTime === slotLabel && ['ADMINISTERED', 'OMITTED', 'REFUSED'].includes(a.status)
+    );
+    return found ? found.status : null;
+}
+
+// Pack completo: todos sus meds tienen un status resolvido hoy para ese slot.
+function isPackComplete(pack: { label: string; meds: any[] }): boolean {
+    return pack.meds.every(m => slotStatusToday(m, pack.label) !== null);
+}
+
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
@@ -175,6 +260,19 @@ export default function ZendityCareTabletPage() {
     const [omissionNote, setOmissionNote] = useState("");
     const [activeMedAction, setActiveMedAction] = useState<'PRN' | 'OMISSION' | null>(null);
     const sigCanvas = useRef<any>(null); // FASE 60: eMAR Digital Signature
+    const packSigCanvas = useRef<any>(null); // Firma del pack (flujo secuencial por slot)
+    // Flujo por pack — omisión individual
+    const [omittingMed, setOmittingMed] = useState<{ id: string; name: string; slotLabel: string } | null>(null);
+    const OMIT_REASONS = [
+        'Residente lo rechazó',
+        'Residente en procedimiento',
+        'Medicamento no disponible',
+        'Indicación médica',
+        'Otro'
+    ];
+    const [omitReasonCat, setOmitReasonCat] = useState<string>(OMIT_REASONS[0]);
+    const [omitReasonText, setOmitReasonText] = useState<string>("");
+    const [packJustCompleted, setPackJustCompleted] = useState<string | null>(null); // slotLabel para la animación ✓
     const [submitting, setSubmitting] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
     const [formattingNotes, setFormattingNotes] = useState(false);
@@ -731,6 +829,102 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    // ── Flujo de packs: administrar pack completo con firma única ─────────────
+    const administerPack = async (pack: { label: string; meds: any[] }) => {
+        if (!packSigCanvas.current || packSigCanvas.current.isEmpty()) {
+            return alert("Es mandatorio plasmar tu firma para administrar el pack.");
+        }
+        const signatureBase64 = packSigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+        const medicationIds = pack.meds.map((m: any) => m.id);
+
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/meds/bulk", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: 'ADMINISTER_PACK',
+                    medicationIds,
+                    scheduleTime: pack.label,
+                    signatureBase64
+                })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert("Error: " + (data.error || "No se pudo administrar el pack"));
+                return;
+            }
+            // Optimistic: inyectar el registro hoy para que isPackComplete cierre el pack sin esperar fetch
+            const now = new Date().toISOString();
+            setActivePatient((prev: any) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    medications: prev.medications.map((m: any) => medicationIds.includes(m.id)
+                        ? { ...m, administrations: [...(m.administrations || []), { id: `optim-${m.id}-${pack.label}`, status: 'ADMINISTERED', scheduleTime: pack.label, createdAt: now }] }
+                        : m
+                    )
+                };
+            });
+            packSigCanvas.current?.clear();
+            setPackJustCompleted(pack.label);
+            setTimeout(() => setPackJustCompleted(null), 1200);
+            refreshPatientsSilently(selectedColor!);
+        } catch (e) {
+            console.error(e);
+            alert("Error de red");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const confirmOmitMed = async (pack: { label: string; meds: any[] }) => {
+        if (!omittingMed) return;
+        const reasonText = omitReasonText.trim();
+        if (reasonText.length < 10) {
+            return alert("La razón de omisión debe tener mínimo 10 caracteres.");
+        }
+        const fullReason = `${omitReasonCat}: ${reasonText}`;
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/meds/bulk", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: 'OMIT',
+                    medicationIds: [omittingMed.id],
+                    scheduleTime: pack.label,
+                    reason: fullReason
+                })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert("Error: " + (data.error || "No se pudo omitir"));
+                return;
+            }
+            // Optimistic: marcar OMITTED localmente para que el pack avance si todos quedan resueltos
+            const now = new Date().toISOString();
+            const medIdOmitted = omittingMed.id;
+            setActivePatient((prev: any) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    medications: prev.medications.map((m: any) => m.id === medIdOmitted
+                        ? { ...m, administrations: [...(m.administrations || []), { id: `optim-omit-${m.id}-${pack.label}`, status: 'OMITTED', scheduleTime: pack.label, createdAt: now, notes: `Omitido: ${fullReason}` }] }
+                        : m
+                    )
+                };
+            });
+            setOmittingMed(null);
+            setOmitReasonText("");
+            setOmitReasonCat(OMIT_REASONS[0]);
+            refreshPatientsSilently(selectedColor!);
+        } catch (e) {
+            console.error(e);
+            alert("Error de red");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const submitLog = async () => {
         setSubmitting(true);
         try {
@@ -788,15 +982,13 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
+                // No vaciamos meds — dejamos que refreshPatientsSilently + administraciones de hoy
+                // recalculen el estado de packs. Cerrar el modal sí.
                 refreshPatientsSilently(selectedColor!);
-                setActivePatient({
-                    ...activePatient,
-                    medications: []
-                });
                 setPrnNote("");
                 setOmissionNote("");
                 setActiveMedAction(null);
-                setModalType(null);
+                sigCanvas.current?.clear();
                 alert(` Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
             } else {
                 alert("Error: " + data.error);
@@ -2412,95 +2604,217 @@ export default function ZendityCareTabletPage() {
                             </div>
                         )}
 
-                        {modalType === 'MEDS' && (
+                        {modalType === 'MEDS' && (() => {
+                            // Flujo de packs: agrupar meds por slot del turno, resolver pack activo.
+                            const packs = groupMedsByScheduleTime(activePatient?.medications || []);
+                            const activePackIdx = packs.findIndex(p => !isPackComplete(p));
+                            const activePack = activePackIdx >= 0 ? packs[activePackIdx] : null;
+                            const totalPacks = packs.length;
+                            const completedPacks = packs.filter(p => isPackComplete(p));
+                            const allComplete = totalPacks > 0 && activePackIdx < 0;
+                            const pendingInActivePack = activePack ? activePack.meds.filter((m: any) => !slotStatusToday(m, activePack.label)) : [];
+
+                            return (
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center border-b pb-2">
-                                    <p className="font-bold text-slate-500 uppercase text-sm">eMAR: Entrega de Fármacos</p>
+                                    <div>
+                                        <p className="font-black text-slate-800 text-lg leading-tight">Medicamentos</p>
+                                        <p className="text-xs font-bold text-slate-500">{activePatient?.name}</p>
+                                    </div>
                                     <a href={`/care/patient/emar-print?patientId=${activePatient?.id}`} target="_blank" className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 transition-colors">
-                                        <span></span> Imprimir Cardex
+                                        Cardex
                                     </a>
                                 </div>
-                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-inner max-h-40 overflow-y-auto">
-                                    {getMedsForCurrentShift(activePatient?.medications || []).length > 0 ? (
-                                        getMedsForCurrentShift(activePatient.medications).map((m: any) => (
-                                            <div key={m.id} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-                                                <div>
-                                                    <p className="font-bold text-slate-800">{m.medication.name}</p>
-                                                    <p className="text-xs text-slate-500">{m.medication.dosage} @ {m.scheduleTimes}</p>
-                                                </div>
+
+                                {/* Caso: sin meds pautados en el turno */}
+                                {totalPacks === 0 && (
+                                    <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 text-center">
+                                        <p className="text-sm font-bold text-slate-500">No hay medicamentos pautados para este turno.</p>
+                                    </div>
+                                )}
+
+                                {/* Caso: todos los packs completados */}
+                                {allComplete && (
+                                    <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200 text-center animate-in fade-in">
+                                        <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/40">
+                                            <CheckCircle2 className="w-8 h-8 text-white" />
+                                        </div>
+                                        <p className="font-black text-emerald-700 text-lg">Todos los medicamentos del turno administrados</p>
+                                        <p className="text-xs font-bold text-emerald-600 mt-1">{totalPacks} pack{totalPacks !== 1 ? 's' : ''} completado{totalPacks !== 1 ? 's' : ''}</p>
+                                    </div>
+                                )}
+
+                                {/* Caso: pack activo */}
+                                {activePack && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex items-center bg-[#0F6B78] text-white text-sm font-black px-3 py-1.5 rounded-full shadow-sm">Pack {activePack.label}</span>
+                                                <span className="text-[11px] font-bold text-slate-500">{activePack.meds.length} med{activePack.meds.length !== 1 ? 's' : ''}</span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-sm font-bold text-slate-500 text-center py-4">No hay medicamentos pautados para este turno.</p>
-                                    )}
-                                </div>
-
-                                {getMedsForCurrentShift(activePatient?.medications || []).length > 0 && (
-                                    <div className="pt-2">
-
-                                        <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl mb-4 text-center">
-                                            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Firma electrónica activa</p>
-                                            <p className="text-indigo-900 font-black">{user?.name}</p>
-                                            <p className="text-[10px] text-indigo-600 font-bold mt-1">Tu sesión sirve como firma válida para suministrar.</p>
+                                            <span className="text-[11px] font-bold text-slate-500">Pack {activePackIdx + 1} de {totalPacks} · {completedPacks.length}/{totalPacks} completados</span>
                                         </div>
 
-                                        {activeMedAction === 'PRN' && (
-                                            <div className="mb-4 animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-xs font-bold text-amber-600 block mb-1">Escribe qué medicamento S.O.S (PRN) se administra:</label>
-                                                <input type="text" value={prnNote} onChange={e => setPrnNote(e.target.value)} placeholder="Ej. Tylenol 500mg" className="w-full bg-amber-50 p-4 rounded-xl font-bold outline-none border-2 border-amber-200 focus:border-amber-400 text-amber-900" />
-                                            </div>
-                                        )}
-
-                                        {activeMedAction === 'OMISSION' && (
-                                            <div className="mb-4 animate-in fade-in slide-in-from-top-2">
-                                                <label className="text-xs font-bold text-rose-600 block mb-1">Razón para Descontinuar / Omitir:</label>
-                                                <input type="text" value={omissionNote} onChange={e => setOmissionNote(e.target.value)} placeholder="Ej. Residente vomitando, orden del dr. X" className="w-full bg-rose-50 p-4 rounded-xl font-bold outline-none border-2 border-rose-200 focus:border-rose-400 text-rose-900" />
-                                            </div>
-                                        )}
-
-                                        {/* FASE 60: eMAR Digital Signature Canvas — solo para PRN (S.O.S). */}
-                                        {/* La administración rutinaria se firma 1-a-1 desde la lista de eMAR, no aquí. */}
-                                        {activeMedAction === 'PRN' && (
-                                            <div className="mb-5 animate-in fade-in">
-                                                <div className="flex justify-between items-end mb-2">
-                                                    <label className="text-sm font-black text-slate-700 block">Firma Clínica (Requerida)</label>
-                                                    <button onClick={() => sigCanvas.current?.clear()} className="text-xs font-bold text-slate-500 hover:text-slate-600 underline">Limpiar Trazo</button>
+                                        {/* Panel de omisión individual */}
+                                        {omittingMed ? (
+                                            <div className="bg-rose-50 rounded-2xl p-4 border border-rose-200 space-y-3 animate-in slide-in-from-top-2">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertTriangle className="w-5 h-5 text-rose-500" />
+                                                    <p className="font-black text-rose-700 text-sm">¿Por qué se omite {omittingMed.name}?</p>
                                                 </div>
-                                                <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden touch-none relative">
-                                                    <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-200 pointer-events-none"></div>
-                                                    <SignatureCanvas
-                                                        ref={sigCanvas}
-                                                        penColor="#334155"
-                                                        canvasProps={{className: 'signature-canvas w-full h-32 cursor-crosshair'}}
-                                                    />
+                                                <select value={omitReasonCat} onChange={e => setOmitReasonCat(e.target.value)} className="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2.5 font-bold text-rose-900 text-sm focus:outline-none focus:border-rose-400">
+                                                    {OMIT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                                </select>
+                                                <textarea
+                                                    value={omitReasonText}
+                                                    onChange={e => setOmitReasonText(e.target.value)}
+                                                    placeholder="Detalles de la omisión (mínimo 10 caracteres)…"
+                                                    className="w-full bg-white border-2 border-rose-200 focus:border-rose-400 outline-none rounded-xl p-3 text-sm font-medium text-rose-900 min-h-[90px] resize-none"
+                                                    maxLength={500}
+                                                />
+                                                <div className="text-[11px] font-bold flex justify-between">
+                                                    <span className={omitReasonText.trim().length < 10 ? 'text-rose-500' : 'text-emerald-600'}>
+                                                        {omitReasonText.trim().length < 10 ? `Mínimo 10 chars (${omitReasonText.trim().length}/10)` : '✓ Razón válida'}
+                                                    </span>
+                                                    <span className="text-slate-400">{omitReasonText.length}/500</span>
                                                 </div>
-                                                <p className="text-[10px] text-center font-bold text-slate-500 mt-2 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => { setOmittingMed(null); setOmitReasonText(""); setOmitReasonCat(OMIT_REASONS[0]); }}
+                                                        className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl transition-all text-sm">
+                                                        Cancelar
+                                                    </button>
+                                                    <button onClick={() => confirmOmitMed(activePack)}
+                                                        disabled={omitReasonText.trim().length < 10 || submitting}
+                                                        className={`flex-1 py-3 font-black rounded-xl transition-all text-sm ${omitReasonText.trim().length < 10 || submitting ? 'bg-rose-200 text-rose-400 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md active:scale-95'}`}>
+                                                        {submitting ? 'Omitiendo…' : 'Confirmar omisión'}
+                                                    </button>
+                                                </div>
                                             </div>
+                                        ) : (
+                                            <>
+                                                {/* Lista del pack con estados por med */}
+                                                <div className={`bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-1 ${packJustCompleted === activePack.label ? 'ring-2 ring-emerald-300 animate-in fade-in' : ''}`}>
+                                                    {activePack.meds.map((m: any) => {
+                                                        const status = slotStatusToday(m, activePack.label);
+                                                        return (
+                                                            <div key={m.id} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-0 gap-2">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="font-black text-slate-800 text-sm truncate">{m.medication?.name}</p>
+                                                                    <p className="text-[11px] text-slate-500 font-bold">{m.medication?.dosage} · {m.medication?.route || 'Oral'}</p>
+                                                                </div>
+                                                                {status === 'ADMINISTERED' && (
+                                                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">
+                                                                        <CheckCircle2 className="w-3 h-3" /> Firmado
+                                                                    </span>
+                                                                )}
+                                                                {status === 'OMITTED' && (
+                                                                    <span className="inline-flex items-center bg-rose-100 text-rose-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">
+                                                                        Omitido
+                                                                    </span>
+                                                                )}
+                                                                {status === 'REFUSED' && (
+                                                                    <span className="inline-flex items-center bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">
+                                                                        Rechazado
+                                                                    </span>
+                                                                )}
+                                                                {!status && (
+                                                                    <button
+                                                                        onClick={() => setOmittingMed({ id: m.id, name: m.medication?.name || 'este medicamento', slotLabel: activePack.label })}
+                                                                        disabled={submitting}
+                                                                        className="text-[11px] font-black uppercase tracking-wide text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-full px-3 py-1.5 transition-colors whitespace-nowrap">
+                                                                        Omitir
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Firma única del pack — solo si quedan pendientes */}
+                                                {pendingInActivePack.length > 0 && (
+                                                    <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3">
+                                                        <div className="flex justify-between items-end">
+                                                            <div>
+                                                                <p className="text-xs font-black text-slate-700 uppercase tracking-wide">Firma clínica</p>
+                                                                <p className="text-[10px] font-bold text-slate-500">Una firma para los {pendingInActivePack.length} med{pendingInActivePack.length !== 1 ? 's' : ''} pendientes</p>
+                                                            </div>
+                                                            <button onClick={() => packSigCanvas.current?.clear()} className="text-xs font-bold text-slate-500 hover:text-slate-600 underline">Limpiar</button>
+                                                        </div>
+                                                        <div className="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden touch-none relative">
+                                                            <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-slate-300 pointer-events-none"></div>
+                                                            <SignatureCanvas
+                                                                ref={packSigCanvas}
+                                                                penColor="#0F6B78"
+                                                                canvasProps={{className: 'w-full h-28 cursor-crosshair'}}
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => administerPack({ label: activePack.label, meds: pendingInActivePack })}
+                                                            disabled={submitting}
+                                                            className="w-full py-4 bg-[#0F6B78] hover:bg-[#0d5a66] text-white font-black rounded-2xl shadow-lg shadow-[#0F6B78]/30 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-wait">
+                                                            {submitting ? 'Firmando…' : `Administrar pack · ${activePack.label}`}
+                                                        </button>
+                                                        <p className="text-[10px] text-center font-bold text-slate-500 uppercase tracking-wide">Al firmar certifico haber comprobado Las 5 Categorías Clínicas Correctas</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Todos omitidos → se avanza al siguiente pack en el próximo render */}
+                                                {pendingInActivePack.length === 0 && (
+                                                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200 text-center text-xs font-black text-amber-700">
+                                                        Pack resuelto (omisiones). Avanzando al siguiente…
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
+                                    </div>
+                                )}
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {(!activeMedAction || activeMedAction === 'PRN') && (
-                                                <button onClick={() => activeMedAction === 'PRN' ? submitBulkMeds('PRN') : setActiveMedAction('PRN')} disabled={submitting} className={`${activeMedAction === 'PRN' ? 'col-span-2' : ''} py-4 bg-amber-500 hover:bg-amber-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md flex justify-center items-center gap-2`}>
-                                                     {activeMedAction === 'PRN' ? 'Confirmar PRN' : 'Dar dosis PRN'}
-                                                </button>
-                                            )}
-
-                                            {(!activeMedAction || activeMedAction === 'OMISSION') && (
-                                                <button onClick={() => activeMedAction === 'OMISSION' ? submitBulkMeds('OMISSION') : setActiveMedAction('OMISSION')} disabled={submitting} className={`${activeMedAction === 'OMISSION' ? 'col-span-2' : ''} py-4 bg-rose-500 hover:bg-rose-600 active:scale-95 transition-all text-white font-bold rounded-xl shadow-md flex justify-center items-center gap-2`}>
-                                                     {activeMedAction === 'OMISSION' ? 'Confirmar Omisión' : 'Descontinuar'}
-                                                </button>
-                                            )}
-
-                                            {activeMedAction && (
-                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); setOmissionNote(""); }} className="col-span-2 py-3 mt-2 text-slate-500 font-bold hover:text-slate-600 transition-colors">
-                                                    Cancelar
-                                                </button>
-                                            )}
+                                {/* Packs completados — lista colapsada */}
+                                {completedPacks.length > 0 && (
+                                    <div className="pt-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Completados hoy</p>
+                                        <div className="space-y-1">
+                                            {completedPacks.map(cp => (
+                                                <div key={cp.label} className="flex items-center justify-between bg-emerald-50/60 border border-emerald-100 rounded-xl px-3 py-2">
+                                                    <span className="flex items-center gap-2 text-xs font-black text-emerald-700">
+                                                        <CheckCircle2 className="w-4 h-4" />
+                                                        Pack {cp.label}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-emerald-600">{cp.meds.length} med{cp.meds.length !== 1 ? 's' : ''}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Flujo PRN (S.O.S.) — preservado, colapsado por defecto */}
+                                <div className="pt-3 mt-3 border-t border-slate-200">
+                                    {activeMedAction === 'PRN' ? (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 animate-in fade-in">
+                                            <div className="flex items-center gap-2">
+                                                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                                                <p className="text-xs font-black text-amber-700 uppercase tracking-wide">Dosis PRN (S.O.S.)</p>
+                                            </div>
+                                            <input type="text" value={prnNote} onChange={e => setPrnNote(e.target.value)} placeholder="Ej. Tylenol 500mg" className="w-full bg-white p-3 rounded-xl font-bold outline-none border-2 border-amber-200 focus:border-amber-400 text-amber-900 text-sm" />
+                                            <div className="bg-white border-2 border-amber-200 rounded-xl overflow-hidden touch-none relative">
+                                                <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-amber-200 pointer-events-none"></div>
+                                                <SignatureCanvas ref={sigCanvas} penColor="#b45309" canvasProps={{className: 'w-full h-24 cursor-crosshair'}} />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => sigCanvas.current?.clear()} className="px-3 py-2 text-[11px] font-bold text-amber-700 underline">Limpiar firma</button>
+                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); }} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black rounded-xl text-sm">Cancelar</button>
+                                                <button onClick={() => submitBulkMeds('PRN')} disabled={submitting} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-md text-sm disabled:opacity-60">Confirmar PRN</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setActiveMedAction('PRN')} className="w-full py-3 text-xs font-black text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors">
+                                            + Registrar dosis PRN (S.O.S.)
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        )}
+                            );
+                        })()}
 
                         {modalType === 'FALL' && (
                             <div className="space-y-4 mt-2">

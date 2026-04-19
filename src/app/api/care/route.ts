@@ -39,7 +39,17 @@ export async function GET(req: Request) {
                         isActive: true,
                         status: { in: ['ACTIVE', 'PRN'] }
                     },
-                    include: { medication: true }
+                    include: {
+                        medication: true,
+                        // Administraciones de HOY (ventana AST) para calcular packs completos en el tablet
+                        administrations: {
+                            where: {
+                                createdAt: { gte: todayStart, lte: todayEnd },
+                                status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED'] }
+                            },
+                            select: { id: true, status: true, scheduleTime: true, createdAt: true, notes: true }
+                        }
+                    }
                 },
                 lifePlan: true,
                 mealLogs: {
