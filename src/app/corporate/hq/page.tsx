@@ -21,6 +21,11 @@ export default function ZendityHQPage() {
     const [documents, setDocuments] = useState<HQDocument[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Multi-sede
+    const isMultiHqRole = user?.role === 'DIRECTOR' || user?.role === 'ADMIN';
+    const [hqOptions, setHqOptions] = useState<Array<{ id: string; name: string }>>([]);
+    const [selectedHqId, setSelectedHqId] = useState<string>("");
+
     // Form states para simulador de subida
     const [docName, setDocName] = useState("");
     const [docType, setDocType] = useState("LICENSE");
@@ -34,7 +39,26 @@ export default function ZendityHQPage() {
     useEffect(() => {
         fetchDocs();
         fetchBranding();
-    }, []);
+        if (isMultiHqRole) {
+            fetchHqs();
+        } else if (user?.hqId) {
+            setSelectedHqId(user.hqId);
+        }
+    }, [isMultiHqRole, user?.hqId]);
+
+    const fetchHqs = async () => {
+        try {
+            const res = await fetch("/api/superadmin/hqs");
+            const data = await res.json();
+            if (data.success && Array.isArray(data.hqs)) {
+                const opts = data.hqs.map((h: any) => ({ id: h.id, name: h.name }));
+                setHqOptions(opts);
+                if (opts.length > 0 && !selectedHqId) setSelectedHqId(opts[0].id);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const fetchBranding = async () => {
         try {
@@ -81,19 +105,30 @@ export default function ZendityHQPage() {
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!docName || !expDate) return;
+        if (!selectedHqId) {
+            alert("Selecciona la sede para el documento.");
+            return;
+        }
         setSubmitting(true);
 
         try {
             const res = await fetch("/api/corporate/hq", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: docName, type: docType, expirationDate: expDate }),
+                body: JSON.stringify({
+                    name: docName,
+                    type: docType,
+                    expirationDate: expDate,
+                    hqId: selectedHqId,
+                }),
             });
             const data = await res.json();
             if (data.success) {
                 setDocName("");
                 setExpDate("");
                 fetchDocs(); // Refresh
+            } else {
+                alert(data.error || "No se pudo guardar el documento.");
             }
         } catch (error) {
             console.error(error);
@@ -145,6 +180,27 @@ export default function ZendityHQPage() {
                     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl">
                         <h2 className="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3">Anexar Documento</h2>
                         <form onSubmit={handleUpload} className="space-y-4">
+                            {/* Selector de sede (multi-sede) */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Sede</label>
+                                {isMultiHqRole ? (
+                                    <select
+                                        className="w-full border-slate-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-slate-50"
+                                        value={selectedHqId}
+                                        onChange={(e) => setSelectedHqId(e.target.value)}
+                                        required
+                                    >
+                                        {hqOptions.length === 0 && <option value="">Cargando sedes...</option>}
+                                        {hqOptions.map(h => (
+                                            <option key={h.id} value={h.id}>{h.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="w-full border border-slate-200 rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+                                        {user?.hqName || 'Tu sede'}
+                                    </div>
+                                )}
+                            </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Documento</label>
                                 <input
