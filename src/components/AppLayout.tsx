@@ -24,6 +24,7 @@ const clinicalNavigation = [
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
     { name: 'Vitales', href: '/care/vitals', icon: Activity },
     { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
+    { name: 'Reportes de Turno', href: '/care/reports', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
@@ -47,6 +48,7 @@ const corporateNavigationSections = [
         links: [
             { name: "Admisión de Residentes", href: "/corporate/patients/intake", icon: UserPlus },
             { name: "Directorio Global", href: "/corporate/medical/patients", icon: Users },
+            { name: "Reportes de Turno", href: "/corporate/reports", icon: ClipboardList },
             { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
             { name: "UPPs (Úlceras)", href: "/corporate/medical/upp-dashboard", icon: Activity },
             { name: "eMAR Audit", href: "/corporate/medical/emar", icon: Pill },
@@ -349,6 +351,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
                             // Vitales: solo NURSE, SUPERVISOR, DIRECTOR, ADMIN
                             if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
+                            // Reportes de Turno: solo CAREGIVER y NURSE en Clinical
+                            if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
 
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
@@ -457,6 +461,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 clinicalNavigation.map((item) => {
                                     if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
                                     if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
+                                    if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
                                     const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                                     const Icon = item.icon;
                                     return (
