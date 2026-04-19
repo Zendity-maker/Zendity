@@ -19,9 +19,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
  *   2. Genera un ShiftHandover con resumen IA (Zendi) para el turno MORNING.
  *   3. Notifica a CAREGIVER/NURSE/SUPERVISOR con type:'HANDOVER'.
  *
- * El cron nocturno de 5:45 AM (/api/ai/zendi/handovers/cron) se mantiene y
- * cubre solo la franja nocturna de 12h. Este cron complementa con el
- * prólogo de 24h al inicio del día clínico.
+ * Cron canónico del prólogo del día clínico. El cron nocturno de 5:45 AM
+ * se eliminó en Sprint A (era duplicado).
  */
 export async function GET(req: Request) {
     // Protección CRON_SECRET

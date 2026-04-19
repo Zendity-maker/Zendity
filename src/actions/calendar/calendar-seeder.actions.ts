@@ -83,20 +83,3 @@ export async function seedFromLifePlan(hqId: string, patientId: string, routineN
     return result;
 }
 
-/**
- * 4. SIEMBRA DESDE SHIFT CLOSURE
- * Cuando una enfermera transfiere (`TRANSFERRED`) un pending 
- * justificado a favor del próximo turno.
- */
-export async function seedFromShiftClosure(hqId: string, deferredTaskTitle: string, nextShiftDate: Date) {
-    console.log(`[SEEDER] Heredando tarea desde Cierre de Turno...`);
-    
-    return await plantCalendarEvent({
-        headquartersId: hqId,
-        type: "FACILITY_ROUTINE",
-        title: `★ [Heredado] ${deferredTaskTitle}`,
-        description: "Tarea postpuesta por el turno previo.",
-        originContext: "Shift_Closure_Wizard",
-        startTime: nextShiftDate,
-    });
-}

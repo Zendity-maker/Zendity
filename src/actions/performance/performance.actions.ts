@@ -11,8 +11,8 @@ export type AcademyAssignmentStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
  */
 export async function calculateQuincenalScore(hqId: string, userId: string, periodStart: Date, periodEnd: Date) {
     try {
-        // En un entorno de producción, aquí interrogaríamos las tablas de eMAR y ShiftClosure.
-        // Simulamos la ingesta de telemetría de fallos.
+        // En un entorno de producción, aquí interrogaríamos la telemetría real
+        // (eMAR, tareas transferidas, etc.). Simulamos ingesta por ahora.
         const telemetry = {
             missedPRNs: 3,        // Pastillas importantes ignoradas
             transferredTasks: 4    // Tareas pateadas al siguiente turno

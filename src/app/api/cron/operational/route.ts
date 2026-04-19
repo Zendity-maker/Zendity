@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import {  TicketStatus, SystemAuditAction, ShiftClosureStatus, TicketPriority } from '@prisma/client';
+import { TicketStatus, SystemAuditAction, TicketPriority } from '@prisma/client';
 
 
 
@@ -46,39 +46,12 @@ export async function GET(request: Request) {
             // TODO: Enviar Push notification a Director
         }
 
-        // 2. Marcar Shift Closures como Abandonados (sin firmas tras +60 min del fin de turno)
-        // Asumimos un margen simplificado: buscaremos turnos de hace más de 12 horas que sigan PENDING
-        const shiftThreshold = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-        const abandonedShifts = await prisma.shiftClosure.findMany({
-            where: {
-                status: ShiftClosureStatus.ACTIVE,
-                shiftDate: { lt: shiftThreshold }
-            }
-        });
-
-        for (const shift of abandonedShifts) {
-            await prisma.shiftClosure.update({
-                where: { id: shift.id },
-                data: {
-                    status: ShiftClosureStatus.CLOSED
-                }
-            });
-            await prisma.systemAuditLog.create({
-                data: {
-                    headquartersId: shift.headquartersId,
-                    entityName: 'ShiftClosure',
-                    entityId: shift.id,
-                    action: SystemAuditAction.SYSTEM_ABANDONED,
-                    clientIp: 'SystemCRON',
-                    payloadChanges: { autoAbandoned: true }
-                }
-            });
-        }
+        // (Sprint A) Bloque de auto-cierre de ShiftClosure eliminado — el modelo
+        // será dropeado en Sprint B cuando se unifique todo en ShiftHandover.
 
         return NextResponse.json({
             success: true,
-            escalatedTickets: overdueTickets.length,
-            abandonedShifts: abandonedShifts.length
+            escalatedTickets: overdueTickets.length
         });
 
     } catch (error) {
