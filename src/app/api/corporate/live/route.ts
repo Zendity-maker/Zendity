@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { TicketStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
  *  - bathsToday
  *  - mealsToday
  *  - incidentsWeek (IncidentReport últimos 7 días)
- *  - triageOpen (TriageTicket OPEN/ESCALATED)
+ *  - triageOpen (TriageTicket OPEN/IN_PROGRESS — sin resolver)
  *  - handoversPending (ShiftHandover sin supervisorSignedAt del día)
  *  - zombiePatients (residentes activos sin baño, sin comida y sin vitales hoy)
  *  - onHospitalLeave (residentes con leaveType = 'HOSPITAL')
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
             prisma.triageTicket.count({
                 where: {
                     ...hqFilter,
-                    status: { in: ['OPEN', 'ESCALATED'] as any },
+                    status: { in: [TicketStatus.OPEN, TicketStatus.IN_PROGRESS] },
                     isVoided: false,
                 },
             }),

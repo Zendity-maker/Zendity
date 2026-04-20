@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { TicketStatus } from '@prisma/client';
 import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
@@ -76,7 +77,7 @@ async function buildContext(effectiveHqId: string | 'ALL') {
             select: { systolic: true, diastolic: true, heartRate: true, temperature: true, spo2: true },
         }),
         prisma.triageTicket.count({
-            where: { ...hqFilter, status: { in: ['OPEN', 'ESCALATED'] as any }, isVoided: false },
+            where: { ...hqFilter, status: { in: [TicketStatus.OPEN, TicketStatus.IN_PROGRESS] }, isVoided: false },
         }),
         prisma.incidentReport.count({
             where: {
