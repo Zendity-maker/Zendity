@@ -2107,12 +2107,16 @@ model PerformanceScore {
   userId         String // Cuidador evaluado
   periodStart    DateTime
   periodEnd      DateTime
-  
+
   systemScore    Float  // Base calculada eMAR/Cierres
   humanScore     Float? // Evaluación del supervisor (opcional)
-  finalScore     Float
+  finalScore     Float? // Sprint M: nullable — se llena al cerrar auditoría formal
 
   systemFindings Json?  // Metadatos { missedPRN: 2 }
+
+  // Sprint M — Informe Pre-Auditoría generado por Zendi
+  aiReport       String?  @db.Text
+  feedback       String?  @db.Text
 
   createdAt      DateTime @default(now())
   
