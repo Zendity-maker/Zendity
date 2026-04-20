@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
-import { UserCog, Award, UserPlus, ClipboardCheck, Users, Search } from 'lucide-react';
+import { UserCog, Award, UserPlus, ClipboardCheck, Users, Search, Sparkles } from 'lucide-react';
 
 // Formateador de fecha relativa en español
 function formatRelative(dateIso: string | null): string {
@@ -100,9 +100,9 @@ export default function HRScorecardPage() {
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Top Performers</p>
             </div>
           </div>
-          <Link href="/hr/evaluate" className="bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold py-2.5 px-6 rounded-xl shadow-md shadow-teal-500/10 transition-colors flex items-center gap-2">
-            <ClipboardCheck className="w-4 h-4" /> Iniciar Auditoría
-          </Link>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
+            <Sparkles className="w-3.5 h-3.5 text-teal-500" /> Elige empleado para auditar con Zendi
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -113,6 +113,7 @@ export default function HRScorecardPage() {
                 <th className="px-6 py-5">Rol / Posición</th>
                 <th className="px-6 py-5 text-center">Última Evaluación</th>
                 <th className="px-6 py-5 text-center">Score de Calidad</th>
+                <th className="px-6 py-5 text-right">Auditar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -159,6 +160,11 @@ export default function HRScorecardPage() {
                         {emp.complianceScore} PTA.
                       </span>
                     )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Link href={`/hr/audit/${emp.id}`} className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold py-2 px-4 rounded-lg shadow-sm transition-colors">
+                      <Sparkles className="w-3.5 h-3.5" /> Iniciar Auditoría
+                    </Link>
                   </td>
                 </tr>
               ))}
