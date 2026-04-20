@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, X, ArrowRight } from "lucide-react";
+import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight } from "lucide-react";
 
 export interface ClosureWarning {
     id: string;
@@ -90,7 +90,7 @@ export default function ShiftClosureWizard({
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 font-sans">
             <div className="bg-slate-50 rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-[1600px] h-full max-h-[96vh] overflow-hidden flex flex-col animate-in zoom-in-[0.98] duration-300 border border-slate-200">
                 
-                {/* Header Premium Claro */}
+                {/* Header Premium Claro — Sprint L: sin salida. Firmar es obligatorio. */}
                 <div className="px-8 md:px-12 py-8 border-b border-slate-200 flex justify-between items-center bg-white z-10 shadow-sm shrink-0">
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 rounded-[1.5rem] bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shadow-sm">
@@ -101,10 +101,12 @@ export default function ShiftClosureWizard({
                             <p className="text-slate-500 font-bold text-sm mt-1 tracking-widest uppercase">Traspaso de Guardia Validado</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 rounded-[1.5rem] transition-all cursor-pointer active:scale-95 shadow-sm ml-auto flex items-center gap-3">
-                        <span className="font-bold text-sm uppercase px-2 hidden md:block tracking-widest">Posponer</span>
-                        <X size={28} strokeWidth={3} />
-                    </button>
+                    <div className="ml-auto flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-[1.5rem] shadow-sm">
+                        <Lock size={22} strokeWidth={2.8} />
+                        <span className="font-black text-xs md:text-sm uppercase tracking-widest leading-tight max-w-[260px]">
+                            Debes completar el reporte antes de cerrar tu turno
+                        </span>
+                    </div>
                 </div>
 
                 {/* Split-View Content (iPad Landscape Optimized) */}
