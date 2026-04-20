@@ -164,7 +164,7 @@ export async function GET(req: Request) {
             // ── Sprint K #18 + Sprint L: Handovers individuales de cuidadores hoy
             // (isDailyPrologue=false para excluir el prólogo del cron; incluye colorGroups y notas)
             prisma.shiftHandover.findMany({
-                where: { headquartersId: hqId, createdAt: { gte: todayStart }, isDailyPrologue: false },
+                where: { headquartersId: hqId, createdAt: { gte: todayStart }, isDailyPrologue: false, signature: { not: null } },
                 include: {
                     outgoingNurse: { select: { id: true, name: true } },
                     incomingNurse: { select: { id: true, name: true } },
