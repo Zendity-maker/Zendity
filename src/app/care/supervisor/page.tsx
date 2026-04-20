@@ -21,7 +21,7 @@ import {
     Brain, Users, Loader2, Sparkles, Send, CheckCircle2, Activity, Droplets, Coffee,
     Siren, Play, Square, AlertTriangle, ShieldAlert, FileText, Clock, XCircle, ChevronDown,
     Heart, Pill, ClipboardSignature, MessageSquareWarning, Utensils, CalendarClock, ArrowRight,
-    Gavel, AlertCircle,
+    Gavel, AlertCircle, FileWarning,
 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
@@ -1059,15 +1059,15 @@ export default function SupervisorMissionControlPage() {
                         )}
                     </div>
 
-                    {/* Generador HR (IA) */}
+                    {/* Observaciones de Personal */}
                     <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
                         <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                                <Brain className="w-6 h-6 text-teal-600" /> Generador HR (IA)
+                                <Brain className="w-6 h-6 text-teal-600" /> Observaciones de Personal
                             </h3>
                             <button onClick={() => setIncidentModalOpen(true)}
-                                className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-bold">
-                                <FileText className="w-3.5 h-3.5" /> Reporte Disciplinario
+                                className="flex items-center gap-2 px-4 py-3 bg-[#1F2D3A] hover:bg-[#0F6B78] text-white rounded-xl text-sm font-medium transition">
+                                <FileWarning className="w-4 h-4" /> Nueva Observación
                             </button>
                         </div>
                         <ZendiAssist
@@ -1075,7 +1075,7 @@ export default function SupervisorMissionControlPage() {
                             onChange={setRawMemo}
                             type="SUPERVISOR_MEMO"
                             context="nota cruda de supervisor para memorándum RRHH"
-                            placeholder="Dicta: El empleado ignoró un protocolo de limpieza..."
+                            placeholder="Describe la situación observada o usa Zendi para redactar..."
                             rows={3}
                         />
                         {processedMemo && (
