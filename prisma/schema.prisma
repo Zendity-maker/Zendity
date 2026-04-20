@@ -1996,6 +1996,7 @@ enum SystemAuditAction {
   ACCEPTED_IN
   SYSTEM_ABANDONED
   VOIDED
+  AUDIT_REPORT_SENT
 }
 
 // =======================

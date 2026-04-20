@@ -6,7 +6,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import {
     ArrowLeft, Sparkles, Loader2, Pill, Clock, Activity, ShieldAlert,
-    GraduationCap, CalendarX, Trophy, ClipboardCheck, TrendingUp, History,
+    GraduationCap, CalendarX, Trophy, ClipboardCheck, TrendingUp, History, Mail,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -91,6 +91,10 @@ export default function HRAuditPage() {
     const [saving, setSaving] = useState<boolean>(false);
     const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
+    // Envío de informe por email
+    const [sending, setSending] = useState<boolean>(false);
+    const [sendToast, setSendToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
     async function generate(days: Period) {
         setLoading(true);
         setError(null);
@@ -111,6 +115,31 @@ export default function HRAuditPage() {
             setError(e.message || "Error de conexión");
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function sendReportEmail() {
+        if (!data) return;
+        setSending(true);
+        setSendToast(null);
+        try {
+            const res = await fetch(`/api/hr/audit-report/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ performanceScoreId: data.performanceScoreId }),
+            });
+            const json = await res.json();
+            if (json.success) {
+                setSendToast({ kind: 'ok', msg: `Email enviado a ${json.sentTo}` });
+            } else {
+                setSendToast({ kind: 'err', msg: json.error || 'No se pudo enviar el email' });
+            }
+        } catch (e: any) {
+            setSendToast({ kind: 'err', msg: e.message || 'Error de conexión' });
+        } finally {
+            setSending(false);
+            // Auto-ocultar el toast después de 5s
+            setTimeout(() => setSendToast(null), 5000);
         }
     }
 
@@ -359,20 +388,40 @@ export default function HRAuditPage() {
                         className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-sm font-medium text-slate-700"
                     />
 
-                    <div className="flex items-center justify-between mt-5 pt-4 border-t border-slate-100">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-5 pt-4 border-t border-slate-100 gap-4">
                         <p className="text-[11px] text-slate-500 font-semibold">
                             {useHumanScore
                                 ? <>Score final = <span className="font-black text-teal-700">{humanScore}</span> (ajuste manual)</>
                                 : <>Score final = <span className="font-black text-slate-700">{data.employee.complianceScore}</span> (sistema)</>}
                         </p>
-                        <button
-                            onClick={saveFormalAudit}
-                            disabled={saving}
-                            className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-sm shadow-lg disabled:opacity-50 transition-all"
-                        >
-                            {saving ? 'Guardando...' : 'Guardar Auditoría Formal'}
-                        </button>
+                        <div className="flex gap-3">
+                            {data.performanceScoreId && (
+                                <button
+                                    onClick={sendReportEmail}
+                                    disabled={sending || !data.employee.email}
+                                    title={!data.employee.email ? 'El empleado no tiene email registrado' : `Enviar resumen a ${data.employee.email}`}
+                                    className="px-5 py-3 rounded-xl border-2 border-teal-500 bg-white text-teal-700 hover:bg-teal-50 font-bold text-sm disabled:opacity-50 flex items-center gap-2 transition-all"
+                                >
+                                    <Mail className="w-4 h-4" />
+                                    {sending ? 'Enviando...' : 'Enviar Resumen por Email'}
+                                </button>
+                            )}
+                            <button
+                                onClick={saveFormalAudit}
+                                disabled={saving}
+                                className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-sm shadow-lg disabled:opacity-50 transition-all"
+                            >
+                                {saving ? 'Guardando...' : 'Guardar Auditoría Formal'}
+                            </button>
+                        </div>
                     </div>
+
+                    {sendToast && (
+                        <div className={`mt-4 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 ${sendToast.kind === 'err' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                            <Mail className="w-4 h-4" />
+                            {sendToast.msg}
+                        </div>
+                    )}
 
                     {savedMsg && (
                         <div className={`mt-4 px-4 py-3 rounded-xl text-sm font-bold ${savedMsg.startsWith('Error') ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
