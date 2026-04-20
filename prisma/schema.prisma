@@ -1292,6 +1292,10 @@ model ShiftHandover {
   justifications     Json?     // { warningId: "REFUSED" | "ASLEEP" | "TRANSFERRED" | ... }
   handoverCompleted  Boolean   @default(false)
 
+  // Sprint L — Reporte individual por cuidador (colores que cubrió) + discriminar prólogo del cron
+  colorGroups     String[]  @default([]) // ["RED","YELLOW"] — colores que manejó en el turno. Vacío = prólogo o handover global.
+  isDailyPrologue Boolean   @default(false) // true = prólogo diario generado por cron 6 AM; false = handover individual de cuidador
+
   // Sprint D: Confirmación Senior + Firma Supervisor + Tracking Director
   seniorCaregiverId    String?
   seniorConfirmedAt    DateTime?
