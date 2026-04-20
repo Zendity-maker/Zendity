@@ -196,6 +196,8 @@ ${dataBlock}
                     outgoingNurseId: systemUser?.id ?? null,
                     status: 'PENDING',
                     aiSummaryReport: aiSummary,
+                    isDailyPrologue: true, // Sprint L — separa prólogo del cron de los handovers individuales por cuidador
+                    colorGroups: [], // prólogo es global a la sede, no ligado a color
                     ...(patientIds.length > 0 ? {
                         notes: {
                             create: {

@@ -103,8 +103,8 @@ export async function GET(req: Request) {
             prisma.incident.findMany({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } }, include: { patient: true } }),
             // 7. Pacientes con UPP Activas
             prisma.patient.findMany({ where: { headquartersId: hqId, pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
-            // 8. Zendi Morning Briefing
-            prisma.shiftHandover.findFirst({ where: { headquartersId: hqId, shiftType: 'MORNING', createdAt: { gte: todayStart }, aiSummaryReport: { not: null } }, orderBy: { createdAt: 'desc' } }),
+            // 8. Zendi Morning Briefing — Sprint L: solo el prólogo del cron (isDailyPrologue=true)
+            prisma.shiftHandover.findFirst({ where: { headquartersId: hqId, shiftType: 'MORNING', isDailyPrologue: true, createdAt: { gte: todayStart }, aiSummaryReport: { not: null } }, orderBy: { createdAt: 'desc' } }),
             // 9. Schedules para validar Handovers (Ultimas 12 hrs)
             prisma.shiftSchedule.findMany({ where: { headquartersId: hqId, endTime: { lt: new Date(), gte: twelveHrsAgo } }, include: { employee: true } }),
             // 10. Handovers enviados hoy
@@ -161,14 +161,16 @@ export async function GET(req: Request) {
                 },
                 select: { id: true, patientId: true, scheduleTimes: true, frequency: true },
             }),
-            // ── Sprint K #18: Handovers firmados/en curso hoy (feed)
+            // ── Sprint K #18 + Sprint L: Handovers individuales de cuidadores hoy
+            // (isDailyPrologue=false para excluir el prólogo del cron; incluye colorGroups y notas)
             prisma.shiftHandover.findMany({
-                where: { headquartersId: hqId, createdAt: { gte: todayStart } },
+                where: { headquartersId: hqId, createdAt: { gte: todayStart }, isDailyPrologue: false },
                 include: {
                     outgoingNurse: { select: { id: true, name: true } },
                     incomingNurse: { select: { id: true, name: true } },
                     seniorCaregiver: { select: { id: true, name: true } },
                     supervisorSigned: { select: { id: true, name: true } },
+                    _count: { select: { notes: true } },
                 },
                 orderBy: { createdAt: 'desc' },
                 take: 20,
@@ -520,21 +522,34 @@ export async function GET(req: Request) {
                 appealedAt: ir.appealedAt,
             }));
 
-        // — Handovers feed (firmados/en curso del día) —
-        const handoversFeed = handoversTodayFull.map(h => ({
-            id: h.id,
-            shiftType: h.shiftType,
-            status: h.status,
-            createdAt: h.createdAt,
-            signedOutAt: h.signedOutAt,
-            seniorConfirmedAt: h.seniorConfirmedAt,
-            supervisorSignedAt: h.supervisorSignedAt,
-            handoverCompleted: h.handoverCompleted,
-            outgoingName: h.outgoingNurse?.name || null,
-            incomingName: h.incomingNurse?.name || null,
-            seniorName: h.seniorCaregiver?.name || null,
-            supervisorName: h.supervisorSigned?.name || null,
-        }));
+        // — Handovers feed (individuales por cuidador, sin el prólogo del cron) —
+        // Sprint L: cada fila es el reporte de una cuidadora con los colores que cubrió.
+        // Estado derivado: PENDING_CONFIRMATION → CONFIRMED → SUPERVISOR_SIGNED.
+        const handoversFeed = handoversTodayFull.map(h => {
+            const derivedStatus: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'SUPERVISOR_SIGNED' =
+                h.supervisorSignedAt ? 'SUPERVISOR_SIGNED'
+                : h.seniorConfirmedAt ? 'CONFIRMED'
+                : 'PENDING_CONFIRMATION';
+            return {
+                id: h.id,
+                shiftType: h.shiftType,
+                status: h.status,
+                derivedStatus,
+                createdAt: h.createdAt,
+                signedOutAt: h.signedOutAt,
+                seniorConfirmedAt: h.seniorConfirmedAt,
+                supervisorSignedAt: h.supervisorSignedAt,
+                handoverCompleted: h.handoverCompleted,
+                outgoingName: h.outgoingNurse?.name || null,
+                outgoingId: h.outgoingNurseId,
+                incomingName: h.incomingNurse?.name || null,
+                seniorName: h.seniorCaregiver?.name || null,
+                supervisorName: h.supervisorSigned?.name || null,
+                colorGroups: h.colorGroups || [],
+                patientCount: h._count?.notes ?? 0,
+                aiSummaryReport: h.aiSummaryReport || null,
+            };
+        });
 
         // — Vitales feed plano (para la tarjeta de "Vitales de Entrada") —
         const vitalsFeed = vitalsOrdersToday.map(v => ({

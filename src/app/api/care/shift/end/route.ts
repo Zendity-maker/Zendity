@@ -358,6 +358,12 @@ export async function POST(req: Request) {
                         handoverCompleted: true,
                         colorGroups,
                         isDailyPrologue: false,
+                        // Sprint L — la cuidadora firma SU reporte individual: eso
+                        // actúa como auto-confirmación (pasa a CONFIRMED, listo
+                        // para firma del supervisor).
+                        seniorCaregiverId: session.caregiverId,
+                        seniorConfirmedAt: now,
+                        seniorNote: 'Cuidador(a) autoconfirmó su reporte individual al cierre de turno.',
                     },
                 });
 

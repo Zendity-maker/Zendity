@@ -114,15 +114,24 @@ export interface HandoverFeedItem {
     id: string;
     shiftType: string;
     status: string;
+    /** Sprint L — estado derivado visible: PENDIENTE / CONFIRMADO / FIRMADO POR SUPERVISOR */
+    derivedStatus: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'SUPERVISOR_SIGNED';
     createdAt: string;
     signedOutAt: string | null;
     seniorConfirmedAt: string | null;
     supervisorSignedAt: string | null;
     handoverCompleted: boolean;
     outgoingName: string | null;
+    outgoingId: string | null;
     incomingName: string | null;
     seniorName: string | null;
     supervisorName: string | null;
+    /** Colores que la cuidadora cubrió en ese turno (RED/YELLOW/GREEN/BLUE) */
+    colorGroups: string[];
+    /** Número de residentes cubiertos en ese handover (de HandoverNote) */
+    patientCount: number;
+    /** Resumen IA del cuidador — para preview en el panel del supervisor */
+    aiSummaryReport: string | null;
 }
 
 export interface ObservationFeedItem {

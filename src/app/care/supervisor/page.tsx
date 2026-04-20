@@ -805,42 +805,81 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     )}
 
-                    {/* Firmados del día */}
+                    {/* Reportes individuales del día (Sprint L) */}
                     {handoversFeed.length === 0 && missingHandovers.length === 0 ? (
                         <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[1.5rem] flex items-center gap-4">
                             <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
                             <div>
-                                <p className="font-bold text-emerald-800">Sin actividad de handovers todavía</p>
-                                <p className="text-xs text-emerald-600 mt-0.5">Los traspasos aparecerán aquí a medida que se firmen hoy.</p>
+                                <p className="font-bold text-emerald-800">Sin reportes de turno todavía</p>
+                                <p className="text-xs text-emerald-600 mt-0.5">Cada cuidadora firma su reporte individual al cerrar turno.</p>
                             </div>
                         </div>
                     ) : handoversFeed.length > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {handoversFeed.map((h: HandoverFeedItem) => {
                                 const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
-                                const fullyClosed = h.handoverCompleted && h.supervisorSignedAt;
+                                const statusConfig = h.derivedStatus === 'SUPERVISOR_SIGNED'
+                                    ? { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-emerald-200 text-emerald-800', label: 'Firmado por supervisor' }
+                                    : h.derivedStatus === 'CONFIRMED'
+                                    ? { bg: 'bg-amber-50', border: 'border-amber-200', pill: 'bg-amber-200 text-amber-800', label: 'Pendiente firma supervisor' }
+                                    : { bg: 'bg-rose-50', border: 'border-rose-200', pill: 'bg-rose-200 text-rose-800', label: 'Pendiente confirmación' };
+
+                                const COLOR_BADGES: Record<string, string> = {
+                                    RED: 'bg-rose-500 text-white',
+                                    YELLOW: 'bg-amber-400 text-slate-900',
+                                    GREEN: 'bg-emerald-500 text-white',
+                                    BLUE: 'bg-sky-500 text-white',
+                                };
+
                                 return (
-                                    <div key={h.id} className={`p-4 rounded-[1.25rem] border flex items-center gap-4 ${fullyClosed ? 'bg-emerald-50 border-emerald-200' : h.status === 'ACCEPTED' ? 'bg-teal-50 border-teal-200' : 'bg-amber-50 border-amber-200'}`}>
-                                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-black text-sm ${fullyClosed ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-slate-600 border border-slate-200'}`}>
-                                            {h.shiftType === 'MORNING' ? '☀️' : h.shiftType === 'EVENING' ? '🌆' : '🌙'}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <span className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md uppercase tracking-widest">{h.shiftType}</span>
-                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${fullyClosed ? 'bg-emerald-200 text-emerald-800' : h.status === 'ACCEPTED' ? 'bg-teal-200 text-teal-800' : 'bg-amber-200 text-amber-800'}`}>
-                                                    {fullyClosed ? 'Cerrado' : h.status}
-                                                </span>
-                                                <span className="text-[10px] text-slate-500 font-bold">{time}</span>
+                                    <div key={h.id} className={`p-4 rounded-[1.5rem] border ${statusConfig.bg} ${statusConfig.border}`}>
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-black text-sm bg-white border border-slate-200">
+                                                {h.shiftType === 'MORNING' ? '☀️' : h.shiftType === 'EVENING' ? '🌆' : '🌙'}
                                             </div>
-                                            <p className="text-sm text-slate-700 font-medium">
-                                                {h.outgoingName ? <><span className="font-bold">{h.outgoingName}</span> → {h.incomingName || <em className="text-slate-400">pendiente</em>}</> : <em className="text-slate-400">Zendi AI</em>}
-                                            </p>
-                                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                                {h.signedOutAt && <span>✓ Saliente firmó · </span>}
-                                                {h.seniorConfirmedAt && <span>✓ Senior confirmó · </span>}
-                                                {h.supervisorSignedAt && <span className="font-bold text-emerald-700">✓ Supervisor firmó</span>}
-                                                {!h.signedOutAt && !h.seniorConfirmedAt && !h.supervisorSignedAt && <span>Sin firmas aún</span>}
-                                            </p>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                    <span className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md uppercase tracking-widest">{h.shiftType}</span>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${statusConfig.pill}`}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500 font-bold">{time}</span>
+                                                </div>
+
+                                                <p className="text-sm text-slate-800 font-bold mb-1">
+                                                    {h.outgoingName || <em className="text-slate-400">Zendi AI</em>}
+                                                </p>
+
+                                                <div className="flex items-center gap-3 flex-wrap mb-2">
+                                                    <div className="flex items-center gap-1">
+                                                        {h.colorGroups.length > 0 ? h.colorGroups.map(c => (
+                                                            <span key={c} className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${COLOR_BADGES[c] || 'bg-slate-300 text-slate-800'}`}>
+                                                                {c}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider bg-slate-200 text-slate-600">sin color</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[11px] text-slate-600 font-bold">
+                                                        {h.patientCount} residente{h.patientCount !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+
+                                                <p className="text-[11px] text-slate-500 font-medium">
+                                                    {h.signedOutAt && <span>✓ Firmó · </span>}
+                                                    {h.seniorConfirmedAt && <span>✓ Confirmado · </span>}
+                                                    {h.supervisorSignedAt && <span className="font-bold text-emerald-700">✓ Supervisor</span>}
+                                                </p>
+                                            </div>
+
+                                            {h.derivedStatus !== 'SUPERVISOR_SIGNED' && (
+                                                <button
+                                                    onClick={() => router.push(`/care/reports/${h.id}`)}
+                                                    className="shrink-0 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 self-start"
+                                                >
+                                                    Revisar y Firmar
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
