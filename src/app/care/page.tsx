@@ -3174,13 +3174,13 @@ export default function ZendityCareTabletPage() {
                             method: "POST", headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                                 shiftSessionId: activeSession.id,
-                                forceEnd: true,
                                 handoverData: data,
                                 signature,
                             })
                         });
                         if (!res.ok) {
-                            alert("Error finalizando turno. Intenta nuevamente.");
+                            const errData = await res.json().catch(() => ({}));
+                            alert(errData.error || "Error finalizando turno. Intenta nuevamente.");
                             return false;
                         }
                         alert("Turno Entregado. Has protegido tus registros para auditoría mediante Zendi.");
