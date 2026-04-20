@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -34,6 +34,7 @@ import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => { setIsMounted(true); }, []);
 
@@ -44,10 +45,23 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
     );
 
     const handlePlayPause = async () => {
-        if (isPlaying) { setIsPlaying(false); return; }
+        if (isPlaying) {
+            audioRef.current?.pause();
+            audioRef.current = null;
+            setIsPlaying(false);
+            return;
+        }
         setIsPlaying(true);
         try {
-            const plainText = text.replace(/[*_#]/g, '');
+            const plainText = text
+                .replace(/#{1,6}\s/g, '')
+                .replace(/[*_]/g, '')
+                .replace(/•/g, '')
+                .replace(/—/g, ', ')
+                .replace(/\n{2,}/g, '. ')
+                .replace(/\n/g, ' ')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
             const res = await fetch("/api/zendi/speak", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -57,11 +71,13 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
             const audio = new Audio(url);
-            audio.onended = () => { setIsPlaying(false); URL.revokeObjectURL(url); };
-            audio.onerror = () => { setIsPlaying(false); URL.revokeObjectURL(url); };
+            audioRef.current = audio;
+            audio.onended = () => { setIsPlaying(false); audioRef.current = null; URL.revokeObjectURL(url); };
+            audio.onerror = () => { setIsPlaying(false); audioRef.current = null; URL.revokeObjectURL(url); };
             await audio.play();
         } catch (err) {
             console.error("Zendi voice error:", err);
+            audioRef.current = null;
             setIsPlaying(false);
         }
     };

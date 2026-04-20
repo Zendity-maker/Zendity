@@ -16,6 +16,8 @@ const cspDirectives = [
   // blob: para html2canvas/jsPDF
   // https: para logos de sede configurados por el usuario
   "img-src 'self' data: blob: https:",
+  // media-src: blob: para audio TTS del prólogo de Zendi (ElevenLabs → Audio Blob)
+  "media-src 'self' blob:",
   "font-src 'self' data:",
   // connect-src: APIs externas consumidas desde el cliente o el servidor
   "connect-src 'self' https://api.openai.com https://api.anthropic.com https://*.neon.tech https://*.vercel.app",
