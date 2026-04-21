@@ -28,6 +28,7 @@ export async function GET() {
                 headquartersId: hqId,
                 OR: [
                     { recipientId: userId },
+                    { senderId: userId, type: 'DIRECT' },
                     { type: 'BROADCAST' },
                 ],
             },
