@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from "openai";
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "dummy"
@@ -7,6 +11,14 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+
         const { ticketTitle, ticketDescription, actionTaken } = await req.json();
 
         const systemPrompt = `

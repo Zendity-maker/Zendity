@@ -1,17 +1,37 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const invokerHqId = (session.user as any).headquartersId;
+
         const resolvedParams = await params;
         const staffId = resolvedParams.id;
+
+        // Tenant check preview: el empleado debe estar en la sede del invocador
+        const staffCheck = await prisma.user.findUnique({
+            where: { id: staffId },
+            select: { headquartersId: true },
+        });
+        if (!staffCheck || staffCheck.headquartersId !== invokerHqId) {
+            return NextResponse.json({ success: false, error: 'Empleado fuera de tu sede' }, { status: 403 });
+        }
 
         const staff = await prisma.user.findUnique({
             where: { id: staffId },

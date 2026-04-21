@@ -1,14 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 // PATCH — Actualizar estado, asignar, resolver, o agregar nota de seguimiento
 export async function PATCH(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const invokerHqId = (session.user as any).headquartersId;
+
         const body = await req.json();
         const { ticketId, status, assignedToId, resolutionNote, resolvedById, followUpNote } = body;
 
         if (!ticketId) {
             return NextResponse.json({ success: false, error: 'ticketId requerido' }, { status: 400 });
+        }
+
+        // Tenant check: el ticket debe pertenecer a la sede del invocador
+        const ticketCheck = await prisma.triageTicket.findUnique({
+            where: { id: ticketId },
+            select: { headquartersId: true },
+        });
+        if (!ticketCheck || ticketCheck.headquartersId !== invokerHqId) {
+            return NextResponse.json({ success: false, error: 'Ticket fuera de tu sede' }, { status: 403 });
         }
 
         // Si es una nota de seguimiento, la agregamos al array JSON sin cambiar status

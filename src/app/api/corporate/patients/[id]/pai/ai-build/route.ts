@@ -3,14 +3,31 @@ import { prisma } from '@/lib/prisma';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+/**
+ * HIPAA — Este endpoint recibe diagnósticos, medicamentos, alergias e
+ * historial médico del residente y los envía a GPT-4o para generar el
+ * PAI. Antes estaba sin auth. Ahora restringido a personal clínico con
+ * tenant check.
+ */
+const ALLOWED_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN'];
 
 // Aumentar timeout máximo para Vercel Serverless (Opcional, pero recomendado para LLMs)
-export const maxDuration = 60; 
+export const maxDuration = 60;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const invokerHqId = (session.user as any).headquartersId;
+
         const resolvedParams = await params;
         const patientId = resolvedParams.id;
 
@@ -31,6 +48,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         if (!patient) {
             return NextResponse.json({ success: false, error: 'Paciente no encontrado.' }, { status: 404 });
+        }
+
+        // Tenant check HIPAA
+        if (patient.headquartersId !== invokerHqId) {
+            return NextResponse.json({ success: false, error: 'Residente fuera de tu sede' }, { status: 403 });
         }
 
         const clinicalContext = `

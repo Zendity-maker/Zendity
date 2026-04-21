@@ -1,15 +1,35 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import {  ComplaintStatus } from '@prisma/client';
+import { ComplaintStatus } from '@prisma/client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
+        const invokerHqId = (session.user as any).headquartersId;
+
         const { complaintId, action, supervisorId } = await req.json();
 
         if (!complaintId || !action || !supervisorId) {
             return NextResponse.json({ success: false, error: "Faltan datos obligatorios de triaje" }, { status: 400 });
+        }
+
+        // Tenant check
+        const existing = await prisma.complaint.findUnique({
+            where: { id: complaintId },
+            select: { headquartersId: true },
+        });
+        if (!existing || existing.headquartersId !== invokerHqId) {
+            return NextResponse.json({ success: false, error: 'Queja fuera de tu sede' }, { status: 403 });
         }
 
         let newStatus: ComplaintStatus = 'PENDING';

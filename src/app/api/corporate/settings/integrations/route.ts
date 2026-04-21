@@ -1,20 +1,41 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
-
+/**
+ * CRÍTICO — Este endpoint lee/escribe API keys de integraciones externas
+ * (VAPI, Twilio, SendGrid, DocuSign). ANTES estaba sin auth — cualquier
+ * request podía leer o sobrescribir credenciales. Ahora restringido a
+ * DIRECTOR/ADMIN y anclado a la sede del invocador.
+ */
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
 
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const headquartersId = searchParams.get("headquartersId");
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-        if (!headquartersId) return NextResponse.json({ error: "headquartersId is required" }, { status: 400 });
+        const { searchParams } = new URL(req.url);
+        const requestedHqId = searchParams.get("headquartersId");
+
+        let headquartersId: string;
+        try {
+            headquartersId = await resolveEffectiveHqId(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ error: e.message || 'Sede inválida' }, { status: 400 });
+        }
 
         let integrations = await prisma.hqIntegration.findUnique({
             where: { headquartersId }
         });
 
-        // Si no existe el registro de integraciones, devolver uno vacío temporal
         if (!integrations) {
             integrations = {
                 id: '', headquartersId,
@@ -41,12 +62,25 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
+
         const body = await req.json();
-        const { headquartersId, integrations, whiteLabel } = body;
+        const { headquartersId: bodyHqId, integrations, whiteLabel } = body;
 
-        if (!headquartersId) return NextResponse.json({ error: "headquartersId is required" }, { status: 400 });
+        // hqId siempre desde sesión. Ignora body.headquartersId.
+        let headquartersId: string;
+        try {
+            headquartersId = await resolveEffectiveHqId(session, bodyHqId || null);
+        } catch (e: any) {
+            return NextResponse.json({ error: e.message || 'Sede inválida' }, { status: 400 });
+        }
 
-        // Upsert de HqIntegration
         const updatedIntegrations = await prisma.hqIntegration.upsert({
             where: { headquartersId },
             update: {

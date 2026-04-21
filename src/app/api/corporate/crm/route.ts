@@ -1,18 +1,34 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
-
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
 
 // GET all leads for a specific HQ
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const headquartersId = searchParams.get("headquartersId");
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-        if (!headquartersId) return NextResponse.json({ error: "headquartersId is required" }, { status: 400 });
+        const { searchParams } = new URL(req.url);
+        const requestedHqId = searchParams.get("headquartersId");
+
+        let effectiveHq: string;
+        try {
+            effectiveHq = await resolveEffectiveHqId(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ error: e.message || 'Sede inválida' }, { status: 400 });
+        }
 
         const leads = await prisma.cRMLead.findMany({
-            where: { headquartersId },
+            where: { headquartersId: effectiveHq },
             include: {
                 transcripts: true,
                 interactions: true
@@ -30,8 +46,24 @@ export async function GET(req: Request) {
 // POST: Create a Lead, Update Stage (Kanban Drag), or Convert to Patient
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
+
         const body = await req.json();
-        const { action, headquartersId, ...data } = body;
+        const { action, headquartersId: bodyHqId, ...data } = body;
+
+        // hqId siempre desde la sesión (via resolver). Ignora cualquier hqId del body.
+        let headquartersId: string;
+        try {
+            headquartersId = await resolveEffectiveHqId(session, bodyHqId || null);
+        } catch (e: any) {
+            return NextResponse.json({ error: e.message || 'Sede inválida' }, { status: 400 });
+        }
 
         if (action === "CREATE") {
             const { firstName, lastName, phone, email, notes } = data;
