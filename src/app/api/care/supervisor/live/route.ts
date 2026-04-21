@@ -44,6 +44,7 @@ export async function GET(req: Request) {
         // que deja el dashboard vacío cada noche cuando UTC cruza 00:00.
         const todayStart = todayStartAST();
         const twelveHrsAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600000);
 
@@ -89,8 +90,11 @@ export async function GET(req: Request) {
             activeIncidentReports,
             todayZoneInspections,
         ] = await Promise.all([
-            // 1. Cuidadores Activos (incluye complianceScore via caregiver)
-            prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: todayStart } }, include: { caregiver: { select: { id: true, name: true, role: true, pinCode: true, complianceScore: true } } } }),
+            // 1. Cuidadores Activos — ventana rodante de 14h para incluir turnos
+            //    NIGHT que arrancaron antes del día clínico actual y sesiones que
+            //    iniciaron 16 min antes de las 6am AST. Antes usaba gte: todayStart
+            //    (6am AST) y dejaba fuera al NIGHT vivo.
+            prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: fourteenHrsAgo } }, include: { caregiver: { select: { id: true, name: true, role: true, pinCode: true, complianceScore: true } } } }),
             // 2. Progreso de Baños
             prisma.bathLog.count({ where: { timeLogged: { gte: todayStart }, patient: { headquartersId: hqId } } }),
             // 3. Progreso de Comidas

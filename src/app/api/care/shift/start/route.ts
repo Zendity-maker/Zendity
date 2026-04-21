@@ -3,8 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { ColorGroup } from '@prisma/client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+// Solo personal clínico de piso puede abrir un ShiftSession. Antes el endpoint
+// aceptaba cualquier rol, lo que dejaba a DIRECTOR/ADMIN/SUPER_ADMIN crear
+// sesiones de prueba que generaban VitalsOrder fantasma para toda la sede.
+const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
 
 // Sprint J: ventana automática de 4h al inicio de turno
 const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -66,6 +73,17 @@ async function resolveAssignedPatients(caregiverId: string, hqId: string) {
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+        if (!CAREGIVER_ROLES.includes(session.user.role)) {
+            return NextResponse.json(
+                { success: false, error: "Solo cuidadores y enfermeras pueden iniciar turno clínico" },
+                { status: 403 },
+            );
+        }
+
         const { caregiverId, headquartersId, initialCensus } = await req.json();
 
         if (!caregiverId || !headquartersId || typeof initialCensus !== 'number') {

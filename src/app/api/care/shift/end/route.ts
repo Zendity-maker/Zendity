@@ -160,6 +160,18 @@ export async function POST(req: Request) {
                     },
                 });
 
+                // Cleanup: cancelar ventanas de vitales auto-creadas que quedaron
+                // PENDING al cerrar el turno. Antes persistían como fantasmas en
+                // el dashboard del supervisor hasta su expiresAt.
+                await tx.vitalsOrder.updateMany({
+                    where: {
+                        shiftSessionId,
+                        status: 'PENDING',
+                        autoCreated: true,
+                    },
+                    data: { status: 'EXPIRED' },
+                });
+
                 await tx.systemAuditLog.create({
                     data: {
                         headquartersId: session.headquartersId,
@@ -222,6 +234,16 @@ export async function POST(req: Request) {
                     aiSummaryReport: forcedSummary,
                     shiftHandoverId: handover.id,
                 },
+            });
+
+            // Cleanup vitales auto-creadas también en cierre forzado
+            await tx.vitalsOrder.updateMany({
+                where: {
+                    shiftSessionId,
+                    status: 'PENDING',
+                    autoCreated: true,
+                },
+                data: { status: 'EXPIRED' },
             });
 
             await tx.systemAuditLog.create({
