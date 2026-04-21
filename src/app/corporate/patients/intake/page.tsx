@@ -44,7 +44,7 @@ export default function IntakeWizardPage() {
     rawMedications: "",
   });
 
-  // TAB 5 — Documentos e Identificación
+  // TAB 5 — Documentos e Identificación (Sprint P: +idNumber, +medicareNumber, +medicaidNumber)
   const [tab5Data, setTab5Data] = useState({
     dateOfBirth: "",
     roomNumber: "",
@@ -56,6 +56,10 @@ export default function IntakeWizardPage() {
     medicalPlanUrl: "",
     medicareCardUrl: "",
     idCardUrl: "",
+    idNumber: "",
+    medicareNumber: "",
+    medicaidNumber: "",
+    address: "",
   });
   const [tab5Family, setTab5Family] = useState({
     id: "",
@@ -63,9 +67,21 @@ export default function IntakeWizardPage() {
     email: "",
     phone: "",
     accessLevel: "Full",
+    relationship: "",
+    address: "",
+    idCardUrl: "",
+    isPrimary: false,
   });
   const [tab5Saving, setTab5Saving] = useState(false);
   const [tab5Error, setTab5Error] = useState<string | null>(null);
+
+  // TAB 6 — Documentos Zendi (Sprint P)
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [docCategory, setDocCategory] = useState("ID_CARD");
+  const [docTitle, setDocTitle] = useState("");
+  const [analyzeResult, setAnalyzeResult] = useState<any>(null);
+  const [docError, setDocError] = useState<string | null>(null);
 
   // Debounced Auto-Save
   useEffect(() => {
@@ -159,6 +175,7 @@ export default function IntakeWizardPage() {
     { num: 3, title: "PAI y Riesgos", desc: "Dieta, UPP, Caídas", icon: Activity },
     { num: 4, title: "Log Farmacológico", desc: "eMAR Borrador", icon: Pill },
     { num: 5, title: "Documentos e Identificación", desc: "Seguro, ID, Familiar", icon: FileText },
+    { num: 6, title: "Análisis Zendi", desc: "Subir docs → análisis IA", icon: Upload },
   ];
 
   // Cargar datos del Patient + FamilyMember cuando entra al Tab 5
@@ -187,16 +204,24 @@ export default function IntakeWizardPage() {
             medicalPlanUrl: p.medicalPlanUrl || "",
             medicareCardUrl: p.medicareCardUrl || "",
             idCardUrl: p.idCardUrl || "",
+            idNumber: p.idNumber || "",
+            medicareNumber: p.medicareNumber || "",
+            medicaidNumber: p.medicaidNumber || "",
+            address: p.address || "",
           });
         }
         if (fData.success && fData.familyMembers?.length > 0) {
-          const primary = fData.familyMembers.find((f: any) => f.accessLevel === "Full") || fData.familyMembers[0];
+          const primary = fData.familyMembers.find((f: any) => f.isPrimary) || fData.familyMembers.find((f: any) => f.accessLevel === "Full") || fData.familyMembers[0];
           setTab5Family({
             id: primary.id || "",
             name: primary.name || "",
             email: primary.email || "",
             phone: primary.phone || "",
             accessLevel: primary.accessLevel || "Full",
+            relationship: primary.relationship || "",
+            address: primary.address || "",
+            idCardUrl: primary.idCardUrl || "",
+            isPrimary: !!primary.isPrimary,
           });
         }
       } catch (e) {
@@ -225,6 +250,11 @@ export default function IntakeWizardPage() {
           medicalPlanUrl: tab5Data.medicalPlanUrl || null,
           medicareCardUrl: tab5Data.medicareCardUrl || null,
           idCardUrl: tab5Data.idCardUrl || null,
+          // Sprint P
+          idNumber: tab5Data.idNumber || null,
+          medicareNumber: tab5Data.medicareNumber || null,
+          medicaidNumber: tab5Data.medicaidNumber || null,
+          address: tab5Data.address || null,
         }),
       });
       if (!res.ok) throw new Error("Error guardando datos del residente");
@@ -251,6 +281,10 @@ export default function IntakeWizardPage() {
           email: tab5Family.email,
           phone: tab5Family.phone || null,
           accessLevel: tab5Family.accessLevel,
+          relationship: tab5Family.relationship || null,
+          address: tab5Family.address || null,
+          idCardUrl: tab5Family.idCardUrl || null,
+          isPrimary: tab5Family.isPrimary,
         }),
       });
       const data = await res.json();
@@ -270,6 +304,116 @@ export default function IntakeWizardPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab5Data]);
+
+  // ───────────────────────────────────────────────────────────────
+  // Tab 6 — Documentos Zendi (Sprint P)
+  // ───────────────────────────────────────────────────────────────
+  const fetchDocuments = async () => {
+    if (!formData.patientId) return;
+    try {
+      const res = await fetch(`/api/corporate/intake/documents?patientId=${formData.patientId}`);
+      const data = await res.json();
+      if (data.success) setDocuments(data.documents || []);
+    } catch (e) { console.error("[Tab6 fetch docs]", e); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 6 && formData.patientId) fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, formData.patientId]);
+
+  // Sube imagen → redimensiona → POST analyze-document → guarda
+  // solo análisis (el archivo NO se persiste, se descarta tras analizar).
+  const handleDocumentUpload = async (file: File) => {
+    if (!file || !formData.patientId) return;
+    if (!docTitle.trim()) {
+      setDocError("Escribe un título para el documento antes de subir");
+      return;
+    }
+    setDocError(null);
+    setAnalyzing(true);
+    setAnalyzeResult(null);
+
+    try {
+      // Resize a 1200px max para Vision (mejor calidad que 500 de perfil)
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let w = img.width;
+            let h = img.height;
+            const MAX = 1200;
+            if (w > h && w > MAX) { h = Math.round((h * MAX) / w); w = MAX; }
+            else if (h > MAX) { w = Math.round((w * MAX) / h); h = MAX; }
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas no disponible"));
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = () => reject(new Error("Imagen inválida"));
+          img.src = ev.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error("FileReader error"));
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch("/api/corporate/intake/analyze-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: formData.patientId,
+          category: docCategory,
+          title: docTitle.trim(),
+          fileBase64: base64,
+          fileType: "image/jpeg",
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setDocError(data.error || "Zendi no pudo analizar el documento");
+        return;
+      }
+      setAnalyzeResult(data);
+      setDocTitle("");
+      await fetchDocuments();
+      // base64 del archivo se descarta en scope local — nunca persiste
+    } catch (e: any) {
+      setDocError(e.message || "Error subiendo documento");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Aplicar sugerencias del análisis al perfil del residente
+  const applySuggestionsToPatient = async () => {
+    if (!analyzeResult || !formData.patientId) return;
+    const s = analyzeResult.suggestions?.patient || {};
+    setTab5Data(prev => ({
+      ...prev,
+      idNumber: s.idNumber || prev.idNumber,
+      dateOfBirth: s.dateOfBirth || prev.dateOfBirth,
+      insurancePlanName: s.insurancePlanName || prev.insurancePlanName,
+      insurancePolicyNumber: s.insurancePolicyNumber || prev.insurancePolicyNumber,
+      medicareNumber: s.medicareNumber || prev.medicareNumber,
+      medicaidNumber: s.medicaidNumber || prev.medicaidNumber,
+      preferredHospital: s.preferredHospital || prev.preferredHospital,
+    }));
+    // Pre-cargar meds del análisis en el Log farmacológico
+    const meds = analyzeResult.suggestions?.medications || [];
+    if (meds.length > 0) {
+      const current = medicationsList;
+      const merged = [...current, ...meds.map((m: any) => ({
+        name: m.name,
+        scheduleTimes: Array.isArray(m.scheduleTimes) && m.scheduleTimes.length > 0 ? m.scheduleTimes : ["PRN"],
+      }))];
+      handleFieldChange("rawMedications", JSON.stringify(merged));
+    }
+    setAnalyzeResult(null);
+    alert("Campos sugeridos aplicados al perfil. Revisa el Tab 5 y el Log Farmacológico.");
+  };
 
   // Uploader reutilizable: redimensiona a JPEG 70%, devuelve base64
   const handleImageUpload = (field: keyof typeof tab5Data, maxWidth: number = 800) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -795,6 +939,55 @@ export default function IntakeWizardPage() {
                           </div>
                         </section>
 
+                        {/* SECCIÓN 2.5 — Identificadores (Sprint P) */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-teal-600" /> Identificadores adicionales
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Número de ID / Licencia</label>
+                              <input
+                                type="text"
+                                value={tab5Data.idNumber}
+                                onChange={(e) => setTab5Data(p => ({ ...p, idNumber: e.target.value }))}
+                                placeholder="Ej: 1234-5678-9012"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold font-mono text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Dirección previa</label>
+                              <input
+                                type="text"
+                                value={tab5Data.address}
+                                onChange={(e) => setTab5Data(p => ({ ...p, address: e.target.value }))}
+                                placeholder="Ej: 123 Calle X, San Juan"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Número Medicare (MBI)</label>
+                              <input
+                                type="text"
+                                value={tab5Data.medicareNumber}
+                                onChange={(e) => setTab5Data(p => ({ ...p, medicareNumber: e.target.value }))}
+                                placeholder="Ej: 1EG4-TE5-MK72"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold font-mono text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Número Medicaid</label>
+                              <input
+                                type="text"
+                                value={tab5Data.medicaidNumber}
+                                onChange={(e) => setTab5Data(p => ({ ...p, medicaidNumber: e.target.value }))}
+                                placeholder="Ej: 000-00-0000"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold font-mono text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                          </div>
+                        </section>
+
                         {/* SECCIÓN 3 — Documentos / imágenes */}
                         <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
                           <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -890,6 +1083,39 @@ export default function IntakeWizardPage() {
                                 <option value="Read-Only">Solo lectura</option>
                               </select>
                             </div>
+                            {/* Sprint P — Datos extra del familiar encargado */}
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Relación</label>
+                              <input
+                                type="text"
+                                value={tab5Family.relationship}
+                                onChange={(e) => setTab5Family(p => ({ ...p, relationship: e.target.value }))}
+                                placeholder="Ej: Hija, Esposo, Sobrino"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Dirección del familiar</label>
+                              <input
+                                type="text"
+                                value={tab5Family.address}
+                                onChange={(e) => setTab5Family(p => ({ ...p, address: e.target.value }))}
+                                placeholder="Ej: 45 Calle Y, Bayamón"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                            </div>
+                            <div className="md:col-span-2 flex items-center gap-3 p-4 rounded-xl bg-teal-50 border border-teal-200">
+                              <input
+                                type="checkbox"
+                                id="fam-isprimary"
+                                checked={tab5Family.isPrimary}
+                                onChange={(e) => setTab5Family(p => ({ ...p, isPrimary: e.target.checked }))}
+                                className="w-5 h-5 accent-teal-600"
+                              />
+                              <label htmlFor="fam-isprimary" className="font-bold text-teal-900 text-sm cursor-pointer">
+                                Marcar como encargado primario (único por residente — aparecerá en contratos legales)
+                              </label>
+                            </div>
                           </div>
                           <button
                             onClick={saveTab5Family}
@@ -908,6 +1134,195 @@ export default function IntakeWizardPage() {
                       </div>
                       )}
                    </div>
+                )}
+
+                {/* ═══════════════════════════════════════════════════════════ */}
+                {/* TAB 6 — Análisis Zendi de documentos (Sprint P) */}
+                {/* ═══════════════════════════════════════════════════════════ */}
+                {activeTab === 6 && (
+                  <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex-1 flex flex-col">
+                    <div className="mb-10">
+                      <h2 className="text-4xl font-black text-slate-800 tracking-tight flex items-center gap-4">
+                        <Upload className="w-10 h-10 text-teal-600" /> Análisis Zendi de Documentos
+                      </h2>
+                      <p className="text-slate-500 font-bold text-lg mt-3">
+                        Sube un ID, tarjeta de seguro, receta médica o historial hospitalario. Zendi extrae los datos y te deja aplicarlos al perfil con un click. <span className="text-teal-700">El archivo original NO se guarda</span> — solo el análisis estructurado.
+                      </p>
+                    </div>
+
+                    {!formData.patientId && (
+                      <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-6 text-sm font-bold text-amber-800">
+                        <AlertCircle className="w-5 h-5 inline mr-2" />
+                        Completa la Identidad Base primero para habilitar este bloque.
+                      </div>
+                    )}
+
+                    {formData.patientId && (
+                      <div className="space-y-8">
+                        {/* Formulario de subida */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <Upload className="w-5 h-5 text-teal-600" /> Subir documento
+                          </h3>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Categoría</label>
+                              <select
+                                value={docCategory}
+                                onChange={(e) => setDocCategory(e.target.value)}
+                                disabled={analyzing}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              >
+                                <option value="ID_CARD">ID / Licencia</option>
+                                <option value="INSURANCE_CARD">Tarjeta de seguro</option>
+                                <option value="MEDICARE_CARD">Tarjeta Medicare</option>
+                                <option value="MEDICAL_RECORD">Expediente médico</option>
+                                <option value="HOSPITAL_DISCHARGE">Alta hospitalaria</option>
+                                <option value="LAB_RESULT">Resultado laboratorio</option>
+                                <option value="PRESCRIPTION">Receta médica</option>
+                                <option value="POWER_OF_ATTORNEY">Poder legal / Tutor</option>
+                                <option value="SOCIAL_WORK_NOTE">Nota trabajo social</option>
+                                <option value="OTHER">Otro</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Título del documento</label>
+                              <input
+                                type="text"
+                                value={docTitle}
+                                onChange={(e) => setDocTitle(e.target.value)}
+                                placeholder="Ej: Receta Dr. Rivera 2026-04-15"
+                                disabled={analyzing}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400 disabled:opacity-50"
+                              />
+                            </div>
+                          </div>
+
+                          <label className={`block border-2 border-dashed rounded-2xl p-10 text-center transition-all ${analyzing ? 'border-amber-300 bg-amber-50 cursor-wait' : 'border-teal-300 bg-teal-50 hover:bg-teal-100 cursor-pointer'}`}>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleDocumentUpload(f);
+                                e.target.value = "";
+                              }}
+                              className="hidden"
+                              disabled={analyzing}
+                            />
+                            {analyzing ? (
+                              <>
+                                <Save className="w-10 h-10 text-amber-600 animate-spin mx-auto mb-3" />
+                                <p className="font-black text-amber-800 text-lg">Zendi está analizando...</p>
+                                <p className="text-sm text-amber-700 font-medium mt-1">Extrayendo campos del documento con GPT-4o Vision</p>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="w-10 h-10 text-teal-600 mx-auto mb-3" />
+                                <p className="font-black text-teal-800 text-lg">Toca para subir imagen</p>
+                                <p className="text-sm text-teal-700 font-medium mt-1">JPEG, PNG o WEBP. Los PDFs no se soportan — convierte a imagen primero.</p>
+                              </>
+                            )}
+                          </label>
+
+                          {docError && (
+                            <div className="mt-4 bg-rose-50 border-2 border-rose-200 rounded-xl p-4 text-sm font-bold text-rose-700">
+                              <AlertCircle className="w-4 h-4 inline mr-2" />
+                              {docError}
+                            </div>
+                          )}
+                        </section>
+
+                        {/* Resultado del último análisis */}
+                        {analyzeResult && (
+                          <section className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-teal-300 shadow-md">
+                            <div className="flex items-center justify-between mb-5">
+                              <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5 text-teal-600" /> Análisis completado
+                              </h3>
+                              {analyzeResult.suggestions?.confidence != null && (
+                                <span className="text-[10px] font-black uppercase tracking-widest bg-teal-100 text-teal-800 px-3 py-1.5 rounded-full border border-teal-200">
+                                  Confianza {Math.round((analyzeResult.suggestions.confidence || 0) * 100)}%
+                                </span>
+                              )}
+                            </div>
+                            {analyzeResult.summary && (
+                              <p className="text-sm text-slate-700 font-medium bg-slate-50 rounded-xl p-4 mb-5 leading-relaxed border border-slate-200">
+                                {analyzeResult.summary}
+                              </p>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-xs">
+                              {Object.entries(analyzeResult.suggestions?.patient || {}).filter(([, v]) => v).map(([k, v]) => (
+                                <div key={k} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                  <div className="font-black text-slate-500 uppercase tracking-widest text-[9px] mb-1">{k}</div>
+                                  <div className="font-bold text-slate-800 text-sm">{String(v)}</div>
+                                </div>
+                              ))}
+                              {(analyzeResult.suggestions?.medications || []).length > 0 && (
+                                <div className="md:col-span-2 bg-indigo-50 rounded-lg p-3 border border-indigo-200">
+                                  <div className="font-black text-indigo-700 uppercase tracking-widest text-[9px] mb-2">Medicamentos extraídos</div>
+                                  <ul className="space-y-1 text-sm font-bold text-indigo-900">
+                                    {analyzeResult.suggestions.medications.map((m: any, i: number) => (
+                                      <li key={i}>
+                                        {m.name} {m.dose ? `· ${m.dose}` : ""} {m.scheduleTimes?.length > 0 ? `· ${m.scheduleTimes.join(", ")}` : ""}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {(analyzeResult.suggestions?.clinical?.diagnoses || []).length > 0 && (
+                                <div className="md:col-span-2 bg-amber-50 rounded-lg p-3 border border-amber-200">
+                                  <div className="font-black text-amber-700 uppercase tracking-widest text-[9px] mb-1">Diagnósticos</div>
+                                  <div className="text-sm font-bold text-amber-900">{analyzeResult.suggestions.clinical.diagnoses.join(", ")}</div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={applySuggestionsToPatient}
+                                className="flex-1 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                              >
+                                <CheckCircle className="w-4 h-4" /> Aplicar al perfil
+                              </button>
+                              <button
+                                onClick={() => setAnalyzeResult(null)}
+                                className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                              >
+                                Descartar
+                              </button>
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Historial */}
+                        <section className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-teal-600" /> Historial de análisis ({documents.length})
+                          </h3>
+                          {documents.length === 0 ? (
+                            <p className="text-sm text-slate-500 font-medium">Aún no se han analizado documentos para este residente.</p>
+                          ) : (
+                            <div className="divide-y divide-slate-100">
+                              {documents.map((d) => (
+                                <div key={d.id} className="py-3 flex items-center justify-between gap-4 text-sm">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-black text-slate-800 truncate">{d.title}</p>
+                                    <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                                      {d.category} · {new Date(d.uploadedAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', year: 'numeric' })} · por {d.uploadedBy?.name || '—'}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">
+                                    Analizado
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    )}
+                  </div>
                 )}
 
             </div>

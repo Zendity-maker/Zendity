@@ -48,7 +48,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         const hqId = (session.user as any).headquartersId;
-        const { name, email, phone, passcode, accessLevel } = await req.json();
+        const {
+            name, email, phone, passcode, accessLevel, relationship,
+            // Sprint P — Admisión Unificada
+            address, idCardUrl, isPrimary,
+        } = await req.json();
 
         if (!name || !email) {
             return NextResponse.json({ success: false, error: "Debe proveer al menos Nombre y Email." }, { status: 400 });
@@ -71,8 +75,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     ...(phone !== undefined ? { phone: phone || null } : {}),
                     ...(passcode !== undefined ? { passcode } : {}),
                     ...(accessLevel !== undefined ? { accessLevel: accessLevel || "Full" } : {}),
+                    ...(relationship !== undefined ? { relationship: relationship || null } : {}),
+                    ...(address !== undefined ? { address: address || null } : {}),
+                    ...(idCardUrl !== undefined ? { idCardUrl: idCardUrl || null } : {}),
+                    ...(isPrimary !== undefined ? { isPrimary: !!isPrimary } : {}),
                 }
             });
+            // Si se marca como primario, limpiar otros primarios del mismo paciente
+            if (isPrimary === true) {
+                await prisma.familyMember.updateMany({
+                    where: { patientId, id: { not: updated.id }, isPrimary: true },
+                    data: { isPrimary: false },
+                });
+                await prisma.patient.update({
+                    where: { id: patientId },
+                    data: { primaryFamilyMemberId: updated.id },
+                });
+            }
             return NextResponse.json({ success: true, familyMember: updated, updated: true });
         }
 
@@ -84,9 +103,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 email,
                 phone: phone || null,
                 passcode: passcode || null,
-                accessLevel: accessLevel || "Full"
+                accessLevel: accessLevel || "Full",
+                relationship: relationship || null,
+                address: address || null,
+                idCardUrl: idCardUrl || null,
+                isPrimary: !!isPrimary,
             }
         });
+
+        // Si es el primario, desmarcar otros + setear en Patient
+        if (isPrimary === true) {
+            await prisma.familyMember.updateMany({
+                where: { patientId, id: { not: newFamilyMember.id }, isPrimary: true },
+                data: { isPrimary: false },
+            });
+            await prisma.patient.update({
+                where: { id: patientId },
+                data: { primaryFamilyMemberId: newFamilyMember.id },
+            });
+        }
 
         // -------------------------------------------------------------
         // FASE 66: B2C ONBOARDING WELCOME EMAIL

@@ -52,6 +52,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             ssnLastFour, insurancePlanName, insurancePolicyNumber, preferredHospital,
             // FASE 84 — dirección previa
             address,
+            // Sprint P — identificadores separados + encargado primario
+            idNumber, medicareNumber, medicaidNumber, primaryFamilyMemberId,
         } = body;
 
         const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -83,6 +85,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
         // FASE 84 — dirección previa
         if (address !== undefined) updateData.address = address || null;
+
+        // Sprint P — Admisión Unificada
+        if (idNumber !== undefined) updateData.idNumber = idNumber || null;
+        if (medicareNumber !== undefined) updateData.medicareNumber = medicareNumber || null;
+        if (medicaidNumber !== undefined) updateData.medicaidNumber = medicaidNumber || null;
+        if (primaryFamilyMemberId !== undefined) {
+            // Si se está marcando un familiar primario, validar que pertenece a este residente
+            if (primaryFamilyMemberId) {
+                const fm = await prisma.familyMember.findUnique({
+                    where: { id: primaryFamilyMemberId },
+                    select: { patientId: true },
+                });
+                if (!fm || fm.patientId !== id) {
+                    return NextResponse.json({ success: false, error: 'Familiar no pertenece a este residente' }, { status: 400 });
+                }
+            }
+            updateData.primaryFamilyMemberId = primaryFamilyMemberId || null;
+        }
 
         // IntakeData solo se toca si vienen allergies o diagnoses en el body
         if (allergies !== undefined || diagnoses !== undefined) {
