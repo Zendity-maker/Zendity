@@ -6,9 +6,15 @@ import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Vercel — evitar 504 si OpenAI se cuelga
+
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY || 'dummy',
+    timeout: 45_000, // 45s max; si GPT tarda más, tira y cae al fallback determinista
+});
 
 /**
  * Sprint L — Cierre de turno con reporte INDIVIDUAL por cuidador.
@@ -263,10 +269,16 @@ Genera el reporte ahora.`;
             temperature: 0.3,
         });
         const text = completion.choices?.[0]?.message?.content?.trim();
-        if (text && text.length > 40) return text;
+        if (text && text.length > 40) {
+            console.log(`[shift/end] zendi summary source=gpt-4o-mini len=${text.length} caregiver=${caregiverName}`);
+            return text;
+        }
+        console.warn(`[shift/end] zendi summary gpt respuesta muy corta (${text?.length ?? 0} chars), usando fallback`);
     } catch (e) {
         console.error('[shift/end] OpenAI error:', e);
     }
+
+    console.warn(`[shift/end] zendi summary source=fallback caregiver=${caregiverName}`);
 
     // Fallback determinista si OpenAI falla
     return `Reporte de cierre — ${caregiverName} · ${shiftLabel}
@@ -334,15 +346,26 @@ export async function POST(req: Request) {
                 patientIds: patients.map(p => p.id),
                 shiftStart,
             });
-            // 4. Resumen Zendi (GPT-4o-mini con datos reales)
+            // 4. Resumen Zendi (GPT-4o-mini con datos reales).
+            //    Si el wizard ya mostró al cuidador un reporte pre-generado (via
+            //    /api/care/shift/preview) y el cuidador lo confirmó, respetamos
+            //    ese texto para que lo que firmó === lo que se guarda. Si no,
+            //    regeneramos (backward-compat + cierres forzados).
             const justifications = (handoverData.justifications ?? {}) as Record<string, string>;
-            const zendiSummary = await buildZendiSummary({
-                caregiverName: session.caregiver?.name || 'Cuidador(a)',
-                shiftType: shiftTypeDraft,
-                patients,
-                activity,
-                justifications,
-            });
+            const previewedReport: string | undefined = handoverData.aiSummaryReport;
+            let zendiSummary: string;
+            if (typeof previewedReport === 'string' && previewedReport.trim().length > 40) {
+                zendiSummary = previewedReport.trim();
+                console.log(`[shift/end] usando reporte pre-generado del wizard (len=${zendiSummary.length}) caregiver=${session.caregiver?.name}`);
+            } else {
+                zendiSummary = await buildZendiSummary({
+                    caregiverName: session.caregiver?.name || 'Cuidador(a)',
+                    shiftType: shiftTypeDraft,
+                    patients,
+                    activity,
+                    justifications,
+                });
+            }
 
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
                 const shiftHandover = await tx.shiftHandover.create({
