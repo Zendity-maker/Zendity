@@ -127,6 +127,9 @@ model Headquarters {
 
   // Sprint N — Distribución automática por ausencia/tardanza
   patientOverrides ShiftPatientOverride[]
+
+  // Sprint P — Documentos de residentes analizados por Zendi
+  patientDocuments PatientDocument[]
 }
 
 // =======================
@@ -263,6 +266,9 @@ model User {
 
   // Sprint N — Residentes reasignados a este cuidador por ausencia/tardanza
   patientOverrides ShiftPatientOverride[]
+
+  // Sprint P — Documentos de residentes subidos/analizados por este usuario
+  uploadedDocuments PatientDocument[]
 }
 
 model Account {
@@ -515,12 +521,21 @@ model Patient {
   preferredHospital     String? // Hospital preferido para traslados
   address               String? // FASE 84: Dirección previa del residente
 
+  // Sprint P — Admisión Unificada: identificadores separados
+  medicareNumber        String? // Número Medicare (separado de insurance privado)
+  medicaidNumber        String? // Número Medicaid
+  idNumber              String? // Licencia/ID oficial del residente
+
+  // Sprint P — Encargado primario (reemplaza convención familyMembers[0])
+  primaryFamilyMemberId String? @unique
+
   createdAt DateTime @default(now())
 
   headquarters   Headquarters        @relation(fields: [headquartersId], references: [id])
   medications    PatientMedication[]
   incidents      Incident[]
-  familyMembers  FamilyMember[]
+  familyMembers  FamilyMember[]      @relation("PatientFamily")
+  primaryFamilyMember FamilyMember?  @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
   familyVisits   FamilyVisit[]
   familyMessages FamilyMessage[] // FASE 13 Integrations
   wellnessNotes  WellnessDiary[]
@@ -581,6 +596,9 @@ model Patient {
 
   // Sprint N — Distribución automática por ausencia/tardanza
   overrides ShiftPatientOverride[]
+
+  // Sprint P — Documentos analizados por Zendi (solo metadata + análisis)
+  documents PatientDocument[]
 }
 
 // =======================
@@ -728,8 +746,14 @@ model FamilyMember {
   inviteExpiry DateTime?
   isRegistered Boolean   @default(false)
 
+  // Sprint P — Admisión Unificada: datos del encargado
+  address    String?
+  idCardUrl  String?  @db.Text // base64 foto del ID del familiar
+  isPrimary  Boolean  @default(false)
+
   headquarters Headquarters   @relation(fields: [headquartersId], references: [id])
-  patient      Patient        @relation(fields: [patientId], references: [id])
+  patient      Patient        @relation("PatientFamily", fields: [patientId], references: [id])
+  primaryForPatient Patient?  @relation("PrimaryFamilyMember")
   surveys      FamilySurvey[]
   complaints   Complaint[]
 
@@ -958,6 +982,11 @@ model IntakeData {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @default(now()) @updatedAt
 
+  // Sprint P — Análisis agregado de documentos Zendi durante admisión
+  documentAnalysisNotes String?   @db.Text
+  zendiAnalysis         Json?
+  idVerifiedAt          DateTime?
+
   patient Patient @relation(fields: [patientId], references: [id])
 }
 
@@ -1005,6 +1034,9 @@ model LifePlan {
 
   signedById String?
   signedAt   DateTime?
+  // Sprint P — Firma gráfica del LifePlan (igual que LegalDocument)
+  signatureBase64    String?   @db.Text
+  signatureIpAddress String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
@@ -2383,4 +2415,47 @@ model ShiftPatientOverride {
   @@index([headquartersId, shiftDate, shiftType])
   @@index([patientId, isActive])
   @@index([caregiverId, isActive])
+}
+
+// =======================
+// Sprint P — Admisión Unificada
+// Documentos de residentes analizados por Zendi. El archivo original NO se
+// persiste — solo el texto extraído (ocrText) y el análisis estructurado
+// (zendiAnalysis JSON). Privacidad first: la foto del ID queda fuera de la BD
+// después del análisis. Este modelo captura el proceso de "Zendi leyó algo y
+// extrajo estos campos" sin guardar el fuente.
+// =======================
+enum DocumentCategory {
+  ID_CARD
+  INSURANCE_CARD
+  MEDICARE_CARD
+  MEDICAL_RECORD
+  HOSPITAL_DISCHARGE
+  LAB_RESULT
+  PRESCRIPTION
+  POWER_OF_ATTORNEY
+  SOCIAL_WORK_NOTE
+  OTHER
+}
+
+model PatientDocument {
+  id             String           @id @default(uuid())
+  headquartersId String
+  patientId      String
+  uploadedById   String
+
+  category       DocumentCategory
+  title          String
+  fileType       String  // "image/jpeg" | "image/png" | "application/pdf"
+  ocrText        String?  @db.Text
+  zendiAnalysis  Json?
+  analyzedAt     DateTime?
+  uploadedAt     DateTime @default(now())
+
+  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([patientId, category])
+  @@index([headquartersId])
 }
