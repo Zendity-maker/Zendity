@@ -30,6 +30,15 @@ export async function GET(req: Request) {
 
         console.log("CARE API CALLED WITH:", { color, hqId });
 
+        // Guard: un cuidador sin color asignado NO debe ver residentes UNASSIGNED.
+        // Antes este caso caía al filtro por colorGroup='UNASSIGNED' y mostraba
+        // residentes huérfanos (incluyendo duplicados como los 3 registros de
+        // Daniela Arrieta que aparecían en el tablet). Devolvemos lista vacía
+        // para forzar que el cuidador reciba su color desde ShiftColorAssignment.
+        if (color === 'UNASSIGNED') {
+            return NextResponse.json({ success: true, patients: [], events: [], hospitalizedCount: 0 });
+        }
+
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 
