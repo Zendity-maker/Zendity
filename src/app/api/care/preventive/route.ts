@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clampComplianceScore } from '@/lib/compliance-score';
 
 
 
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
             where: { id: caregiverId },
             data: { complianceScore: { increment: 5 } }
         });
+        await clampComplianceScore(caregiverId);
 
         return NextResponse.json({ success: true, log: diagnosticLog, pointsDelta: 5 });
 

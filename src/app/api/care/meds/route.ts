@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { notifyRoles } from '@/lib/notifications';
+import { clampComplianceScore } from '@/lib/compliance-score';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
                 where: { id: invokerId },
                 data: { complianceScore: { decrement: 5 } },
             });
+            await clampComplianceScore(invokerId);
         }
 
         // Notificación EMAR_ALERT cuando el medicamento no se administra

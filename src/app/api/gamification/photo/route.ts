@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clampComplianceScore } from '@/lib/compliance-score';
 
 
 
@@ -28,15 +29,20 @@ export async function POST(req: Request) {
         }
 
         // Aplicar la lógica de Gamificación: Recompensar al autor de la foto (el Cuidador o Enfermero)
-        const updatedAuthor = await prisma.user.update({
+        await prisma.user.update({
             where: { id: authorId },
             data: { complianceScore: { increment: 3 } }
+        });
+        await clampComplianceScore(authorId);
+        const finalAuthor = await prisma.user.findUnique({
+            where: { id: authorId },
+            select: { complianceScore: true },
         });
 
         return NextResponse.json({
             success: true,
             message: 'Imagen clarificada mediante Zendi AI y guardada en el perfil.',
-            newScore: updatedAuthor.complianceScore
+            newScore: finalAuthor?.complianceScore ?? null
         });
 
     } catch (error) {

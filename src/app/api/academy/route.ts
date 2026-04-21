@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clampComplianceScore } from '@/lib/compliance-score';
 
 
 
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
                 }
             })
         ]);
+        await clampComplianceScore(employeeId);
 
         return NextResponse.json({ success: true, enrollment, newComplianceScore: updatedUser.complianceScore });
 

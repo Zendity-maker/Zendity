@@ -17,8 +17,14 @@ export async function GET(req: Request) {
         const todayEnd = new Date();
 
         // 1. Obtener todos los residentes de la HQ que tengan medicación activa
+        // Excluye DISCHARGED y DECEASED (alineado con convención estándar
+        // del resto de endpoints). TEMPORARY_LEAVE sí aparece — historial de
+        // meds sigue siendo relevante durante hospitalización.
         const patients = await prisma.patient.findMany({
-            where: { headquartersId: hqId },
+            where: {
+                headquartersId: hqId,
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
+            },
             include: {
                 medications: {
                     where: { isActive: true },

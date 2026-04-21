@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { clampComplianceScore } from '@/lib/compliance-score';
 
 
 
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
                         }
                     }
                 });
+                await clampComplianceScore(caregiverId);
             }
         }
 
@@ -126,6 +128,7 @@ export async function PATCH(req: Request) {
                 where: { id: task.caregiverId },
                 data: { complianceScore: { decrement: 5 } }
             });
+            await clampComplianceScore(task.caregiverId);
 
             return NextResponse.json({ success: true, message: "Task marked as FAILED. 5 points deducted." });
         }
@@ -141,6 +144,7 @@ export async function PATCH(req: Request) {
                 where: { id: task.caregiverId },
                 data: { complianceScore: { decrement: 5 } }
             });
+            await clampComplianceScore(task.caregiverId);
 
             return NextResponse.json({ success: false, error: "Task expired. Marked as FAILED and 5 points deducted." }, { status: 400 });
         }

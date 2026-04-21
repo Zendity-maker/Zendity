@@ -128,7 +128,7 @@ export async function GET() {
         const activePatients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
-                status: { not: "DISCHARGED" }
+                status: { notIn: ['DISCHARGED', 'DECEASED'] }
             },
             select: { id: true, name: true, roomNumber: true, downtonRisk: true, headquartersId: true }
         });
