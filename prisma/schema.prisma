@@ -124,6 +124,9 @@ model Headquarters {
 
   // Órdenes de toma de vitales
   vitalsOrders VitalsOrder[]
+
+  // Sprint N — Distribución automática por ausencia/tardanza
+  patientOverrides ShiftPatientOverride[]
 }
 
 // =======================
@@ -257,6 +260,9 @@ model User {
 
   // Sprint I: admin.zendity.com — prospectos SaaS asignados (solo SUPER_ADMIN)
   assignedProspects SaaSProspect[] @relation("AssignedProspects")
+
+  // Sprint N — Residentes reasignados a este cuidador por ausencia/tardanza
+  patientOverrides ShiftPatientOverride[]
 }
 
 model Account {
@@ -572,6 +578,9 @@ model Patient {
 
   // Órdenes de toma de vitales
   vitalsOrders VitalsOrder[]
+
+  // Sprint N — Distribución automática por ausencia/tardanza
+  overrides ShiftPatientOverride[]
 }
 
 // =======================
@@ -2343,4 +2352,34 @@ model DirectorBriefing {
 
     @@unique([scope, clinicalDay])
     @@index([scope, generatedAt])
+}
+
+// =======================
+// Sprint N — Distribución automática por ausencia/tardanza
+// Un residente queda reasignado a un cuidador presente cuando el cuidador
+// original de su color no se presentó (round-robin) o llegó tarde a cubrir.
+// La distribución vive sólo por el turno — se revierte al siguiente cierre.
+// =======================
+model ShiftPatientOverride {
+  id             String    @id @default(uuid())
+  headquartersId String
+  patientId      String
+  originalColor  String    // color original del residente (RED/YELLOW/GREEN/BLUE)
+  assignedColor  String    // color del cuidador que lo recibe
+  caregiverId    String    // cuidador que lo recibe
+  shiftDate      DateTime  // fecha del turno (día clínico)
+  shiftType      String    // MORNING | EVENING | NIGHT
+  reason         String    // ABSENCE_REDISTRIB | LATE_COVER | MANUAL
+  autoAssigned   Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime? // cuando el cuidador original llega o el supervisor revierte
+  isActive       Boolean   @default(true)
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  caregiver    User         @relation(fields: [caregiverId], references: [id])
+
+  @@index([headquartersId, shiftDate, shiftType])
+  @@index([patientId, isActive])
+  @@index([caregiverId, isActive])
 }
