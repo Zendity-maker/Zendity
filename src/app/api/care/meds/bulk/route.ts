@@ -86,10 +86,11 @@ export async function POST(req: Request) {
             }
         }
 
-        // Mapear status
+        // Mapear status — REFUSED viene del wizard de warnings del cierre de
+        // turno, no de este endpoint bulk. Actions válidas: ADMINISTER_PACK |
+        // OMIT | OMISSION | PRN.
         let adminStatus: MedStatus = 'ADMINISTERED';
         if (isOmit) adminStatus = 'OMITTED';
-        if (action === 'REFUSED') adminStatus = 'REFUSED';
 
         const now = new Date();
         const dataToInsert = medicationIds.map((medId: string) => ({
