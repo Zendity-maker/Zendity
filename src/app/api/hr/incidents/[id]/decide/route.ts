@@ -95,7 +95,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             await notifyUser(incident.employeeId, {
                 type: 'EMAR_ALERT',
                 title: 'Observación pendiente de respuesta',
-                message: 'El director solicita tu explicación. Tienes 48 horas para responder.'
+                message: 'El director solicita tu explicación. Tienes 48 horas para responder.',
+                link: `/my-observations/${id}`,
             });
 
             return NextResponse.json({ success: true, incident: updated });
@@ -142,7 +143,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         await notifyUser(incident.employeeId, {
             type: 'EMAR_ALERT',
             title: 'Observación aplicada',
-            message: `Se aplicó una ${severityLabel(incident.severity)}. Puntos deducidos: ${pointsDeductedAbs}. Revisa el detalle.`
+            message: `Se aplicó una ${severityLabel(incident.severity)}. Puntos deducidos: ${pointsDeductedAbs}. Revisa el detalle.`,
+            link: `/my-observations/${id}`,
         });
 
         // Email SendGrid

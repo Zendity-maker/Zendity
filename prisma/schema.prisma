@@ -365,6 +365,7 @@ model Notification {
   type      String
   title     String
   message   String
+  link      String?  // Sprint S — ruta opcional para navegación al tocar la notif
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 

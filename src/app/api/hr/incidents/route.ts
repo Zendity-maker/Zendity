@@ -105,16 +105,19 @@ export async function GET(req: Request) {
         const employeeId = searchParams.get('employeeId');
         const statusFilter = searchParams.get('status');
         const severityFilter = searchParams.get('severity');
+        const myOwn = searchParams.get('myOwn') === 'true';
 
         const isHr = ALLOWED_ROLES.includes(invokerRole);
 
-        // Si no es HR: el empleado sólo puede ver SUS incidentes visibles
-        if (!isHr) {
+        // Sprint S — ?myOwn=true fuerza el scope "solo mis propias observaciones"
+        // incluso para HR. Útil para /my-observations (cualquier rol ve solo las suyas).
+        if (myOwn || !isHr) {
             const whereSelf: any = {
                 employeeId: invokerId,
                 headquartersId: hqId,
                 visibleToEmployee: true,
             };
+            if (statusFilter) whereSelf.status = statusFilter;
             const incidents = await prisma.incidentReport.findMany({
                 where: whereSelf,
                 include: {

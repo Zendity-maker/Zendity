@@ -6,13 +6,21 @@ import { prisma } from "@/lib/prisma";
 
 type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE";
 
+interface NotifPayload {
+    type: NotifType;
+    title: string;
+    message: string;
+    /** Sprint S — ruta opcional para navegación al tocar la notif en la campana. */
+    link?: string;
+}
+
 /**
  * Crea notificaciones para todos los usuarios de una sede con los roles indicados.
  */
 export async function notifyRoles(
     hqId: string,
     roles: string[],
-    payload: { type: NotifType; title: string; message: string }
+    payload: NotifPayload
 ): Promise<number> {
     try {
         const users = await prisma.user.findMany({
@@ -27,6 +35,7 @@ export async function notifyRoles(
                 type: payload.type,
                 title: payload.title,
                 message: payload.message,
+                link: payload.link || null,
                 isRead: false,
             })),
         });
@@ -42,7 +51,7 @@ export async function notifyRoles(
  */
 export async function notifyUser(
     userId: string,
-    payload: { type: NotifType; title: string; message: string }
+    payload: NotifPayload
 ): Promise<boolean> {
     try {
         await prisma.notification.create({
@@ -51,6 +60,7 @@ export async function notifyUser(
                 type: payload.type,
                 title: payload.title,
                 message: payload.message,
+                link: payload.link || null,
                 isRead: false,
             },
         });
