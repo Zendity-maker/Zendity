@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info, Sparkles, Sunrise, UserCheck, FileText, ArrowRight } from "lucide-react";
+import CoveragePickerModal, { type CoverageColorOption } from "@/components/care/CoveragePickerModal";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -166,6 +167,33 @@ export default function ZendityCareTabletPage() {
     const [briefingData, setBriefingData] = useState<any>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [showQuickRead, setShowQuickRead] = useState(false);
+
+    // Sprint N.4 — Cobertura en vivo para el selector de color
+    const [coverage, setCoverage] = useState<any>(null);
+    const [coverageLoading, setCoverageLoading] = useState(false);
+    const [coveragePickerOpen, setCoveragePickerOpen] = useState(false);
+    const [coverageSubmitting, setCoverageSubmitting] = useState(false);
+
+    // Fetch cobertura antes de mostrar el selector de color.
+    // Degradación elegante: si falla, los chips no aparecen pero los
+    // botones siguen funcionando como antes.
+    useEffect(() => {
+        if (selectedColor || briefingMode || verifyingCensus || activeSession) return;
+        if (coverage || coverageLoading) return;
+        const fetchCov = async () => {
+            setCoverageLoading(true);
+            try {
+                const res = await fetch('/api/care/shift/coverage');
+                const data = await res.json();
+                if (data.success) setCoverage(data);
+            } catch (e) {
+                console.error('[coverage fetch]', e);
+            } finally {
+                setCoverageLoading(false);
+            }
+        };
+        fetchCov();
+    }, [selectedColor, briefingMode, verifyingCensus, activeSession, coverage, coverageLoading]);
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
@@ -426,6 +454,48 @@ export default function ZendityCareTabletPage() {
         };
         checkSession();
     }, [user]);
+
+    // Sprint N.4 — El sustituto/llegada tarde elige colores desde el modal.
+    // Si el turno aún no existe, arrancamos el flujo normal con los colores
+    // elegidos (como un startTurnAndBriefing multi-color). Si ya hay sesión
+    // activa, llamamos claim-coverage para crear overrides LATE_COVER.
+    const handleCoveragePickerSelect = async (colors: string[]) => {
+        if (colors.length === 0) return;
+        setCoverageSubmitting(true);
+        try {
+            const colorParam = colors.join(',');
+            if (!activeSession) {
+                // Sustituto iniciando turno — pasa a la verificación normal
+                setCoveragePickerOpen(false);
+                await startTurnAndBriefing(colorParam);
+            } else {
+                // Tomar cobertura sobre un turno ya activo
+                const res = await fetch('/api/care/shift/claim-coverage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        colors,
+                        shiftSessionId: activeSession.id,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setCoveragePickerOpen(false);
+                    // Refrescar el coverage
+                    setCoverage(null);
+                    alert(`Tomaste cobertura de ${data.claimed} residentes.`);
+                    // refresca pacientes visibles
+                    if (selectedColor) refreshPatientsSilently(selectedColor);
+                } else {
+                    alert(data.error || 'Error tomando cobertura');
+                }
+            }
+        } catch (e: any) {
+            alert(e.message || 'Error de conexión');
+        } finally {
+            setCoverageSubmitting(false);
+        }
+    };
 
     const startTurnAndBriefing = async (color: string) => {
         setSelectedColor(color);
@@ -1369,31 +1439,138 @@ export default function ZendityCareTabletPage() {
     }
 
     if (!selectedColor && !briefingMode && !verifyingCensus) {
+        // Cobertura en vivo (puede ser null si el fetch falló o aún cargando)
+        const cov = coverage;
+        const coveredColors: string[] = cov?.coveredColors || [];
+        const absentColors: string[] = cov?.absentColors || [];
+        const alreadyRedistributed: string[] = cov?.alreadyRedistributed || [];
+        const activeCaregivers: Array<{ userId: string; name: string; color: string | null }> = cov?.activeCaregivers || [];
+        const activeOverrides: Array<{ originalColor: string; caregiverName: string }> = cov?.activeOverrides || [];
+
+        // Mapa color → nombre del cuidador que lo cubre
+        const caregiverByColor: Record<string, string> = {};
+        for (const c of activeCaregivers) {
+            if (c.color) caregiverByColor[c.color] = c.name;
+        }
+
+        // Detección de sustituto: el invokerId NO tiene ScheduledShift hoy.
+        // Usamos las activeCaregivers del coverage: si el user está en la lista,
+        // NO es sustituto (ya entró a su turno). Si no está Y tampoco tiene
+        // scheduledShift, lo tratamos como sustituto — pero como el coverage
+        // endpoint no reporta scheduledShifts por usuario, usamos heurística:
+        // si el user no aparece en activeCaregivers Y todos los colores están
+        // cubiertos, es candidato a sustituto y abrimos el modal al hacer click
+        // en cualquier botón. (Happy path: botones funcionan normal.)
+
+        const colorButtons: Array<{ color: string; label: string; className: string }> = [
+            { color: 'RED', label: 'ROJO', className: 'bg-red-500 hover:bg-red-600' },
+            { color: 'YELLOW', label: 'AMARILLO', className: 'bg-amber-400 hover:bg-amber-500' },
+            { color: 'GREEN', label: 'VERDE', className: 'bg-emerald-500 hover:bg-emerald-600' },
+            { color: 'BLUE', label: 'AZUL', className: 'bg-blue-500 hover:bg-blue-600' },
+        ];
+
+        const needsCoveragePicker = absentColors.length > 0 && !coverageLoading;
+
+        // Construir opciones para el modal (solo colores ausentes o ya redistribuidos)
+        const pickerOptions: CoverageColorOption[] = [...absentColors, ...alreadyRedistributed]
+            .filter((c, i, arr) => arr.indexOf(c) === i) // dedup
+            .map(color => {
+                const redistTo = activeOverrides
+                    .filter(o => o.originalColor === color)
+                    .map(o => o.caregiverName);
+                return {
+                    color,
+                    patientsCount: (cov?.uncoveredPatients || []).filter((p: any) => p.colorGroup === color).length
+                        || redistTo.length,
+                    status: redistTo.length > 0 ? 'already_redistributed' as const : 'absent' as const,
+                    redistributedTo: redistTo.length > 0 ? redistTo : undefined,
+                };
+            });
+
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
-                <div className="bg-white rounded-2xl p-10 max-w-2xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center">
+                <div className="bg-white rounded-2xl p-8 md:p-10 max-w-3xl w-full text-center shadow-2xl animate-in zoom-in-95 relative flex flex-col items-center max-h-[95vh] overflow-y-auto">
                     <button
                         onClick={() => logout()}
-                        className="absolute top-6 right-8 text-slate-500 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
+                        className="absolute top-5 right-6 text-slate-500 font-bold text-sm hover:text-rose-500 transition-colors flex items-center gap-2"
                     >
                         <span>Cerrar Sesión / Salir</span>
                     </button>
-                    <h1 className="text-4xl font-black text-slate-800 mb-4">{activeSession ? "Continúa tu Turno Activo" : "¿Cuál es tu color de Turno?"}</h1>
-                    <p className="text-xl text-slate-500 mb-10 font-medium">Zonificación de Cuidadores (Zendity Care)</p>
-                    <div className="grid grid-cols-2 gap-6 w-full">
-                        <button onClick={() => startTurnAndBriefing("RED")} className="h-40 rounded-3xl bg-red-500 hover:bg-red-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">ROJO</button>
-                        <button onClick={() => startTurnAndBriefing("YELLOW")} className="h-40 rounded-3xl bg-amber-400 hover:bg-amber-500 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">AMARILLO</button>
-                        <button onClick={() => startTurnAndBriefing("GREEN")} className="h-40 rounded-3xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">VERDE</button>
-                        <button onClick={() => startTurnAndBriefing("BLUE")} className="h-40 rounded-3xl bg-blue-500 hover:bg-blue-600 text-white font-black text-3xl shadow-lg active:scale-95 transition-all">AZUL</button>
+                    <h1 className="text-3xl md:text-4xl font-black text-slate-800 mb-2">{activeSession ? "Continúa tu Turno Activo" : "¿Cuál es tu color de Turno?"}</h1>
+                    <p className="text-lg text-slate-500 mb-6 font-medium">Zonificación de Cuidadores (Zendity Care)</p>
+
+                    {coverageLoading && (
+                        <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando cobertura…
+                        </div>
+                    )}
+
+                    {needsCoveragePicker && (
+                        <button
+                            onClick={() => setCoveragePickerOpen(true)}
+                            className="mb-5 w-full px-5 py-3 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 font-bold text-sm flex items-center justify-center gap-2 hover:bg-amber-100 active:scale-95 transition-all"
+                        >
+                            <AlertTriangle className="w-4 h-4" />
+                            {absentColors.length} grupo{absentColors.length === 1 ? '' : 's'} sin cubrir — toca aquí si eres sustituto o vas a cubrir
+                        </button>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 md:gap-5 w-full">
+                        {colorButtons.map(btn => {
+                            const coveredBy = caregiverByColor[btn.color];
+                            const isAbsent = absentColors.includes(btn.color);
+                            const isRedist = alreadyRedistributed.includes(btn.color);
+                            return (
+                                <button
+                                    key={btn.color}
+                                    onClick={() => startTurnAndBriefing(btn.color)}
+                                    className={`relative h-32 md:h-36 rounded-3xl ${btn.className} text-white font-black text-2xl md:text-3xl shadow-lg active:scale-95 transition-all flex flex-col items-center justify-center gap-1`}
+                                >
+                                    {btn.label}
+                                    {cov && (
+                                        <>
+                                            {coveredBy && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-1 rounded-full backdrop-blur-sm max-w-[90%] truncate">
+                                                    Cubierto · {coveredBy}
+                                                </span>
+                                            )}
+                                            {!coveredBy && isAbsent && !isRedist && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-rose-900/30 px-2 py-1 rounded-full backdrop-blur-sm border border-white/30">
+                                                    Sin cuidador
+                                                </span>
+                                            )}
+                                            {isRedist && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-amber-900/30 px-2 py-1 rounded-full backdrop-blur-sm border border-white/30">
+                                                    Redistribuido
+                                                </span>
+                                            )}
+                                            {!coveredBy && !isAbsent && !isRedist && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-900/30 px-2 py-1 rounded-full backdrop-blur-sm border border-white/30">
+                                                    Disponible
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                     <button
                         onClick={() => startTurnAndBriefing("ALL")}
-                        className="mt-6 w-full h-16 rounded-3xl bg-slate-800 hover:bg-slate-900 text-white font-black text-lg tracking-wide shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                        className="mt-5 w-full h-14 rounded-3xl bg-slate-800 hover:bg-slate-900 text-white font-black text-base tracking-wide shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
                         title="Úsalo si eres el único cuidador en turno — verás todos los residentes sin filtro de color"
                     >
                         Todos los residentes (cuidador único)
                     </button>
                 </div>
+
+                <CoveragePickerModal
+                    isOpen={coveragePickerOpen}
+                    options={pickerOptions}
+                    submitting={coverageSubmitting}
+                    onClose={() => setCoveragePickerOpen(false)}
+                    onSelect={handleCoveragePickerSelect}
+                />
             </div>
         );
     }
@@ -2174,8 +2351,16 @@ export default function ZendityCareTabletPage() {
                                             <p className="text-[12px] text-[#78716c] font-medium leading-snug truncate mt-0.5">
                                                 Hab {p.roomNumber || '—'}{(p.lifePlan?.dietDetails || p.diet) ? ` · ${p.lifePlan?.dietDetails || p.diet}` : ''}
                                             </p>
-                                            {(p.nortonRisk || p.pressureUlcers?.length > 0) && (
+                                            {(p.nortonRisk || p.pressureUlcers?.length > 0 || p.overrideInfo) && (
                                                 <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                                                    {p.overrideInfo && (
+                                                        <span
+                                                            className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded-md"
+                                                            title={`Residente de grupo ${p.overrideInfo.originalColor} cubierto por ${p.overrideInfo.reason === 'ABSENCE_REDISTRIB' ? 'ausencia' : p.overrideInfo.reason === 'LATE_COVER' ? 'cobertura tardía' : 'asignación manual'}`}
+                                                        >
+                                                            COBERTURA {p.overrideInfo.originalColor}
+                                                        </span>
+                                                    )}
                                                     {p.nortonRisk && <span className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded-md">Alto riesgo piel</span>}
                                                     {p.pressureUlcers?.length > 0 && <span className="text-[10px] font-semibold text-white bg-[#D9534F] px-1.5 py-0.5 rounded-md">UPP activa</span>}
                                                 </div>
