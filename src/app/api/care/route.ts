@@ -17,8 +17,15 @@ export async function GET(req: Request) {
         }
 
         const { searchParams } = new URL(req.url);
-        const color = searchParams.get('color') || 'UNASSIGNED';
+        const colorParam = searchParams.get('color') || 'UNASSIGNED';
         const requestedHqId = searchParams.get('hqId');
+        const invokerId = (session.user as any).id;
+
+        // Sprint N.4 — multi-color. El param puede venir como 'RED' (legacy)
+        // o 'RED,YELLOW' (sustituto cubriendo varios grupos). Split por coma.
+        const colors = colorParam
+            ? colorParam.split(',').map(c => c.trim()).filter(Boolean)
+            : [];
 
         // Resolución segura: roles limitados quedan anclados a su sede
         let hqId: string;
@@ -28,32 +35,60 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: e.message || "Sede inválida" }, { status: 400 });
         }
 
-        console.log("CARE API CALLED WITH:", { color, hqId });
+        console.log("CARE API CALLED WITH:", { colors, hqId });
 
         // Guard: un cuidador sin color asignado NO debe ver residentes UNASSIGNED.
         // Antes este caso caía al filtro por colorGroup='UNASSIGNED' y mostraba
         // residentes huérfanos (incluyendo duplicados como los 3 registros de
-        // Daniela Arrieta que aparecían en el tablet). Devolvemos lista vacía
-        // para forzar que el cuidador reciba su color desde ShiftColorAssignment.
-        if (color === 'UNASSIGNED') {
+        // Daniela Arrieta que aparecían en el tablet).
+        if (colors.length === 1 && colors[0] === 'UNASSIGNED') {
             return NextResponse.json({ success: true, patients: [], events: [], hospitalizedCount: 0 });
         }
 
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 
-        // Cuidador solitario / turno "Todos": sin filtro por colorGroup.
-        // Color específico → filtrar por ese color.
-        const colorFilter = (!color || color === 'ALL')
+        // Sprint N.4 — Overrides asignados a ESTE cuidador hoy (shiftPatientOverride
+        // con isActive=true). Se combinan con el colorFilter propio vía OR para que
+        // el tablet muestre "mis residentes del color X + los residentes cubiertos
+        // temporalmente por ausencia/redistribución".
+        const overrideRows = await prisma.shiftPatientOverride.findMany({
+            where: {
+                caregiverId: invokerId,
+                headquartersId: hqId,
+                isActive: true,
+                shiftDate: { gte: todayStart },
+            },
+            select: { patientId: true, originalColor: true, reason: true },
+        });
+        const overridePatientIds = overrideRows.map(o => o.patientId);
+        const overrideByPatientId = new Map(overrideRows.map(o => [o.patientId, o]));
+
+        // Filtro por color propio.
+        const includesAll = colors.includes('ALL');
+        const ownColorFilter = (colors.length === 0 || includesAll)
             ? {}
-            : { colorGroup: color as any };
+            : { colorGroup: { in: colors as any[] } };
+
+        const baseStatusFilter = {
+            headquartersId: hqId,
+            status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] as any },
+        };
+
+        const where = overridePatientIds.length > 0
+            ? {
+                OR: [
+                    { ...ownColorFilter, ...baseStatusFilter },
+                    { id: { in: overridePatientIds }, ...baseStatusFilter },
+                ],
+            }
+            : {
+                ...ownColorFilter,
+                ...baseStatusFilter,
+            };
 
         const patientsRaw = await prisma.patient.findMany({
-            where: {
-                ...colorFilter,
-                headquartersId: hqId,
-                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
-            },
+            where,
             include: {
                 medications: {
                     where: {
@@ -108,14 +143,29 @@ export async function GET(req: Request) {
 
         // FASE 80: Residentes en hospital permanecen en el censo (con badge),
         // pero sus medicamentos NO aparecen en el eMAR activo del turno.
+        // Sprint N.4: anexar overrideInfo al residente que está cubierto por
+        // redistribución (para pintar el badge "COBERTURA [COLOR]" en el tablet).
         const patients = patientsRaw.map(p => {
-            if (p.status === 'TEMPORARY_LEAVE') {
-                return { ...p, medications: [] };
+            const override = overrideByPatientId.get(p.id);
+            const base = p.status === 'TEMPORARY_LEAVE' ? { ...p, medications: [] } : p;
+            if (override) {
+                return {
+                    ...base,
+                    overrideInfo: {
+                        originalColor: override.originalColor,
+                        reason: override.reason,
+                    },
+                };
             }
-            return p;
+            return base;
         });
 
         const hospitalizedCount = patientsRaw.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
+
+        // Events targeted a este cuidador: ALL + match con cualquiera de sus colores.
+        const eventColorOrs = colors.length > 0 && !includesAll
+            ? colors.map(c => ({ targetGroups: { has: c } }))
+            : [];
 
         const events = await prisma.headquartersEvent.findMany({
             where: {
@@ -127,7 +177,7 @@ export async function GET(req: Request) {
                 title: { not: { startsWith: 'Ronda de Supervisor' } },
                 OR: [
                     { targetPopulation: 'ALL' },
-                    { targetGroups: { has: color } },
+                    ...eventColorOrs,
                 ],
             },
             include: {
