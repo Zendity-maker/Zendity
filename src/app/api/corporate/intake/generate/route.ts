@@ -3,11 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
+
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session || !session.user || !session.user.headquartersId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ error: "Rol no autorizado para generar contratos legales" }, { status: 403 });
         }
 
         const { patientId, title } = await req.json();

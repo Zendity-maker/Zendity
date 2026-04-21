@@ -73,7 +73,10 @@ const corporateNavigationSections = [
         title: "Administración",
         links: [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
-            { name: "Documentos Legales", href: "/corporate/intake", icon: FileText },
+            // Sprint P — "Documentos Legales" oculto del sidebar.
+            // Vivid maneja contratos presencialmente. La ruta y el endpoint
+            // siguen vivos para clientes futuros que los necesiten.
+            // { name: "Documentos Legales", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
             { name: "Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
