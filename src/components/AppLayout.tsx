@@ -20,7 +20,9 @@ import { UserIcon } from "@heroicons/react/24/outline";
 
 const clinicalNavigation = [
     { name: 'Insights', href: '/', icon: LineChart },
-    { name: 'Intake (Admitir)', href: '/intake', icon: UserPlus },
+    // Sprint P.4 — /intake deprecado. Redirige a /corporate/patients/intake.
+    // El item del sidebar se retiró para evitar confusión con "Admisión de
+    // Residentes" (wizard maestro) en la sección Área Clínica / Médica.
     { name: 'Med & Zoning', href: '/med', icon: Pill },
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
     { name: 'Vitales', href: '/care/vitals', icon: Activity },
@@ -71,7 +73,7 @@ const corporateNavigationSections = [
         title: "Administración",
         links: [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
-            { name: "Documentos de Admisión", href: "/corporate/intake", icon: FileText },
+            { name: "Documentos Legales", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
             { name: "Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },

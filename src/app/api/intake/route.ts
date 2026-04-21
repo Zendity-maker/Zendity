@@ -1,21 +1,48 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+/**
+ * DEPRECATED — Sprint P.4
+ *
+ * Endpoint legacy de intake single-shot. Reemplazado por el wizard
+ * maestro en /corporate/patients/intake (server actions saveIntakeDraft
+ * + submitIntake + POST /api/corporate/intake/analyze-document).
+ *
+ * Este endpoint sigue activo por retrocompatibilidad con cualquier
+ * cliente externo o script de migración, pero ahora:
+ *  - requiere sesión autenticada
+ *  - requiere rol DIRECTOR/ADMIN/NURSE
+ *  - usa session.user.headquartersId (ignora body.headquartersId)
+ *  - emite warning a consola en cada uso
+ *
+ * Nuevos flujos clínicos DEBEN usar /corporate/patients/intake.
+ */
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'NURSE'];
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { name, headquartersId, diagnoses, medicalHistory, allergies, rawMedications, colorGroup } = body;
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-        let finalHqId = headquartersId;
-        if (!finalHqId || finalHqId === "hq-demo-1") {
-            const defaultHq = await prisma.headquarters.findFirst();
-            if (defaultHq) {
-                finalHqId = defaultHq.id;
-            } else {
-                return NextResponse.json({ success: false, error: "No existe Sede válida en la base de datos para asignar al residente." }, { status: 400 });
-            }
+        console.warn(`[DEPRECATED /api/intake] Invocado por ${(session.user as any).email}. Migrar a /corporate/patients/intake (wizard maestro + /api/corporate/intake/analyze-document).`);
+
+        const body = await req.json();
+        const { name, diagnoses, medicalHistory, allergies, rawMedications, colorGroup } = body;
+
+        // Sprint P.4 — hqId siempre de la sesión, nunca del body.
+        // Antes el endpoint aceptaba body.headquartersId y caía a first HQ
+        // si no venía — eso permitía que cualquier request sin auth creara
+        // pacientes en cualquier sede.
+        const finalHqId = (session.user as any).headquartersId;
+        if (!finalHqId) {
+            return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
         // 1. Crear el Perfil Demográfico base del Residente
