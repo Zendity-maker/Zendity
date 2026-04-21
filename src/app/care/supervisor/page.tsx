@@ -139,6 +139,15 @@ export default function SupervisorMissionControlPage() {
     const [isDispatching, setIsDispatching] = useState(false);
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);
 
+    // Sprint R — acciones adicionales del Inbox Operativo
+    const [voidingTicket, setVoidingTicket] = useState<any>(null);
+    const [voidReason, setVoidReason] = useState("");
+    const [isVoiding, setIsVoiding] = useState(false);
+    const [referringTicket, setReferringTicket] = useState<any>(null);
+    const [isReferring, setIsReferring] = useState(false);
+    const [maintenanceTicket, setMaintenanceTicket] = useState<any>(null);
+    const [isDispatchingMaint, setIsDispatchingMaint] = useState(false);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -202,6 +211,109 @@ export default function SupervisorMissionControlPage() {
             setToast({ msg: 'Error de conexión', type: 'err' });
         } finally {
             setUpdatingTaskId(null);
+        }
+    };
+
+    // Sprint R — Referir a enfermería
+    const handleReferToNursing = async () => {
+        if (!referringTicket || !user) return;
+        setIsReferring(true);
+        try {
+            const hqId = (user as any).hqId || (user as any).headquartersId || "";
+            const res = await fetch("/api/care/supervisor/refer-nursing", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    headquartersId: hqId,
+                    sourceType: referringTicket.sourceType,
+                    sourceId: referringTicket.sourceId,
+                    patientId: referringTicket.patientId || null,
+                    description: `${referringTicket.title} — ${referringTicket.description}`.substring(0, 500),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: `Enfermería notificada (${data.notifiedCount} enfermera${data.notifiedCount === 1 ? '' : 's'})`, type: 'ok' });
+                setReferringTicket(null);
+                fetchLiveData();
+            } else {
+                setToast({ msg: `Error: ${data.error}`, type: 'err' });
+            }
+        } catch (e) {
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setIsReferring(false);
+        }
+    };
+
+    // Sprint R — Void/descartar ticket
+    const handleVoidTicket = async () => {
+        if (!voidingTicket || !user) return;
+        const reason = voidReason.trim();
+        if (reason.length < 10) {
+            setToast({ msg: 'El motivo debe tener al menos 10 caracteres', type: 'err' });
+            return;
+        }
+        setIsVoiding(true);
+        try {
+            const hqId = (user as any).hqId || (user as any).headquartersId || "";
+            const res = await fetch("/api/care/supervisor/void-ticket", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    headquartersId: hqId,
+                    sourceType: voidingTicket.sourceType,
+                    sourceId: voidingTicket.sourceId,
+                    reason,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: 'Ticket descartado', type: 'ok' });
+                setVoidingTicket(null);
+                setVoidReason("");
+                fetchLiveData();
+            } else {
+                setToast({ msg: `Error: ${data.error}`, type: 'err' });
+            }
+        } catch (e) {
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setIsVoiding(false);
+        }
+    };
+
+    // Sprint R — Despachar a mantenimiento
+    const handleDispatchMaintenance = async () => {
+        if (!maintenanceTicket || !user) return;
+        setIsDispatchingMaint(true);
+        try {
+            const hqId = (user as any).hqId || (user as any).headquartersId || "";
+            // Para ZENDI_GROUP de mantenimiento, el sourceId es "zendi_maint"; tomamos items reales
+            const sourceId = maintenanceTicket.sourceType === 'ZENDI_GROUP' && Array.isArray(maintenanceTicket.items) && maintenanceTicket.items[0]
+                ? maintenanceTicket.items[0].sourceId
+                : maintenanceTicket.sourceId;
+            const res = await fetch("/api/care/supervisor/dispatch-maintenance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    headquartersId: hqId,
+                    sourceId,
+                    description: `${maintenanceTicket.title} — ${maintenanceTicket.description}`.substring(0, 500),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: `Enviado a Mantenimiento (${data.notifiedMaintenance}) + Director notificado`, type: 'ok' });
+                setMaintenanceTicket(null);
+                fetchLiveData();
+            } else {
+                setToast({ msg: `Error: ${data.error}`, type: 'err' });
+            }
+        } catch (e) {
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setIsDispatchingMaint(false);
         }
     };
 
@@ -539,7 +651,7 @@ export default function SupervisorMissionControlPage() {
                                             </p>
                                             <p className="text-sm font-medium text-slate-600 line-clamp-2">{ticket.description}</p>
                                         </div>
-                                        <div className="w-full lg:w-48 shrink-0">
+                                        <div className="w-full lg:w-56 shrink-0">
                                             {(() => {
                                                 const assignedTask = liveData.activeFastActions?.find((fa: FastActionAssignment) => fa.description.startsWith(`[${ticket.id}]`));
                                                 if (assignedTask) {
@@ -553,11 +665,72 @@ export default function SupervisorMissionControlPage() {
                                                         </div>
                                                     );
                                                 }
+
+                                                // Sprint R — acciones condicionales según tipo de ticket
+                                                const cat = ticket.category;
+                                                const isMaintenance = cat === 'MANTENIMIENTO';
+                                                const isIncident = ticket.sourceType === 'INCIDENT';
+                                                const incidentSeverity = (ticket.description || '').toLowerCase();
+                                                const isCriticalIncident = isIncident && (incidentSeverity.includes('(critical)') || incidentSeverity.includes('(severe)') || ticket.urgency === 'INMINENTE');
+                                                const isFamilyComplaint = ticket.sourceType === 'COMPLAINT' && cat === 'FAMILY';
+
                                                 return (
-                                                    <button onClick={() => setDispatchingTicket(ticket)}
-                                                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-[1.25rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2">
-                                                        <Send className="w-4 h-4" /> Despachar
-                                                    </button>
+                                                    <div className="flex flex-col gap-2">
+                                                        {/* Mantenimiento: solo botón mantenimiento + descartar */}
+                                                        {isMaintenance ? (
+                                                            <button
+                                                                onClick={() => setMaintenanceTicket(ticket)}
+                                                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-[1rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 text-sm"
+                                                            >
+                                                                <Send className="w-4 h-4" /> Enviar a Mantenimiento
+                                                            </button>
+                                                        ) : isCriticalIncident ? (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setReferringTicket(ticket)}
+                                                                    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-[1rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 text-sm"
+                                                                >
+                                                                    <Siren className="w-4 h-4" /> Referir a Enfermería
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDispatchingTicket(ticket)}
+                                                                    className="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-2 rounded-[1rem] transition-all active:scale-95 flex items-center justify-center gap-2 text-xs"
+                                                                >
+                                                                    <Send className="w-3 h-3" /> Despachar
+                                                                </button>
+                                                            </>
+                                                        ) : isFamilyComplaint ? (
+                                                            <button
+                                                                onClick={() => setDispatchingTicket(ticket)}
+                                                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-[1rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 text-sm"
+                                                            >
+                                                                <Send className="w-4 h-4" /> Despachar
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setDispatchingTicket(ticket)}
+                                                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-[1rem] transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 text-sm"
+                                                                >
+                                                                    <Send className="w-4 h-4" /> Despachar
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setReferringTicket(ticket)}
+                                                                    className="w-full bg-white hover:bg-teal-50 text-teal-700 border border-teal-300 font-bold py-2 rounded-[1rem] transition-all active:scale-95 flex items-center justify-center gap-2 text-xs"
+                                                                >
+                                                                    <Siren className="w-3 h-3" /> Referir a Enfermería
+                                                                </button>
+                                                            </>
+                                                        )}
+
+                                                        {/* Descartar — siempre visible como acción secundaria */}
+                                                        <button
+                                                            onClick={() => { setVoidingTicket(ticket); setVoidReason(""); }}
+                                                            className="w-full text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-bold py-1.5 rounded-lg transition-all text-[11px] uppercase tracking-widest"
+                                                        >
+                                                            Descartar
+                                                        </button>
+                                                    </div>
                                                 );
                                             })()}
                                         </div>
@@ -1095,6 +1268,130 @@ export default function SupervisorMissionControlPage() {
                     onClick={() => setToast(null)}
                 >
                     {toast.msg}
+                </div>
+            )}
+
+            {/* Sprint R — Modal: Descartar ticket */}
+            {voidingTicket && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] p-7 max-w-md w-full shadow-2xl border border-slate-200">
+                        <div className="flex justify-between items-center mb-5">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-rose-500" /> Descartar ticket
+                            </h3>
+                            <button onClick={() => { setVoidingTicket(null); setVoidReason(""); }} className="text-slate-400 hover:text-slate-600 w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-xl">×</button>
+                        </div>
+                        <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl mb-5">
+                            <p className="font-bold text-slate-800 text-sm mb-1 leading-tight">{voidingTicket.title}</p>
+                            <p className="text-xs text-slate-600 font-semibold">Residente: {voidingTicket.patientName}</p>
+                        </div>
+                        <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">
+                            Motivo del descarte <span className="text-rose-600">*</span>
+                        </label>
+                        <textarea
+                            value={voidReason}
+                            onChange={(e) => setVoidReason(e.target.value)}
+                            rows={4}
+                            placeholder="Ej: Ticket duplicado, situación ya resuelta por otro miembro del equipo, reportado por error..."
+                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus:outline-none focus:border-rose-400 resize-none"
+                            disabled={isVoiding}
+                        />
+                        <p className="text-[11px] font-semibold text-slate-500 mt-1.5">
+                            Mínimo 10 caracteres ({voidReason.trim().length}/10)
+                        </p>
+                        <div className="flex gap-3 mt-5">
+                            <button
+                                onClick={() => { setVoidingTicket(null); setVoidReason(""); }}
+                                disabled={isVoiding}
+                                className="flex-1 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleVoidTicket}
+                                disabled={isVoiding || voidReason.trim().length < 10}
+                                className="flex-[2] px-5 py-3 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isVoiding ? 'Descartando...' : 'Confirmar Descarte'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sprint R — Modal: Referir a Enfermería */}
+            {referringTicket && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] p-7 max-w-md w-full shadow-2xl border border-slate-200">
+                        <div className="flex justify-between items-center mb-5">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <Siren className="w-5 h-5 text-teal-600" /> Referir a Enfermería
+                            </h3>
+                            <button onClick={() => setReferringTicket(null)} className="text-slate-400 hover:text-slate-600 w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-xl">×</button>
+                        </div>
+                        <div className="bg-teal-50 border border-teal-200 p-4 rounded-xl mb-4">
+                            <p className="font-bold text-slate-800 text-sm mb-1 leading-tight">{referringTicket.title}</p>
+                            <p className="text-xs text-slate-600 font-semibold mb-2">Residente: {referringTicket.patientName}</p>
+                            <p className="text-xs text-slate-700 font-medium">{referringTicket.description}</p>
+                        </div>
+                        <p className="text-sm text-slate-600 font-medium mb-5 leading-relaxed">
+                            Se notificará a todo el rol <strong className="text-slate-800">NURSE</strong> de la sede.
+                            Este ticket no crea tarea formal — solo alerta vía campana.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setReferringTicket(null)}
+                                disabled={isReferring}
+                                className="flex-1 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleReferToNursing}
+                                disabled={isReferring}
+                                className="flex-[2] px-5 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isReferring ? 'Notificando...' : 'Confirmar Referido'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sprint R — Modal: Enviar a Mantenimiento */}
+            {maintenanceTicket && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] p-7 max-w-md w-full shadow-2xl border border-slate-200">
+                        <div className="flex justify-between items-center mb-5">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <Send className="w-5 h-5 text-amber-600" /> Enviar a Mantenimiento
+                            </h3>
+                            <button onClick={() => setMaintenanceTicket(null)} className="text-slate-400 hover:text-slate-600 w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-xl">×</button>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-4">
+                            <p className="font-bold text-slate-800 text-sm mb-1 leading-tight">{maintenanceTicket.title}</p>
+                            <p className="text-xs text-slate-700 font-medium">{maintenanceTicket.description}</p>
+                        </div>
+                        <p className="text-sm text-slate-600 font-medium mb-5 leading-relaxed">
+                            Se notificará al rol <strong className="text-slate-800">MAINTENANCE</strong> + al Director para visibilidad.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setMaintenanceTicket(null)}
+                                disabled={isDispatchingMaint}
+                                className="flex-1 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleDispatchMaintenance}
+                                disabled={isDispatchingMaint}
+                                className="flex-[2] px-5 py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-black rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isDispatchingMaint ? 'Enviando...' : 'Confirmar Envío'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
