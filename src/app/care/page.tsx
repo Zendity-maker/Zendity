@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
+import MyObservationsWidget from "@/components/care/MyObservationsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
@@ -1842,6 +1843,12 @@ export default function ZendityCareTabletPage() {
         if (notif.type === 'STAFF_MESSAGE') {
             setNotifsOpen(false);
             setStaffChatOpen(true);
+            return;
+        }
+        // Sprint S — link opcional en la notificación para navegación directa
+        if (notif.link) {
+            setNotifsOpen(false);
+            router.push(notif.link);
         }
     };
 
@@ -2091,6 +2098,9 @@ export default function ZendityCareTabletPage() {
             )}
 
             <div className="max-w-7xl mx-auto p-8">
+                <div className="mb-4 flex flex-wrap gap-3">
+                    <MyObservationsWidget />
+                </div>
                 <ZendiMomentsWidget />
 
                 {events.length > 0 && (
