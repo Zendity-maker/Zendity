@@ -86,7 +86,7 @@ Responde siempre en español.
         const anuncioMatch = zendiResponse.match(/\[ANUNCIO:\s*(.*?)\]/i);
         if (anuncioMatch && hqId) {
             const announcementText = anuncioMatch[1].trim();
-            // Guardar el anuncio para el polling de las tablets
+            // Guardar el anuncio para el polling del walkie-talkie (15s)
             await prisma.globalAnnouncement.create({
                 data: {
                     headquartersId: hqId,
@@ -94,6 +94,35 @@ Responde siempre en español.
                     authorId: authorId || "ZENDI_AI"
                 }
             });
+
+            // Sprint O — Persistir también como Notification para todo el staff
+            // de la sede. El polling del walkie-talkie tiene ventana de 15s; si
+            // el cuidador no está cerca del tablet en ese momento, pierde el
+            // anuncio. Replicarlo a Notification lo deja en la campana.
+            try {
+                const staffInHq = await prisma.user.findMany({
+                    where: {
+                        headquartersId: hqId,
+                        isActive: true,
+                        role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
+                    },
+                    select: { id: true },
+                });
+                if (staffInHq.length > 0) {
+                    await prisma.notification.createMany({
+                        data: staffInHq.map(u => ({
+                            userId: u.id,
+                            type: 'SHIFT_ALERT',
+                            title: 'Anuncio del supervisor',
+                            message: announcementText,
+                            isRead: false,
+                        })),
+                    });
+                }
+            } catch (e) {
+                console.error('[zendi announcement persist]', e);
+            }
+
             // Remover el tag de la respuesta hablada de Zendi
             zendiResponse = zendiResponse.replace(/\[ANUNCIO:\s*(.*?)\]/gi, "").trim();
             if (zendiResponse === "") zendiResponse = "Aviso emitido por todos los altavoces de la facilidad.";

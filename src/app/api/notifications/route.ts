@@ -1,16 +1,24 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-// GET — Fetch notificaciones del usuario activo
-export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-        return NextResponse.json({ success: false, error: 'userId requerido' }, { status: 400 });
-    }
-
+/**
+ * GET — Notificaciones del usuario autenticado.
+ *
+ * Auth hardening (Sprint O): antes el endpoint aceptaba ?userId=X sin
+ * validar sesión, lo que permitía leer notifications de cualquier
+ * empleado (fuga de datos clínicos). Ahora usa siempre session.user.id
+ * y descarta cualquier userId del query param.
+ */
+export async function GET() {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        const userId = (session.user as any).id;
+
         const [notifications, unreadCount] = await Promise.all([
             prisma.notification.findMany({
                 where: { userId },
@@ -29,22 +37,30 @@ export async function GET(req: Request) {
     }
 }
 
-// PATCH — Marcar como leidas
+/**
+ * PATCH — Marcar notificaciones como leídas.
+ *
+ * Body: { ids?: string[], all?: boolean }
+ * Solo opera sobre notifications del session.user.id. Cualquier userId
+ * del body se ignora.
+ */
 export async function PATCH(req: Request) {
     try {
-        const body = await req.json();
-        const { userId, ids, all } = body;
-
-        if (!userId) {
-            return NextResponse.json({ success: false, error: 'userId requerido' }, { status: 400 });
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
         }
+        const userId = (session.user as any).id;
+
+        const body = await req.json().catch(() => ({}));
+        const { ids, all } = body;
 
         if (all) {
             await prisma.notification.updateMany({
                 where: { userId, isRead: false },
                 data: { isRead: true },
             });
-        } else if (ids && Array.isArray(ids) && ids.length > 0) {
+        } else if (Array.isArray(ids) && ids.length > 0) {
             await prisma.notification.updateMany({
                 where: { id: { in: ids }, userId },
                 data: { isRead: true },

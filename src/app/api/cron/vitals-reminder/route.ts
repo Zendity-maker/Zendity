@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
+import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
+
+// Sprint O — Cap diario de penalidades por cuidador para evitar DoS
+// reputacional (−30+ pts en 1 segundo cuando un turno no alcanzó a tomar
+// vitales a 15 residentes). Máximo 5 penalidades/día = −10 pts máx.
+const DAILY_PENALTY_CAP = 5;
 
 // Cron cada 5 min:
 //  A. Recuerda al cuidador si una orden pendiente vence en ~20 min.
@@ -71,45 +77,88 @@ export async function GET(req: Request) {
             }
         });
 
-        let penalized = 0;
-        for (const order of toPenalize) {
-            if (!order.caregiverId || !order.caregiver) continue;
+        // ── Agrupar por cuidador para aplicar cap diario + 1 sola notificación ──
+        const byCaregiver = new Map<string, typeof toPenalize>();
+        for (const o of toPenalize) {
+            if (!o.caregiverId || !o.caregiver) continue;
+            if (!byCaregiver.has(o.caregiverId)) byCaregiver.set(o.caregiverId, []);
+            byCaregiver.get(o.caregiverId)!.push(o);
+        }
 
-            // Transacción: decrement con piso en 0 + marcar penaltyApplied
-            const current = order.caregiver.complianceScore ?? 100;
-            const nextScore = Math.max(0, current - 2);
+        const todayClinicalStart = todayStartAST();
+        let penalized = 0;
+        let penaltiesSkippedByCap = 0;
+
+        for (const [caregiverId, orders] of byCaregiver.entries()) {
+            const caregiver = orders[0].caregiver;
+            if (!caregiver) continue;
+            const hqId = orders[0].headquartersId;
+
+            // Penalidades ya aplicadas hoy a este cuidador (ventana de día clínico AST)
+            const todayApplied = await prisma.vitalsOrder.count({
+                where: {
+                    caregiverId,
+                    penaltyApplied: true,
+                    autoCreated: true,
+                    expiresAt: { gte: todayClinicalStart },
+                },
+            });
+
+            const available = Math.max(0, DAILY_PENALTY_CAP - todayApplied);
+            const toActuallyPenalize = orders.slice(0, available);
+            const toSkipPenalty = orders.slice(available);
+            const pointsDeducted = toActuallyPenalize.length * 2;
 
             try {
+                // Transaction: decrement score (con piso 0) + marcar TODAS las órdenes
+                // del grupo como penaltyApplied=true (aunque las sobre-cap no restaron
+                // puntos, se marcan para no re-evaluarlas en el próximo cron tick).
+                const current = caregiver.complianceScore ?? 100;
+                const nextScore = Math.max(0, current - pointsDeducted);
+                const allIds = orders.map(o => o.id);
+
                 await prisma.$transaction([
                     prisma.user.update({
-                        where: { id: order.caregiverId },
-                        data: { complianceScore: nextScore }
+                        where: { id: caregiverId },
+                        data: { complianceScore: nextScore },
                     }),
-                    prisma.vitalsOrder.update({
-                        where: { id: order.id },
-                        data: { penaltyApplied: true }
-                    })
+                    prisma.vitalsOrder.updateMany({
+                        where: { id: { in: allIds } },
+                        data: { penaltyApplied: true },
+                    }),
                 ]);
 
-                await notifyUser(order.caregiverId, {
+                const residentNames = orders.map(o => o.patient?.name || 'residente').join(', ');
+                const capSuffix = toSkipPenalty.length > 0
+                    ? ` (cap diario alcanzado — ${toSkipPenalty.length} no penalizados)`
+                    : '';
+
+                await notifyUser(caregiverId, {
                     type: 'EMAR_ALERT',
-                    title: 'Penalidad — Vitales no tomados',
-                    message: `${order.patient.name} — No se tomaron vitales en la ventana de 4 horas. −2 puntos de desempeño aplicados.`
+                    title: 'Vitales no tomados — Penalidad',
+                    message: `${orders.length} residentes sin vitales: ${residentNames}. −${pointsDeducted} pts aplicados${capSuffix}.`,
                 });
 
-                await notifyRoles(order.headquartersId, ['SUPERVISOR'], {
+                await notifyRoles(hqId, ['SUPERVISOR'], {
                     type: 'EMAR_ALERT',
-                    title: 'Vitales no tomados',
-                    message: `${order.caregiver.name} no tomó vitales de ${order.patient.name} en 4 horas. −2 pts aplicados.`
+                    title: `Vitales vencidos — ${caregiver.name}`,
+                    message: `${orders.length} residentes sin vitales en turno de ${caregiver.name}. −${pointsDeducted} pts aplicados${capSuffix}.`,
                 });
 
-                penalized++;
+                penalized += toActuallyPenalize.length;
+                penaltiesSkippedByCap += toSkipPenalty.length;
             } catch (e) {
-                console.error(`[vitals-reminder] Fallo aplicando penalidad a orden ${order.id}:`, e);
+                console.error(`[vitals-reminder] Fallo aplicando penalidad grupal a ${caregiverId}:`, e);
             }
         }
 
-        return NextResponse.json({ success: true, reminded, expired: expired.count, penalized });
+        return NextResponse.json({
+            success: true,
+            reminded,
+            expired: expired.count,
+            penalized,
+            penaltiesSkippedByCap,
+        });
     } catch (error: any) {
         console.error("vitals-reminder cron error:", error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
