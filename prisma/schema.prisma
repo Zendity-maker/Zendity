@@ -1703,6 +1703,7 @@ enum ComplaintStatus {
   PENDING
   APPROVED_ADMIN
   ROUTED_NURSING
+  ROUTED_MAINTENANCE
   RESOLVED
 }
 
@@ -1714,6 +1715,7 @@ model Complaint {
   description    String
   photoUrl       String? // FASE 37: Image Uploads
   status         ComplaintStatus @default(PENDING)
+  resolutionNote String?         @db.Text // Sprint R — motivo de void/resolución
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
