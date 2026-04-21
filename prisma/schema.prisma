@@ -2006,6 +2006,7 @@ enum SystemAuditAction {
   SYSTEM_ABANDONED
   VOIDED
   AUDIT_REPORT_SENT
+  SHIFT_REDISTRIBUTE
 }
 
 // =======================

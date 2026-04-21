@@ -128,6 +128,117 @@ export async function POST(req: Request) {
             }
         });
 
+        // ── Sprint N.3 — Parte C: Resolver overrides si el cuidador del color ausente llegó ──
+        // Si este cuidador es "dueño" de un color que estaba ausente y había
+        // overrides activos, revertimos: marcamos overrides resolvedAt+isActive=false,
+        // cancelamos las VitalsOrders auto creadas por ellos y notificamos a los
+        // receptores que esos residentes vuelven a su grupo.
+        try {
+            const dayStart = todayStartAST();
+
+            // Colores del cuidador entrante (ShiftColorAssignment del día → fallback
+            // ScheduledShift.colorGroup reciente).
+            const colorAssignments = await prisma.shiftColorAssignment.findMany({
+                where: { headquartersId, userId: caregiverId, assignedAt: { gte: dayStart } },
+                select: { color: true },
+            });
+            let myColors = colorAssignments.map(a => a.color).filter(Boolean);
+            if (myColors.length === 0) {
+                const now = new Date();
+                const window14h = new Date(now.getTime() - 14 * 60 * 60 * 1000);
+                const sched = await prisma.scheduledShift.findFirst({
+                    where: { userId: caregiverId, date: { gte: window14h, lte: now }, isAbsent: false, colorGroup: { not: null } },
+                    orderBy: { date: 'desc' },
+                    select: { colorGroup: true },
+                });
+                if (sched?.colorGroup && sched.colorGroup !== 'UNASSIGNED') myColors = [sched.colorGroup];
+            }
+
+            if (myColors.length > 0) {
+                const overrides = await prisma.shiftPatientOverride.findMany({
+                    where: {
+                        headquartersId,
+                        originalColor: { in: myColors },
+                        shiftDate: { gte: dayStart },
+                        isActive: true,
+                    },
+                    include: {
+                        caregiver: { select: { id: true, name: true } },
+                        patient: { select: { id: true, name: true } },
+                    },
+                });
+
+                if (overrides.length > 0) {
+                    const now = new Date();
+                    const overrideIds = overrides.map(o => o.id);
+                    const patientIds = overrides.map(o => o.patientId);
+
+                    await prisma.shiftPatientOverride.updateMany({
+                        where: { id: { in: overrideIds } },
+                        data: { isActive: false, resolvedAt: now },
+                    });
+
+                    // Cancelar VitalsOrders auto creadas por la redistribución que
+                    // siguen pendientes. Identificamos por patient+shiftSession del
+                    // receptor + autoCreated=true + PENDING.
+                    const recipientSessionIds = Array.from(new Set(overrides
+                        .flatMap(o => [o.caregiverId])
+                    ));
+                    const recipientShiftSessions = await prisma.shiftSession.findMany({
+                        where: {
+                            caregiverId: { in: recipientSessionIds },
+                            actualEndTime: null,
+                            startTime: { gte: dayStart },
+                        },
+                        select: { id: true, caregiverId: true },
+                    });
+                    const sessionByCaregiver = new Map(recipientShiftSessions.map(s => [s.caregiverId, s.id]));
+
+                    const cancelTargets = overrides
+                        .map(o => ({ patientId: o.patientId, sessionId: sessionByCaregiver.get(o.caregiverId) }))
+                        .filter(t => !!t.sessionId);
+
+                    if (cancelTargets.length > 0) {
+                        await prisma.vitalsOrder.updateMany({
+                            where: {
+                                status: 'PENDING',
+                                autoCreated: true,
+                                OR: cancelTargets.map(t => ({
+                                    patientId: t.patientId,
+                                    shiftSessionId: t.sessionId!,
+                                })),
+                            },
+                            data: { status: 'EXPIRED' },
+                        });
+                    }
+
+                    // Notificar a los cuidadores receptores (agrupado por caregiver)
+                    const byReceiver = new Map<string, { name: string; patientNames: string[]; colors: Set<string> }>();
+                    for (const o of overrides) {
+                        if (!byReceiver.has(o.caregiverId)) {
+                            byReceiver.set(o.caregiverId, { name: o.caregiver?.name || 'Cuidador', patientNames: [], colors: new Set() });
+                        }
+                        byReceiver.get(o.caregiverId)!.patientNames.push(o.patient?.name || 'residente');
+                        byReceiver.get(o.caregiverId)!.colors.add(o.originalColor);
+                    }
+                    for (const [receiverId, data] of byReceiver.entries()) {
+                        try {
+                            const colorList = Array.from(data.colors).join(', ');
+                            await notifyUser(receiverId, {
+                                type: 'EMAR_ALERT',
+                                title: 'Residentes devueltos a su grupo',
+                                message: `El cuidador de ${colorList} llegó. Los residentes ${data.patientNames.slice(0, 5).join(', ')}${data.patientNames.length > 5 ? '…' : ''} vuelven a su grupo original.`,
+                            });
+                        } catch (e) { console.error('[shift/start resolve override notify]', e); }
+                    }
+
+                    console.log(`[shift/start] Resolvidos ${overrides.length} overrides para colores ${myColors.join(',')} por llegada de ${caregiverId}`);
+                }
+            }
+        } catch (ovErr) {
+            console.error('[shift/start] Fallo resolviendo overrides:', ovErr);
+        }
+
         // ── Sprint J: Abrir ventana de 4h para tomar vitales a residentes asignados ──
         try {
             const assigned = await resolveAssignedPatients(caregiverId, headquartersId);
