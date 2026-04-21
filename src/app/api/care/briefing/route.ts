@@ -14,13 +14,21 @@ export async function POST(req: Request) {
         const todayStart = todayStartAST();
         const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
 
+        // Sprint O — Multi-color. El tablet puede pasar 'RED' o 'RED,YELLOW'
+        // (sustituto cubriendo varios grupos). Split + usar { in } en queries
+        // y un OR en el filtro de eventos institucionales.
+        const userColors = typeof colorGroup === 'string'
+            ? colorGroup.split(',').map(c => c.trim()).filter(Boolean)
+            : [];
+        const primaryColor = userColors[0] || colorGroup;
+
         // 1. Residentes del color + alertas clínicas recientes +
         //    prólogo del día (cron 6am AST) + relevo del color anterior
         const [patients, hqEvents, dailyPrologueRow, colorHandoverRow] = await Promise.all([
             prisma.patient.findMany({
                 where: {
                     ...(hqId ? { headquartersId: hqId } : {}),
-                    colorGroup: colorGroup as any,
+                    colorGroup: userColors.length > 0 ? { in: userColors as any[] } : (colorGroup as any),
                     status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
                 },
                 include: {
@@ -59,12 +67,12 @@ export async function POST(req: Request) {
                   })
                 : Promise.resolve(null),
             // Relevo del color anterior — último handover individual firmado
-            hqId && colorGroup
+            hqId && primaryColor
                 ? prisma.shiftHandover.findFirst({
                       where: {
                           headquartersId: hqId,
                           isDailyPrologue: false,
-                          colorGroups: { has: colorGroup },
+                          colorGroups: userColors.length > 0 ? { hasSome: userColors } : { has: primaryColor },
                           signature: { not: null },
                           createdAt: { gte: todayStart },
                       },
@@ -111,7 +119,8 @@ export async function POST(req: Request) {
         const assignedPatientIds = patients.map(p => p.id);
         const relevantEvents = hqEvents.filter(ev => {
             if (ev.targetPopulation === 'ALL') return true;
-            if (ev.targetPopulation === 'GROUP' && ev.targetGroups.includes(colorGroup)) return true;
+            // Multi-color: cualquiera de los colores del cuidador matchea targetGroups
+            if (ev.targetPopulation === 'GROUP' && userColors.some(c => ev.targetGroups.includes(c))) return true;
             if (ev.targetPopulation === 'SPECIFIC' && ev.targetPatients.some(id => assignedPatientIds.includes(id))) return true;
             return false;
         });
