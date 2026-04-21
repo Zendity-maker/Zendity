@@ -1,38 +1,84 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
-
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        const hqId = session?.user?.headquartersId;
         const { colorGroup, userName } = await req.json();
 
-        // 1. Obtener Residentes de esa Zona de Color y sus alertas de 12Hrs
-        const patients = await prisma.patient.findMany({
-            where: {
-                colorGroup: colorGroup as any,
-                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
-            },
-            include: {
-                vitalSigns: {
-                    where: { createdAt: { gte: todayStartAST() } },
-                    orderBy: { createdAt: 'desc' }
+        const todayStart = todayStartAST();
+        const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
+
+        // 1. Residentes del color + alertas clínicas recientes +
+        //    prólogo del día (cron 6am AST) + relevo del color anterior
+        const [patients, hqEvents, dailyPrologueRow, colorHandoverRow] = await Promise.all([
+            prisma.patient.findMany({
+                where: {
+                    ...(hqId ? { headquartersId: hqId } : {}),
+                    colorGroup: colorGroup as any,
+                    status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
                 },
-                dailyLogs: {
-                    where: { createdAt: { gte: todayStartAST() } },
-                    orderBy: { createdAt: 'desc' }
+                include: {
+                    vitalSigns: {
+                        where: { createdAt: { gte: todayStart } },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    dailyLogs: {
+                        where: { createdAt: { gte: todayStart } },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    healthAppointments: {
+                        where: {
+                            appointmentDate: { gte: todayStart, lt: todayEnd },
+                        },
+                    },
                 },
-                healthAppointments: {
-                    where: {
-                        appointmentDate: {
-                            gte: todayStartAST(),
-                            lt: new Date(new Date().setHours(23, 59, 59, 999))
-                        }
-                    }
-                }
-            }
-        });
+            }),
+            prisma.headquartersEvent.findMany({
+                where: {
+                    ...(hqId ? { headquartersId: hqId } : {}),
+                    startTime: { gte: todayStart, lt: todayEnd },
+                },
+            }),
+            // Prólogo del día (cron 6am AST) — solo si tenemos hqId autenticado
+            hqId
+                ? prisma.shiftHandover.findFirst({
+                      where: {
+                          headquartersId: hqId,
+                          isDailyPrologue: true,
+                          createdAt: { gte: todayStart },
+                          aiSummaryReport: { not: null },
+                      },
+                      orderBy: { createdAt: 'desc' },
+                      select: { id: true, aiSummaryReport: true, createdAt: true },
+                  })
+                : Promise.resolve(null),
+            // Relevo del color anterior — último handover individual firmado
+            hqId && colorGroup
+                ? prisma.shiftHandover.findFirst({
+                      where: {
+                          headquartersId: hqId,
+                          isDailyPrologue: false,
+                          colorGroups: { has: colorGroup },
+                          signature: { not: null },
+                          createdAt: { gte: todayStart },
+                      },
+                      orderBy: { createdAt: 'desc' },
+                      select: {
+                          id: true,
+                          aiSummaryReport: true,
+                          createdAt: true,
+                          shiftType: true,
+                          outgoingNurse: { select: { name: true } },
+                      },
+                  })
+                : Promise.resolve(null),
+        ]);
 
         const firstName = userName ? userName.split(' ')[0] : 'compañero';
         let ttsMessage = `Buen día, ${firstName}. Bienvenido al Grupo ${colorGroup}. He revisado los expedientes de este turno y estoy lista para asistirte en los cuidados de hoy. `;
@@ -41,7 +87,6 @@ export async function POST(req: Request) {
         let hasIssues = false;
 
         patients.forEach(p => {
-            // Check Vital Alerts (Fiebre)
             const fever = p.vitalSigns.find(v => v.temperature > 99.5);
             if (fever) {
                 ttsMessage += `Por favor, mantén en observación a ${p.name}, presentó una temperatura elevada de ${fever.temperature} grados recientemente. Sugiero aumentar su ingesta hídrica. `;
@@ -49,7 +94,6 @@ export async function POST(req: Request) {
                 hasIssues = true;
             }
 
-            // Check Food Alerts (No comió)
             const emptyFood = p.dailyLogs.find(l => l.foodIntake === 0);
             if (emptyFood) {
                 ttsMessage += `Noté que ${p.name} tuvo una ingesta reducida en su última comida. Recomiendo ofrecer una alternativa o suplemento para asegurar su perfil nutricional. `;
@@ -57,7 +101,6 @@ export async function POST(req: Request) {
                 hasIssues = true;
             }
 
-            // Check Appointments Today
             p.healthAppointments.forEach(app => {
                 ttsMessage += `También te recuerdo que hay una ${app.type} programada para ${p.name} el día de hoy y debemos estar preparados. `;
                 quickRead.appointments++;
@@ -65,17 +108,6 @@ export async function POST(req: Request) {
             });
         });
 
-        // 2. Obtener Eventos Institucionales del Calendario para HOY aplicables a este grupo
-        const todayStart = todayStartAST();
-        const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
-        
-        const hqEvents = await prisma.headquartersEvent.findMany({
-            where: {
-                startTime: { gte: todayStart, lt: todayEnd }
-            }
-        });
-
-        // Filtrar Eventos que le tocan a este Cuidador (según la lógica "ALL", "GROUP", "SPECIFIC")
         const assignedPatientIds = patients.map(p => p.id);
         const relevantEvents = hqEvents.filter(ev => {
             if (ev.targetPopulation === 'ALL') return true;
@@ -86,23 +118,44 @@ export async function POST(req: Request) {
 
         if (relevantEvents.length > 0) {
             hasIssues = true;
-            const eventDescriptions = relevantEvents.map(e => `${e.title} a las ${new Date(e.startTime).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}`).join(", ");
+            const eventDescriptions = relevantEvents
+                .map(e => `${e.title} a las ${new Date(e.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`)
+                .join(', ');
             ttsMessage += `Además, toma nota del calendario general: hoy tenemos ${eventDescriptions}. `;
         }
 
         if (!hasIssues) {
-            ttsMessage += "Los signos vitales de nuestros residentes se encuentran estables en este momento. Estoy a tu disposición cuando desees iniciar nuestro recorrido.";
+            ttsMessage += 'Los signos vitales de nuestros residentes se encuentran estables en este momento. Estoy a tu disposición cuando desees iniciar nuestro recorrido.';
         } else {
-            ttsMessage += "He enviado estas alertas a tu pantalla principal para fácil referencia. Cuando gustes, empezamos a atender estos frentes.";
+            ttsMessage += 'He enviado estas alertas a tu pantalla principal para fácil referencia. Cuando gustes, empezamos a atender estos frentes.';
         }
+
+        // Formar el payload de prólogo y relevo del color
+        const dailyPrologue = dailyPrologueRow
+            ? {
+                  id: dailyPrologueRow.id,
+                  report: dailyPrologueRow.aiSummaryReport,
+                  generatedAt: dailyPrologueRow.createdAt,
+              }
+            : null;
+
+        const colorHandover = colorHandoverRow
+            ? {
+                  id: colorHandoverRow.id,
+                  report: colorHandoverRow.aiSummaryReport,
+                  fromCaregiver: colorHandoverRow.outgoingNurse?.name || 'Cuidador anterior',
+                  closedAt: colorHandoverRow.createdAt,
+                  shiftType: colorHandoverRow.shiftType,
+              }
+            : null;
 
         return NextResponse.json({
             success: true,
-            briefing: { ttsMessage, quickRead }
+            briefing: { ttsMessage, quickRead, dailyPrologue, colorHandover },
         });
 
     } catch (error) {
-        console.error("Briefing API Error:", error);
-        return NextResponse.json({ success: false, error: "Fallo compilando briefing" }, { status: 500 });
+        console.error('Briefing API Error:', error);
+        return NextResponse.json({ success: false, error: 'Fallo compilando briefing' }, { status: 500 });
     }
 }

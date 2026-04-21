@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info, Sparkles, Sunrise, UserCheck, FileText, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -1489,6 +1490,54 @@ export default function ZendityCareTabletPage() {
                         {!showQuickRead && (
                             <div className="p-6 bg-slate-800/50 border border-slate-700 rounded-xl backdrop-blur-md mb-8">
                                 <p className="text-xl leading-relaxed text-teal-100 font-medium">"{briefingData.ttsMessage}"</p>
+                            </div>
+                        )}
+
+                        {/* Relevo del color anterior + Prólogo del día */}
+                        {showQuickRead && briefingData.colorHandover && (
+                            <div className="mb-6 bg-slate-800/80 border-2 border-teal-500/40 rounded-2xl p-6 backdrop-blur-sm text-left animate-in slide-in-from-bottom-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <UserCheck size={18} className="text-teal-400" />
+                                        <h4 className="text-[11px] font-black uppercase tracking-widest text-teal-300">Relevo de tu turno anterior</h4>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400">
+                                        {new Date(briefingData.colorHandover.closedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-300 font-semibold mb-3">
+                                    Entregado por <span className="text-white font-black">{briefingData.colorHandover.fromCaregiver}</span>
+                                </p>
+                                <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                                    {(briefingData.colorHandover.report || '').replace(/[#*]/g, '').trim().slice(0, 300)}
+                                    {(briefingData.colorHandover.report || '').length > 300 ? '…' : ''}
+                                </p>
+                                {briefingData.colorHandover.id && (
+                                    <Link
+                                        href={`/care/reports/${briefingData.colorHandover.id}`}
+                                        className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-200 text-xs font-black uppercase tracking-wider transition-colors"
+                                    >
+                                        Ver reporte completo <ArrowRight size={14} />
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+
+                        {showQuickRead && briefingData.dailyPrologue && (
+                            <div className="mb-8 bg-slate-800/80 border-2 border-amber-500/40 rounded-2xl p-6 backdrop-blur-sm text-left animate-in slide-in-from-bottom-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Sunrise size={18} className="text-amber-400" />
+                                        <h4 className="text-[11px] font-black uppercase tracking-widest text-amber-300">Prólogo del Día — Zendi</h4>
+                                    </div>
+                                    <span className="text-[10px] font-black px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-200 uppercase tracking-widest">
+                                        Generado a las 6:00 AM
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                                    {(briefingData.dailyPrologue.report || '').replace(/[#*]/g, '').trim().slice(0, 400)}
+                                    {(briefingData.dailyPrologue.report || '').length > 400 ? '…' : ''}
+                                </p>
                             </div>
                         )}
 
