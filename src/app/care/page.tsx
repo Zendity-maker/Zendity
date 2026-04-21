@@ -3168,6 +3168,7 @@ export default function ZendityCareTabletPage() {
                 onResolveWarning={async () => true}
                 isOpen={modalType === 'SHIFT_CLOSURE_WIZARD'}
                 onClose={() => setModalType(null)}
+                shiftSessionId={activeSession?.id || null}
                 onFinalize={async (data, signature) => {
                     try {
                         const res = await fetch("/api/care/shift/end", {

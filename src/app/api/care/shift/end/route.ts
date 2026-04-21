@@ -4,293 +4,33 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
-import OpenAI from 'openai';
+import {
+    inferShiftType,
+    resolveColorGroupsForCaregiver,
+    resolvePatientsByColors,
+    collectShiftActivity,
+    buildZendiSummary,
+} from '@/lib/shift-closure-report';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Vercel — evitar 504 si OpenAI se cuelga
+export const maxDuration = 60;
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || 'dummy',
-    timeout: 45_000, // 45s max; si GPT tarda más, tira y cae al fallback determinista
-});
 
 /**
  * Sprint L — Cierre de turno con reporte INDIVIDUAL por cuidador.
  *
  * Flujo 1 (Wizard — el cuidador mismo cierra):
- *   1. Resolver colorGroups del cuidador (ShiftColorAssignment → fallback por actividad real)
- *   2. Resolver residentes asignados (Patient por colorGroup + activos + mismo HQ)
- *   3. Generar aiSummaryReport con GPT-4o-mini usando datos REALES del turno
- *   4. Crear ShiftHandover (outgoingNurseId, colorGroups[], isDailyPrologue:false)
- *   5. Crear HandoverNote por cada residente con snippet de su turno
+ *   1. El wizard YA mostró al cuidador el reporte vía /api/care/shift/preview.
+ *      Si handoverData.aiSummaryReport viene → respetamos ese texto literal
+ *      (lo que el cuidador firmó === lo que se guarda).
+ *   2. Si no viene (cierre legado sin preview), regeneramos con GPT-4o-mini.
+ *   3. Crear ShiftHandover + HandoverNotes + actualizar ShiftSession.
  *
  * Flujo 2 (forceEnd por supervisor):
- *   - Crea ShiftHandover "vacío" con nota de cierre forzado
- *   - Log SystemAuditAction.SYSTEM_ABANDONED + payload {forceClosedBySupervisor:true}
- *     (reusamos el enum existente; el discriminador va en payloadChanges)
+ *   - Crea ShiftHandover "vacío" con nota de cierre forzado.
+ *   - Log SystemAuditAction.SYSTEM_ABANDONED.
  */
-
-type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT';
-
-function inferShiftType(date: Date): ShiftT {
-    // AST = UTC-4. Derivar hora AST desde UTC para clasificar el turno.
-    const hAst = (date.getUTCHours() - 4 + 24) % 24;
-    if (hAst >= 6 && hAst < 14) return 'MORNING';
-    if (hAst >= 14 && hAst < 22) return 'EVENING';
-    return 'NIGHT';
-}
-
-/**
- * Resuelve los colorGroups que el cuidador cubrió en su turno.
- * Orden de búsqueda:
- *  1. ShiftColorAssignment del ScheduledShift del día (fuente de verdad del horario).
- *  2. ScheduledShift.colorGroup plano del horario (legacy).
- *  3. Fallback por actividad: colorGroups únicos de los residentes que tocó
- *     (BathLog + MealLog + MedicationAdministration) durante el turno.
- */
-async function resolveColorGroupsForCaregiver(
-    caregiverId: string,
-    hqId: string,
-    shiftStart: Date,
-): Promise<string[]> {
-    // 1. ShiftColorAssignment → buscar ScheduledShift del día para este cuidador
-    const todayStart = new Date(shiftStart);
-    todayStart.setUTCHours(0, 0, 0, 0);
-    const tomorrow = new Date(todayStart);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-
-    const scheduledShifts = await prisma.scheduledShift.findMany({
-        where: {
-            userId: caregiverId,
-            date: { gte: todayStart, lt: tomorrow },
-        },
-        include: { colorAssignments: true },
-    });
-
-    const fromAssignments = scheduledShifts
-        .flatMap(s => s.colorAssignments.map(a => a.color))
-        .filter(Boolean);
-    if (fromAssignments.length > 0) return Array.from(new Set(fromAssignments));
-
-    // 2. ScheduledShift.colorGroup plano (legacy)
-    const fromLegacy = scheduledShifts
-        .map(s => s.colorGroup)
-        .filter((c): c is string => !!c && c !== 'UNASSIGNED');
-    if (fromLegacy.length > 0) return Array.from(new Set(fromLegacy));
-
-    // 3. Fallback por actividad real durante el turno
-    const touchedPatientIds = new Set<string>();
-    const [baths, meals, meds] = await Promise.all([
-        prisma.bathLog.findMany({ where: { caregiverId, timeLogged: { gte: shiftStart } }, select: { patientId: true } }),
-        prisma.mealLog.findMany({ where: { caregiverId, timeLogged: { gte: shiftStart } }, select: { patientId: true } }),
-        prisma.medicationAdministration.findMany({
-            where: { administeredById: caregiverId, administeredAt: { gte: shiftStart } },
-            select: { patientMedication: { select: { patientId: true } } },
-        }),
-    ]);
-    baths.forEach(b => touchedPatientIds.add(b.patientId));
-    meals.forEach(m => touchedPatientIds.add(m.patientId));
-    meds.forEach(m => m.patientMedication?.patientId && touchedPatientIds.add(m.patientMedication.patientId));
-
-    if (touchedPatientIds.size === 0) return [];
-
-    const patients = await prisma.patient.findMany({
-        where: { id: { in: Array.from(touchedPatientIds) }, headquartersId: hqId },
-        select: { colorGroup: true },
-    });
-    const colors = patients.map(p => p.colorGroup).filter(c => c && c !== 'UNASSIGNED');
-    return Array.from(new Set(colors));
-}
-
-/**
- * Devuelve los residentes activos que el cuidador cubrió por color.
- * Si colorGroups viene vacío, devuelve [] (no asumimos "todo el censo").
- */
-async function resolvePatientsByColors(
-    colorGroups: string[],
-    hqId: string,
-): Promise<{ id: string; name: string; colorGroup: string; roomNumber: string | null }[]> {
-    if (colorGroups.length === 0) return [];
-    return prisma.patient.findMany({
-        where: {
-            headquartersId: hqId,
-            status: 'ACTIVE',
-            colorGroup: { in: colorGroups as any[] },
-        },
-        select: { id: true, name: true, colorGroup: true, roomNumber: true },
-        orderBy: { name: 'asc' },
-    });
-}
-
-/**
- * Colecta actividad clínica del turno filtrada por los patientIds del cuidador.
- */
-async function collectShiftActivity(params: {
-    caregiverId: string;
-    patientIds: string[];
-    shiftStart: Date;
-}) {
-    const { caregiverId, patientIds, shiftStart } = params;
-
-    if (patientIds.length === 0) {
-        return {
-            medsAdministered: 0,
-            medsOmitted: [] as { patientName: string; medName: string; reason: string }[],
-            mealCount: 0,
-            bathCount: 0,
-            vitalCount: 0,
-            falls: [] as { patientName: string; severity: string; location: string }[],
-            clinicalAlerts: [] as { patientName: string; notes: string }[],
-            rotations: 0,
-        };
-    }
-
-    const [medsAdmin, medsOmit, mealCount, bathCount, vitalCount, falls, alerts, rotations] = await Promise.all([
-        prisma.medicationAdministration.count({
-            where: {
-                administeredById: caregiverId,
-                administeredAt: { gte: shiftStart },
-                status: 'ADMINISTERED',
-            },
-        }),
-        prisma.medicationAdministration.findMany({
-            where: {
-                administeredById: caregiverId,
-                administeredAt: { gte: shiftStart },
-                status: { in: ['OMITTED', 'REFUSED'] },
-            },
-            include: {
-                patientMedication: { include: { patient: { select: { name: true } }, medication: { select: { name: true } } } },
-            },
-            take: 30,
-        }),
-        prisma.mealLog.count({ where: { caregiverId, timeLogged: { gte: shiftStart } } }),
-        prisma.bathLog.count({ where: { caregiverId, timeLogged: { gte: shiftStart } } }),
-        prisma.vitalSigns.count({ where: { measuredById: caregiverId, createdAt: { gte: shiftStart } } }),
-        prisma.fallIncident.findMany({
-            where: { patientId: { in: patientIds }, reportedAt: { gte: shiftStart } },
-            include: { patient: { select: { name: true } } },
-            take: 10,
-        }),
-        prisma.dailyLog.findMany({
-            where: {
-                patientId: { in: patientIds },
-                authorId: caregiverId,
-                createdAt: { gte: shiftStart },
-                isClinicalAlert: true,
-            },
-            include: { patient: { select: { name: true } } },
-            take: 10,
-        }),
-        prisma.posturalChangeLog.count({ where: { nurseId: caregiverId, performedAt: { gte: shiftStart } } }),
-    ]);
-
-    return {
-        medsAdministered: medsAdmin,
-        medsOmitted: medsOmit.map(m => ({
-            patientName: m.patientMedication?.patient?.name || 'Residente desconocido',
-            medName: m.patientMedication?.medication?.name || 'Medicamento',
-            reason: m.notes || m.status,
-        })),
-        mealCount,
-        bathCount,
-        vitalCount,
-        falls: falls.map(f => ({ patientName: f.patient?.name || 'Desconocido', severity: f.severity, location: f.location })),
-        clinicalAlerts: alerts.map(a => ({ patientName: a.patient?.name || 'Desconocido', notes: a.notes || '(sin notas)' })),
-        rotations,
-    };
-}
-
-async function buildZendiSummary(params: {
-    caregiverName: string;
-    shiftType: ShiftT;
-    patients: { name: string; colorGroup: string; roomNumber: string | null }[];
-    activity: Awaited<ReturnType<typeof collectShiftActivity>>;
-    justifications: Record<string, string>;
-}): Promise<string> {
-    const { caregiverName, shiftType, patients, activity, justifications } = params;
-
-    const shiftLabel = shiftType === 'MORNING' ? 'Mañana (6am–2pm)'
-        : shiftType === 'EVENING' ? 'Tarde (2pm–10pm)'
-        : 'Noche (10pm–6am)';
-
-    const patientList = patients.length > 0
-        ? patients.map(p => `- ${p.name}${p.roomNumber ? ` (Hab. ${p.roomNumber})` : ''} — grupo ${p.colorGroup}`).join('\n')
-        : '- (sin residentes asignados por color)';
-
-    const omittedLines = activity.medsOmitted.length > 0
-        ? activity.medsOmitted.map(m => `  · ${m.patientName} — ${m.medName} (${m.reason})`).join('\n')
-        : '  · ninguno';
-
-    const fallLines = activity.falls.length > 0
-        ? activity.falls.map(f => `  · ${f.patientName} en ${f.location} (severidad ${f.severity})`).join('\n')
-        : '  · ninguno';
-
-    const alertLines = activity.clinicalAlerts.length > 0
-        ? activity.clinicalAlerts.map(a => `  · ${a.patientName}: ${a.notes}`).join('\n')
-        : '  · ninguno';
-
-    const justLines = Object.keys(justifications).length > 0
-        ? Object.entries(justifications).map(([id, r]) => `  · ${id}: ${r}`).join('\n')
-        : '  · ninguna';
-
-    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español rioplatense claro y profesional. No inventes datos: usa SOLO la información que te doy. Máximo 3 párrafos. Menciona residentes por nombre. Si hay situaciones que requieren atención del supervisor, resáltalas al final.
-
-Turno: ${shiftLabel}
-Cuidador(a): ${caregiverName}
-
-Residentes asignados:
-${patientList}
-
-Actividad del turno:
-- Medicamentos administrados: ${activity.medsAdministered}
-- Medicamentos omitidos/rehusados:
-${omittedLines}
-- Comidas registradas: ${activity.mealCount}
-- Baños completados: ${activity.bathCount}
-- Vitales tomados: ${activity.vitalCount}
-- Rotaciones UPP (cambios posturales): ${activity.rotations}
-- Caídas durante el turno:
-${fallLines}
-- Alertas clínicas del cuidador (isClinicalAlert en DailyLog):
-${alertLines}
-- Justificaciones del wizard (tareas pendientes/trasladadas):
-${justLines}
-
-Genera el reporte ahora.`;
-
-    try {
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 700,
-            temperature: 0.3,
-        });
-        const text = completion.choices?.[0]?.message?.content?.trim();
-        if (text && text.length > 40) {
-            console.log(`[shift/end] zendi summary source=gpt-4o-mini len=${text.length} caregiver=${caregiverName}`);
-            return text;
-        }
-        console.warn(`[shift/end] zendi summary gpt respuesta muy corta (${text?.length ?? 0} chars), usando fallback`);
-    } catch (e) {
-        console.error('[shift/end] OpenAI error:', e);
-    }
-
-    console.warn(`[shift/end] zendi summary source=fallback caregiver=${caregiverName}`);
-
-    // Fallback determinista si OpenAI falla
-    return `Reporte de cierre — ${caregiverName} · ${shiftLabel}
-
-Residentes a cargo (${patients.length}): ${patients.map(p => p.name).join(', ') || 'sin asignación por color'}.
-
-Actividad registrada: ${activity.medsAdministered} meds administrados, ${activity.medsOmitted.length} omitidos/rehusados, ${activity.mealCount} comidas, ${activity.bathCount} baños, ${activity.vitalCount} vitales, ${activity.rotations} rotaciones UPP.
-
-Incidencias: ${activity.falls.length} caídas, ${activity.clinicalAlerts.length} alertas clínicas. ${Object.keys(justifications).length > 0 ? `${Object.keys(justifications).length} tareas con justificación pendiente.` : ''}
-
-(Resumen generado sin IA por fallo de servicio; revisar detalle en notas.)`;
-}
 
 export async function POST(req: Request) {
     try {
@@ -329,28 +69,24 @@ export async function POST(req: Request) {
         }
 
         const now = new Date();
-        const shiftTypeDraft: ShiftT = inferShiftType(now);
+        const shiftTypeDraft = inferShiftType(now);
         const shiftStart = session.startTime < todayStartAST() ? todayStartAST() : session.startTime;
 
         // ──────────────────────────────────────────────────────────────────
-        // FLUJO 1 — Cierre con Wizard (cuidador o supervisor actuando por él)
+        // FLUJO 1 — Cierre con Wizard
         // ──────────────────────────────────────────────────────────────────
         if (handoverData && signature && !forceEnd) {
-            // 1. Resolver colorGroups del cuidador
             const colorGroups = await resolveColorGroupsForCaregiver(session.caregiverId, session.headquartersId, shiftStart);
-            // 2. Residentes por color
             const patients = await resolvePatientsByColors(colorGroups, session.headquartersId);
-            // 3. Actividad del turno
             const activity = await collectShiftActivity({
                 caregiverId: session.caregiverId,
                 patientIds: patients.map(p => p.id),
                 shiftStart,
             });
-            // 4. Resumen Zendi (GPT-4o-mini con datos reales).
-            //    Si el wizard ya mostró al cuidador un reporte pre-generado (via
-            //    /api/care/shift/preview) y el cuidador lo confirmó, respetamos
-            //    ese texto para que lo que firmó === lo que se guarda. Si no,
-            //    regeneramos (backward-compat + cierres forzados).
+
+            // Si el wizard ya mostró al cuidador un reporte pre-generado y lo
+            // confirmó, usamos ese texto literal. Esto garantiza que lo que
+            // firmó === lo que se guarda.
             const justifications = (handoverData.justifications ?? {}) as Record<string, string>;
             const previewedReport: string | undefined = handoverData.aiSummaryReport;
             let zendiSummary: string;
@@ -358,13 +94,14 @@ export async function POST(req: Request) {
                 zendiSummary = previewedReport.trim();
                 console.log(`[shift/end] usando reporte pre-generado del wizard (len=${zendiSummary.length}) caregiver=${session.caregiver?.name}`);
             } else {
-                zendiSummary = await buildZendiSummary({
+                const built = await buildZendiSummary({
                     caregiverName: session.caregiver?.name || 'Cuidador(a)',
                     shiftType: shiftTypeDraft,
                     patients,
                     activity,
                     justifications,
                 });
+                zendiSummary = built.summary;
             }
 
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
@@ -381,17 +118,12 @@ export async function POST(req: Request) {
                         handoverCompleted: true,
                         colorGroups,
                         isDailyPrologue: false,
-                        // Sprint L — la cuidadora firma SU reporte individual: eso
-                        // actúa como auto-confirmación (pasa a CONFIRMED, listo
-                        // para firma del supervisor).
                         seniorCaregiverId: session.caregiverId,
                         seniorConfirmedAt: now,
                         seniorNote: 'Cuidador(a) autoconfirmó su reporte individual al cierre de turno.',
                     },
                 });
 
-                // Notas clínicas por residente — priorizar selectedPatients del wizard;
-                // si no hay, crear una nota ligera por residente asignado con snippet del turno.
                 const selected = (handoverData.selectedPatients ?? {}) as Record<string, string>;
                 const selectedIds = Object.keys(selected);
                 if (selectedIds.length > 0) {
@@ -439,6 +171,7 @@ export async function POST(req: Request) {
                             shiftSessionId: session.id,
                             tasksExempted: justifications,
                             zendiApproved: true,
+                            reportPreviewedByCaregiver: typeof previewedReport === 'string',
                             closedBySupervisor: !isOwner,
                             ownerCaregiverId: session.caregiverId,
                             colorGroups,
@@ -454,7 +187,7 @@ export async function POST(req: Request) {
         }
 
         // ──────────────────────────────────────────────────────────────────
-        // FLUJO 2 — Cierre forzado por supervisor (sin wizard)
+        // FLUJO 2 — Cierre forzado por supervisor
         // ──────────────────────────────────────────────────────────────────
         if (!isSupervisor) {
             return NextResponse.json({
