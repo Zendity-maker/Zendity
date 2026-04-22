@@ -52,7 +52,11 @@ const corporateNavigationSections = [
             { name: "Admisión de Residentes", href: "/corporate/patients/intake", icon: UserPlus },
             { name: "Directorio Global", href: "/corporate/medical/patients", icon: Users },
             { name: "Reportes de Turno", href: "/corporate/reports", icon: ClipboardList },
-            { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
+            // fix: "Prevención de Riesgos" oculto del sidebar — hqId hardcodeado
+            // inexistente en DB, página siempre vacía. La funcionalidad real vive
+            // en la ficha individual del residente (?tab=falls). Restaurar cuando
+            // se migre a multi-tenant con resolveEffectiveHqId.
+            // { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
             { name: "UPPs (Úlceras)", href: "/corporate/medical/upp-dashboard", icon: Activity },
             { name: "eMAR Audit", href: "/corporate/medical/emar", icon: Pill },
             { name: "Catálogo Farmacia", href: "/corporate/medical/catalog", icon: Package },
