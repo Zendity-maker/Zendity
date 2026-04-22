@@ -66,7 +66,7 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: token.uid as string },
-                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true }
+                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true, secondaryRoles: true }
             });
             if (dbUser) {
                 session.user.id = dbUser.id;
@@ -75,6 +75,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.role = dbUser.role;
                 session.user.headquartersId = dbUser.headquartersId;
                 session.user.photoUrl = dbUser.photoUrl;
+                session.user.secondaryRoles = dbUser.secondaryRoles ?? [];
             } else {
                 // Intentar como familia
                 const family = await prisma.familyMember.findUnique({

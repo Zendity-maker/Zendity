@@ -144,6 +144,16 @@ export default function ZendityCareTabletPage() {
 
     const { user, logout } = useAuth();
     const router = useRouter();
+
+    // FASE 51: doble rol — ej. SUPERVISOR con secondaryRoles=['CAREGIVER'].
+    // Usar este flag en lugar de `user?.role === 'CAREGIVER'` para que los
+    // usuarios con rol secundario de cuidadora accedan a todas las funciones
+    // clínicas del tablet (iniciar turno, ver residentes, vitales, etc.).
+    const CLINICAL_ROLES = ['CAREGIVER', 'NURSE'];
+    const isActingAsCaregiver =
+        CLINICAL_ROLES.includes(user?.role as string) ||
+        (user?.secondaryRoles || []).some(r => CLINICAL_ROLES.includes(r));
+
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
@@ -1793,7 +1803,8 @@ export default function ZendityCareTabletPage() {
     const sidebarLinks = [
         ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
         { href: '#', icon: '⚡', label: 'Acciones', onClick: () => { setHubAction(null); setModalType('HUB'); } },
-        ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
+        // FASE 51: supervisoras con rol secundario CAREGIVER también pueden despachar
+        ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' || isActingAsCaregiver ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
         { href: '/academy', icon: '🎓', label: 'Academy' },
         { href: '/care/profile', icon: '👤', label: 'Mi Perfil' },
         { href: '/cuidadores', icon: '📋', label: 'Life Plans' },

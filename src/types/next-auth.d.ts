@@ -7,6 +7,7 @@ declare module "next-auth" {
         role: string
         headquartersId: string
         photoUrl?: string | null
+        secondaryRoles?: string[]  // FASE 51: roles secundarios (ej. SUPERVISOR + CAREGIVER)
     }
 
     interface Session {
@@ -15,6 +16,7 @@ declare module "next-auth" {
             role: string
             headquartersId: string
             photoUrl?: string | null
+            secondaryRoles: string[]  // FASE 51: siempre array (vacío si no tiene)
         } & DefaultSession["user"]
     }
 }

@@ -11,6 +11,8 @@ export const dynamic = 'force-dynamic';
 // Solo personal clínico de piso puede abrir un ShiftSession. Antes el endpoint
 // aceptaba cualquier rol, lo que dejaba a DIRECTOR/ADMIN/SUPER_ADMIN crear
 // sesiones de prueba que generaban VitalsOrder fantasma para toda la sede.
+// FASE 51: se extiende a usuarios con secondaryRoles que incluya CAREGIVER/NURSE
+// (ej. SUPERVISOR + CAREGIVER como Zuleyka Valcarcel).
 const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
 
 // Sprint J: ventana automática de 4h al inicio de turno
@@ -77,7 +79,12 @@ export async function POST(req: Request) {
         if (!session?.user) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
         }
-        if (!CAREGIVER_ROLES.includes(session.user.role)) {
+        const secondaryRoles: string[] = (session.user as any).secondaryRoles ?? [];
+        const hasClinicalAccess =
+            CAREGIVER_ROLES.includes(session.user.role) ||
+            secondaryRoles.some(r => CAREGIVER_ROLES.includes(r));
+
+        if (!hasClinicalAccess) {
             return NextResponse.json(
                 { success: false, error: "Solo cuidadores y enfermeras pueden iniciar turno clínico" },
                 { status: 403 },

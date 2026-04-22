@@ -16,6 +16,7 @@ export interface AuthUser {
     email?: string;
     photoUrl?: string | null;
     complianceScore?: number;
+    secondaryRoles?: string[]; // FASE 51: roles secundarios (ej. SUPERVISOR + CAREGIVER)
 }
 
 interface AuthContextType {
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hqId: (session.user as any).headquartersId,
         hqName: (session.user as any).headquartersName,
         photoUrl: (session.user as any).photoUrl || null,
+        secondaryRoles: (session.user as any).secondaryRoles || [],
     } : null;
 
     useEffect(() => {
