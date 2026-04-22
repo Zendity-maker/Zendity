@@ -112,17 +112,26 @@ export async function computeShiftCoverage(params: {
     const expectedColors = Array.from(expectedColorsSet).sort();
 
     const activeUserIds = activeSessions.map(s => s.caregiverId);
-    const colorAssignments = activeUserIds.length > 0
-        ? await prisma.shiftColorAssignment.findMany({
-            where: {
-                headquartersId: hqId,
-                userId: { in: activeUserIds },
-                assignedAt: { gte: todayStart },
-                scheduledShift: { shiftType: shiftType as any, date: { gte: todayStart, lt: tomorrow } },
-            },
-            select: { userId: true, color: true },
-        })
-        : [];
+
+    // FIX: usar scheduledShiftId explícito en lugar del nested relation filter
+    // `scheduledShift: { shiftType, date }` que generaba JOINs ineficientes y
+    // 500s intermitentes en producción. Los IDs ya están en memoria del query anterior.
+    const activeUserShiftIds = scheduledShifts
+        .filter(s => activeUserIds.includes(s.userId))
+        .map(s => s.id);
+
+    let colorAssignments: Array<{ userId: string; color: string }> = [];
+    if (activeUserShiftIds.length > 0) {
+        try {
+            colorAssignments = await prisma.shiftColorAssignment.findMany({
+                where: { scheduledShiftId: { in: activeUserShiftIds } },
+                select: { userId: true, color: true },
+            });
+        } catch (e) {
+            // Fallback: sin asignaciones manuales → se usa colorGroup del ScheduledShift
+            console.warn('[shift-coverage] ShiftColorAssignment query failed, fallback a colorGroup:', e);
+        }
+    }
 
     const coveredByUser = new Map<string, Set<string>>();
     for (const a of colorAssignments) {
