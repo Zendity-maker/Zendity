@@ -1,77 +1,108 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { notifyRoles } from '@/lib/notifications';
 
+// Vercel Cron: cada 2 horas (vercel.json: "0 */2 * * *")
+// Detecta pacientes sin rotación postural >2h con nortonRisk=true
+// O con UPP activa (status ACTIVE/HEALING) — aunque nortonRisk sea false.
+// FIX: antes solo filtraba nortonRisk=true, ignorando pacientes con UPP activa.
+// FIX: ahora envía notificaciones reales vía notifyRoles.
+// FIX: eliminado PosturalChangeLog con nurseId="system_cron" (violaba FK).
 
-
-// Idealmente llamado por Vercel Cron cada 1 o 2 horas: 
-// 0 */2 * * * (Ejemplo CRON)
 export async function GET(req: Request) {
-    // Seguridad Básica para Evitar Ejecuciones Públicas No Deseadas
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'ZENDITY_CRON_LOCAL'}`) {
         return NextResponse.json({ error: 'Firma CRON Inválida' }, { status: 401 });
     }
 
     try {
-        // Parametrización: Threshold de Compliance (2 Horas, convertidas a MS)
         const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
         const now = new Date();
         const limitTime = new Date(now.getTime() - TWO_HOURS_MS);
 
-        // 1. Localizar residentes marcados como "Riesgo UPP / Encamados" 
-        // y recuperar su último cambio postural.
+        // Pacientes en riesgo: nortonRisk=true O tienen UPP activa
         const atRiskPatients = await prisma.patient.findMany({
             where: {
-                nortonRisk: true, // Switch habilitado desde Ficha Médica
+                OR: [
+                    { nortonRisk: true },
+                    { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } }
+                ]
             },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                headquartersId: true,
                 posturalChanges: {
                     orderBy: { performedAt: 'desc' },
-                    take: 1
+                    take: 1,
+                    select: { performedAt: true, isComplianceAlert: true }
+                },
+                pressureUlcers: {
+                    where: { status: { not: 'RESOLVED' } },
+                    orderBy: { stage: 'desc' },
+                    take: 1,
+                    select: { stage: true, bodyLocation: true, status: true }
                 }
             }
         });
 
-        const violations = [];
+        const violations: object[] = [];
+        const notifyPromises: Promise<unknown>[] = [];
 
-        // 2. Auditar cada reloj.
         for (const patient of atRiskPatients) {
             const lastRotation = patient.posturalChanges[0];
+            const activeUlcer = patient.pressureUlcers[0] ?? null;
 
-            // Si no tiene registros O su último registro fue hace más de 2 horas.
-            if (!lastRotation || lastRotation.performedAt < limitTime) {
-                violations.push({
-                    patientId: patient.id,
-                    patientName: patient.name,
-                    lastRotationTime: lastRotation ? lastRotation.performedAt : 'Ninguna',
-                    hoursOverdue: lastRotation ? ((now.getTime() - lastRotation.performedAt.getTime()) / (1000 * 60 * 60)).toFixed(1) : 'Crítico (+24h)'
-                });
+            const isSlaViolation = !lastRotation || lastRotation.performedAt < limitTime;
+            if (!isSlaViolation) continue;
 
-                // Si detecta violación y el último LOG no estaba marcado como alerta, forzamos un LOG rojo
-                if (!lastRotation || !lastRotation.isComplianceAlert) {
-                    await prisma.posturalChangeLog.create({
-                        data: {
-                            patientId: patient.id,
-                            nurseId: "system_cron", // Auditor Automático ID
-                            position: "SISTEMA: VENCIMIENTO DE RELOJ POSTURAL",
-                            isComplianceAlert: true,
-                        }
-                    });
-                }
-            }
+            const hoursOverdue = lastRotation
+                ? ((now.getTime() - lastRotation.performedAt.getTime()) / (1000 * 60 * 60)).toFixed(1)
+                : 'Crítico (+24h)';
+
+            violations.push({
+                patientId: patient.id,
+                patientName: patient.name,
+                lastRotationTime: lastRotation?.performedAt ?? 'Ninguna',
+                hoursOverdue,
+                activeUlcer: activeUlcer
+                    ? `Estadio ${activeUlcer.stage} — ${activeUlcer.bodyLocation}`
+                    : 'Sin UPP (nortonRisk)',
+            });
+
+            const ulcerDetail = activeUlcer
+                ? ` UPP Estadio ${activeUlcer.stage} en ${activeUlcer.bodyLocation}.`
+                : '';
+
+            notifyPromises.push(
+                notifyRoles(
+                    patient.headquartersId,
+                    ['CAREGIVER', 'NURSE', 'SUPERVISOR'],
+                    {
+                        type: 'SHIFT_ALERT',
+                        title: 'Alerta UPP — Rotación vencida',
+                        message: `${patient.name} lleva más de ${hoursOverdue}h sin rotación postural.${ulcerDetail} Requiere cambio de posición inmediato.`,
+                    }
+                )
+            );
         }
 
+        await Promise.allSettled(notifyPromises);
+
         return NextResponse.json({
-            message: "Auditoría Automática de UPP Realizada.",
+            ok: true,
+            message: 'Auditoría UPP completada.',
             scannedPatients: atRiskPatients.length,
-            fatalViolationsDetected: violations.length,
-            auditReport: violations
+            violationsDetected: violations.length,
+            notificationsSent: notifyPromises.length,
+            violations,
         });
 
-    } catch (error) {
-        console.error("CRON UPP Error:", error);
-        return NextResponse.json({ error: 'Fallo interno al auditar residentes.' }, { status: 500 });
-    } finally {
-        await prisma.$disconnect();
+    } catch (error: any) {
+        console.error('[cron/upp-alerts] error:', error);
+        return NextResponse.json(
+            { error: 'Fallo interno en auditoría UPP', detail: error.message },
+            { status: 500 }
+        );
     }
 }
