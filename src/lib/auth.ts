@@ -15,11 +15,30 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Debe ingresar un Email y PIN validos.");
                 }
 
+                // select explícito — evitar descargar todo el row (relaciones,
+                // arrays grandes, campos binarios) en cada intento de login.
                 const user = await prisma.user.findUnique({
                     where: { email: credentials.email },
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                        secondaryRoles: true,
+                        headquartersId: true,
+                        pinCode: true,
+                        complianceScore: true,
+                        photoUrl: true,
+                        isActive: true,
+                        isDeleted: true,
+                        isShiftBlocked: true,
+                    }
                 });
 
                 if (user) {
+                    if (!user.isActive || user.isDeleted) {
+                        throw new Error("Acceso Denegado. Cuenta inactiva.");
+                    }
                     if (user.pinCode !== credentials.pinCode) {
                         throw new Error("Acceso Denegado. PIN Clinico Invalido.");
                     }
@@ -66,7 +85,7 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             const dbUser = await prisma.user.findUnique({
                 where: { id: token.uid as string },
-                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true, secondaryRoles: true }
+                select: { id: true, name: true, email: true, role: true, headquartersId: true, photoUrl: true, secondaryRoles: true, complianceScore: true }
             });
             if (dbUser) {
                 session.user.id = dbUser.id;
@@ -76,6 +95,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.headquartersId = dbUser.headquartersId;
                 session.user.photoUrl = dbUser.photoUrl;
                 session.user.secondaryRoles = dbUser.secondaryRoles ?? [];
+                (session.user as any).complianceScore = dbUser.complianceScore;
             } else {
                 // Intentar como familia
                 const family = await prisma.familyMember.findUnique({
