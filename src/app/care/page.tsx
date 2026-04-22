@@ -433,9 +433,20 @@ export default function ZendityCareTabletPage() {
                             }
                             return; // No necesita elegir manualmente
                         }
+                        // Shift existe pero sin colorGroup (ej. KITCHEN/MAINTENANCE):
+                        // NO caer a localStorage — ese valor sería de otro turno y
+                        // mostraría residentes que no corresponden. Dejar selector
+                        // manual / sin residentes hasta que alguien asigne color.
+                        if (colorData.source === 'no_color_assigned') {
+                            setSelectedColor(null);
+                            setPatients([]);
+                            return;
+                        }
                     }
 
-                    // 2. Fallback: usar color guardado en localStorage
+                    // 2. Fallback: usar color guardado en localStorage (solo si
+                    //    no hay shift hoy — caso cuidador que abre tablet fuera
+                    //    de un shift programado).
                     const storedColor = localStorage.getItem('zendityCareShiftColor');
                     if (storedColor) {
                         setSelectedColor(storedColor);

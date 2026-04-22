@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
+import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 
 export async function GET(req: Request) {
     try {
@@ -14,10 +15,13 @@ export async function GET(req: Request) {
         }
 
         const today = new Date();
+        // Sprint — turno actual en horario AST (Vercel corre en UTC;
+        // `new Date().getHours()` devolvería la hora UTC incorrecta).
+        const currentShiftType = inferShiftTypeFromAST();
 
-        // Resolver color del día (prioridad: asignación manual → roster publicado)
+        // Resolver color del día (prioridad: asignación manual → roster publicado del turno ACTUAL)
         let resolvedColor: string | null = null;
-        let source: 'assignment' | 'roster' | 'none' = 'none';
+        let source: 'assignment' | 'roster' | 'none' | 'no_color_assigned' = 'none';
 
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
             where: {
@@ -32,10 +36,14 @@ export async function GET(req: Request) {
             resolvedColor = colorAssignment.color;
             source = 'assignment';
         } else {
+            // Filtro por shiftType actual: previene que un shift futuro (ej. NIGHT)
+            // contamine el turno actual (ej. EVENING). Antes: sin filtro de shiftType,
+            // cualquier shift del día matcheaba.
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
                     date: { gte: startOfDay(today), lte: endOfDay(today) },
+                    shiftType: currentShiftType as any,
                     isAbsent: false,
                     schedule: {
                         headquartersId: hqId,
@@ -45,8 +53,15 @@ export async function GET(req: Request) {
                 orderBy: { date: 'desc' }
             });
             if (todayShift) {
-                resolvedColor = todayShift.colorGroup;
-                source = 'roster';
+                if (todayShift.colorGroup) {
+                    resolvedColor = todayShift.colorGroup;
+                    source = 'roster';
+                } else {
+                    // Shift existe pero sin colorGroup (ej. KITCHEN, MAINTENANCE, limpieza).
+                    // Devolver color=null + source especial para que el tablet NO caiga
+                    // a localStorage — en su lugar muestra "sin residentes asignados".
+                    source = 'no_color_assigned';
+                }
             }
         }
 
@@ -77,9 +92,10 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, color: resolvedColor, source });
         }
 
-        // Sin asignación manual ni roster publicado → color null.
-        // El tablet muestra el selector manual / fallback localStorage.
-        return NextResponse.json({ success: true, color: null, source: 'none' });
+        // Sin color. source puede ser:
+        //  - 'no_color_assigned' → shift encontrado pero sin color asignado (no caer a localStorage)
+        //  - 'none' → no hay shift del turno actual ni asignación manual
+        return NextResponse.json({ success: true, color: null, source });
 
     } catch (error) {
         console.error('my-color error:', error);
