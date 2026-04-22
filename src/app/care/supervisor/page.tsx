@@ -191,20 +191,22 @@ export default function SupervisorMissionControlPage() {
         }
     };
 
+    // FIX 7 — Supervisores cierran tareas vía close-task (sin penalidad automática).
+    // El endpoint PATCH /fast-actions ahora es solo para el cuidador propio.
     const handleUpdateTaskStatus = async (id: string, status: 'COMPLETED' | 'FAILED') => {
         setUpdatingTaskId(id);
         try {
-            const res = await fetch('/api/care/fast-actions', {
-                method: 'PATCH',
+            const res = await fetch('/api/care/supervisor/close-task', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status }),
+                body: JSON.stringify({ assignmentId: id, status }),
             });
             const data = await res.json();
-            if (data.success || data.task) {
-                setToast({ msg: status === 'COMPLETED' ? 'Tarea completada ✓' : 'Tarea marcada como fallida', type: status === 'COMPLETED' ? 'ok' : 'err' });
+            if (data.success) {
+                setToast({ msg: status === 'COMPLETED' ? 'Tarea completada ✓' : 'Tarea cerrada como fallida', type: status === 'COMPLETED' ? 'ok' : 'err' });
                 fetchLiveData();
             } else {
-                setToast({ msg: data.error || 'Error actualizando tarea', type: 'err' });
+                setToast({ msg: data.error || 'Error cerrando tarea', type: 'err' });
             }
         } catch (e) {
             console.error(e);
@@ -657,11 +659,25 @@ export default function SupervisorMissionControlPage() {
                                                 if (assignedTask) {
                                                     const caregiverMatch = liveData.activeSessions?.find((s: CaregiverSession) => s.caregiverId === assignedTask.caregiverId);
                                                     const employeeName = caregiverMatch?.caregiver?.name || "Cuidador";
-                                                    const isExpired = new Date(assignedTask.expiresAt).getTime() < new Date().getTime();
+                                                    const isExpired = new Date(assignedTask.expiresAt).getTime() < Date.now();
+                                                    // Más de 30 min transcurridos = menos de 30 min restantes sobre la ventana de 1h
+                                                    const minutesLeft = (new Date(assignedTask.expiresAt).getTime() - Date.now()) / 60000;
+                                                    const isOver30Min = minutesLeft < 30;
+                                                    const isClosing = updatingTaskId === assignedTask.id;
                                                     return (
                                                         <div className={`p-3 rounded-[1.25rem] border-2 text-center ${isExpired ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-teal-50 border-teal-200 text-teal-700'}`}>
                                                             <p className="font-black text-[10px] uppercase tracking-widest mb-1">{isExpired ? 'SLA Vencido' : 'En Resolución'}</p>
                                                             <p className="font-bold text-sm leading-tight">{employeeName}</p>
+                                                            {isOver30Min && (
+                                                                <button
+                                                                    onClick={() => handleUpdateTaskStatus(assignedTask.id, isExpired ? 'FAILED' : 'COMPLETED')}
+                                                                    disabled={isClosing}
+                                                                    className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                                                                >
+                                                                    {isClosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                                                                    Cerrar tarea
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     );
                                                 }

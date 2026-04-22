@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { notifyUser } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -41,7 +42,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Cuidador fuera de tu sede" }, { status: 403 });
         }
 
-        const expiresAt = new Date(Date.now() + (expirationMins || 15) * 60000);
+        // FIX 1 — Ventana de 60 min (antes 15 min). Reduce tasa de auto-fallo.
+        const expiresAt = new Date(Date.now() + (expirationMins || 60) * 60000);
 
         // 1. Create the FastActionAssignment. supervisorId SIEMPRE session.user.id
         // (antes venía del body — permitía falsificar el supervisor).
@@ -54,6 +56,13 @@ export async function POST(req: Request) {
                 expiresAt,
                 status: 'PENDING'
             }
+        });
+
+        // FIX 4 — Notificar al cuidador en el momento del despacho
+        await notifyUser(caregiverId, {
+            type: 'SHIFT_ALERT',
+            title: '⚡ Nueva tarea asignada',
+            message: `${description} — Tienes 1 hora para completarla.`,
         });
 
         // 2. Mark the source as handled if possible — con tenant check
