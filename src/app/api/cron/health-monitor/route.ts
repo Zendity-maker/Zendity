@@ -146,16 +146,19 @@ export async function GET(req: Request) {
                 totalAnomalies += anomalies.length;
                 globalReport[hq.id] = anomalies;
 
-                const summary = anomalies
-                    .map(a => `• ${a.check}: ${a.count}`)
-                    .join('\n');
-
-                // ── Notificar a DIRECTOR y ADMIN de esta sede ──────────
-                await notifyRoles(hq.id, ['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'], {
-                    type: 'SHIFT_ALERT',
-                    title: `⚠️ Health Monitor — ${anomalies.length} alerta${anomalies.length > 1 ? 's' : ''} en ${hq.name}`,
-                    message: `Zéndity detectó anomalías operativas:\n${summary}\n\nRevisa el panel de administración.`,
-                });
+                // ── 1 notificación por anomalía → clickeable, corta, específica ──
+                await Promise.allSettled(
+                    anomalies.map(a =>
+                        notifyRoles(hq.id, ['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'], {
+                            type: 'SHIFT_ALERT',
+                            title: `⚠️ ${a.check}`,
+                            message: a.detail
+                                ? `${a.count} caso${a.count > 1 ? 's' : ''} — ${a.detail}`
+                                : `${a.count} caso${a.count > 1 ? 's' : ''} detectado${a.count > 1 ? 's' : ''} en ${hq.name}.`,
+                            link: '/corporate',
+                        })
+                    )
+                );
 
                 // ── Crear SystemAuditLog ────────────────────────────────
                 await prisma.systemAuditLog.create({
