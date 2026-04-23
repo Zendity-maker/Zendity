@@ -146,6 +146,19 @@ export async function GET(req: Request) {
                 totalAnomalies += anomalies.length;
                 globalReport[hq.id] = anomalies;
 
+                // Link destino según el tipo de anomalía — lleva al director al lugar correcto
+                const anomalyLinks: Record<string, string> = {
+                    'ShiftSessions zombi (>14h sin cierre)':          '/care/supervisor',
+                    'Patients ACTIVE sin colorGroup':                   '/hr/schedule',
+                    'VitalsOrders PENDING vencidas >4h':               '/care/supervisor',
+                    'FastActionAssignment PENDING expiradas >1h':      '/care/supervisor',
+                    'Notifications no leídas >48h (acumulación)':      '/corporate',
+                    'complianceScore fuera de rango 0-100':            '/hr',
+                    'IntakeData PENDING >7 días sin actualizar':        '/corporate/patients/intake',
+                    'FamilyMember sin Patient válido':                  '/corporate/medical/patients',
+                    'PatientMedication ACTIVE sin scheduleTimes':       '/corporate/medical/catalog',
+                };
+
                 // ── 1 notificación por anomalía → clickeable, corta, específica ──
                 await Promise.allSettled(
                     anomalies.map(a =>
@@ -155,7 +168,7 @@ export async function GET(req: Request) {
                             message: a.detail
                                 ? `${a.count} caso${a.count > 1 ? 's' : ''} — ${a.detail}`
                                 : `${a.count} caso${a.count > 1 ? 's' : ''} detectado${a.count > 1 ? 's' : ''} en ${hq.name}.`,
-                            link: '/corporate',
+                            link: anomalyLinks[a.check] ?? '/corporate',
                         })
                     )
                 );
