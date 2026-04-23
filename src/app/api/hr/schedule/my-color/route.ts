@@ -15,11 +15,30 @@ export async function GET(req: Request) {
         }
 
         const today = new Date();
-        // Sprint — turno actual en horario AST (Vercel corre en UTC;
-        // `new Date().getHours()` devolvería la hora UTC incorrecta).
-        const currentShiftType = inferShiftTypeFromAST();
 
-        // Resolver color del día (prioridad: asignación manual → roster publicado del turno ACTUAL)
+        // FIX — turno cruce de límite: si la cuidadora tiene una ShiftSession activa,
+        // inferir el shiftType desde el INICIO de esa sesión, no desde la hora actual.
+        // Ejemplo: inició a las 6 AM (MORNING). Si ahora son las 3 PM el reloj dice
+        // EVENING → my-color no encontraba su ScheduledShift MORNING → retornaba null
+        // → tablet vacío. Con el fix, se usa la hora de inicio (MORNING) para buscar.
+        const activeSession = await prisma.shiftSession.findFirst({
+            where: {
+                caregiverId: userId,
+                headquartersId: hqId,
+                actualEndTime: null,
+                startTime: { gte: todayStartAST() },
+            },
+            orderBy: { startTime: 'desc' },
+            select: { id: true, startTime: true },
+        });
+
+        // Si hay sesión activa → usar el shiftType del momento de inicio.
+        // Si no hay sesión → usar la hora actual (comportamiento legacy).
+        const shiftTypeToUse = activeSession
+            ? inferShiftTypeFromAST(activeSession.startTime)
+            : inferShiftTypeFromAST();
+
+        // Resolver color del día (prioridad: asignación manual → roster publicado del turno)
         let resolvedColor: string | null = null;
         let source: 'assignment' | 'roster' | 'none' | 'no_color_assigned' = 'none';
 
@@ -36,14 +55,13 @@ export async function GET(req: Request) {
             resolvedColor = colorAssignment.color;
             source = 'assignment';
         } else {
-            // Filtro por shiftType actual: previene que un shift futuro (ej. NIGHT)
-            // contamine el turno actual (ej. EVENING). Antes: sin filtro de shiftType,
-            // cualquier shift del día matcheaba.
+            // Usar shiftTypeToUse (inicio de sesión o actual) en lugar de la hora del reloj.
+            // Previene pérdida de color al cruzar el límite MORNING→EVENING (2PM AST).
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
                     date: { gte: startOfDay(today), lte: endOfDay(today) },
-                    shiftType: currentShiftType as any,
+                    shiftType: shiftTypeToUse as any,
                     isAbsent: false,
                     schedule: {
                         headquartersId: hqId,
@@ -57,7 +75,7 @@ export async function GET(req: Request) {
                     resolvedColor = todayShift.colorGroup;
                     source = 'roster';
                 } else {
-                    // Shift existe pero sin colorGroup (ej. KITCHEN, MAINTENANCE, limpieza).
+                    // Shift existe pero sin colorGroup (ej. SUPERVISOR_DAY, KITCHEN).
                     // Devolver color=null + source especial para que el tablet NO caiga
                     // a localStorage — en su lugar muestra "sin residentes asignados".
                     source = 'no_color_assigned';

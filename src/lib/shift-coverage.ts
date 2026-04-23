@@ -3,11 +3,17 @@ import { todayStartAST } from '@/lib/dates';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT';
 
-export function inferShiftTypeFromAST(): ShiftT {
+/**
+ * Infiere el turno clínico (MORNING/EVENING/NIGHT) en hora AST (America/Puerto_Rico).
+ * @param at  Fecha opcional. Por defecto usa la hora ACTUAL.
+ *            Pasar `activeSession.startTime` para resolver el turno del momento
+ *            en que el cuidador inició sesión, no el turno actual del reloj.
+ */
+export function inferShiftTypeFromAST(at?: Date): ShiftT {
     const astFmt = new Intl.DateTimeFormat('en-US', {
         hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico',
     });
-    const hAst = parseInt(astFmt.format(new Date()), 10) % 24;
+    const hAst = parseInt(astFmt.format(at ?? new Date()), 10) % 24;
     if (hAst >= 6 && hAst < 14) return 'MORNING';
     if (hAst >= 14 && hAst < 22) return 'EVENING';
     return 'NIGHT';
