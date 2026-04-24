@@ -176,6 +176,7 @@ model User {
 
   // FASE 6 Integrations
   signedLifePlans LifePlan[] @relation("LifePlanSigner")
+  approvedPlans   LifePlan[] @relation("PaiApprover")
 
   // FASE 7 Integrations
   vitalSignsMeasured VitalSigns[]
@@ -561,7 +562,7 @@ model Patient {
 
   // FASE 6 Integrations
   intakeData IntakeData?
-  lifePlan   LifePlan?
+  lifePlans  LifePlan[]
 
   // FASE 7 Integrations
   vitalSigns VitalSigns[]
@@ -1021,8 +1022,15 @@ enum IntakeStatus {
 
 model LifePlan {
   id        String         @id @default(uuid())
-  patientId String         @unique
+  patientId String
   status    LifePlanStatus @default(DRAFT)
+
+  // Sprint PAI — Tipo y aprobación
+  type          String    @default("INITIAL") // "INITIAL" | "QUARTERLY" | "REVISION"
+  approvedById  String?
+  approvedAt    DateTime?
+  emailSentAt   DateTime?
+  familyVersion String?   @db.Text
 
   // 1. Identificación y perfil (Mayormente en Patient, pero guardamos metadatos adicionales si es necesario)
   supportSource String? // "Hija y sobrino"
@@ -1061,8 +1069,12 @@ model LifePlan {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  patient  Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  signedBy User?   @relation("LifePlanSigner", fields: [signedById], references: [id])
+  patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  signedBy   User?   @relation("LifePlanSigner", fields: [signedById], references: [id])
+  approvedBy User?   @relation("PaiApprover", fields: [approvedById], references: [id])
+
+  @@index([patientId, status])
+  @@index([patientId, createdAt])
 }
 
 enum LifePlanStatus {
