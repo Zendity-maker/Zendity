@@ -95,7 +95,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             await notifyUser(incident.employeeId, {
                 type: 'EMAR_ALERT',
                 title: 'Observación pendiente de respuesta',
-                message: 'El director solicita tu explicación. Tienes 48 horas para responder.',
+                message: 'El director solicita tu explicación. Tienes 72 horas para responder.',
                 link: `/my-observations/${id}`,
             });
 
