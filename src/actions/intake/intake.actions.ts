@@ -101,21 +101,27 @@ export async function submitIntake(patientId: string) {
       });
 
       // 2.3 Creación pasiva del esqueleto del PAI (LifePlan)
-      await tx.lifePlan.upsert({
-        where: { patientId },
-        update: {
-          clinicalSummary: intake.medicalHistory,
-          mobility: intake.mobilityLevel,
-          continence: intake.continenceLevel,
-        },
-        create: {
-          patientId,
-          clinicalSummary: intake.medicalHistory,
-          mobility: intake.mobilityLevel,
-          continence: intake.continenceLevel,
-          status: "DRAFT",
-        },
-      });
+      const existingPai = await tx.lifePlan.findFirst({ where: { patientId }, select: { id: true } });
+      if (existingPai) {
+        await tx.lifePlan.update({
+          where: { id: existingPai.id },
+          data: {
+            clinicalSummary: intake.medicalHistory,
+            mobility: intake.mobilityLevel,
+            continence: intake.continenceLevel,
+          },
+        });
+      } else {
+        await tx.lifePlan.create({
+          data: {
+            patientId,
+            clinicalSummary: intake.medicalHistory,
+            mobility: intake.mobilityLevel,
+            continence: intake.continenceLevel,
+            status: "DRAFT",
+          },
+        });
+      }
 
       // 2.4 Generación de Borradores eMAR (PatientMedication DRAFT)
       if (intake.rawMedications) {

@@ -44,7 +44,7 @@ export async function PATCH(req: Request) {
                 leaveDate: new Date()
             },
             include: {
-                lifePlan: true,
+                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 headquarters: {
                     select: { name: true, logoUrl: true, phone: true, billingAddress: true }
                 },

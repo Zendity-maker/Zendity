@@ -107,7 +107,7 @@ export async function GET(req: Request) {
                         }
                     }
                 },
-                lifePlan: true,
+                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 mealLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },
                     distinct: ['mealType'],

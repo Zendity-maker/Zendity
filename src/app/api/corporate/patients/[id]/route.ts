@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             where: { id },
             include: {
                 headquarters: true,
-                lifePlan: true,
+                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 medications: {
                     include: {
                         medication: true,

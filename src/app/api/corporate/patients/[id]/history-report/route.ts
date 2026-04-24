@@ -30,7 +30,7 @@ export async function GET(
                 mealLogs: true,
                 serviceVisits: true,
                 intakeData: true,
-                lifePlan: true,
+                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 TriageTicket: {
                     orderBy: { createdAt: 'desc' },
                     include: {

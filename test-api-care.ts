@@ -16,7 +16,7 @@ async function test() {
             },
             include: {
                 medications: { include: { medication: true } },
-                lifePlan: true
+                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 }
             },
             orderBy: { name: 'asc' }
         });

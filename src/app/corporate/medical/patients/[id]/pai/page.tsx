@@ -16,9 +16,15 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [toast, setToast] = useState<string | null>(null);
+    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
 
     // --- FORM STATES ---
+    const [paiId, setPaiId] = useState<string | null>(null);
     const [status, setStatus] = useState("DRAFT");
+    const [paiType, setPaiType] = useState("INITIAL");
+    const [familyVersion, setFamilyVersion] = useState("");
+    const [showFamilyPreview, setShowFamilyPreview] = useState(false);
     const [supportSource, setSupportSource] = useState("");
     const [clinicalSummary, setClinicalSummary] = useState("");
     const [continence, setContinence] = useState("");
@@ -61,7 +67,10 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
             const data = await res.json();
             if (data.success && data.lifePlan) {
                 const p = data.lifePlan;
+                setPaiId(p.id);
                 setStatus(p.status || "DRAFT");
+                setPaiType(p.type || "INITIAL");
+                setFamilyVersion(p.familyVersion || "");
                 setSupportSource(p.supportSource || "");
                 setClinicalSummary(p.clinicalSummary || "");
                 setContinence(p.continence || "");
@@ -91,10 +100,18 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
     };
 
     const handleSave = async (isSigning = false) => {
+        if (isSigning && !familyVersion.trim()) {
+            setShowFamilyPreview(true);
+            showToast("⚠️ Genera o escribe la versión familiar antes de aprobar.");
+            return;
+        }
         setIsSaving(true);
         try {
             const payload = {
+                id: paiId || undefined,
+                type: paiType,
                 status: isSigning ? "APPROVED" : status,
+                familyVersion: familyVersion || null,
                 supportSource, clinicalSummary, continence, cognitiveLevel, mobility, dietDetails,
                 risks, interdisciplinarySummary, goals, familyEducation, preferences, monitoringMethod, revisionCriteria,
                 recommendedServices,
@@ -110,13 +127,18 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
             });
             const data = await res.json();
             if (data.success) {
-                alert(isSigning ? "PAI Firmado y Aprobado exitosamente." : "Borrador de PAI Guardado.");
-                if (isSigning) router.push(`/corporate/medical/patients/${params.id}`);
+                if (!paiId && data.lifePlan?.id) setPaiId(data.lifePlan.id);
+                setStatus(data.lifePlan?.status || status);
+                showToast(isSigning
+                    ? data.emailSent ? "✅ PAI aprobado y recibo enviado a la familia." : "✅ PAI firmado y aprobado."
+                    : "✓ Borrador guardado.");
+                if (isSigning) setTimeout(() => router.push(`/corporate/medical/patients/${params.id}`), 1800);
             } else {
-                alert("Error: " + data.error);
+                showToast("Error: " + data.error);
             }
         } catch (e) {
             console.error(e);
+            showToast("Error de conexión.");
         } finally {
             setIsSaving(false);
         }
@@ -138,12 +160,12 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                 if (ai.interdisciplinarySummary) setInterdisciplinarySummary(ai.interdisciplinarySummary);
                 if (ai.familyEducation) setFamilyEducation(ai.familyEducation);
                 if (ai.revisionCriteria) setRevisionCriteria(ai.revisionCriteria);
-                
                 if (ai.risks?.length) setRisks(ai.risks);
                 if (ai.goals?.length) setGoals(ai.goals);
-                alert("¡PAI autogenerado con éxito! Por favor revisa y ajusta las recomendaciones antes de firmarlo.");
+                if (data.familyVersion) setFamilyVersion(data.familyVersion);
+                showToast("✅ Zendi completó el PAI con datos clínicos reales. Revisa y ajusta antes de firmar.");
             } else {
-                alert("Zendi AI no pudo procesar el historial: " + data.error);
+                showToast("Zendi AI no pudo procesar el historial: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -157,8 +179,16 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
 
     return (
         <div className="min-h-screen bg-slate-50 p-6 md:p-10 font-sans pb-32">
+
+            {/* Toast */}
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm animate-in slide-in-from-bottom-4">
+                    {toast}
+                </div>
+            )}
+
             <div className="max-w-5xl mx-auto space-y-8">
-                
+
                 {/* Header Nav */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <Link href={`/corporate/medical/patients/${params.id}`} className="text-slate-500 font-bold flex items-center gap-2 hover:text-slate-800 transition">
@@ -190,6 +220,48 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                             </button>
                         )}
                         {status === 'APPROVED' && <div className="hidden md:block bg-emerald-100 text-emerald-800 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-sm border border-emerald-200 shadow-sm">PAI ACTIVO </div>}
+                    </div>
+                </div>
+
+                {/* Tipo de PAI + Versión Familiar */}
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6">
+                    <div className="w-full md:w-1/3">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Tipo de PAI</label>
+                        <select value={paiType} onChange={e => setPaiType(e.target.value)}
+                            disabled={status === 'APPROVED'}
+                            className="w-full bg-slate-50 border border-slate-300 rounded-xl py-3 px-4 font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-60">
+                            <option value="INITIAL">Inicial</option>
+                            <option value="QUARTERLY">Trimestral</option>
+                            <option value="REVISION">Revisión</option>
+                        </select>
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                ✉️ Versión Familiar (Zendi la genera al auto-completar)
+                            </label>
+                            <button onClick={() => setShowFamilyPreview(!showFamilyPreview)}
+                                className="text-xs text-indigo-600 font-bold hover:underline">
+                                {showFamilyPreview ? 'Ocultar' : 'Ver / Editar'}
+                            </button>
+                        </div>
+                        {!familyVersion && !showFamilyPreview && (
+                            <p className="text-sm text-slate-400 italic">Se generará automáticamente al usar Zendi AI.</p>
+                        )}
+                        {!familyVersion && showFamilyPreview && (
+                            <textarea value={familyVersion} onChange={e => setFamilyVersion(e.target.value)} rows={4}
+                                placeholder="Escribe aquí la versión familiar si prefieres no usar Zendi AI..."
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium text-slate-800 resize-none focus:ring-2 focus:ring-indigo-400 outline-none" />
+                        )}
+                        {familyVersion && showFamilyPreview && (
+                            <textarea value={familyVersion} onChange={e => setFamilyVersion(e.target.value)} rows={5}
+                                className="w-full bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm font-medium text-slate-800 resize-none focus:ring-2 focus:ring-indigo-400 outline-none" />
+                        )}
+                        {familyVersion && !showFamilyPreview && (
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 text-sm text-emerald-700 font-medium">
+                                ✅ Versión familiar lista — {familyVersion.slice(0, 60)}...
+                            </div>
+                        )}
                     </div>
                 </div>
 

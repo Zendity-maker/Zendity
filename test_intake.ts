@@ -55,7 +55,7 @@ async function runE2E() {
 
   console.log("\\n-> 4. Proyección a Patient y LifePlan");
   const patient = await prisma.patient.findUnique({ where: { id: pid }});
-  const lifePlan = await prisma.lifePlan.findUnique({ where: { patientId: pid }});
+  const lifePlan = await prisma.lifePlan.findFirst({ where: { patientId: pid }, orderBy: { createdAt: 'desc' } });
   console.log(`   [x] LifePlan Creado? ${!!lifePlan} (Movilidad: ${lifePlan?.mobility})`);
 
   console.log("\\n-> 5. Confirmación Final del Supervisor");
@@ -92,11 +92,12 @@ async function submitIntakeMock(patientId: string) {
     await prisma.$transaction(async (tx) => {
       await tx.intakeData.update({ where: { patientId }, data: { status: "PENDIENTE_REVISION" } });
       await tx.patient.update({ where: { id: patientId }, data: { diet: intake.dietSpecifics || undefined } });
-      await tx.lifePlan.upsert({
-        where: { patientId },
-        update: { clinicalSummary: intake.medicalHistory, mobility: intake.mobilityLevel },
-        create: { patientId, clinicalSummary: intake.medicalHistory, mobility: intake.mobilityLevel, status: "DRAFT" },
-      });
+      const existingPlan = await tx.lifePlan.findFirst({ where: { patientId }, select: { id: true } });
+      if (existingPlan) {
+        await tx.lifePlan.update({ where: { id: existingPlan.id }, data: { clinicalSummary: intake.medicalHistory, mobility: intake.mobilityLevel } });
+      } else {
+        await tx.lifePlan.create({ data: { patientId, clinicalSummary: intake.medicalHistory, mobility: intake.mobilityLevel, status: "DRAFT" } });
+      }
       if (intake.rawMedications) {
         await tx.patientMedication.deleteMany({
           where: { patientId, status: "DRAFT", isActive: false, instructions: { contains: "automáticamente desde Intake" } }
