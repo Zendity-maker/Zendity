@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
 
+function generatePin(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 
 
 if (process.env.SENDGRID_API_KEY) {
@@ -49,7 +53,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         const hqId = (session.user as any).headquartersId;
         const {
-            name, email, phone, passcode, accessLevel, relationship,
+            name, email, phone, accessLevel, relationship,
             // Sprint P — Admisión Unificada
             address, idCardUrl, isPrimary,
         } = await req.json();
@@ -73,7 +77,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 data: {
                     name,
                     ...(phone !== undefined ? { phone: phone || null } : {}),
-                    ...(passcode !== undefined ? { passcode } : {}),
                     ...(accessLevel !== undefined ? { accessLevel: accessLevel || "Full" } : {}),
                     ...(relationship !== undefined ? { relationship: relationship || null } : {}),
                     ...(address !== undefined ? { address: address || null } : {}),
@@ -95,6 +98,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ success: true, familyMember: updated, updated: true });
         }
 
+        // Generar PIN automático de 6 dígitos para acceso inmediato
+        const pin = generatePin();
+
         const newFamilyMember = await prisma.familyMember.create({
             data: {
                 patientId: patientId,
@@ -102,7 +108,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 name,
                 email,
                 phone: phone || null,
-                passcode: passcode || null,
+                passcode: pin,
+                isRegistered: true,
                 accessLevel: accessLevel || "Full",
                 relationship: relationship || null,
                 address: address || null,
@@ -123,94 +130,90 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             });
         }
 
-        // -------------------------------------------------------------
-        // FASE 66: B2C ONBOARDING WELCOME EMAIL
-        // Solo se envía si hay passcode — el flujo moderno usa /invite (token 7d)
-        // -------------------------------------------------------------
-        if (!passcode) {
-            return NextResponse.json({ success: true, familyMember: newFamilyMember });
-        }
+        // Email de bienvenida con credenciales — siempre se envía al crear familiar nuevo
         try {
-            const hq = await prisma.headquarters.findUnique({
-                where: { id: hqId },
-                select: { name: true, logoUrl: true }
-            });
-            const hqName = hq?.name || 'Zendity Care Center';
-
-            const patient = await prisma.patient.findUnique({
-                where: { id: patientId },
-                select: { name: true }
-            });
+            const [hq, patient] = await Promise.all([
+                prisma.headquarters.findUnique({ where: { id: hqId }, select: { name: true, logoUrl: true } }),
+                prisma.patient.findUnique({ where: { id: patientId }, select: { name: true } }),
+            ]);
+            const hqName = hq?.name || 'Zéndity';
             const patientName = patient?.name || 'su familiar';
 
-            const emailSubject = `Bienvenido(a) a ${hqName} - Accesos al Portal de Familiares`;
-            
-            const htmlContent = `
-                <p>Nos complace darle la más cordial bienvenida al portal oficial de monitoreo de <strong style="color: #0d9488;">${hqName}</strong>, impulsado por tecnología Zendity OS.</p>
-                <p>Ha sido registrado como familiar autorizado para recibir partes clínicos, mensajes de enfermería, y acceso a facturas relacionadas con el cuidado de <strong>${patientName}</strong>.</p>
-                
-                <div style="background-color: #f1f5f9; border-left: 4px solid #0d9488; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                    <h3 style="margin-top: 0; color: #0f172a; font-size: 16px;">Sus Credenciales de Ingreso:</h3>
-                    <ul style="list-style: none; padding-left: 0; color: #334155; margin-bottom: 0;">
-                        <li style="margin-bottom: 8px;"> <strong>Portal:</strong> <a href="https://app.zendity.com" style="color: #0284c7; text-decoration: none;">app.zendity.com</a> (Seleccione <em>Login Familiares</em>)</li>
-                        <li style="margin-bottom: 8px;"> <strong>Usuario:</strong> ${email}</li>
-                        <li> <strong>PIN de Seguridad:</strong> <span style="background-color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 2px;">${passcode}</span></li>
-                    </ul>
-                </div>
-                
-                <p>Por motivos de seguridad (HIPAA), le recomendamos no compartir este PIN de acceso universal con terceros. Si requiere que otra persona tenga acceso a la plataforma de monitoreo, comuníquese con nuestra Oficina Central para emitirle credenciales propias.</p>
-            `;
-
-            const corporateTemplate = `
-            <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-                <div style="background-color: #ffffff; padding: 32px 24px; text-align: center; border-bottom: 3px solid #0d9488;">
-                    ${hq?.logoUrl ? `<img src="${hq.logoUrl}" alt="${hqName}" style="max-width: 200px; max-height: 90px; margin-bottom: 8px; border-radius: 12px; object-fit: contain;" />` : `<h2 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 800;">${hqName}</h2>`}
-                    <p style="color: #64748b; margin: 12px 0 0 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Comunicación Oficial a Familiares</p>
-                </div>
-                <div style="padding: 40px 32px; background-color: #ffffff; color: #334155; line-height: 1.7; font-size: 16px;">
-                    <p style="font-weight: 600; color: #0f172a; margin-bottom: 24px;">Estimado/a ${name},</p>
-                    <div style="white-space: pre-wrap; color: #475569;">
-                        ${htmlContent}
-                    </div>
-                    <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-                        <p style="margin: 0; color: #0f172a; font-weight: 600;">Atentamente,</p>
-                        <p style="margin: 4px 0 0 0; color: #64748b;">La Dirección de ${hqName}</p>
-                    </div>
-                </div>
-                <div style="background-color: #f8fafc; padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-                    <p style="margin: 0;">Este mensaje está relacionado al cuidado de <span style="font-weight: bold; color: #0f172a;">${patientName}</span>.</p>
-                    <p style="margin: 8px 0 0 0;">Por favor no responda directamente a este correo automático.</p>
-                    <p style="margin: 16px 0 0 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em;">Tecnología Zendity OS</p>
-                </div>
-            </div>
-            `;
+            const html = `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;background:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
+    <div style="background:#1E293B;padding:24px 32px;">
+      <div style="color:#1D9E75;font-size:22px;font-weight:900;letter-spacing:2px;">ZÉNDITY</div>
+      <div style="color:#94A3B8;font-size:12px;margin-top:4px;">${hqName} — Portal Familiar</div>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 8px;color:#1E293B;font-size:18px;">Bienvenido/a al Portal Familiar</h2>
+      <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6;">
+        Hola <strong>${name}</strong>,<br><br>
+        <strong>${hqName}</strong> le ha habilitado acceso al portal familiar de Zéndity,
+        donde podrá mantenerse al tanto del cuidado de <strong>${patientName}</strong>.
+      </p>
+      <div style="background:#F1F5F9;border-left:4px solid #1D9E75;border-radius:0 8px 8px 0;padding:20px 24px;margin-bottom:24px;">
+        <h3 style="margin:0 0 12px;color:#0F172A;font-size:15px;">Sus credenciales de acceso:</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="color:#64748B;font-size:13px;padding:6px 0;width:100px;"><strong>Portal:</strong></td>
+            <td style="font-size:13px;padding:6px 0;">
+              <a href="https://app.zendity.com/family" style="color:#0284C7;text-decoration:none;font-weight:700;">app.zendity.com/family</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>Email:</strong></td>
+            <td style="font-size:13px;padding:6px 0;color:#0F172A;">${email}</td>
+          </tr>
+          <tr>
+            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>PIN:</strong></td>
+            <td style="padding:6px 0;">
+              <span style="background:#1E293B;color:#1D9E75;padding:4px 14px;border-radius:6px;font-family:monospace;font-size:20px;font-weight:900;letter-spacing:4px;">${pin}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+        <p style="margin:0;color:#92400E;font-size:13px;">
+          ⚠️ <strong>Recomendamos cambiar tu PIN después del primer acceso</strong> desde la configuración del portal.
+        </p>
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://app.zendity.com/family"
+           style="background:#1D9E75;color:#FFFFFF;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">
+          Entrar al portal familiar
+        </a>
+      </div>
+    </div>
+    <div style="background:#F8FAFC;padding:16px 32px;text-align:center;border-top:1px solid #E2E8F0;">
+      <p style="margin:0;color:#94A3B8;font-size:12px;">${hqName} — Zéndity Healthcare Management Platform</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
             if (process.env.SENDGRID_API_KEY) {
-                const msg = {
+                await sgMail.send({
                     to: email,
                     from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
-                    subject: emailSubject,
-                    html: corporateTemplate,
-                };
-                await sgMail.send(msg);
-                console.log(`[ONBOARDING] Welcome Email dispatched to FamilyMember: ${email}`);
-            } else {
-                console.log(`[ONBOARDING - MOCK] Missing SENDGRID_API_KEY. Ignored Welcome Email to ${email}`);
-                return NextResponse.json({ 
-                    success: true, 
-                    familyMember: newFamilyMember, 
-                    emailFailed: true, 
-                    emailError: "Falta configurar la variable global 'SENDGRID_API_KEY' en Vercel. Modo de simulación activo." 
+                    subject: `Bienvenido/a a ${hqName} — Acceso al Portal Familiar`,
+                    html,
                 });
+                console.log(`[ONBOARDING] Credenciales enviadas a: ${email}`);
+            } else {
+                console.warn(`[ONBOARDING] SENDGRID_API_KEY no configurado. Email no enviado a ${email}`);
+                return NextResponse.json({ success: true, familyMember: newFamilyMember, emailFailed: true, emailError: "SENDGRID_API_KEY no configurado." });
             }
         } catch (emailError: any) {
-            console.error("[ONBOARDING] Error sending Welcome Email to family member:", emailError);
+            console.error("[ONBOARDING] Error enviando email de bienvenida:", emailError);
             const attemptedSender = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
-            return NextResponse.json({ 
-                success: true, 
-                familyMember: newFamilyMember, 
-                emailFailed: true, 
-                emailError: `[Remitente intentado: "${attemptedSender}"] -> ` + (emailError.response ? JSON.stringify(emailError.response.body) : emailError.message)
+            return NextResponse.json({
+                success: true,
+                familyMember: newFamilyMember,
+                emailFailed: true,
+                emailError: `[Remitente: "${attemptedSender}"] ` + (emailError.response ? JSON.stringify(emailError.response.body) : emailError.message)
             });
         }
 
