@@ -36,7 +36,8 @@ export async function GET(req: Request) {
                 },
                 wellnessNotes: {
                     orderBy: { createdAt: 'desc' },
-                    take: 5
+                    take: 5,
+                    include: { author: { select: { name: true } } },
                 },
                 medications: {
                     include: {
