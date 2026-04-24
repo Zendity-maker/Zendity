@@ -53,6 +53,9 @@ model Headquarters {
   // FASE 9 Zendi AI
   zendiNursingUpdates ZendiNursingUpdate[]
 
+  // Centro de Mando AI — dismissals de banderas rojas
+  insightDismissals InsightDismissal[]
+
   // FASE 19 Integrations
   invoices Invoice[]
 
@@ -273,6 +276,11 @@ model User {
 
   // Sprint P — Documentos de residentes subidos/analizados por este usuario
   uploadedDocuments PatientDocument[]
+
+  // Centro de Mando AI — banderas descartadas por este director
+  insightDismissalsGiven    InsightDismissal[] @relation("DismissedBy")
+  // Centro de Mando AI — banderas descartadas sobre este empleado
+  insightDismissalsReceived InsightDismissal[] @relation("DismissedEmployee")
 }
 
 model Account {
@@ -1175,6 +1183,27 @@ model ZendiNursingUpdate {
 
   @@index([patientId, status])
   @@index([headquartersId])
+}
+
+// =======================
+// Centro de Mando AI — InsightDismissal
+// =======================
+
+model InsightDismissal {
+  id             String   @id @default(uuid())
+  headquartersId String
+  employeeId     String
+  insightType    String   // e.g. "low_compliance", "missing_vitals", "late_meds"
+  dismissedById  String
+  dismissedAt    DateTime @default(now())
+  expiresAt      DateTime
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  employee     User         @relation("DismissedEmployee", fields: [employeeId], references: [id])
+  dismissedBy  User         @relation("DismissedBy", fields: [dismissedById], references: [id])
+
+  @@index([employeeId, insightType])
+  @@index([headquartersId, expiresAt])
 }
 
 // =======================
