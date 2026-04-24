@@ -833,13 +833,14 @@ model PosturalChangeLog {
 }
 
 model FamilyMessage {
-  id         String     @id @default(uuid())
-  patientId  String // Para organizar los mensajes en bandejas por paciente
-  senderType SenderType
-  senderId   String // ID del FamilyMember o del User (Staff)
-  content    String
-  isRead     Boolean    @default(false)
-  createdAt  DateTime   @default(now())
+  id            String     @id @default(uuid())
+  patientId     String // Para organizar los mensajes en bandejas por paciente
+  senderType    SenderType
+  senderId      String // ID del FamilyMember o del User (Staff)
+  content       String
+  isRead        Boolean    @default(false)
+  recipientType String?    @default("ADMINISTRATION") // 'NURSING' | 'ADMINISTRATION'
+  createdAt     DateTime   @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
 }
