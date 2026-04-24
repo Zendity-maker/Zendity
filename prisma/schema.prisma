@@ -50,6 +50,9 @@ model Headquarters {
   conciergeProducts ConciergeProduct[]
   conciergeServices ConciergeService[]
 
+  // FASE 9 Zendi AI
+  zendiNursingUpdates ZendiNursingUpdate[]
+
   // FASE 19 Integrations
   invoices Invoice[]
 
@@ -176,9 +179,10 @@ model User {
   dailyLogsWritten   DailyLog[]
 
   // FASE 9 Integrations
-  medicationAudits   MedicationAuditLog[]
-  zendiInteractions  ZendiInteractionLog[]
-  zendiFamilyMoments ZendiFamilyMoment[]
+  medicationAudits    MedicationAuditLog[]
+  zendiInteractions   ZendiInteractionLog[]
+  zendiFamilyMoments  ZendiFamilyMoment[]
+  zendiNursingUpdates ZendiNursingUpdate[]
 
   // FASE 18 Integrations
   specialistAppointments ConciergeAppointment[] @relation("SpecialistAppointments")
@@ -558,8 +562,9 @@ model Patient {
   fallIncidents       FallIncident[]
 
   // FASE 9 Integrations
-  healthAppointments HealthAppointment[]
-  zendiFamilyMoments ZendiFamilyMoment[]
+  healthAppointments  HealthAppointment[]
+  zendiFamilyMoments  ZendiFamilyMoment[]
+  zendiNursingUpdates ZendiNursingUpdate[]
 
   // FASE 18 Integrations
   conciergeOrders       ConciergeOrder[]
@@ -1150,6 +1155,26 @@ model ZendiInteractionLog {
   createdAt     DateTime @default(now())
 
   author User @relation(fields: [authorId], references: [id])
+}
+
+model ZendiNursingUpdate {
+  id              String   @id @default(uuid())
+  patientId       String
+  authorId        String   // enfermera que acepta/declina
+  headquartersId  String
+  status          String   @default("PENDING") // PENDING | SENT | DECLINED
+  optionGen1      String   @db.Text
+  optionGen2      String   @db.Text
+  selectedOption  String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  author       User         @relation(fields: [authorId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([patientId, status])
+  @@index([headquartersId])
 }
 
 // =======================
