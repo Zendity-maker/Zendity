@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, IndianRupee, Banknote } from "lucide-react";
+import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign } from "lucide-react";
 
 type Patient = {
     id: string;
@@ -48,10 +48,18 @@ export default function BillingDashboard() {
     const { data: session } = useSession();
     const hqName = (session?.user as any)?.headquartersName || "Zendity HQ";
 
-    // Modal State
+    // Modal nueva factura
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [viewPdfInvoice, setViewPdfInvoice] = useState<Invoice | null>(null);
+
+    // Modal pago
+    const [payModalInvoice, setPayModalInvoice] = useState<Invoice | null>(null);
+    const [payMethod, setPayMethod] = useState("ACH");
+    const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+    const [payRef, setPayRef] = useState("");
+    const [payAmount, setPayAmount] = useState("");
+    const [isPaySubmitting, setIsPaySubmitting] = useState(false);
 
     // New Invoice Form State
     const [selectedPatientId, setSelectedPatientId] = useState("");
@@ -133,23 +141,41 @@ export default function BillingDashboard() {
         }
     };
 
-    const handleMarkPaid = async (invoiceId: string) => {
-        if (!confirm("¿Registrar el pago oficial de esta factura?")) return;
+    const openPayModal = (invoice: Invoice) => {
+        setPayModalInvoice(invoice);
+        setPayMethod("ACH");
+        setPayDate(new Date().toISOString().split('T')[0]);
+        setPayRef("");
+        setPayAmount(invoice.totalAmount.toString());
+    };
 
+    const handleConfirmPay = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!payModalInvoice) return;
+        setIsPaySubmitting(true);
         try {
-            const res = await fetch(`/api/corporate/billing/${invoiceId}/pay`, {
+            const res = await fetch(`/api/corporate/billing/${payModalInvoice.id}/pay`, {
                 method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    paymentMethod: payMethod,
+                    paidAt: payDate,
+                    referenceNumber: payRef || undefined,
+                    amount: parseFloat(payAmount) || payModalInvoice.totalAmount,
+                })
             });
-            if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                setPayModalInvoice(null);
                 await fetchData();
                 router.refresh();
             } else {
-                const data = await res.json();
-                alert(`Error del Servidor: ${data.error || 'Desconocido'}`);
+                alert(`Error: ${data.error || 'Desconocido'}`);
             }
-        } catch (error: any) {
-            console.error(error);
-            alert(`Error de Conexión: ${error.message}`);
+        } catch (err: any) {
+            alert(`Error de conexión: ${err.message}`);
+        } finally {
+            setIsPaySubmitting(false);
         }
     };
 
@@ -271,10 +297,10 @@ export default function BillingDashboard() {
                                         <td className="p-5 text-right">
                                             {invoice.status !== 'PAID' ? (
                                                 <button
-                                                    onClick={() => handleMarkPaid(invoice.id)}
-                                                    className="bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm"
+                                                    onClick={() => openPayModal(invoice)}
+                                                    className="bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2 ml-auto"
                                                 >
-                                                    Marcar Pagado
+                                                    <DollarSign className="w-4 h-4" /> Marcar Pagado
                                                 </button>
                                             ) : (
                                                 <button
@@ -397,6 +423,80 @@ export default function BillingDashboard() {
                                 {isSubmitting ? "Emitiendo..." : "Emitir y Guardar Recibo"}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Registrar Pago */}
+            {payModalInvoice && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <DollarSign className="w-6 h-6 text-emerald-600" />
+                                Registrar Pago
+                            </h2>
+                            <button onClick={() => setPayModalInvoice(null)} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-lg">✕</button>
+                        </div>
+
+                        <form onSubmit={handleConfirmPay} className="p-6 space-y-5">
+                            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Factura</p>
+                                <p className="font-bold text-slate-800">{payModalInvoice.invoiceNumber} — {payModalInvoice.patient.name}</p>
+                                <p className="text-2xl font-black text-emerald-600 mt-1">
+                                    ${payModalInvoice.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Método de Pago</label>
+                                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} required
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 font-semibold text-slate-800 focus:border-emerald-500 outline-none">
+                                    <option value="ACH">ACH — Débito Automático</option>
+                                    <option value="CHECK">Cheque</option>
+                                    <option value="WIRE">Transferencia Bancaria</option>
+                                    <option value="CASH">Efectivo</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha de Pago</label>
+                                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} required
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 font-medium text-slate-800 focus:border-emerald-500 outline-none" />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Número de Referencia <span className="text-slate-300 font-normal normal-case">(opcional)</span></label>
+                                <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)}
+                                    placeholder="# Cheque, confirmación ACH…"
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 font-medium text-slate-800 focus:border-emerald-500 outline-none" />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monto Recibido</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-3.5 text-slate-400 font-bold">$</span>
+                                    <input type="number" min="0.01" step="0.01" value={payAmount}
+                                        onChange={e => setPayAmount(e.target.value)} required
+                                        className="w-full border-2 border-slate-200 rounded-xl py-3 pl-8 pr-4 font-bold text-slate-800 focus:border-emerald-500 outline-none" />
+                                </div>
+                            </div>
+
+                            <div className="pt-2 space-y-2">
+                                <button type="submit" disabled={isPaySubmitting}
+                                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base rounded-xl shadow-lg shadow-emerald-600/20 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                                    {isPaySubmitting ? (
+                                        <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</>
+                                    ) : (
+                                        <><CheckCircle className="w-5 h-5" /> Confirmar y Enviar Recibo</>
+                                    )}
+                                </button>
+                                <button type="button" onClick={() => setPayModalInvoice(null)}
+                                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -33,13 +33,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             return NextResponse.json({ success: false, error: "Residente no encontrado o no pertenece a tu sede." }, { status: 404 });
         }
 
-        // Actualizar datos financieros del residente
+        // Actualizar datos financieros y método de pago del residente
         const updatedPatient = await prisma.patient.update({
             where: { id: patientId },
             data: {
                 monthlyFee,
                 adfContribution,
-                privateContribution
+                privateContribution,
+                // FASE 12: ACH / Cheque — solo últimos 4 dígitos
+                paymentMethod:    body.paymentMethod    ?? undefined,
+                achBankName:      body.achBankName      ?? undefined,
+                achAccountNumber: body.achAccountNumber ?? undefined,
+                achRoutingNumber: body.achRoutingNumber ?? undefined,
             }
         });
 
