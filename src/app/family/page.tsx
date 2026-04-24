@@ -207,44 +207,33 @@ export default function FamilyDashboard() {
                 </div>
             </div>
 
-            {/* Life Plan Summary */}
-            {resident.lifePlan && (
-                <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 rounded-3xl p-8 shadow-xl shadow-teal-500/20 text-white relative overflow-hidden group">
+            {/* Plan de Atención — enlace al portal */}
+            <Link href="/family/pai" className="block group">
+                <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 rounded-3xl p-8 shadow-xl shadow-teal-500/20 text-white relative overflow-hidden hover:shadow-2xl transition-shadow duration-500">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -z-0"></div>
                     <div className="relative z-10">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="bg-white/20 p-3 rounded-2xl text-white backdrop-blur-md shadow-inner">
-                                <FaNotesMedical className="text-2xl" />
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-white/20 p-3 rounded-2xl text-white backdrop-blur-md shadow-inner">
+                                    <FaNotesMedical className="text-2xl" />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-xl text-white tracking-tight">Plan de Atención (PAI)</h3>
+                                    <p className="text-teal-200 text-sm mt-0.5">Ver historial de planes aprobados</p>
+                                </div>
                             </div>
-                            <h3 className="font-black text-2xl text-white tracking-tight">Plan de Vida (LifePlan)</h3>
+                            <div className="bg-white/20 px-4 py-2 rounded-xl text-sm font-bold text-white group-hover:bg-white/30 transition">
+                                Ver →
+                            </div>
                         </div>
-
-                        <div className="bg-teal-900/30 rounded-2xl p-6 backdrop-blur-sm border border-white/10 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <p className="text-teal-50 font-medium leading-relaxed italic flex-1">
-                                El Plan Asistencial de {resident.name} se divide en categorías clínicas estructurales diseñadas por el equipo de enfermería y gerencia interdisciplinaria.
+                        {resident.lifePlan?.status === 'APPROVED' && (
+                            <p className="text-emerald-200 text-xs font-bold mt-4 flex items-center gap-1">
+                                ✅ Plan activo aprobado por el equipo clínico
                             </p>
-                            {resident.lifePlan.status === 'APPROVED' && (
-                                <Link href={`/family/pai/print/${resident.id}`} className="bg-white text-teal-700 px-5 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all w-full md:w-auto text-center flex items-center justify-center gap-2">
-                                    <FaNotesMedical />
-                                    Descargar PAI
-                                </Link>
-                            )}
-                        </div>
-
-                        <div>
-                            <h4 className="font-bold text-teal-200 mb-3 text-xs uppercase tracking-widest pl-1">Protocolos Activos</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {resident.lifePlan?.activeProtocols?.split(',').map((protocol: string, idx: number) => (
-                                    <span key={idx} className="bg-white/10 px-4 py-2 rounded-xl text-xs font-black text-white hover:bg-white/20 transition-colors border border-white/5">
-                                        {protocol.trim()}
-                                    </span>
-                                ))}
-                                {!resident.lifePlan?.activeProtocols && <span className="text-sm font-medium text-teal-200">En fase de recolección de configuraciones.</span>}
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
-            )}
+            </Link>
         </div>
     );
 }
