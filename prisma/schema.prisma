@@ -514,6 +514,11 @@ model Patient {
   adfContribution     Float @default(0.0)
   privateContribution Float @default(0.0)
 
+  // FASE 12: Facturación — Método de Pago y ACH
+  paymentMethod    String? // 'ACH' | 'CHECK'
+  achAccountNumber String? // encriptado en aplicación
+  achRoutingNumber String? // encriptado en aplicación
+
   // FASE 31: Gestión de Egresos y Permisos Temporales
   status          PatientStatus @default(ACTIVE)
   leaveType       LeaveType?
@@ -1310,6 +1315,12 @@ model Invoice {
 
   status InvoiceStatus @default(PENDING)
   notes  String? // Notas para la familia
+
+  // FASE 12: Trazabilidad de cobro
+  paymentMethod   String?   // 'ACH' | 'CHECK' | 'WIRE' | 'CASH'
+  paidAt          DateTime? // Fecha real de cobro confirmado
+  referenceNumber String?   // Número de cheque, referencia ACH, etc.
+  receiptSentAt   DateTime? // Cuándo se envió el recibo al familiar
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
