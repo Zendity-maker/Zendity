@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
+import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
 import BackToDashboard from "./ui/BackToDashboard";
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
@@ -44,7 +45,6 @@ const corporateNavigationSections = [
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
-            { name: "Mensajes Familiares", href: "/corporate/family-messages", icon: MessageSquare },
         ]
     },
     {
@@ -108,6 +108,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const [staffChatOpen, setStaffChatOpen] = useState(false);
     const [staffChatUnread, setStaffChatUnread] = useState(0);
+    const [familyMsgOpen, setFamilyMsgOpen] = useState(false);
+    const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -177,6 +179,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
     }, [user?.id, fetchNotifications]);
 
+    // Polling badge mensajes familiares (solo roles staff, 1 vez/minuto cuando el panel está cerrado)
+    const isFamilyMsgRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes(user.role);
+    useEffect(() => {
+        if (!isFamilyMsgRole) return;
+        const fetchFamilyUnread = async () => {
+            try {
+                const res = await fetch('/api/corporate/family-messages');
+                const data = await res.json();
+                if (data.success) {
+                    const total = data.conversations.reduce((acc: number, c: any) => acc + c.unreadCount, 0);
+                    setFamilyMsgUnread(total);
+                }
+            } catch {}
+        };
+        fetchFamilyUnread();
+        const interval = setInterval(fetchFamilyUnread, 60000);
+        return () => clearInterval(interval);
+    }, [isFamilyMsgRole]);
+
     const markAllRead = async () => {
         if (!user?.id || unreadCount === 0) return;
         try {
@@ -205,6 +226,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
 
     const getNotifUrl = (notif: any): string | null => {
+        // Override por link: mensajes familiares abren el panel, no navegan
+        if (notif.link === '/corporate/family-messages') return 'FAMILY_MESSAGES';
         switch (notif.type) {
             case 'SHIFT_ALERT':      return '/care/supervisor';
             case 'EMAR_ALERT':       return '/care/supervisor';
@@ -236,7 +259,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setNotifOpen(false);
         // 3. Action según tipo
         const url = getNotifUrl(notif);
-        if (url === 'STAFF_CHAT') {
+        if (url === 'FAMILY_MESSAGES') {
+            setFamilyMsgOpen(true);
+        } else if (url === 'STAFF_CHAT') {
             setStaffChatOpen(true);
         } else if (url) {
             router.push(url);
@@ -317,6 +342,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     open={staffChatOpen}
                     onClose={() => setStaffChatOpen(false)}
                     onUnreadChange={setStaffChatUnread}
+                />
+            )}
+
+            {/* Panel mensajes familiares — accesible desde cualquier página */}
+            {isFamilyMsgRole && (
+                <FamilyMessagesPanel
+                    open={familyMsgOpen}
+                    onClose={() => setFamilyMsgOpen(false)}
+                    onUnreadChange={setFamilyMsgUnread}
                 />
             )}
 
@@ -611,6 +645,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             </span>
                         )}
                     </div>
+
+                    {/* Mensajes familiares — botón con badge (solo roles staff) */}
+                    {isFamilyMsgRole && (
+                        <button
+                            onClick={() => setFamilyMsgOpen(v => !v)}
+                            className="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-soft-mist rounded-full transition-all focus:outline-none"
+                            title="Mensajes familiares"
+                        >
+                            <UsersIcon className="w-5 h-5" />
+                            {familyMsgUnread > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-teal-500 rounded-full border-2 border-white text-[10px] font-bold text-white leading-none px-1">
+                                    {familyMsgUnread > 9 ? '9+' : familyMsgUnread}
+                                </span>
+                            )}
+                        </button>
+                    )}
 
                     {/* Chat interno staff — botón con badge (oculto para FAMILY) */}
                     {user?.role !== 'FAMILY' && (
