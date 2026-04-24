@@ -104,18 +104,26 @@ export default function FamilyDashboard() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                                     <span className="text-slate-500 font-medium">Alimentación</span>
-                                    <span className="font-black text-sky-500 text-lg capitalize">{latestLog.meals}</span>
+                                    <span className="font-black text-sky-500 text-lg">
+                                        {latestLog.foodIntake != null ? `${latestLog.foodIntake}% consumido` : 'Sin registro'}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                                     <span className="text-slate-500 font-medium">Higiene Personal</span>
-                                    <span className="font-black text-slate-800 text-lg">{latestLog.hygiene ? "Completado" : "Pendiente"}</span>
+                                    <span className={`font-black text-lg ${latestLog.bathCompleted ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                        {latestLog.bathCompleted ? 'Completado ✓' : 'Pendiente'}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500 font-medium">Movilidad Asistida</span>
-                                    <span className="font-black text-slate-800 text-lg capitalize">{latestLog.mobility}</span>
+                                <div className="flex justify-between items-start">
+                                    <span className="text-slate-500 font-medium">Observaciones</span>
+                                    <span className="font-semibold text-slate-700 text-sm text-right max-w-[60%] leading-relaxed">
+                                        {latestLog.notes && latestLog.notes.trim() ? latestLog.notes.trim() : 'Sin observaciones'}
+                                    </span>
                                 </div>
                                 <div className="pt-4 mt-2 border-t border-dashed border-slate-100 text-right">
-                                    <span className="inline-block bg-slate-50 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">Turno de hoy</span>
+                                    <span className="inline-block bg-slate-50 px-3 py-1 rounded-lg text-xs font-bold text-slate-500">
+                                        {new Date(latestLog.createdAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </span>
                                 </div>
                             </div>
                         ) : (
@@ -124,6 +132,43 @@ export default function FamilyDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Card Signos Vitales */}
+            {latestVitals && (
+                <div className="bg-white rounded-3xl p-8 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden group hover:shadow-xl hover:border-rose-100 transition-all duration-500">
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-rose-50 to-pink-50 rounded-full -z-0 transition-transform duration-700 group-hover:scale-150"></div>
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-extrabold text-slate-800 text-lg">💓 Signos Vitales Recientes</h3>
+                            <span className="text-[10px] font-bold text-slate-400">
+                                {new Date(latestVitals.createdAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-rose-50 rounded-2xl p-4 text-center">
+                                <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Presión</div>
+                                <div className="text-xl font-black text-rose-600">{latestVitals.systolic}/{latestVitals.diastolic}</div>
+                                <div className="text-[10px] font-bold text-rose-300 mt-0.5">mmHg</div>
+                            </div>
+                            <div className="bg-sky-50 rounded-2xl p-4 text-center">
+                                <div className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-1">SpO₂</div>
+                                <div className="text-xl font-black text-sky-600">{latestVitals.spo2 ?? '—'}</div>
+                                <div className="text-[10px] font-bold text-sky-300 mt-0.5">%</div>
+                            </div>
+                            <div className="bg-amber-50 rounded-2xl p-4 text-center">
+                                <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Temperatura</div>
+                                <div className="text-xl font-black text-amber-600">{latestVitals.temperature}</div>
+                                <div className="text-[10px] font-bold text-amber-300 mt-0.5">°C / °F</div>
+                            </div>
+                            <div className="bg-emerald-50 rounded-2xl p-4 text-center">
+                                <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Pulso</div>
+                                <div className="text-xl font-black text-emerald-600">{latestVitals.heartRate}</div>
+                                <div className="text-[10px] font-bold text-emerald-300 mt-0.5">bpm</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Zendi Updates — WellnessDiary entries enviados por el equipo de cuidado */}
             <div className="bg-white rounded-3xl p-8 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden group hover:shadow-xl hover:border-emerald-100 transition-all duration-500">

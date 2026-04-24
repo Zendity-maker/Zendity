@@ -32,7 +32,13 @@ export async function GET(req: Request) {
                 },
                 dailyLogs: {
                     orderBy: { createdAt: 'desc' },
-                    take: 5
+                    take: 1,
+                    select: {
+                        foodIntake: true,
+                        bathCompleted: true,
+                        notes: true,
+                        createdAt: true,
+                    },
                 },
                 wellnessNotes: {
                     orderBy: { createdAt: 'desc' },
