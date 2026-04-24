@@ -323,6 +323,53 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     if (loading || !user) return null;
 
+    // ── INVESTOR: layout ultra-simplificado — solo dashboard de KPIs ──
+    if (user?.role === 'INVESTOR') {
+        return (
+            <div className="flex w-full h-screen overflow-hidden bg-slate-900 font-sans">
+                {/* Mini sidebar negro */}
+                <aside className="w-56 border-r border-slate-800 flex flex-col h-screen bg-black/40 flex-shrink-0">
+                    {/* Logo */}
+                    <div className="h-20 flex items-center px-6 border-b border-white/10">
+                        <div className="flex flex-col">
+                            <h1 className="text-white font-serif text-lg tracking-tight uppercase">
+                                Vivid <span className="text-amber-500 font-light">Senior</span>
+                            </h1>
+                            <span className="text-[10px] text-amber-500/70 uppercase tracking-[0.2em] font-bold">Investor Portal</span>
+                        </div>
+                    </div>
+                    {/* Nav — solo una ruta */}
+                    <nav className="flex-1 py-6 px-4">
+                        <Link
+                            href="/corporate/investors"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${pathname === '/corporate/investors' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                            <LineChart className="w-5 h-5 shrink-0" />
+                            Dashboard KPIs
+                        </Link>
+                    </nav>
+                    {/* Footer */}
+                    <div className="p-4 border-t border-white/10 space-y-3">
+                        <div className="px-1">
+                            <p className="text-xs font-bold text-white truncate">{user?.name}</p>
+                            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-black uppercase tracking-widest text-amber-500/80 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                                Inversor — Read-Only
+                            </span>
+                        </div>
+                        <button onClick={logout}
+                            className="w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-xl border bg-slate-800 border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-900 transition-colors">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </aside>
+                {/* Contenido */}
+                <main className="flex-1 overflow-y-auto">
+                    {children}
+                </main>
+            </div>
+        );
+    }
+
     // Determinar Workspace Activo basado en la ruta interactiva ("Clinical" vs "Corporate")
     const isCorporateWorkspace = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr");
 
