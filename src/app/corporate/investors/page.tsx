@@ -24,10 +24,10 @@ export default function VividInvestorsDashboard() {
     const [kpis, setKpis] = useState<VividKPI[]>([]);
     const [fetchLoading, setFetchLoading] = useState(true);
 
-    const fetchKpis = async (userId: string) => {
+    const fetchKpis = async () => {
         setFetchLoading(true);
         try {
-            const res = await fetch(`/api/corporate/investors/kpis?userId=${userId}`);
+            const res = await fetch('/api/corporate/investors/kpis');
             const data = await res.json();
             if (data.success) {
                 setKpis(data.targets);
@@ -39,15 +39,17 @@ export default function VividInvestorsDashboard() {
         }
     };
 
+    const INVESTOR_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
+
     useEffect(() => {
         if (!loading) {
-            // @ts-ignore: Next.js cached Prisma Client hasn't loaded 'INVESTOR' role yet
-            if (!user || (user.role !== 'INVESTOR' && user.role !== 'ADMIN')) {
+            if (!user || !INVESTOR_ROLES.includes(user.role as string)) {
                 router.push('/unauthorized');
             } else {
-                fetchKpis(user.id);
+                fetchKpis();
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, loading, router]);
 
     if (loading || fetchLoading) {

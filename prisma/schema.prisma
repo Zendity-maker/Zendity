@@ -516,8 +516,9 @@ model Patient {
 
   // FASE 12: Facturación — Método de Pago y ACH
   paymentMethod    String? // 'ACH' | 'CHECK'
-  achAccountNumber String? // encriptado en aplicación
-  achRoutingNumber String? // encriptado en aplicación
+  achBankName      String? // nombre del banco
+  achAccountNumber String? // últimos 4 dígitos (nunca el número completo)
+  achRoutingNumber String? // últimos 4 dígitos (nunca el número completo)
 
   // FASE 31: Gestión de Egresos y Permisos Temporales
   status          PatientStatus @default(ACTIVE)

@@ -1,99 +1,100 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
-
+export const dynamic = 'force-dynamic';
 
 // FASE 12: Vivid Senior Living Partners Dashboard KPI Aggregator
-export async function GET(req: Request) {
+// Seguridad: getServerSession en lugar de userId por query param.
+// INVESTOR → ve todas las sedes del grupo.
+// DIRECTOR → ve solo su propia sede.
+const ALLOWED_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
+
+export async function GET(_req: Request) {
     try {
-        // Authenticate the user - For the API we would normally use NextAuth (getServerSession)
-        // Since this is a server route invoked by a client component, we'll verify via the user role 
-        // sent in headers or rely on the frontend to pass the user id. 
-        // For security, an Investor OR Admin can see this.
-        const { searchParams } = new URL(req.url);
-        const userId = searchParams.get('userId');
-
-        if (!userId) {
-            return NextResponse.json({ error: "Missing authentication" }, { status: 401 });
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        // @ts-ignore: Next.js cached Prisma Client hasn't loaded 'INVESTOR' role yet
-        if (!user || (user.role !== 'INVESTOR' && user.role !== 'ADMIN')) {
-            return NextResponse.json({ error: "Unauthorized Access. Partners Only." }, { status: 403 });
+        const role = (session.user as any).role as string;
+        const hqId = (session.user as any).headquartersId as string;
+
+        if (!ALLOWED_ROLES.includes(role)) {
+            return NextResponse.json({ error: 'Acceso exclusivo para inversores y administradores.' }, { status: 403 });
         }
 
-        // 1. Fetch the target Headquarters (Cupey and Mayaguez)
-        const cupey = await prisma.headquarters.findFirst({
-            where: { name: { contains: "Cupey", mode: 'insensitive' } }
-        });
-        const mayaguez = await prisma.headquarters.findFirst({
-            where: { name: { contains: "Mayaguez", mode: 'insensitive' } }
-        });
+        // INVESTOR / ADMIN / SUPER_ADMIN → todas las sedes activas del grupo
+        // DIRECTOR → solo su sede
+        let targetHqs: any[] = [];
 
-        const targetHqs = [cupey, mayaguez].filter(hq => hq !== null);
+        if (role === 'DIRECTOR') {
+            const hq = await prisma.headquarters.findUnique({ where: { id: hqId } });
+            if (hq) targetHqs = [hq];
+        } else {
+            // INVESTOR, ADMIN, SUPER_ADMIN: todas las sedes activas
+            targetHqs = await prisma.headquarters.findMany({
+                where: { isActive: true },
+                orderBy: { name: 'asc' },
+            });
+        }
+
         const kpisByHq = [];
 
         for (const hq of targetHqs) {
-            if (!hq) continue;
-
-            // --- A) Occupancy (Ocupación) ---
-            const activePatients = await prisma.patient.count({
-                where: {
-                    headquartersId: hq.id,
-                    status: 'ACTIVE'
-                }
-            });
-            // @ts-ignore: Next.js cached Prisma Client hasn't loaded capacity yet
-            const occupancyRate = hq.capacity > 0 ? (activePatients / hq.capacity) * 100 : 0;
-
-            // --- B) Monthly Revenue (Ingresos del Mes) ---
-            // Calculate current month's start and end dates
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            // A) Ocupación
+            const activePatients = await prisma.patient.count({
+                where: { headquartersId: hq.id, status: 'ACTIVE' },
+            });
+            const capacity = (hq as any).capacity ?? 1;
+            const occupancyRate = capacity > 0 ? (activePatients / capacity) * 100 : 0;
+
+            // B) Ingresos MTD — facturas PAID emitidas en el mes actual
             const invoices = await prisma.invoice.findMany({
                 where: {
                     headquartersId: hq.id,
                     status: 'PAID',
-                    createdAt: { gte: startOfMonth }
-                }
+                    issueDate: { gte: startOfMonth },
+                },
             });
-            const monthlyRevenue = invoices.reduce((acc, inv) => acc + inv.totalAmount, 0);
+            const monthlyRevenue = invoices.reduce((acc: number, inv: any) => acc + inv.totalAmount, 0);
 
-            // --- C) Clinical Compliance (Cumplimiento Clínico) ---
-            // Average compliance score of CAREGIVER and NURSE staff
+            // C) Índice Clínico Laboral — promedio complianceScore staff clínico
             const clinicalStaff = await prisma.user.findMany({
                 where: {
                     headquartersId: hq.id,
-                    role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
-                    isDeleted: false
-                }
+                    role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] as any[] },
+                    isDeleted: false,
+                    isActive: true,
+                },
+                select: { complianceScore: true },
             });
-            const totalCompliance = clinicalStaff.reduce((acc, emp) => acc + emp.complianceScore, 0);
-            const clinicalComplianceRate = clinicalStaff.length > 0 ? (totalCompliance / clinicalStaff.length) : 0;
+            const avgCompliance = clinicalStaff.length > 0
+                ? clinicalStaff.reduce((acc: number, e: any) => acc + e.complianceScore, 0) / clinicalStaff.length
+                : 0;
 
-            // --- Package the KPI Object ---
             kpisByHq.push({
                 hqId: hq.id,
                 name: hq.name,
-                // @ts-ignore
-                capacity: hq.capacity,
-                // @ts-ignore
-                logoUrl: hq.logoUrl,
-                // @ts-ignore
-                isOpen: hq.isActive,
+                capacity,
+                logoUrl: (hq as any).logoUrl ?? null,
+                isOpen: (hq as any).isActive ?? true,
                 occupancyRate: Math.round(occupancyRate),
-                monthlyRevenue: monthlyRevenue,
-                clinicalComplianceRate: Math.round(clinicalComplianceRate),
-                activePatients: activePatients,
-                staffCount: clinicalStaff.length
+                monthlyRevenue,
+                clinicalComplianceRate: Math.round(avgCompliance),
+                activePatients,
+                staffCount: clinicalStaff.length,
             });
         }
 
         return NextResponse.json({ success: true, targets: kpisByHq });
 
     } catch (error) {
-        console.error("Error aggregating Investor KPIs:", error);
-        return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
+        console.error('Error aggregating Investor KPIs:', error);
+        return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
     }
 }
