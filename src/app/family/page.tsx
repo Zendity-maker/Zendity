@@ -125,6 +125,43 @@ export default function FamilyDashboard() {
                 </div>
             </div>
 
+            {/* Zendi Updates — WellnessDiary entries enviados por el equipo de cuidado */}
+            <div className="bg-white rounded-3xl p-8 shadow-md shadow-slate-100/50 border border-slate-100/60 relative overflow-hidden group hover:shadow-xl hover:border-emerald-100 transition-all duration-500">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-50 to-green-50 rounded-full -z-0 transition-transform duration-700 group-hover:scale-150"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="font-extrabold text-slate-800 text-lg">💚 Actualizaciones del Equipo</h3>
+                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-xl uppercase tracking-widest">
+                            Zendi
+                        </span>
+                    </div>
+
+                    {resident.wellnessNotes && resident.wellnessNotes.length > 0 ? (
+                        <div className="space-y-3">
+                            {resident.wellnessNotes.slice(0, 5).map((note: any, idx: number) => (
+                                <div key={idx} className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                                    <p className="text-slate-700 font-medium text-sm leading-relaxed">
+                                        {note.note.replace(/^\[Zendi Update\]\s*/i, '')}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-emerald-100/70">
+                                        <span className="text-[11px] font-black text-emerald-700">
+                                            {note.author?.name || 'Equipo de cuidado'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400">
+                                            {new Date(note.createdAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-slate-400 text-sm font-medium text-center py-4">
+                            Aún no hay actualizaciones del equipo de cuidado.
+                        </p>
+                    )}
+                </div>
+            </div>
+
             {/* Life Plan Summary */}
             {resident.lifePlan && (
                 <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 rounded-3xl p-8 shadow-xl shadow-teal-500/20 text-white relative overflow-hidden group">
