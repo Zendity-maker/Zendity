@@ -30,6 +30,7 @@ export default function ZendiInsightsPage() {
     // For Incident Modal
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+    const [selectedInsightType, setSelectedInsightType] = useState<string>('');
     const [employeesList, setEmployeesList] = useState<any[]>([]);
 
     // Disciplinary Reports
@@ -44,47 +45,50 @@ export default function ZendiInsightsPage() {
         }
     }, [user, authLoading, router]);
 
+    const fetchInsights = async () => {
+        try {
+            const hqId = user?.hqId || user?.headquartersId || '';
+            if (!hqId) return;
+            const res = await fetch(`/api/hr/insights?hqId=${hqId}`);
+            const data = await res.json();
+
+            if (data.success && Array.isArray(data.insights)) {
+                setInsights(data.insights);
+            }
+
+            // Fetch staff list for the modal dropdown
+            const staffRes = await fetch(`/api/hr/staff?hqId=${hqId}`);
+            const staffData = await staffRes.json();
+            if (Array.isArray(staffData)) {
+                setEmployeesList(staffData);
+            } else if (staffData.success && Array.isArray(staffData.staff)) {
+                setEmployeesList(staffData.staff);
+            }
+
+            // Fetch disciplinary reports for this HQ
+            const incRes = await fetch(`/api/hr/incidents?hqId=${hqId}`);
+            const incData = await incRes.json();
+            if (incData.success && Array.isArray(incData.incidents)) {
+                setIncidents(incData.incidents);
+            }
+
+        } catch (err) {
+            console.error("Error fetching AI Insights:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (authLoading || !user) return;
         if (!ALLOWED_ROLES.includes(user.role as string)) return;
-        async function fetchInsights() {
-            try {
-                const hqId = user?.hqId || user?.headquartersId || '';
-                if (!hqId) return;
-                const res = await fetch(`/api/hr/insights?hqId=${hqId}`);
-                const data = await res.json();
-
-                if (data.success && Array.isArray(data.insights)) {
-                    setInsights(data.insights);
-                }
-                
-                // Fetch staff list for the modal dropdown
-                const staffRes = await fetch(`/api/hr/staff?hqId=${hqId}`);
-                const staffData = await staffRes.json();
-                if (Array.isArray(staffData)) {
-                    setEmployeesList(staffData);
-                } else if (staffData.success && Array.isArray(staffData.staff)) {
-                    setEmployeesList(staffData.staff);
-                }
-
-                // Fetch disciplinary reports for this HQ
-                const incRes = await fetch(`/api/hr/incidents?hqId=${hqId}`);
-                const incData = await incRes.json();
-                if (incData.success && Array.isArray(incData.incidents)) {
-                    setIncidents(incData.incidents);
-                }
-                
-            } catch (err) {
-                console.error("Error fetching AI Insights:", err);
-            } finally {
-                setLoading(false);
-            }
-        }
         fetchInsights();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, authLoading]);
 
-    const handleActionClick = (employeeId: string) => {
+    const handleActionClick = (employeeId: string, insightId: string) => {
         setSelectedEmployeeId(employeeId);
+        setSelectedInsightType(insightId);
         setIsModalOpen(true);
     };
 
@@ -174,8 +178,8 @@ export default function ZendiInsightsPage() {
 
                                     {/* Action Button */}
                                     <div className="md:border-l md:border-slate-100 md:pl-6 flex flex-col gap-3 shrink-0">
-                                        <button 
-                                            onClick={() => handleActionClick(insight.employeeId)}
+                                        <button
+                                            onClick={() => handleActionClick(insight.employeeId, insight.id)}
                                             className="w-full md:w-auto bg-slate-900 hover:bg-black text-white px-6 py-3 rounded-xl font-bold transition-transform active:scale-95 shadow-md flex items-center justify-center gap-2"
                                         >
                                             <ShieldAlert className="w-4 h-4" /> Tomar Acción
@@ -298,10 +302,26 @@ export default function ZendiInsightsPage() {
                     hqId={user?.hqId || user?.headquartersId || ''}
                     supervisorId={user?.id || ''}
                     employees={employeesList}
-                    onSuccess={() => {
+                    onSuccess={async () => {
                         setIsModalOpen(false);
-                        // Hard reload to refresh insights after an action
-                        window.location.reload();
+                        // Suprimir bandera 24h en el servidor
+                        if (selectedInsightType && selectedEmployeeId) {
+                            try {
+                                await fetch('/api/hr/insights/dismiss', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        employeeId: selectedEmployeeId,
+                                        insightType: selectedInsightType,
+                                    }),
+                                });
+                            } catch (e) {
+                                console.error('Dismiss insight error:', e);
+                            }
+                        }
+                        // Refrescar banderas sin recargar la página
+                        setLoading(true);
+                        await fetchInsights();
                     }}
                 />
             )}

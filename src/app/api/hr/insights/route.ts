@@ -49,6 +49,14 @@ export async function GET(_req: Request) {
             orderBy: { createdAt: 'desc' }
         });
 
+        // 3a. Cargar dismissals activos (< 24h) para filtrar banderas suprimidas
+        const now = new Date();
+        const activeDismissals = await prisma.insightDismissal.findMany({
+            where: { headquartersId: hqId, expiresAt: { gt: now } },
+            select: { insightType: true },
+        });
+        const dismissedSet = new Set(activeDismissals.map((d: { insightType: string }) => d.insightType));
+
         // 3. Compile "Red Flags"
         const insights: any[] = [];
 
@@ -110,9 +118,12 @@ export async function GET(_req: Request) {
             }
         }
 
-        return NextResponse.json({ 
-            success: true, 
-            insights: insights.sort((a,b) => b.type === 'CRITICAL' ? -1 : 1) // Critical first
+        // Filtrar banderas suprimidas en las últimas 24h
+        const visibleInsights = insights.filter(i => !dismissedSet.has(i.id));
+
+        return NextResponse.json({
+            success: true,
+            insights: visibleInsights.sort((a, b) => b.type === 'CRITICAL' ? -1 : 1) // Critical first
         });
 
     } catch (error) {
