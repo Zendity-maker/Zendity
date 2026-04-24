@@ -77,10 +77,24 @@ export async function resolvePatientsByColors(
     hqId: string,
 ) {
     if (colorGroups.length === 0) return [];
+
+    // colorGroup 'ALL' significa que la cuidadora está asignada a todos los
+    // residentes del turno — no filtrar por colorGroup en ese caso.
+    if (colorGroups.includes('ALL')) {
+        return prisma.patient.findMany({
+            where: {
+                headquartersId: hqId,
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] as any[] },
+            },
+            select: { id: true, name: true, colorGroup: true, roomNumber: true },
+            orderBy: { name: 'asc' },
+        });
+    }
+
     return prisma.patient.findMany({
         where: {
             headquartersId: hqId,
-            status: 'ACTIVE',
+            status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] as any[] },
             colorGroup: { in: colorGroups as any[] },
         },
         select: { id: true, name: true, colorGroup: true, roomNumber: true },
@@ -196,7 +210,7 @@ export async function buildZendiSummary(params: {
         ? Object.entries(justifications).map(([id, r]) => `  · ${id}: ${r}`).join('\n')
         : '  · ninguna';
 
-    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español rioplatense claro y profesional. No inventes datos: usa SOLO la información que te doy. Máximo 3 párrafos. Menciona residentes por nombre. Si hay situaciones que requieren atención del supervisor, resáltalas al final.
+    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español profesional y claro. REGLAS ESTRICTAS: (1) Usa SOLO los datos que te doy — NO inventes nada. (2) Menciona a cada residente por su nombre completo y qué se hizo específicamente con él/ella. (3) NO uses frases genéricas como "se atendió a los residentes" — sé concreto/a. (4) Si no hubo actividad registrada para un residente, no lo menciones. (5) Máximo 4 párrafos. (6) Si hay situaciones que requieren atención del supervisor, resáltalas al final en un párrafo separado.
 
 Turno: ${shiftLabel}
 Cuidador(a): ${caregiverName}
