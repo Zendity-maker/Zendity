@@ -43,6 +43,15 @@ export async function GET(request: Request) {
         const periodEnd = new Date();
         const periodStart = new Date(periodEnd.getTime() - days * 24 * 60 * 60 * 1000);
 
+        // FIX 1 — Warmup: previene cold start 500 en Neon serverless
+        await prisma.$queryRaw`SELECT 1`;
+
+        // FIX 4 — Timeout explícito de 10s en las queries paralelas
+        // Si Neon no responde en 10s → 503 claro en vez de 500 genérico
+        const queryTimeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('QUERY_TIMEOUT')), 10_000)
+        );
+
         const [
             employee,
             medAdmins,
@@ -53,53 +62,59 @@ export async function GET(request: Request) {
             absences,
             allStaff,
             previousAudits,
-        ] = await Promise.all([
-            prisma.user.findFirst({
-                where: { id: employeeId, headquartersId: hqId },
-                select: { id: true, name: true, role: true, email: true, complianceScore: true, createdAt: true, hiredAt: true, photoUrl: true, image: true },
-            }),
-            prisma.medicationAdministration.findMany({
-                where: {
-                    administeredById: employeeId,
-                    OR: [
-                        { createdAt: { gte: periodStart, lte: periodEnd } },
-                        { administeredAt: { gte: periodStart, lte: periodEnd } },
-                    ],
-                },
-                select: { status: true, scheduledTime: true, administeredAt: true },
-            }),
-            prisma.shiftSession.findMany({
-                where: { caregiverId: employeeId, headquartersId: hqId, startTime: { gte: periodStart, lte: periodEnd } },
-                select: { handoverCompleted: true },
-            }),
-            prisma.vitalSigns.findMany({
-                where: { measuredById: employeeId, createdAt: { gte: periodStart, lte: periodEnd } },
-                select: { systolic: true, diastolic: true, spo2: true },
-            }),
-            prisma.incidentReport.findMany({
-                where: { employeeId, headquartersId: hqId, createdAt: { gte: periodStart, lte: periodEnd } },
-                orderBy: { createdAt: 'desc' },
-                select: { severity: true, pointsDeducted: true, description: true, createdAt: true },
-            }),
-            prisma.userCourse.findMany({
-                where: { employeeId, headquartersId: hqId },
-                select: { status: true, completedAt: true },
-            }),
-            prisma.scheduledShift.count({
-                where: { userId: employeeId, isAbsent: true, date: { gte: periodStart, lte: periodEnd } },
-            }),
-            prisma.user.findMany({
-                where: { headquartersId: hqId, isActive: true, isDeleted: false },
-                select: { id: true, complianceScore: true },
-                orderBy: { complianceScore: 'desc' },
-            }),
-            prisma.performanceScore.findMany({
-                where: { userId: employeeId, headquartersId: hqId },
-                orderBy: { createdAt: 'desc' },
-                take: 5,
-                select: { id: true, periodStart: true, periodEnd: true, systemScore: true, humanScore: true, finalScore: true, feedback: true, createdAt: true, systemFindings: true },
-            }),
-        ]);
+        ] = await Promise.race([
+            Promise.all([
+                prisma.user.findFirst({
+                    where: { id: employeeId, headquartersId: hqId },
+                    select: { id: true, name: true, role: true, email: true, complianceScore: true, createdAt: true, hiredAt: true, photoUrl: true, image: true },
+                }),
+                prisma.medicationAdministration.findMany({
+                    where: {
+                        administeredById: employeeId,
+                        OR: [
+                            { createdAt: { gte: periodStart, lte: periodEnd } },
+                            { administeredAt: { gte: periodStart, lte: periodEnd } },
+                        ],
+                    },
+                    select: { status: true, scheduledTime: true, administeredAt: true },
+                }),
+                prisma.shiftSession.findMany({
+                    where: { caregiverId: employeeId, headquartersId: hqId, startTime: { gte: periodStart, lte: periodEnd } },
+                    select: { handoverCompleted: true },
+                }),
+                prisma.vitalSigns.findMany({
+                    where: { measuredById: employeeId, createdAt: { gte: periodStart, lte: periodEnd } },
+                    select: { systolic: true, diastolic: true, spo2: true },
+                }),
+                prisma.incidentReport.findMany({
+                    where: { employeeId, headquartersId: hqId, createdAt: { gte: periodStart, lte: periodEnd } },
+                    orderBy: { createdAt: 'desc' },
+                    select: { severity: true, pointsDeducted: true, description: true, createdAt: true },
+                }),
+                prisma.userCourse.findMany({
+                    where: { employeeId, headquartersId: hqId },
+                    select: { status: true, completedAt: true },
+                }),
+                prisma.scheduledShift.count({
+                    where: { userId: employeeId, isAbsent: true, date: { gte: periodStart, lte: periodEnd } },
+                }),
+                prisma.user.findMany({
+                    where: { headquartersId: hqId, isActive: true, isDeleted: false },
+                    select: { id: true, complianceScore: true },
+                    orderBy: { complianceScore: 'desc' },
+                }),
+                prisma.performanceScore.findMany({
+                    where: { userId: employeeId, headquartersId: hqId },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                    select: { id: true, periodStart: true, periodEnd: true, systemScore: true, humanScore: true, finalScore: true, feedback: true, createdAt: true, systemFindings: true },
+                }),
+            ]),
+            queryTimeout,
+        ]).catch((err: Error) => {
+            if (err.message === 'QUERY_TIMEOUT') throw err; // re-lanzar para el catch externo
+            throw err;
+        });
 
         if (!employee) {
             return NextResponse.json({ success: false, error: 'Empleado no encontrado en esta sede' }, { status: 404 });
@@ -156,7 +171,10 @@ export async function GET(request: Request) {
         const academyPct = academyAssigned > 0 ? Math.round((academyCompleted / academyAssigned) * 100) : 0;
 
         // --- Ranking ---
-        const position = allStaff.findIndex(u => u.id === employeeId) + 1;
+        // FIX 2 — findIndex devuelve -1 si el empleado no está en allStaff (ej. isActive=false)
+        // En ese caso lo ponemos al final del ranking en vez de posición 0
+        const idx = allStaff.findIndex(u => u.id === employeeId);
+        const position = idx >= 0 ? idx + 1 : allStaff.length;
         const totalStaff = allStaff.length;
 
         const findings: SystemFindings = {
@@ -196,10 +214,14 @@ ${recentIncidents.length > 0 ? `  Últimas: ${recentIncidents.map(r => `"${r.des
 - Score actual: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}
 `.trim();
 
+        // FIX 3 — Empleados con historial vacío (rol KITCHEN, CLEANING, nuevo ingreso, etc.)
+        // Si no hay meds, turnos ni vitales en el período → nota honesta al informe, sin inventar datos.
+        const hasNoData = medTotal === 0 && shiftTotal === 0 && vitalsTotal === 0;
+
         const system = 'Eres Zendi, asistente de Zéndity (plataforma healthcare para hogares de envejecientes en Puerto Rico). Generas informes pre-auditoría objetivos, justos y basados en datos reales. Tono profesional en español.';
         const prompt = `Genera un Informe Pre-Auditoría profesional en español para ${employee.name} (${prettyRole}).
 Período analizado: últimos ${days} días.
-
+${hasNoData ? '\n⚠️ AVISO: Este empleado no tiene registros clínicos en el período (sin meds, sin turnos, sin vitales). Puede ser personal de apoyo (cocina, limpieza) o empleado de ingreso reciente. Genera el informe indicando honestamente la ausencia de historial clínico medible y sugiere una evaluación presencial.\n' : ''}
 DATOS REALES DEL PERÍODO:
 ${dataSummary}
 
@@ -286,6 +308,13 @@ Reglas:
         });
     } catch (error: any) {
         console.error('audit-report GET error:', error);
+        // FIX 4 — timeout de queries → 503 claro en vez de 500 genérico
+        if (error.message === 'QUERY_TIMEOUT') {
+            return NextResponse.json(
+                { success: false, error: 'Base de datos no respondió a tiempo. Intenta de nuevo en unos segundos.' },
+                { status: 503 }
+            );
+        }
         return NextResponse.json({ success: false, error: error.message || 'Error interno' }, { status: 500 });
     }
 }
