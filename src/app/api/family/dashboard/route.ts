@@ -72,7 +72,22 @@ export async function GET(req: Request) {
             console.error("Soft failing raw LifePlan query:", rawError);
         }
 
-        return NextResponse.json({ success: true, resident: { ...resident, lifePlan } });
+        // Solo mostrar vitales en rango normal al familiar — no alarmar con valores críticos.
+        // El equipo clínico maneja los valores fuera de rango internamente (triage, alertas, eMAR).
+        function vitalsEnRangoNormal(v: { systolic: number; diastolic: number; temperature: number; heartRate: number; spo2: number | null } | null): boolean {
+            if (!v) return false;
+            if (v.systolic   < 90  || v.systolic   > 140) return false;
+            if (v.diastolic  < 60  || v.diastolic  > 90)  return false;
+            if (v.spo2  != null && v.spo2  < 95)          return false;
+            if (v.temperature < 36.0 || v.temperature > 37.5) return false;
+            if (v.heartRate  < 60  || v.heartRate   > 100) return false;
+            return true;
+        }
+
+        const rawVitals = resident.vitalSigns[0] ?? null;
+        const safeVitals = vitalsEnRangoNormal(rawVitals) ? rawVitals : null;
+
+        return NextResponse.json({ success: true, resident: { ...resident, vitalSigns: safeVitals ? [safeVitals] : [], lifePlan } });
 
     } catch (error: any) {
         console.error("Family Dashboard API Error:", error);
