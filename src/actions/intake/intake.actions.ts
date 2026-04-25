@@ -101,7 +101,11 @@ export async function submitIntake(patientId: string) {
       });
 
       // 2.3 Creación pasiva del esqueleto del PAI (LifePlan)
-      const existingPai = await tx.lifePlan.findFirst({ where: { patientId }, select: { id: true } });
+      const existingPai = await tx.lifePlan.findFirst({
+        where: { patientId, status: { in: ['DRAFT', 'APPROVED'] } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
       if (existingPai) {
         await tx.lifePlan.update({
           where: { id: existingPai.id },
@@ -115,10 +119,11 @@ export async function submitIntake(patientId: string) {
         await tx.lifePlan.create({
           data: {
             patientId,
+            type: 'INITIAL',
+            status: 'DRAFT',
             clinicalSummary: intake.medicalHistory,
             mobility: intake.mobilityLevel,
             continence: intake.continenceLevel,
-            status: "DRAFT",
           },
         });
       }
