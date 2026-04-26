@@ -858,6 +858,7 @@ model FamilyMessage {
   senderType    SenderType
   senderId      String // ID del FamilyMember o del User (Staff)
   content       String
+  imageBase64   String?    @db.Text // Imagen adjunta en broadcast (base64, max 2MB)
   isRead        Boolean    @default(false)
   recipientType String?    @default("ADMINISTRATION") // 'NURSING' | 'ADMINISTRATION'
   createdAt     DateTime   @default(now())

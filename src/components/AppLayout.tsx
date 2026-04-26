@@ -45,6 +45,7 @@ const corporateNavigationSections = [
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
+            { name: "📢 Mensaje a Familias", href: "/corporate/family-broadcast", icon: MessageSquare },
         ]
     },
     {
