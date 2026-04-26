@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { clampComplianceScore } from '@/lib/compliance-score';
+import { applyScoreEvent } from '@/lib/score-event';
+import { notifyUser, notifyRoles } from '@/lib/notifications';
 
 
 
@@ -62,35 +63,35 @@ export async function POST(req: Request) {
 
         const bonus = course.bonusCompliance;
 
-        // Transacción Atómica Zendity: Certificar & Actualizar Usuario
-        const [enrollment, updatedUser] = await prisma.$transaction([
-            prisma.userCourse.upsert({
-                where: { employeeId_courseId: { employeeId, courseId } },
-                update: {
-                    status: 'COMPLETED',
-                    score: examScore || 100,
-                    completedAt: new Date()
-                },
-                create: {
-                    employeeId,
-                    courseId,
-                    headquartersId: hqId,
-                    status: 'COMPLETED',
-                    score: examScore || 100,
-                    completedAt: new Date()
-                }
-            }),
-            // Incrementa score. Faltaría la doble verificación para isShiftBlocked desde CRON job u otro sistema, por ahora sumamos.
-            prisma.user.update({
-                where: { id: employeeId },
-                data: {
-                    complianceScore: { increment: bonus }
-                }
-            })
-        ]);
-        await clampComplianceScore(employeeId);
+        // 1. Certificar curso
+        const enrollment = await prisma.userCourse.upsert({
+            where: { employeeId_courseId: { employeeId, courseId } },
+            update:  { status: 'COMPLETED', score: examScore || 100, completedAt: new Date() },
+            create:  { employeeId, courseId, headquartersId: hqId, status: 'COMPLETED', score: examScore || 100, completedAt: new Date() },
+        });
 
-        return NextResponse.json({ success: true, enrollment, newComplianceScore: updatedUser.complianceScore });
+        // 2. Score con historial + notificaciones celebración
+        const employee = await prisma.user.findUnique({ where: { id: employeeId }, select: { name: true, headquartersId: true } });
+        const scoreEvt = await applyScoreEvent(employeeId, hqId, bonus,
+            `Curso completado: ${course.title || course.id}`, 'ACADEMY');
+
+        // 3. Notificación de celebración al empleado
+        await notifyUser(employeeId, {
+            type:    'COURSE_COMPLETED',
+            title:   '🎉 ¡Curso completado!',
+            message: `Completaste "${course.title || 'el curso'}". Tu Z-Score subió +${bonus} puntos. ¡Sigue aprendiendo!`,
+        });
+
+        // 4. Notificación al equipo supervisor (best-effort)
+        try {
+            await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                type:    'SHIFT_ALERT',
+                title:   '🎓 Logro del equipo',
+                message: `${employee?.name || 'Un empleado'} completó el curso "${course.title || course.id}" en Academy. ¡Felicitaciones!`,
+            });
+        } catch { /* no-fatal */ }
+
+        return NextResponse.json({ success: true, enrollment, newComplianceScore: scoreEvt?.scoreAfter ?? null });
 
     } catch (error) {
         console.error("Academy POST Error:", error);
