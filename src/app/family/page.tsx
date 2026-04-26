@@ -207,6 +207,27 @@ export default function FamilyDashboard() {
                 </div>
             </div>
 
+            {/* Calendario y Citas — Sprint C */}
+            <Link href="/family/calendar" className="block group">
+                <div className="bg-white rounded-3xl p-6 shadow-md shadow-slate-100/50 border border-slate-100/60 hover:shadow-xl hover:border-teal-100 transition-all duration-300 relative overflow-hidden">
+                    <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-full -z-0 transition-transform duration-700 group-hover:scale-150" />
+                    <div className="relative z-10 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-teal-100 p-3 rounded-2xl text-teal-600 shadow-inner">
+                                <FaRegCalendarCheck className="text-2xl" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-lg text-slate-800 tracking-tight">📅 Calendario y Citas</h3>
+                                <p className="text-slate-500 text-sm mt-0.5">Solicita visitas y coordina citas con el equipo</p>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 group-hover:bg-teal-50 group-hover:text-teal-700 transition">
+                            Ver →
+                        </div>
+                    </div>
+                </div>
+            </Link>
+
             {/* Plan de Atención — enlace al portal */}
             <Link href="/family/pai" className="block group">
                 <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-700 rounded-3xl p-8 shadow-xl shadow-teal-500/20 text-white relative overflow-hidden hover:shadow-2xl transition-shadow duration-500">
