@@ -20,18 +20,109 @@ const COLOR_LABELS: Record<string, string> = {
     ALL: 'Todos los grupos'
 };
 
+const NIGHT_SHIFTS = ['NIGHT', 'FULL_NIGHT'];
+const CARE_ROLES  = ['CAREGIVER', 'NURSE'];
+
 function formatDate(dateStr: string) {
     const d = new Date(dateStr);
     return d.toLocaleDateString('es-PR', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+// ── Tipos de validación ────────────────────────────────────────────────────────
+interface ValidationIssue {
+    type: string;
+    message: string;
+    shift: Record<string, any>;
+}
+
+function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: ValidationIssue[] } {
+    const errors: ValidationIssue[]   = [];
+    const warnings: ValidationIssue[] = [];
+
+    // REGLA 1 — ALL en turno no nocturno (advertencia)
+    for (const s of shifts) {
+        if (s.colorGroup === 'ALL' && !NIGHT_SHIFTS.includes(s.shiftType)) {
+            warnings.push({
+                type: 'ALL_NON_NIGHT',
+                message: `${s.user?.name ?? 'Empleado'} tiene "Todos los colores" en turno ${SHIFT_LABELS[s.shiftType] ?? s.shiftType} (${new Date(s.date).toLocaleDateString('es-PR')}). Solo se recomienda en turno nocturno.`,
+                shift: { id: s.id, name: s.user?.name, date: s.date, shiftType: s.shiftType },
+            });
+        }
+    }
+
+    // REGLA 2 — colorGroup null en CAREGIVER/NURSE (error crítico)
+    for (const s of shifts) {
+        if (!s.colorGroup && CARE_ROLES.includes(s.user?.role ?? '')) {
+            errors.push({
+                type: 'NULL_COLOR_CAREGIVER',
+                message: `${s.user?.name ?? 'Empleado'} no tiene color de grupo asignado el ${new Date(s.date).toLocaleDateString('es-PR')}. Los cuidadores y enfermeras deben tener un color.`,
+                shift: { id: s.id, name: s.user?.name, date: s.date, role: s.user?.role },
+            });
+        }
+    }
+
+    // REGLA 3 — Mismo empleado, mismo día, colores distintos (advertencia)
+    const byUserDate = new Map<string, any[]>();
+    for (const s of shifts) {
+        const key = `${s.userId}|${new Date(s.date).toDateString()}`;
+        if (!byUserDate.has(key)) byUserDate.set(key, []);
+        byUserDate.get(key)!.push(s);
+    }
+    for (const [, group] of byUserDate) {
+        if (group.length > 1) {
+            const colors = [...new Set(group.map((s: any) => s.colorGroup ?? 'Sin color'))];
+            if (colors.length > 1) {
+                warnings.push({
+                    type: 'DUPLICATE_DIFFERENT_COLORS',
+                    message: `${group[0].user?.name ?? 'Empleado'} tiene ${group.length} turnos el mismo día con colores distintos (${colors.join(', ')}). El sistema usará el primer turno encontrado.`,
+                    shift: { name: group[0].user?.name, date: group[0].date, colors },
+                });
+            }
+        }
+    }
+
+    return { errors, warnings };
+}
+
 export async function POST(req: Request) {
     try {
-        const { scheduleId } = await req.json();
+        const body = await req.json();
+        const { scheduleId, force = false } = body;
+
         if (!scheduleId) {
             return NextResponse.json({ success: false, error: 'scheduleId requerido' }, { status: 400 });
         }
 
+        // ── PASO 1: Cargar shifts del borrador para validar ────────────────────
+        const shiftsForValidation = await prisma.scheduledShift.findMany({
+            where: { scheduleId },
+            include: { user: { select: { id: true, name: true, role: true } } },
+        });
+
+        const { errors, warnings } = runValidations(shiftsForValidation);
+
+        // Errores críticos siempre bloquean (incluso con force=true)
+        if (errors.length > 0) {
+            return NextResponse.json({
+                success: false,
+                errors,
+                warnings,
+                message: 'Hay errores que deben corregirse antes de publicar.',
+            }, { status: 400 });
+        }
+
+        // Solo advertencias y el director no confirmó → pedir confirmación
+        if (warnings.length > 0 && !force) {
+            return NextResponse.json({
+                success: false,
+                needsConfirmation: true,
+                errors: [],
+                warnings,
+                message: 'Hay advertencias. Revisa antes de publicar.',
+            }, { status: 200 });
+        }
+
+        // ── PASO 2: Sin bloqueos → publicar ───────────────────────────────────
         const schedule = await prisma.schedule.update({
             where: { id: scheduleId },
             data: { status: 'PUBLISHED', publishedAt: new Date() },
@@ -59,9 +150,6 @@ export async function POST(req: Request) {
             }
             byUser.get(shift.userId)!.shifts.push(shift);
         }
-
-        // Incluir notes en el texto plano de la notificación in-app
-        // (el email ya las muestra en columna dedicada)
 
         const notificationPromises: Promise<any>[] = [];
         const emailPromises: Promise<any>[] = [];
@@ -138,7 +226,13 @@ export async function POST(req: Request) {
 
         await Promise.all([...notificationPromises, ...emailPromises]);
 
-        return NextResponse.json({ success: true, schedule, notified: byUser.size });
+        return NextResponse.json({
+            success: true,
+            schedule,
+            notified: byUser.size,
+            publishedWithWarnings: warnings.length > 0,
+            warnings,
+        });
 
     } catch (error) {
         console.error('Publish error:', error);

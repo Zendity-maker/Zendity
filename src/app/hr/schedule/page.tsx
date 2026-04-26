@@ -111,6 +111,13 @@ export default function ScheduleBuilderPage() {
 
     // Modal conflicto DRAFT existente
     const [draftConflict, setDraftConflict] = useState<{ existingScheduleId: string; shiftCount: number; createdAt: string } | null>(null);
+
+    // Modal validaciones de publicación
+    type ValidationIssue = { type: string; message: string; shift: Record<string, any> };
+    const [publishErrors, setPublishErrors]   = useState<ValidationIssue[]>([]);
+    const [publishWarnings, setPublishWarnings] = useState<ValidationIssue[]>([]);
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [deletingDraft, setDeletingDraft] = useState(false);
     const canDeleteDraft = !!user && ['DIRECTOR', 'ADMIN'].includes((user as any).role);
 
@@ -392,21 +399,44 @@ export default function ScheduleBuilderPage() {
         } finally { setDeletingDraft(false); }
     };
 
-    const publishSchedule = async () => {
+    const publishSchedule = async (force = false) => {
         if (!draftId) return;
-        if (!confirm('¿Publicar este horario? El equipo podrá verlo.')) return;
+        setPublishing(true);
         try {
             const res = await fetch('/api/hr/schedule/publish', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scheduleId: draftId })
+                body: JSON.stringify({ scheduleId: draftId, force })
             });
             const data = await res.json();
-            if (data.success) {
-                setPublishedSchedule(data.schedule);
-                alert('✅ Horario publicado correctamente');
+
+            // Errores críticos — bloquear publicación
+            if (!data.success && data.errors?.length > 0) {
+                setPublishErrors(data.errors);
+                setPublishWarnings(data.warnings ?? []);
+                setShowPublishModal(true);
+                return;
             }
-        } catch (e) { alert('Error publicando el horario'); }
+
+            // Solo advertencias, director no confirmó — pedir confirmación
+            if (!data.success && data.needsConfirmation) {
+                setPublishErrors([]);
+                setPublishWarnings(data.warnings ?? []);
+                setShowPublishModal(true);
+                return;
+            }
+
+            // Publicado con éxito (con o sin advertencias)
+            setShowPublishModal(false);
+            setPublishErrors([]);
+            setPublishWarnings([]);
+            setPublishedSchedule(data.schedule);
+            alert('✅ Horario publicado correctamente');
+        } catch (e) {
+            alert('Error publicando el horario');
+        } finally {
+            setPublishing(false);
+        }
     };
 
     const unpublishSchedule = async () => {
@@ -621,9 +651,15 @@ export default function ScheduleBuilderPage() {
                                                     onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
-                                                    {COLOR_OPTIONS.map(c => (
-                                                        <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
-                                                    ))}
+                                                    {COLOR_OPTIONS.map(c => {
+                                                        const isNight = ['NIGHT', 'FULL_NIGHT'].includes(shift.shiftType);
+                                                        const disabledAll = c === 'ALL' && !isNight;
+                                                        return (
+                                                            <option key={c} value={c} disabled={disabledAll}>
+                                                                {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </>
                                         )}
@@ -662,9 +698,15 @@ export default function ScheduleBuilderPage() {
                                                     onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
-                                                    {COLOR_OPTIONS.map(c => (
-                                                        <option key={c} value={c}>{c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? 'Todos los colores' : `Grupo ${c}`}</option>
-                                                    ))}
+                                                    {COLOR_OPTIONS.map(c => {
+                                                        const isNight = ['NIGHT', 'FULL_NIGHT'].includes(shift.shiftType);
+                                                        const disabledAll = c === 'ALL' && !isNight;
+                                                        return (
+                                                            <option key={c} value={c} disabled={disabledAll}>
+                                                                {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </div>
                                         )}
@@ -768,12 +810,12 @@ export default function ScheduleBuilderPage() {
                         </button>
                     )}
                     <button
-                        onClick={publishSchedule}
-                        disabled={!draftId || !!publishedSchedule}
+                        onClick={() => publishSchedule(false)}
+                        disabled={!draftId || !!publishedSchedule || publishing}
                         className="px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm shadow-lg shadow-teal-500/20"
                     >
                         <Send className="w-4 h-4" />
-                        Publicar horario
+                        {publishing ? 'Verificando...' : 'Publicar horario'}
                     </button>
                 </div>
             </div>
@@ -843,6 +885,83 @@ export default function ScheduleBuilderPage() {
             hqLogoUrl={hqBranding.logoUrl}
             generatedByName={user?.name || 'Supervisor'}
         />
+
+        {/* ── Modal validaciones de publicación ─────────────────────────── */}
+        {showPublishModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+
+                    {/* Header */}
+                    {publishErrors.length > 0 ? (
+                        <div className="bg-rose-50 px-6 py-4 border-b border-rose-100 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-rose-600 text-white rounded-xl flex items-center justify-center text-lg font-black shrink-0">✕</div>
+                            <div>
+                                <h3 className="font-black text-slate-800">No se puede publicar</h3>
+                                <p className="text-xs font-bold text-rose-700">Corrige los errores antes de continuar</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center text-lg font-black shrink-0">⚠</div>
+                            <div>
+                                <h3 className="font-black text-slate-800">Revisar antes de publicar</h3>
+                                <p className="text-xs font-bold text-amber-700">Hay advertencias en el horario</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+
+                        {/* Errores críticos */}
+                        {publishErrors.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest">
+                                    ❌ Errores críticos — deben corregirse
+                                </p>
+                                {publishErrors.map((e, i) => (
+                                    <div key={i} className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-800 font-medium leading-relaxed">
+                                        {e.message}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Advertencias */}
+                        {publishWarnings.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
+                                    ⚠️ Advertencias — puedes publicar con precaución
+                                </p>
+                                {publishWarnings.map((w, i) => (
+                                    <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-medium leading-relaxed">
+                                        {w.message}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer buttons */}
+                    <div className="px-6 py-4 border-t border-slate-100 flex gap-3 flex-wrap">
+                        <button
+                            onClick={() => { setShowPublishModal(false); setPublishErrors([]); setPublishWarnings([]); }}
+                            className="flex-1 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                        >
+                            {publishErrors.length > 0 ? 'Cerrar y corregir' : 'Cancelar'}
+                        </button>
+                        {publishErrors.length === 0 && publishWarnings.length > 0 && (
+                            <button
+                                onClick={() => publishSchedule(true)}
+                                disabled={publishing}
+                                className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                {publishing ? 'Publicando...' : 'Publicar de todas formas'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Modal conflicto DRAFT existente */}
         {draftConflict && (
