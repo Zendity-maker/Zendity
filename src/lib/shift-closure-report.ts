@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma';
  * reporte Zendi (GPT-4o-mini) vive aquí. Cambiar la lógica en un solo lugar.
  */
 
-export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT';
+export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || 'dummy',
@@ -186,8 +186,11 @@ export async function buildZendiSummary(params: {
 }): Promise<{ summary: string; source: 'gpt' | 'fallback' }> {
     const { caregiverName, shiftType, patients, activity, justifications } = params;
 
-    const shiftLabel = shiftType === 'MORNING' ? 'Mañana (6am–2pm)'
-        : shiftType === 'EVENING' ? 'Tarde (2pm–10pm)'
+    const shiftLabel =
+        shiftType === 'MORNING'    ? 'Mañana (6am–2pm)'
+        : shiftType === 'EVENING'    ? 'Tarde (2pm–10pm)'
+        : shiftType === 'FULL_DAY'   ? 'Turno Largo Día (6am–6pm)'
+        : shiftType === 'FULL_NIGHT' ? 'Turno Largo Noche (6pm–6am)'
         : 'Noche (10pm–6am)';
 
     const patientList = patients.length > 0

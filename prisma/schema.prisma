@@ -1447,9 +1447,11 @@ model HandoverNote {
 }
 
 enum ShiftType {
-  MORNING
-  EVENING
-  NIGHT
+  MORNING       // 6AM–2PM   (8h)
+  EVENING       // 2PM–10PM  (8h)
+  NIGHT         // 10PM–6AM  (8h)
+  FULL_DAY      // 6AM–6PM   (12h)
+  FULL_NIGHT    // 6PM–6AM   (12h)
   SUPERVISOR_DAY
 }
 

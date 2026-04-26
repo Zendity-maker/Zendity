@@ -7,16 +7,20 @@ import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
 
 const SHIFT_LABELS: Record<string, string> = {
-    MORNING: "Diurno 6AM–2PM",
-    EVENING: "Vespertino 2PM–10PM",
-    NIGHT: "Nocturno 10PM–6AM",
+    MORNING:        "Diurno 6AM–2PM",
+    EVENING:        "Vespertino 2PM–10PM",
+    NIGHT:          "Nocturno 10PM–6AM",
+    FULL_DAY:       "Turno Largo 6AM–6PM (12h)",
+    FULL_NIGHT:     "Turno Largo 6PM–6AM (12h)",
     SUPERVISOR_DAY: "Supervisor 9AM–6PM"
 };
 
 const SHIFT_STYLES: Record<string, string> = {
-    MORNING: "bg-amber-50 text-amber-700 border-amber-200",
-    EVENING: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    NIGHT: "bg-slate-100 text-slate-700 border-slate-200",
+    MORNING:        "bg-amber-50 text-amber-700 border-amber-200",
+    EVENING:        "bg-indigo-50 text-indigo-700 border-indigo-200",
+    NIGHT:          "bg-slate-100 text-slate-700 border-slate-200",
+    FULL_DAY:       "bg-emerald-50 text-emerald-700 border-emerald-200",
+    FULL_NIGHT:     "bg-violet-50 text-violet-700 border-violet-200",
     SUPERVISOR_DAY: "bg-purple-100 text-purple-700 border-purple-300"
 };
 

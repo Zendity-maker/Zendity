@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 
-export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT';
+export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
 /**
  * Infiere el turno clínico (MORNING/EVENING/NIGHT) en hora AST (America/Puerto_Rico).
@@ -21,7 +21,12 @@ export function inferShiftTypeFromAST(at?: Date): ShiftT {
 
 export function canonicalShiftStartUtc(shiftType: ShiftT): Date {
     const base = todayStartAST();
-    const offsetHours = shiftType === 'MORNING' ? 0 : shiftType === 'EVENING' ? 8 : 16;
+    const offsetHours =
+        shiftType === 'MORNING'    ? 0  :
+        shiftType === 'EVENING'    ? 8  :
+        shiftType === 'FULL_DAY'   ? 0  :  // 6AM–6PM
+        shiftType === 'FULL_NIGHT' ? 12 :  // 6PM–6AM
+        16;                                // NIGHT 10PM–6AM
     return new Date(base.getTime() + offsetHours * 60 * 60 * 1000);
 }
 

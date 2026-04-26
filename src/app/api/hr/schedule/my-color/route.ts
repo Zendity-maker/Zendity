@@ -55,13 +55,23 @@ export async function GET(req: Request) {
             resolvedColor = colorAssignment.color;
             source = 'assignment';
         } else {
-            // Usar shiftTypeToUse (inicio de sesión o actual) en lugar de la hora del reloj.
-            // Previene pérdida de color al cruzar el límite MORNING→EVENING (2PM AST).
+            // Buscar ScheduledShift del turno actual.
+            // Los turnos de 12h (FULL_DAY 6AM–6PM, FULL_NIGHT 6PM–6AM) se solapan con
+            // los turnos base de 8h → incluirlos siempre en el filtro para que un
+            // cuidador con turno FULL_DAY sea encontrado en cualquier momento del día.
+            const shiftTypesToCheck: string[] = [shiftTypeToUse];
+            if (shiftTypeToUse === 'MORNING' || shiftTypeToUse === 'EVENING') {
+                shiftTypesToCheck.push('FULL_DAY');
+            }
+            if (shiftTypeToUse === 'EVENING' || shiftTypeToUse === 'NIGHT') {
+                shiftTypesToCheck.push('FULL_NIGHT');
+            }
+
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
                     date: { gte: startOfDay(today), lte: endOfDay(today) },
-                    shiftType: shiftTypeToUse as any,
+                    shiftType: { in: shiftTypesToCheck as any[] },
                     isAbsent: false,
                     schedule: {
                         headquartersId: hqId,
