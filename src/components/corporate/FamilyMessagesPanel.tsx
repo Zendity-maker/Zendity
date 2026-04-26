@@ -30,6 +30,7 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
     const [reply, setReply] = useState("");
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
+    const [isImproving, setIsImproving] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const loadConversations = async (silent = false) => {
@@ -70,6 +71,26 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
     const handleSelectConversation = (conv: any) => {
         setSelected(conv);
         setReply("");
+    };
+
+    const handleImproveWithZendi = async () => {
+        if (!reply.trim() || isImproving) return;
+        setIsImproving(true);
+        try {
+            const res = await fetch('/api/care/zendi/improve-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: reply, context: 'family_message' }),
+            });
+            const data = await res.json();
+            if (data.success && data.improved) {
+                setReply(data.improved);
+            }
+        } catch (e) {
+            console.error('[FamilyMessagesPanel] improve error:', e);
+        } finally {
+            setIsImproving(false);
+        }
     };
 
     const handleSend = async (e: React.FormEvent) => {
@@ -259,6 +280,25 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                           flex-shrink-0 → nunca se comprime dentro del flex column.
                         */}
                         <div className="sticky bottom-0 flex-shrink-0 bg-white border-t border-slate-100 p-4 safe-pb">
+                            {reply.length > 10 && (
+                                <div className="flex justify-end mb-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleImproveWithZendi}
+                                        disabled={isImproving}
+                                        className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 px-2 py-1 rounded border border-teal-200 hover:bg-teal-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {isImproving ? (
+                                            <>
+                                                <span className="animate-spin inline-block w-3 h-3 border border-teal-400 border-t-transparent rounded-full" />
+                                                Mejorando...
+                                            </>
+                                        ) : (
+                                            '✨ Zendi'
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                             <form onSubmit={handleSend} className="flex gap-3 relative">
                                 <input
                                     type="text"
