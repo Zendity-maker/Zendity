@@ -36,6 +36,7 @@ export async function GET(req: Request) {
                     select: {
                         foodIntake: true,
                         bathCompleted: true,
+                        isClinicalAlert: true,
                         notes: true,
                         createdAt: true,
                     },
@@ -106,10 +107,26 @@ export async function GET(req: Request) {
         // Fallback: si el vital más reciente falla el filtro, intentar con el siguiente
         const safeVitals = resident.vitalSigns.find(v => vitalsEnRangoNormal(v)) ?? null;
 
-        // Reemplazar bathCompleted del DailyLog con la lectura directa de BathLog
-        const dailyLogsFixed = resident.dailyLogs.length > 0
-            ? [{ ...resident.dailyLogs[0], bathCompleted: !!bathToday }]
-            : [];
+        // ── Sanitizar DailyLog antes de enviarlo al familiar ──────────────
+        // 1. bathCompleted → BathLog (fuente de verdad)
+        // 2. notas de alertas clínicas → null  (no alarmar sin contexto médico)
+        // 3. isClinicalAlert → no enviar al cliente
+        const ALERT_PREFIXES = ['[ALERTA', '[ACCIÓN PREVENTIVA', '[alerta'];
+        const sanitizeNotes = (notes: string | null, isAlert: boolean): string | null => {
+            if (!notes) return null;
+            if (isAlert) return null;
+            if (ALERT_PREFIXES.some(p => notes.startsWith(p))) return null;
+            return notes;
+        };
+
+        const dailyLogsFixed = resident.dailyLogs.length > 0 ? (() => {
+            const { isClinicalAlert, notes, ...rest } = resident.dailyLogs[0] as any;
+            return [{
+                ...rest,
+                bathCompleted: !!bathToday,
+                notes: sanitizeNotes(notes, !!isClinicalAlert),
+            }];
+        })() : [];
 
         return NextResponse.json({ success: true, resident: { ...resident, vitalSigns: safeVitals ? [safeVitals] : [], lifePlan, dailyLogs: dailyLogsFixed } });
 
