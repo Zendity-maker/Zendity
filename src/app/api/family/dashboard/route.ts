@@ -61,6 +61,17 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "Residente no encontrado." }, { status: 404 });
         }
 
+        // ── BathLog de hoy: fuente de verdad para higiene ─────────────────
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const bathToday = await prisma.bathLog.findFirst({
+            where: {
+                patientId: resident.id,
+                timeLogged: { gte: todayStart },
+            },
+        });
+
         // Bypassing Prisma Client Schema Cache for LifePlan using Raw SQL Hotfix
         let lifePlan = null;
         try {
@@ -95,7 +106,12 @@ export async function GET(req: Request) {
         // Fallback: si el vital más reciente falla el filtro, intentar con el siguiente
         const safeVitals = resident.vitalSigns.find(v => vitalsEnRangoNormal(v)) ?? null;
 
-        return NextResponse.json({ success: true, resident: { ...resident, vitalSigns: safeVitals ? [safeVitals] : [], lifePlan } });
+        // Reemplazar bathCompleted del DailyLog con la lectura directa de BathLog
+        const dailyLogsFixed = resident.dailyLogs.length > 0
+            ? [{ ...resident.dailyLogs[0], bathCompleted: !!bathToday }]
+            : [];
+
+        return NextResponse.json({ success: true, resident: { ...resident, vitalSigns: safeVitals ? [safeVitals] : [], lifePlan, dailyLogs: dailyLogsFixed } });
 
     } catch (error: any) {
         console.error("Family Dashboard API Error:", error);
