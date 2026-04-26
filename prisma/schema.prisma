@@ -69,8 +69,9 @@ model Headquarters {
   crmLeads     CRMLead[]
 
   // FASE 29 Calendario y Horarios
-  events         HeadquartersEvent[]
-  shiftSchedules ShiftSchedule[]
+  events             HeadquartersEvent[]
+  shiftSchedules     ShiftSchedule[]
+  familyAppointments FamilyAppointment[] // Sprint C
 
   // FASE 30: Zendity Care Core
   shiftSessions ShiftSession[]
@@ -241,6 +242,7 @@ model User {
   scheduledShifts       ScheduledShift[]
   shiftColorAssignments ShiftColorAssignment[]
   notifications         Notification[]
+  approvedAppointments  FamilyAppointment[] @relation("AppointmentApprover") // Sprint C
   accounts              Account[]
   sessions              Session[]
 
@@ -557,8 +559,9 @@ model Patient {
   familyMembers  FamilyMember[]      @relation("PatientFamily")
   primaryFamilyMember FamilyMember?  @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
   familyVisits   FamilyVisit[]
-  familyMessages FamilyMessage[] // FASE 13 Integrations
-  wellnessNotes  WellnessDiary[]
+  familyMessages     FamilyMessage[] // FASE 13 Integrations
+  wellnessNotes      WellnessDiary[]
+  familyAppointments FamilyAppointment[] // Sprint C
 
   // FASE 6 Integrations
   intakeData IntakeData?
@@ -780,6 +783,9 @@ model FamilyMember {
 
   // FASE 43 Integrations
   legalDocs LegalDocument[]
+
+  // Sprint C: Calendario Familiar
+  familyAppointments FamilyAppointment[]
 }
 
 model WellnessDiary {
@@ -2543,4 +2549,39 @@ model PatientDocument {
 
   @@index([patientId, category])
   @@index([headquartersId])
+}
+
+// =======================
+// Sprint C — CALENDARIO FAMILIAR
+// =======================
+
+model FamilyAppointment {
+  id             String   @id @default(uuid())
+  patientId      String
+  familyMemberId String
+  headquartersId String
+
+  type           String   // VISIT | VIDEO_CALL | PHONE_CALL | DIRECTOR_MEETING | SPECIAL_OCCASION
+  title          String
+  description    String?
+  requestedDate  DateTime
+  requestedTime  String   // "10:00 AM"
+  durationMins   Int      @default(60)
+
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
+
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id])
+  approvedBy   User?        @relation("AppointmentApprover", fields: [approvedById], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([patientId, status])
+  @@index([headquartersId, requestedDate])
 }
