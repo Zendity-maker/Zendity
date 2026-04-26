@@ -33,20 +33,41 @@ export async function GET(req: Request) {
             }
         });
 
+        // Resolver nombres de senders (staff y familiares) en una sola pasada
+        const allMessages = patients.flatMap(p => p.familyMessages);
+        const staffIds   = [...new Set(allMessages.filter(m => m.senderType === 'STAFF').map(m => m.senderId))];
+        const familyIds  = [...new Set(allMessages.filter(m => m.senderType === 'FAMILY').map(m => m.senderId))];
+
+        const [staffUsers, familyMembersData] = await Promise.all([
+            staffIds.length  > 0 ? prisma.user.findMany({ where: { id: { in: staffIds  } }, select: { id: true, name: true } }) : [],
+            familyIds.length > 0 ? prisma.familyMember.findMany({ where: { id: { in: familyIds } }, select: { id: true, name: true } }) : [],
+        ]);
+
+        const staffMap  = new Map((staffUsers        as { id: string; name: string }[]).map(u => [u.id, u.name]));
+        const familyMap = new Map((familyMembersData as { id: string; name: string }[]).map(f => [f.id, f.name]));
+
+        const attachNames = (msgs: any[]) => msgs.map(m => ({
+            ...m,
+            senderName: m.senderType === 'STAFF'
+                ? (staffMap.get(m.senderId) || 'Personal')
+                : (familyMap.get(m.senderId) || 'Familiar'),
+        }));
+
         // Filtrar solo pacientes con mensajes y construir conversaciones
         const conversations = patients
             .filter(p => p.familyMessages.length > 0)
             .map(p => {
                 const unreadCount = p.familyMessages.filter(m => !m.isRead && m.senderType === 'FAMILY').length;
-                const lastMessage = p.familyMessages[0]; // ya ordenado desc
+                const rawMessages = [...p.familyMessages].reverse(); // asc
+                const messages    = attachNames(rawMessages);
+                const lastMessage = attachNames([p.familyMessages[0]])[0]; // ya ordenado desc
                 return {
                     patientId: p.id,
                     patientName: p.name,
                     roomNumber: p.roomNumber,
                     unreadCount,
                     lastMessage,
-                    // Ordenar mensajes asc para la vista de chat
-                    messages: [...p.familyMessages].reverse()
+                    messages,
                 };
             })
             .sort((a, b) => {

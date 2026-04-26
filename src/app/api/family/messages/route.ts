@@ -33,7 +33,23 @@ export async function GET(req: Request) {
             orderBy: { createdAt: 'asc' }
         });
 
-        return NextResponse.json({ success: true, messages });
+        // Resolver nombres de staff para que el familiar vea quién respondió
+        const staffIds = [...new Set(
+            messages.filter(m => m.senderType === 'STAFF').map(m => m.senderId)
+        )];
+        const staffUsers = staffIds.length > 0
+            ? await prisma.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, name: true } })
+            : [];
+        const staffMap = new Map(staffUsers.map(u => [u.id, u.name]));
+
+        const messagesWithNames = messages.map(m => ({
+            ...m,
+            senderName: m.senderType === 'FAMILY'
+                ? familyMember.name
+                : (staffMap.get(m.senderId) || 'Personal'),
+        }));
+
+        return NextResponse.json({ success: true, messages: messagesWithNames });
     } catch (e) {
         console.error("[FamilyMessages GET] Error:", e);
         return NextResponse.json({ success: false, error: "Error al cargar mensajes" }, { status: 500 });

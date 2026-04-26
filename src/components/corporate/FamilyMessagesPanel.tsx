@@ -248,7 +248,15 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
                                                 <div className="flex-1 h-px bg-slate-100" />
                                             </div>
                                         )}
-                                        <div className={`flex ${isFamily ? 'justify-start' : 'justify-end'}`}>
+                                        <div className={`flex flex-col ${isFamily ? 'items-start' : 'items-end'}`}>
+                                            {/* Nombre del sender */}
+                                            {msg.senderName && (
+                                                <span className={`text-[10px] font-black uppercase tracking-wider mb-1 px-1 ${
+                                                    isFamily ? 'text-slate-400' : 'text-teal-600'
+                                                }`}>
+                                                    {msg.senderName}
+                                                </span>
+                                            )}
                                             <div className={`max-w-[82%] rounded-3xl p-3.5 shadow-sm ${
                                                 isFamily
                                                     ? 'bg-white border border-slate-100 text-slate-800 rounded-bl-sm'

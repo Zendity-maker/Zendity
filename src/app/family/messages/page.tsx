@@ -156,7 +156,13 @@ export default function FamilyMessages() {
                                     </div>
                                 )}
 
-                                <div className={`flex ${isFamily ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-1`}>
+                                <div className={`flex flex-col ${isFamily ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-1`}>
+                                    {/* Nombre del sender sobre el bubble */}
+                                    {!isFamily && msg.senderName && (
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-teal-600 mb-1 px-1">
+                                            {msg.senderName}
+                                        </span>
+                                    )}
                                     <div className={`max-w-[85%] sm:max-w-[70%] rounded-3xl p-4 shadow-sm relative ${
                                         isFamily
                                             ? msg.recipientType === 'NURSING'
@@ -170,6 +176,15 @@ export default function FamilyMessages() {
                                                     {msg.recipientType === 'NURSING' ? '💊 Enfermería' : '🏢 Administración'}
                                                 </span>
                                             </div>
+                                        )}
+                                        {/* Imagen adjunta (broadcast) */}
+                                        {msg.imageBase64 && (
+                                            <img
+                                                src={msg.imageBase64}
+                                                alt="Imagen adjunta"
+                                                className="rounded-2xl mb-3 max-w-full object-cover"
+                                                style={{ maxHeight: '220px' }}
+                                            />
                                         )}
                                         <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                                         <span className={`text-[10px] font-bold block mt-2 text-right uppercase tracking-wider ${
