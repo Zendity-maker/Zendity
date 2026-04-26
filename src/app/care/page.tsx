@@ -170,6 +170,7 @@ export default function ZendityCareTabletPage() {
 
     // Shift Session (Clock-In) Core
     const [activeSession, setActiveSession] = useState<any>(null);
+    const [shiftNotes, setShiftNotes] = useState<string | null>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
     const [sessionLoading, setSessionLoading] = useState(true);
@@ -434,6 +435,7 @@ export default function ZendityCareTabletPage() {
                         if (colorData.success && colorData.color) {
                             // color puede ser un grupo (RED/YELLOW/...) o 'ALL' (cuidador solitario o turno asignado "Todos")
                             const effective = colorData.color;
+                            if (colorData.shiftNotes) setShiftNotes(colorData.shiftNotes);
                             setSelectedColor(effective);
                             localStorage.setItem('zendityCareShiftColor', effective);
                             const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
@@ -449,6 +451,7 @@ export default function ZendityCareTabletPage() {
                         // mostraría residentes que no corresponden. Dejar selector
                         // manual / sin residentes hasta que alguien asigne color.
                         if (colorData.source === 'no_color_assigned') {
+                            if (colorData.shiftNotes) setShiftNotes(colorData.shiftNotes);
                             setSelectedColor(null);
                             setPatients([]);
                             return;
@@ -1525,6 +1528,20 @@ export default function ZendityCareTabletPage() {
                     {coverageLoading && (
                         <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Consultando cobertura…
+                        </div>
+                    )}
+
+                    {shiftNotes && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex gap-2 items-start w-full text-left">
+                            <span className="text-base leading-none mt-0.5">📝</span>
+                            <div>
+                                <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                                    Nota del supervisor para tu turno:
+                                </div>
+                                <div className="text-sm text-amber-700 mt-1">
+                                    {shiftNotes}
+                                </div>
+                            </div>
                         </div>
                     )}
 

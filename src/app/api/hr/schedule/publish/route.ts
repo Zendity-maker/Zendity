@@ -60,13 +60,17 @@ export async function POST(req: Request) {
             byUser.get(shift.userId)!.shifts.push(shift);
         }
 
+        // Incluir notes en el texto plano de la notificación in-app
+        // (el email ya las muestra en columna dedicada)
+
         const notificationPromises: Promise<any>[] = [];
         const emailPromises: Promise<any>[] = [];
 
         for (const [userId, { user, shifts }] of byUser) {
-            const shiftsText = shifts.map(s =>
-                `${formatDate(s.date)} — ${SHIFT_LABELS[s.shiftType] || s.shiftType} (${COLOR_LABELS[s.colorGroup] || s.colorGroup})`
-            ).join('\n');
+            const shiftsText = shifts.map(s => {
+                const noteLine = s.notes ? ` · Nota: ${s.notes}` : '';
+                return `${formatDate(s.date)} — ${SHIFT_LABELS[s.shiftType] || s.shiftType} (${COLOR_LABELS[s.colorGroup] || s.colorGroup})${noteLine}`;
+            }).join('\n');
 
             notificationPromises.push(
                 prisma.notification.create({
@@ -88,6 +92,7 @@ export async function POST(req: Request) {
                         <td style="padding:10px 16px;border-bottom:1px solid #E2E8F0;font-size:14px;">
                             <span style="background:#E1F5EE;color:#0F6E56;font-weight:700;padding:3px 10px;border-radius:20px;font-size:12px;">${COLOR_LABELS[s.colorGroup] || s.colorGroup}</span>
                         </td>
+                        <td style="padding:8px 16px;border-bottom:1px solid #E2E8F0;color:#666666;font-size:13px;font-style:italic;">${s.notes || '—'}</td>
                     </tr>`).join('');
 
                 const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
@@ -104,6 +109,7 @@ export async function POST(req: Request) {
                                     <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">FECHA</th>
                                     <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">TURNO</th>
                                     <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">GRUPO</th>
+                                    <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">NOTAS</th>
                                 </tr></thead>
                                 <tbody>${shiftsHtml}</tbody>
                             </table>

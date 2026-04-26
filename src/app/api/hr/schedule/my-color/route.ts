@@ -40,6 +40,7 @@ export async function GET(req: Request) {
 
         // Resolver color del día (prioridad: asignación manual → roster publicado del turno)
         let resolvedColor: string | null = null;
+        let shiftNotes: string | null = null;
         let source: 'assignment' | 'roster' | 'none' | 'no_color_assigned' = 'none';
 
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
@@ -81,6 +82,8 @@ export async function GET(req: Request) {
                 orderBy: { date: 'desc' }
             });
             if (todayShift) {
+                // Capturar notas del turno independientemente del colorGroup
+                shiftNotes = todayShift.notes || null;
                 if (todayShift.colorGroup) {
                     resolvedColor = todayShift.colorGroup;
                     source = 'roster';
@@ -112,18 +115,19 @@ export async function GET(req: Request) {
                     auto: true,
                     originalColor: resolvedColor,
                     source,
+                    shiftNotes,
                 });
             }
         }
 
         if (resolvedColor) {
-            return NextResponse.json({ success: true, color: resolvedColor, source });
+            return NextResponse.json({ success: true, color: resolvedColor, source, shiftNotes });
         }
 
         // Sin color. source puede ser:
         //  - 'no_color_assigned' → shift encontrado pero sin color asignado (no caer a localStorage)
         //  - 'none' → no hay shift del turno actual ni asignación manual
-        return NextResponse.json({ success: true, color: null, source });
+        return NextResponse.json({ success: true, color: null, source, shiftNotes });
 
     } catch (error) {
         console.error('my-color error:', error);

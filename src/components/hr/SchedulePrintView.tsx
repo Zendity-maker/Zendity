@@ -122,6 +122,11 @@ const SchedulePrintView = forwardRef<HTMLDivElement, Props>(
                             {shift.colorGroup}
                         </div>
                     )}
+                    {shift.notes && (
+                        <div style={{ fontSize: '7px', color: '#555555', fontStyle: 'italic', fontWeight: 400, marginTop: '4px', borderTop: '1px solid #DDDDDD', paddingTop: '3px', textAlign: 'left', lineHeight: 1.3 }}>
+                            📝 {shift.notes}
+                        </div>
+                    )}
                 </div>
             );
         };
