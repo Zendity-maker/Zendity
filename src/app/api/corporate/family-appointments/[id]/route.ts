@@ -21,9 +21,10 @@ const TYPE_LABELS: Record<string, string> = {
 // PATCH — aprobar o rechazar una cita
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
         if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
             return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
@@ -38,7 +39,7 @@ export async function PATCH(
         }
 
         const appt = await prisma.familyAppointment.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 patient:      { select: { name: true, headquartersId: true } },
                 familyMember: { select: { name: true, email: true } },
@@ -67,7 +68,7 @@ export async function PATCH(
         // ── APROBAR ────────────────────────────────────────────────────────────
         if (action === 'APPROVE') {
             const updated = await prisma.familyAppointment.update({
-                where: { id: params.id },
+                where: { id },
                 data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date() },
             });
 
@@ -169,7 +170,7 @@ export async function PATCH(
         const reason = rejectedReason?.trim() || 'Tu solicitud no pudo ser aprobada. Por favor contáctanos para reagendar.';
 
         const updated = await prisma.familyAppointment.update({
-            where: { id: params.id },
+            where: { id },
             data: { status: 'REJECTED', rejectedReason: reason, approvedById: staffId, approvedAt: new Date() },
         });
 
