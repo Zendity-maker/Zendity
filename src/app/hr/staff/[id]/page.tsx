@@ -9,7 +9,7 @@ import {
     AtSymbolIcon, CalendarDaysIcon, ChartBarIcon, StarIcon, MapPinIcon
 } from "@heroicons/react/24/outline";
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from "recharts";
 import EditStaffRolesModal from "./EditStaffRolesModal";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
@@ -21,6 +21,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
     const [employee, setEmployee] = useState<any>(null);
     const [performanceData, setPerformanceData] = useState<any[]>([]);
+    const [scoreHistory, setScoreHistory] = useState<{
+        currentScore: number;
+        weeklyAverage: { week: string; avgScore: number }[];
+        events: { id: string; date: string; delta: number; reason: string; category: string; scoreBefore: number; scoreAfter: number }[];
+        summary: { totalPositive: number; totalNegative: number; topCategory: string | null };
+    } | null>(null);
     const [loading, setLoading] = useState(true);
     const [incidents, setIncidents] = useState<any[]>([]);
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
@@ -100,8 +106,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const fetchProfile = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/hr/staff/${id}`);
-            const data = await res.json();
+            const [profileRes, historyRes] = await Promise.all([
+                fetch(`/api/hr/staff/${id}`),
+                fetch(`/api/hr/staff/${id}/score-history`),
+            ]);
+            const data = await profileRes.json();
             if (data.success) {
                 setEmployee(data.employee);
                 setEditForm({ name: data.employee.name, email: data.employee.email, pinCode: data.employee.pinCode || "" });
@@ -110,6 +119,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             } else {
                 alert("Error cargando perfil: " + data.error);
                 router.push("/hr/staff");
+            }
+            if (historyRes.ok) {
+                const histData = await historyRes.json();
+                if (histData.success) setScoreHistory(histData);
             }
         } catch (error) {
             console.error("Error al obtener perfil", error);
@@ -361,64 +374,124 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         </div>
                     </div>
 
-                    {/* Right Column: Performance Trend Chart */}
-                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col">
-                        <div className="mb-8">
+                    {/* Right Column: Z-Score Real History Chart */}
+                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col gap-6">
+                        {/* Chart header + summary pills */}
+                        <div>
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                                 <ChartBarIcon className="w-6 h-6 text-emerald-500" />
-                                Z-Score Tendencia Histórica
+                                Z-Score — Últimas 13 Semanas
                             </h3>
-                            <p className="text-slate-500 font-medium mt-1 text-sm">
-                                Evaluación multidimensional basada en asistencia, protocolos clínicos y valoraciones directivas.
-                            </p>
+                            {scoreHistory && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                                        +{scoreHistory.summary.totalPositive} pts ganados
+                                    </span>
+                                    <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
+                                        {scoreHistory.summary.totalNegative} pts perdidos
+                                    </span>
+                                    {scoreHistory.summary.topCategory && (
+                                        <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
+                                            Top: {scoreHistory.summary.topCategory}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex-1 min-h-[300px] w-full mt-4">
-                            {performanceData && performanceData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={performanceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        {/* Weekly line chart */}
+                        <div className="min-h-[220px] w-full">
+                            {scoreHistory && scoreHistory.weeklyAverage.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <LineChart data={scoreHistory.weeklyAverage} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                         <XAxis
-                                            dataKey="month"
+                                            dataKey="week"
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
-                                            dy={10}
+                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 10 }}
+                                            dy={8}
+                                            tickFormatter={(v: string) => {
+                                                const d = new Date(v + 'T00:00:00');
+                                                return `${d.getDate()}/${d.getMonth() + 1}`;
+                                            }}
                                         />
                                         <YAxis
                                             domain={[0, 100]}
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 12 }}
+                                            tick={{ fill: "#64748b", fontWeight: 600, fontSize: 11 }}
                                         />
                                         <Tooltip
-                                            contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 600 }}
+                                            contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 600, fontSize: 12 }}
                                             cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                                            formatter={(v: any) => [`${v} pts`, 'Z-Score promedio']}
+                                            labelFormatter={(label: any) => {
+                                                const d = new Date(String(label) + 'T00:00:00');
+                                                return `Semana del ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`;
+                                            }}
                                         />
+                                        <ReferenceLine y={80} stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: '80', fill: '#22c55e', fontSize: 10, fontWeight: 700 }} />
                                         <Line
                                             type="monotone"
-                                            dataKey="score"
-                                            name="Desempeño Z-Score"
+                                            dataKey="avgScore"
+                                            name="Z-Score"
                                             stroke="#6366f1"
-                                            strokeWidth={4}
-                                            activeDot={{ r: 8, stroke: "#fff", strokeWidth: 2 }}
-                                            dot={{ r: 5, fill: "#fff", strokeWidth: 2 }}
+                                            strokeWidth={3}
+                                            activeDot={{ r: 7, stroke: "#fff", strokeWidth: 2 }}
+                                            dot={(props: any) => {
+                                                const { cx, cy, value } = props;
+                                                const color = value >= 80 ? '#22c55e' : '#f43f5e';
+                                                return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={color} stroke="#fff" strokeWidth={2} />;
+                                            }}
                                         />
                                     </LineChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-full py-10 text-center bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl">
+                                <div className="flex flex-col items-center justify-center h-[220px] text-center bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl">
                                     <ChartBarIcon className="w-10 h-10 text-slate-300 mb-3" />
-                                    <p className="text-sm font-bold text-slate-600">Sin evaluaciones registradas</p>
-                                    <p className="text-xs text-slate-500 font-medium mt-1 max-w-xs">
-                                        Este empleado aún no tiene evaluaciones formales en su expediente. Registra una auditoría desde el módulo de Desempeño.
-                                    </p>
-                                    <Link href="/hr/evaluate" className="mt-4 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm transition-colors">
-                                        Iniciar Auditoría
-                                    </Link>
+                                    <p className="text-sm font-bold text-slate-600">Sin historial de score aún</p>
+                                    <p className="text-xs text-slate-500 font-medium mt-1 max-w-xs">Los eventos de Z-Score aparecerán aquí a medida que el empleado registre actividad clínica.</p>
                                 </div>
                             )}
                         </div>
+
+                        {/* Events feed */}
+                        {scoreHistory && scoreHistory.events.length > 0 && (
+                            <div>
+                                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Últimos movimientos</h4>
+                                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                                    {scoreHistory.events.slice(0, 20).map(ev => {
+                                        const isPos = ev.delta > 0;
+                                        const catIcon: Record<string, string> = {
+                                            VITALS: '🩺', MEDS: '💊', ROTATION: '🔄', MISSION: '⭐',
+                                            ACADEMY: '🎓', INCIDENT: '⚠️', SHIFT: '🕐', PREVENTIVE: '🛡️',
+                                            PHOTO: '📷', EVALUATION: '📋',
+                                        };
+                                        const ago = (() => {
+                                            const diff = Date.now() - new Date(ev.date).getTime();
+                                            const h = Math.floor(diff / 3600000);
+                                            if (h < 1) return 'Hace menos de 1 h';
+                                            if (h < 24) return `Hace ${h} h`;
+                                            const d = Math.floor(h / 24);
+                                            return `Hace ${d} día${d > 1 ? 's' : ''}`;
+                                        })();
+                                        return (
+                                            <div key={ev.id} className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                                                <span className="text-base shrink-0">{catIcon[ev.category] ?? '📌'}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-semibold text-slate-700 truncate">{ev.reason}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium">{ago} · {ev.scoreBefore} → {ev.scoreAfter} pts</p>
+                                                </div>
+                                                <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-black ${isPos ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                    {isPos ? `+${ev.delta}` : ev.delta}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                 </div>

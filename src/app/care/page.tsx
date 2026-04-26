@@ -258,6 +258,11 @@ export default function ZendityCareTabletPage() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const notifRef = useRef<HTMLDivElement>(null);
 
+    // Z-Score panel (topbar badge)
+    const [scorePanelOpen, setScorePanelOpen] = useState(false);
+    const scorePanelRef = useRef<HTMLDivElement>(null);
+    const [myScore, setMyScore] = useState<{ score: number; recentEvents: any[] } | null>(null);
+
     // Fetch de notificaciones propias (campana del topbar)
     useEffect(() => {
         if (!user?.id) return;
@@ -282,6 +287,26 @@ export default function ZendityCareTabletPage() {
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, [notifsOpen]);
+
+    // Cerrar score panel al click fuera
+    useEffect(() => {
+        if (!scorePanelOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (scorePanelRef.current && !scorePanelRef.current.contains(e.target as Node)) setScorePanelOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [scorePanelOpen]);
+
+    // Cargar Z-Score propio al montar
+    useEffect(() => {
+        if (!user?.id) return;
+        fetch('/api/care/my-score')
+            .then(r => r.json())
+            .then(d => { if (d.success) setMyScore({ score: d.score, recentEvents: d.recentEvents }); })
+            .catch(() => {});
+    }, [user?.id]);
+
     const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
 
     // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
@@ -2043,6 +2068,79 @@ export default function ZendityCareTabletPage() {
                         </span>
                     )}
                 </button>
+
+                {/* Z-Score badge */}
+                <div ref={scorePanelRef} className="relative">
+                    <button
+                        onClick={() => setScorePanelOpen(v => !v)}
+                        className="relative flex items-center gap-1.5 px-2.5 h-9 rounded-[10px] bg-white/10 hover:bg-white/20 transition-colors"
+                        title="Mi Z-Score"
+                    >
+                        <span className="text-[10px] font-black text-white/70 uppercase tracking-wider hidden sm:inline">Z</span>
+                        <span className={`text-sm font-black tabular-nums ${myScore ? (myScore.score >= 80 ? 'text-emerald-300' : myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300') : 'text-white/50'}`}>
+                            {myScore ? myScore.score : '—'}
+                        </span>
+                    </button>
+
+                    {scorePanelOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-80 bg-[#1F2D3A] border border-[#2a3b4d] rounded-[16px] shadow-2xl z-50 overflow-hidden">
+                            {/* Header */}
+                            <div className="px-4 py-3 border-b border-[#2a3b4d] flex items-center justify-between">
+                                <h4 className="font-display text-sm font-semibold text-white">Mi Z-Score</h4>
+                                <button onClick={() => setScorePanelOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+                                    <X className="w-3.5 h-3.5 text-[#94a3b8]" />
+                                </button>
+                            </div>
+
+                            {/* Score circle */}
+                            <div className="flex flex-col items-center py-5 gap-2 border-b border-[#2a3b4d]">
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${myScore && myScore.score >= 80 ? 'border-emerald-400 bg-emerald-400/10' : myScore && myScore.score >= 60 ? 'border-amber-400 bg-amber-400/10' : 'border-rose-400 bg-rose-400/10'}`}>
+                                    <span className={`text-3xl font-black ${myScore && myScore.score >= 80 ? 'text-emerald-300' : myScore && myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300'}`}>
+                                        {myScore?.score ?? '—'}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-[#94a3b8] font-medium">
+                                    {myScore && myScore.score >= 80 ? '¡Excelente desempeño! Sigue así.' : myScore && myScore.score >= 60 ? 'Buen nivel. Puedes mejorar.' : 'Necesita atención. ¡Tú puedes!'}
+                                </p>
+                            </div>
+
+                            {/* Recent events */}
+                            <div className="max-h-60 overflow-y-auto">
+                                {myScore && myScore.recentEvents.length > 0 ? myScore.recentEvents.map((ev: any) => {
+                                    const isPos = ev.delta > 0;
+                                    const catIcon: Record<string, string> = {
+                                        VITALS: '🩺', MEDS: '💊', ROTATION: '🔄', MISSION: '⭐',
+                                        ACADEMY: '🎓', INCIDENT: '⚠️', SHIFT: '🕐', PREVENTIVE: '🛡️',
+                                        PHOTO: '📷', EVALUATION: '📋',
+                                    };
+                                    const ago = (() => {
+                                        const diff = Date.now() - new Date(ev.createdAt).getTime();
+                                        const h = Math.floor(diff / 3600000);
+                                        if (h < 1) return 'Hace <1 h';
+                                        if (h < 24) return `Hace ${h} h`;
+                                        return `Hace ${Math.floor(h / 24)} días`;
+                                    })();
+                                    return (
+                                        <div key={ev.id} className="px-4 py-2.5 border-b border-[#2a3b4d] flex items-center gap-3">
+                                            <span className="text-base shrink-0">{catIcon[ev.category] ?? '📌'}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] text-white font-medium truncate">{ev.reason}</p>
+                                                <p className="text-[10px] text-[#94a3b8]">{ago}</p>
+                                            </div>
+                                            <span className={`shrink-0 text-xs font-black px-2 py-0.5 rounded-full ${isPos ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+                                                {isPos ? `+${ev.delta}` : ev.delta}
+                                            </span>
+                                        </div>
+                                    );
+                                }) : (
+                                    <div className="px-4 py-8 text-center">
+                                        <p className="text-[12px] text-[#94a3b8] font-medium">Sin movimientos recientes</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 {/* Notificaciones reales */}
                 <div ref={notifRef} className="relative">
