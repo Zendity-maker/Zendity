@@ -72,6 +72,7 @@ model Headquarters {
   events             HeadquartersEvent[]
   shiftSchedules     ShiftSchedule[]
   familyAppointments FamilyAppointment[] // Sprint C
+  scoreEvents        ScoreEvent[]         // Sprint Z-Score
 
   // FASE 30: Zendity Care Core
   shiftSessions ShiftSession[]
@@ -243,6 +244,7 @@ model User {
   shiftColorAssignments ShiftColorAssignment[]
   notifications         Notification[]
   approvedAppointments  FamilyAppointment[] @relation("AppointmentApprover") // Sprint C
+  scoreEvents           ScoreEvent[]        // Sprint Z-Score
   accounts              Account[]
   sessions              Session[]
 
@@ -2584,4 +2586,26 @@ model FamilyAppointment {
 
   @@index([patientId, status])
   @@index([headquartersId, requestedDate])
+}
+
+// =======================
+// Sprint Z-Score — Historial real de complianceScore
+// =======================
+
+model ScoreEvent {
+  id             String   @id @default(uuid())
+  userId         String
+  headquartersId String
+  delta          Int      // +3, -5, etc.
+  reason         String   // texto legible en español
+  category       String   // VITALS | MEDS | ROTATION | MISSION | ACADEMY | INCIDENT | SHIFT | PREVENTIVE | PHOTO | EVALUATION
+  scoreBefore    Int
+  scoreAfter     Int
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([headquartersId, createdAt])
 }
