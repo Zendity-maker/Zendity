@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
     try {
@@ -13,11 +14,12 @@ export async function POST(req: Request) {
         if (!fm) return NextResponse.json({ error: 'Token inválido o expirado' }, { status: 400 });
         if (!fm.email) return NextResponse.json({ error: 'Email no disponible' }, { status: 400 });
 
-        // Establecer passcode y marcar como registrado
+        // Hashear passcode antes de guardar — nunca texto plano en DB
+        const hashed = await bcrypt.hash(pin, 10);
         await prisma.familyMember.update({
             where: { id: fm.id },
             data: {
-                passcode: pin,
+                passcode: hashed,
                 isRegistered: true,
                 inviteToken: null,
                 inviteExpiry: null

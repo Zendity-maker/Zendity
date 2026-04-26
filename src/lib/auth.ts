@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -39,7 +40,12 @@ export const authOptions: NextAuthOptions = {
                     if (!user.isActive || user.isDeleted) {
                         throw new Error("Acceso Denegado. Cuenta inactiva.");
                     }
-                    if (user.pinCode !== credentials.pinCode) {
+                    // Soporte dual: hash bcrypt (nuevo) o texto plano (legacy, hasta migración)
+                    const pinIsHashed = user.pinCode?.startsWith('$2');
+                    const pinValid = pinIsHashed
+                        ? await bcrypt.compare(credentials.pinCode, user.pinCode!)
+                        : user.pinCode === credentials.pinCode;
+                    if (!pinValid) {
                         throw new Error("Acceso Denegado. PIN Clinico Invalido.");
                     }
                     return {
@@ -56,7 +62,14 @@ export const authOptions: NextAuthOptions = {
                 });
 
                 if (family) {
-                    if (family.passcode !== credentials.pinCode) {
+                    // Soporte dual: hash bcrypt (nuevo) o texto plano (legacy, hasta migración)
+                    const passIsHashed = family.passcode?.startsWith('$2');
+                    const passValid = family.passcode && (
+                        passIsHashed
+                            ? await bcrypt.compare(credentials.pinCode, family.passcode)
+                            : family.passcode === credentials.pinCode
+                    );
+                    if (!passValid) {
                         throw new Error("Acceso Denegado. PIN Familiar Invalido.");
                     }
                     return {

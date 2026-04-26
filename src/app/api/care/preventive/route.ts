@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { clampComplianceScore } from '@/lib/compliance-score';
-
-
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN', 'NURSE', 'SUPERVISOR', 'CAREGIVER'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+
         const { patientId, caregiverId, symptom, aiNote } = await req.json();
 
         if (!patientId || !caregiverId || !symptom) {
@@ -14,7 +19,7 @@ export async function POST(req: Request) {
 
         // 1. Guardar o inyectar reporte clínico en el Handover (DailyLog con isClinicalAlert = true)
         const logContext = `[ACCIÓN PREVENTIVA: ${symptom.toUpperCase()}] ${aiNote || "Sin detalles adicionales proporcionados."}`;
-        
+
         const diagnosticLog = await prisma.dailyLog.create({
             data: {
                 patientId,
