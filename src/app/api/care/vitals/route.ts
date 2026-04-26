@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
-import { clampComplianceScore } from '@/lib/compliance-score';
+import { applyScoreEvent } from '@/lib/score-event';
 
 export async function GET(req: Request) {
     try {
@@ -198,11 +198,8 @@ export async function POST(req: Request) {
                     }
                 });
                 if (applyLatePenalty) {
-                    await prisma.user.update({
-                        where: { id: invokerId },
-                        data: { complianceScore: { decrement: 2 } }
-                    });
-                    await clampComplianceScore(invokerId);
+                    await applyScoreEvent(invokerId, invokerHqId, -2,
+                        'Vitales registrados tarde', 'VITALS');
                 }
             }
 

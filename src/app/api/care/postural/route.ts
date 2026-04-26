@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { clampComplianceScore } from '@/lib/compliance-score';
+import { applyScoreEvent } from '@/lib/score-event';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,11 +71,10 @@ export async function POST(req: Request) {
 
         // Gamificación HR (Deducción o Ganancia)
         if (pointsDelta !== 0) {
-            await prisma.user.update({
-                where: { id: caregiverId },
-                data: { complianceScore: { increment: pointsDelta } }
-            });
-            await clampComplianceScore(caregiverId);
+            const rotReason = pointsDelta > 0
+                ? 'Rotación UPP a tiempo'
+                : 'Rotación UPP retrasada (>135 min)';
+            await applyScoreEvent(caregiverId, patient.headquartersId, pointsDelta, rotReason, 'ROTATION');
 
             // Si es un castigo, inyectamos incidente real con el headquartersId correcto del paciente
             if (pointsDelta < 0) {

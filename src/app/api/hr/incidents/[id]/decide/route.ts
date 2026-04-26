@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyUser } from '@/lib/notifications';
+import { applyScoreEvent } from '@/lib/score-event';
 import { IncidentStatus, HrIncidentSeverity } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
@@ -116,28 +117,33 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         // ── APPLY ──
-        // Calcular puntos y nuevo complianceScore
         const { delta, setToZero } = pointsFor(incident.severity);
         const currentScore = incident.employee?.complianceScore ?? 50;
-        const newScore = setToZero ? 0 : Math.max(0, currentScore + delta);
+        // Para TERMINATION setToZero: delta efectivo = -currentScore (lleva a 0 tras clamp)
+        const effectiveDelta = setToZero ? -currentScore : delta;
         const pointsDeductedAbs = setToZero ? currentScore : Math.abs(delta);
 
-        const [updated] = await prisma.$transaction([
-            prisma.incidentReport.update({
-                where: { id },
-                data: {
-                    status: IncidentStatus.APPLIED,
-                    appliedAt: now,
-                    visibleToEmployee: true,
-                    pointsDeducted: pointsDeductedAbs,
-                    directorNote: directorNote || incident.directorNote || null,
-                }
-            }),
-            prisma.user.update({
-                where: { id: incident.employeeId },
-                data: { complianceScore: newScore }
-            })
-        ]);
+        const updated = await prisma.incidentReport.update({
+            where: { id },
+            data: {
+                status: IncidentStatus.APPLIED,
+                appliedAt: now,
+                visibleToEmployee: true,
+                pointsDeducted: pointsDeductedAbs,
+                directorNote: directorNote || incident.directorNote || null,
+            }
+        });
+
+        // Aplicar delta con historial auditables
+        if (effectiveDelta !== 0) {
+            await applyScoreEvent(
+                incident.employeeId,
+                incident.headquartersId,
+                effectiveDelta,
+                `Observación aplicada: ${severityLabel(incident.severity)}`,
+                'INCIDENT',
+            );
+        }
 
         // Notificación in-app
         await notifyUser(incident.employeeId, {
@@ -172,7 +178,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                             <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Categoría:</td><td>${categoryLabel(incident.category)}</td></tr>
                             <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Severidad:</td><td><strong style="color:#b91c1c;">${severityLabel(incident.severity)}</strong></td></tr>
                             <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Puntos deducidos:</td><td>${pointsDeductedAbs}</td></tr>
-                            <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Score actual:</td><td>${newScore} / 100</td></tr>
+                            <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Puntos deducidos:</td><td>${pointsDeductedAbs}</td></tr>
                         </table>
                         <div style="background:#fff1f2;border-left:4px solid #f43f5e;padding:14px;margin:16px 0;">
                             <div style="font-size:11px;font-weight:bold;color:#9f1239;text-transform:uppercase;margin-bottom:4px;">Descripción</div>
@@ -206,7 +212,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return NextResponse.json({
             success: true,
             incident: updated,
-            newComplianceScore: newScore,
             pointsDeducted: pointsDeductedAbs
         });
 

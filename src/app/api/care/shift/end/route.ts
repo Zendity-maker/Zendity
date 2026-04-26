@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
+import { applyScoreEvent } from '@/lib/score-event';
 import {
     inferShiftType,
     resolveColorGroupsForCaregiver,
@@ -265,6 +266,15 @@ export async function POST(req: Request) {
 
             return [handover, updatedSession];
         });
+
+        // Penalidad: -10 al cuidador cuyo turno fue cerrado forzosamente
+        await applyScoreEvent(
+            session.caregiverId,
+            session.headquartersId,
+            -10,
+            'Turno cerrado forzosamente por supervisor',
+            'SHIFT',
+        );
 
         return NextResponse.json({ success: true, shiftSession: forcedSession, handover: forcedHandover, forced: true });
 

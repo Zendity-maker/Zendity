@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { clampComplianceScore } from '@/lib/compliance-score';
+import { applyScoreEvent } from '@/lib/score-event';
 
 
 
@@ -28,11 +28,9 @@ export async function POST(req: Request) {
         });
 
         // 2. Sistema de Recompensa de Empleado (+5 Puntos)
-        await prisma.user.update({
-            where: { id: caregiverId },
-            data: { complianceScore: { increment: 5 } }
-        });
-        await clampComplianceScore(caregiverId);
+        const cgUser = await prisma.user.findUnique({ where: { id: caregiverId }, select: { headquartersId: true } });
+        await applyScoreEvent(caregiverId, cgUser?.headquartersId ?? '', 5,
+            'Acción preventiva clínica registrada', 'PREVENTIVE');
 
         return NextResponse.json({ success: true, log: diagnosticLog, pointsDelta: 5 });
 

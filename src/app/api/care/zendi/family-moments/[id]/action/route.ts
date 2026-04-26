@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
+import { applyScoreEvent } from '@/lib/score-event';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -35,18 +36,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         if (action === 'DECLINE') {
-            await prisma.$transaction([
-                prisma.zendiFamilyMoment.update({
-                    where: { id: momentId },
-                    data: { status: 'DECLINED' }
-                }),
-                prisma.user.update({
-                    where: { id: authorId },
-                    data: {
-                        complianceScore: { decrement: 3 } // Penalize -3 points
-                    }
-                })
-            ]);
+            await prisma.zendiFamilyMoment.update({ where: { id: momentId }, data: { status: 'DECLINED' } });
+            const fmUser = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
+            await applyScoreEvent(authorId, fmUser?.headquartersId ?? '', -3,
+                'Misión Zendi declinada', 'MISSION');
             return NextResponse.json({ success: true, message: "Sugerencia declinada. (-3 Puntos)", action: 'DECLINED' });
         }
 
@@ -55,34 +48,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 return NextResponse.json({ success: false, error: "Debe proveer el texto seleccionado." }, { status: 400 });
             }
 
-            // 1. Mark Moment as Sent
-            // 2. Increase HR Compliance Score (+3 points)
-            // 3. Post to the WellnessDiary so family members can see it in their portal
+            // 1. Mark Moment as Sent + WellnessDiary entry
             await prisma.$transaction(async (tx) => {
                 await tx.zendiFamilyMoment.update({
                     where: { id: momentId },
-                    data: {
-                        status: 'SENT',
-                        selectedOption: selectedText,
-                        photoUrl: photoUrl || null
-                    }
+                    data: { status: 'SENT', selectedOption: selectedText, photoUrl: photoUrl || null }
                 });
-
-                await tx.user.update({
-                    where: { id: authorId },
-                    data: { complianceScore: { increment: 3 } }
-                });
-
-                // Map to the patient's wellnes diary so it is publicly available in family portal
                 await tx.wellnessDiary.create({
                     data: {
                         patientId: moment.patientId,
                         authorId: authorId,
-                        note: `[Zendi Update] ${selectedText}`, // Prepending tag to easily identify in UI
+                        note: `[Zendi Update] ${selectedText}`,
                         mediaUrl: photoUrl || null
                     }
                 });
             });
+            // 2. +3 Score con historial (fuera de tx para poder registrar ScoreEvent)
+            const fmAcceptUser = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
+            await applyScoreEvent(authorId, fmAcceptUser?.headquartersId ?? '', 3,
+                'Misión Zendi completada', 'MISSION');
 
             // Notificar al familiar fuera de la transacción (soft — no rompe el flujo)
             try {

@@ -104,12 +104,11 @@ export async function POST(request: NextRequest) {
             else if (globalScore >= 60) bonus = 1;
 
             if (bonus > 0) {
-                const targetUser = await prisma.user.findUnique({ where: { id: employeeId }, select: { complianceScore: true } });
+                const targetUser = await prisma.user.findUnique({ where: { id: employeeId }, select: { headquartersId: true } });
                 if (targetUser) {
-                    await prisma.user.update({
-                        where: { id: employeeId },
-                        data: { complianceScore: Math.min(100, (targetUser.complianceScore || 50) + bonus) }
-                    });
+                    const { applyScoreEvent } = await import('@/lib/score-event');
+                    await applyScoreEvent(employeeId, targetUser.headquartersId, bonus,
+                        'Evaluación positiva del supervisor', 'EVALUATION');
                 }
             }
         }

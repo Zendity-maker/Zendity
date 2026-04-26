@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
+import { applyScoreEvent } from '@/lib/score-event';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -39,28 +40,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         // ── DECLINE ──────────────────────────────────────────────────────────
         if (action === 'DECLINE') {
-            await prisma.$transaction([
-                prisma.zendiNursingUpdate.update({
-                    where: { id },
-                    data: { status: 'DECLINED' }
-                }),
-                prisma.user.update({
-                    where: { id: authorId },
-                    data: {
-                        complianceScore: {
-                            // Clamp: no bajar de 0
-                            decrement: 1
-                        }
-                    }
-                })
-            ]);
-
-            // Clamp mínimo 0
-            await prisma.user.updateMany({
-                where: { id: authorId, complianceScore: { lt: 0 } },
-                data: { complianceScore: 0 }
-            });
-
+            await prisma.zendiNursingUpdate.update({ where: { id }, data: { status: 'DECLINED' } });
+            const nuUser = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
+            await applyScoreEvent(authorId, nuUser?.headquartersId ?? '', -1,
+                'Update de enfermería declinado', 'MISSION');
             return NextResponse.json({ success: true, message: "Update declinado. (-1 Punto)", action: 'DECLINED' });
         }
 
@@ -77,11 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     data: { status: 'SENT', selectedOption }
                 });
 
-                // 2. +3 compliance (clamp max 100)
-                await tx.user.update({
-                    where: { id: authorId },
-                    data: { complianceScore: { increment: 3 } }
-                });
+                // 2. FamilyMessage visible en portal familiar
 
                 // 3. Crear FamilyMessage visible en el portal familiar
                 await tx.familyMessage.create({
@@ -96,11 +75,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 });
             });
 
-            // Clamp máximo 100 fuera de transacción
-            await prisma.user.updateMany({
-                where: { id: authorId, complianceScore: { gt: 100 } },
-                data: { complianceScore: 100 }
-            });
+            // +3 Score con historial (fuera de tx para poder registrar ScoreEvent)
+            const nuAcceptUser = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
+            await applyScoreEvent(authorId, nuAcceptUser?.headquartersId ?? '', 3,
+                'Update de enfermería enviado', 'MISSION');
 
             // ── Notificaciones al familiar (best-effort) ────────────────────
             try {

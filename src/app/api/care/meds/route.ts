@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { notifyRoles } from '@/lib/notifications';
-import { clampComplianceScore } from '@/lib/compliance-score';
+import { applyScoreEvent } from '@/lib/score-event';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -74,11 +74,9 @@ export async function POST(req: Request) {
 
         // FASE 45: Gamification & Trust Score Penalty
         if (adminStatus === 'OMITTED') {
-            await prisma.user.update({
-                where: { id: invokerId },
-                data: { complianceScore: { decrement: 5 } },
-            });
-            await clampComplianceScore(invokerId);
+            const medName = patientMed.medication?.name || 'medicamento';
+            await applyScoreEvent(invokerId, effectiveHqId, -5,
+                `Medicamento omitido: ${medName}`, 'MEDS');
         }
 
         // Notificación EMAR_ALERT cuando el medicamento no se administra
