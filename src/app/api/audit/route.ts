@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 // GET: Fetch all incidents (pending signatures & history)
 export async function GET(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN', 'NURSE', 'SUPERVISOR'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const hqId = searchParams.get('hqId');
 
@@ -33,6 +40,11 @@ export async function GET(request: Request) {
 // POST: Create a new incident (requires signature later or immediately)
 export async function POST(request: Request) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session || !['DIRECTOR', 'ADMIN', 'NURSE', 'SUPERVISOR'].includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { hqId, patientId, type, severity, description, biometricSignature } = body;
 

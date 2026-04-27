@@ -21,8 +21,10 @@ export const maxDuration = 60;
  * shift/start (Parte C) y modal manual en el tablet.
  */
 export async function GET(req: Request) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET no configurado en entorno' }, { status: 500 });
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'ZENDITY_CRON_LOCAL'}`) {
+    if (authHeader !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Firma CRON inválida' }, { status: 401 });
     }
 
@@ -89,7 +91,7 @@ export async function GET(req: Request) {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${process.env.CRON_SECRET || 'ZENDITY_CRON_LOCAL'}`,
+                        'Authorization': `Bearer ${process.env.CRON_SECRET}`,
                     },
                     body: JSON.stringify({ hqId: hq.id, shiftType, trigger: 'AUTO' }),
                 });

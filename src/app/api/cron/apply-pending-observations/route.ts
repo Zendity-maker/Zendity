@@ -10,8 +10,10 @@ import { IncidentStatus } from '@prisma/client';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET no configurado en entorno' }, { status: 500 });
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'ZENDITY_CRON_LOCAL'}`) {
+    if (authHeader !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: 'Firma CRON inválida' }, { status: 401 });
     }
 

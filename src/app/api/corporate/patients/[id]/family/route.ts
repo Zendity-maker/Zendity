@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
+import bcrypt from 'bcryptjs';
 
 function generatePin(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -99,7 +100,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         // Generar PIN automático de 6 dígitos para acceso inmediato
+        // pin texto plano → email; hashed → DB
         const pin = generatePin();
+        const hashedPin = await bcrypt.hash(pin, 10);
 
         const newFamilyMember = await prisma.familyMember.create({
             data: {
@@ -108,7 +111,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 name,
                 email,
                 phone: phone || null,
-                passcode: pin,
+                passcode: hashedPin,
                 isRegistered: true,
                 accessLevel: accessLevel || "Full",
                 relationship: relationship || null,

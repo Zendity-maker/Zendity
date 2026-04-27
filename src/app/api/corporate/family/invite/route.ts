@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import sgMail from '@sendgrid/mail';
+import bcrypt from 'bcryptjs';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -144,11 +145,13 @@ export async function POST(req: Request) {
         const hqName = hq?.name || 'Zéndity';
 
         // Generar PIN automático de 6 dígitos y activar la cuenta
+        // pin en texto plano → enviar en email; hashed → guardar en DB
         const pin = generatePin();
+        const hashedPin = await bcrypt.hash(pin, 10);
         await prisma.familyMember.update({
             where: { id: familyMember.id },
             data: {
-                passcode: pin,
+                passcode: hashedPin,
                 isRegistered: true,
                 inviteToken: null,
                 inviteExpiry: null,
