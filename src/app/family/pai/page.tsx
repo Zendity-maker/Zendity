@@ -116,14 +116,37 @@ export default function FamilyPaiPage() {
                                         <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">
                                             Mensaje del Equipo Clínico
                                         </h3>
-                                        <div className="bg-slate-50 rounded-2xl p-5 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium border border-slate-100">
+                                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-5 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium">
                                             {selected.familyVersion}
                                         </div>
+                                        {/* Tags de áreas derivados del contenido */}
+                                        {(() => {
+                                            const text = (selected.familyVersion as string).toLowerCase();
+                                            const areas = [
+                                                { key: 'nutrición',   terms: ['nutrición','alimentación','dieta','comida'] },
+                                                { key: 'movilidad',   terms: ['movilidad','ejercicio','fisioterapia','traslado'] },
+                                                { key: 'higiene',     terms: ['higiene','baño','aseo','limpieza'] },
+                                                { key: 'medicación',  terms: ['medicamento','medicación','fármaco','dosis'] },
+                                                { key: 'bienestar',   terms: ['social','actividad','recreación','bienestar'] },
+                                                { key: 'descanso',    terms: ['sueño','descanso','nocturno'] },
+                                            ].filter(a => a.terms.some(t => text.includes(t)));
+                                            if (areas.length === 0) return null;
+                                            return (
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {areas.map(a => (
+                                                        <span key={a.key} className="text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full"
+                                                            style={{ backgroundColor: '#E1F5EE', color: '#0F6B78' }}>
+                                                            {a.key}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ) : (
                                     <div className="text-center py-8 text-slate-400">
                                         <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">El resumen para la familia estará disponible próximamente.</p>
+                                        <p className="text-sm">El equipo está preparando tu plan de atención. Estará disponible próximamente.</p>
                                     </div>
                                 )}
 

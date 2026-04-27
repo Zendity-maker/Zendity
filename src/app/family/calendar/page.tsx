@@ -246,10 +246,26 @@ export default function FamilyCalendarPage() {
 
             {/* Vacío */}
             {!loading && pending.length === 0 && approved.length === 0 && history.length === 0 && (
-                <div className="bg-white rounded-3xl p-12 text-center border border-slate-100 shadow-sm">
-                    <div className="text-5xl mb-4 opacity-30">📅</div>
-                    <p className="font-bold text-slate-700">Sin solicitudes aún</p>
-                    <p className="text-sm text-slate-400 mt-1">Presiona "Solicitar Cita" para coordinar tu primera visita.</p>
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                    <div className="text-center mb-5">
+                        <div className="text-4xl mb-3 opacity-30">📅</div>
+                        <p className="font-bold text-slate-700">Sin solicitudes aún</p>
+                        <p className="text-sm text-slate-400 mt-1">Presiona "Solicitar Cita" para coordinar tu primera visita.</p>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                        <p className="text-xs font-semibold text-gray-400 mb-3">Tipos de cita disponibles:</p>
+                        {[
+                            { color: '#0F6B78', label: 'Visita presencial — Mar a Dom, 10AM a 6PM' },
+                            { color: '#1D9E75', label: 'Videollamada o llamada telefónica' },
+                            { color: '#5DCAA5', label: 'Reunión con el Director' },
+                            { color: '#9FE1CB', label: 'Ocasión especial o cumpleaños' },
+                        ].map(item => (
+                            <div key={item.label} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                                <p className="text-xs text-gray-600">{item.label}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 

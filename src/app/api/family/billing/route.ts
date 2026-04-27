@@ -12,7 +12,19 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
         }
 
-        const patientId = session.user.id;
+        // Resolver patientId desde FamilyMember (más robusto)
+        const familyMember = await prisma.familyMember.findUnique({
+            where: { email: session.user?.email as string },
+        });
+        const patientId = familyMember?.patientId ?? (session.user as any).id;
+
+        // Residente (para mostrar nombre + habitación en el header del portal)
+        const resident = patientId
+            ? await prisma.patient.findUnique({
+                where: { id: patientId },
+                select: { name: true, roomNumber: true },
+              })
+            : null;
 
         // Fetch all invoices for the family's patient, including line items
         const invoices = await prisma.invoice.findMany({
@@ -21,7 +33,7 @@ export async function GET(req: Request) {
             orderBy: { dueDate: 'desc' }
         });
 
-        return NextResponse.json({ success: true, invoices });
+        return NextResponse.json({ success: true, invoices, resident });
     } catch (e) {
         console.error("Billing Fetch Error:", e);
         return NextResponse.json({ success: false, error: "Error al cargar facturas" }, { status: 500 });

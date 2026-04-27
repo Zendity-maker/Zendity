@@ -5,6 +5,7 @@ import { FaFileInvoiceDollar, FaCheckCircle, FaExclamationCircle, FaLock, FaRegC
 
 export default function FamilyBilling() {
     const [invoices, setInvoices] = useState<any[]>([]);
+    const [resident, setResident] = useState<{ name: string; roomNumber?: string } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -13,6 +14,7 @@ export default function FamilyBilling() {
             .then(data => {
                 if (data.success) {
                     setInvoices(data.invoices);
+                    setResident(data.resident ?? null);
                 }
                 setLoading(false);
             })
@@ -39,18 +41,30 @@ export default function FamilyBilling() {
     return (
         <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700">
             {/* Encabezado */}
-            <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-indigo-900/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -z-0"></div>
+            <div className="rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden" style={{ backgroundColor: '#0F6B78' }}>
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -z-0" />
                 <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-md">
-                                <FaFileInvoiceDollar className="text-xl text-indigo-300" />
+                            <div className="bg-white/15 p-2.5 rounded-xl">
+                                <FaFileInvoiceDollar className="text-xl" style={{ color: '#E1F5EE' }} />
                             </div>
-                            <h2 className="font-extrabold text-2xl tracking-tight">Zendity Pay</h2>
+                            <h2 className="font-extrabold text-2xl tracking-tight">Facturación</h2>
                         </div>
-                        <p className="text-indigo-200 text-sm font-medium">Estado de Cuenta y Facturación Mensual</p>
+                        {resident ? (
+                            <p className="text-sm font-medium" style={{ color: '#E1F5EE' }}>
+                                {resident.name}{resident.roomNumber ? ` · Habitación ${resident.roomNumber}` : ''}
+                            </p>
+                        ) : (
+                            <p className="text-sm font-medium" style={{ color: '#E1F5EE' }}>Estado de Cuenta Mensual</p>
+                        )}
                     </div>
+                    {invoices.length === 0 && !loading && (
+                        <span className="text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl"
+                            style={{ backgroundColor: '#E1F5EE', color: '#0F6B78' }}>
+                            ✓ Balance al día
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -62,7 +76,7 @@ export default function FamilyBilling() {
 
                 {loading ? (
                     <div className="flex justify-center items-center h-32">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
                     </div>
                 ) : invoices.length === 0 ? (
                     <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 border border-slate-100/50">
@@ -75,8 +89,8 @@ export default function FamilyBilling() {
                 ) : (
                     <div className="space-y-4">
                         {invoices.map((inv) => (
-                            <div key={inv.id} className="group border border-slate-100 hover:border-indigo-100 rounded-2xl p-5 sm:p-6 transition-all bg-white hover:shadow-md hover:shadow-indigo-50/50 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-bl-[100px] -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div key={inv.id} className="group border border-slate-100 hover:border-teal-100 rounded-2xl p-5 sm:p-6 transition-all bg-white hover:shadow-md hover:shadow-teal-50/50 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-bl-[100px] -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                 <div className="relative z-10 flex flex-col sm:flex-row justify-between gap-6">
 
                                     {/* Info Principal */}
@@ -112,7 +126,7 @@ export default function FamilyBilling() {
 
                                         <div className="flex flex-col gap-2 w-full sm:w-auto">
                                             {inv.status !== 'PAID' ? (
-                                                <button className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-200 w-full">
+                                                <button className="flex items-center justify-center gap-2 text-white px-6 py-2.5 rounded-xl font-bold transition-all w-full" style={{ backgroundColor: '#0F6B78' }}>
                                                     <FaLock className="text-xs" /> Pagar Seguro
                                                 </button>
                                             ) : (
