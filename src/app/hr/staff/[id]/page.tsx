@@ -32,7 +32,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ name: "", email: "", pinCode: "" });
+    const [editForm, setEditForm] = useState({ name: "", email: "", newPin: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
 
@@ -113,7 +113,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             const data = await profileRes.json();
             if (data.success) {
                 setEmployee(data.employee);
-                setEditForm({ name: data.employee.name, email: data.employee.email, pinCode: data.employee.pinCode || "" });
+                setEditForm({ name: data.employee.name, email: data.employee.email, newPin: "" });
                 setPerformanceData(data.performanceHistory);
                 fetchIncidents(data.employee.headquartersId);
             } else {
@@ -137,11 +137,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             const res = await fetch("/api/hr/staff", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: employee.id, name: editForm.name, email: editForm.email, pinCode: editForm.pinCode })
+                body: JSON.stringify({ id: employee.id, name: editForm.name, email: editForm.email, ...(editForm.newPin ? { pinCode: editForm.newPin } : {}) })
             });
             const data = await res.json();
             if (data.success) {
-                setEmployee({ ...employee, name: editForm.name, email: editForm.email, pinCode: editForm.pinCode });
+                setEmployee({ ...employee, name: editForm.name, email: editForm.email });
                 setIsEditing(false);
             } else {
                 alert(data.error || "No se pudo actualizar el perfil.");
@@ -265,12 +265,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                         <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                                     </div>
                                     <div>
-                                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1.5 block">PIN de Acceso</label>
-                                        <input type="text" value={editForm.pinCode} onChange={e => setEditForm({...editForm, pinCode: e.target.value})} placeholder="Ej: 1234" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono tracking-widest font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" maxLength={6} />
+                                        <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1.5 block">Nuevo PIN (vacío = sin cambiar)</label>
+                                        <input type="password" value={editForm.newPin} onChange={e => setEditForm({...editForm, newPin: e.target.value})} placeholder="••••" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-mono tracking-widest font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" maxLength={6} />
                                     </div>
                                 </div>
                                 <div className="flex gap-2 justify-end pt-3 border-t border-slate-200/60 mt-2">
-                                    <button onClick={() => { setIsEditing(false); setEditForm({ name: employee.name, email: employee.email, pinCode: employee.pinCode || "" }); }} className="px-5 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-xl transition-all shadow-sm">Cancelar</button>
+                                    <button onClick={() => { setIsEditing(false); setEditForm({ name: employee.name, email: employee.email, newPin: "" }); }} className="px-5 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-xl transition-all shadow-sm">Cancelar</button>
                                     <button onClick={handleSaveProfile} disabled={isSaving} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-500/20 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all disabled:opacity-50">
                                         {isSaving ? "Guardando..." : "Guardar Cambios"}
                                     </button>
@@ -318,7 +318,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
                         <div className="mt-6 flex flex-wrap gap-4 justify-center md:justify-start">
                             <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 font-medium text-sm">
-                                <IdentificationIcon className="w-4 h-4" /> PIN: <span className="font-bold text-slate-700">{employee.pinCode || 'No Asignado'}</span>
+                                <IdentificationIcon className="w-4 h-4" /> PIN: <span className="font-bold text-slate-700">{employee.hasPinCode ? 'PIN configurado ✓' : 'No Asignado'}</span>
                             </div>
                             <div className="flex items-center gap-2 text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 font-medium text-sm">
                                 <AtSymbolIcon className="w-4 h-4" /> {employee.email}

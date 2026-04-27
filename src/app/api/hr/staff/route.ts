@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import sgMail from '@sendgrid/mail';
+import bcrypt from 'bcryptjs';
 
 // Inicializar SendGrid
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
                 email: true,
                 role: true,
                 secondaryRoles: true,
-                pinCode: true,
+                pinCode: true,   // leído solo para derivar hasPinCode — nunca sale al cliente
                 complianceScore: true,
                 isShiftBlocked: true,
                 isDeleted: true,
@@ -69,9 +70,11 @@ export async function GET(request: Request) {
         }
 
         const staffWithLastEval = staff.map(s => {
+            const { pinCode, ...safeFields } = s;
             const le = lastEvalByEmployee.get(s.id);
             return {
-                ...s,
+                ...safeFields,
+                hasPinCode: !!pinCode,   // booleano — nunca el hash
                 lastEvalDate: le?.createdAt || null,
                 lastEvalScore: le?.score ?? null,
             };
@@ -231,7 +234,9 @@ export async function PATCH(request: Request) {
 
         if (role !== undefined) updateData.role = role;
         if (secondaryRoles !== undefined) updateData.secondaryRoles = secondaryRoles;
-        if (pinCode !== undefined) updateData.pinCode = pinCode;
+        if (pinCode !== undefined && pinCode !== '') {
+            updateData.pinCode = await bcrypt.hash(pinCode, 10);
+        }
         if (isDeleted !== undefined) updateData.isDeleted = isDeleted;
         if (isShiftBlocked !== undefined) {
             updateData.isShiftBlocked = isShiftBlocked;

@@ -58,9 +58,12 @@ export async function GET(
                 date: ev.createdAt,
             }));
 
+        // Nunca enviar el hash al cliente — solo un booleano
+        const { pinCode, ...safeEmployee } = employee as any;
+
         return NextResponse.json({
             success: true,
-            employee,
+            employee: { ...safeEmployee, hasPinCode: !!pinCode },
             performanceHistory
         });
 
