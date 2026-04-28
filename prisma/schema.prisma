@@ -335,6 +335,8 @@ model Schedule {
 
   headquarters    Headquarters    @relation(fields: [headquartersId], references: [id])
   shifts          ScheduledShift[]
+
+  @@index([headquartersId, weekStartDate])
 }
 
 model ScheduledShift {
@@ -359,6 +361,9 @@ model ScheduledShift {
   schedule         Schedule   @relation(fields: [scheduleId], references: [id])
   user             User       @relation(fields: [userId], references: [id])
   colorAssignments ShiftColorAssignment[]
+
+  @@index([scheduleId, date, shiftType])
+  @@index([scheduleId, date, isAbsent])
 }
 
 model ShiftColorAssignment {

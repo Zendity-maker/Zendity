@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 8000;
 
 /**
  * Carrera contra reloj para queries lentas.

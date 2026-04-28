@@ -83,16 +83,17 @@ export async function computeShiftCoverage(params: {
     const tomorrow = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
 
-    const [scheduledShifts, activeSessions, activeOverrides] = await Promise.all([
-        prisma.scheduledShift.findMany({
-            where: {
-                schedule: { headquartersId: hqId },
-                shiftType: shiftType as any,
-                date: { gte: todayStart, lt: tomorrow },
-                isAbsent: false,
-                colorGroup: { not: null },
-            },
-            select: { id: true, userId: true, colorGroup: true },
+    // FIX: pre-fetch scheduleIds en paralelo con las otras queries para evitar el JOIN
+    // implícito que Prisma genera con `schedule: { headquartersId }` — ese JOIN sin índice
+    // causaba timeouts en Neon cold start (835ms warm → >5000ms frío → 500).
+    // Patrón: Schedule + shiftSession + shiftPatientOverride corren en paralelo (warm-up
+    // de la conexión Neon); luego scheduledShift usa los IDs en memoria, sin JOIN.
+    const oneWeekAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [recentSchedules, activeSessions, activeOverrides] = await Promise.all([
+        prisma.schedule.findMany({
+            where: { headquartersId: hqId, weekStartDate: { gte: oneWeekAgo } },
+            select: { id: true },
         }),
         prisma.shiftSession.findMany({
             where: {
@@ -115,6 +116,18 @@ export async function computeShiftCoverage(params: {
             },
         }),
     ]);
+
+    const scheduleIds = recentSchedules.map(s => s.id);
+    const scheduledShifts = scheduleIds.length === 0 ? [] : await prisma.scheduledShift.findMany({
+        where: {
+            scheduleId: { in: scheduleIds },
+            shiftType: shiftType as any,
+            date: { gte: todayStart, lt: tomorrow },
+            isAbsent: false,
+            colorGroup: { not: null },
+        },
+        select: { id: true, userId: true, colorGroup: true },
+    });
 
     const expectedColorsSet = new Set<string>();
     for (const s of scheduledShifts) {
