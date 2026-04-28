@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 else if (user.role === "NURSE" &&
                     (pathname.startsWith("/family") || pathname.startsWith("/hr") || pathname.startsWith("/specialists") ||
-                        (pathname.startsWith("/corporate") && !pathname.startsWith("/corporate/medical/handovers")))) {
+                        (pathname.startsWith("/corporate") && !pathname.startsWith("/corporate/medical")))) {
                     router.replace("/");
                 }
                 else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy")) {
