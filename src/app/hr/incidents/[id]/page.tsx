@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import {
     ArrowLeft, CheckCircle2, XCircle, MessageSquare, Clock,
-    AlertTriangle, User, Shield, FileWarning, Send
+    AlertTriangle, User, Shield, FileWarning, Send, Sparkles, RotateCcw
 } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -49,6 +49,7 @@ export default function IncidentDetailPage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [directorNoteDraft, setDirectorNoteDraft] = useState('');
+    const [zendiLoading, setZendiLoading] = useState(false);
     const [employeeResponse, setEmployeeResponse] = useState('');
     const [appealText, setAppealText] = useState('');
 
@@ -180,6 +181,31 @@ export default function IncidentDetailPage() {
         }
         return items;
     }, [incident]);
+
+    const handleZendiNote = async () => {
+        setZendiLoading(true);
+        try {
+            const res = await fetch('/api/hr/incidents/zendi-note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    rawNote: directorNoteDraft,
+                    severity: incident?.severity,
+                    category: incident?.category,
+                    employeeName: incident?.employee?.name,
+                }),
+            });
+            const data = await res.json();
+            if (data.success && data.note) {
+                setDirectorNoteDraft(data.note);
+            } else {
+                alert('Zendi no pudo generar la nota. Inténtalo de nuevo.');
+            }
+        } catch {
+            alert('Error de conexión con Zendi.');
+        }
+        setZendiLoading(false);
+    };
 
     if (authLoading || loading) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-slate-400">Cargando...</div></div>;
@@ -322,14 +348,34 @@ export default function IncidentDetailPage() {
                             <Shield size={16} /> Decisión del Director
                         </h3>
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nota del director (opcional)</label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Nota del director (opcional)</label>
+                                <button
+                                    type="button"
+                                    onClick={handleZendiNote}
+                                    disabled={zendiLoading}
+                                    className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-1.5 rounded-xl transition disabled:opacity-50"
+                                    title="Zendi mejora o redacta la nota profesionalmente"
+                                >
+                                    {zendiLoading ? (
+                                        <span className="w-3.5 h-3.5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin inline-block" />
+                                    ) : directorNoteDraft.trim() ? (
+                                        <><RotateCcw size={12} strokeWidth={2.5} /> Mejorar con Zendi</>
+                                    ) : (
+                                        <><Sparkles size={12} strokeWidth={2.5} /> Redactar con Zendi</>
+                                    )}
+                                </button>
+                            </div>
                             <textarea
-                                rows={3}
+                                rows={4}
                                 value={directorNoteDraft}
                                 onChange={e => setDirectorNoteDraft(e.target.value)}
-                                placeholder="Observaciones internas, contexto de la decisión..."
-                                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 text-sm"
+                                placeholder="Escribe un borrador o deja vacío y presiona «Redactar con Zendi»..."
+                                className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-400 outline-none bg-slate-50 text-sm resize-none"
                             />
+                            <p className="text-[10px] text-slate-400 mt-1 font-medium">
+                                Zendi redactará una nota formal y profesional basada en el tipo y categoría de la observación.
+                            </p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {incident.status === 'DRAFT' && (
