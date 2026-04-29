@@ -78,8 +78,8 @@ const deriveStatus = (r: ReportDetail): "PENDING_CONFIRMATION" | "CONFIRMED" | "
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
     PENDING_CONFIRMATION: {
-        label: "Pendiente confirmación",
-        className: "bg-slate-200 text-slate-700 border-slate-300",
+        label: "Pendiente firma supervisor",
+        className: "bg-amber-100 text-amber-800 border-amber-200",
     },
     CONFIRMED: {
         label: "Pendiente firma supervisor",
@@ -146,10 +146,6 @@ export default function ReportDetailPage() {
 
     const handleSign = async () => {
         if (!report || !user) return;
-        if (!report.seniorConfirmedAt) {
-            setError("El cuidador(a) aún no ha confirmado su reporte.");
-            return;
-        }
 
         // Firma auto-generada — nombre + id + timestamp ISO (>=10 chars garantizado)
         const signature = `${user.name}·${report.id}·${new Date().toISOString()}`;

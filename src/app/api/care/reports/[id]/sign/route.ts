@@ -44,12 +44,6 @@ export async function POST(req: Request, { params }: any) {
         if (!report) {
             return NextResponse.json({ success: false, error: 'Reporte no encontrado' }, { status: 404 });
         }
-        if (!report.seniorConfirmedAt) {
-            return NextResponse.json({
-                success: false,
-                error: 'El cuidador senior debe confirmar el reporte antes de que lo firmes',
-            }, { status: 409 });
-        }
         if (report.supervisorSignedAt) {
             return NextResponse.json({ success: false, error: 'El reporte ya fue firmado' }, { status: 409 });
         }
