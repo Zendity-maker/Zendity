@@ -15,7 +15,7 @@ import {
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
-    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning
+    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -74,6 +74,7 @@ const corporateNavigationSections = [
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
+            { name: "Bitácora de Turnos", href: "/corporate/hr/shift-log", icon: BookOpen },
         ]
     },
     {
