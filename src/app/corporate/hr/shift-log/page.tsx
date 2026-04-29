@@ -6,8 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import {
     BookOpen, ChevronLeft, ChevronRight, Filter, RefreshCw,
     Moon, Sun, Sunset, Clock, CheckCircle2, AlertCircle,
-    User, Shield, Star, Eye, ChevronDown, ChevronUp,
-    ClipboardList, Circle
+    User, Shield, Eye, ChevronDown, ChevronUp,
+    ClipboardList
 } from "lucide-react";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -116,13 +116,6 @@ export default function ShiftLogPage() {
                 </span>
             );
         }
-        if (r.seniorConfirmedAt) {
-            return (
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
-                    <Star size={10} strokeWidth={3} /> Confirmado
-                </span>
-            );
-        }
         return (
             <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
                 <AlertCircle size={10} strokeWidth={3} /> Pendiente
@@ -145,15 +138,6 @@ export default function ShiftLogPage() {
                             color="bg-teal-500"
                             icon={<Clock size={11} />}
                         />
-                        {r.seniorConfirmedAt && (
-                            <TimelineItem
-                                label="Confirmado por Senior"
-                                date={r.seniorConfirmedAt}
-                                name={r.seniorCaregiver?.name}
-                                color="bg-blue-500"
-                                icon={<Star size={11} />}
-                            />
-                        )}
                         {r.supervisorSignedAt && (
                             <TimelineItem
                                 label="Firmado por Supervisor"

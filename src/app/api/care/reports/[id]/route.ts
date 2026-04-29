@@ -33,7 +33,6 @@ export async function GET(_req: Request, { params }: any) {
             include: {
                 outgoingNurse: { select: { id: true, name: true, role: true } },
                 incomingNurse: { select: { id: true, name: true, role: true } },
-                seniorCaregiver: { select: { id: true, name: true, role: true } },
                 supervisorSigned: { select: { id: true, name: true, role: true } },
                 notes: {
                     include: {

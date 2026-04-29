@@ -68,7 +68,6 @@ export async function GET(req: Request) {
                 include: {
                     outgoingNurse:    { select: { id: true, name: true, role: true } },
                     incomingNurse:    { select: { id: true, name: true, role: true } },
-                    seniorCaregiver:  { select: { id: true, name: true } },
                     supervisorSigned: { select: { id: true, name: true } },
                     _count: { select: { notes: true } },
                 },
@@ -84,14 +83,13 @@ export async function GET(req: Request) {
             colorGroups:       r.colorGroups,
             createdAt:         r.createdAt,
             signedOutAt:       r.signedOutAt,
-            seniorConfirmedAt: r.seniorConfirmedAt,
             supervisorSignedAt:r.supervisorSignedAt,
             directorViewedAt:  r.directorViewedAt,
             supervisorNote:    r.supervisorNote,
             aiSummaryPreview:  (r.aiSummaryReport || '').slice(0, 300),
             outgoingNurse:     r.outgoingNurse,
             incomingNurse:     r.incomingNurse,
-            seniorCaregiver:   r.seniorCaregiver,
+
             supervisorSigned:  r.supervisorSigned,
             notesCount:        r._count.notes,
         }));

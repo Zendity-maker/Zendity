@@ -14,22 +14,20 @@ interface ReportListItem {
     status: Status;
     createdAt: string;
     acceptedAt: string | null;
-    seniorConfirmedAt: string | null;
     supervisorSignedAt: string | null;
     directorViewedAt: string | null;
     aiSummaryPreview: string;
     hasAiSummary: boolean;
     outgoingNurse: { id: string; name: string; role: string } | null;
-    seniorCaregiver: { id: string; name: string; role: string } | null;
     supervisorSigned: { id: string; name: string; role: string } | null;
     notesCount: number;
 }
 
 const SHIFT_STYLES: Record<ShiftType, { label: string; bg: string; text: string; icon: any }> = {
-    MORNING: { label: 'Mañana', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800', icon: Sun },
-    EVENING: { label: 'Tarde', bg: 'bg-blue-50 border-blue-200', text: 'text-blue-800', icon: Sunset },
-    NIGHT: { label: 'Noche', bg: 'bg-slate-100 border-slate-300', text: 'text-slate-700', icon: Moon },
-    SUPERVISOR_DAY: { label: 'Supervisor', bg: 'bg-teal-50 border-teal-200', text: 'text-teal-800', icon: ClipboardList },
+    MORNING:       { label: 'Mañana',     bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-800',  icon: Sun },
+    EVENING:       { label: 'Tarde',      bg: 'bg-blue-50 border-blue-200',    text: 'text-blue-800',   icon: Sunset },
+    NIGHT:         { label: 'Noche',      bg: 'bg-slate-100 border-slate-300', text: 'text-slate-700',  icon: Moon },
+    SUPERVISOR_DAY:{ label: 'Supervisor', bg: 'bg-teal-50 border-teal-200',    text: 'text-teal-800',   icon: ClipboardList },
 };
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE'];
@@ -40,28 +38,20 @@ export default function CareReportsPage() {
     const [reports, setReports] = useState<ReportListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [confirmingId, setConfirmingId] = useState<string | null>(null);
-    const [noteDraft, setNoteDraft] = useState('');
-    const [openConfirmId, setOpenConfirmId] = useState<string | null>(null);
 
     const isAuthorized = !!user?.role && ALLOWED_ROLES.includes(user.role);
 
     useEffect(() => {
         if (authLoading) return;
-        if (!user) {
-            router.replace('/login');
-            return;
-        }
-        if (!isAuthorized) {
-            router.replace('/');
-        }
+        if (!user) { router.replace('/login'); return; }
+        if (!isAuthorized) router.replace('/');
     }, [user, authLoading, isAuthorized, router]);
 
     const fetchReports = async () => {
         if (!isAuthorized) return;
         setLoading(true);
         try {
-            const res = await fetch('/api/care/reports?limit=30');
+            const res  = await fetch('/api/care/reports?limit=30');
             const data = await res.json();
             if (data.success) setReports(data.reports || []);
             else setError(data.error || 'Error cargando reportes');
@@ -72,33 +62,7 @@ export default function CareReportsPage() {
         }
     };
 
-    useEffect(() => {
-        if (isAuthorized) fetchReports();
-    }, [isAuthorized]);
-
-    const handleConfirm = async (id: string) => {
-        setConfirmingId(id);
-        setError(null);
-        try {
-            const res = await fetch(`/api/care/reports/${id}/confirm`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note: noteDraft.trim() || undefined }),
-            });
-            const data = await res.json();
-            if (!data.success) {
-                setError(data.error || 'No se pudo confirmar');
-            } else {
-                setOpenConfirmId(null);
-                setNoteDraft('');
-                await fetchReports();
-            }
-        } catch (e: any) {
-            setError(e.message || 'Error de red');
-        } finally {
-            setConfirmingId(null);
-        }
-    };
+    useEffect(() => { if (isAuthorized) fetchReports(); }, [isAuthorized]);
 
     if (authLoading || !isAuthorized) {
         return (
@@ -111,6 +75,7 @@ export default function CareReportsPage() {
     return (
         <div className="min-h-screen bg-[#fafaf9]">
             <div className="max-w-4xl mx-auto p-5 md:p-8">
+
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                     <div className="w-11 h-11 rounded-xl bg-[#0F6B78]/10 border border-[#0F6B78]/20 flex items-center justify-center text-[#0F6B78]">
@@ -118,7 +83,7 @@ export default function CareReportsPage() {
                     </div>
                     <div>
                         <h1 className="text-2xl font-black text-[#1F2D3A] tracking-tight">Reportes de Turno</h1>
-                        <p className="text-[#1F2D3A]/60 text-sm">Confirma el reporte si eres el cuidador senior del turno activo.</p>
+                        <p className="text-[#1F2D3A]/60 text-sm">Historial de tus cierres de turno.</p>
                     </div>
                 </div>
 
@@ -141,9 +106,8 @@ export default function CareReportsPage() {
                 ) : (
                     <div className="space-y-3">
                         {reports.map(r => {
-                            const shift = SHIFT_STYLES[r.shiftType] || SHIFT_STYLES.MORNING;
+                            const shift   = SHIFT_STYLES[r.shiftType] || SHIFT_STYLES.MORNING;
                             const ShiftIcon = shift.icon;
-                            const canConfirm = r.status === 'PENDING' && !r.seniorConfirmedAt;
 
                             return (
                                 <div
@@ -158,16 +122,11 @@ export default function CareReportsPage() {
                                             </span>
                                             {r.status === 'ACCEPTED' ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                    <CheckCircle2 size={12} /> Firmado
+                                                    <CheckCircle2 size={12} /> Firmado por supervisor
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-amber-50 text-[#E5A93D] border border-amber-200">
-                                                    <Clock size={12} /> Pendiente confirmación
-                                                </span>
-                                            )}
-                                            {r.seniorConfirmedAt && !r.supervisorSignedAt && (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-200">
-                                                    Esperando firma supervisor
+                                                    <Clock size={12} /> Pendiente firma supervisor
                                                 </span>
                                             )}
                                         </div>
@@ -182,52 +141,15 @@ export default function CareReportsPage() {
                                         </p>
                                     )}
 
-                                    <div className="text-[11px] text-[#1F2D3A]/55 mb-3 flex flex-wrap gap-x-4 gap-y-1">
+                                    <div className="text-[11px] text-[#1F2D3A]/55 flex flex-wrap gap-x-4 gap-y-1">
                                         <span>Notas clínicas: <strong>{r.notesCount}</strong></span>
-                                        {r.seniorCaregiver && (
-                                            <span>Senior: <strong>{r.seniorCaregiver.name}</strong></span>
-                                        )}
                                         {r.outgoingNurse && (
-                                            <span>Originado por: <strong>{r.outgoingNurse.name}</strong></span>
+                                            <span>Cuidador/a: <strong>{r.outgoingNurse.name}</strong></span>
+                                        )}
+                                        {r.supervisorSigned && (
+                                            <span>Firmado por: <strong>{r.supervisorSigned.name}</strong></span>
                                         )}
                                     </div>
-
-                                    {canConfirm && openConfirmId !== r.id && (
-                                        <button
-                                            onClick={() => { setOpenConfirmId(r.id); setNoteDraft(''); }}
-                                            className="bg-[#0F6B78] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#0d5a66] transition-colors"
-                                        >
-                                            Confirmar reporte
-                                        </button>
-                                    )}
-
-                                    {openConfirmId === r.id && (
-                                        <div className="bg-[#fafaf9] border border-[#e7e5e4] rounded-xl p-3 mt-2">
-                                            <label className="block text-xs font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-1">Nota del senior (opcional)</label>
-                                            <textarea
-                                                value={noteDraft}
-                                                onChange={(e) => setNoteDraft(e.target.value)}
-                                                placeholder="Observaciones relevantes que deban llegar al supervisor..."
-                                                rows={3}
-                                                className="w-full border border-[#e7e5e4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F6B78]/30 bg-white resize-none"
-                                            />
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <button
-                                                    onClick={() => handleConfirm(r.id)}
-                                                    disabled={confirmingId === r.id}
-                                                    className="bg-[#0F6B78] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#0d5a66] disabled:opacity-60 transition-colors"
-                                                >
-                                                    {confirmingId === r.id ? 'Confirmando...' : 'Firmar confirmación'}
-                                                </button>
-                                                <button
-                                                    onClick={() => { setOpenConfirmId(null); setNoteDraft(''); }}
-                                                    className="px-4 py-2 rounded-lg text-sm font-bold text-[#1F2D3A]/70 hover:bg-[#fafaf9]"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}

@@ -27,7 +27,6 @@ interface ReportDetail {
     status: string;
     createdAt: string;
     signedOutAt: string | null;
-    seniorConfirmedAt: string | null;
     supervisorSignedAt: string | null;
     handoverCompleted: boolean;
     aiSummaryReport: string | null;
@@ -35,10 +34,8 @@ interface ReportDetail {
     isDailyPrologue: boolean;
     supervisorNote: string | null;
     supervisorSignature: string | null;
-    seniorNote: string | null;
     outgoingNurse?: { id: string; name: string; role: string } | null;
     incomingNurse?: { id: string; name: string; role: string } | null;
-    seniorCaregiver?: { id: string; name: string; role: string } | null;
     supervisorSigned?: { id: string; name: string; role: string } | null;
     notes: ReportNote[];
 }
@@ -70,18 +67,13 @@ const formatDateTime = (iso: string | null) => {
     });
 };
 
-const deriveStatus = (r: ReportDetail): "PENDING_CONFIRMATION" | "CONFIRMED" | "SUPERVISOR_SIGNED" => {
+const deriveStatus = (r: ReportDetail): "PENDING_SUPERVISOR" | "SUPERVISOR_SIGNED" => {
     if (r.supervisorSignedAt) return "SUPERVISOR_SIGNED";
-    if (r.seniorConfirmedAt) return "CONFIRMED";
-    return "PENDING_CONFIRMATION";
+    return "PENDING_SUPERVISOR";
 };
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-    PENDING_CONFIRMATION: {
-        label: "Pendiente firma supervisor",
-        className: "bg-amber-100 text-amber-800 border-amber-200",
-    },
-    CONFIRMED: {
+    PENDING_SUPERVISOR: {
         label: "Pendiente firma supervisor",
         className: "bg-amber-100 text-amber-800 border-amber-200",
     },
@@ -238,8 +230,7 @@ export default function ReportDetailPage() {
 
                             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${badge.className}`}>
                                 {status === "SUPERVISOR_SIGNED" && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                {status === "CONFIRMED" && <Clock className="w-3.5 h-3.5" />}
-                                {status === "PENDING_CONFIRMATION" && <AlertTriangle className="w-3.5 h-3.5" />}
+                                {status === "PENDING_SUPERVISOR" && <Clock className="w-3.5 h-3.5" />}
                                 {badge.label}
                             </span>
                         </div>
@@ -336,14 +327,6 @@ export default function ReportDetailPage() {
                             <PenSquare className="w-3.5 h-3.5" /> Firma del supervisor
                         </div>
 
-                        {status === "PENDING_CONFIRMATION" && (
-                            <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-                                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                <p className="text-sm text-amber-900">
-                                    El cuidador(a) aún no ha confirmado su reporte. Al firmar el cierre de turno, la firma se habilitará automáticamente.
-                                </p>
-                            </div>
-                        )}
 
                         <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#1F2D3A" }}>
                             Nota del supervisor (opcional)
@@ -371,7 +354,7 @@ export default function ReportDetailPage() {
 
                         <button
                             onClick={handleSign}
-                            disabled={submitting || !!successMsg || status === "PENDING_CONFIRMATION"}
+                            disabled={submitting || !!successMsg}
                             className="mt-5 w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
                             style={{ backgroundColor: "#0F6B78" }}
                         >
