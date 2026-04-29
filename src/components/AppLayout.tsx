@@ -112,6 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [staffChatUnread, setStaffChatUnread] = useState(0);
     const [familyMsgOpen, setFamilyMsgOpen] = useState(false);
     const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
+    const [intakePendingCount, setIntakePendingCount] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -199,6 +200,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchFamilyUnread, 60000);
         return () => clearInterval(interval);
     }, [isFamilyMsgRole]);
+
+    // Polling badge ingresos pendientes de revisión (DIRECTOR, ADMIN, SUPERVISOR, NURSE)
+    const isIntakeRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes(user.role);
+    useEffect(() => {
+        if (!isIntakeRole) return;
+        const fetchIntakePending = async () => {
+            try {
+                const res = await fetch('/api/corporate/intake/pending-count');
+                const data = await res.json();
+                if (data.success) setIntakePendingCount(data.count ?? 0);
+            } catch {}
+        };
+        fetchIntakePending();
+        const interval = setInterval(fetchIntakePending, 60000);
+        return () => clearInterval(interval);
+    }, [isIntakeRole]);
 
     const markAllRead = async () => {
         if (!user?.id || unreadCount === 0) return;
@@ -451,10 +468,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                 <Link
                                                     href={link.href}
                                                     title={isSidebarCollapsed ? link.name : undefined}
-                                                    className={`flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
+                                                    className={`relative flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
                                                 >
-                                                    <Icon className={`shrink-0 ${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
+                                                    <span className="relative shrink-0">
+                                                        <Icon className={`${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
+                                                        {isSidebarCollapsed && link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
+                                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                                {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                     {!isSidebarCollapsed && <span className="truncate">{link.name}</span>}
+                                                    {!isSidebarCollapsed && link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
+                                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                            {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                        </span>
+                                                    )}
                                                 </Link>
                                             </li>
                                         );
@@ -567,6 +596,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                         <Link href={link.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
                                                             <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
                                                             <span className="truncate">{link.name}</span>
+                                                            {link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
+                                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                                    {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                                </span>
+                                                            )}
                                                         </Link>
                                                     </li>
                                                 );

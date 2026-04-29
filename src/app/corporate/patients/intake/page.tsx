@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { saveIntakeDraft, submitIntake } from "@/actions/intake/intake.actions";
-import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare, FileText, Upload, Phone, CreditCard, ShieldCheck, Hospital, X as XIcon } from "lucide-react";
+import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare, FileText, Upload, Phone, CreditCard, ShieldCheck, Hospital, X as XIcon, ClipboardCheck } from "lucide-react";
+import { confirmIntake } from "@/actions/intake/intake.actions";
 
 export default function IntakeWizardPage() {
   const router = useRouter();
@@ -74,6 +75,44 @@ export default function IntakeWizardPage() {
   });
   const [tab5Saving, setTab5Saving] = useState(false);
   const [tab5Error, setTab5Error] = useState<string | null>(null);
+
+  // Panel de revisiones pendientes (PENDIENTE_REVISION)
+  const [pendingReviews, setPendingReviews] = useState<any[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoadingPending(true);
+      try {
+        const res = await fetch('/api/corporate/intake/pending-list');
+        const data = await res.json();
+        if (data.success) setPendingReviews(data.intakes ?? []);
+      } catch {}
+      setLoadingPending(false);
+    };
+    load();
+  }, []);
+
+  const handleConfirm = async (patientId: string) => {
+    if (!confirm('¿Confirmar clínicamente este ingreso? Esta acción es irreversible.')) return;
+    setConfirmingId(patientId);
+    try {
+      const res = await confirmIntake(patientId);
+      if (res.success) {
+        setPendingReviews(prev => prev.filter(r => r.patientId !== patientId));
+      } else {
+        alert('Error al confirmar: ' + (res.error ?? 'Error desconocido'));
+      }
+    } catch {
+      alert('Error inesperado al confirmar.');
+    }
+    setConfirmingId(null);
+  };
+
+  const daysSince = (dateStr: string) => {
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+  };
 
   // TAB 6 — Documentos Zendi (Sprint P)
   const [documents, setDocuments] = useState<any[]>([]);
@@ -443,6 +482,71 @@ export default function IntakeWizardPage() {
     <div className="min-h-screen bg-slate-100 flex justify-center py-6 px-4 md:px-8 font-sans">
       <div className="w-full max-w-[1600px] flex flex-col space-y-8">
         
+        {/* ── PANEL REVISIONES PENDIENTES ──────────────────────────── */}
+        {(loadingPending || pendingReviews.length > 0) && (
+          <div className="bg-rose-50 border border-rose-200 rounded-[2rem] p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
+                <ClipboardCheck className="w-5 h-5 text-rose-600" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-rose-700 tracking-tight">
+                  Ingresos pendientes de confirmación clínica
+                </h2>
+                <p className="text-xs text-rose-500 font-bold mt-0.5">
+                  Estos residentes completaron el formulario de admisión y esperan tu revisión final.
+                </p>
+              </div>
+              {pendingReviews.length > 0 && (
+                <span className="ml-auto min-w-[28px] h-[28px] flex items-center justify-center bg-rose-500 rounded-full text-[13px] font-black text-white">
+                  {pendingReviews.length}
+                </span>
+              )}
+            </div>
+
+            {loadingPending ? (
+              <p className="text-sm text-rose-400 font-bold animate-pulse px-2">Cargando revisiones...</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingReviews.map(intake => {
+                  const days = daysSince(intake.updatedAt);
+                  const isConfirming = confirmingId === intake.patientId;
+                  return (
+                    <div key={intake.patientId} className="flex items-center justify-between bg-white rounded-2xl px-5 py-4 border border-rose-100 shadow-sm gap-4">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4 text-rose-500" strokeWidth={2.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-extrabold text-slate-800 truncate">{intake.patient?.name ?? '—'}</p>
+                          <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+                            En revisión desde hace{' '}
+                            <span className={days >= 3 ? 'text-rose-600' : 'text-amber-600'}>
+                              {days === 0 ? 'hoy' : `${days} día${days !== 1 ? 's' : ''}`}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleConfirm(intake.patientId)}
+                        disabled={isConfirming}
+                        className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl transition shadow-sm"
+                      >
+                        {isConfirming ? (
+                          <span className="animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full inline-block" />
+                        ) : (
+                          <CheckCircle className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        )}
+                        {isConfirming ? 'Confirmando...' : 'Confirmar ingreso'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* HEADER CABINA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-8 md:p-10 rounded-[3rem] shadow-sm border border-slate-200">
           <div className="flex items-center gap-6">
