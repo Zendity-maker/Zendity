@@ -56,7 +56,7 @@ export async function GET(req: Request) {
                 include: { patient: { select: { name: true, headquartersId: true } } },
             }),
             prisma.intakeData.findMany({
-                where: { status: 'PENDING', updatedAt: { lt: d7ago } },
+                where: { status: 'PENDIENTE_REVISION', updatedAt: { lt: d7ago } },
                 include: { patient: { select: { name: true, headquartersId: true } } },
             }),
             prisma.$queryRaw<{ email: string; count: number }[]>`
@@ -189,7 +189,7 @@ export async function GET(req: Request) {
                         (i: any) => i.patient?.headquartersId === hq.id
                     );
                     if (hqStale.length > 0) anomalies.push({
-                        check: 'IntakeData PENDING >7 días sin actualizar',
+                        check: 'IntakeData PENDIENTE_REVISION >7 días sin actualizar',
                         count: hqStale.length,
                         autoFixed: false,
                     });
@@ -244,7 +244,7 @@ export async function GET(req: Request) {
                         message: (n) => `Causa: ${n} medicación${n !== 1 ? 'es' : ''} activa${n !== 1 ? 's' : ''} no tiene${n !== 1 ? 'n' : ''} horario configurado (scheduleTimes vacío).\nAcción requerida: Ir al catálogo médico en /corporate/medical y configurar los horarios de administración faltantes.`,
                         link: '/corporate/medical/catalog',
                     },
-                    'IntakeData PENDING >7 días sin actualizar': {
+                    'IntakeData PENDIENTE_REVISION >7 días sin actualizar': {
                         title: (n) => `⚠️ ${n} ingreso${n !== 1 ? 's' : ''} pendiente${n !== 1 ? 's' : ''} sin actualizar en >7 días`,
                         message: (n) => `Causa: ${n} residente${n !== 1 ? 's' : ''} lleva${n !== 1 ? 'n' : ''} más de 7 días con su ficha de ingreso en estado PENDING sin avanzar.\nAcción requerida: Ir a /corporate/patients/intake y completar o cancelar el proceso de ingreso estancado.`,
                         link: '/corporate/patients/intake',
