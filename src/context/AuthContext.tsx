@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isLoginRoute) {
                 if (user.role === "ADMIN") router.replace("/corporate");
                 else if (user.role === "FAMILY") router.replace("/family");
-                else if (user.role === "CAREGIVER") router.replace("/care");
+                else if (user.role === "CAREGIVER") router.replace("/care/hub");
                 else if (user.role === "THERAPIST" || user.role === "BEAUTY_SPECIALIST") router.replace("/specialists");
                 else if (user.role === "INVESTOR") router.replace("/corporate/investors");
                 else if (user.role === "MAINTENANCE") router.replace("/maintenance");
@@ -82,8 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         (pathname.startsWith("/corporate") && !pathname.startsWith("/corporate/medical")))) {
                     router.replace("/");
                 }
-                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy")) {
-                    router.replace("/care");
+                else if (user.role === "CAREGIVER" && !pathname.startsWith("/care") && !pathname.startsWith("/cuidadores") && !pathname.startsWith("/corporate/medical/handovers") && !pathname.startsWith("/academy") && !pathname.startsWith("/my-observations")) {
+                    router.replace("/care/hub");
                 }
                 else if (user.role === "MAINTENANCE" && !pathname.startsWith("/maintenance")) {
                     router.replace("/maintenance");
