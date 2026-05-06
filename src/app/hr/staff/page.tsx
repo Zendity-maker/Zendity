@@ -93,8 +93,15 @@ export default function ZendityStaffDirectoryPage() {
 
     if (loading) return <div className="p-20 text-center font-bold text-slate-500 animate-pulse text-xl">Cargando Staff HR...</div>;
 
-    const activeStaff = staff.filter(e => !e.isDeleted);
-    const inactiveStaff = staff.filter(e => e.isDeleted);
+    const getLastName = (name: string) => {
+        const parts = name.trim().split(/\s+/);
+        return parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    };
+    const sortByLastName = (a: any, b: any) =>
+        getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' });
+
+    const activeStaff = staff.filter(e => !e.isDeleted).sort(sortByLastName);
+    const inactiveStaff = staff.filter(e => e.isDeleted).sort(sortByLastName);
     const displayedStaff = activeTab === 'ACTIVE' ? activeStaff : inactiveStaff;
 
     return (

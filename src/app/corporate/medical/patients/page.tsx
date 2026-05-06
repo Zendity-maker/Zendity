@@ -50,7 +50,7 @@ export default function MasterPatientDirectory() {
                 const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
-            .sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name), 'es'));
+            .sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' }));
     }, [patients, searchTerm, statusFilter]);
 
     const getStatusBadge = (status: string, leaveType?: string) => {
