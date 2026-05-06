@@ -100,6 +100,59 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 link: `/my-observations/${id}`,
             });
 
+            // Email al empleado avisando que debe responder
+            if (incident.employee?.email && process.env.SENDGRID_API_KEY) {
+                try {
+                    const hqName = incident.hq?.name || 'Zéndity';
+                    const logoHtml = incident.hq?.logoUrl
+                        ? `<img src="${incident.hq.logoUrl}" alt="${hqName}" style="max-height:72px;margin-bottom:16px;object-fit:contain;" />`
+                        : '';
+                    const directorNoteHtml = (directorNote || incident.directorNote)
+                        ? `<div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px;margin:16px 0;">
+                            <div style="font-size:11px;font-weight:bold;color:#1d4ed8;text-transform:uppercase;margin-bottom:4px;">Nota del Director</div>
+                            <div style="white-space:pre-wrap;">${(directorNote || incident.directorNote || '').replace(/</g, '&lt;')}</div>
+                           </div>`
+                        : '';
+
+                    const emailHtml = `
+                    <div style="font-family:Arial,sans-serif;max-width:650px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;padding:28px;color:#0f172a;">
+                        <div style="text-align:center;border-bottom:2px solid #0f6b78;padding-bottom:16px;margin-bottom:24px;">
+                            ${logoHtml}
+                            <div style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#1e293b;">Solicitud de Explicación — ${hqName}</div>
+                        </div>
+                        <div style="background:#ffffff;padding:24px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05);line-height:1.6;font-size:15px;">
+                            <h3 style="color:#b45309;margin:0 0 12px 0;font-size:20px;">Se requiere tu explicación</h3>
+                            <p>Estimado(a) <strong>${incident.employee.name}</strong>,</p>
+                            <p>La dirección de <strong>${hqName}</strong> ha registrado una observación en tu expediente y solicita tu explicación formal. Tienes <strong>72 horas</strong> para responder a través del portal.</p>
+                            <table style="width:100%;border-collapse:collapse;margin:18px 0;">
+                                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Categoría:</td><td>${categoryLabel(incident.category)}</td></tr>
+                                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;">Tipo:</td><td>${severityLabel(incident.severity)}</td></tr>
+                            </table>
+                            <div style="background:#fff7ed;border-left:4px solid #f59e0b;padding:14px;margin:16px 0;">
+                                <div style="font-size:11px;font-weight:bold;color:#b45309;text-transform:uppercase;margin-bottom:4px;">Descripción del incidente</div>
+                                <div style="white-space:pre-wrap;">${incident.description.replace(/</g, '&lt;')}</div>
+                            </div>
+                            ${directorNoteHtml}
+                            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">
+                                <p style="margin:0 0 12px 0;font-weight:bold;color:#15803d;">Ingresa al portal Zéndity para enviar tu respuesta</p>
+                                <p style="margin:0;font-size:13px;color:#64748b;">Ve a <strong>Mis Observaciones</strong> en el menú principal y responde antes de que venza el plazo.</p>
+                            </div>
+                            <p style="font-size:13px;color:#64748b;margin-top:16px;">Si crees que esta observación es un error, también puedes expresarlo en tu respuesta. El director evaluará tu explicación antes de tomar cualquier decisión.</p>
+                        </div>
+                        <div style="text-align:center;margin-top:20px;font-size:11px;color:#64748b;">Mensaje automático emitido por Zéndity OS.</div>
+                    </div>`;
+
+                    await sgMail.send({
+                        to: incident.employee.email,
+                        from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: hqName },
+                        subject: `Se requiere tu explicación — ${hqName}`,
+                        html: emailHtml,
+                    });
+                } catch (sgError) {
+                    console.error('[REQUEST_EXPLANATION] SendGrid email failed:', sgError);
+                }
+            }
+
             return NextResponse.json({ success: true, incident: updated });
         }
 

@@ -32,6 +32,8 @@ const clinicalNavigation = [
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
+    // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
+    { name: 'Mis Observaciones', href: '/my-observations', icon: FileWarning, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
 ];
 
 const corporateNavigationSections = [
@@ -114,6 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [familyMsgOpen, setFamilyMsgOpen] = useState(false);
     const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
     const [intakePendingCount, setIntakePendingCount] = useState(0);
+    const [myObsPendingCount, setMyObsPendingCount] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -202,6 +205,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return () => clearInterval(interval);
     }, [isFamilyMsgRole]);
 
+    // Polling badge observaciones pendientes del empleado (CAREGIVER, NURSE, SUPERVISOR)
+    const isEmployeeObsRole = user?.role && ['CAREGIVER', 'NURSE', 'SUPERVISOR'].includes(user.role);
+    useEffect(() => {
+        if (!isEmployeeObsRole) return;
+        const fetchMyObsPending = async () => {
+            try {
+                const res = await fetch('/api/my-observations/pending-count');
+                const data = await res.json();
+                if (data.success) setMyObsPendingCount(data.count ?? 0);
+            } catch {}
+        };
+        fetchMyObsPending();
+        const interval = setInterval(fetchMyObsPending, 60000);
+        return () => clearInterval(interval);
+    }, [isEmployeeObsRole]);
+
     // Polling badge ingresos pendientes de revisión (DIRECTOR, ADMIN, SUPERVISOR, NURSE)
     const isIntakeRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes(user.role);
     useEffect(() => {
@@ -248,15 +267,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const getNotifUrl = (notif: any): string | null => {
         // Override por link: mensajes familiares abren el panel, no navegan
         if (notif.link === '/corporate/family-messages') return 'FAMILY_MESSAGES';
+        // Observaciones del empleado: usar el link directo para ir a /my-observations/[id]
+        if (notif.link?.startsWith('/my-observations/')) return notif.link;
         switch (notif.type) {
             case 'SHIFT_ALERT':      return '/care/supervisor';
-            case 'EMAR_ALERT':       return '/care/supervisor';
+            case 'EMAR_ALERT':       return notif.link || '/care/supervisor';
             case 'COURSE_COMPLETED': return '/academy';
             case 'FAMILY_VISIT':     return '/reception';
             case 'TRIAGE':           return '/corporate/triage';
             case 'HANDOVER':         return '/care/supervisor';
             case 'STAFF_MESSAGE':    return 'STAFF_CHAT'; // Sentinel — abre el panel, no navega
-            default:                 return null;
+            default:                 return notif.link || null;
         }
     };
 
@@ -500,18 +521,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
                             // Reportes de Turno: solo CAREGIVER y NURSE en Clinical
                             if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
+                            // Mis Observaciones: solo roles definidos en onlyRoles
+                            if ((item as any).onlyRoles && !(item as any).onlyRoles.includes(user?.role || '')) return null;
 
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
+                            const isMyObs = item.href === '/my-observations';
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
                                     title={isSidebarCollapsed ? item.name : undefined}
-                                    className={`flex items-center gap-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
+                                    className={`relative flex items-center gap-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem} ${isSidebarCollapsed ? 'justify-center px-0 min-w-11 min-h-11' : 'px-3'}`}
                                 >
-                                    <Icon className={`shrink-0 ${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
+                                    <span className="relative shrink-0">
+                                        <Icon className={`${isSidebarCollapsed ? 'w-6 h-6' : 'w-[18px] h-[18px]'}`} strokeWidth={isCurrent ? 2.5 : 2} />
+                                        {isSidebarCollapsed && isMyObs && myObsPendingCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-amber-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                            </span>
+                                        )}
+                                    </span>
                                     {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
+                                    {!isSidebarCollapsed && isMyObs && myObsPendingCount > 0 && (
+                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                            {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                        </span>
+                                    )}
                                 </Link>
                             )
                         })
@@ -614,12 +650,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
                                     if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
                                     if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
+                                    if ((item as any).onlyRoles && !(item as any).onlyRoles.includes(user?.role || '')) return null;
                                     const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                                     const Icon = item.icon;
+                                    const isMyObs = item.href === '/my-observations';
                                     return (
                                         <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
                                             <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
                                             <span className="truncate">{item.name}</span>
+                                            {isMyObs && myObsPendingCount > 0 && (
+                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                    {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                                </span>
+                                            )}
                                         </Link>
                                     );
                                 })
