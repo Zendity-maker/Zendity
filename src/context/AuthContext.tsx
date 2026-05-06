@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "KITCHEN" && !pathname.startsWith("/kitchen")) {
                     router.replace("/kitchen");
                 }
-                else if (user.role === "CLEANING" && !pathname.startsWith("/cleaning")) {
+                else if (user.role === "CLEANING" && !pathname.startsWith("/cleaning") && !pathname.startsWith("/academy")) {
                     router.replace("/cleaning");
                 }
                 else if (user.role === "INVESTOR" && !pathname.startsWith("/corporate/investors")) {
