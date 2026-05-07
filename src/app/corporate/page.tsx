@@ -800,29 +800,43 @@ export default function CorporateDashboardPage() {
 
                                     {/* incidentsWeek */}
                                     {activeChip === 'incidentsWeek' && list.map((r: any) => (
-                                        <div key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
+                                        <Link
+                                            key={r.id}
+                                            href={`/hr/incidents/${r.id}`}
+                                            className="block px-5 py-3 hover:bg-white transition-colors group cursor-pointer"
+                                        >
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${severityBadge[r.severity] || 'bg-slate-100 text-slate-600'}`}>{r.severity}</span>
                                                     <span className="text-xs font-bold text-slate-700">{r.type}</span>
                                                 </div>
-                                                <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                                    <ChevronRight size={12} className="text-slate-300 group-hover:text-teal-500 transition-colors" />
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-slate-600">{r.patient} · Cuarto {r.room}</p>
+                                            <p className="text-xs font-semibold text-slate-700 group-hover:text-teal-700 transition-colors">{r.employee}</p>
                                             {r.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{r.description}</p>}
-                                        </div>
+                                        </Link>
                                     ))}
 
                                     {/* triageOpen */}
                                     {activeChip === 'triageOpen' && list.map((r: any) => (
-                                        <div key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
+                                        <Link
+                                            key={r.id}
+                                            href={`/corporate/triage?ticket=${r.id}`}
+                                            className="block px-5 py-3 hover:bg-white transition-colors group cursor-pointer"
+                                        >
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${priorityBadge[r.priority] || 'bg-slate-100 text-slate-600'}`}>{r.priority}</span>
-                                                <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                                    <ChevronRight size={12} className="text-slate-300 group-hover:text-teal-500 transition-colors" />
+                                                </div>
                                             </div>
-                                            <p className="font-bold text-slate-800 text-sm">{r.title}</p>
-                                            <p className="text-xs text-slate-400">{r.patient} · Cuarto {r.room} · {r.status}</p>
-                                        </div>
+                                            <p className="text-sm text-slate-700 group-hover:text-teal-700 font-medium transition-colors leading-snug">{r.title}</p>
+                                            {r.patient !== '—' && <p className="text-xs text-slate-400 mt-0.5">{r.patient} · Cuarto {r.room}</p>}
+                                        </Link>
                                     ))}
 
                                     {/* handoversPending */}
