@@ -78,27 +78,63 @@ export async function PATCH(request: Request) {
                     data: { conciergeBalance: { increment: appt.service.price } }
                 });
 
+                const fechaCancelada = appt.scheduledAt
+                    ? appt.scheduledAt.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })
+                    : null;
+
                 await tx.familyMessage.create({
                     data: {
                         patientId: appt.patientId,
                         senderType: 'SYSTEM',
                         senderId: 'SYSTEM',
-                        content: `La terapia de ${appt.service.name} ha sido retirada de la agenda. El reembolso fue procesado y su saldo ha sido restaurado.`
+                        content: `❌ La sesión de ${appt.service.name}${fechaCancelada ? ` del ${fechaCancelada}` : ''} ha sido cancelada. El monto fue reembolsado a tu saldo Concierge.`
                     }
                 });
             }
 
-            // 2. ALERTAS AUTOMÁTICAS (UX B2C) - Cuando inicia
-            if (status === 'IN_PROGRESS' && appt.status !== 'IN_PROGRESS') {
-                const specName = updatedAppt.specialist?.name || 'Nuestro equipo';
-                const sType = updatedAppt.service.category.toLowerCase() === 'belleza' ? 'especialista' : 'terapista';
+            // 2. CONFIRMACIÓN al asignar especialista
+            if (specialistId && specialistId !== appt.specialistId && updatedAppt.specialist) {
+                const specName = updatedAppt.specialist.name;
+                const fechaStr = appt.scheduledAt
+                    ? appt.scheduledAt.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })
+                    : 'próximamente';
+                const horaStr = appt.scheduledAt
+                    ? appt.scheduledAt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })
+                    : '';
 
                 await tx.familyMessage.create({
                     data: {
                         patientId: appt.patientId,
                         senderType: 'SYSTEM',
                         senderId: 'SYSTEM',
-                        content: ` ¡Excelentes noticias!\n${specName} (${sType}) va en camino a la habitación para comenzar la sesión de ${appt.service.name}.`
+                        content: `✅ Tu solicitud de *${appt.service.name}* fue confirmada. ${specName} estará a cargo de la sesión el ${fechaStr}${horaStr ? ` a las ${horaStr}` : ''}. ¡Estamos listos!`
+                    }
+                });
+            }
+
+            // 3. INICIO DE SERVICIO (va en camino)
+            if (status === 'IN_PROGRESS' && appt.status !== 'IN_PROGRESS') {
+                const specName = updatedAppt.specialist?.name || 'Nuestro equipo';
+                const sType = updatedAppt.service.category.toLowerCase().includes('estétic') || updatedAppt.service.category.toLowerCase().includes('belleza') ? 'especialista' : 'terapista';
+
+                await tx.familyMessage.create({
+                    data: {
+                        patientId: appt.patientId,
+                        senderType: 'SYSTEM',
+                        senderId: 'SYSTEM',
+                        content: `🚶 ¡En camino! ${specName} (${sType}) se dirige a la habitación para comenzar la sesión de ${appt.service.name}.`
+                    }
+                });
+            }
+
+            // 4. SERVICIO COMPLETADO
+            if (status === 'COMPLETED' && appt.status !== 'COMPLETED') {
+                await tx.familyMessage.create({
+                    data: {
+                        patientId: appt.patientId,
+                        senderType: 'SYSTEM',
+                        senderId: 'SYSTEM',
+                        content: `⭐ La sesión de ${appt.service.name} fue completada exitosamente. Gracias por confiar en Vivid Senior Living.`
                     }
                 });
             }

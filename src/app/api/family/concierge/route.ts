@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-
-
+import { notifyRoles } from '@/lib/notifications';
 
 export async function GET(request: Request) {
     try {
@@ -21,8 +20,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: false, error: 'Family member not found' }, { status: 404 });
         }
 
-        // Obtener todos los productos y servicios activos de la misma sede
-        let [products, services] = await Promise.all([
+        // Catálogo + reservas activas del familiar
+        let [products, services, myAppointments] = await Promise.all([
             prisma.conciergeProduct.findMany({
                 where: { headquartersId: familyMember.headquartersId, isActive: true },
                 orderBy: { category: 'asc' }
@@ -30,10 +29,21 @@ export async function GET(request: Request) {
             prisma.conciergeService.findMany({
                 where: { headquartersId: familyMember.headquartersId, isActive: true },
                 orderBy: { category: 'asc' }
-            })
+            }),
+            prisma.conciergeAppointment.findMany({
+                where: {
+                    patientId: familyMember.patientId,
+                    status: { notIn: ['COMPLETED', 'CANCELLED'] },
+                },
+                include: {
+                    service: { select: { name: true, category: true, imageUrl: true } },
+                    specialist: { select: { name: true, role: true } },
+                },
+                orderBy: { scheduledAt: 'asc' },
+            }),
         ]);
 
-        // Auto-Seeder: Si está vacío, inyectamos el Premium Marketplace Starter Pack
+        // Auto-Seeder: servicios de ejemplo si está vacío
         if (services.length === 0) {
             await prisma.conciergeService.createMany({
                 data: [
@@ -44,7 +54,6 @@ export async function GET(request: Request) {
                     { headquartersId: familyMember.headquartersId, name: 'Experiencia Chef en tu Suite', price: 120.0, category: 'Gourmet y Celebraciones', providerType: 'KITCHEN', imageUrl: '/images/market/chef_suite_1774112910701.png' }
                 ]
             });
-            // Recargarlos
             services = await prisma.conciergeService.findMany({
                 where: { headquartersId: familyMember.headquartersId, isActive: true },
                 orderBy: { category: 'asc' }
@@ -55,7 +64,8 @@ export async function GET(request: Request) {
             success: true,
             products,
             services,
-            balance: familyMember.patient.conciergeBalance || 0.0
+            balance: familyMember.patient.conciergeBalance || 0.0,
+            myAppointments,
         });
 
     } catch (error: any) {
@@ -81,10 +91,27 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { type, id, price } = body;
+        const { type, id, price, scheduledAt, notes } = body;
 
-        // 1. Validar que tiene saldo suficiente (a menos que esté comprando una recarga/GiftCard)
-        const isGiftCard = type === 'product' && id; // Necesitamos buscar el producto para saber si es GiftCard
+        // Validar fecha para servicios
+        if (type === 'service') {
+            if (!scheduledAt) {
+                return NextResponse.json({ success: false, error: 'Debes seleccionar una fecha y hora para el servicio.' }, { status: 400 });
+            }
+            const dateObj = new Date(scheduledAt);
+            if (isNaN(dateObj.getTime())) {
+                return NextResponse.json({ success: false, error: 'Fecha inválida.' }, { status: 400 });
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (dateObj < today) {
+                return NextResponse.json({ success: false, error: 'La fecha no puede ser en el pasado.' }, { status: 400 });
+            }
+            // Lunes bloqueado
+            if (dateObj.getDay() === 1) {
+                return NextResponse.json({ success: false, error: 'Los lunes no están disponibles. Elige otro día.' }, { status: 400 });
+            }
+        }
 
         let itemCategory = "";
         let itemName = "";
@@ -105,28 +132,22 @@ export async function POST(request: Request) {
             const serv = await prisma.conciergeService.findUnique({ where: { id } });
             if (!serv) return NextResponse.json({ success: false, error: 'Servicio no encontrado' }, { status: 404 });
             itemName = serv.name;
+            itemCategory = serv.category;
 
             if (familyMember.patient.conciergeBalance < price) {
                 return NextResponse.json({ success: false, error: 'Saldo Insuficiente. Adquiere una Gift Card para recargar.' }, { status: 400 });
             }
         }
 
-        // ==========================================
-        // TRANSACTION START
-        // ==========================================
         await prisma.$transaction(async (tx) => {
 
-            // CASO A: RECARGA DE SALDO (COMPRA DE GIFT CARD)
+            // ── CASO A: RECARGA DE SALDO (GIFT CARD) ─────────────────────────
             if (type === 'product' && itemCategory === 'GiftCards') {
-
-                // 1. Agregar el saldo ficticio al residente
                 await tx.patient.update({
                     where: { id: familyMember.patientId },
                     data: { conciergeBalance: { increment: price } }
                 });
 
-                // 2. Buscar si hay un Invoice PENDIENTE de este mes.
-                // Si no hay, crear uno nuevo para fin de mes.
                 const startOfMonth = new Date();
                 startOfMonth.setDate(1);
                 startOfMonth.setHours(0, 0, 0, 0);
@@ -140,21 +161,19 @@ export async function POST(request: Request) {
                 });
 
                 if (!currentInvoice) {
-                    // Generar Factura comodín
                     currentInvoice = await tx.invoice.create({
                         data: {
                             headquartersId: familyMember.headquartersId,
                             patientId: familyMember.patientId,
                             invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
                             issueDate: new Date(),
-                            dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5), // El 5 del prox mes
+                            dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5),
                             status: 'PENDING',
                             notes: 'Generada automáticamente por recargas de saldo (Concierge Marketplace)'
                         }
                     });
                 }
 
-                // 3. Añadir el Item ("Cargar a la habitación")
                 await tx.invoiceItem.create({
                     data: {
                         invoiceId: currentInvoice.id,
@@ -165,25 +184,22 @@ export async function POST(request: Request) {
                     }
                 });
 
-                // 4. Actualizar totales del Invoice
                 await tx.invoice.update({
                     where: { id: currentInvoice.id },
                     data: {
                         subtotal: { increment: price },
-                        totalAmount: { increment: price } // Simplificando tax por ahora
+                        totalAmount: { increment: price }
                     }
                 });
-
             }
-            // CASO B: COMPRA DE PRODUCTO REGULAR
+
+            // ── CASO B: COMPRA DE PRODUCTO REGULAR ────────────────────────────
             else if (type === 'product') {
-                // Descontar saldo
                 await tx.patient.update({
                     where: { id: familyMember.patientId },
                     data: { conciergeBalance: { decrement: price } }
                 });
 
-                // Crear Orden
                 await tx.conciergeOrder.create({
                     data: {
                         patientId: familyMember.patientId,
@@ -194,30 +210,84 @@ export async function POST(request: Request) {
                     }
                 });
 
-                // Restar inventario
                 await tx.conciergeProduct.update({
                     where: { id },
                     data: { stock: { decrement: 1 } }
                 });
             }
-            // CASO C: RESERVA DE SERVICIO (TERAPIA/BELLEZA)
+
+            // ── CASO C: RESERVA DE SERVICIO CON FECHA ────────────────────────
             else if (type === 'service') {
+                const scheduledDate = new Date(scheduledAt);
+
                 // Descontar saldo
                 await tx.patient.update({
                     where: { id: familyMember.patientId },
                     data: { conciergeBalance: { decrement: price } }
                 });
 
-                // Crear Cita
+                // Crear cita con fecha
                 await tx.conciergeAppointment.create({
                     data: {
                         patientId: familyMember.patientId,
                         serviceId: id,
-                        status: 'SCHEDULED'
+                        scheduledAt: scheduledDate,
+                        notes: notes?.trim() || null,
+                        status: 'SCHEDULED',
+                    }
+                });
+
+                // Crear evento en el calendario del hogar
+                const endTime = new Date(scheduledDate.getTime() + 60 * 60 * 1000); // +1h por defecto
+                await tx.headquartersEvent.create({
+                    data: {
+                        headquartersId: familyMember.headquartersId,
+                        title: `${itemName} — ${familyMember.patient.name}`,
+                        description: `Servicio solicitado por familia. Habitación ${familyMember.patient.roomNumber || '—'}.${notes ? ` Nota: ${notes}` : ''}`,
+                        type: 'CONCIERGE_SERVICE' as any,
+                        startTime: scheduledDate,
+                        endTime,
+                        patientId: familyMember.patientId,
+                        targetPopulation: 'ALL',
+                        targetGroups: [],
+                        targetPatients: [familyMember.patientId],
+                    }
+                });
+
+                // Mensaje de confirmación a la familia
+                await tx.familyMessage.create({
+                    data: {
+                        patientId: familyMember.patientId,
+                        senderType: 'SYSTEM',
+                        senderId: 'SYSTEM',
+                        content: `✅ Tu solicitud de *${itemName}* fue registrada para el ${scheduledDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })} a las ${scheduledDate.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}. El equipo confirmará la asignación del especialista en breve.`,
                     }
                 });
             }
         });
+
+        // ── Notificar al staff de la sede (fuera de la transaction) ──────────
+        if (type === 'service' && scheduledAt) {
+            const serv = await prisma.conciergeService.findUnique({ where: { id } });
+            const scheduledDate = new Date(scheduledAt);
+            const formattedDate = scheduledDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'short' });
+            const formattedTime = scheduledDate.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+
+            // Notificar al rol del proveedor + supervisores
+            const rolesToNotify = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+            if (serv?.providerType) rolesToNotify.push(serv.providerType as string);
+
+            await notifyRoles(
+                familyMember.headquartersId,
+                [...new Set(rolesToNotify)],
+                {
+                    type: 'CONCIERGE_SERVICE',
+                    title: '🛎️ Nueva solicitud de servicio',
+                    message: `${familyMember.name} solicitó "${itemName}" para ${familyMember.patient.name} (Hab. ${familyMember.patient.roomNumber || '—'}) el ${formattedDate} a las ${formattedTime}`,
+                    link: '/corporate/concierge',
+                }
+            );
+        }
 
         return NextResponse.json({ success: true, message: 'Operación completada con éxito' });
 

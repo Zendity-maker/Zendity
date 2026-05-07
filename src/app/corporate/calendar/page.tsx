@@ -170,6 +170,7 @@ export default function CorporateCalendarPage() {
             case 'MEDICAL_VISIT': backgroundColor = '#3b82f6'; break; // Azul
             case 'FAMILY_VISIT': backgroundColor = '#f59e0b'; break; // Ambar
             case 'ACTIVITY': backgroundColor = '#10b981'; break; // Verde
+            case 'CONCIERGE_SERVICE': backgroundColor = '#7c3aed'; break; // Violeta
             case 'FAMILY_CALL': backgroundColor = '#2563eb'; break;
             default: backgroundColor = '#64748b'; break; // Gris
         }
@@ -249,6 +250,7 @@ export default function CorporateCalendarPage() {
                                         <option value="MEDICAL_VISIT"> Visita Médica (Azul)</option>
                                         <option value="FAMILY_VISIT"> Visita Familiar (Ambar)</option>
                                         <option value="ACTIVITY"> Recreación (Verde)</option>
+                                        <option value="CONCIERGE_SERVICE">🛎️ Servicio Concierge (Violeta)</option>
                                         <option value="FAMILY_CALL">📞 Llamada Familiar</option>
                                         <option value="OTHER"> Otro / Administrativo</option>
                                     </select>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat } from "react-icons/fa";
+import Link from "next/link";
+import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat, FaCalendarAlt, FaClipboardList } from "react-icons/fa";
+import { X, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 interface MarketplaceItem {
     id: string;
@@ -15,13 +17,76 @@ interface MarketplaceItem {
     imageUrl?: string;
 }
 
+interface MyAppointment {
+    id: string;
+    scheduledAt: string | null;
+    status: string;
+    notes: string | null;
+    service: { name: string; category: string; imageUrl: string | null };
+    specialist: { name: string; role: string } | null;
+}
+
+// Genera slots de 30 min entre 9AM y 5PM
+function generateTimeSlots(): string[] {
+    const slots: string[] = [];
+    for (let h = 9; h < 17; h++) {
+        for (const m of [0, 30]) {
+            const period = h < 12 ? 'AM' : 'PM';
+            const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+            slots.push(`${displayH}:${m === 0 ? '00' : '30'} ${period}`);
+        }
+    }
+    return slots;
+}
+
+// Genera próximos 30 días sin lunes
+function generateAvailableDates(): Date[] {
+    const dates: Date[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 1; i <= 30; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        if (d.getDay() !== 1) dates.push(d);
+    }
+    return dates;
+}
+
+function parseTimeSlot(slot: string): { hours: number; minutes: number } {
+    const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return { hours: 9, minutes: 0 };
+    let h = parseInt(match[1]);
+    const m = parseInt(match[2]);
+    const p = match[3].toUpperCase();
+    if (p === 'PM' && h !== 12) h += 12;
+    if (p === 'AM' && h === 12) h = 0;
+    return { hours: h, minutes: m };
+}
+
+const TIME_SLOTS = generateTimeSlots();
+const AVAILABLE_DATES = generateAvailableDates();
+
+const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+    SCHEDULED:   { label: 'Pendiente de confirmación', color: 'bg-amber-50 text-amber-700 border-amber-200',  icon: '⏳' },
+    IN_PROGRESS: { label: 'En progreso',                color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: '🔵' },
+    COMPLETED:   { label: 'Completado',                 color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '✅' },
+    CANCELLED:   { label: 'Cancelado',                  color: 'bg-red-50 text-red-700 border-red-200',       icon: '❌' },
+};
+
 export default function ConciergePage() {
-    const [data, setData] = useState<{ products: MarketplaceItem[], services: MarketplaceItem[], balance: number } | null>(null);
+    const [data, setData] = useState<{ products: MarketplaceItem[]; services: MarketplaceItem[]; balance: number; myAppointments: MyAppointment[] } | null>(null);
     const [loading, setLoading] = useState(true);
     const [buying, setBuying] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState("");
-
     const [errorMsg, setErrorMsg] = useState("");
+    const [activeTab, setActiveTab] = useState<'marketplace' | 'reservas'>('marketplace');
+
+    // Modal de reserva de servicio
+    const [bookingItem, setBookingItem] = useState<MarketplaceItem | null>(null);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedTime, setSelectedTime] = useState<string>('');
+    const [bookingNotes, setBookingNotes] = useState('');
+    const [datePage, setDatePage] = useState(0); // paginación del selector de fechas (7 por página)
 
     const loadMarketplace = () => {
         fetch('/api/family/concierge')
@@ -40,39 +105,89 @@ export default function ConciergePage() {
             });
     };
 
-    useEffect(() => {
-        loadMarketplace();
-    }, []);
+    useEffect(() => { loadMarketplace(); }, []);
 
-    const handlePurchase = async (item: MarketplaceItem, type: 'product' | 'service') => {
+    // Abrir modal de fecha para servicio
+    const openBookingModal = (item: MarketplaceItem) => {
         if (!data || data.balance < item.price) {
-            if (item.category !== 'GiftCards') {
-                alert("Saldo insuficiente para esta operación. Por favor adquiere una Gift Card.");
-                return;
-            }
+            alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
+            return;
         }
+        setBookingItem(item);
+        setSelectedDate(null);
+        setSelectedTime('');
+        setBookingNotes('');
+        setDatePage(0);
+    };
 
-        if (!confirm(`¿Confirmas la compra de ${item.name} por $${item.price.toFixed(2)}?`)) return;
+    const closeBookingModal = () => {
+        setBookingItem(null);
+        setSelectedDate(null);
+        setSelectedTime('');
+        setBookingNotes('');
+    };
 
-        setBuying(item.id);
+    const confirmBooking = async () => {
+        if (!bookingItem || !selectedDate || !selectedTime) return;
+
+        const { hours, minutes } = parseTimeSlot(selectedTime);
+        const scheduledAt = new Date(selectedDate);
+        scheduledAt.setHours(hours, minutes, 0, 0);
+
+        setBuying(bookingItem.id);
         setSuccessMsg("");
-
         try {
             const res = await fetch('/api/family/concierge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, id: item.id, price: item.price })
+                body: JSON.stringify({
+                    type: 'service',
+                    id: bookingItem.id,
+                    price: bookingItem.price,
+                    scheduledAt: scheduledAt.toISOString(),
+                    notes: bookingNotes,
+                })
             });
             const resData = await res.json();
-
             if (resData.success) {
-                setSuccessMsg(`¡${type === 'product' ? 'Compra' : 'Reserva'} exitosa de: ${item.name}!`);
-                loadMarketplace(); // Recargar balance
+                setSuccessMsg(`¡Reserva confirmada: ${bookingItem.name} el ${selectedDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'short' })} a las ${selectedTime}!`);
+                closeBookingModal();
+                loadMarketplace();
+                setActiveTab('reservas');
+            } else {
+                alert(resData.error || "Error al procesar la reserva.");
+            }
+        } catch {
+            alert("Error de conexión. Intenta de nuevo.");
+        }
+        setBuying(null);
+    };
+
+    const handleProductPurchase = async (item: MarketplaceItem) => {
+        if (!data || (item.category !== 'GiftCards' && data.balance < item.price)) {
+            if (item.category !== 'GiftCards') {
+                alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
+                return;
+            }
+        }
+        if (!confirm(`¿Confirmas la compra de ${item.name} por $${item.price.toFixed(2)}?`)) return;
+
+        setBuying(item.id);
+        try {
+            const res = await fetch('/api/family/concierge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'product', id: item.id, price: item.price })
+            });
+            const resData = await res.json();
+            if (resData.success) {
+                setSuccessMsg(`¡Compra exitosa: ${item.name}!`);
+                loadMarketplace();
             } else {
                 alert(resData.error || "Error al procesar la orden.");
             }
-        } catch (e) {
-            alert("Error de conexión con el banco. Intenta de nuevo.");
+        } catch {
+            alert("Error de conexión. Intenta de nuevo.");
         }
         setBuying(null);
     };
@@ -85,29 +200,34 @@ export default function ConciergePage() {
 
     if (errorMsg) return (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-rose-100 flex flex-col items-center mt-10">
-            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl mb-4 text-rose-500"></div>
-            <h3 className="text-xl font-bold text-slate-800">Error al cargar el Marketplace</h3>
+            <p className="text-xl font-bold text-slate-800">Error al cargar el Marketplace</p>
             <p className="text-slate-500 mt-2">{errorMsg}</p>
         </div>
     );
 
     if (!data) return null;
 
+    // Paginación de fechas
+    const visibleDates = AVAILABLE_DATES.slice(datePage * 7, datePage * 7 + 7);
+    const totalPages = Math.ceil(AVAILABLE_DATES.length / 7);
+
+    const pendingCount = data.myAppointments?.filter(a => a.status === 'SCHEDULED').length ?? 0;
+
     return (
-        <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-700 pb-10">
+        <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700 pb-10">
+
             {/* Header & Balance */}
             <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -z-0"></div>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
                 <div className="relative z-10 flex flex-col md:flex-row items-start justify-between gap-6">
                     <div>
                         <div className="flex items-center gap-3 mb-2 text-indigo-200">
                             <FaSpa className="text-xl" />
                             <h2 className="text-sm font-black uppercase tracking-widest">Zendity Concierge</h2>
                         </div>
-                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Marketplace de Servicios Adicionales en Vivid</h1>
-                        <p className="text-indigo-200/70 font-medium max-w-md">Productos de higiene, terapias especializadas y servicios de estética directo a la habitación.</p>
+                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Marketplace de Servicios</h1>
+                        <p className="text-indigo-200/70 font-medium max-w-md">Terapias, estética y servicios especiales. Elige fecha y hora y lo coordinamos.</p>
                     </div>
-
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 min-w-[200px] text-right">
                         <p className="text-xs uppercase font-bold tracking-widest text-indigo-200 mb-1 flex items-center justify-end gap-2">
                             <FaWallet /> Saldo Concierge
@@ -118,134 +238,332 @@ export default function ConciergePage() {
             </div>
 
             {successMsg && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl font-bold flex items-center gap-3 animate-pulse shadow-sm shadow-emerald-100">
-                    <FaCheckCircle className="text-xl" />
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl font-bold flex items-center gap-3 shadow-sm">
+                    <FaCheckCircle className="text-xl flex-shrink-0" />
                     {successMsg}
                 </div>
             )}
 
-            {/* Tratamientos Especiales (Servicios) */}
-            <div>
-                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <FaHeartbeat className="text-rose-500" /> Especialidades y Terapias
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {data.services.map((service) => (
-                        <div key={service.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between h-full relative">
-                            {service.isOffer && (
-                                <div className="absolute top-4 right-4 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                                    <FaGift /> Oferta
-                                </div>
-                            )}
-                            {service.imageUrl && (
-                                <div className="h-48 w-full relative overflow-hidden bg-slate-100">
-                                    <img src={service.imageUrl} alt={service.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                    <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-                                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20">
-                                            {service.category}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="p-6 flex-1 flex flex-col">
-                                {!service.imageUrl && (
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-3 rounded-xl ${service.category === 'Estética y Cuidado' ? 'bg-pink-100 text-pink-500' : 'bg-blue-100 text-blue-500'}`}>
-                                            {service.category === 'Estética y Cuidado' ? <FaSpa className="text-xl" /> : <FaHeartbeat className="text-xl" />}
-                                        </div>
-                                        <span className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100">{service.category}</span>
-                                    </div>
-                                )}
-                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-2 mt-2">{service.name}</h4>
-                                {service.description && (
-                                    <p className="text-xs text-slate-500 mb-4 line-clamp-2">{service.description}</p>
-                                )}
-                                <div className="mt-auto flex justify-between items-end mb-4">
-                                    <div>
-                                        {service.isOffer && service.originalPrice && (
-                                            <p className="text-xs text-slate-500 line-through mb-0.5">${service.originalPrice.toFixed(2)}</p>
-                                        )}
-                                        <p className="text-xl font-black text-indigo-600">${service.price.toFixed(2)}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => handlePurchase(service, 'service')}
-                                    disabled={buying === service.id || (data.balance < service.price)}
-                                    className="w-full py-3 bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-slate-100 disabled:hover:text-slate-600 active:scale-95"
-                                >
-                                    {buying === service.id ? 'Reservando...' : 'Reservar Cita'}
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+            {/* Tabs */}
+            <div className="flex gap-2 bg-slate-100 rounded-2xl p-1">
+                <button
+                    onClick={() => setActiveTab('marketplace')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'marketplace' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <FaSpa /> Catálogo de Servicios
+                </button>
+                <button
+                    onClick={() => setActiveTab('reservas')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 relative ${activeTab === 'reservas' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <FaClipboardList /> Mis Reservas
+                    {pendingCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                            {pendingCount}
+                        </span>
+                    )}
+                </button>
             </div>
 
-            {/* Productos de Farmacia (Gift Cards) */}
-            <div>
-                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <FaShoppingCart className="text-sky-500" /> Tienda y Gourmet
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {data.products.map((product) => (
-                        <div key={product.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full relative">
-                            {product.isOffer && (
-                                <div className="absolute top-4 right-4 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
-                                    <FaGift /> Oferta Especial
-                                </div>
-                            )}
-                            {product.imageUrl && (
-                                <div className="h-48 w-full relative overflow-hidden bg-slate-100">
-                                    <img src={product.imageUrl} alt={product.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                                    <div className="absolute bottom-4 left-4">
-                                        {product.category === 'GiftCards' ? (
-                                            <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>
-                                        ) : (
-                                            <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-white/20">{product.category}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                            <div className="p-6 flex-1 flex flex-col">
-                                {!product.imageUrl && (
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-3 rounded-xl ${product.category === 'GiftCards' ? 'bg-amber-100 text-amber-500' : 'bg-slate-100 text-slate-500'}`}>
-                                            {product.category === 'GiftCards' ? <FaGift className="text-xl" /> : <FaShoppingCart className="text-xl" />}
+            {/* ── TAB: CATÁLOGO ─────────────────────────────────────────── */}
+            {activeTab === 'marketplace' && (
+                <>
+                    {/* Servicios */}
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+                            <FaHeartbeat className="text-rose-500" /> Especialidades y Terapias
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            {data.services.map((service) => (
+                                <div key={service.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group flex flex-col relative">
+                                    {service.isOffer && (
+                                        <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                                            <FaGift /> Oferta
                                         </div>
-                                        {product.category === 'GiftCards' && <span className="bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-amber-100">Pre-Pago</span>}
-                                    </div>
-                                )}
-                                <h4 className="font-bold text-slate-800 text-lg leading-tight mb-2 mt-2">{product.name}</h4>
-                                {product.description && (
-                                    <p className="text-xs text-slate-500 mb-4 line-clamp-2">{product.description}</p>
-                                )}
-                                <p className="text-xs font-bold text-slate-500 mb-4">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
-
-                                <div className="mt-auto flex justify-between items-end mb-4">
-                                    <div>
-                                        {product.isOffer && product.originalPrice && (
-                                            <p className="text-xs text-slate-500 line-through mb-0.5">${product.originalPrice.toFixed(2)}</p>
+                                    )}
+                                    {service.imageUrl && (
+                                        <div className="h-40 w-full relative overflow-hidden bg-slate-100">
+                                            <img src={service.imageUrl} alt={service.name} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                            <span className="absolute bottom-3 left-3 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-white/20">
+                                                {service.category}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <h4 className="font-bold text-slate-800 text-base leading-tight mb-1">{service.name}</h4>
+                                        {service.description && (
+                                            <p className="text-xs text-slate-500 mb-3 line-clamp-2">{service.description}</p>
                                         )}
-                                        <div className="text-xl font-black text-slate-800">${product.price.toFixed(2)}</div>
+                                        <div className="mt-auto flex justify-between items-end mb-4">
+                                            <div>
+                                                {service.isOffer && service.originalPrice && (
+                                                    <p className="text-xs text-slate-400 line-through">${service.originalPrice.toFixed(2)}</p>
+                                                )}
+                                                <p className="text-xl font-black text-indigo-600">${service.price.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                                                <FaCalendarAlt /> Elige fecha y hora
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => openBookingModal(service)}
+                                            disabled={buying === service.id || data.balance < service.price}
+                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <FaCalendarAlt />
+                                            {buying === service.id ? 'Reservando...' : data.balance < service.price ? 'Saldo insuficiente' : 'Reservar — Elegir Fecha'}
+                                        </button>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => handlePurchase(product, 'product')}
-                                    disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
-                                    className={`w-full py-3 font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:hover:text-slate-600 disabled:hover:bg-slate-100 ${product.category === 'GiftCards'
-                                        ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
-                                        : 'bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100'
-                                        }`}
-                                >
-                                    {buying === product.id ? 'Procesando...' : (product.category === 'GiftCards' ? 'Añadir Fondo' : 'Comprar Ahora')}
-                                </button>
-                            </div>
+                            ))}
                         </div>
-                    ))}
+                    </div>
+
+                    {/* Productos */}
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
+                            <FaShoppingCart className="text-sky-500" /> Tienda y Gift Cards
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                            {data.products.map((product) => (
+                                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg transition-all flex flex-col relative">
+                                    {product.isOffer && (
+                                        <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                                            <FaGift /> Oferta
+                                        </div>
+                                    )}
+                                    {product.imageUrl && (
+                                        <div className="h-40 w-full overflow-hidden bg-slate-100">
+                                            <img src={product.imageUrl} alt={product.name} className="object-cover w-full h-full" />
+                                        </div>
+                                    )}
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <h4 className="font-bold text-slate-800 text-base leading-tight mb-1">{product.name}</h4>
+                                        {product.description && <p className="text-xs text-slate-500 mb-2 line-clamp-2">{product.description}</p>}
+                                        <p className="text-xs font-bold text-slate-400 mb-3">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
+                                        <div className="mt-auto mb-4">
+                                            {product.isOffer && product.originalPrice && (
+                                                <p className="text-xs text-slate-400 line-through">${product.originalPrice.toFixed(2)}</p>
+                                            )}
+                                            <p className="text-xl font-black text-slate-800">${product.price.toFixed(2)}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleProductPurchase(product)}
+                                            disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
+                                            className={`w-full py-3 font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 ${product.category === 'GiftCards'
+                                                ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
+                                                : 'bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white'}`}
+                                        >
+                                            {buying === product.id ? 'Procesando...' : product.category === 'GiftCards' ? '+ Recargar Saldo' : 'Comprar'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ── TAB: MIS RESERVAS ─────────────────────────────────────── */}
+            {activeTab === 'reservas' && (
+                <div className="space-y-4">
+                    {!data.myAppointments || data.myAppointments.length === 0 ? (
+                        <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-12 text-center">
+                            <FaCalendarAlt className="text-4xl text-slate-300 mx-auto mb-3" />
+                            <p className="font-bold text-slate-600">No tienes reservas activas</p>
+                            <p className="text-sm text-slate-400 mt-1">Ve al catálogo y elige un servicio para comenzar.</p>
+                            <button onClick={() => setActiveTab('marketplace')} className="mt-4 bg-indigo-600 text-white font-bold px-6 py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors">
+                                Ver catálogo
+                            </button>
+                        </div>
+                    ) : (
+                        data.myAppointments.map((appt) => {
+                            const st = STATUS_LABELS[appt.status] || STATUS_LABELS.SCHEDULED;
+                            const dateStr = appt.scheduledAt
+                                ? new Date(appt.scheduledAt).toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+                                : '—';
+                            const timeStr = appt.scheduledAt
+                                ? new Date(appt.scheduledAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })
+                                : '';
+                            return (
+                                <div key={appt.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                    <div className="flex gap-4 p-5">
+                                        {appt.service.imageUrl && (
+                                            <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
+                                                <img src={appt.service.imageUrl} alt={appt.service.name} className="object-cover w-full h-full" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                                                <h4 className="font-bold text-slate-800 text-base leading-snug">{appt.service.name}</h4>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1 flex-shrink-0 ${st.color}`}>
+                                                    {st.icon} {st.label}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-400 mt-0.5">{appt.service.category}</p>
+                                            <div className="mt-3 flex flex-wrap gap-3">
+                                                <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                                                    <FaCalendarAlt className="text-indigo-400" />
+                                                    <span className="font-medium capitalize">{dateStr}</span>
+                                                </div>
+                                                {timeStr && (
+                                                    <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                                                        <Clock size={12} className="text-indigo-400" />
+                                                        <span className="font-medium">{timeStr}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {appt.specialist && (
+                                                <p className="mt-2 text-xs text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg inline-flex items-center gap-1">
+                                                    ✓ Especialista: {appt.specialist.name}
+                                                </p>
+                                            )}
+                                            {appt.notes && (
+                                                <p className="mt-2 text-xs text-slate-500 italic">"{appt.notes}"</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
-            </div>
+            )}
+
+            {/* ── MODAL DE RESERVA CON FECHA ────────────────────────────── */}
+            {bookingItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+
+                        {/* Modal header */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+                            <div>
+                                <h3 className="font-black text-slate-800 text-lg leading-snug">{bookingItem.name}</h3>
+                                <p className="text-sm text-indigo-600 font-bold mt-0.5">${bookingItem.price.toFixed(2)}</p>
+                            </div>
+                            <button onClick={closeBookingModal} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
+
+                            {/* Selector de fecha */}
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+                                    <FaCalendarAlt className="text-indigo-400" /> Selecciona una Fecha
+                                </p>
+                                <div className="flex items-center justify-between mb-2">
+                                    <button
+                                        onClick={() => setDatePage(p => Math.max(0, p - 1))}
+                                        disabled={datePage === 0}
+                                        className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
+                                    >
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    <span className="text-xs text-slate-400 font-medium">
+                                        {visibleDates[0]?.toLocaleDateString('es-PR', { month: 'long' })}
+                                    </span>
+                                    <button
+                                        onClick={() => setDatePage(p => Math.min(totalPages - 1, p + 1))}
+                                        disabled={datePage >= totalPages - 1}
+                                        className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
+                                    >
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-7 gap-1">
+                                    {visibleDates.map((d, i) => {
+                                        const isSelected = selectedDate?.toDateString() === d.toDateString();
+                                        const dayName = d.toLocaleDateString('es-PR', { weekday: 'short' }).slice(0, 2);
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => setSelectedDate(d)}
+                                                className={`flex flex-col items-center py-2 px-1 rounded-xl text-xs font-bold transition-all ${isSelected
+                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                                                    : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'}`}
+                                            >
+                                                <span className="text-[9px] uppercase tracking-wide opacity-70 mb-0.5">{dayName}</span>
+                                                <span className="text-sm font-black">{d.getDate()}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {selectedDate && (
+                                    <p className="mt-2 text-xs text-emerald-700 font-bold text-center">
+                                        ✓ {selectedDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Selector de hora */}
+                            {selectedDate && (
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+                                        <Clock size={12} className="text-indigo-400" /> Selecciona una Hora
+                                    </p>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {TIME_SLOTS.map((slot) => (
+                                            <button
+                                                key={slot}
+                                                onClick={() => setSelectedTime(slot)}
+                                                className={`py-2 rounded-xl text-xs font-bold transition-all ${selectedTime === slot
+                                                    ? 'bg-indigo-600 text-white shadow-md'
+                                                    : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'}`}
+                                            >
+                                                {slot}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Notas opcionales */}
+                            {selectedDate && selectedTime && (
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Nota para el equipo (opcional)</p>
+                                    <textarea
+                                        value={bookingNotes}
+                                        onChange={(e) => setBookingNotes(e.target.value)}
+                                        placeholder="Ej: prefiero por la mañana, tiene alergia a X..."
+                                        rows={2}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer del modal */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50">
+                            {selectedDate && selectedTime ? (
+                                <div className="space-y-3">
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-sm text-indigo-800 font-medium">
+                                        <span className="font-black">{selectedDate.toLocaleDateString('es-PR', { weekday: 'short', day: '2-digit', month: 'short' })}</span>
+                                        {' '}a las{' '}
+                                        <span className="font-black">{selectedTime}</span>
+                                        {' · '}
+                                        <span className="text-indigo-600 font-black">${bookingItem.price.toFixed(2)}</span>
+                                    </div>
+                                    <button
+                                        onClick={confirmBooking}
+                                        disabled={!!buying}
+                                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black rounded-xl transition-all active:scale-95 shadow-md shadow-indigo-200 flex items-center justify-center gap-2"
+                                    >
+                                        <FaCheckCircle />
+                                        {buying ? 'Confirmando...' : 'Confirmar Reserva'}
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-center text-xs text-slate-400 font-medium py-1">
+                                    {!selectedDate ? 'Selecciona una fecha para continuar' : 'Selecciona una hora para confirmar'}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

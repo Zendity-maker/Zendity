@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar } from "react-icons/fa";
+import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar, FaCalendarAlt } from "react-icons/fa";
 import { prisma } from '@/lib/prisma';
 
 
@@ -43,7 +43,10 @@ export default async function FamilyLayout({ children }: { children: React.React
                                 <FaHome /> Inicio
                             </Link>
                             <Link href="/family/concierge" className="text-slate-500 hover:text-indigo-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
-                                <FaSpa /> Concierge
+                                <FaSpa /> Marketplace
+                            </Link>
+                            <Link href="/family/calendar" className="text-slate-500 hover:text-teal-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
+                                <FaCalendarAlt /> Citas
                             </Link>
                             <Link href="/family/messages" className="text-slate-500 hover:text-rose-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
                                 <FaCommentDots /> Mensajes
