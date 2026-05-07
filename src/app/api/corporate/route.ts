@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       include: {
         patients: {
           where: {
-            status: { notIn: ['DISCHARGED', 'DECEASED'] }
+            status: 'ACTIVE'
           },
           include: {
             medications: {
