@@ -187,41 +187,95 @@ export async function GET(request: Request) {
             ranking: { position, totalStaff },
         };
 
-        // --- Zendi AI ---
+        // --- Zendi AI — Evaluación por grupos de rol ---
         const roleLabel: Record<string, string> = {
             NURSE: 'Enfermera/o',
             CAREGIVER: 'Cuidador/a',
             SUPERVISOR: 'Supervisor/a',
             DIRECTOR: 'Director/a',
-            ADMIN: 'Admin',
+            ADMIN: 'Administrador/a',
             MAINTENANCE: 'Mantenimiento',
-            KITCHEN: 'Cocina',
-            CLEANING: 'Limpieza',
+            KITCHEN: 'Cocina y Nutrición',
+            CLEANING: 'Limpieza y Sanitización',
             SOCIAL_WORKER: 'Trabajador/a Social',
             THERAPIST: 'Terapeuta',
-            BEAUTY_SPECIALIST: 'Especialista Belleza',
+            BEAUTY_SPECIALIST: 'Especialista de Belleza',
         };
         const prettyRole = roleLabel[employee.role] || employee.role;
 
-        const dataSummary = `
-- Medicamentos: ${compliancePct}% cumplimiento (${administered}/${medTotal} administrados, ${missed} perdidos, ${refused} rehusados)${avgDelayMinutes !== null ? `, puntualidad promedio: ${avgDelayMinutes > 0 ? '+' : ''}${avgDelayMinutes} min vs horario` : ''}
-- Turnos: ${handoverCompleted}/${shiftTotal} cerrados con wizard (${handoverPct}%)
-- Vitales: ${vitalsTotal} tomas, ${vitalsCritical} con valores críticos (SpO2<94 o presión >160/100)
-- Observaciones HR: ${incidents.length} total — Obs:${bySeverity.OBSERVATION} / Amonestación:${bySeverity.WARNING} / Suspensión:${bySeverity.SUSPENSION} / Despido:${bySeverity.TERMINATION} — puntos deducidos: ${pointsDeducted}
-${recentIncidents.length > 0 ? `  Últimas: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : ''}
-- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)
-- Ausencias: ${absences} en el período
-- Score actual: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}
-`.trim();
+        // Grupo A: Clínico directo — responsables de eMAR, vitales y turnos de cuidado
+        const isClinico = ['CAREGIVER', 'NURSE'].includes(employee.role);
+        // Grupo B: Supervisión y dirección — gestión de equipo y cumplimiento operativo
+        const isSupervisor = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(employee.role);
+        // Grupo C: Servicios de apoyo — no tienen eMAR ni shiftSession
+        const isApoyo = ['KITCHEN', 'CLEANING', 'MAINTENANCE', 'THERAPIST', 'BEAUTY_SPECIALIST', 'SOCIAL_WORKER'].includes(employee.role);
 
-        // FIX 3 — Empleados con historial vacío (rol KITCHEN, CLEANING, nuevo ingreso, etc.)
-        // Si no hay meds, turnos ni vitales en el período → nota honesta al informe, sin inventar datos.
-        const hasNoData = medTotal === 0 && shiftTotal === 0 && vitalsTotal === 0;
+        // dataSummary por grupo — solo incluye métricas relevantes al rol
+        let dataSummary = '';
+        let roleContext = '';
 
-        const system = 'Eres Zendi, asistente de Zéndity (plataforma healthcare para hogares de envejecientes en Puerto Rico). Generas informes pre-auditoría objetivos, justos y basados en datos reales. Tono profesional en español.';
+        if (isClinico) {
+            roleContext = employee.role === 'NURSE'
+                ? 'Enfermería: responsable de la precisión del eMAR, supervisión clínica, toma y documentación de signos vitales, y coordinación del relevo de turno.'
+                : 'Cuidado directo: responsable de la administración del eMAR bajo supervisión, atención al residente, cierre del turno con wizard y toma de vitales.';
+            dataSummary = [
+                `- eMAR (Medicamentos): ${compliancePct}% cumplimiento (${administered}/${medTotal} administrados, ${missed} perdidos, ${refused} rehusados${omitted > 0 ? `, ${omitted} omitidos` : ''})${avgDelayMinutes !== null ? ` — puntualidad promedio: ${avgDelayMinutes > 0 ? '+' : ''}${avgDelayMinutes} min vs horario` : ''}`,
+                `- Cierre de turno: ${handoverCompleted}/${shiftTotal} turnos cerrados con wizard (${handoverPct}%)`,
+                `- Vitales: ${vitalsTotal} tomas registradas, ${vitalsCritical} con valores críticos (SpO2<94 o presión >160/100)`,
+                `- Observaciones HR: ${incidents.length} — Obs:${bySeverity.OBSERVATION} / Amonestación:${bySeverity.WARNING} / Suspensión:${bySeverity.SUSPENSION} — puntos deducidos: ${pointsDeducted}`,
+                recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
+                `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
+                `- Ausencias injustificadas: ${absences} en el período`,
+                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+            ].filter(Boolean).join('\n');
+
+        } else if (isSupervisor) {
+            roleContext = employee.role === 'DIRECTOR'
+                ? 'Dirección: responsable del cumplimiento operativo global, supervisión del equipo clínico y administrativo, toma de decisiones estratégicas y auditoría de desempeño.'
+                : employee.role === 'SUPERVISOR'
+                ? 'Supervisión de turno: responsable de validar el cierre de turno del equipo, gestionar ausencias, coordinar redistribución de colores y dar seguimiento a incidentes clínicos.'
+                : 'Administración: responsable de procesos operativos, cumplimiento normativo, gestión de accesos y soporte al equipo directivo.';
+            dataSummary = [
+                `- Observaciones HR propias: ${incidents.length} — Obs:${bySeverity.OBSERVATION} / Amonestación:${bySeverity.WARNING} / Suspensión:${bySeverity.SUSPENSION} — puntos deducidos: ${pointsDeducted}`,
+                recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
+                `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
+                `- Ausencias: ${absences} en el período`,
+                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+                `⚠️ NOTA: Las métricas de eMAR, vitales y wizard de turno corresponden al equipo bajo su supervisión, no a este rol directamente.`,
+            ].filter(Boolean).join('\n');
+
+        } else {
+            // Grupo C: Servicios de apoyo
+            const roleContextMap: Record<string, string> = {
+                KITCHEN: 'Cocina y Nutrición: responsable de la preparación y distribución de alimentos bajo estándares sanitarios, cumplimiento de dietas terapéuticas y protocolos de higiene de cocina.',
+                CLEANING: 'Limpieza y Sanitización: responsable del cumplimiento de protocolos de limpieza por área, sanitización periódica y mantenimiento de condiciones higiénicas de la instalación.',
+                MAINTENANCE: 'Mantenimiento: responsable de la resolución de órdenes de trabajo, mantenimiento preventivo de instalaciones y equipos, y prevención de riesgos físicos.',
+                THERAPIST: 'Terapia: responsable de la aplicación de planes terapéuticos individualizados a los residentes, documentación de progreso y coordinación con el equipo clínico.',
+                BEAUTY_SPECIALIST: 'Bienestar y Belleza: responsable de servicios de bienestar personal para residentes, contribuyendo a su calidad de vida y dignidad.',
+                SOCIAL_WORKER: 'Trabajo Social: responsable de la gestión de casos, coordinación con familias, procesos de admisión y seguimiento del bienestar social de los residentes.',
+            };
+            roleContext = roleContextMap[employee.role] || `Servicios de apoyo (${prettyRole}): rol operativo de soporte a la operación del hogar.`;
+            dataSummary = [
+                `- Observaciones HR: ${incidents.length} — Obs:${bySeverity.OBSERVATION} / Amonestación:${bySeverity.WARNING} / Suspensión:${bySeverity.SUSPENSION} — puntos deducidos: ${pointsDeducted}`,
+                recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
+                `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
+                `- Ausencias: ${absences} en el período`,
+                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+                `⚠️ NOTA: Este rol no opera eMAR, vitales ni wizard de turno. Las métricas clínicas no aplican. La evaluación debe enfocarse en conducta, puntualidad, capacitación y observaciones disciplinarias.`,
+            ].filter(Boolean).join('\n');
+        }
+
+        const system = `Eres Zendi, asistente de Zéndity (plataforma healthcare para hogares de envejecientes en Puerto Rico).
+Generas informes pre-auditoría objetivos, justos y estrictamente basados en datos reales.
+CRÍTICO: Evalúa al empleado EXCLUSIVAMENTE según las métricas de su rol — no extrapoles criterios clínicos a roles de apoyo ni viceversa.
+Tono profesional en español. No inventes datos. Si una métrica no aplica al rol, no la menciones.`;
+
         const prompt = `Genera un Informe Pre-Auditoría profesional en español para ${employee.name} (${prettyRole}).
 Período analizado: últimos ${days} días.
-${hasNoData ? '\n⚠️ AVISO: Este empleado no tiene registros clínicos en el período (sin meds, sin turnos, sin vitales). Puede ser personal de apoyo (cocina, limpieza) o empleado de ingreso reciente. Genera el informe indicando honestamente la ausencia de historial clínico medible y sugiere una evaluación presencial.\n' : ''}
+
+ROL Y RESPONSABILIDADES:
+${roleContext}
+
 DATOS REALES DEL PERÍODO:
 ${dataSummary}
 
@@ -245,8 +299,10 @@ Una sola línea que termine con uno de estos tags literales entre corchetes: [DE
 3. (pregunta específica basada en los datos)
 
 Reglas:
+- Evalúa ÚNICAMENTE según el rol y las métricas indicadas arriba. No menciones medicamentos, vitales ni wizard de turno si el rol no los maneja.
+- Las preguntas sugeridas deben ser pertinentes al rol real (no preguntas clínicas a un cocinero o de cocina a una enfermera).
 - Sé específico con los números reales; no inventes datos.
-- Si un área tiene 0 datos en el período, dilo con honestidad.
+- Si un área tiene 0 datos en el período, dilo con honestidad y explica si eso es normal para el rol.
 - Mantén un tono profesional y justo — ni punitivo ni complaciente.
 - No incluyas preámbulos ni despedidas. Empieza directo con "## Resumen Ejecutivo".`;
 
