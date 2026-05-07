@@ -108,11 +108,8 @@ export default function ConciergePage() {
     useEffect(() => { loadMarketplace(); }, []);
 
     // Abrir modal de fecha para servicio
+    // Los servicios se cargan a la factura mensual — no requieren saldo previo
     const openBookingModal = (item: MarketplaceItem) => {
-        if (!data || data.balance < item.price) {
-            alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
-            return;
-        }
         setBookingItem(item);
         setSelectedDate(null);
         setSelectedTime('');
@@ -164,11 +161,10 @@ export default function ConciergePage() {
     };
 
     const handleProductPurchase = async (item: MarketplaceItem) => {
-        if (!data || (item.category !== 'GiftCards' && data.balance < item.price)) {
-            if (item.category !== 'GiftCards') {
-                alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
-                return;
-            }
+        // Solo productos físicos (no GiftCards) requieren saldo previo
+        if (item.category !== 'GiftCards' && data && data.balance < item.price) {
+            alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
+            return;
         }
         if (!confirm(`¿Confirmas la compra de ${item.name} por $${item.price.toFixed(2)}?`)) return;
 
@@ -308,11 +304,11 @@ export default function ConciergePage() {
                                         </div>
                                         <button
                                             onClick={() => openBookingModal(service)}
-                                            disabled={buying === service.id || data.balance < service.price}
+                                            disabled={buying === service.id}
                                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                                         >
                                             <FaCalendarAlt />
-                                            {buying === service.id ? 'Reservando...' : data.balance < service.price ? 'Saldo insuficiente' : 'Reservar — Elegir Fecha'}
+                                            {buying === service.id ? 'Reservando...' : 'Reservar — Elegir Fecha'}
                                         </button>
                                     </div>
                                 </div>
