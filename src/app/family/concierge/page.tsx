@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat, FaCalendarAlt, FaClipboardList } from "react-icons/fa";
-import { X, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Clock, Camera, Bell, Users, ChevronDown, ChevronUp, Heart } from "lucide-react";
 
 interface MarketplaceItem {
     id: string;
@@ -101,6 +101,8 @@ export default function ConciergePage() {
     const [bookingNotes, setBookingNotes] = useState('');
     const [calMonth, setCalMonth] = useState(new Date().getMonth());
     const [calYear, setCalYear] = useState(new Date().getFullYear());
+    const [expandedService, setExpandedService] = useState<string | null>(null);
+    const [yogaMode, setYogaMode] = useState<'grupal' | 'privada'>('grupal'); // para el Yoga
 
     const loadMarketplace = () => {
         fetch('/api/family/concierge')
@@ -292,13 +294,41 @@ export default function ConciergePage() {
             {/* ── TAB: CATÁLOGO ─────────────────────────────────────────── */}
             {activeTab === 'marketplace' && (
                 <>
+                    {/* ── Banner: Foto + Notificación al familiar ── */}
+                    <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-5">
+                        <p className="text-sm font-black text-indigo-800 mb-3 flex items-center gap-2">
+                            <Bell className="w-4 h-4 text-indigo-500" /> ¿Cómo funciona?
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-indigo-100">
+                                <Camera className="w-8 h-8 text-indigo-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs font-black text-slate-800">📸 Foto del servicio</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">Al completarse cada sesión, el equipo envía una foto al familiar para que veas cómo disfrutó el residente.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-indigo-100">
+                                <Bell className="w-8 h-8 text-violet-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs font-black text-slate-800">🔔 Notificación en tiempo real</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">Recibes una notificación aquí en el portal cuando el servicio comienza, se completa o cuando un producto es entregado.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Servicios */}
                     <div>
                         <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
                             <FaHeartbeat className="text-rose-500" /> Especialidades y Terapias
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                            {data.services.map((service) => (
+                            {data.services.map((service) => {
+                                const isYoga = service.name.toLowerCase().includes('yoga');
+                                const isExpanded = expandedService === service.id;
+                                const displayPrice = isYoga && yogaMode === 'privada' ? 59.99 : service.price;
+
+                                return (
                                 <div key={service.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group flex flex-col relative">
                                     {service.isOffer && (
                                         <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow flex items-center gap-1">
@@ -316,22 +346,67 @@ export default function ConciergePage() {
                                     )}
                                     <div className="p-5 flex-1 flex flex-col">
                                         <h4 className="font-bold text-slate-800 text-base leading-tight mb-1">{service.name}</h4>
-                                        {service.description && (
-                                            <p className="text-xs text-slate-500 mb-3 line-clamp-2">{service.description}</p>
+
+                                        {/* Selector grupal/privada para Yoga */}
+                                        {isYoga && (
+                                            <div className="flex gap-2 mb-3">
+                                                <button
+                                                    onClick={() => setYogaMode('grupal')}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'grupal' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'}`}
+                                                >
+                                                    <Users className="w-3 h-3" /> Grupal · $39.99
+                                                </button>
+                                                <button
+                                                    onClick={() => setYogaMode('privada')}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'privada' ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'}`}
+                                                >
+                                                    <Heart className="w-3 h-3" /> Privada Familiar · $59.99
+                                                </button>
+                                            </div>
                                         )}
+                                        {isYoga && yogaMode === 'privada' && (
+                                            <p className="text-[11px] text-rose-600 font-bold bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">
+                                                💑 El familiar puede unirse y practicar junto al residente en una sesión privada exclusiva.
+                                            </p>
+                                        )}
+
+                                        {/* Pestaña: descripción / beneficios */}
+                                        {service.description && (
+                                            <div className="mb-3">
+                                                <button
+                                                    onClick={() => setExpandedService(isExpanded ? null : service.id)}
+                                                    className="w-full flex items-center justify-between text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl px-3 py-2 transition-colors border border-indigo-100"
+                                                >
+                                                    <span>ℹ️ Descripción y beneficios</span>
+                                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                </button>
+                                                {isExpanded && (
+                                                    <div className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                                        <p className="text-xs text-slate-600 leading-relaxed">{service.description}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className="mt-auto flex justify-between items-end mb-4">
                                             <div>
                                                 {service.isOffer && service.originalPrice && (
                                                     <p className="text-xs text-slate-400 line-through">${service.originalPrice.toFixed(2)}</p>
                                                 )}
-                                                <p className="text-xl font-black text-indigo-600">${service.price.toFixed(2)}</p>
+                                                <p className="text-xl font-black text-indigo-600">${displayPrice.toFixed(2)}</p>
                                             </div>
                                             <div className="flex items-center gap-1 text-xs text-slate-400">
                                                 <FaCalendarAlt /> Elige fecha y hora
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => openBookingModal(service)}
+                                            onClick={() => {
+                                                if (isYoga && yogaMode === 'privada') {
+                                                    openBookingModal({ ...service, price: 59.99, name: service.name + ' (Privada Familiar)' });
+                                                } else {
+                                                    openBookingModal(service);
+                                                }
+                                            }}
                                             disabled={buying === service.id}
                                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                                         >
@@ -340,7 +415,8 @@ export default function ConciergePage() {
                                         </button>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -364,7 +440,22 @@ export default function ConciergePage() {
                                     )}
                                     <div className="p-5 flex-1 flex flex-col">
                                         <h4 className="font-bold text-slate-800 text-base leading-tight mb-1">{product.name}</h4>
-                                        {product.description && <p className="text-xs text-slate-500 mb-2 line-clamp-2">{product.description}</p>}
+                                        {product.description && (
+                                            <div className="mb-2">
+                                                <button
+                                                    onClick={() => setExpandedService(expandedService === product.id ? null : product.id)}
+                                                    className="w-full flex items-center justify-between text-xs font-black text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl px-3 py-2 transition-colors border border-sky-100 mb-1"
+                                                >
+                                                    <span>ℹ️ Descripción del producto</span>
+                                                    {expandedService === product.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                </button>
+                                                {expandedService === product.id && (
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                                        <p className="text-xs text-slate-600 leading-relaxed">{product.description}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         <p className="text-xs font-bold text-slate-400 mb-3">Stock: {(product.stock ?? 0) > 0 ? product.stock : 'Agotado'}</p>
                                         <div className="mt-auto mb-4">
                                             {product.isOffer && product.originalPrice && (
