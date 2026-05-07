@@ -57,9 +57,17 @@ export async function GET(req: Request) {
 /**
  * Función pura para calcular el score de un usuario — exportada también
  * para uso desde el cron job.
+ *
+ * Base: 70 puntos
+ * Positivos:  +2 rotación a tiempo · +1 med administrado · +5 alerta preventiva
+ * Negativos:  -5 med omitido · -5 rotación tardía · -5 fast action fallida
+ *             - Σ pointsDeducted de observaciones APPLIED (últimos 90 días)
+ *             - Σ pointsDeducted de observaciones EXPLANATION_RECEIVED (últimos 90 días)
+ * Cap: [0, 100]
  */
 export async function calculateDynamicScore(userId: string) {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
     // ── Positivos ──
     const [rotationsOnTime, medsAdministered, preventiveAlerts] = await Promise.all([
@@ -74,7 +82,7 @@ export async function calculateDynamicScore(userId: string) {
         }),
     ]);
 
-    // ── Negativos ──
+    // ── Negativos clínicos ──
     const [medsOmitted, rotationsLate, fastActionsFailed] = await Promise.all([
         prisma.medicationAdministration.count({
             where: { administeredById: userId, status: 'OMITTED', administeredAt: { gte: sevenDaysAgo } }
@@ -87,10 +95,27 @@ export async function calculateDynamicScore(userId: string) {
         }),
     ]);
 
+    // ── Negativos por observaciones aplicadas (últimos 90 días) ──
+    // Incluye APPLIED (director aplicó) y EXPLANATION_RECEIVED (aplicó tras respuesta)
+    const appliedObservations = await prisma.incidentReport.findMany({
+        where: {
+            employeeId: userId,
+            status: { in: ['APPLIED', 'EXPLANATION_RECEIVED'] },
+            appliedAt: { gte: ninetyDaysAgo },
+            pointsDeducted: { gt: 0 },
+        },
+        select: { pointsDeducted: true },
+    });
+
+    const observationPenalty = appliedObservations.reduce(
+        (sum, obs) => sum + (obs.pointsDeducted ?? 0),
+        0
+    );
+
     const positives = (rotationsOnTime * 2) + (medsAdministered * 1) + (preventiveAlerts * 5);
     const negatives = (medsOmitted * 5) + (rotationsLate * 5) + (fastActionsFailed * 5);
 
-    const raw = 70 + positives - negatives;
+    const raw = 70 + positives - negatives - observationPenalty;
     const score = Math.max(0, Math.min(100, raw));
 
     return {
@@ -98,6 +123,7 @@ export async function calculateDynamicScore(userId: string) {
         breakdown: {
             positives,
             negatives,
+            observationPenalty,
             total: raw,
             details: {
                 rotationsOnTime,
@@ -106,6 +132,7 @@ export async function calculateDynamicScore(userId: string) {
                 medsOmitted,
                 rotationsLate,
                 fastActionsFailed,
+                appliedObservationsCount: appliedObservations.length,
             }
         }
     };
