@@ -39,17 +39,30 @@ function generateTimeSlots(): string[] {
     return slots;
 }
 
-// Genera próximos 30 días sin lunes
-function generateAvailableDates(): Date[] {
-    const dates: Date[] = [];
+// Conjunto de fechas disponibles (próximos 60 días, sin lunes)
+function buildAvailableSet(): Set<string> {
+    const set = new Set<string>();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 1; i <= 60; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
-        if (d.getDay() !== 1) dates.push(d);
+        if (d.getDay() !== 1) set.add(d.toDateString());
     }
-    return dates;
+    return set;
+}
+
+// Genera el grid del mes: semanas completas (Dom→Sáb)
+function buildMonthGrid(year: number, month: number): (Date | null)[][] {
+    const firstDay = new Date(year, month, 1).getDay(); // 0=Dom
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = Array(firstDay).fill(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+    // Rellena el resto de la última semana
+    while (cells.length % 7 !== 0) cells.push(null);
+    const weeks: (Date | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    return weeks;
 }
 
 function parseTimeSlot(slot: string): { hours: number; minutes: number } {
@@ -64,7 +77,7 @@ function parseTimeSlot(slot: string): { hours: number; minutes: number } {
 }
 
 const TIME_SLOTS = generateTimeSlots();
-const AVAILABLE_DATES = generateAvailableDates();
+const AVAILABLE_SET = buildAvailableSet();
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: string }> = {
     SCHEDULED:   { label: 'Pendiente de confirmación', color: 'bg-amber-50 text-amber-700 border-amber-200',  icon: '⏳' },
@@ -86,7 +99,8 @@ export default function ConciergePage() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState<string>('');
     const [bookingNotes, setBookingNotes] = useState('');
-    const [datePage, setDatePage] = useState(0); // paginación del selector de fechas (7 por página)
+    const [calMonth, setCalMonth] = useState(new Date().getMonth());
+    const [calYear, setCalYear] = useState(new Date().getFullYear());
 
     const loadMarketplace = () => {
         fetch('/api/family/concierge')
@@ -110,11 +124,13 @@ export default function ConciergePage() {
     // Abrir modal de fecha para servicio
     // Los servicios se cargan a la factura mensual — no requieren saldo previo
     const openBookingModal = (item: MarketplaceItem) => {
+        const now = new Date();
         setBookingItem(item);
         setSelectedDate(null);
         setSelectedTime('');
         setBookingNotes('');
-        setDatePage(0);
+        setCalMonth(now.getMonth());
+        setCalYear(now.getFullYear());
     };
 
     const closeBookingModal = () => {
@@ -122,6 +138,15 @@ export default function ConciergePage() {
         setSelectedDate(null);
         setSelectedTime('');
         setBookingNotes('');
+    };
+
+    const prevMonth = () => {
+        if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+        else setCalMonth(m => m - 1);
+    };
+    const nextMonth = () => {
+        if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+        else setCalMonth(m => m + 1);
     };
 
     const confirmBooking = async () => {
@@ -203,9 +228,12 @@ export default function ConciergePage() {
 
     if (!data) return null;
 
-    // Paginación de fechas
-    const visibleDates = AVAILABLE_DATES.slice(datePage * 7, datePage * 7 + 7);
-    const totalPages = Math.ceil(AVAILABLE_DATES.length / 7);
+    const calWeeks = buildMonthGrid(calYear, calMonth);
+    const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString('es-PR', { month: 'long', year: 'numeric' });
+
+    // No permitir navegar a meses anteriores al actual
+    const now = new Date();
+    const canGoPrev = calYear > now.getFullYear() || (calYear === now.getFullYear() && calMonth > now.getMonth());
 
     const pendingCount = data.myAppointments?.filter(a => a.status === 'SCHEDULED').length ?? 0;
 
@@ -429,8 +457,8 @@ export default function ConciergePage() {
 
             {/* ── MODAL DE RESERVA CON FECHA ────────────────────────────── */}
             {bookingItem && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" style={{ maxHeight: '92vh' }}>
 
                         {/* Modal header */}
                         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
@@ -443,52 +471,72 @@ export default function ConciergePage() {
                             </button>
                         </div>
 
-                        <div className="px-6 py-5 space-y-5 max-h-[75vh] overflow-y-auto">
+                        <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 160px)' }}>
 
-                            {/* Selector de fecha */}
+                            {/* Selector de fecha — calendario mensual */}
                             <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
                                     <FaCalendarAlt className="text-indigo-400" /> Selecciona una Fecha
                                 </p>
-                                <div className="flex items-center justify-between mb-2">
+
+                                {/* Navegación de mes */}
+                                <div className="flex items-center justify-between mb-3">
                                     <button
-                                        onClick={() => setDatePage(p => Math.max(0, p - 1))}
-                                        disabled={datePage === 0}
-                                        className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
+                                        onClick={prevMonth}
+                                        disabled={!canGoPrev}
+                                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
                                     >
-                                        <ChevronLeft size={14} />
+                                        <ChevronLeft size={15} />
                                     </button>
-                                    <span className="text-xs text-slate-400 font-medium">
-                                        {visibleDates[0]?.toLocaleDateString('es-PR', { month: 'long' })}
-                                    </span>
+                                    <span className="text-sm font-black text-slate-700 capitalize">{monthLabel}</span>
                                     <button
-                                        onClick={() => setDatePage(p => Math.min(totalPages - 1, p + 1))}
-                                        disabled={datePage >= totalPages - 1}
-                                        className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
+                                        onClick={nextMonth}
+                                        className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
                                     >
-                                        <ChevronRight size={14} />
+                                        <ChevronRight size={15} />
                                     </button>
                                 </div>
-                                <div className="grid grid-cols-7 gap-1">
-                                    {visibleDates.map((d, i) => {
-                                        const isSelected = selectedDate?.toDateString() === d.toDateString();
-                                        const dayName = d.toLocaleDateString('es-PR', { weekday: 'short' }).slice(0, 2);
-                                        return (
-                                            <button
-                                                key={i}
-                                                onClick={() => setSelectedDate(d)}
-                                                className={`flex flex-col items-center py-2 px-1 rounded-xl text-xs font-bold transition-all ${isSelected
-                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                                                    : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'}`}
-                                            >
-                                                <span className="text-[9px] uppercase tracking-wide opacity-70 mb-0.5">{dayName}</span>
-                                                <span className="text-sm font-black">{d.getDate()}</span>
-                                            </button>
-                                        );
-                                    })}
+
+                                {/* Headers días de semana */}
+                                <div className="grid grid-cols-7 mb-1">
+                                    {['Do','Lu','Ma','Mi','Ju','Vi','Sá'].map(d => (
+                                        <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wide py-1">{d}</div>
+                                    ))}
                                 </div>
+
+                                {/* Semanas */}
+                                <div className="space-y-1">
+                                    {calWeeks.map((week, wi) => (
+                                        <div key={wi} className="grid grid-cols-7 gap-0.5">
+                                            {week.map((day, di) => {
+                                                if (!day) return <div key={di} />;
+                                                const isAvailable = AVAILABLE_SET.has(day.toDateString());
+                                                const isSelected = selectedDate?.toDateString() === day.toDateString();
+                                                const today = new Date(); today.setHours(0,0,0,0);
+                                                const isPast = day <= today;
+                                                return (
+                                                    <button
+                                                        key={di}
+                                                        onClick={() => isAvailable && !isPast && setSelectedDate(day)}
+                                                        disabled={!isAvailable || isPast}
+                                                        className={`h-9 rounded-lg text-sm font-bold transition-all flex items-center justify-center
+                                                            ${isSelected
+                                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 scale-105'
+                                                                : isPast || !isAvailable
+                                                                    ? 'text-slate-300 cursor-not-allowed'
+                                                                    : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-600'
+                                                            }`}
+                                                    >
+                                                        {day.getDate()}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+                                </div>
+
                                 {selectedDate && (
-                                    <p className="mt-2 text-xs text-emerald-700 font-bold text-center">
+                                    <p className="mt-3 text-xs text-emerald-700 font-bold text-center bg-emerald-50 rounded-lg py-2 border border-emerald-200">
                                         ✓ {selectedDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })}
                                     </p>
                                 )}
