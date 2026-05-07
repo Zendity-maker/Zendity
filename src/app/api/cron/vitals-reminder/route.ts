@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
+import { applyScoreEvent } from '@/lib/score-event';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,23 +113,25 @@ export async function GET(req: Request) {
             const pointsDeducted = toActuallyPenalize.length * 2;
 
             try {
-                // Transaction: decrement score (con piso 0) + marcar TODAS las órdenes
-                // del grupo como penaltyApplied=true (aunque las sobre-cap no restaron
-                // puntos, se marcan para no re-evaluarlas en el próximo cron tick).
-                const current = caregiver.complianceScore ?? 100;
-                const nextScore = Math.max(0, current - pointsDeducted);
                 const allIds = orders.map(o => o.id);
 
-                await prisma.$transaction([
-                    prisma.user.update({
-                        where: { id: caregiverId },
-                        data: { complianceScore: nextScore },
-                    }),
-                    prisma.vitalsOrder.updateMany({
-                        where: { id: { in: allIds } },
-                        data: { penaltyApplied: true },
-                    }),
-                ]);
+                // Marcar órdenes como penalizadas (transaction atómica)
+                await prisma.vitalsOrder.updateMany({
+                    where: { id: { in: allIds } },
+                    data: { penaltyApplied: true },
+                });
+
+                // Aplicar deducción vía applyScoreEvent (registra en ScoreEvent
+                // para que calculateDynamicScore lo capture en el cron diario)
+                if (pointsDeducted > 0) {
+                    await applyScoreEvent(
+                        caregiverId,
+                        hqId,
+                        -pointsDeducted,
+                        `Vitales vencidos sin completar (${toActuallyPenalize.length} orden${toActuallyPenalize.length !== 1 ? 'es' : ''})`,
+                        'VITALS',
+                    );
+                }
 
                 const residentNames = orders.map(o => o.patient?.name || 'residente').join(', ');
                 const capSuffix = toSkipPenalty.length > 0

@@ -112,10 +112,24 @@ export async function calculateDynamicScore(userId: string) {
         0
     );
 
+    // ── Categorías adicionales: Academy, Photo, Mission, Shift, Evaluation, Vitals ──
+    // Estas categorías se registran en ScoreEvent pero NO tienen tabla bruta
+    // equivalente en las queries anteriores. Una sola query de agregación cubre todo.
+    const extraScoreEvents = await prisma.scoreEvent.findMany({
+        where: {
+            userId,
+            createdAt: { gte: ninetyDaysAgo },
+            category: { in: ['ACADEMY', 'PHOTO', 'MISSION', 'SHIFT', 'EVALUATION', 'VITALS'] },
+        },
+        select: { delta: true },
+    });
+
+    const extraDelta = extraScoreEvents.reduce((sum, e) => sum + e.delta, 0);
+
     const positives = (rotationsOnTime * 2) + (medsAdministered * 1) + (preventiveAlerts * 5);
     const negatives = (medsOmitted * 5) + (rotationsLate * 5) + (fastActionsFailed * 5);
 
-    const raw = 70 + positives - negatives - observationPenalty;
+    const raw = 70 + positives - negatives - observationPenalty + extraDelta;
     const score = Math.max(0, Math.min(100, raw));
 
     return {
@@ -124,6 +138,7 @@ export async function calculateDynamicScore(userId: string) {
             positives,
             negatives,
             observationPenalty,
+            extraDelta,
             total: raw,
             details: {
                 rotationsOnTime,
@@ -133,6 +148,7 @@ export async function calculateDynamicScore(userId: string) {
                 rotationsLate,
                 fastActionsFailed,
                 appliedObservationsCount: appliedObservations.length,
+                extraScoreEventsCount: extraScoreEvents.length,
             }
         }
     };
