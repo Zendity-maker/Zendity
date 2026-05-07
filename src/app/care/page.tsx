@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info, Sparkles, Sunrise, UserCheck, FileText, ArrowRight } from "lucide-react";
 import CoveragePickerModal, { type CoverageColorOption } from "@/components/care/CoveragePickerModal";
@@ -222,6 +222,74 @@ export default function ZendityCareTabletPage() {
     const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
     const [zendiToast, setZendiToast] = useState("");
+
+    // ── Zendi Rondas — progreso del turno de guardia ─────────────────────
+    const [roundProgress, setRoundProgress] = useState<any>(null);
+    const [zendiRoundToast, setZendiRoundToast] = useState<{
+        type: 'progress' | 'complete' | 'milestone';
+        msg: string;
+        sub?: string;
+    } | null>(null);
+    const lastRoundsCompleted = React.useRef<number>(0);
+    const roundToastTimeout = React.useRef<any>(null);
+
+    const fetchRoundProgress = React.useCallback(async () => {
+        if (!activeSession) return;
+        try {
+            const res = await fetch('/api/care/rounds/progress');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.success || data.noActiveSession || data.noColorGroup) return;
+            setRoundProgress(data);
+
+            const prev = lastRoundsCompleted.current;
+            const curr = data.roundsCompleted ?? 0;
+
+            // Ronda recién completada
+            if (curr > prev) {
+                lastRoundsCompleted.current = curr;
+                const emoji = curr === 1 ? '🌟' : curr === 2 ? '🔥' : '🏆';
+                const msg = curr === 1
+                    ? '¡Primera ronda completa!'
+                    : curr === 2
+                    ? '¡Segunda ronda completa!'
+                    : `¡${curr} rondas completadas!`;
+                const sub = curr >= 3
+                    ? '¡Rendimiento excepcional esta noche!'
+                    : 'El supervisor fue notificado. ¡Sigue así!';
+                showRoundToast('complete', `${emoji} ${msg}`, sub);
+            }
+            // Recordatorio de progreso si faltan pocos residentes
+            else if (data.remainingThisRound > 0 && data.remainingThisRound <= 3 && data.attendedThisRound > 0) {
+                const names = (data.pendingResidents || []).map((r: any) => `${r.name} (${r.room})`).join(', ');
+                showRoundToast('progress',
+                    `Faltan ${data.remainingThisRound} para completar la ronda`,
+                    names || undefined, false
+                );
+            }
+        } catch (e) { /* silencioso */ }
+    }, [activeSession]);
+
+    const showRoundToast = useCallback((
+        type: 'progress' | 'complete' | 'milestone',
+        msg: string,
+        sub?: string,
+        autoDismiss: boolean = true
+    ) => {
+        if (roundToastTimeout.current) clearTimeout(roundToastTimeout.current);
+        setZendiRoundToast({ type, msg, sub });
+        if (autoDismiss) {
+            roundToastTimeout.current = setTimeout(() => setZendiRoundToast(null), type === 'complete' ? 8000 : 5000);
+        }
+    }, []);
+
+    // Polling cada 3 minutos mientras el turno está activo
+    useEffect(() => {
+        if (!activeSession) return;
+        fetchRoundProgress();
+        const interval = setInterval(fetchRoundProgress, 3 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [activeSession, fetchRoundProgress]);
 
     // Mis Reportes de Hoy
     const [myReports, setMyReports] = useState<any[]>([]);
@@ -3593,6 +3661,93 @@ export default function ZendityCareTabletPage() {
                 </button>
             )}
             */}
+
+            {/* ── Zendi Rondas — Toast no intrusivo ─────────────────────────── */}
+            {zendiRoundToast && (
+                <div className={`fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-[55] max-w-xs w-full animate-in slide-in-from-bottom-4 duration-300`}>
+                    <div className={`rounded-2xl shadow-2xl border p-4 flex items-start gap-3 ${
+                        zendiRoundToast.type === 'complete'
+                            ? 'bg-gradient-to-br from-teal-900 to-slate-900 border-teal-500/40 text-white'
+                            : 'bg-slate-800/95 border-slate-600/40 text-slate-200'
+                    }`}>
+                        {/* Avatar Zendi */}
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
+                            zendiRoundToast.type === 'complete' ? 'bg-teal-500/20' : 'bg-slate-700'
+                        }`}>
+                            🤖
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm leading-snug">{zendiRoundToast.msg}</p>
+                            {zendiRoundToast.sub && (
+                                <p className={`text-xs mt-0.5 leading-snug ${zendiRoundToast.type === 'complete' ? 'text-teal-300' : 'text-slate-400'}`}>
+                                    {zendiRoundToast.sub}
+                                </p>
+                            )}
+                            {/* Mini barra de progreso si hay datos */}
+                            {zendiRoundToast.type === 'progress' && roundProgress && (
+                                <div className="mt-2">
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-teal-500 rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.round((roundProgress.attendedThisRound / roundProgress.residentsInGroup) * 100)}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                        {roundProgress.attendedThisRound}/{roundProgress.residentsInGroup} residentes
+                                        {roundProgress.roundsCompleted > 0 && ` · Ronda ${roundProgress.roundsCompleted + 1}`}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setZendiRoundToast(null)}
+                            className="text-slate-500 hover:text-slate-300 flex-shrink-0 mt-0.5"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    {/* Indicador permanente mini si hay progreso */}
+                    {roundProgress && roundProgress.residentsInGroup > 0 && (
+                        <button
+                            onClick={() => setZendiRoundToast(null)}
+                            className="mt-2 w-full bg-slate-900/80 border border-slate-700/50 rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                        >
+                            <span>🗺️</span>
+                            <span className="font-medium">
+                                Ronda {roundProgress.roundsCompleted + 1} — {roundProgress.attendedThisRound}/{roundProgress.residentsInGroup} visitados
+                            </span>
+                            <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden ml-1">
+                                <div className="h-full bg-teal-500 rounded-full" style={{ width: `${Math.round((roundProgress.attendedThisRound / roundProgress.residentsInGroup) * 100)}%` }} />
+                            </div>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Indicador permanente mini de rondas (siempre visible si hay turno activo) */}
+            {activeSession && roundProgress && !zendiRoundToast && roundProgress.residentsInGroup > 0 && (
+                <button
+                    onClick={() => showRoundToast('progress',
+                        `Ronda ${roundProgress.roundsCompleted + 1} en progreso`,
+                        `${roundProgress.remainingThisRound} residente${roundProgress.remainingThisRound !== 1 ? 's' : ''} pendiente${roundProgress.remainingThisRound !== 1 ? 's' : ''}`
+                    )}
+                    className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-[54] bg-slate-900/90 border border-slate-700/60 rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 hover:border-teal-500/40 transition-all shadow-lg"
+                >
+                    <span>🗺️</span>
+                    <span className="font-semibold text-slate-300">
+                        {roundProgress.roundsCompleted > 0
+                            ? `${roundProgress.roundsCompleted} ronda${roundProgress.roundsCompleted !== 1 ? 's' : ''} ✓`
+                            : 'Ronda 1'}
+                    </span>
+                    <div className="w-12 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${Math.round((roundProgress.attendedThisRound / roundProgress.residentsInGroup) * 100)}%` }} />
+                    </div>
+                    <span className="text-teal-400 font-bold">
+                        {Math.round((roundProgress.attendedThisRound / roundProgress.residentsInGroup) * 100)}%
+                    </span>
+                </button>
+            )}
 
             {/* Zendi Contextual Toast Notification */}
             {zendiToast && (
