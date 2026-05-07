@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreditCard, Landmark, FileText, CheckCircle, Clock, AlertCircle, Save, Plus } from "lucide-react";
+import { CreditCard, Landmark, FileText, CheckCircle, Clock, AlertCircle, Save, Plus, Wallet, RefreshCw } from "lucide-react";
 
 export default function PatientBillingTab({
     patientId, patientData, onRefresh
@@ -15,6 +15,12 @@ export default function PatientBillingTab({
     const [savingSettings, setSavingSettings] = useState(false);
     const [generatingInvoice, setGeneratingInvoice] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
+
+    // Recarga de saldo Concierge
+    const [rechargeAmount, setRechargeAmount] = useState<string>("");
+    const [rechargeNote, setRechargeNote] = useState<string>("");
+    const [recharging, setRecharging] = useState(false);
+    const [conciergeBalance, setConciergeBalance] = useState<number>(patientData?.conciergeBalance ?? 0);
 
     // Cuotas
     const [monthlyFee, setMonthlyFee] = useState<string>(patientData?.monthlyFee?.toString() || "0");
@@ -79,6 +85,36 @@ export default function PatientBillingTab({
             showToast("Error de conexión");
         }
         setSavingSettings(false);
+    };
+
+    const handleRechargeBalance = async () => {
+        const monto = parseFloat(rechargeAmount);
+        if (!monto || isNaN(monto) || monto <= 0) {
+            showToast("⚠️ Ingresa un monto válido mayor a $0");
+            return;
+        }
+        setRecharging(true);
+        try {
+            const res = await fetch(`/api/corporate/patients/${patientId}/balance`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ amount: monto, note: rechargeNote.trim() || undefined }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setConciergeBalance(data.newBalance);
+                setRechargeAmount("");
+                setRechargeNote("");
+                showToast(`✓ ${data.message}`);
+                await loadInvoices();
+                onRefresh();
+            } else {
+                showToast("Error: " + data.error);
+            }
+        } catch {
+            showToast("Error de conexión");
+        }
+        setRecharging(false);
     };
 
     const handleGenerateMonthlyInvoice = async () => {
@@ -228,6 +264,60 @@ export default function PatientBillingTab({
                         className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-emerald-200 transition-colors disabled:opacity-50">
                         <Save className="w-4 h-4" /> {savingSettings ? 'Guardando...' : 'Guardar Configuración'}
                     </button>
+
+                    {/* ── Recarga de Saldo Concierge ── */}
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
+                            <Wallet className="w-5 h-5 text-violet-500" /> Saldo Concierge
+                        </h2>
+                        <p className="text-sm text-slate-500 mb-4">Recarga el saldo del portal familiar. El cargo aparecerá en la factura mensual.</p>
+
+                        <div className="bg-violet-50 rounded-2xl border border-violet-200 p-5 space-y-4">
+                            {/* Saldo actual */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Saldo Actual</span>
+                                <span className="text-2xl font-black text-violet-700">
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(conciergeBalance)}
+                                </span>
+                            </div>
+
+                            {/* Monto a recargar */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monto a Recargar</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-3 text-slate-400 font-bold">$</span>
+                                    <input
+                                        type="number" min="1" step="0.01"
+                                        value={rechargeAmount}
+                                        onChange={e => setRechargeAmount(e.target.value)}
+                                        placeholder="0.00"
+                                        className="w-full bg-white border border-violet-300 rounded-xl py-3 pl-8 pr-4 font-bold text-slate-800 focus:ring-2 focus:ring-violet-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Nota opcional */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nota (opcional)</label>
+                                <input
+                                    type="text"
+                                    value={rechargeNote}
+                                    onChange={e => setRechargeNote(e.target.value)}
+                                    placeholder="Ej. Recarga mensual familia García"
+                                    className="w-full bg-white border border-violet-300 rounded-xl py-3 px-4 text-sm text-slate-700 focus:ring-2 focus:ring-violet-500 outline-none"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleRechargeBalance}
+                                disabled={recharging || !rechargeAmount || parseFloat(rechargeAmount) <= 0}
+                                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-bold shadow-md shadow-violet-200 transition-colors disabled:opacity-40"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${recharging ? 'animate-spin' : ''}`} />
+                                {recharging ? 'Recargando...' : 'Recargar Saldo'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ── Columna Derecha: Historial de Facturas ── */}
