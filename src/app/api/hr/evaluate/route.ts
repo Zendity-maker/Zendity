@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
+import { notifyUser } from '@/lib/notifications';
 
 export const maxDuration = 60; // Parche Staging Integral E2E
 
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
                         data: {
                             employeeId: employeeId,
                             courseId: reinforcementCourse.id,
-                            headquartersId: evaluator.headquartersId, // Inyectado del evaluator HQ
+                            headquartersId: evaluator.headquartersId,
                             status: "ASSIGNED"
                         }
                     });
@@ -97,6 +98,20 @@ export async function POST(request: NextRequest) {
                     });
                 }
             }
+
+            // D. Notificar al empleado — sabe exactamente qué pasó y qué hacer
+            try {
+                const courseMsg = reinforcementCourse
+                    ? ` Completa el curso "${reinforcementCourse.title}" en Academy para reactivar tu acceso.`
+                    : ' Contacta a tu supervisor para reactivar tu acceso.';
+                await notifyUser(employeeId, {
+                    type: 'SHIFT_BLOCKED',
+                    title: '⚠️ Turno suspendido temporalmente',
+                    message: `Tu evaluación de hoy resultó en una puntuación de ${globalScore}/100. ${blockReasonText}.${courseMsg}`,
+                    link: '/academy',
+                });
+            } catch (e) { console.error('[notify SHIFT_BLOCKED]', e); }
+
         } else {
             // FASE 66: Gamification Points for Positive Evaluation
             let bonus = 0;
@@ -112,6 +127,19 @@ export async function POST(request: NextRequest) {
                         'Evaluación positiva del supervisor', 'EVALUATION');
                 }
             }
+
+            // Notificar al empleado con resultado positivo
+            try {
+                const msg = globalScore >= 90
+                    ? `¡Excelente evaluación! Obtuviste ${globalScore}/100. Sigue así.`
+                    : `Tu evaluación fue completada con ${globalScore}/100. Revisa tus resultados en tu perfil.`;
+                await notifyUser(employeeId, {
+                    type: 'EVALUATION_COMPLETE',
+                    title: '📋 Evaluación de desempeño registrada',
+                    message: msg,
+                    link: '/care',
+                });
+            } catch (e) { console.error('[notify EVALUATION_COMPLETE]', e); }
         }
 
         // ACADEMY TRIGGER: Score bajo (75-84) sin bloqueo formal → refuerzo formativo

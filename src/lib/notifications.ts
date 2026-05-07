@@ -4,7 +4,7 @@
  */
 import { prisma } from "@/lib/prisma";
 
-type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE" | "CONCIERGE_SERVICE";
+type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE" | "CONCIERGE_SERVICE" | "SHIFT_BLOCKED" | "EVALUATION_COMPLETE";
 
 interface NotifPayload {
     type: NotifType;
