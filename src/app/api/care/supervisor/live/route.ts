@@ -91,6 +91,8 @@ export async function GET(req: Request) {
             todayZoneInspections,
             // ── Tickets referidos a enfermería hoy (para filtrarlos del feed) ──
             referredTodayLogs,
+            // ── Historial de acciones del Inbox hoy ──
+            inboxHistoryLogs,
         ] = await Promise.all([
             // 1. Cuidadores Activos — ventana rodante de 14h para incluir turnos
             //    NIGHT que arrancaron antes del día clínico actual y sesiones que
@@ -208,6 +210,17 @@ export async function GET(req: Request) {
                     createdAt: { gte: todayStart },
                 },
                 select: { payloadChanges: true },
+            }),
+            // ── Historial de acciones del Inbox hoy (refs + voids) ──
+            prisma.systemAuditLog.findMany({
+                where: {
+                    headquartersId: hqId,
+                    action: { in: ['ESCALATED', 'VOIDED'] },
+                    createdAt: { gte: todayStart },
+                },
+                select: { id: true, action: true, payloadChanges: true, createdAt: true },
+                orderBy: { createdAt: 'desc' },
+                take: 30,
             }),
         ]);
 
@@ -627,6 +640,18 @@ export async function GET(req: Request) {
             observationsFeed,
             incidentAppeals,
             roundsSummary: { ...roundsSummary, completedSlots: roundsCompleted, totalSlots: 3 },
+            inboxHistory: inboxHistoryLogs.map((log: any) => {
+                const p = log.payloadChanges as any;
+                return {
+                    id: log.id,
+                    action: log.action,
+                    kind: p?.kind || log.action,
+                    description: p?.description || p?.reason || '—',
+                    reason: p?.reason || null,
+                    sourceType: p?.sourceType || null,
+                    createdAt: log.createdAt,
+                };
+            }),
         });
 
     } catch (error) {

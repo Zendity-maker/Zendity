@@ -15,6 +15,7 @@ import {
     HandoverFeedItem,
     ObservationFeedItem,
     IncidentAppealItem,
+    InboxHistoryItem,
 } from "@/types/care";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -147,6 +148,9 @@ export default function SupervisorMissionControlPage() {
     const [isReferring, setIsReferring] = useState(false);
     const [maintenanceTicket, setMaintenanceTicket] = useState<any>(null);
     const [isDispatchingMaint, setIsDispatchingMaint] = useState(false);
+
+    // Historial de acciones del turno (refs + voids de hoy) — panel colapsable
+    const [historialOpen, setHistorialOpen] = useState(false);
 
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
@@ -643,6 +647,11 @@ export default function SupervisorMissionControlPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                 <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${pillColor}`}>{ticket.urgency}</span>
+                                                {isCrisis && ticket.createdAt && (
+                                                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100">
+                                                        hace {Math.floor((Date.now() - new Date(ticket.createdAt).getTime()) / 60000)}m
+                                                    </span>
+                                                )}
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-100">
                                                     {ticket.category.replace('_', ' ')}
                                                 </span>
@@ -769,6 +778,56 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     )}
                 </div>
+
+                {/* ============================================== */}
+                {/* HISTORIAL DEL TURNO — Acciones de Inbox de hoy  */}
+                {/* ============================================== */}
+                {liveData && (liveData.inboxHistory?.length ?? 0) > 0 && (
+                    <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                        <button
+                            onClick={() => setHistorialOpen(v => !v)}
+                            className="w-full flex items-center justify-between px-7 py-4 hover:bg-slate-50 transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <CalendarClock className="w-5 h-5 text-slate-400" />
+                                <span className="font-black text-slate-700 text-sm">Historial del Turno</span>
+                                <span className="bg-slate-100 text-slate-500 font-bold text-xs px-2 py-0.5 rounded-full">
+                                    {liveData.inboxHistory!.length} acción{liveData.inboxHistory!.length !== 1 ? 'es' : ''}
+                                </span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${historialOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {historialOpen && (
+                            <div className="border-t border-slate-100 divide-y divide-slate-50">
+                                {liveData.inboxHistory!.map((entry: InboxHistoryItem) => {
+                                    const isRef = entry.action === 'ESCALATED';
+                                    const minutosAtras = Math.floor((Date.now() - new Date(entry.createdAt).getTime()) / 60000);
+                                    const tiempoLabel = minutosAtras < 60 ? `hace ${minutosAtras}m` : `hace ${Math.floor(minutosAtras / 60)}h`;
+                                    return (
+                                        <div key={entry.id} className="flex items-start gap-3 px-7 py-3">
+                                            <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${isRef ? 'bg-teal-500' : 'bg-slate-400'}`} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-slate-700">
+                                                    {isRef ? 'Referido a Enfermería' : 'Ticket Descartado'}
+                                                    {entry.sourceType && (
+                                                        <span className="ml-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                            {entry.sourceType}
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-slate-500 truncate">{entry.description}</p>
+                                                {entry.reason && (
+                                                    <p className="text-[10px] text-slate-400 italic">Motivo: {entry.reason}</p>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400 shrink-0">{tiempoLabel}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* ============================================== */}
                 {/* SECCIÓN 3 — EN PISO + SCORE CUMPLIMIENTO         */}

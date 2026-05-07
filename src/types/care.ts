@@ -169,6 +169,16 @@ export interface RoundsSummary {
     totalSlots: number;
 }
 
+export interface InboxHistoryItem {
+    id: string;
+    action: string; // 'ESCALATED' | 'VOIDED'
+    kind: string;   // 'REFERRED_TO_NURSING' | 'VOIDED'
+    description: string;
+    reason?: string | null;
+    sourceType?: string | null;
+    createdAt: string;
+}
+
 export interface LiveDataPayload {
     hqId: string;
     timestamp: string;
@@ -192,4 +202,6 @@ export interface LiveDataPayload {
     observationsFeed?: ObservationFeedItem[];
     incidentAppeals?: IncidentAppealItem[];
     roundsSummary?: RoundsSummary;
+    // Historial del turno (refs + voids de hoy)
+    inboxHistory?: InboxHistoryItem[];
 }

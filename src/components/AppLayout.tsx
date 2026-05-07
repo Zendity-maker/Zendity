@@ -117,6 +117,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
     const [intakePendingCount, setIntakePendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
+    const [inboxPendingCount, setInboxPendingCount] = useState(0);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -220,6 +221,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchMyObsPending, 60000);
         return () => clearInterval(interval);
     }, [isEmployeeObsRole]);
+
+    // Polling badge inbox operativo (solo SUPERVISOR, DIRECTOR, ADMIN)
+    const isSupervisorRole = user?.role && ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role);
+    useEffect(() => {
+        if (!isSupervisorRole) return;
+        const fetchInboxCount = async () => {
+            try {
+                const res = await fetch('/api/care/supervisor/inbox-count');
+                const data = await res.json();
+                if (data.success) setInboxPendingCount(data.count ?? 0);
+            } catch {}
+        };
+        fetchInboxCount();
+        const interval = setInterval(fetchInboxCount, 60000);
+        return () => clearInterval(interval);
+    }, [isSupervisorRole]);
 
     // Polling badge ingresos pendientes de revisión (DIRECTOR, ADMIN, SUPERVISOR, NURSE)
     const isIntakeRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes(user.role);
@@ -527,6 +544,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
                             const isMyObs = item.href === '/my-observations';
+                            const isTriageSuper = item.href === '/care/supervisor';
                             return (
                                 <Link
                                     key={item.name}
@@ -541,11 +559,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                 {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
                                             </span>
                                         )}
+                                        {isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                {inboxPendingCount > 9 ? '9+' : inboxPendingCount}
+                                            </span>
+                                        )}
                                     </span>
                                     {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                                     {!isSidebarCollapsed && isMyObs && myObsPendingCount > 0 && (
                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                             {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                        </span>
+                                    )}
+                                    {!isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
+                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                            {inboxPendingCount > 9 ? '9+' : inboxPendingCount}
                                         </span>
                                     )}
                                 </Link>
@@ -654,6 +682,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                                     const Icon = item.icon;
                                     const isMyObs = item.href === '/my-observations';
+                                    const isTriageSuperM = item.href === '/care/supervisor';
                                     return (
                                         <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
                                             <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={isCurrent ? 2.5 : 2} />
@@ -661,6 +690,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                             {isMyObs && myObsPendingCount > 0 && (
                                                 <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                     {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                                </span>
+                                            )}
+                                            {isTriageSuperM && inboxPendingCount > 0 && (
+                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                    {inboxPendingCount > 9 ? '9+' : inboxPendingCount}
                                                 </span>
                                             )}
                                         </Link>
