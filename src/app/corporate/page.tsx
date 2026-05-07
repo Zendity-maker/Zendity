@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
-import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake } from 'lucide-react';
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake, X, ChevronRight } from 'lucide-react';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -121,7 +121,9 @@ export default function CorporateDashboardPage() {
         };
         totals: { activePatients: number; handoversToday: number };
         timestamp: string;
+        details?: Record<string, any[]>;
     } | null>(null);
+    const [activeChip, setActiveChip] = useState<string | null>(null);
 
     // Zendi Director Briefing (Sprint G-B)
     const [briefing, setBriefing] = useState<{
@@ -232,7 +234,7 @@ export default function CorporateDashboardPage() {
                 const data = await res.json();
                 if (!isMounted) return;
                 if (data.success) {
-                    setLive({ chips: data.chips, totals: data.totals, timestamp: data.timestamp });
+                    setLive({ chips: data.chips, totals: data.totals, timestamp: data.timestamp, details: data.details });
                 }
             } catch (err) {
                 console.error('[live]', err);
@@ -648,8 +650,8 @@ export default function CorporateDashboardPage() {
                             <Radio size={18} className="text-[#0F6B78]" /> En este momento
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                            Agregado multi-sede en vivo · polling 30s
-                            {live && ` · sincronizado ${new Date(live.timestamp).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
+                            Toca cualquier chip para ver el detalle · polling 30s
+                            {live && ` · ${new Date(live.timestamp).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`}
                         </p>
                     </div>
                     <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#22A06B]/10 text-[#22A06B] border border-[#22A06B]/30 px-2.5 py-1 rounded-full">
@@ -660,34 +662,42 @@ export default function CorporateDashboardPage() {
 
                 {live ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-                        {[
-                            { label: 'Cuidadores activos', value: live.chips.activeCaregivers, icon: UserCheck, tone: 'teal' },
-                            { label: 'Baños hoy', value: live.chips.bathsToday, icon: Bath, tone: 'sky' },
-                            { label: 'Comidas hoy', value: live.chips.mealsToday, icon: UtensilsCrossed, tone: 'amber' },
-                            { label: 'Incidentes (7d)', value: live.chips.incidentsWeek, icon: AlertOctagon, tone: live.chips.incidentsWeek > 3 ? 'red' : 'slate' },
-                            { label: 'Triage abierto', value: live.chips.triageOpen, icon: Siren, tone: live.chips.triageOpen > 0 ? 'amber' : 'slate' },
-                            { label: 'Handovers pend.', value: live.chips.handoversPending, icon: FileSignature, tone: live.chips.handoversPending > 0 ? 'amber' : 'slate' },
-                            { label: 'Residentes sin actividad', value: live.chips.zombiePatients, icon: Activity, tone: live.chips.zombiePatients > 0 ? 'red' : 'emerald' },
-                            { label: 'En hospital', value: live.chips.onHospitalLeave, icon: Stethoscope, tone: live.chips.onHospitalLeave > 0 ? 'rose' : 'slate' },
-                        ].map((chip, i) => {
+                        {([
+                            { key: 'activeCaregivers',  label: 'Cuidadores activos',      value: live.chips.activeCaregivers,  icon: UserCheck,    tone: 'teal'   },
+                            { key: 'bathsToday',        label: 'Baños hoy',               value: live.chips.bathsToday,        icon: Bath,         tone: 'sky'    },
+                            { key: 'mealsToday',        label: 'Comidas hoy',             value: live.chips.mealsToday,        icon: UtensilsCrossed, tone: 'amber' },
+                            { key: 'incidentsWeek',     label: 'Incidentes (7d)',          value: live.chips.incidentsWeek,     icon: AlertOctagon, tone: live.chips.incidentsWeek > 3 ? 'red' : 'slate' },
+                            { key: 'triageOpen',        label: 'Triage abierto',           value: live.chips.triageOpen,        icon: Siren,        tone: live.chips.triageOpen > 0 ? 'amber' : 'slate'  },
+                            { key: 'handoversPending',  label: 'Handovers pend.',          value: live.chips.handoversPending,  icon: FileSignature,tone: live.chips.handoversPending > 0 ? 'amber' : 'slate' },
+                            { key: 'zombiePatients',    label: 'Sin actividad hoy',        value: live.chips.zombiePatients,    icon: Activity,     tone: live.chips.zombiePatients > 0 ? 'red' : 'emerald' },
+                            { key: 'onHospitalLeave',   label: 'En hospital',              value: live.chips.onHospitalLeave,   icon: Stethoscope,  tone: live.chips.onHospitalLeave > 0 ? 'rose' : 'slate' },
+                        ] as const).map((chip) => {
                             const tones: Record<string, string> = {
-                                teal: 'bg-[#0F6B78]/10 text-[#0F6B78] border-[#0F6B78]/20',
-                                sky: 'bg-sky-50 text-sky-700 border-sky-200',
-                                amber: 'bg-amber-50 text-amber-700 border-amber-200',
-                                red: 'bg-red-50 text-red-700 border-red-200',
-                                rose: 'bg-rose-50 text-rose-700 border-rose-200',
-                                emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                slate: 'bg-slate-50 text-slate-700 border-slate-200',
+                                teal:    'bg-[#0F6B78]/10 text-[#0F6B78] border-[#0F6B78]/20 hover:border-[#0F6B78]/50',
+                                sky:     'bg-sky-50 text-sky-700 border-sky-200 hover:border-sky-400',
+                                amber:   'bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-400',
+                                red:     'bg-red-50 text-red-700 border-red-200 hover:border-red-400',
+                                rose:    'bg-rose-50 text-rose-700 border-rose-200 hover:border-rose-400',
+                                emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400',
+                                slate:   'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400',
                             };
                             const Icon = chip.icon;
+                            const isActive = activeChip === chip.key;
                             return (
-                                <div key={i} className={`rounded-xl border p-3 ${tones[chip.tone]} transition-all`}>
+                                <button
+                                    key={chip.key}
+                                    onClick={() => setActiveChip(isActive ? null : chip.key)}
+                                    className={`rounded-xl border p-3 text-left transition-all cursor-pointer w-full group ${tones[chip.tone]} ${isActive ? 'ring-2 ring-offset-1 ring-current shadow-md' : 'hover:shadow-sm'}`}
+                                >
                                     <div className="flex items-center justify-between mb-1">
                                         <Icon size={16} />
-                                        <span className="text-2xl font-black leading-none">{chip.value}</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-2xl font-black leading-none">{chip.value}</span>
+                                            <ChevronRight size={12} className={`opacity-40 transition-transform ${isActive ? 'rotate-90' : ''}`} />
+                                        </div>
                                     </div>
                                     <p className="text-[10px] font-bold uppercase tracking-wide opacity-80 mt-2 leading-tight">{chip.label}</p>
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
@@ -698,6 +708,166 @@ export default function CorporateDashboardPage() {
                         ))}
                     </div>
                 )}
+
+                {/* Panel de detalle inline */}
+                {activeChip && live?.details && (() => {
+                    const fmt = (iso: string) => new Date(iso).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+                    const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('es-PR', { day: '2-digit', month: 'short' });
+
+                    const severityBadge: Record<string, string> = {
+                        LOW: 'bg-slate-100 text-slate-600',
+                        MEDIUM: 'bg-amber-100 text-amber-700',
+                        HIGH: 'bg-orange-100 text-orange-700',
+                        CRITICAL: 'bg-red-100 text-red-700',
+                    };
+                    const priorityBadge: Record<string, string> = {
+                        LOW: 'bg-slate-100 text-slate-600',
+                        MEDIUM: 'bg-amber-100 text-amber-700',
+                        HIGH: 'bg-orange-100 text-orange-700',
+                        CRITICAL: 'bg-red-100 text-red-700',
+                    };
+
+                    const chipMeta: Record<string, { title: string; empty: string }> = {
+                        activeCaregivers:  { title: 'Cuidadores con turno activo ahora',    empty: 'Ningún cuidador con sesión abierta.' },
+                        bathsToday:        { title: 'Baños registrados hoy',                empty: 'Ningún baño registrado hoy.' },
+                        mealsToday:        { title: 'Comidas registradas hoy',              empty: 'Ninguna comida registrada hoy.' },
+                        incidentsWeek:     { title: 'Incidentes (últimos 7 días)',           empty: 'Sin incidentes en los últimos 7 días.' },
+                        triageOpen:        { title: 'Tickets de triage abiertos',            empty: 'Sin tickets abiertos.' },
+                        handoversPending:  { title: 'Handovers pendientes de firma',         empty: 'Todos los handovers firmados.' },
+                        zombiePatients:    { title: 'Residentes sin actividad registrada hoy', empty: 'Todos los residentes tienen actividad hoy.' },
+                        onHospitalLeave:   { title: 'Residentes hospitalizados',             empty: 'Ningún residente hospitalizado.' },
+                    };
+
+                    const meta = chipMeta[activeChip];
+                    const list = activeChip === 'handoversPending'
+                        ? live.details['handoversPending']
+                        : live.details[activeChip] ?? [];
+
+                    return (
+                        <div className="mt-4 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                            <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200">
+                                <div>
+                                    <h4 className="font-bold text-[#1F2D3A] text-sm">{meta.title}</h4>
+                                    <p className="text-xs text-slate-400">{list.length} {list.length === 1 ? 'registro' : 'registros'}</p>
+                                </div>
+                                <button onClick={() => setActiveChip(null)} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            {list.length === 0 ? (
+                                <div className="px-5 py-8 text-center text-slate-400 text-sm font-medium">{meta.empty}</div>
+                            ) : (
+                                <div className="divide-y divide-slate-200 max-h-72 overflow-y-auto">
+                                    {/* activeCaregivers */}
+                                    {activeChip === 'activeCaregivers' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-black">{r.name.charAt(0)}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{r.name}</p>
+                                                    <p className="text-xs text-slate-400">{r.role}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-slate-500 font-medium">desde {fmt(r.since)}</span>
+                                        </div>
+                                    ))}
+
+                                    {/* bathsToday */}
+                                    {activeChip === 'bathsToday' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-sm">{r.patient}</p>
+                                                <p className="text-xs text-slate-400">Cuarto {r.room} · {r.type} · {r.caregiver}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-500 font-medium">{fmt(r.time)}</span>
+                                        </div>
+                                    ))}
+
+                                    {/* mealsToday */}
+                                    {activeChip === 'mealsToday' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-sm">{r.patient}</p>
+                                                <p className="text-xs text-slate-400">Cuarto {r.room} · {r.mealType}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {r.intake && <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">{r.intake}</span>}
+                                                <span className="text-xs text-slate-500">{fmt(r.time)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* incidentsWeek */}
+                                    {activeChip === 'incidentsWeek' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${severityBadge[r.severity] || 'bg-slate-100 text-slate-600'}`}>{r.severity}</span>
+                                                    <span className="text-xs font-bold text-slate-700">{r.type}</span>
+                                                </div>
+                                                <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-600">{r.patient} · Cuarto {r.room}</p>
+                                            {r.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{r.description}</p>}
+                                        </div>
+                                    ))}
+
+                                    {/* triageOpen */}
+                                    {activeChip === 'triageOpen' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${priorityBadge[r.priority] || 'bg-slate-100 text-slate-600'}`}>{r.priority}</span>
+                                                <span className="text-xs text-slate-400">{fmtDate(r.time)} {fmt(r.time)}</span>
+                                            </div>
+                                            <p className="font-bold text-slate-800 text-sm">{r.title}</p>
+                                            <p className="text-xs text-slate-400">{r.patient} · Cuarto {r.room} · {r.status}</p>
+                                        </div>
+                                    ))}
+
+                                    {/* handoversPending */}
+                                    {activeChip === 'handoversPending' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-black">{r.nurse.charAt(0)}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{r.nurse}</p>
+                                                    <p className="text-xs text-slate-400">{r.role}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-amber-600 font-bold">Pendiente · {fmt(r.time)}</span>
+                                        </div>
+                                    ))}
+
+                                    {/* zombiePatients */}
+                                    {activeChip === 'zombiePatients' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-black">{r.name.charAt(0)}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{r.name}</p>
+                                                    <p className="text-xs text-slate-400">Cuarto {r.roomNumber ?? '—'}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Sin registro hoy</span>
+                                        </div>
+                                    ))}
+
+                                    {/* onHospitalLeave */}
+                                    {activeChip === 'onHospitalLeave' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 hover:bg-white transition-colors">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <p className="font-bold text-slate-800 text-sm">{r.name}</p>
+                                                <span className="text-xs text-slate-400">desde {r.since ? fmtDate(r.since) : '—'}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-400">Cuarto {r.room}{r.reason ? ` · ${r.reason}` : ''}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* 2.5 Tendencias 7 días — 6 gráficas */}

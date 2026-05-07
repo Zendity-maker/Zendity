@@ -12,18 +12,7 @@ const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
 
 /**
  * GET /api/corporate/live?hqId=X
- * Sala de mando en tiempo real (agregado multi-sede para DIRECTOR/ADMIN,
- * una sede para SUPERVISOR). Pensado para polling a 30s.
- *
- * Retorna 8 chips agregados:
- *  - activeCaregivers (ShiftSession abierta hoy)
- *  - bathsToday
- *  - mealsToday
- *  - incidentsWeek (IncidentReport últimos 7 días)
- *  - triageOpen (TriageTicket OPEN/IN_PROGRESS — sin resolver)
- *  - handoversPending (ShiftHandover sin supervisorSignedAt del día)
- *  - zombiePatients (residentes activos sin baño, sin comida y sin vitales hoy)
- *  - onHospitalLeave (residentes con leaveType = 'HOSPITAL')
+ * Sala de mando en tiempo real. Retorna chips + listas de detalle para cada uno.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -53,71 +42,130 @@ export async function GET(request: NextRequest) {
 
         const hqFilter = effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId };
         const hqFilterViaPatient = effectiveHqId === 'ALL' ? {} : { patient: { headquartersId: effectiveHqId } };
+        const patientHqFilter = effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId };
 
         const [
             activeSessions,
-            bathsToday,
-            mealsToday,
-            incidentsWeek,
-            triageOpenCount,
+            bathLogs,
+            mealLogs,
+            incidentsWeekList,
+            triageOpenList,
             handoversToday,
             activePatients,
-            onHospitalLeave,
+            onHospitalLeaveList,
         ] = await Promise.all([
-            prisma.shiftSession.count({
-                where: {
-                    ...hqFilter,
-                    actualEndTime: null,
-                    startTime: { gte: today },
+            // 1. Cuidadores con sesión abierta hoy
+            prisma.shiftSession.findMany({
+                where: { ...hqFilter, actualEndTime: null, startTime: { gte: today } },
+                select: {
+                    id: true,
+                    startTime: true,
+                    caregiver: { select: { id: true, name: true, role: true } },
                 },
+                orderBy: { startTime: 'asc' },
             }),
-            prisma.bathLog.count({
+
+            // 2. Baños del día
+            prisma.bathLog.findMany({
                 where: { ...hqFilterViaPatient, timeLogged: { gte: today } },
+                select: {
+                    id: true,
+                    timeLogged: true,
+                    status: true,
+                    patient: { select: { id: true, name: true, roomNumber: true } },
+                    caregiver: { select: { name: true } },
+                },
+                orderBy: { timeLogged: 'desc' },
             }),
-            prisma.mealLog.count({
+
+            // 3. Comidas del día
+            prisma.mealLog.findMany({
                 where: { ...hqFilterViaPatient, timeLogged: { gte: today } },
+                select: {
+                    id: true,
+                    timeLogged: true,
+                    mealType: true,
+                    quality: true,
+                    patient: { select: { id: true, name: true, roomNumber: true } },
+                    caregiver: { select: { name: true } },
+                },
+                orderBy: { timeLogged: 'desc' },
             }),
-            prisma.incidentReport.count({
+
+            // 4. Observaciones/Incidentes de RRHH últimos 7 días
+            prisma.incidentReport.findMany({
                 where: { ...hqFilter, createdAt: { gte: weekAgo } },
+                select: {
+                    id: true,
+                    type: true,
+                    severity: true,
+                    createdAt: true,
+                    status: true,
+                    description: true,
+                    employee: { select: { name: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 50,
             }),
-            prisma.triageTicket.count({
+
+            // 5. Triage abierto
+            prisma.triageTicket.findMany({
                 where: {
                     ...hqFilter,
                     status: { in: [TicketStatus.OPEN, TicketStatus.IN_PROGRESS] },
                     isVoided: false,
                 },
+                select: {
+                    id: true,
+                    description: true,
+                    status: true,
+                    priority: true,
+                    createdAt: true,
+                    originType: true,
+                    patient: { select: { name: true, roomNumber: true } },
+                },
+                orderBy: { createdAt: 'desc' },
             }),
+
+            // 6. Handovers del día
             prisma.shiftHandover.findMany({
                 where: { ...hqFilter, createdAt: { gte: today } },
-                select: { supervisorSignedAt: true },
-            }),
-            prisma.patient.findMany({
-                where: {
-                    ...(effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId }),
-                    status: 'ACTIVE',
+                select: {
+                    id: true,
+                    supervisorSignedAt: true,
+                    createdAt: true,
+                    outgoingNurse: { select: { name: true, role: true } },
                 },
+                orderBy: { createdAt: 'desc' },
+            }),
+
+            // 7. Residentes activos (para zombie detection)
+            prisma.patient.findMany({
+                where: { ...patientHqFilter, status: 'ACTIVE' },
+                select: { id: true, name: true, roomNumber: true },
+            }),
+
+            // 8. En hospital (TEMPORARY_LEAVE con leaveType HOSPITAL)
+            prisma.patient.findMany({
+                where: { ...patientHqFilter, status: 'TEMPORARY_LEAVE', leaveType: 'HOSPITAL' },
                 select: {
                     id: true,
                     name: true,
                     roomNumber: true,
-                    headquartersId: true,
+                    leaveDate: true,
+                    dischargeReason: true,
                 },
-            }),
-            prisma.patient.count({
-                where: {
-                    ...(effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId }),
-                    status: 'TEMPORARY_LEAVE',
-                    leaveType: 'HOSPITAL',
-                },
+                orderBy: { leaveDate: 'desc' },
             }),
         ]);
 
-        const handoversPending = handoversToday.filter(h => !h.supervisorSignedAt).length;
+        const handoversPending = handoversToday.filter(h => !h.supervisorSignedAt);
+        const handoversSigned  = handoversToday.filter(h =>  h.supervisorSignedAt);
 
-        // Zombi detection: residentes activos sin baño/comida/vitales hoy
+        // ── Zombie detection ───────────────────────────────────────────────────
         const patientIds = activePatients.map(p => p.id);
-        let zombieCount = 0;
-        let zombieSample: Array<{ id: string; name: string; roomNumber: string | null }> = [];
+        let zombieList: Array<{ id: string; name: string; roomNumber: string | null }> = [];
+
         if (patientIds.length > 0) {
             const [bathPatients, mealPatients, vitalPatients] = await Promise.all([
                 prisma.bathLog.findMany({
@@ -141,13 +189,9 @@ export async function GET(request: NextRequest) {
                 ...mealPatients.map(m => m.patientId),
                 ...vitalPatients.map(v => v.patientId),
             ]);
-            const zombies = activePatients.filter(p => !touched.has(p.id));
-            zombieCount = zombies.length;
-            zombieSample = zombies.slice(0, 5).map(z => ({
-                id: z.id,
-                name: z.name,
-                roomNumber: z.roomNumber,
-            }));
+            zombieList = activePatients
+                .filter(p => !touched.has(p.id))
+                .map(z => ({ id: z.id, name: z.name, roomNumber: z.roomNumber }));
         }
 
         return NextResponse.json({
@@ -155,20 +199,85 @@ export async function GET(request: NextRequest) {
             effectiveHqId,
             timestamp: new Date().toISOString(),
             chips: {
-                activeCaregivers: activeSessions,
-                bathsToday,
-                mealsToday,
-                incidentsWeek,
-                triageOpen: triageOpenCount,
-                handoversPending,
-                zombiePatients: zombieCount,
-                onHospitalLeave,
+                activeCaregivers:  activeSessions.length,
+                bathsToday:        bathLogs.length,
+                mealsToday:        mealLogs.length,
+                incidentsWeek:     incidentsWeekList.length,
+                triageOpen:        triageOpenList.length,
+                handoversPending:  handoversPending.length,
+                zombiePatients:    zombieList.length,
+                onHospitalLeave:   onHospitalLeaveList.length,
             },
             totals: {
                 activePatients: activePatients.length,
                 handoversToday: handoversToday.length,
             },
-            zombieSample,
+            details: {
+                activeCaregivers: activeSessions.map(s => ({
+                    id: s.id,
+                    name: s.caregiver?.name ?? '—',
+                    role: s.caregiver?.role ?? '—',
+                    since: s.startTime,
+                })),
+                bathsToday: bathLogs.map(b => ({
+                    id: b.id,
+                    patient: b.patient?.name ?? '—',
+                    room: b.patient?.roomNumber ?? '—',
+                    type: b.status,
+                    caregiver: b.caregiver?.name ?? '—',
+                    time: b.timeLogged,
+                })),
+                mealsToday: mealLogs.map(m => ({
+                    id: m.id,
+                    patient: m.patient?.name ?? '—',
+                    room: m.patient?.roomNumber ?? '—',
+                    mealType: m.mealType,
+                    intake: m.quality,
+                    caregiver: m.caregiver?.name ?? '—',
+                    time: m.timeLogged,
+                })),
+                incidentsWeek: incidentsWeekList.map(i => ({
+                    id: i.id,
+                    type: i.type,
+                    severity: i.severity,
+                    status: i.status,
+                    employee: i.employee?.name ?? '—',
+                    description: i.description,
+                    time: i.createdAt,
+                })),
+                triageOpen: triageOpenList.map(t => ({
+                    id: t.id,
+                    title: t.description.length > 80 ? t.description.slice(0, 80) + '…' : t.description,
+                    status: t.status,
+                    priority: t.priority,
+                    originType: t.originType,
+                    patient: t.patient?.name ?? '—',
+                    room: t.patient?.roomNumber ?? '—',
+                    time: t.createdAt,
+                })),
+                handoversPending: handoversPending.map(h => ({
+                    id: h.id,
+                    nurse: h.outgoingNurse?.name ?? '—',
+                    role: h.outgoingNurse?.role ?? '—',
+                    time: h.createdAt,
+                })),
+                handoversSigned: handoversSigned.map(h => ({
+                    id: h.id,
+                    nurse: h.outgoingNurse?.name ?? '—',
+                    role: h.outgoingNurse?.role ?? '—',
+                    signedAt: h.supervisorSignedAt,
+                    time: h.createdAt,
+                })),
+                zombiePatients: zombieList,
+                onHospitalLeave: onHospitalLeaveList.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    room: p.roomNumber ?? '—',
+                    since: p.leaveDate,
+                    reason: p.dischargeReason,
+                })),
+            },
+            zombieSample: zombieList.slice(0, 5), // compatibilidad legacy
         });
     } catch (err: any) {
         console.error('[corporate/live GET]', err);
