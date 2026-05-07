@@ -23,7 +23,14 @@ export async function GET(req: Request) {
     }
 
     try {
-        const targetRoles: any[] = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR'];
+        // Clínicos: métricas completas (rotaciones, meds, vitales + ScoreEvents)
+        // Apoyo:    solo ScoreEvents (ACADEMY, EVALUACIÓN, MISIÓN, OBSERVACIONES)
+        //           Las queries de tablas brutas retornan 0 para estos roles — correcto.
+        const targetRoles: any[] = [
+            'CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN',
+            'KITCHEN', 'MAINTENANCE', 'CLEANING',
+            'SOCIAL_WORKER', 'THERAPIST', 'BEAUTY_SPECIALIST',
+        ];
         const users = await prisma.user.findMany({
             where: {
                 role: { in: targetRoles },

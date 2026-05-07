@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { Activity, Users, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { Activity, Users, DollarSign, CheckCircle, Clock, ShieldAlert, HeartPulse } from "lucide-react";
 
 interface VividKPI {
     hqId: string;
@@ -16,6 +16,23 @@ interface VividKPI {
     activePatients: number;
     staffCount: number;
     logoUrl?: string | null;
+    facilityHealthScore?: number;
+    facilityHealthGrade?: 'EXCELENTE' | 'BUENO' | 'ALERTA' | 'CRITICO';
+    facilityHealthBreakdown?: {
+        activeUPPs: number;
+        uppPenalty: number;
+        severeFalls: number;
+        fallPenalty: number;
+        pendingComplaints: number;
+        complaintPenalty: number;
+        missingHandovers: number;
+        handoverPenalty: number;
+        medCompliancePct: number;
+        medPenalty: number;
+        incidentsLast7d: number;
+        incidentBonus: number;
+        totalDeduction: number;
+    };
 }
 
 export default function VividInvestorsDashboard() {
@@ -167,18 +184,50 @@ export default function VividInvestorsDashboard() {
                                 </div>
 
                                 {/* Clinical Compliance */}
-                                <div className="md:col-span-2 bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50 flex items-center justify-between">
+                                <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50 flex items-center justify-between">
                                     <div>
                                         <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                                             <Activity className="w-4 h-4 text-blue-400" /> Índice Clínico Laboral
                                         </h4>
-                                        <p className="text-slate-500 text-xs mt-1">Garantía de calidad de {hq.staffCount} enfermeros/cuidadores</p>
+                                        <p className="text-slate-500 text-xs mt-1">Promedio compliance de {hq.staffCount} clínicos</p>
                                     </div>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-4xl font-black text-white">{hq.clinicalComplianceRate}</span>
                                         <span className="text-slate-500 font-bold">/ 100</span>
                                     </div>
                                 </div>
+
+                                {/* Facility Health Score */}
+                                {hq.facilityHealthScore !== undefined && (() => {
+                                    const fhs = hq.facilityHealthScore!;
+                                    const grade = hq.facilityHealthGrade!;
+                                    const bd = hq.facilityHealthBreakdown!;
+                                    const gradeColor = grade === 'EXCELENTE' ? 'text-emerald-400' : grade === 'BUENO' ? 'text-teal-400' : grade === 'ALERTA' ? 'text-amber-400' : 'text-rose-400';
+                                    const gradeBorder = grade === 'EXCELENTE' ? 'border-emerald-500/20' : grade === 'BUENO' ? 'border-teal-500/20' : grade === 'ALERTA' ? 'border-amber-500/20' : 'border-rose-500/20';
+                                    const gradeBg = grade === 'EXCELENTE' ? 'bg-emerald-500/5' : grade === 'BUENO' ? 'bg-teal-500/5' : grade === 'ALERTA' ? 'bg-amber-500/5' : 'bg-rose-500/10';
+                                    return (
+                                        <div className={`rounded-2xl p-6 border ${gradeBorder} ${gradeBg}`}>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                                    <HeartPulse className={`w-4 h-4 ${gradeColor}`} /> Facility Health Score
+                                                </h4>
+                                                <div className="flex items-baseline gap-2">
+                                                    <span className={`text-4xl font-black ${gradeColor}`}>{fhs}</span>
+                                                    <span className={`text-xs font-black uppercase tracking-widest ${gradeColor}`}>{grade}</span>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] text-slate-500">
+                                                {bd.activeUPPs > 0 && <span>UPPs activas: <span className="text-rose-400 font-bold">{bd.activeUPPs} (−{bd.uppPenalty})</span></span>}
+                                                {bd.severeFalls > 0 && <span>Caídas severas 30d: <span className="text-rose-400 font-bold">{bd.severeFalls} (−{bd.fallPenalty})</span></span>}
+                                                {bd.pendingComplaints > 0 && <span>Quejas pendientes: <span className="text-amber-400 font-bold">{bd.pendingComplaints} (−{bd.complaintPenalty})</span></span>}
+                                                {bd.missingHandovers > 0 && <span>Handovers faltantes: <span className="text-amber-400 font-bold">{bd.missingHandovers} (−{bd.handoverPenalty})</span></span>}
+                                                {bd.medPenalty > 0 && <span>Med compliance: <span className="text-amber-400 font-bold">{bd.medCompliancePct}% (−{bd.medPenalty})</span></span>}
+                                                {bd.incidentBonus > 0 && <span className="col-span-2 text-emerald-400 font-bold">✓ 0 incidentes en 7 días (+{bd.incidentBonus})</span>}
+                                                {bd.totalDeduction === 0 && bd.incidentBonus === 0 && <span className="col-span-2 text-emerald-400 font-bold">✓ Sin penalizaciones activas</span>}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                             </div>
                         </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { calculateFacilityHealthScore } from '@/lib/facility-health';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,9 @@ export async function GET(_req: Request) {
                 ? clinicalStaff.reduce((acc: number, e: any) => acc + e.complianceScore, 0) / clinicalStaff.length
                 : 0;
 
+            // D) Facility Health Score — métrica independiente de outcomes de la sede
+            const fhs = await calculateFacilityHealthScore(hq.id);
+
             kpisByHq.push({
                 hqId: hq.id,
                 name: hq.name,
@@ -88,6 +92,9 @@ export async function GET(_req: Request) {
                 clinicalComplianceRate: Math.round(avgCompliance),
                 activePatients,
                 staffCount: clinicalStaff.length,
+                facilityHealthScore: fhs.score,
+                facilityHealthGrade: fhs.grade,
+                facilityHealthBreakdown: fhs.breakdown,
             });
         }
 
