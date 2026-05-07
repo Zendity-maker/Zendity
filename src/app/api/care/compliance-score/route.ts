@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/care/compliance-score?userId=X
  *
  * Fórmula revisada (v2):
- * Base: 100 puntos
+ * Base: 75 puntos
  *
  * Positivos (cap +15 para evitar techo por volumen):
  *   +1.5 por rotación postural a tiempo
@@ -187,13 +187,14 @@ export async function calculateDynamicScore(userId: string) {
         (unclosedSessions * 10) +
         (incompleteHandovers * 10);
 
-    const raw   = 100 + positives - negatives - observationPenalty + evaluationDelta + extraDelta;
+    // Base 75 — score de 100 debe ganarse: eval alta + actividad + cero incidentes
+    const raw   = 75 + positives - negatives - observationPenalty + evaluationDelta + extraDelta;
     const score = Math.max(0, Math.min(100, Math.round(raw)));
 
     return {
         score,
         breakdown: {
-            base: 100,
+            base: 75,
             positives: Math.round(positives),
             negatives,
             observationPenalty,
