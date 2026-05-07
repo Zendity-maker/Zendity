@@ -160,6 +160,28 @@ export default function HRAuditPage() {
             const json = await res.json();
             if (json.success) {
                 setSavedMsg("Auditoría formal guardada. Score final registrado en el historial.");
+                // Actualizar estado local para reflejar el cambio sin recargar
+                setData(prev => {
+                    if (!prev) return prev;
+                    const newScore = json.finalScore ?? json.performanceScore?.finalScore;
+                    return {
+                        ...prev,
+                        employee: {
+                            ...prev.employee,
+                            complianceScore: newScore ?? prev.employee.complianceScore,
+                        },
+                        previousAudits: prev.previousAudits.map((p: any) =>
+                            p.id === prev.performanceScoreId
+                                ? {
+                                    ...p,
+                                    humanScore: json.performanceScore?.humanScore ?? p.humanScore,
+                                    finalScore: json.performanceScore?.finalScore ?? p.finalScore,
+                                    feedback: json.performanceScore?.feedback ?? p.feedback,
+                                }
+                                : p
+                        ),
+                    };
+                });
             } else {
                 setSavedMsg("Error: " + (json.error || "no se pudo guardar"));
             }

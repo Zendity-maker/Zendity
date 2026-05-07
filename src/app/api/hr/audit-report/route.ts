@@ -335,6 +335,14 @@ Reglas:
             select: { id: true, createdAt: true },
         });
 
+        // Bug fix: cargar historial DESPUÉS del create para que incluya el registro recién creado
+        const freshHistory = await prisma.performanceScore.findMany({
+            where: { userId: employeeId, headquartersId: hqId },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: { id: true, periodStart: true, periodEnd: true, systemScore: true, humanScore: true, finalScore: true, feedback: true, createdAt: true },
+        });
+
         return NextResponse.json({
             success: true,
             performanceScoreId: saved.id,
@@ -351,7 +359,7 @@ Reglas:
             period: { days, start: periodStart.toISOString(), end: periodEnd.toISOString() },
             findings,
             aiReport,
-            previousAudits: previousAudits.map(p => ({
+            previousAudits: freshHistory.map(p => ({
                 id: p.id,
                 createdAt: p.createdAt.toISOString(),
                 periodStart: p.periodStart.toISOString(),
@@ -399,7 +407,7 @@ export async function PATCH(request: Request) {
 
         const existing = await prisma.performanceScore.findFirst({
             where: { id: performanceScoreId, headquartersId: hqId },
-            select: { id: true, systemScore: true },
+            select: { id: true, systemScore: true, userId: true },
         });
         if (!existing) {
             return NextResponse.json({ success: false, error: 'Auditoría no encontrada' }, { status: 404 });
@@ -409,17 +417,24 @@ export async function PATCH(request: Request) {
         // finalScore = humanScore si existe, si no = systemScore (auditoría cerrada sin ajuste manual)
         const finalScore = human !== null ? human : existing.systemScore;
 
-        const updated = await prisma.performanceScore.update({
-            where: { id: performanceScoreId },
-            data: {
-                humanScore: human,
-                finalScore,
-                feedback: feedback || null,
-            },
-            select: { id: true, humanScore: true, finalScore: true, feedback: true },
-        });
+        // Actualizar PerformanceScore + propagar finalScore a User.complianceScore en paralelo
+        const [updated] = await Promise.all([
+            prisma.performanceScore.update({
+                where: { id: performanceScoreId },
+                data: {
+                    humanScore: human,
+                    finalScore,
+                    feedback: feedback || null,
+                },
+                select: { id: true, humanScore: true, finalScore: true, feedback: true },
+            }),
+            prisma.user.update({
+                where: { id: existing.userId },
+                data: { complianceScore: Math.round(finalScore) },
+            }),
+        ]);
 
-        return NextResponse.json({ success: true, performanceScore: updated });
+        return NextResponse.json({ success: true, performanceScore: updated, finalScore: Math.round(finalScore) });
     } catch (error: any) {
         console.error('audit-report PATCH error:', error);
         return NextResponse.json({ success: false, error: error.message || 'Error interno' }, { status: 500 });
