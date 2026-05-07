@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
+import { calculateFacilityHealthScore } from '@/lib/facility-health';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     let totalCapacity = 0;
     let capacityKnown = false;
 
-    const rankingData = hqs.map((hq: any) => {
+    const rankingData = await Promise.all(hqs.map(async (hq: any) => {
       // Capacity: usar el valor real sin default. Si es 0/null, queda null.
       const capacityRaw: number | null = (typeof hq.capacity === 'number' && hq.capacity > 0) ? hq.capacity : null;
       if (capacityRaw !== null) {
@@ -79,6 +80,11 @@ export async function GET(request: NextRequest) {
 
       const hqPatients = hq.patients.length;
       totalPatients += hqPatients;
+
+      // Ocupación (solo si hay capacidad definida)
+      const occupancyRate: number | null = capacityRaw !== null && capacityRaw > 0
+        ? Math.round((hqPatients / capacityRaw) * 100)
+        : null;
 
       const hqCriticalIncidents = hq.incidents.filter((inc: any) => inc.severity === 'CRITICAL' || inc.severity === 'HIGH').length;
       totalCriticalIncidents += hqCriticalIncidents;
@@ -115,15 +121,22 @@ export async function GET(request: NextRequest) {
         ? Math.round((hqMedsGiven / hqMedsScheduled) * 100)
         : null;
 
+      // Facility Health Score — outcomes clínicos independientes del staff score
+      const fhs = await calculateFacilityHealthScore(hq.id);
+
       return {
         id: hq.id,
         facility: hq.name,
         capacity: capacityRaw,
+        occupancyRate,
+        activePatients: hqPatients,
         empScore,
         famSatisfaction,
-        medsCompliance
+        medsCompliance,
+        facilityHealthScore: fhs.score,
+        facilityHealthGrade: fhs.grade,
       };
-    });
+    }));
 
     // Ordenar por empScore (nulls al final)
     rankingData.sort((a, b) => {

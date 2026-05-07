@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
-import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio } from 'lucide-react';
+import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake } from 'lucide-react';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -874,9 +874,12 @@ export default function CorporateDashboardPage() {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                 Ranking de Desempeño por Sede
-                            </h3>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    🏥 Scorecard de Sedes
+                                </h3>
+                                <p className="text-xs text-slate-400 mt-0.5">Ocupación · Facility Health · Cumplimiento clínico y RRHH</p>
+                            </div>
                             <span className="text-xs font-semibold bg-teal-100 text-teal-800 px-2.5 py-1 rounded-md flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
                                 Tiempo Real · 30s
@@ -886,48 +889,108 @@ export default function CorporateDashboardPage() {
                             <table className="w-full text-sm text-left">
                                 <thead className="text-xs text-slate-500 bg-slate-50 uppercase font-semibold">
                                     <tr>
-                                        <th className="px-6 py-4">Sede / Facility</th>
-                                        <th className="px-6 py-4 text-center">Score Empleados (RRHH)</th>
-                                        <th className="px-6 py-4 text-center">Satisfacción Familiar</th>
-                                        <th className="px-6 py-4 text-center">Cumplimiento eMAR</th>
+                                        <th className="px-5 py-4">Sede</th>
+                                        <th className="px-5 py-4 text-center">
+                                            <span className="flex items-center justify-center gap-1"><BedDouble size={12} /> Ocupación</span>
+                                        </th>
+                                        <th className="px-5 py-4 text-center">
+                                            <span className="flex items-center justify-center gap-1"><HeartPulse size={12} /> Facility Health</span>
+                                        </th>
+                                        <th className="px-5 py-4 text-center">
+                                            <span className="flex items-center justify-center gap-1"><Users size={12} /> Score RRHH</span>
+                                        </th>
+                                        <th className="px-5 py-4 text-center">
+                                            <span className="flex items-center justify-center gap-1"><HeartHandshake size={12} /> Sat. Familiar</span>
+                                        </th>
+                                        <th className="px-5 py-4 text-center">
+                                            <span className="flex items-center justify-center gap-1"><Activity size={12} /> eMAR</span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {rankingData && rankingData.map((row) => (
-                                        <tr key={row.rank} className="hover:bg-slate-50/80 transition-colors">
-                                            <td className="px-6 py-4 font-bold text-slate-800 flex items-center gap-3">
-                                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${row.rank === 1 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                    {row.rank}
-                                                </span>
-                                                {row.facility}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {row.empScore !== null && row.empScore !== undefined ? (
-                                                    <span className={`px-2.5 py-1 rounded font-bold text-xs ${row.empScore >= 90 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                        {row.empScore}/100
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-400 font-bold text-xs" title="Sin evaluaciones registradas">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {row.famSatisfaction !== null && row.famSatisfaction !== undefined ? (
-                                                    <span className="font-bold text-slate-700">{row.famSatisfaction}%</span>
-                                                ) : (
-                                                    <span className="text-slate-400 font-bold text-xs" title="Sin encuestas de satisfacción familiar">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {row.medsCompliance !== null && row.medsCompliance !== undefined ? (
-                                                    <span className="font-bold text-teal-700">{row.medsCompliance}%</span>
-                                                ) : (
-                                                    <span className="text-slate-400 font-bold text-xs" title="Sin administraciones de medicamentos">—</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {rankingData && rankingData.map((row: any) => {
+                                        const gradeColor: Record<string, string> = {
+                                            EXCELENTE: 'bg-emerald-100 text-emerald-700',
+                                            BUENO: 'bg-teal-100 text-teal-700',
+                                            ALERTA: 'bg-amber-100 text-amber-700',
+                                            CRITICO: 'bg-rose-100 text-rose-700',
+                                        };
+                                        const fhsColor = row.facilityHealthGrade ? gradeColor[row.facilityHealthGrade] : 'bg-slate-100 text-slate-500';
+                                        return (
+                                            <tr key={row.rank} className="hover:bg-slate-50/80 transition-colors">
+                                                <td className="px-5 py-4 font-bold text-slate-800">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${row.rank === 1 ? 'bg-amber-100 text-amber-600' : row.rank === 2 ? 'bg-slate-200 text-slate-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {row.rank}
+                                                        </span>
+                                                        <div>
+                                                            <p className="font-bold text-slate-800 leading-tight">{row.facility}</p>
+                                                            {row.capacity && <p className="text-[10px] text-slate-400 font-medium">{row.capacity} camas autorizadas</p>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    {row.occupancyRate !== null && row.occupancyRate !== undefined ? (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <span className={`text-sm font-black ${row.occupancyRate >= 90 ? 'text-emerald-600' : row.occupancyRate >= 70 ? 'text-teal-600' : 'text-amber-600'}`}>
+                                                                {row.occupancyRate}%
+                                                            </span>
+                                                            <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full ${row.occupancyRate >= 90 ? 'bg-emerald-500' : row.occupancyRate >= 70 ? 'bg-teal-500' : 'bg-amber-500'}`}
+                                                                    style={{ width: `${Math.min(row.occupancyRate, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400">{row.activePatients}/{row.capacity}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-xs font-bold">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    {row.facilityHealthScore !== undefined && row.facilityHealthScore !== null ? (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <span className={`text-sm font-black ${row.facilityHealthScore >= 90 ? 'text-emerald-600' : row.facilityHealthScore >= 75 ? 'text-teal-600' : row.facilityHealthScore >= 55 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                                                {row.facilityHealthScore}
+                                                            </span>
+                                                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${fhsColor}`}>
+                                                                {row.facilityHealthGrade}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-400 text-xs font-bold">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    {row.empScore !== null && row.empScore !== undefined ? (
+                                                        <span className={`px-2.5 py-1 rounded-lg font-black text-xs ${row.empScore >= 90 ? 'bg-emerald-100 text-emerald-700' : row.empScore >= 75 ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                            {row.empScore}/100
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400 font-bold text-xs" title="Sin evaluaciones registradas">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    {row.famSatisfaction !== null && row.famSatisfaction !== undefined ? (
+                                                        <span className="font-bold text-slate-700">{row.famSatisfaction}%</span>
+                                                    ) : (
+                                                        <span className="text-slate-400 font-bold text-xs" title="Sin encuestas">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-center">
+                                                    {row.medsCompliance !== null && row.medsCompliance !== undefined ? (
+                                                        <span className={`font-black text-xs px-2.5 py-1 rounded-lg ${row.medsCompliance >= 90 ? 'bg-emerald-100 text-emerald-700' : row.medsCompliance >= 75 ? 'bg-teal-100 text-teal-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                            {row.medsCompliance}%
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-400 font-bold text-xs" title="Sin administraciones">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {rankingData.length === 0 && (
-                                        <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500">No hay datos de sedes registrados. Añade una sede para comenzar.</td></tr>
+                                        <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500">No hay datos de sedes registrados. Añade una sede para comenzar.</td></tr>
                                     )}
                                 </tbody>
                             </table>
