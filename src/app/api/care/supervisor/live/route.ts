@@ -89,6 +89,8 @@ export async function GET(req: Request) {
             handoversTodayFull,
             activeIncidentReports,
             todayZoneInspections,
+            // ── Tickets referidos a enfermería hoy (para filtrarlos del feed) ──
+            referredTodayLogs,
         ] = await Promise.all([
             // 1. Cuidadores Activos — ventana rodante de 14h para incluir turnos
             //    NIGHT que arrancaron antes del día clínico actual y sesiones que
@@ -198,7 +200,26 @@ export async function GET(req: Request) {
                 where: { headquartersId: hqId, createdAt: { gte: todayStart } },
                 select: { id: true, roundType: true, floor: true, zoneName: true, createdAt: true },
             }),
+            // ── Tickets referidos a enfermería hoy — para ocultarlos del feed
+            prisma.systemAuditLog.findMany({
+                where: {
+                    headquartersId: hqId,
+                    action: 'ESCALATED',
+                    createdAt: { gte: todayStart },
+                },
+                select: { payloadChanges: true },
+            }),
         ]);
+
+        // IDs de sourceId referidos a enfermería hoy → se excluyen del triageFeed
+        const referredSourceIds = new Set<string>(
+            referredTodayLogs
+                .map((r: any) => {
+                    const p = r.payloadChanges as any;
+                    return p?.kind === 'REFERRED_TO_NURSING' ? p.sourceId : null;
+                })
+                .filter(Boolean)
+        );
 
         // ============================================================================
         // PROCESAMIENTO SINCRÓNICO (CPU) POST-DB
@@ -300,10 +321,13 @@ export async function GET(req: Request) {
         });
 
         // SPRINT 4: Zendi ATC Poli-Incidente (Clustering Geográfico/Multidimensional)
+        // Filtrar tickets ya referidos a enfermería hoy antes de clusterizar
+        const activeTriage = triageFeed.filter(t => !referredSourceIds.has(t.sourceId));
+
         const clusteredTriage: TriageTicket[] = [];
         const pxClusters: Record<string, TriageTicket[]> = {};
-        
-        triageFeed.forEach(t => {
+
+        activeTriage.forEach(t => {
             if (t.patientId) {
                 if (!pxClusters[t.patientId]) pxClusters[t.patientId] = [];
                 pxClusters[t.patientId].push(t);
