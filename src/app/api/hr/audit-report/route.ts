@@ -416,8 +416,10 @@ export async function PATCH(request: Request) {
         const human = typeof humanScore === 'number' ? humanScore : null;
         // finalScore = humanScore si existe, si no = systemScore (auditoría cerrada sin ajuste manual)
         const finalScore = human !== null ? human : existing.systemScore;
+        const invokerId = (session.user as any).id;
 
-        // Actualizar PerformanceScore + propagar finalScore a User.complianceScore en paralelo
+        // Actualizar PerformanceScore + propagar finalScore a User.complianceScore +
+        // crear EmployeeEvaluation para que Insights refleje el score de la auditoría
         const [updated] = await Promise.all([
             prisma.performanceScore.update({
                 where: { id: performanceScoreId },
@@ -431,6 +433,18 @@ export async function PATCH(request: Request) {
             prisma.user.update({
                 where: { id: existing.userId },
                 data: { complianceScore: Math.round(finalScore) },
+            }),
+            // Sincronizar con EmployeeEvaluation para que Insights, HR page y
+            // el directorio muestren el score actualizado sin intervención manual
+            prisma.employeeEvaluation.create({
+                data: {
+                    headquartersId: hqId,
+                    employeeId: existing.userId,
+                    evaluatorId: invokerId,
+                    score: Math.round(finalScore),
+                    categoryScores: { auditoria_formal: Math.round(finalScore) },
+                    feedback: feedback || `Auditoría formal cerrada por dirección. Score: ${Math.round(finalScore)}/100`,
+                },
             }),
         ]);
 
