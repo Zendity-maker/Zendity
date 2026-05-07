@@ -377,7 +377,7 @@ export default function ConciergePage() {
                                                     onClick={() => setExpandedService(isExpanded ? null : service.id)}
                                                     className="w-full flex items-center justify-between text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl px-3 py-2 transition-colors border border-indigo-100"
                                                 >
-                                                    <span>ℹ️ Descripción y beneficios</span>
+                                                    <span>Descripción y beneficios</span>
                                                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                                 </button>
                                                 {isExpanded && (
@@ -446,7 +446,7 @@ export default function ConciergePage() {
                                                     onClick={() => setExpandedService(expandedService === product.id ? null : product.id)}
                                                     className="w-full flex items-center justify-between text-xs font-black text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl px-3 py-2 transition-colors border border-sky-100 mb-1"
                                                 >
-                                                    <span>ℹ️ Descripción del producto</span>
+                                                    <span>Descripción del producto</span>
                                                     {expandedService === product.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                                 </button>
                                                 {expandedService === product.id && (
