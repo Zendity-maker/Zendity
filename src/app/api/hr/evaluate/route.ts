@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
 
 export const maxDuration = 60; // Parche Staging Integral E2E
 
@@ -133,6 +134,18 @@ export async function POST(request: NextRequest) {
                     }
                 });
             }
+        }
+
+        // 6. Recalcular complianceScore inmediatamente (no esperar al cron nocturno)
+        try {
+            const { score: newScore } = await calculateDynamicScore(employeeId);
+            await prisma.user.update({
+                where: { id: employeeId },
+                data: { complianceScore: newScore }
+            });
+        } catch (scoreErr) {
+            console.error("[evaluate] No se pudo recalcular complianceScore en tiempo real:", scoreErr);
+            // No falla el request — el cron nocturno lo corregirá
         }
 
         return NextResponse.json({
