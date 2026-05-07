@@ -17,11 +17,11 @@ const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN'];
 
 function pointsFor(severity: HrIncidentSeverity): { delta: number; setToZero: boolean } {
     switch (severity) {
-        case 'OBSERVATION': return { delta: 0, setToZero: false };
-        case 'WARNING': return { delta: -5, setToZero: false };
-        case 'SUSPENSION': return { delta: -15, setToZero: false };
+        case 'OBSERVATION': return { delta: -3, setToZero: false };   // Antes: 0. Ahora penaliza 3 pts
+        case 'WARNING':     return { delta: -8, setToZero: false };   // Antes: -5
+        case 'SUSPENSION':  return { delta: -20, setToZero: false };  // Antes: -15
         case 'TERMINATION': return { delta: 0, setToZero: true };
-        default: return { delta: 0, setToZero: false };
+        default:            return { delta: 0, setToZero: false };
     }
 }
 

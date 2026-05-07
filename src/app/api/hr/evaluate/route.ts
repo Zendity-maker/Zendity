@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
 import { notifyUser } from '@/lib/notifications';
+import { applyScoreEvent } from '@/lib/score-event';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -174,15 +175,36 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 6. Recalcular complianceScore inmediatamente (no esperar al cron nocturno)
+        // 6. Recalcular complianceScore inmediatamente y registrar en historial
         let newScore = globalScore;
         try {
             const result = await calculateDynamicScore(employeeId);
             newScore = result.score;
-            await prisma.user.update({
-                where: { id: employeeId },
-                data: { complianceScore: newScore }
-            });
+            const currentUser = await prisma.user.findUnique({ where: { id: employeeId }, select: { complianceScore: true, headquartersId: true } });
+            const scoreDeltaCron = newScore - (currentUser?.complianceScore ?? 100);
+            if (scoreDeltaCron !== 0) {
+                // applyScoreEvent actualiza el score Y crea el ScoreEvent (alimenta la gráfica)
+                await applyScoreEvent(
+                    employeeId,
+                    evaluator.headquartersId,
+                    scoreDeltaCron,
+                    `Evaluación supervisora — score actualizado a ${newScore}/100`,
+                    'EVALUATION',
+                );
+            } else {
+                // Score no cambió pero registrar snapshot igual para la gráfica
+                await prisma.scoreEvent.create({
+                    data: {
+                        userId: employeeId,
+                        headquartersId: evaluator.headquartersId,
+                        delta: 0,
+                        reason: `Evaluación supervisora — score estable en ${newScore}/100`,
+                        category: 'EVALUATION',
+                        scoreBefore: newScore,
+                        scoreAfter: newScore,
+                    }
+                });
+            }
         } catch (scoreErr) {
             console.error("[evaluate] No se pudo recalcular complianceScore en tiempo real:", scoreErr);
         }

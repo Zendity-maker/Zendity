@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
+import { applyScoreEvent } from '@/lib/score-event';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,17 +50,22 @@ export async function GET(req: Request) {
         for (const u of users) {
             try {
                 const { score } = await calculateDynamicScore(u.id);
-                if (score !== u.complianceScore) {
-                    await prisma.user.update({
-                        where: { id: u.id },
-                        data: { complianceScore: score },
-                    });
+                const delta = score - u.complianceScore;
+                if (delta !== 0) {
+                    // Actualizar el score y crear ScoreEvent para alimentar la gráfica
+                    await applyScoreEvent(
+                        u.id,
+                        u.headquartersId,
+                        delta,
+                        `Recálculo diario de compliance — nueva fórmula dinámica`,
+                        'SHIFT',
+                    );
                     diffs.push({
                         name: u.name,
                         role: u.role,
                         from: u.complianceScore,
                         to: score,
-                        delta: score - u.complianceScore,
+                        delta,
                     });
                     updated++;
                 } else {
