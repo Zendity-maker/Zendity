@@ -73,6 +73,41 @@ export async function calculateDynamicScore(userId: string) {
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgo   = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
+    // ── Cobertura de Ronda (aplica solo a CAREGIVER) ──────────────────────
+    // +10 si cobertura ≥ 90%, +5 si ≥ 70%, -10 si < 50% (y tiene grupo asignado)
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, headquartersId: true } });
+    let roundBonus = 0;
+
+    if (user?.role === 'CAREGIVER' && user.headquartersId) {
+        const lastColorAssignment = await prisma.shiftColorAssignment.findFirst({
+            where: { userId },
+            orderBy: { assignedAt: 'desc' },
+            select: { color: true }
+        });
+        const myColor = lastColorAssignment?.color;
+        if (myColor) {
+            const groupPatients = await prisma.patient.findMany({
+                where: { headquartersId: user.headquartersId, status: 'ACTIVE', colorGroup: myColor as any },
+                select: { id: true }
+            });
+            const groupIds = groupPatients.map(p => p.id);
+            if (groupIds.length > 0) {
+                const [bP, mP, rP, lP] = await Promise.all([
+                    prisma.bathLog.findMany({ where: { caregiverId: userId, patientId: { in: groupIds }, timeLogged: { gte: sevenDaysAgo } }, select: { patientId: true }, distinct: ['patientId'] }),
+                    prisma.mealLog.findMany({ where: { caregiverId: userId, patientId: { in: groupIds }, timeLogged: { gte: sevenDaysAgo } }, select: { patientId: true }, distinct: ['patientId'] }),
+                    prisma.posturalChangeLog.findMany({ where: { nurseId: userId, patientId: { in: groupIds }, performedAt: { gte: sevenDaysAgo } }, select: { patientId: true }, distinct: ['patientId'] }),
+                    prisma.dailyLog.findMany({ where: { authorId: userId, patientId: { in: groupIds }, createdAt: { gte: sevenDaysAgo } }, select: { patientId: true }, distinct: ['patientId'] }),
+                ]);
+                const attended = new Set([...bP, ...mP, ...rP, ...lP].map(r => r.patientId)).size;
+                const coverage = (attended / groupIds.length) * 100;
+                if (coverage >= 90)      roundBonus = +10;
+                else if (coverage >= 70) roundBonus = +5;
+                else if (coverage >= 50) roundBonus = 0;
+                else                     roundBonus = -10; // ronda incompleta severa
+            }
+        }
+    }
+
     // ── Positivos clínicos (últimos 7 días) ──
     const [rotationsOnTime, medsAdministered, preventiveAlerts] = await Promise.all([
         prisma.posturalChangeLog.count({
@@ -187,8 +222,8 @@ export async function calculateDynamicScore(userId: string) {
         (unclosedSessions * 10) +
         (incompleteHandovers * 10);
 
-    // Base 75 — score de 100 debe ganarse: eval alta + actividad + cero incidentes
-    const raw   = 75 + positives - negatives - observationPenalty + evaluationDelta + extraDelta;
+    // Base 75 — score de 100 debe ganarse: eval alta + actividad + ronda completa + cero incidentes
+    const raw   = 75 + positives - negatives - observationPenalty + evaluationDelta + extraDelta + roundBonus;
     const score = Math.max(0, Math.min(100, Math.round(raw)));
 
     return {
@@ -200,6 +235,7 @@ export async function calculateDynamicScore(userId: string) {
             observationPenalty,
             evaluationDelta,
             extraDelta,
+            roundBonus,
             total: Math.round(raw),
             details: {
                 rotationsOnTime,
