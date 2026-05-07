@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
 import { notifyUser } from '@/lib/notifications';
+import sgMail from '@sendgrid/mail';
+
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 export const maxDuration = 60; // Parche Staging Integral E2E
 
@@ -113,26 +118,31 @@ export async function POST(request: NextRequest) {
             } catch (e) { console.error('[notify SHIFT_BLOCKED]', e); }
 
         } else {
-            // FASE 66: Gamification Points for Positive Evaluation
-            let bonus = 0;
-            if (globalScore >= 95) bonus = 5;
-            else if (globalScore >= 80) bonus = 3;
-            else if (globalScore >= 60) bonus = 1;
+            // ScoreEvent proporcional — negativo si es bajo, positivo si es alto
+            // (ya no siempre positivo — evaluación de 60 no puede dar puntos)
+            let scoreDelta = 0;
+            if (globalScore >= 95)      scoreDelta = 5;
+            else if (globalScore >= 80) scoreDelta = 2;
+            else if (globalScore >= 70) scoreDelta = -3;
+            else if (globalScore >= 60) scoreDelta = -8;
+            else                        scoreDelta = -15;
 
-            if (bonus > 0) {
+            if (scoreDelta !== 0) {
                 const targetUser = await prisma.user.findUnique({ where: { id: employeeId }, select: { headquartersId: true } });
                 if (targetUser) {
                     const { applyScoreEvent } = await import('@/lib/score-event');
-                    await applyScoreEvent(employeeId, targetUser.headquartersId, bonus,
-                        'Evaluación positiva del supervisor', 'EVALUATION');
+                    await applyScoreEvent(employeeId, targetUser.headquartersId, scoreDelta,
+                        `Evaluación supervisora: ${globalScore}/100`, 'EVALUATION');
                 }
             }
 
-            // Notificar al empleado con resultado positivo
+            // Notificar al empleado con resultado
             try {
                 const msg = globalScore >= 90
                     ? `¡Excelente evaluación! Obtuviste ${globalScore}/100. Sigue así.`
-                    : `Tu evaluación fue completada con ${globalScore}/100. Revisa tus resultados en tu perfil.`;
+                    : globalScore >= 80
+                    ? `Tu evaluación fue completada con ${globalScore}/100. Buen trabajo.`
+                    : `Tu evaluación fue de ${globalScore}/100. Hay áreas de mejora — revisa tu perfil.`;
                 await notifyUser(employeeId, {
                     type: 'EVALUATION_COMPLETE',
                     title: '📋 Evaluación de desempeño registrada',
@@ -165,15 +175,90 @@ export async function POST(request: NextRequest) {
         }
 
         // 6. Recalcular complianceScore inmediatamente (no esperar al cron nocturno)
+        let newScore = globalScore;
         try {
-            const { score: newScore } = await calculateDynamicScore(employeeId);
+            const result = await calculateDynamicScore(employeeId);
+            newScore = result.score;
             await prisma.user.update({
                 where: { id: employeeId },
                 data: { complianceScore: newScore }
             });
         } catch (scoreErr) {
             console.error("[evaluate] No se pudo recalcular complianceScore en tiempo real:", scoreErr);
-            // No falla el request — el cron nocturno lo corregirá
+        }
+
+        // 7. Correo electrónico al empleado
+        try {
+            const employee = await prisma.user.findUnique({
+                where: { id: employeeId },
+                select: { name: true, email: true }
+            });
+            const hq = await prisma.headquarters.findUnique({
+                where: { id: evaluator.headquartersId },
+                select: { name: true }
+            });
+
+            if (employee?.email && process.env.SENDGRID_API_KEY) {
+                const hqName   = hq?.name || 'Zendity';
+                const empName  = employee.name.split(' ')[0];
+                const fechaHoy = new Date().toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+                const subjectLine = isPenalized
+                    ? `⚠️ Evaluación de desempeño — Acceso suspendido temporalmente`
+                    : globalScore >= 80
+                    ? `✅ Evaluación de desempeño completada — ${globalScore}/100`
+                    : `📋 Evaluación de desempeño registrada — ${globalScore}/100`;
+
+                const bodyHtml = isPenalized ? `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b">
+                        <div style="background:#ef4444;padding:24px;border-radius:12px 12px 0 0;text-align:center">
+                            <h1 style="color:white;margin:0;font-size:22px">⚠️ Turno Suspendido Temporalmente</h1>
+                        </div>
+                        <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+                            <p style="font-size:16px">Hola <strong>${empName}</strong>,</p>
+                            <p>Tu evaluación de desempeño del <strong>${fechaHoy}</strong> en <strong>${hqName}</strong> resultó en una puntuación de <strong style="color:#ef4444">${globalScore}/100</strong>.</p>
+                            <div style="background:#fef2f2;border-left:4px solid #ef4444;padding:16px;border-radius:8px;margin:20px 0">
+                                <p style="margin:0;font-weight:bold;color:#dc2626">Razón del bloqueo:</p>
+                                <p style="margin:8px 0 0">${blockReasonText}</p>
+                            </div>
+                            <p style="font-weight:bold">¿Qué debo hacer?</p>
+                            <p>Para reactivar tu acceso al turno y al eMAR, completa el curso de refuerzo asignado en la plataforma Academy de Zendity. Una vez completado, tu acceso se restaurará automáticamente.</p>
+                            <div style="text-align:center;margin:28px 0">
+                                <a href="https://app.zendity.com/academy" style="background:#7c3aed;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ir a Academy →</a>
+                            </div>
+                            <p style="color:#64748b;font-size:13px">Si tienes preguntas, habla directamente con tu supervisor. Este correo fue generado automáticamente por Zendity RRHH.</p>
+                        </div>
+                    </div>` : `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1e293b">
+                        <div style="background:${globalScore >= 80 ? '#10b981' : '#f59e0b'};padding:24px;border-radius:12px 12px 0 0;text-align:center">
+                            <h1 style="color:white;margin:0;font-size:22px">${globalScore >= 80 ? '✅ ¡Buena evaluación!' : '📋 Evaluación registrada'}</h1>
+                        </div>
+                        <div style="background:#fff;padding:32px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px">
+                            <p style="font-size:16px">Hola <strong>${empName}</strong>,</p>
+                            <p>Tu evaluación de desempeño del <strong>${fechaHoy}</strong> en <strong>${hqName}</strong> fue registrada.</p>
+                            <div style="background:#f8fafc;border-radius:12px;padding:24px;text-align:center;margin:20px 0">
+                                <p style="margin:0;color:#64748b;font-size:14px">Puntuación obtenida</p>
+                                <p style="margin:8px 0 0;font-size:48px;font-weight:bold;color:${globalScore >= 80 ? '#10b981' : '#f59e0b'}">${globalScore}<span style="font-size:24px">/100</span></p>
+                                <p style="margin:8px 0 0;color:#64748b;font-size:13px">Score Compliance actualizado: ${newScore}/100</p>
+                            </div>
+                            ${globalScore < 80 ? '<p style="color:#92400e;background:#fef3c7;padding:12px;border-radius:8px">Hay áreas de mejora identificadas. Revisa el detalle en tu perfil de la aplicación.</p>' : '<p>¡Sigue con el buen trabajo! Tu compromiso con la calidad asistencial marca la diferencia.</p>'}
+                            <div style="text-align:center;margin:28px 0">
+                                <a href="https://app.zendity.com/care" style="background:#0f766e;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Ver mi perfil →</a>
+                            </div>
+                            <p style="color:#64748b;font-size:13px">Este correo fue generado automáticamente por Zendity RRHH.</p>
+                        </div>
+                    </div>`;
+
+                await sgMail.send({
+                    to: employee.email,
+                    from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
+                    subject: `[${hqName}] ${subjectLine}`,
+                    html: bodyHtml,
+                });
+            }
+        } catch (emailErr) {
+            console.error("[evaluate] Error enviando correo:", emailErr);
+            // No falla el request principal
         }
 
         return NextResponse.json({
