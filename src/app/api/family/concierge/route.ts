@@ -133,10 +133,7 @@ export async function POST(request: Request) {
             if (!serv) return NextResponse.json({ success: false, error: 'Servicio no encontrado' }, { status: 404 });
             itemName = serv.name;
             itemCategory = serv.category;
-
-            if (familyMember.patient.conciergeBalance < price) {
-                return NextResponse.json({ success: false, error: 'Saldo Insuficiente. Adquiere una Gift Card para recargar.' }, { status: 400 });
-            }
+            // Los servicios se facturan en la cuenta mensual — no requieren saldo previo
         }
 
         await prisma.$transaction(async (tx) => {
@@ -216,14 +213,53 @@ export async function POST(request: Request) {
                 });
             }
 
-            // ── CASO C: RESERVA DE SERVICIO CON FECHA ────────────────────────
+            // ── CASO C: RESERVA DE SERVICIO CON FECHA → se carga a factura mensual ──
             else if (type === 'service') {
                 const scheduledDate = new Date(scheduledAt);
 
-                // Descontar saldo
-                await tx.patient.update({
-                    where: { id: familyMember.patientId },
-                    data: { conciergeBalance: { decrement: price } }
+                // Añadir a la factura mensual del residente
+                const startOfMonth = new Date();
+                startOfMonth.setDate(1);
+                startOfMonth.setHours(0, 0, 0, 0);
+
+                let currentInvoice = await tx.invoice.findFirst({
+                    where: {
+                        patientId: familyMember.patientId,
+                        status: 'PENDING',
+                        issueDate: { gte: startOfMonth }
+                    }
+                });
+
+                if (!currentInvoice) {
+                    currentInvoice = await tx.invoice.create({
+                        data: {
+                            headquartersId: familyMember.headquartersId,
+                            patientId: familyMember.patientId,
+                            invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+                            issueDate: new Date(),
+                            dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5),
+                            status: 'PENDING',
+                            notes: 'Generada automáticamente por servicios Concierge Marketplace'
+                        }
+                    });
+                }
+
+                await tx.invoiceItem.create({
+                    data: {
+                        invoiceId: currentInvoice.id,
+                        description: `Servicio Concierge: ${itemName} — ${scheduledDate.toLocaleDateString('es-PR', { day: '2-digit', month: 'long' })}`,
+                        quantity: 1,
+                        unitPrice: price,
+                        totalPrice: price
+                    }
+                });
+
+                await tx.invoice.update({
+                    where: { id: currentInvoice.id },
+                    data: {
+                        subtotal: { increment: price },
+                        totalAmount: { increment: price }
+                    }
                 });
 
                 // Crear cita con fecha
@@ -260,7 +296,7 @@ export async function POST(request: Request) {
                         patientId: familyMember.patientId,
                         senderType: 'SYSTEM',
                         senderId: 'SYSTEM',
-                        content: `✅ Tu solicitud de *${itemName}* fue registrada para el ${scheduledDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })} a las ${scheduledDate.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}. El equipo confirmará la asignación del especialista en breve.`,
+                        content: `✅ Tu solicitud de *${itemName}* fue registrada para el ${scheduledDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })} a las ${scheduledDate.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}. El cargo de $${price.toFixed(2)} aparecerá en tu próxima factura mensual. El equipo confirmará la asignación del especialista en breve.`,
                     }
                 });
             }
