@@ -2164,11 +2164,18 @@ export default function ZendityCareTabletPage() {
                 <div ref={scorePanelRef} className="relative">
                     <button
                         onClick={() => setScorePanelOpen(v => !v)}
-                        className="relative flex items-center gap-1.5 px-2.5 h-9 rounded-[10px] bg-white/10 hover:bg-white/20 transition-colors"
-                        title="Mi Z-Score"
+                        className={`relative flex items-center gap-2 px-3 h-9 rounded-[10px] transition-all
+                            ${myScore
+                                ? myScore.score >= 80
+                                    ? 'bg-emerald-500/15 hover:bg-emerald-500/25 ring-1 ring-emerald-500/30'
+                                    : myScore.score >= 60
+                                        ? 'bg-amber-500/15 hover:bg-amber-500/25 ring-1 ring-amber-500/30'
+                                        : 'bg-rose-500/15 hover:bg-rose-500/25 ring-1 ring-rose-500/30'
+                                : 'bg-white/10 hover:bg-white/15'}`}
+                        title="Mi puntuación"
                     >
-                        <span className="text-[10px] font-black text-white/70 uppercase tracking-wider hidden sm:inline">Z</span>
-                        <span className={`text-sm font-black tabular-nums ${myScore ? (myScore.score >= 80 ? 'text-emerald-300' : myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300') : 'text-white/50'}`}>
+                        <span className="text-[10px] font-black text-white/50 uppercase tracking-wider hidden sm:inline">Score</span>
+                        <span className={`text-sm font-black tabular-nums ${myScore ? (myScore.score >= 80 ? 'text-emerald-300' : myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300') : 'text-white/40'}`}>
                             {myScore ? myScore.score : '—'}
                         </span>
                     </button>
@@ -2219,6 +2226,7 @@ export default function ZendityCareTabletPage() {
                                         { icon: '🔴', label: 'Negativos clínicos', value: -b.negatives,         detail: `${d.medsOmitted} meds omitidos · ${d.rotationsLate} rot. tardías · ${d.fastActionsFailed} fast-actions fallidas`, type: b.negatives > 0 ? 'neg' : 'neutral' },
                                         { icon: '🔒', label: 'Sesiones sin cerrar',value: -(d.unclosedSessions * 10), detail: `${d.unclosedSessions} sesión(es) sin cerrar (últimos 14 días)`, type: d.unclosedSessions > 0 ? 'neg' : 'neutral' },
                                         { icon: '🤝', label: 'Handovers',          value: -(d.incompleteHandovers * 10), detail: `${d.incompleteHandovers} handover(s) sin completar`,  type: d.incompleteHandovers > 0 ? 'neg' : 'neutral' },
+                                        { icon: '📭', label: 'Turnos sin registro',value: -((d.blankShifts ?? 0) * 10), detail: `${d.blankShifts ?? 0} turno(s) cerrado(s) sin ningún registro clínico`, type: (d.blankShifts ?? 0) > 0 ? 'neg' : 'neutral' },
                                         { icon: '📋', label: 'Observaciones',      value: -b.observationPenalty, detail: `${d.appliedObservationsCount} observación(es) aplicada(s)`, type: b.observationPenalty > 0 ? 'neg' : 'neutral' },
                                         { icon: '📊', label: 'Evaluación supervisor', value: b.evaluationDelta, detail: `${d.evaluationsCount} evaluación(es) · la más reciente pesa doble`, type: b.evaluationDelta > 0 ? 'pos' : b.evaluationDelta < 0 ? 'neg' : 'neutral' },
                                         { icon: '⭐', label: 'Misiones / Academy', value: b.extraDelta,          detail: `${d.extraScoreEventsCount} evento(s) · máximo +10 pts`,    type: b.extraDelta > 0 ? 'pos' : 'neutral' },
@@ -2258,6 +2266,7 @@ export default function ZendityCareTabletPage() {
                                             {/* Tip contextual */}
                                             {(() => {
                                                 const tips = [];
+                                                if ((d.blankShifts ?? 0) > 0) tips.push(`Tienes ${d.blankShifts} turno(s) sin ningún registro — si trabajaste, registra.`);
                                                 if (d.unclosedSessions > 0) tips.push('Cierra tu sesión al terminar el turno.');
                                                 if (d.incompleteHandovers > 0) tips.push('Completa el handover antes de salir.');
                                                 if (d.medsOmitted > 0) tips.push('Justifica los medicamentos omitidos.');

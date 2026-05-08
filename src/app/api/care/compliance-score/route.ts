@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/care/compliance-score?userId=X
  *
- * Fórmula revisada (v2):
+ * Fórmula revisada (v3):
  * Base: 75 puntos
  *
  * Positivos (cap +15 para evitar techo por volumen):
@@ -22,6 +22,7 @@ export const dynamic = 'force-dynamic';
  *   -8  por FastAction FAILED
  *   -10 por sesión no cerrada (actualEndTime IS NULL, últimos 14 días)
  *   -10 por handover no completado (últimos 14 días)
+ *   -10 por turno cerrado con CERO registros clínicos (últimos 14 días)
  *   - Σ pointsDeducted de observaciones APPLIED (últimos 90 días)
  *
  * Evaluaciones del supervisor (últimos 90 días, la más reciente pesa más):
@@ -156,6 +157,37 @@ export async function calculateDynamicScore(userId: string) {
         }
     });
 
+    // ── Turnos en blanco: sesiones cerradas con CERO registros clínicos (últimos 14 días) ──
+    // Se evalúan solo sesiones cerradas (actualEndTime != null) con duración ≥ 1h
+    // para evitar penalizar aperturas accidentales.
+    const closedSessionsForBlank = await prisma.shiftSession.findMany({
+        where: {
+            caregiverId: userId,
+            startTime: { gte: fourteenDaysAgo, lt: todayStart },
+            actualEndTime: { not: null },
+        },
+        select: { startTime: true, actualEndTime: true },
+    });
+
+    let blankShifts = 0;
+    for (const session of closedSessionsForBlank) {
+        const start = session.startTime;
+        const end   = session.actualEndTime!;
+        // Ignorar sesiones de menos de 1 hora (apertura accidental)
+        const durationH = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        if (durationH < 1) continue;
+
+        const [baths, meals, meds, rotations, logs] = await Promise.all([
+            prisma.bathLog.count({ where: { caregiverId: userId, timeLogged:   { gte: start, lte: end } } }),
+            prisma.mealLog.count({ where: { caregiverId: userId, timeLogged:   { gte: start, lte: end } } }),
+            prisma.medicationAdministration.count({ where: { administeredById: userId, administeredAt: { gte: start, lte: end } } }),
+            prisma.posturalChangeLog.count({ where: { nurseId: userId,         performedAt: { gte: start, lte: end } } }),
+            prisma.dailyLog.count({ where: { authorId: userId,                 createdAt:   { gte: start, lte: end } } }),
+        ]);
+
+        if (baths + meals + meds + rotations + logs === 0) blankShifts++;
+    }
+
     // ── Observaciones/Incidentes aplicados (últimos 90 días) ──
     // Sin filtro de pointsDeducted > 0 para no perder registros con null
     const appliedObservations = await prisma.incidentReport.findMany({
@@ -223,7 +255,8 @@ export async function calculateDynamicScore(userId: string) {
         (rotationsLate * 8) +
         (fastActionsFailed * 8) +
         (unclosedSessions * 10) +
-        (incompleteHandovers * 10);
+        (incompleteHandovers * 10) +
+        (blankShifts * 10);
 
     // Base 75 — score de 100 debe ganarse: eval alta + actividad + ronda completa + cero incidentes
     const raw   = 75 + positives - negatives - observationPenalty + evaluationDelta + extraDelta + roundBonus;
@@ -249,6 +282,7 @@ export async function calculateDynamicScore(userId: string) {
                 fastActionsFailed,
                 unclosedSessions,
                 incompleteHandovers,
+                blankShifts,
                 appliedObservationsCount: appliedObservations.length,
                 evaluationsCount: evaluations.length,
                 extraScoreEventsCount: extraScoreEvents.length,

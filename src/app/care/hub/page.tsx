@@ -21,6 +21,7 @@ interface ScoreData {
             rotationsLate: number;
             unclosedSessions: number;
             incompleteHandovers: number;
+            blankShifts: number;
             medsAdministered: number;
             rotationsOnTime: number;
         };
@@ -92,6 +93,7 @@ export default function CareHubPage() {
                 const bgClass = s >= 80 ? 'bg-emerald-500/5' : s >= 60 ? 'bg-amber-500/5' : 'bg-rose-500/5';
                 const label = s >= 80 ? 'Excelente' : s >= 60 ? 'Buen trabajo' : 'En progreso';
                 const tip =
+                    (d.blankShifts ?? 0) > 0 ? `${d.blankShifts} turno${(d.blankShifts ?? 0) > 1 ? 's' : ''} sin ningún registro` :
                     (d.medsOmitted ?? 0) > 0 ? `${d.medsOmitted} medicamento${d.medsOmitted > 1 ? 's' : ''} omitido${d.medsOmitted > 1 ? 's' : ''}` :
                     (d.unclosedSessions ?? 0) > 0 ? 'Cierra tu sesión correctamente' :
                     (d.incompleteHandovers ?? 0) > 0 ? 'Completa el hand-over' :

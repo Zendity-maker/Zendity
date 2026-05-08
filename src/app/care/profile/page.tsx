@@ -23,6 +23,7 @@ interface ScoreBreakdown {
         fastActionsFailed: number;
         unclosedSessions: number;
         incompleteHandovers: number;
+        blankShifts: number;
         appliedObservationsCount: number;
         evaluationsCount: number;
         extraScoreEventsCount: number;
@@ -112,18 +113,22 @@ export default function CaregiverProfilePage() {
                 const ringClass = s >= 80 ? 'ring-emerald-500/30' : s >= 60 ? 'ring-amber-500/30' : 'ring-rose-500/30';
                 const label = s >= 80 ? 'Excelente' : s >= 60 ? 'Buen trabajo' : 'En progreso';
 
+                const blankVal = -((d.blankShifts ?? 0) * 10);
                 const rows = [
                     { label: 'Base', value: b.base, sign: '' },
                     { label: `Positivos (rondas, meds, alertas)`, value: b.positives > 0 ? `+${b.positives}` : b.positives, sign: b.positives > 0 ? 'pos' : 'neutral' },
-                    { label: `Negativos (omisiones, tardanzas)`, value: b.negatives, sign: b.negatives < 0 ? 'neg' : 'neutral' },
-                    { label: `Sesiones sin cerrar`, value: b.observationPenalty !== 0 ? b.observationPenalty : 0, sign: b.observationPenalty < 0 ? 'neg' : 'neutral' },
-                    { label: `Hand-overs incompletos`, value: b.evaluationDelta !== 0 ? (b.evaluationDelta > 0 ? `+${b.evaluationDelta}` : b.evaluationDelta) : 0, sign: b.evaluationDelta > 0 ? 'pos' : b.evaluationDelta < 0 ? 'neg' : 'neutral' },
-                    { label: `Observaciones`, value: b.extraDelta !== 0 ? (b.extraDelta > 0 ? `+${b.extraDelta}` : b.extraDelta) : 0, sign: b.extraDelta > 0 ? 'pos' : b.extraDelta < 0 ? 'neg' : 'neutral' },
-                    { label: `Bono de ronda`, value: b.roundBonus > 0 ? `+${b.roundBonus}` : b.roundBonus, sign: b.roundBonus > 0 ? 'pos' : 'neutral' },
+                    { label: `Negativos (omisiones, tardanzas)`, value: -b.negatives, sign: b.negatives > 0 ? 'neg' : 'neutral' },
+                    { label: `Turnos sin registro`, value: blankVal, sign: blankVal < 0 ? 'neg' : 'neutral' },
+                    { label: `Sesiones sin cerrar`, value: -(d.unclosedSessions * 10), sign: d.unclosedSessions > 0 ? 'neg' : 'neutral' },
+                    { label: `Hand-overs incompletos`, value: -(d.incompleteHandovers * 10), sign: d.incompleteHandovers > 0 ? 'neg' : 'neutral' },
+                    { label: `Observaciones`, value: b.observationPenalty !== 0 ? -b.observationPenalty : 0, sign: b.observationPenalty > 0 ? 'neg' : 'neutral' },
+                    { label: `Evaluación supervisora`, value: b.evaluationDelta !== 0 ? (b.evaluationDelta > 0 ? `+${b.evaluationDelta}` : b.evaluationDelta) : 0, sign: b.evaluationDelta > 0 ? 'pos' : b.evaluationDelta < 0 ? 'neg' : 'neutral' },
+                    { label: `Bono de ronda`, value: b.roundBonus > 0 ? `+${b.roundBonus}` : b.roundBonus, sign: b.roundBonus > 0 ? 'pos' : b.roundBonus < 0 ? 'neg' : 'neutral' },
                 ];
 
                 const tips: string[] = [];
-                if (d.medsOmitted > 0) tips.push(`Tienes ${d.medsOmitted} medicamento${d.medsOmitted > 1 ? 's' : ''} omitido${d.medsOmitted > 1 ? 's' : ''} sin justificación.`);
+                if ((d.blankShifts ?? 0) > 0) tips.push(`${d.blankShifts} turno${(d.blankShifts ?? 0) > 1 ? 's' : ''} cerrado${(d.blankShifts ?? 0) > 1 ? 's' : ''} sin ningún registro clínico.`);
+                if (d.medsOmitted > 0) tips.push(`${d.medsOmitted} medicamento${d.medsOmitted > 1 ? 's' : ''} omitido${d.medsOmitted > 1 ? 's' : ''} sin justificación.`);
                 if (d.unclosedSessions > 0) tips.push(`Cierra tu sesión de turno correctamente al terminar.`);
                 if (d.incompleteHandovers > 0) tips.push(`Completa el hand-over al cierre de turno.`);
                 if (d.rotationsLate > 0) tips.push(`${d.rotationsLate} rotación${d.rotationsLate > 1 ? 'es' : ''} fuera del tiempo establecido.`);
