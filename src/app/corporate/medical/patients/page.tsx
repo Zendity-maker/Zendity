@@ -8,9 +8,163 @@ import {
     UserIcon,
     ArrowRightIcon,
     ExclamationTriangleIcon,
-    BuildingOffice2Icon
+    BuildingOffice2Icon,
+    SparklesIcon,
+    XMarkIcon,
+    CheckCircleIcon
 } from "@heroicons/react/24/outline";
 import SendFamilyEmailModal from "@/components/medical/patient/SendFamilyEmailModal";
+
+// ── Modal de generación masiva de PAIs ──────────────────────────────────────
+function BatchPaiModal({ patients, onClose }: { patients: any[]; onClose: () => void }) {
+    const activePatients = patients.filter(p => p.status === 'ACTIVE');
+    const [running, setRunning] = useState(false);
+    const [done, setDone] = useState(false);
+    const [results, setResults] = useState<{ id: string; name: string; status: 'pending' | 'ok' | 'error'; error?: string }[]>(
+        activePatients.map(p => ({ id: p.id, name: p.name, status: 'pending' }))
+    );
+    const [current, setCurrent] = useState(-1);
+
+    const run = async () => {
+        setRunning(true);
+        for (let i = 0; i < activePatients.length; i++) {
+            setCurrent(i);
+            const p = activePatients[i];
+            try {
+                // 1. Llamar ai-build para generar el PAI
+                const buildRes = await fetch(`/api/corporate/patients/${p.id}/pai/ai-build`, { method: 'POST' });
+                const buildData = await buildRes.json();
+                if (!buildData.success) throw new Error(buildData.error || 'Error IA');
+
+                // 2. Obtener el PAI DRAFT existente para tener su id
+                const getRes = await fetch(`/api/corporate/patients/${p.id}/pai`);
+                const getData = await getRes.json();
+                const existingId = getData.lifePlan?.status === 'DRAFT' ? getData.lifePlan?.id : undefined;
+
+                // 3. Guardar el PAI generado (mantiene DRAFT para revisión)
+                const saveBody = {
+                    ...(existingId ? { id: existingId } : {}),
+                    ...buildData.aiGeneratedPai,
+                    familyVersion: buildData.familyVersion,
+                    status: 'DRAFT',
+                    type: 'INITIAL'
+                };
+                const saveRes = await fetch(`/api/corporate/patients/${p.id}/pai`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(saveBody)
+                });
+                const saveData = await saveRes.json();
+                if (!saveData.success) throw new Error(saveData.error || 'Error al guardar');
+
+                setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'ok' } : r));
+            } catch (err: any) {
+                setResults(prev => prev.map((r, idx) => idx === i ? { ...r, status: 'error', error: err.message } : r));
+            }
+        }
+        setCurrent(-1);
+        setRunning(false);
+        setDone(true);
+    };
+
+    const okCount = results.filter(r => r.status === 'ok').length;
+    const errCount = results.filter(r => r.status === 'error').length;
+    const progress = Math.round(((okCount + errCount) / activePatients.length) * 100);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center">
+                            <SparklesIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="font-black text-slate-800 text-lg leading-none">Generación Masiva de PAIs</h2>
+                            <p className="text-slate-500 text-sm mt-0.5">{activePatients.length} residentes activos · Los PAIs quedan en BORRADOR para revisión</p>
+                        </div>
+                    </div>
+                    {!running && <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors"><XMarkIcon className="w-6 h-6" /></button>}
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-2">
+                    {!running && !done && (
+                        <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 mb-4">
+                            <p className="text-violet-800 font-bold text-sm">¿Qué hará Zendi AI?</p>
+                            <ul className="mt-2 text-violet-700 text-sm space-y-1">
+                                <li>• Analiza signos vitales, medicamentos y adherencia (30 días)</li>
+                                <li>• Detecta caídas, UPPs activas y alertas clínicas</li>
+                                <li>• Genera resumen clínico, riesgos priorizados y objetivos de cuidado</li>
+                                <li>• Redacta versión familiar en lenguaje cálido y comprensible</li>
+                                <li>• Guarda todo como BORRADOR — tú decides cuándo aprobar cada uno</li>
+                            </ul>
+                        </div>
+                    )}
+
+                    {running && (
+                        <div className="mb-4">
+                            <div className="flex justify-between mb-1">
+                                <span className="text-sm font-bold text-slate-600">Progreso</span>
+                                <span className="text-sm font-black text-violet-700">{okCount + errCount} / {activePatients.length}</span>
+                            </div>
+                            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-violet-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {done && (
+                        <div className={`rounded-2xl p-4 mb-4 border ${errCount === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                            <p className={`font-black text-base ${errCount === 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                {errCount === 0 ? '✅ Todos los PAIs generados exitosamente' : `⚠️ ${okCount} generados, ${errCount} con error`}
+                            </p>
+                            <p className="text-sm mt-1 text-slate-600">Ingresa al expediente de cada residente para revisar y aprobar su PAI.</p>
+                        </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                        {results.map((r, i) => (
+                            <div key={r.id} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all ${r.status === 'ok' ? 'bg-emerald-50 border-emerald-200' : r.status === 'error' ? 'bg-red-50 border-red-200' : current === i ? 'bg-violet-50 border-violet-300' : 'bg-slate-50 border-slate-100'}`}>
+                                <div className="flex-shrink-0">
+                                    {r.status === 'ok' && <CheckCircleIcon className="w-4 h-4 text-emerald-500" />}
+                                    {r.status === 'error' && <span className="text-red-500 text-sm font-black">✕</span>}
+                                    {r.status === 'pending' && current === i && <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />}
+                                    {r.status === 'pending' && current !== i && <div className="w-4 h-4 rounded-full border border-slate-200" />}
+                                </div>
+                                <span className={`text-sm font-bold flex-1 ${r.status === 'ok' ? 'text-emerald-700' : r.status === 'error' ? 'text-red-700' : current === i ? 'text-violet-700' : 'text-slate-500'}`}>
+                                    {r.name}
+                                </span>
+                                {r.status === 'ok' && <span className="text-xs font-bold text-emerald-500 bg-emerald-100 px-2 py-0.5 rounded-full">Listo</span>}
+                                {r.status === 'error' && <span className="text-xs text-red-600 truncate max-w-[140px]">{r.error}</span>}
+                                {current === i && r.status === 'pending' && <span className="text-xs font-bold text-violet-500 animate-pulse">Generando...</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+                    {!running && !done && (
+                        <>
+                            <button onClick={onClose} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+                            <button onClick={run} className="px-6 py-2.5 rounded-xl font-black bg-violet-600 text-white hover:bg-violet-700 transition-colors flex items-center gap-2">
+                                <SparklesIcon className="w-4 h-4" /> Generar {activePatients.length} PAIs con IA
+                            </button>
+                        </>
+                    )}
+                    {done && (
+                        <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-black bg-slate-800 text-white hover:bg-slate-900 transition-colors">Cerrar</button>
+                    )}
+                    {running && (
+                        <p className="text-sm text-slate-500 font-medium py-2">Procesando... no cierre esta ventana.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function MasterPatientDirectory() {
     const [patients, setPatients] = useState<any[]>([]);
@@ -18,6 +172,7 @@ export default function MasterPatientDirectory() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [view, setView] = useState<'list' | 'color'>('list');
+    const [showBatchPai, setShowBatchPai] = useState(false);
 
     useEffect(() => {
         const fetchPatients = async () => {
@@ -72,6 +227,7 @@ export default function MasterPatientDirectory() {
     }
 
     return (
+        <>
         <div className="min-h-screen bg-slate-50 p-6 md:p-10 font-sans">
             <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -108,6 +264,13 @@ export default function MasterPatientDirectory() {
 
                     <div className="flex gap-3 w-full md:w-auto">
                         <SendFamilyEmailModal defaultMode="BROADCAST" />
+                        <button
+                            onClick={() => setShowBatchPai(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm rounded-xl transition-colors whitespace-nowrap"
+                        >
+                            <SparklesIcon className="w-4 h-4" />
+                            Generar PAIs con IA
+                        </button>
                     </div>
 
                     <div className="relative w-full md:w-96">
@@ -239,5 +402,10 @@ export default function MasterPatientDirectory() {
 
             </div>
         </div>
+
+        {showBatchPai && (
+            <BatchPaiModal patients={patients} onClose={() => setShowBatchPai(false)} />
+        )}
+    </>
     );
 }
