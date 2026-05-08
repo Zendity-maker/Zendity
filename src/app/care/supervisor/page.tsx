@@ -1710,7 +1710,7 @@ export default function SupervisorMissionControlPage() {
                         </h4>
                         <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 pb-2">
                             {(() => {
-                                const validSessions = liveData?.activeSessions?.filter((s: CaregiverSession) => s.startTime && (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12) || [];
+                                const validSessions = liveData?.activeSessions?.filter((s: CaregiverSession) => s.startTime && (nowTime - new Date(s.startTime).getTime()) / 3600000 < 14) || [];
                                 if (validSessions.length === 0) return (
                                     <div className="p-8 bg-rose-50 border border-rose-200 rounded-[1.5rem] text-center">
                                         <Siren className="w-8 h-8 text-rose-500 mx-auto mb-3" />
