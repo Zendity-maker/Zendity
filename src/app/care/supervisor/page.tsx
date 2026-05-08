@@ -158,6 +158,11 @@ export default function SupervisorMissionControlPage() {
     const [roundsLoading, setRoundsLoading] = useState(false);
     const [roundsLastUpdated, setRoundsLastUpdated] = useState<Date | null>(null);
 
+    // Grupos sin cobertura
+    const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiverName: string }[]>([]);
+    const [uncoveredShiftType, setUncoveredShiftType] = useState<string>('');
+    const [redistributingColor, setRedistributingColor] = useState<string | null>(null);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -172,9 +177,11 @@ export default function SupervisorMissionControlPage() {
             fetchSupervisorData();
             fetchLiveData();
             fetchCaregiverRounds();
+            fetchUncoveredColors();
             const interval = setInterval(() => {
                 fetchLiveData();
                 fetchCaregiverRounds();
+                fetchUncoveredColors();
             }, 15000);
             return () => clearInterval(interval);
         }
@@ -204,6 +211,38 @@ export default function SupervisorMissionControlPage() {
             }
         } catch (e) { console.error("Caregiver rounds fetch error", e); }
         finally { setRoundsLoading(false); }
+    };
+
+    const fetchUncoveredColors = async () => {
+        if (!user) return;
+        const hqId = (user as any).hqId || (user as any).headquartersId || '';
+        try {
+            const res = await fetch(`/api/care/supervisor/uncovered-colors?hqId=${hqId}`);
+            const data = await res.json();
+            if (data.success) {
+                setUncoveredColors(data.uncoveredColors || []);
+                setUncoveredShiftType(data.activeShiftType || '');
+            }
+        } catch (e) { console.error('Uncovered colors fetch error', e); }
+    };
+
+    const handleRedistributeColor = async (color: string) => {
+        setRedistributingColor(color);
+        try {
+            const res = await fetch('/api/care/supervisor/uncovered-colors', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ color, shiftType: uncoveredShiftType }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setUncoveredColors(prev => prev.filter(u => u.color !== color));
+                fetchCaregiverRounds();
+            } else {
+                alert(`Error: ${data.error || 'No se pudo redistribuir'}`);
+            }
+        } catch (e) { console.error('Redistribute error', e); }
+        finally { setRedistributingColor(null); }
     };
 
     const fetchSupervisorData = async () => {
@@ -566,6 +605,50 @@ export default function SupervisorMissionControlPage() {
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>
                 </div>
+
+                {/* ============================================== */}
+                {/* ALERTA GRUPOS SIN COBERTURA                    */}
+                {/* ============================================== */}
+                {uncoveredColors.length > 0 && (() => {
+                    const colorLabel: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
+                    const colorDotClass: Record<string, string> = { RED: 'bg-red-500', YELLOW: 'bg-yellow-400', BLUE: 'bg-blue-500', GREEN: 'bg-green-500' };
+                    const colorBgClass: Record<string, string> = { RED: 'bg-red-50 border-red-200', YELLOW: 'bg-amber-50 border-amber-200', BLUE: 'bg-blue-50 border-blue-200', GREEN: 'bg-green-50 border-green-200' };
+                    return (
+                        <div className="bg-rose-50 border border-rose-200 rounded-[2rem] p-5">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-9 h-9 bg-rose-100 rounded-xl flex items-center justify-center">
+                                    <AlertTriangle className="w-5 h-5 text-rose-600" />
+                                </div>
+                                <div>
+                                    <p className="font-black text-rose-800 text-sm leading-tight">Grupos sin cuidadora en piso</p>
+                                    <p className="text-xs text-rose-600 font-medium">Distribuye sus residentes entre las activas</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                {uncoveredColors.map(u => (
+                                    <div key={u.color} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border ${colorBgClass[u.color] || 'bg-slate-50 border-slate-200'}`}>
+                                        <div className={`w-3 h-3 rounded-full ${colorDotClass[u.color] || 'bg-slate-400'}`} />
+                                        <div>
+                                            <p className="text-sm font-black text-slate-800">Grupo {colorLabel[u.color] || u.color}</p>
+                                            <p className="text-[11px] text-slate-500 font-medium">{u.assignedCaregiverName} no está en piso</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRedistributeColor(u.color)}
+                                            disabled={redistributingColor === u.color}
+                                            className="ml-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                        >
+                                            {redistributingColor === u.color ? (
+                                                <><Loader2 className="w-3 h-3 animate-spin" /> Distribuyendo...</>
+                                            ) : (
+                                                <>⚡ Redistribuir</>
+                                            )}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* ============================================== */}
                 {/* PANEL RONDAS POR CUIDADOR (tiempo real)        */}
