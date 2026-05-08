@@ -113,7 +113,7 @@ export async function POST(req: Request) {
             });
         }
 
-        // ── 4. Algoritmo de menor carga ───────────────────────────────
+        // ── 4. Carga actual de cada cuidador activo ───────────────────
         const caregiverLoads = await Promise.all(
             activeShifts.map(async s => {
                 const assignedColors = s.colorAssignments.map(a => a.color);
@@ -129,68 +129,89 @@ export async function POST(req: Request) {
                         }
                     })
                     : 0;
-                return { shift: s, currentLoad: resCount };
+                return { shift: s, currentLoad: resCount, assigned: [] as typeof residents };
             })
         );
-        const targetLoad = caregiverLoads.sort((a, b) => a.currentLoad - b.currentLoad)[0];
-        const targetShift = targetLoad.shift;
 
-        // ── 5. ShiftPatientOverride por cada residente ─────────────────
-        await prisma.shiftPatientOverride.createMany({
-            data: residents.map(p => ({
-                headquartersId: hqId,
-                patientId: p.id,
-                originalColor: absentColorGroup,
-                assignedColor: targetShift.colorGroup || absentColorGroup,
-                caregiverId: targetShift.userId,
-                shiftDate: shift.date,
-                shiftType: shift.shiftType,
-                reason: 'ABSENCE_REDISTRIB',
-                autoAssigned: true,
-                isActive: true,
-            }))
+        // ── 5. Distribución equitativa (round-robin por carga ascendente) ──
+        // Ordena de menor a mayor carga para que quien tiene menos reciba primero.
+        caregiverLoads.sort((a, b) => a.currentLoad - b.currentLoad);
+        residents.forEach((resident, i) => {
+            caregiverLoads[i % caregiverLoads.length].assigned.push(resident);
         });
 
-        // ── 6. ShiftColorAssignment en el turno receptor ───────────────
-        // Necesario para que computeShiftCoverage detecte el color cubierto.
-        await prisma.shiftColorAssignment.create({
-            data: {
-                headquartersId: hqId,
-                scheduledShiftId: targetShift.id,
-                color: absentColorGroup,
-                userId: targetShift.userId,
-                assignedBy: markedById,
-                isAutoAssigned: true,
-                assignedAt: new Date()
-            }
-        });
+        // ── 6. ShiftPatientOverride + ShiftColorAssignment por cuidador ─
+        await Promise.all(
+            caregiverLoads
+                .filter(c => c.assigned.length > 0)
+                .map(async c => {
+                    await prisma.shiftPatientOverride.createMany({
+                        data: c.assigned.map(p => ({
+                            headquartersId: hqId,
+                            patientId: p.id,
+                            originalColor: absentColorGroup,
+                            assignedColor: c.shift.colorGroup || absentColorGroup,
+                            caregiverId: c.shift.userId,
+                            shiftDate: shift.date,
+                            shiftType: shift.shiftType,
+                            reason: 'ABSENCE_REDISTRIB',
+                            autoAssigned: true,
+                            isActive: true,
+                        }))
+                    });
+                    // Registrar el color cubierto para computeShiftCoverage
+                    await prisma.shiftColorAssignment.create({
+                        data: {
+                            headquartersId: hqId,
+                            scheduledShiftId: c.shift.id,
+                            color: absentColorGroup,
+                            userId: c.shift.userId,
+                            assignedBy: markedById,
+                            isAutoAssigned: true,
+                            assignedAt: new Date()
+                        }
+                    });
+                })
+        );
 
-        // ── 7. Notificaciones ─────────────────────────────────────────
+        // ── 7. Notificaciones individuales con lista de residentes ─────
+        const absentName = shift.user?.name || 'Un cuidador';
         await Promise.all([
-            notifyUser(targetShift.userId, {
-                type: 'SHIFT_ALERT',
-                title: `Redistribución — Grupo ${absentColorGroup}`,
-                message: `${shift.user?.name || 'Un cuidador'} no se presentó. Se te asignó el Grupo ${absentColorGroup} (${residents.length} residente${residents.length === 1 ? '' : 's'}).`
-            }),
+            // Notificar a cada cuidador con SUS residentes específicos
+            ...caregiverLoads
+                .filter(c => c.assigned.length > 0)
+                .map(c => {
+                    const names = c.assigned.map(p => p.name).join(', ');
+                    return notifyUser(c.shift.userId, {
+                        type: 'SHIFT_ALERT',
+                        title: `Cobertura — Grupo ${absentColorGroup} (ausencia)`,
+                        message: `${absentName} no se presentó. Se te asignaron ${c.assigned.length} residente${c.assigned.length === 1 ? '' : 's'} del Grupo ${absentColorGroup}: ${names}.`,
+                        link: '/care'
+                    });
+                }),
+            // Notificar a supervisores con el resumen completo
             notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
                 type: 'SHIFT_ALERT',
-                title: `Ausencia — ${shift.user?.name || 'Cuidador'}`,
-                message: `Grupo ${absentColorGroup} redistribuido automáticamente a ${targetShift.user?.name || 'cuidador disponible'} (${residents.length} residente${residents.length === 1 ? '' : 's'}).`
+                title: `Ausencia — ${absentName} · Grupo ${absentColorGroup}`,
+                message: `${residents.length} residente${residents.length === 1 ? '' : 's'} distribuidos equitativamente entre ${caregiverLoads.filter(c => c.assigned.length > 0).length} cuidador${caregiverLoads.filter(c => c.assigned.length > 0).length === 1 ? '' : 'es'}: ${caregiverLoads.filter(c => c.assigned.length > 0).map(c => `${c.shift.user?.name || '?'} (${c.assigned.length})`).join(', ')}.`,
+                link: '/care/supervisor'
             })
         ]);
+
+        const distributionSummary = caregiverLoads
+            .filter(c => c.assigned.length > 0)
+            .map(c => ({ caregiver: c.shift.user?.name, count: c.assigned.length, patients: c.assigned.map(p => p.name) }));
 
         return NextResponse.json({
             success: true,
             shift,
             absentColorGroup,
             residents,
-            activeShifts: caregiverLoads,
-            suggestedAssignee: targetShift.user,
             redistributionPending: false,
             redistributionCompleted: true,
-            assignedTo: targetShift.user?.name,
+            distribution: distributionSummary,
             residentsRedistributed: residents.length,
-            message: `${residents.length} residente${residents.length === 1 ? '' : 's'} del Grupo ${absentColorGroup} redistribuido${residents.length === 1 ? '' : 's'} automáticamente a ${targetShift.user?.name || 'cuidador disponible'}.`
+            message: `${residents.length} residente${residents.length === 1 ? '' : 's'} del Grupo ${absentColorGroup} distribuidos equitativamente entre ${distributionSummary.length} cuidador${distributionSummary.length === 1 ? '' : 'es'}.`
         });
 
     } catch (error: any) {

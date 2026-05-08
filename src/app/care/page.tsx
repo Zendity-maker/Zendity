@@ -331,6 +331,14 @@ export default function ZendityCareTabletPage() {
     const scorePanelRef = useRef<HTMLDivElement>(null);
     const [myScore, setMyScore] = useState<{ score: number; breakdown: any } | null>(null);
 
+    // Briefing de cobertura por ausencia
+    const [coverageBriefing, setCoverageBriefing] = useState<{
+        hasCoverage: boolean;
+        totalPatients: number;
+        groups: { color: string; patients: { name: string; room: string }[] }[];
+    } | null>(null);
+    const [coverageBriefingOpen, setCoverageBriefingOpen] = useState(false);
+
     // Fetch de notificaciones propias (campana del topbar)
     useEffect(() => {
         if (!user?.id) return;
@@ -684,6 +692,17 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setActiveSession(data.shiftSession);
                 setVerifyingCensus(false);
+
+                // Verificar si hay residentes de cobertura por ausencia
+                try {
+                    const covRes = await fetch('/api/care/shift/my-coverage');
+                    const covData = await covRes.json();
+                    if (covData.success && covData.hasCoverage) {
+                        setCoverageBriefing(covData);
+                        setCoverageBriefingOpen(true);
+                        return; // El modal de cobertura continúa al briefing normal al cerrarse
+                    }
+                } catch {}
 
                 // FASE 44: Intercepción de lectura obligatoria
                 if (data.requireHandoverAccept && data.pendingHandover) {
@@ -2011,6 +2030,73 @@ export default function ZendityCareTabletPage() {
     return (
         <div className="min-h-screen bg-[#f5f5f4] pb-20 flex [scroll-behavior:smooth]">
             <Toaster position="top-center" richColors />
+
+            {/* ===== MODAL: Briefing de cobertura por ausencia ===== */}
+            {coverageBriefingOpen && coverageBriefing && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-slate-900 border border-amber-500/30 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-5">
+                            <div className="flex items-center gap-3 mb-1">
+                                <span className="text-2xl">⚠️</span>
+                                <p className="text-amber-400 font-black text-base uppercase tracking-wide">Cobertura por ausencia</p>
+                            </div>
+                            <p className="text-slate-400 text-sm leading-relaxed">
+                                Hoy tienes <span className="text-white font-bold">{coverageBriefing.totalPatients} residente{coverageBriefing.totalPatients > 1 ? 's' : ''} adicional{coverageBriefing.totalPatients > 1 ? 'es' : ''}</span> asignados por la ausencia de un compañero.
+                            </p>
+                        </div>
+
+                        {/* Grupos cubiertos */}
+                        <div className="px-6 py-4 space-y-4 max-h-64 overflow-y-auto">
+                            {coverageBriefing.groups.map(g => {
+                                const colorMap: Record<string, { label: string; dot: string }> = {
+                                    RED:    { label: 'Grupo Rojo',   dot: 'bg-red-500' },
+                                    YELLOW: { label: 'Grupo Amarillo', dot: 'bg-amber-400' },
+                                    GREEN:  { label: 'Grupo Verde',  dot: 'bg-emerald-500' },
+                                    BLUE:   { label: 'Grupo Azul',   dot: 'bg-blue-500' },
+                                };
+                                const c = colorMap[g.color] ?? { label: `Grupo ${g.color}`, dot: 'bg-slate-500' };
+                                return (
+                                    <div key={g.color}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`w-2.5 h-2.5 rounded-full ${c.dot} shrink-0`} />
+                                            <p className="text-white text-sm font-bold">{c.label} — {g.patients.length} residente{g.patients.length > 1 ? 's' : ''}</p>
+                                        </div>
+                                        <div className="space-y-1 pl-4">
+                                            {g.patients.map((p, i) => (
+                                                <div key={i} className="flex items-center justify-between">
+                                                    <p className="text-slate-300 text-xs">{p.name}</p>
+                                                    <p className="text-slate-500 text-xs">Hab. {p.room}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Tip */}
+                        <div className="px-6 pb-2">
+                            <p className="text-slate-500 text-xs text-center">Estos residentes aparecen en tu lista de hoy. Registra su atención como siempre.</p>
+                        </div>
+
+                        {/* CTA */}
+                        <div className="px-6 pb-6 pt-2">
+                            <button
+                                onClick={() => {
+                                    setCoverageBriefingOpen(false);
+                                    // Continuar flujo normal
+                                    const pendingHandover = null; // se maneja aparte
+                                    continueToBriefing(selectedColor!);
+                                }}
+                                className="w-full bg-amber-500 hover:bg-amber-400 active:scale-[0.98] transition-all text-slate-900 font-black text-sm py-3.5 rounded-2xl"
+                            >
+                                Entendido — Iniciar turno
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ===== SIDEBAR — Desktop/Tablet (collapsible) ===== */}
             <aside className={`hidden md:flex flex-col bg-slate-800 border-r border-slate-700 sticky top-0 h-screen z-30 transition-all duration-200 ${sidebarOpen ? 'w-48' : 'w-14'}`}>
