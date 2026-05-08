@@ -235,6 +235,25 @@ export async function GET(req: Request) {
                 .filter(Boolean)
         );
 
+        // IDs de sourceId descartados (VOIDED) hoy → también se excluyen del triageFeed
+        // Esto evita que los tickets computados (INCIDENT, CLINICAL_ALERT, UPP_SLA, ZENDI_*)
+        // reaparezcan en el siguiente ciclo de polling después de ser descartados.
+        const voidedSourceIds = new Set<string>();
+        // Para clusters descartados (ZENDI_PX_CLUSTER), el sourceId es el patientId.
+        // Guardamos también esos patientIds para suprimir TODOS los sub-tickets del residente hoy.
+        const voidedPatientIds = new Set<string>();
+
+        (inboxHistoryLogs as any[]).forEach((r: any) => {
+            const p = r.payloadChanges as any;
+            if (r.action === 'VOIDED' && p?.sourceId) {
+                voidedSourceIds.add(p.sourceId);
+                if (p.sourceType === 'ZENDI_PX_CLUSTER') {
+                    // sourceId de un cluster = patientId → suprimir todos sus tickets individuales
+                    voidedPatientIds.add(p.sourceId);
+                }
+            }
+        });
+
         // ============================================================================
         // PROCESAMIENTO SINCRÓNICO (CPU) POST-DB
         // ============================================================================
@@ -335,8 +354,13 @@ export async function GET(req: Request) {
         });
 
         // SPRINT 4: Zendi ATC Poli-Incidente (Clustering Geográfico/Multidimensional)
-        // Filtrar tickets ya referidos a enfermería hoy antes de clusterizar
-        const activeTriage = triageFeed.filter(t => !referredSourceIds.has(t.sourceId));
+        // Filtrar tickets ya referidos o descartados hoy antes de clusterizar
+        const activeTriage = triageFeed.filter(t =>
+            !referredSourceIds.has(t.sourceId) &&
+            !voidedSourceIds.has(t.sourceId) &&
+            // Si se descartó un cluster del paciente hoy, suprimir también sus tickets individuales
+            !(t.patientId && voidedPatientIds.has(t.patientId))
+        );
 
         const clusteredTriage: TriageTicket[] = [];
         const pxClusters: Record<string, TriageTicket[]> = {};
