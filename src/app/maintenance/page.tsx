@@ -144,7 +144,9 @@ export default function MaintenanceDashboardPage() {
                                             {new Date(ticket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-slate-500 font-medium line-clamp-2">{ticket.description}</p>
+                                    {ticket.description && (
+                                        <p className="text-sm text-slate-500 font-medium">{ticket.description}</p>
+                                    )}
 
                                     {ticket.photoUrl && (
                                         <div className="mt-3 rounded-xl overflow-hidden border border-slate-100 h-24 relative">
@@ -184,9 +186,17 @@ export default function MaintenanceDashboardPage() {
                                 <div key={ticket.id} className="bg-white p-5 rounded-2xl shadow-md border-2 border-sky-400 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-sky-400 to-transparent opacity-20 pointer-events-none rounded-bl-full"></div>
                                     <h4 className="font-bold text-slate-800 mb-1 pr-6">{ticket.title}</h4>
-                                    <p className="text-xs font-bold text-sky-600 uppercase mb-3 flex items-center gap-1">
+                                    <p className="text-xs font-bold text-sky-600 uppercase mb-2 flex items-center gap-1">
                                         <Clock className="w-3 h-3 animate-pulse" /> SLA corriendo
                                     </p>
+                                    {ticket.description && (
+                                        <p className="text-sm text-slate-500 font-medium mb-3 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{ticket.description}</p>
+                                    )}
+                                    {ticket.photoUrl && (
+                                        <div className="mb-3 rounded-xl overflow-hidden border border-slate-100 h-24 relative">
+                                            <img src={ticket.photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
 
                                     <button
                                         onClick={() => handleUpdateStatus(ticket.id, 'RESOLVED')}
@@ -216,9 +226,12 @@ export default function MaintenanceDashboardPage() {
                         </h3>
                         <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-4">
                             {kanban.resolved.map(ticket => (
-                                <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100 flex flex-col justify-between items-start gap-2 line-through decoration-slate-300 text-slate-500">
-                                    <h4 className="font-bold text-sm leading-tight">{ticket.title}</h4>
-                                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full border border-emerald-100 whitespace-nowrap">
+                                <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100 flex flex-col items-start gap-1.5">
+                                    <h4 className="font-bold text-sm leading-tight text-slate-500 line-through decoration-slate-300">{ticket.title}</h4>
+                                    {ticket.description && (
+                                        <p className="text-xs text-slate-400 font-medium leading-relaxed">{ticket.description}</p>
+                                    )}
+                                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full border border-emerald-100 whitespace-nowrap mt-1">
                                          TDR: {ticket.resolutionTimeMinutes || '?'} min
                                     </span>
                                 </div>
