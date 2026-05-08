@@ -109,8 +109,8 @@ export async function GET(req: Request) {
             prisma.complaint.findMany({ where: { headquartersId: hqId, status: 'PENDING' }, include: { patient: true }, orderBy: { createdAt: 'asc' } }),
             // 6. Incidentes Recientes (24 hrs para feed)
             prisma.incident.findMany({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } }, include: { patient: true } }),
-            // 7. Pacientes con UPP Activas
-            prisma.patient.findMany({ where: { headquartersId: hqId, pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
+            // 7. Pacientes con UPP Activas — solo los que están en la sede (no TEMPORARY_LEAVE)
+            prisma.patient.findMany({ where: { headquartersId: hqId, status: 'ACTIVE', pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
             // 8. Zendi Morning Briefing — Sprint L: solo el prólogo del cron (isDailyPrologue=true)
             prisma.shiftHandover.findFirst({ where: { headquartersId: hqId, shiftType: 'MORNING', isDailyPrologue: true, createdAt: { gte: todayStart }, aiSummaryReport: { not: null } }, orderBy: { createdAt: 'desc' } }),
             // 9. Schedules para validar Handovers (Ultimas 12 hrs)
@@ -120,10 +120,11 @@ export async function GET(req: Request) {
             // 11. Fast Actions Activas
             prisma.fastActionAssignment.findMany({ where: { headquartersId: hqId, status: 'PENDING', expiresAt: { gt: new Date() } }, include: { caregiver: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' } }),
             // 12. Alertas Clínicas del Action Hub (DailyLog con isClinicalAlert = true, últimas 24h)
-            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
-            // 13. Caídas recientes (FallIncident — NO Incident genérico)
+            // Solo residentes ACTIVE — los que están en TEMPORARY_LEAVE no generan alertas de vulnerabilidad
+            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            // 13. Caídas recientes (FallIncident — NO Incident genérico) — solo residentes presentes
             prisma.fallIncident.findMany({
-                where: { patient: { headquartersId: hqId }, incidentDate: { gte: twentyFourHrsAgo } },
+                where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo } },
                 include: { patient: { select: { id: true, name: true, colorGroup: true } } },
                 orderBy: { incidentDate: 'desc' },
                 take: 10,
