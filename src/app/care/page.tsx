@@ -477,6 +477,8 @@ export default function ZendityCareTabletPage() {
     const [hubPatientId, setHubPatientId] = useState("");
     const [hubDescription, setHubDescription] = useState("");
     const [hubPhotoBase64, setHubPhotoBase64] = useState<string | null>(null);
+    const [hubLocation, setHubLocation] = useState(""); // Área/zona de mantenimiento
+    const [hubRoom, setHubRoom] = useState(""); // Habitación o número
 
     // Fast Action Dispatch (Supervisor)
     const [hubCaregiverId, setHubCaregiverId] = useState("");
@@ -1515,7 +1517,8 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitHubReport = async () => {
-        if (!hubPatientId || !hubDescription) return alert("Seleccione residente y agregue descripción.");
+        if (hubAction !== 'MAINTENANCE' && !hubPatientId) return alert("Seleccione un residente.");
+        if (!hubDescription) return alert("Agregue una descripción del incidente.");
         setSubmitting(true);
         try {
             const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
@@ -1547,13 +1550,17 @@ export default function ZendityCareTabletPage() {
                     data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
                 };
             } else if (hubAction === "MAINTENANCE") {
-                endpoint = "/api/care/incidents"; // Endpoint de eventos generales
+                endpoint = "/api/care/incidents";
+                // Construir descripción estructurada con ubicación
+                const locationParts = [hubLocation, hubRoom ? `Hab. ${hubRoom}` : ''].filter(Boolean);
+                const locationPrefix = locationParts.length > 0 ? `📍 ${locationParts.join(' · ')} | ` : '';
+                const fullDesc = locationPrefix + hubDescription;
                 payload = {
-                    patientId: hubPatientId,
+                    patientId: hubPatientId || null,
                     headquartersId: hqId,
                     type: 'OTHER',
                     severity: 'LOW',
-                    description: "[MANTENIMIENTO] " + hubDescription,
+                    description: fullDesc,
                     biometricSignature: user?.id || "N/A",
                     photoUrl: hubPhotoBase64
                 };
@@ -1571,6 +1578,8 @@ export default function ZendityCareTabletPage() {
                 setModalType(null);
                 setHubDescription("");
                 setHubPhotoBase64(null);
+                setHubLocation("");
+                setHubRoom("");
                 fetchMyReports(); // Refrescar historial de reportes del cuidador
             } else {
                 alert("Error al enviar reporte: " + data.error);
@@ -3738,9 +3747,11 @@ export default function ZendityCareTabletPage() {
                                         <button onClick={() => setHubAction(null)} className="text-sm font-bold text-indigo-500 mb-2">← Cambiar Tipo de Reporte</button>
 
                                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                                            <label className="text-sm font-bold text-slate-500 block mb-2">Residente Involucrado (Requerido)</label>
+                                            <label className="text-sm font-bold text-slate-500 block mb-2">
+                                                Residente Involucrado {hubAction === 'MAINTENANCE' ? <span className="font-normal text-slate-400">(opcional)</span> : '(Requerido)'}
+                                            </label>
                                             <select value={hubPatientId} onChange={e => setHubPatientId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-200 bg-white font-bold text-slate-800 outline-none focus:border-indigo-500">
-                                                <option value="">-- Seleccionar Residente --</option>
+                                                <option value="">{hubAction === 'MAINTENANCE' ? '-- Sin residente relacionado --' : '-- Seleccionar Residente --'}</option>
                                                 {patients.map(p => (
                                                     <option key={p.id} value={p.id}>{p.name}</option>
                                                 ))}
@@ -3786,12 +3797,45 @@ export default function ZendityCareTabletPage() {
                                             )}
 
                                             {hubAction === 'MAINTENANCE' && (
-                                                <div className="flex flex-wrap gap-2 mb-4">
-                                                    {['Derrame Líquido', 'Foco Fundido', 'Baño Tapado', 'Fallo TV/AC'].map(tag => (
-                                                        <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}. ${tag}` : `Incidente operativo: ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
-                                                            + {tag}
-                                                        </button>
-                                                    ))}
+                                                <div className="space-y-4 mb-4">
+                                                    {/* Área / Zona */}
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Área / Zona</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {['Habitación', 'Baño', 'Sala Común', 'Cocina', 'Pasillo', 'Oficina', 'Exterior'].map(area => (
+                                                                <button
+                                                                    key={area}
+                                                                    type="button"
+                                                                    onClick={() => setHubLocation(prev => prev === area ? '' : area)}
+                                                                    className={`text-xs font-bold px-3 py-2 rounded-xl border-2 transition-all active:scale-95 ${hubLocation === area ? 'bg-slate-700 text-white border-slate-700 shadow' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-500'}`}
+                                                                >
+                                                                    {area}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    {/* Número de habitación (solo si aplica) */}
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Habitación / Número (opcional)</p>
+                                                        <input
+                                                            type="text"
+                                                            value={hubRoom}
+                                                            onChange={e => setHubRoom(e.target.value)}
+                                                            placeholder="Ej: 101, 202-A, Cuarto azul..."
+                                                            className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 text-slate-800 font-bold text-sm outline-none focus:border-slate-500 placeholder:text-slate-400 placeholder:font-normal"
+                                                        />
+                                                    </div>
+                                                    {/* Etiquetas rápidas */}
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Tipo de incidente</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {['Derrame Líquido', 'Foco Fundido', 'Baño Tapado', 'Fallo TV/AC', 'Puerta Rota', 'Filtración Agua', 'Olor Fuerte', 'Equipo Averiado'].map(tag => (
+                                                                <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}. ${tag}` : tag); }} className="bg-white border border-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-slate-700 hover:text-white hover:border-slate-700 transition-colors shadow-sm active:scale-95">
+                                                                    + {tag}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -3835,7 +3879,7 @@ export default function ZendityCareTabletPage() {
 
                                         <button
                                             onClick={submitHubReport}
-                                            disabled={submitting || !hubPatientId || !hubDescription}
+                                            disabled={submitting || (hubAction !== 'MAINTENANCE' && !hubPatientId) || !hubDescription}
                                             className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 transition-all"
                                         >
                                             {submitting ? "Codificando Alerta..." : `Generar Ticket ${hubAction === 'COMPLAINT' ? 'Familiar' : hubAction === 'CLINICAL' ? 'Clínico' : 'Operativo'}`}

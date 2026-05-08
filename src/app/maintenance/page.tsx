@@ -11,7 +11,16 @@ function cleanText(raw: string): string {
         .replace(/\[Firmado por [a-f0-9-]+\]\s*-\s*/gi, '')
         .replace(/\[MANTENIMIENTO\]\s*/gi, '')
         .replace(/Incidente operativo:\s*/gi, '')
+        // Quitar el prefijo de ubicación estructurado (se muestra aparte)
+        .replace(/📍[^|]+\|\s*/g, '')
         .trim();
+}
+
+/** Extrae el prefijo de ubicación estructurado "📍 Baño · Hab. 101" */
+function extractLocation(raw: string): string {
+    if (!raw) return '';
+    const match = raw.match(/📍([^|]+)\|/);
+    return match ? match[1].trim() : '';
 }
 
 export default function MaintenanceDashboardPage() {
@@ -52,8 +61,15 @@ export default function MaintenanceDashboardPage() {
     );
 
     const TicketCard = ({ ticket, col }: { ticket: any; col: 'pending' | 'inProgress' | 'resolved' }) => {
-        const title = cleanText(ticket.title) || 'Reporte de mantenimiento';
-        const desc = cleanText(ticket.description);
+        // Intentar extraer ubicación del title o description (donde esté el emoji 📍)
+        const rawTitle = ticket.title || '';
+        const rawDesc = ticket.description || '';
+        const locationFromTitle = extractLocation(rawTitle);
+        const locationFromDesc = extractLocation(rawDesc);
+        const location = locationFromTitle || locationFromDesc;
+
+        const title = cleanText(rawTitle) || 'Reporte de mantenimiento';
+        const desc = cleanText(rawDesc);
         const time = new Date(ticket.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
         const busy = isUpdating === ticket.id;
 
@@ -61,6 +77,14 @@ export default function MaintenanceDashboardPage() {
             <div className={`bg-white rounded-2xl p-4 border ${col === 'pending' ? 'border-slate-200' : col === 'inProgress' ? 'border-orange-300 shadow-md' : 'border-slate-100'}`}>
                 {/* Hora */}
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{time}</p>
+
+                {/* Ubicación badge — solo si existe */}
+                {location && (
+                    <div className="flex items-center gap-1.5 mb-2">
+                        <span className="text-sm">📍</span>
+                        <span className="text-xs font-black text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-lg">{location}</span>
+                    </div>
+                )}
 
                 {/* Título principal */}
                 <p className={`font-black text-base leading-snug mb-1 ${col === 'resolved' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
