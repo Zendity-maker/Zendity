@@ -530,7 +530,17 @@ export default function SupervisorMissionControlPage() {
                 </div>
 
                 {/* Quick-access chips (kitchen + rondas) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Link href="/care/supervisor/audit" className="bg-white rounded-[1.5rem] p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all flex items-center gap-4 group">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+                            <FileWarning className="w-6 h-6 text-indigo-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-black text-slate-800 text-sm">Auditoría de Turno</p>
+                            <p className="text-xs text-slate-500 font-medium">Revisión física por empleado y turno</p>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
+                    </Link>
                     <Link href="/care/supervisor/kitchen" className="bg-white rounded-[1.5rem] p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-300 transition-all flex items-center gap-4 group">
                         <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
                             <Utensils className="w-6 h-6 text-amber-600" />
