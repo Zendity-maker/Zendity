@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign } from "lucide-react";
+import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil } from "lucide-react";
 
 type Patient = {
     id: string;
@@ -52,6 +52,13 @@ export default function BillingDashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [viewPdfInvoice, setViewPdfInvoice] = useState<Invoice | null>(null);
+
+    // Modal edición
+    const [editModalInvoice, setEditModalInvoice] = useState<Invoice | null>(null);
+    const [editDueDate, setEditDueDate] = useState("");
+    const [editNotes, setEditNotes] = useState("");
+    const [editItems, setEditItems] = useState<{ description: string; quantity: number; unitPrice: number }[]>([]);
+    const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
     // Modal pago
     const [payModalInvoice, setPayModalInvoice] = useState<Invoice | null>(null);
@@ -183,6 +190,58 @@ export default function BillingDashboard() {
         return items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
     };
 
+    const openEditModal = (invoice: Invoice) => {
+        setEditModalInvoice(invoice);
+        setEditDueDate(invoice.dueDate.split('T')[0]);
+        setEditNotes("");
+        setEditItems(invoice.items.map(i => ({
+            description: i.description,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+        })));
+    };
+
+    const handleEditItemChange = (index: number, field: string, value: string | number) => {
+        const next = [...editItems];
+        (next as any)[index][field] = value;
+        setEditItems(next);
+    };
+
+    const handleAddEditItem = () => {
+        setEditItems([...editItems, { description: "", quantity: 1, unitPrice: 0 }]);
+    };
+
+    const handleRemoveEditItem = (index: number) => {
+        if (editItems.length === 1) return;
+        setEditItems(editItems.filter((_, i) => i !== index));
+    };
+
+    const calculateEditSubtotal = () =>
+        editItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
+
+    const handleSaveEdit = async () => {
+        if (!editModalInvoice) return;
+        setIsEditSubmitting(true);
+        try {
+            const res = await fetch(`/api/corporate/billing/${editModalInvoice.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dueDate: editDueDate, notes: editNotes, items: editItems }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEditModalInvoice(null);
+                fetchData();
+            } else {
+                alert(`Error: ${data.error || 'Desconocido'}`);
+            }
+        } catch (err: any) {
+            alert(`Error de conexión: ${err.message}`);
+        } finally {
+            setIsEditSubmitting(false);
+        }
+    };
+
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in">
             {/* Header */}
@@ -296,12 +355,20 @@ export default function BillingDashboard() {
                                         </td>
                                         <td className="p-5 text-right">
                                             {invoice.status !== 'PAID' ? (
-                                                <button
-                                                    onClick={() => openPayModal(invoice)}
-                                                    className="bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-2 ml-auto"
-                                                >
-                                                    <DollarSign className="w-4 h-4" /> Marcar Pagado
-                                                </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => openEditModal(invoice)}
+                                                        className="bg-white border-2 border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 px-3 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-1.5"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" /> Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openPayModal(invoice)}
+                                                        className="bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-3 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm flex items-center gap-1.5"
+                                                    >
+                                                        <DollarSign className="w-3.5 h-3.5" /> Pagado
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <button
                                                     onClick={() => setViewPdfInvoice(invoice)}
@@ -577,6 +644,138 @@ export default function BillingDashboard() {
                                     Este recibo ha sido liquidado en su totalidad. Generado en {hqName}.
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal Editar Recibo */}
+            {editModalInvoice && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                    <Pencil className="w-5 h-5 text-slate-600" />
+                                    Editar Recibo
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-0.5">
+                                    {editModalInvoice.invoiceNumber} · {editModalInvoice.patient.name}
+                                </p>
+                            </div>
+                            <button onClick={() => setEditModalInvoice(null)} className="text-slate-400 hover:text-slate-600 font-bold p-1 text-lg">✕</button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                            {/* Vencimiento */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Fecha de Vencimiento</label>
+                                <input
+                                    type="date"
+                                    value={editDueDate}
+                                    onChange={e => setEditDueDate(e.target.value)}
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 outline-none focus:border-emerald-500 font-medium text-slate-800"
+                                />
+                            </div>
+
+                            {/* Conceptos */}
+                            <div>
+                                <div className="flex justify-between items-center mb-3">
+                                    <label className="block text-sm font-bold text-slate-700">Conceptos</label>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddEditItem}
+                                        className="text-sm text-emerald-600 font-bold flex items-center gap-1 hover:text-emerald-700"
+                                    >
+                                        + Agregar Concepto
+                                    </button>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
+                                    {editItems.map((item, index) => (
+                                        <div key={index} className="flex gap-2 items-start">
+                                            <div className="flex-1">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Descripción"
+                                                    value={item.description}
+                                                    onChange={e => handleEditItemChange(index, 'description', e.target.value)}
+                                                    className="w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-800"
+                                                />
+                                            </div>
+                                            <div className="w-20">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={item.quantity}
+                                                    onChange={e => handleEditItemChange(index, 'quantity', parseInt(e.target.value) || 1)}
+                                                    className="w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-800"
+                                                />
+                                            </div>
+                                            <div className="w-32 relative">
+                                                <span className="absolute left-3 top-2.5 text-slate-500 font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={item.unitPrice}
+                                                    onChange={e => handleEditItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                    className="w-full pl-7 pr-3 py-2 rounded-lg border focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium text-slate-800"
+                                                />
+                                            </div>
+                                            {editItems.length > 1 && (
+                                                <button
+                                                    onClick={() => handleRemoveEditItem(index)}
+                                                    className="p-2 text-rose-400 hover:bg-rose-50 rounded-lg transition-colors font-bold"
+                                                >✕</button>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    <div className="border-t border-slate-200 pt-3 mt-2 text-right">
+                                        <p className="text-slate-500 font-medium text-sm">Nuevo Total</p>
+                                        <p className="text-2xl font-black text-emerald-600">
+                                            ${calculateEditSubtotal().toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Notas opcionales */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">
+                                    Nota interna <span className="text-slate-400 font-normal">(opcional)</span>
+                                </label>
+                                <textarea
+                                    value={editNotes}
+                                    onChange={e => setEditNotes(e.target.value)}
+                                    placeholder="Motivo del ajuste, corrección de monto…"
+                                    rows={2}
+                                    className="w-full border-2 border-slate-200 rounded-xl p-3 outline-none focus:border-emerald-500 font-medium text-slate-700 text-sm resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-slate-100 bg-white flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setEditModalInvoice(null)}
+                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={isEditSubmitting || editItems.some(i => !i.description)}
+                                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                            >
+                                {isEditSubmitting ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                                ) : (
+                                    <><CheckCircle className="w-4 h-4" /> Guardar Cambios</>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
