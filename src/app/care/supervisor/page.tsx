@@ -237,11 +237,15 @@ export default function SupervisorMissionControlPage() {
             const data = await res.json();
             if (data.success) {
                 setUncoveredColors(prev => prev.filter(u => u.color !== color));
+                alert(data.message || `Redistribución completada.`);
                 fetchCaregiverRounds();
             } else {
-                alert(`Error: ${data.error || 'No se pudo redistribuir'}`);
+                alert(`No se pudo redistribuir: ${data.error || 'Error desconocido'}`);
             }
-        } catch (e) { console.error('Redistribute error', e); }
+        } catch (e) {
+            console.error('Redistribute error', e);
+            alert('Error de conexión al redistribuir. Verifica tu red.');
+        }
         finally { setRedistributingColor(null); }
     };
 

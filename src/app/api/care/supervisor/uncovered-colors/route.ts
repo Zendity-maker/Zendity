@@ -192,6 +192,7 @@ export async function POST(req: Request) {
             caregiverLoads
                 .filter(c => c.assigned.length > 0)
                 .map(async c => {
+                    // 1. Redistribuir residentes (crítico — siempre ejecutar)
                     await prisma.shiftPatientOverride.createMany({
                         data: c.assigned.map(p => ({
                             headquartersId: hqId,
@@ -206,20 +207,33 @@ export async function POST(req: Request) {
                             isActive: true,
                         }))
                     });
-                    await prisma.shiftColorAssignment.create({
-                        data: {
-                            headquartersId: hqId,
-                            scheduledShiftId: (await prisma.scheduledShift.findFirst({
-                                where: { userId: c.session.caregiverId, date: { gte: shiftDate }, schedule: { headquartersId: hqId, status: 'PUBLISHED' } },
-                                select: { id: true }
-                            }))?.id || c.session.id,
-                            color,
+
+                    // 2. Registrar asignación de color (best-effort — solo si hay ScheduledShift)
+                    const scheduledShift = await prisma.scheduledShift.findFirst({
+                        where: {
                             userId: c.session.caregiverId,
-                            assignedBy: markedById,
-                            isAutoAssigned: true,
-                            assignedAt: new Date()
-                        }
+                            date: { gte: shiftDate },
+                            schedule: { headquartersId: hqId, status: 'PUBLISHED' }
+                        },
+                        select: { id: true }
                     });
+                    if (scheduledShift) {
+                        try {
+                            await prisma.shiftColorAssignment.create({
+                                data: {
+                                    headquartersId: hqId,
+                                    scheduledShiftId: scheduledShift.id,
+                                    color,
+                                    userId: c.session.caregiverId,
+                                    assignedBy: markedById,
+                                    isAutoAssigned: true,
+                                    assignedAt: new Date()
+                                }
+                            });
+                        } catch (colorErr) {
+                            console.warn('[uncovered-colors] ShiftColorAssignment skipped:', colorErr);
+                        }
+                    }
                 })
         );
 
