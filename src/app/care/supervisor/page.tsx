@@ -22,7 +22,7 @@ import {
     Brain, Users, Loader2, Sparkles, Send, CheckCircle2, Activity, Droplets, Coffee,
     Siren, Play, Square, AlertTriangle, ShieldAlert, FileText, Clock, XCircle, ChevronDown,
     Heart, Pill, ClipboardSignature, MessageSquareWarning, Utensils, CalendarClock, ArrowRight,
-    Gavel, AlertCircle, FileWarning,
+    Gavel, AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck,
 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
@@ -152,6 +152,12 @@ export default function SupervisorMissionControlPage() {
     // Historial de acciones del turno (refs + voids de hoy) — panel colapsable
     const [historialOpen, setHistorialOpen] = useState(false);
 
+    // Panel de Rondas por Cuidador
+    const [caregiverRounds, setCaregiverRounds] = useState<any[]>([]);
+    const [roundsNightShift, setRoundsNightShift] = useState(false);
+    const [roundsLoading, setRoundsLoading] = useState(false);
+    const [roundsLastUpdated, setRoundsLastUpdated] = useState<Date | null>(null);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -165,7 +171,11 @@ export default function SupervisorMissionControlPage() {
         if (user) {
             fetchSupervisorData();
             fetchLiveData();
-            const interval = setInterval(() => { fetchLiveData(); }, 15000);
+            fetchCaregiverRounds();
+            const interval = setInterval(() => {
+                fetchLiveData();
+                fetchCaregiverRounds();
+            }, 15000);
             return () => clearInterval(interval);
         }
     }, [user]);
@@ -178,6 +188,22 @@ export default function SupervisorMissionControlPage() {
             const data = await res.json();
             if (data.success) setLiveData(data);
         } catch (e) { console.error("Live fetch error", e); }
+    };
+
+    const fetchCaregiverRounds = async () => {
+        if (!user) return;
+        const hqId = (user as any).hqId || (user as any).headquartersId || "hq-demo-1";
+        setRoundsLoading(true);
+        try {
+            const res = await fetch(`/api/care/supervisor/caregiver-rounds?hqId=${hqId}`);
+            const data = await res.json();
+            if (data.success) {
+                setCaregiverRounds(data.caregivers || []);
+                setRoundsNightShift(data.isNightShift || false);
+                setRoundsLastUpdated(new Date());
+            }
+        } catch (e) { console.error("Caregiver rounds fetch error", e); }
+        finally { setRoundsLoading(false); }
     };
 
     const fetchSupervisorData = async () => {
@@ -529,6 +555,190 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>
+                </div>
+
+                {/* ============================================== */}
+                {/* PANEL RONDAS POR CUIDADOR (tiempo real)        */}
+                {/* ============================================== */}
+                <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center">
+                                <UserCheck className="w-5 h-5 text-teal-600" />
+                            </div>
+                            <div>
+                                <h2 className="font-black text-slate-800 text-base leading-tight">
+                                    Rondas de Cuidadores — Tiempo Real
+                                </h2>
+                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                    {roundsNightShift ? '🌙 Guardia Nocturna · Rotaciones + Notas' : '☀️ Turno Diurno · Baños + Comidas + Rotaciones'}
+                                    {roundsLastUpdated && (
+                                        <span className="ml-2 text-slate-400">
+                                            · Actualizado {roundsLastUpdated.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={fetchCaregiverRounds}
+                            disabled={roundsLoading}
+                            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-teal-600 transition-colors px-3 py-1.5 rounded-xl border border-slate-200 hover:border-teal-300 disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${roundsLoading ? 'animate-spin' : ''}`} />
+                            Actualizar
+                        </button>
+                    </div>
+
+                    {roundsLoading && caregiverRounds.length === 0 ? (
+                        <div className="flex items-center justify-center py-10">
+                            <Loader2 className="w-8 h-8 text-teal-500 animate-spin" />
+                        </div>
+                    ) : caregiverRounds.length === 0 ? (
+                        <div className="text-center py-10 text-slate-400">
+                            <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                            <p className="font-semibold text-sm">Sin cuidadores con sesión activa</p>
+                            <p className="text-xs mt-1">Las tarjetas aparecerán cuando inicien turno</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {caregiverRounds.map((cg) => {
+                                const colorDot: Record<string, string> = {
+                                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500', GREEN: 'bg-emerald-500'
+                                };
+                                const colorBorder: Record<string, string> = {
+                                    RED: 'border-red-200 bg-red-50', YELLOW: 'border-amber-200 bg-amber-50',
+                                    BLUE: 'border-blue-200 bg-blue-50', GREEN: 'border-emerald-200 bg-emerald-50'
+                                };
+                                const colorLabel: Record<string, string> = {
+                                    RED: 'text-red-700', YELLOW: 'text-amber-700', BLUE: 'text-blue-700', GREEN: 'text-emerald-700'
+                                };
+                                const colorText: Record<string, string> = {
+                                    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde'
+                                };
+
+                                const pct = cg.residentsInGroup > 0
+                                    ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
+                                    : 0;
+
+                                const isLate = cg.minutesSinceLastRound !== null && cg.minutesSinceLastRound > 120;
+                                const hasNoRounds = cg.roundsCompleted === 0 && cg.attendedThisRound === 0;
+
+                                const borderClass = cg.colorGroup
+                                    ? (colorBorder[cg.colorGroup] || 'border-slate-200 bg-slate-50')
+                                    : 'border-slate-200 bg-slate-50';
+                                const dotClass = cg.colorGroup ? (colorDot[cg.colorGroup] || 'bg-slate-400') : 'bg-slate-400';
+                                const labelClass = cg.colorGroup ? (colorLabel[cg.colorGroup] || 'text-slate-600') : 'text-slate-600';
+
+                                return (
+                                    <div key={cg.caregiverId} className={`rounded-[1.5rem] border p-5 ${borderClass} ${isLate ? 'ring-2 ring-amber-400/40' : ''}`}>
+                                        {/* Header */}
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className={`w-3 h-3 rounded-full ${dotClass} shadow-sm`} />
+                                                <div>
+                                                    <p className="font-black text-slate-800 text-sm leading-tight">
+                                                        {cg.name.split(' ').slice(0, 2).join(' ')}
+                                                    </p>
+                                                    <p className={`text-[10px] font-bold uppercase tracking-wide ${labelClass}`}>
+                                                        Grupo {cg.colorGroup ? (colorText[cg.colorGroup] || cg.colorGroup) : 'Sin grupo'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {/* Rondas completadas */}
+                                            <div className="text-right">
+                                                <span className={`text-2xl font-black ${cg.roundsCompleted >= 2 ? 'text-emerald-600' : cg.roundsCompleted === 1 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                                    {cg.roundsCompleted}
+                                                </span>
+                                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Rondas</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Sin grupo asignado */}
+                                        {cg.noColorGroup ? (
+                                            <p className="text-xs text-slate-500 italic">Sin grupo de color asignado</p>
+                                        ) : cg.emptyGroup ? (
+                                            <p className="text-xs text-slate-500 italic">Grupo sin residentes activos</p>
+                                        ) : (
+                                            <>
+                                                {/* Barra de progreso ronda actual */}
+                                                <div className="mb-3">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="text-[11px] font-bold text-slate-600">
+                                                            Ronda actual: {cg.attendedThisRound}/{cg.residentsInGroup}
+                                                        </span>
+                                                        <span className={`text-[11px] font-black ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-slate-500'}`}>
+                                                            {pct}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-white rounded-full h-2 border border-slate-200 overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-slate-300'}`}
+                                                            style={{ width: `${pct}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Estado */}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {pct === 100 ? (
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                                            <CheckCheck className="w-3 h-3" /> Ronda completa
+                                                        </span>
+                                                    ) : cg.remainingThisRound > 0 ? (
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-1 rounded-full border border-slate-200">
+                                                            <Clock className="w-3 h-3" /> {cg.remainingThisRound} pendiente{cg.remainingThisRound > 1 ? 's' : ''}
+                                                        </span>
+                                                    ) : null}
+
+                                                    {isLate && (
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
+                                                            <Timer className="w-3 h-3" /> +{Math.round(cg.minutesSinceLastRound / 60)}h sin ronda
+                                                        </span>
+                                                    )}
+
+                                                    {hasNoRounds && !cg.noColorGroup && !cg.emptyGroup && (
+                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                                                            <Activity className="w-3 h-3" /> Sin actividad aún
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Residentes pendientes */}
+                                                {cg.pendingResidents && cg.pendingResidents.length > 0 && cg.pendingResidents.length <= 5 && (
+                                                    <div className="mt-3 pt-3 border-t border-white/60">
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Pendientes:</p>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {cg.pendingResidents.map((r: any, i: number) => (
+                                                                <span key={i} className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                                                                    {r.name} · Hab {r.room}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {cg.pendingResidents && cg.pendingResidents.length > 5 && (
+                                                    <div className="mt-3 pt-3 border-t border-white/60">
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                                            {cg.pendingResidents.length} residentes pendientes
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Tiempo desde última ronda */}
+                                                {cg.minutesSinceLastRound !== null && !isLate && (
+                                                    <p className="text-[10px] text-slate-400 font-medium mt-2">
+                                                        Última ronda completada hace {cg.minutesSinceLastRound}m
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Panel de Ausencias */}
