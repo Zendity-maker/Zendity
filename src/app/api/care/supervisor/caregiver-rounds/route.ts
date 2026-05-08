@@ -160,8 +160,8 @@ export async function GET(req: Request) {
 
                     return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });
                 } else {
-                    // Diurno: rotaciones + baños + comidas + notas
-                    const [rotations, baths, meals, dailyLogs] = await Promise.all([
+                    // Diurno: rotaciones + baños + comidas + notas diarias + pañales diurnos
+                    const [rotations, baths, meals, dailyLogs, dayDiapers] = await Promise.all([
                         prisma.posturalChangeLog.findMany({
                             where: { nurseId: caregiverId, patientId: { in: groupIds }, performedAt: { gte: shiftStart } },
                             select: { patientId: true, performedAt: true },
@@ -181,6 +181,16 @@ export async function GET(req: Request) {
                             where: { authorId: caregiverId, patientId: { in: groupIds }, createdAt: { gte: shiftStart } },
                             select: { patientId: true, createdAt: true },
                             orderBy: { createdAt: 'asc' }
+                        }),
+                        prisma.clinicalNote.findMany({
+                            where: {
+                                authorId: caregiverId,
+                                patientId: { in: groupIds },
+                                createdAt: { gte: shiftStart },
+                                content: { contains: '[CAMBIO PAÑAL DIURNO ZENDI]' }
+                            },
+                            select: { patientId: true, createdAt: true },
+                            orderBy: { createdAt: 'asc' }
                         })
                     ]);
                     const allTouches = [
@@ -188,6 +198,7 @@ export async function GET(req: Request) {
                         ...baths.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
                         ...meals.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
                         ...dailyLogs.map(r => ({ patientId: r.patientId, at: r.createdAt })),
+                        ...dayDiapers.map(r => ({ patientId: r.patientId, at: r.createdAt })),
                     ].sort((a, b) => a.at.getTime() - b.at.getTime());
 
                     return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });

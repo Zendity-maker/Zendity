@@ -80,30 +80,68 @@ export async function GET(req: Request) {
         // Estrategia: construir una línea de tiempo de atenciones por residente
         // y detectar cuántas veces se ha cubierto el 100% del grupo
 
-        // Todas las atenciones del turno (rotaciones + notas de ronda)
-        const [rotations, roundNotes] = await Promise.all([
-            prisma.posturalChangeLog.findMany({
-                where: { nurseId: userId, patientId: { in: groupIds }, performedAt: { gte: shiftStart } },
-                select: { patientId: true, performedAt: true },
-                orderBy: { performedAt: 'asc' }
-            }),
-            prisma.dailyLog.findMany({
+        // Todas las atenciones del turno según tipo de guardia
+        const rotations = await prisma.posturalChangeLog.findMany({
+            where: { nurseId: userId, patientId: { in: groupIds }, performedAt: { gte: shiftStart } },
+            select: { patientId: true, performedAt: true },
+            orderBy: { performedAt: 'asc' }
+        });
+
+        let allTouches: { patientId: string; at: Date }[];
+
+        if (isNightShift) {
+            // Nocturna: rotaciones + notas clínicas de ronda nocturna
+            const nightNotes = await prisma.clinicalNote.findMany({
                 where: {
                     authorId: userId,
                     patientId: { in: groupIds },
                     createdAt: { gte: shiftStart },
-                    notes: { contains: '[RONDA NOCTURNA' }
+                    content: { contains: '[RONDA NOCTURNA ZENDI]' }
                 },
                 select: { patientId: true, createdAt: true },
                 orderBy: { createdAt: 'asc' }
-            })
-        ]);
-
-        // Unir y ordenar cronológicamente
-        const allTouches = [
-            ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
-            ...roundNotes.map(r => ({ patientId: r.patientId, at: r.createdAt })),
-        ].sort((a, b) => a.at.getTime() - b.at.getTime());
+            });
+            allTouches = [
+                ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
+                ...nightNotes.map(r => ({ patientId: r.patientId, at: r.createdAt })),
+            ].sort((a, b) => a.at.getTime() - b.at.getTime());
+        } else {
+            // Diurna: rotaciones + baños + comidas + notas + pañales diurnos
+            const [baths, meals, dailyLogs, dayDiapers] = await Promise.all([
+                prisma.bathLog.findMany({
+                    where: { caregiverId: userId, patientId: { in: groupIds }, timeLogged: { gte: shiftStart } },
+                    select: { patientId: true, timeLogged: true },
+                    orderBy: { timeLogged: 'asc' }
+                }),
+                prisma.mealLog.findMany({
+                    where: { caregiverId: userId, patientId: { in: groupIds }, timeLogged: { gte: shiftStart } },
+                    select: { patientId: true, timeLogged: true },
+                    orderBy: { timeLogged: 'asc' }
+                }),
+                prisma.dailyLog.findMany({
+                    where: { authorId: userId, patientId: { in: groupIds }, createdAt: { gte: shiftStart } },
+                    select: { patientId: true, createdAt: true },
+                    orderBy: { createdAt: 'asc' }
+                }),
+                prisma.clinicalNote.findMany({
+                    where: {
+                        authorId: userId,
+                        patientId: { in: groupIds },
+                        createdAt: { gte: shiftStart },
+                        content: { contains: '[CAMBIO PAÑAL DIURNO ZENDI]' }
+                    },
+                    select: { patientId: true, createdAt: true },
+                    orderBy: { createdAt: 'asc' }
+                })
+            ]);
+            allTouches = [
+                ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
+                ...baths.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
+                ...meals.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
+                ...dailyLogs.map(r => ({ patientId: r.patientId, at: r.createdAt })),
+                ...dayDiapers.map(r => ({ patientId: r.patientId, at: r.createdAt })),
+            ].sort((a, b) => a.at.getTime() - b.at.getTime());
+        }
 
         // Contar rondas completas y progreso actual
         let roundsCompleted = 0;

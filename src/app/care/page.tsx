@@ -437,6 +437,29 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    // Pañal diurno — estado de confirmación visual por residente
+    const [dayDiaperConfirm, setDayDiaperConfirm] = useState<{ patientId: string; type: string } | null>(null);
+
+    const logDayDiaper = async (patientId: string, type: 'SECO' | 'HUMEDO' | 'EVACUACION') => {
+        setIsSavingFastAction(true);
+        try {
+            const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const res = await fetch("/api/care/rounds", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId, authorId: user?.id, hqId, type, dayShift: true })
+            });
+            if (res.ok) {
+                setDayDiaperConfirm({ patientId, type });
+                setTimeout(() => setDayDiaperConfirm(null), 3000);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingFastAction(false);
+        }
+    };
+
     // Night Rounds Engine 2-Hour SLA
     const [nightRoundStatus, setNightRoundStatus] = useState<'SLEEPING' | 'AWAKE' | 'ANOMALY' | null>(null);
     const [nightRoundNote, setNightRoundNote] = useState("");
@@ -2948,6 +2971,51 @@ export default function ZendityCareTabletPage() {
                                             {bathCompletedToday ? "Baño Registrado " : "Completar Baño de 6AM - 10AM"}
                                         </button>
                                         <p className="text-[10px] font-bold text-sky-600/60 mt-1.5 text-center uppercase tracking-wider">Protegido por cooldown de 2 minutos</p>
+                                    </div>
+                                )}
+
+                                {/* ── Control de Continencia Diurna ─────────────────── */}
+                                {selectedColor && !isNightMode && (
+                                    <div className="bg-violet-50 border border-violet-100 p-3 rounded-2xl">
+                                        <h4 className="font-black text-violet-800 text-base mb-2">🩺 Control de Continencia</h4>
+                                        {dayDiaperConfirm?.patientId === activePatient?.id ? (
+                                            <div className="flex items-center justify-center gap-2 py-4 text-emerald-700 font-black text-sm bg-emerald-50 rounded-xl border border-emerald-200">
+                                                <span>✓</span>
+                                                <span>
+                                                    {dayDiaperConfirm?.type === 'SECO' ? 'Pañal Seco registrado' :
+                                                     dayDiaperConfirm?.type === 'HUMEDO' ? 'Pañal Húmedo — Cambio realizado' :
+                                                     'Evacuación — Higiene mayor realizada'}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <button
+                                                    onClick={() => activePatient && logDayDiaper(activePatient.id, 'SECO')}
+                                                    disabled={isSavingFastAction || !activePatient}
+                                                    className="py-4 bg-violet-100 hover:bg-violet-200 border border-violet-200 text-violet-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
+                                                >
+                                                    <span className="text-xl">🟢</span>
+                                                    Seco
+                                                </button>
+                                                <button
+                                                    onClick={() => activePatient && logDayDiaper(activePatient.id, 'HUMEDO')}
+                                                    disabled={isSavingFastAction || !activePatient}
+                                                    className="py-4 bg-sky-100 hover:bg-sky-200 border border-sky-200 text-sky-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
+                                                >
+                                                    <span className="text-xl">💧</span>
+                                                    Húmedo
+                                                </button>
+                                                <button
+                                                    onClick={() => activePatient && logDayDiaper(activePatient.id, 'EVACUACION')}
+                                                    disabled={isSavingFastAction || !activePatient}
+                                                    className="py-4 bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
+                                                >
+                                                    <span className="text-xl">🟠</span>
+                                                    Evacuación
+                                                </button>
+                                            </div>
+                                        )}
+                                        <p className="text-[10px] font-bold text-violet-500/70 mt-1.5 text-center uppercase tracking-wider">Registra el estado actual del pañal</p>
                                     </div>
                                 )}
 

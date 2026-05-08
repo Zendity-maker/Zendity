@@ -37,6 +37,8 @@ export async function POST(req: Request) {
         // authorId SIEMPRE del session — no se confía en body
         const authorId = invokerId;
 
+        const isDayShift = data.dayShift === true;
+
         if (type === 'ROTACION') {
             await prisma.posturalChangeLog.create({
                 data: {
@@ -48,22 +50,23 @@ export async function POST(req: Request) {
             });
             return NextResponse.json({ success: true, message: 'Rotación guardada' });
         } else {
-            // Usa ClinicalNote genérico ya que no hay tabla de pañales específica aún
+            // Prefijo diferente para diurno vs nocturno para no interferir con SLA nocturno
+            const prefix = isDayShift ? '[CAMBIO PAÑAL DIURNO ZENDI]' : '[RONDA NOCTURNA ZENDI]';
             let notes = "";
-            if (type === 'SECO') notes = "[RONDA NOCTURNA ZENDI] Control de continencia: Pañal Seco. Sin novedades.";
-            if (type === 'HUMEDO') notes = "[RONDA NOCTURNA ZENDI] Cambio de pañal por humedad regular. Higiene realizada.";
-            if (type === 'EVACUACION') notes = "[RONDA NOCTURNA ZENDI] Cambio de pañal por evacuación. Higiene mayor realizada y piel protegida.";
+            if (type === 'SECO') notes = `${prefix} Control de continencia: Pañal Seco. Sin novedades.`;
+            if (type === 'HUMEDO') notes = `${prefix} Cambio de pañal por humedad regular. Higiene realizada.`;
+            if (type === 'EVACUACION') notes = `${prefix} Cambio de pañal por evacuación. Higiene mayor realizada y piel protegida.`;
 
             await prisma.clinicalNote.create({
                 data: {
                     patientId,
                     authorId,
-                    title: `Ronda de Cuidado (${type})`,
+                    title: isDayShift ? `Continencia Diurna (${type})` : `Ronda de Cuidado (${type})`,
                     content: notes,
                     type: "PROGRESS_NOTE"
                 }
             });
-            return NextResponse.json({ success: true, message: 'Nota clínica de ronda guardada' });
+            return NextResponse.json({ success: true, message: isDayShift ? 'Cambio de pañal registrado' : 'Nota clínica de ronda guardada' });
         }
     } catch (error: any) {
         console.error("Night Rounds Error:", error);
