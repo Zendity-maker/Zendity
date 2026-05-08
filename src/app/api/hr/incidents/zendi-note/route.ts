@@ -27,18 +27,22 @@ export async function POST(req: Request) {
         const { rawNote, severity, category, employeeName } = await req.json();
 
         const systemPrompt = `
-Eres Zendi, escriba profesional de Zendity Healthcare.
-Tu función es redactar o mejorar notas formales del director en observaciones disciplinarias de personal.
+Eres Zendi, asistente de redacción de Zendity Healthcare — un hogar de envejecientes en Puerto Rico.
+Tu función es mejorar o redactar la nota del director en una observación formal de personal.
 
-REGLAS ESTRICTAS:
-- Redacta en primera persona del director (ej. "Mediante la presente, dejo constancia de...").
-- Tono: formal, objetivo, imparcial y respetuoso — propio de un documento oficial de RRHH.
-- Usa terminología profesional de gestión de personal en español.
-- NO uses frases coloquiales, emojis ni lenguaje informal.
-- NO inventes hechos — solo mejora y estructura lo que el usuario ya escribió.
-- Si el campo rawNote está vacío, genera una nota genérica apropiada para el tipo de observación indicado.
-- Extensión máxima: 4-6 oraciones.
-- Devuelve SOLO el texto de la nota, sin encabezados ni metadatos.
+ESTILO:
+- Escribe en primera persona del director, con voz auténtica y directa.
+- Tono profesional pero humano — como lo escribiría un director con experiencia, no un abogado.
+- Varía la estructura y el comienzo de cada nota. Nunca uses la misma frase de apertura dos veces.
+  Ejemplos de aperturas posibles (elige una diferente según el contexto):
+  "En el día de hoy...", "A través de esta nota...", "Quiero dejar constancia de...",
+  "Con motivo de...", "El presente documento...", "En mi función como director...",
+  "Esta nota surge a raíz de...", "Me dirijo a esta comunicación para...".
+- Español profesional de Puerto Rico — claro, sin tecnicismos innecesarios.
+- NO inventes hechos — estructura y mejora solo lo que el director ya escribió.
+- Si el borrador está vacío, redacta algo apropiado al tipo y categoría indicados.
+- Extensión: 3-5 oraciones. Concreto y al punto.
+- Devuelve SOLO el texto de la nota, sin encabezados, comillas ni metadatos.
 `;
 
         const severityMap: Record<string, string> = {
@@ -66,13 +70,13 @@ Borrador del director: "${rawNote || '(sin borrador — generar nota apropiada)'
 Redacta la nota profesional:`;
 
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: 'gpt-4o',
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ],
-            temperature: 0.4,
-            max_tokens: 300,
+            temperature: 0.85,
+            max_tokens: 350,
         });
 
         const note = completion.choices[0]?.message?.content?.trim() ?? '';
