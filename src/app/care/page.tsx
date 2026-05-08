@@ -1021,6 +1021,21 @@ export default function ZendityCareTabletPage() {
             alert("Completa los campos obligatorios: Sistólica, Diastólica, Pulso y Temperatura.");
             return;
         }
+
+        // Validación de rango fisiológico de temperatura
+        // El backend detecta la unidad: < 45 = Celsius, ≥ 45 = Fahrenheit
+        const tempNum = parseFloat(vitals.temp);
+        const isCelsiusEntry = tempNum < 45;
+        const tempValid = isCelsiusEntry
+            ? (tempNum >= 34.0 && tempNum <= 42.0)   // rango Celsius válido
+            : (tempNum >= 93.2 && tempNum <= 107.6);  // rango Fahrenheit válido
+        if (!tempValid) {
+            setVitalsErrors(prev => ({ ...prev, temp: true }));
+            const unit = isCelsiusEntry ? '°C (rango válido: 34–42)' : '°F (rango válido: 93–107)';
+            alert(`Temperatura fuera de rango fisiológico: ${vitals.temp} ${unit}.\n\nVerifica que el termómetro esté correctamente aplicado y vuelve a tomar la lectura.`);
+            return;
+        }
+
         setVitalsErrors({ sys: false, dia: false, hr: false, temp: false });
         setSubmitting(true);
         try {
@@ -3093,7 +3108,52 @@ export default function ZendityCareTabletPage() {
                                     <input type="number" placeholder="Sistólica (Ej 120)" value={vitals.sys} onChange={e => { setVitals({ ...vitals, sys: e.target.value }); if (vitalsErrors.sys) setVitalsErrors({ ...vitalsErrors, sys: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.sys ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
                                     <input type="number" placeholder="Diastólica (Ej 80)" value={vitals.dia} onChange={e => { setVitals({ ...vitals, dia: e.target.value }); if (vitalsErrors.dia) setVitalsErrors({ ...vitalsErrors, dia: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.dia ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
                                     <input type="number" placeholder="Pulso (HR)" value={vitals.hr} onChange={e => { setVitals({ ...vitals, hr: e.target.value }); if (vitalsErrors.hr) setVitalsErrors({ ...vitalsErrors, hr: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.hr ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
-                                    <input type="number" placeholder="Temp °F o °C (Ej 98.6 / 37)" value={vitals.temp} onChange={e => { setVitals({ ...vitals, temp: e.target.value }); if (vitalsErrors.temp) setVitalsErrors({ ...vitalsErrors, temp: false }); }} className={`bg-slate-50 border-2 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.temp ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`} />
+                                    {/* Temperatura — detección de unidad en tiempo real */}
+                                    <div className="md:col-span-1 space-y-1">
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                placeholder="Temperatura (Ej: 98.6 o 37.2)"
+                                                value={vitals.temp}
+                                                onChange={e => {
+                                                    setVitals({ ...vitals, temp: e.target.value });
+                                                    if (vitalsErrors.temp) setVitalsErrors({ ...vitalsErrors, temp: false });
+                                                }}
+                                                className={`w-full bg-slate-50 border-2 p-5 pr-16 rounded-2xl font-black text-lg focus:border-teal-500 focus:ring-4 outline-none transition-all ${vitalsErrors.temp ? 'border-rose-500 bg-rose-50 ring-4 ring-rose-100' : 'border-slate-200'}`}
+                                            />
+                                            {/* Badge de unidad detectada */}
+                                            {vitals.temp !== '' && !isNaN(parseFloat(vitals.temp)) && (() => {
+                                                const v = parseFloat(vitals.temp);
+                                                const isCelsius = v < 45;
+                                                const inRange = isCelsius ? (v >= 34 && v <= 42) : (v >= 93.2 && v <= 107.6);
+                                                if (!inRange) return (
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded-lg">⚠️ rango</span>
+                                                );
+                                                return (
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-black text-teal-700 bg-teal-100 px-2 py-0.5 rounded-lg">{isCelsius ? '°C' : '°F'}</span>
+                                                );
+                                            })()}
+                                        </div>
+                                        {/* Guía contextual según valor */}
+                                        {vitals.temp !== '' && !isNaN(parseFloat(vitals.temp)) && (() => {
+                                            const v = parseFloat(vitals.temp);
+                                            const isCelsius = v < 45;
+                                            const inRange = isCelsius ? (v >= 34 && v <= 42) : (v >= 93.2 && v <= 107.6);
+                                            if (!inRange) return (
+                                                <p className="text-[11px] text-rose-600 font-medium px-1">
+                                                    Valor fuera de rango. Verifica el termómetro y repite la lectura.
+                                                    {isCelsius ? ' (°C válido: 34–42)' : ' (°F válido: 93–107)'}
+                                                </p>
+                                            );
+                                            const tempF = isCelsius ? (v * 9 / 5) + 32 : v;
+                                            return (
+                                                <p className="text-[11px] text-slate-400 font-medium px-1">
+                                                    {isCelsius ? `${v}°C → ${tempF.toFixed(1)}°F` : `${v}°F`}
+                                                    {tempF > 100.4 ? ' · 🌡️ Fiebre' : tempF < 97 ? ' · Temperatura baja' : ' · Normal'}
+                                                </p>
+                                            );
+                                        })()}
+                                    </div>
                                     <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                     <input type="number" placeholder="Glucosa mg/dL" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                 </div>
