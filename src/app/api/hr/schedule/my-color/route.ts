@@ -67,6 +67,12 @@ export async function GET(req: Request) {
             if (shiftTypeToUse === 'EVENING' || shiftTypeToUse === 'NIGHT') {
                 shiftTypesToCheck.push('FULL_NIGHT');
             }
+            // Ajuste operacional: si la cuidadora entró temprano (ej. NIGHT shift
+            // pero inició durante EVENING), incluir todos los turnos del día para
+            // no quedar sin color asignado.
+            if (!shiftTypesToCheck.includes('NIGHT')) shiftTypesToCheck.push('NIGHT');
+            if (!shiftTypesToCheck.includes('MORNING')) shiftTypesToCheck.push('MORNING');
+            if (!shiftTypesToCheck.includes('EVENING')) shiftTypesToCheck.push('EVENING');
 
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
@@ -79,6 +85,8 @@ export async function GET(req: Request) {
                         status: 'PUBLISHED'
                     }
                 },
+                // Priorizar el turno que coincide con el horario actual; si hay varios,
+                // el más reciente del día gana.
                 orderBy: { date: 'desc' }
             });
             if (todayShift) {
