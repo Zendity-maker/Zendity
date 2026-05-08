@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -24,7 +24,7 @@ export async function PATCH(
         }
 
         const hqId = (session.user as any).headquartersId;
-        const { id } = params;
+        const { id } = await params;
 
         // Verificar que la factura pertenece a esta sede
         const invoice = await prisma.invoice.findUnique({
