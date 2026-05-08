@@ -2,262 +2,212 @@
 
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Wrench, Clock, CheckCircle2, AlertTriangle, Loader2, PlayCircle } from "lucide-react";
+import { Wrench, Clock, CheckCircle2, AlertTriangle, Loader2, Play, LogOut } from "lucide-react";
 
-// Limpia títulos y descripciones con formato interno legacy
-function cleanTitle(raw: string): string {
-    if (!raw) return 'Sin título';
-    return raw
-        .replace(/Reporte de Mantenimiento \/ Operación \[Severidad: \w+\]/gi, '')
-        .replace(/\[MANTENIMIENTO\]/gi, '')
-        .replace(/Incidente operativo:\s*/gi, '')
-        .trim() || 'Reporte de mantenimiento';
-}
-
-function cleanDescription(raw: string): string {
+function cleanText(raw: string): string {
     if (!raw) return '';
     return raw
-        .replace(/^\[Firmado por [a-f0-9-]+\]\s*-\s*/i, '')
-        .replace(/^\[MANTENIMIENTO\]\s*/gi, '')
-        .replace(/^Incidente operativo:\s*/gi, '')
+        .replace(/Reporte de Mantenimiento \/ Operación \[Severidad: \w+\]/gi, '')
+        .replace(/\[Firmado por [a-f0-9-]+\]\s*-\s*/gi, '')
+        .replace(/\[MANTENIMIENTO\]\s*/gi, '')
+        .replace(/Incidente operativo:\s*/gi, '')
         .trim();
 }
 
 export default function MaintenanceDashboardPage() {
     const { user, logout } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [kanban, setKanban] = useState({
-        pending: [] as any[],
-        inProgress: [] as any[],
-        resolved: [] as any[]
-    });
-    const [isUpdating, setIsUpdating] = useState(false);
+    const [kanban, setKanban] = useState({ pending: [] as any[], inProgress: [] as any[], resolved: [] as any[] });
+    const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (user) fetchTickets();
-    }, [user]);
+    useEffect(() => { if (user) fetchTickets(); }, [user]);
 
     const fetchTickets = async () => {
         const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
         try {
             const res = await fetch(`/api/maintenance?hqId=${hqId}`);
             const data = await res.json();
-            if (data.success) {
-                setKanban({
-                    pending: data.pending,
-                    inProgress: data.inProgress,
-                    resolved: data.resolved
-                });
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
+            if (data.success) setKanban({ pending: data.pending, inProgress: data.inProgress, resolved: data.resolved });
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
     };
 
-    const handleUpdateStatus = async (eventId: string, newStatus: string) => {
-        setIsUpdating(true);
+    const updateStatus = async (eventId: string, status: string) => {
+        setIsUpdating(eventId);
         try {
             const res = await fetch("/api/maintenance", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    eventId,
-                    status: newStatus,
-                    mechanicId: user?.id
-                })
+                body: JSON.stringify({ eventId, status, mechanicId: user?.id })
             });
-            if (res.ok) {
-                fetchTickets();
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsUpdating(false);
-        }
+            if (res.ok) fetchTickets();
+        } catch (e) { console.error(e); }
+        finally { setIsUpdating(null); }
     };
 
     if (loading) return (
-        <div className="flex h-screen items-center justify-center bg-slate-900">
-            <Loader2 className="w-12 h-12 animate-spin text-teal-500" />
+        <div className="flex h-screen items-center justify-center bg-slate-950">
+            <Loader2 className="w-10 h-10 animate-spin text-orange-400" />
         </div>
     );
 
+    const TicketCard = ({ ticket, col }: { ticket: any; col: 'pending' | 'inProgress' | 'resolved' }) => {
+        const title = cleanText(ticket.title) || 'Reporte de mantenimiento';
+        const desc = cleanText(ticket.description);
+        const time = new Date(ticket.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+        const busy = isUpdating === ticket.id;
+
+        return (
+            <div className={`bg-white rounded-2xl p-4 border ${col === 'pending' ? 'border-slate-200' : col === 'inProgress' ? 'border-orange-300 shadow-md' : 'border-slate-100'}`}>
+                {/* Hora */}
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{time}</p>
+
+                {/* Título principal */}
+                <p className={`font-black text-base leading-snug mb-1 ${col === 'resolved' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                    {title}
+                </p>
+
+                {/* Descripción solo si es diferente al título */}
+                {desc && desc !== title && (
+                    <p className="text-sm text-slate-500 leading-relaxed mb-3">{desc}</p>
+                )}
+
+                {/* Foto */}
+                {ticket.photoUrl && (
+                    <div className="rounded-xl overflow-hidden h-28 mb-3 border border-slate-100">
+                        <img src={ticket.photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
+                    </div>
+                )}
+
+                {/* Acciones */}
+                {col === 'pending' && (
+                    <button onClick={() => updateStatus(ticket.id, 'IN_PROGRESS')} disabled={!!busy}
+                        className="mt-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                        Iniciar
+                    </button>
+                )}
+                {col === 'inProgress' && (
+                    <button onClick={() => updateStatus(ticket.id, 'RESOLVED')} disabled={!!busy}
+                        className="mt-2 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-2.5 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                        Marcar Resuelto
+                    </button>
+                )}
+                {col === 'resolved' && ticket.resolutionTimeMinutes && (
+                    <p className="text-xs font-bold text-emerald-600 mt-1">✓ Resuelto en {ticket.resolutionTimeMinutes} min</p>
+                )}
+            </div>
+        );
+    };
+
     return (
-        <div className="flex w-full h-screen bg-slate-50 font-sans overflow-hidden">
-            {/* Sidebar Técnico Simplificado */}
-            <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shadow-xl flex-shrink-0 z-50">
-                <div className="h-20 flex items-center px-5 border-b border-white/10 relative">
-                    <div className="flex items-center gap-3 w-full">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-md">
-                            <Wrench className="w-5 h-5" />
+        <div className="flex w-full h-screen bg-slate-100 font-sans overflow-hidden">
+            {/* Sidebar */}
+            <aside className="w-56 bg-slate-950 flex flex-col shrink-0">
+                <div className="p-5 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center">
+                            <Wrench className="w-4 h-4 text-white" />
                         </div>
-                        <div className="flex flex-col">
-                            <h1 className="text-xl font-black tracking-tight text-white leading-tight">Planta Física</h1>
-                            <span className="text-[10px] uppercase font-black tracking-widest text-orange-400">Maintenance Hub</span>
+                        <div>
+                            <p className="text-white font-black text-sm leading-none">Planta Física</p>
+                            <p className="text-orange-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Mantenimiento</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 flex-1">
-                    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Mecánico de Turno</p>
-                        <p className="text-white font-bold text-lg leading-none">{user?.name}</p>
+                <div className="p-4 flex-1 space-y-3">
+                    <div>
+                        <p className="text-slate-600 text-[10px] font-bold uppercase tracking-wider mb-1">En turno</p>
+                        <p className="text-white font-bold text-sm">{user?.name}</p>
                     </div>
-
-                    <div className="mt-8">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-3 px-2">Métricas SLA Hoy</p>
-                        <div className="space-y-2">
-                            <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between items-center border border-slate-700/50">
-                                <span className="text-slate-500 font-medium text-sm">Resueltos</span>
-                                <span className="text-emerald-400 font-black">{kanban.resolved.length}</span>
-                            </div>
-                            <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between items-center border border-slate-700/50">
-                                <span className="text-slate-500 font-medium text-sm">Pendientes</span>
-                                <span className="text-rose-400 font-black">{kanban.pending.length}</span>
-                            </div>
+                    <div className="pt-3 border-t border-white/5 space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-xs">Pendientes</span>
+                            <span className="text-rose-400 font-black text-sm">{kanban.pending.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-xs">En progreso</span>
+                            <span className="text-orange-400 font-black text-sm">{kanban.inProgress.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-500 text-xs">Resueltos hoy</span>
+                            <span className="text-emerald-400 font-black text-sm">{kanban.resolved.length}</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="p-4 border-t border-white/10">
-                    <button onClick={logout} className="w-full bg-slate-800 hover:bg-rose-900/50 text-slate-500 hover:text-rose-400 font-bold py-3 rounded-xl transition-colors border border-slate-700 flex justify-center items-center gap-2">
-                        <span></span> Cerrar Sesión
+                    <button onClick={logout} className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-rose-400 font-bold text-sm py-2 transition-colors">
+                        <LogOut className="w-4 h-4" /> Salir
                     </button>
                 </div>
             </aside>
 
-            {/* Main Kanban Content */}
-            <main className="flex-1 overflow-x-auto p-8 relative">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                            <Clock className="w-8 h-8 text-orange-500" />
-                            Cola de Infraestructura (SLA)
-                        </h2>
-                        <p className="text-slate-500 font-medium mt-1">Los tiempos de resolución afectan directamente el Score de Desempeño Técnico.</p>
-                    </div>
-                    <button onClick={fetchTickets} className="bg-white border border-slate-200 text-slate-600 hover:text-orange-600 font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2">
-                        Actualizar Radares
+            {/* Main */}
+            <main className="flex-1 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center justify-between">
+                    <h2 className="font-black text-slate-800 text-lg">Cola de Trabajo</h2>
+                    <button onClick={fetchTickets}
+                        className="text-xs font-bold text-slate-500 hover:text-orange-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-orange-300 transition-colors">
+                        Actualizar
                     </button>
                 </div>
 
-                <div className="flex gap-6 h-[calc(100vh-180px)] items-start">
+                {/* Kanban */}
+                <div className="flex-1 overflow-x-auto p-5">
+                    <div className="flex gap-4 h-full min-w-[760px]">
 
-                    {/* COLUMNA 1: PENDIENTES RED ALERT */}
-                    <div className="w-1/3 min-w-[320px] bg-slate-200/50 rounded-3xl p-5 border border-slate-200 flex flex-col h-full overflow-hidden">
-                        <h3 className="font-black text-rose-800 mb-4 flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-rose-600" />
-                                Nuevas Averías
-                            </span>
-                            <span className="bg-rose-200 text-rose-800 px-3 py-1 rounded-full text-xs">{kanban.pending.length}</span>
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-4">
-                            {kanban.pending.map(ticket => (
-                                <div key={ticket.id} className="bg-white p-5 rounded-2xl shadow-sm border border-rose-100 hover:border-rose-300 transition-colors group">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="font-bold text-slate-800 leading-snug pr-2">{cleanTitle(ticket.title)}</h4>
-                                        <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-1 rounded uppercase tracking-wider tabular-nums shrink-0">
-                                            {new Date(ticket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
+                        {/* Pendientes */}
+                        <div className="flex-1 flex flex-col min-w-[240px]">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                                <AlertTriangle className="w-4 h-4 text-rose-500" />
+                                <span className="font-black text-slate-700 text-sm">Nuevas</span>
+                                <span className="ml-auto bg-rose-100 text-rose-700 text-xs font-black px-2 py-0.5 rounded-full">{kanban.pending.length}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                                {kanban.pending.map(t => <TicketCard key={t.id} ticket={t} col="pending" />)}
+                                {kanban.pending.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-32 text-slate-400">
+                                        <CheckCircle2 className="w-8 h-8 mb-2" />
+                                        <p className="text-sm font-medium">Sin averías</p>
                                     </div>
-                                    {cleanDescription(ticket.description) && (
-                                        <p className="text-sm text-slate-500 font-medium mb-1">{cleanDescription(ticket.description)}</p>
-                                    )}
-
-                                    {ticket.photoUrl && (
-                                        <div className="mt-3 rounded-xl overflow-hidden border border-slate-100 h-24 relative">
-                                            <img src={ticket.photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={() => handleUpdateStatus(ticket.id, 'IN_PROGRESS')}
-                                        disabled={isUpdating}
-                                        className="mt-4 w-full bg-slate-50 hover:bg-orange-500 text-slate-600 hover:text-white font-bold py-2.5 rounded-xl transition-colors border border-slate-200 hover:border-orange-500 flex justify-center items-center gap-2 text-sm"
-                                    >
-                                        <PlayCircle className="w-4 h-4" /> Iniciar Reparación
-                                    </button>
-                                </div>
-                            ))}
-                            {kanban.pending.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-500">
-                                    <CheckCircle2 className="w-12 h-12 mb-2 text-slate-500" />
-                                    <p className="font-medium text-sm">Sin averías pendientes</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* COLUMNA 2: EN PROGRESO (SLA ACTIVO) */}
-                    <div className="w-1/3 min-w-[320px] bg-sky-50 rounded-3xl p-5 border border-sky-100 flex flex-col h-full overflow-hidden">
-                        <h3 className="font-black text-sky-800 mb-4 flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                                <Wrench className="w-5 h-5 text-sky-600" />
-                                Trabajando
-                            </span>
-                            <span className="bg-sky-200 text-sky-800 px-3 py-1 rounded-full text-xs">{kanban.inProgress.length}</span>
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2 pb-4">
-                            {kanban.inProgress.map(ticket => (
-                                <div key={ticket.id} className="bg-white p-5 rounded-2xl shadow-md border-2 border-sky-400 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-sky-400 to-transparent opacity-20 pointer-events-none rounded-bl-full"></div>
-                                    <h4 className="font-bold text-slate-800 mb-1 pr-6 leading-snug">{cleanTitle(ticket.title)}</h4>
-                                    <p className="text-xs font-bold text-sky-600 uppercase mb-2 flex items-center gap-1">
-                                        <Clock className="w-3 h-3 animate-pulse" /> SLA corriendo
-                                    </p>
-                                    {cleanDescription(ticket.description) && (
-                                        <p className="text-sm text-slate-500 font-medium mb-3 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{cleanDescription(ticket.description)}</p>
-                                    )}
-                                    {ticket.photoUrl && (
-                                        <div className="mb-3 rounded-xl overflow-hidden border border-slate-100 h-24 relative">
-                                            <img src={ticket.photoUrl} alt="Evidencia" className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={() => handleUpdateStatus(ticket.id, 'RESOLVED')}
-                                        disabled={isUpdating}
-                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/30 active:scale-95 flex justify-center items-center gap-2 text-sm"
-                                    >
-                                        <CheckCircle2 className="w-5 h-5" /> Listo (Frenar Reloj)
-                                    </button>
-                                </div>
-                            ))}
-                            {kanban.inProgress.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-sky-700/50">
-                                    <p className="font-medium text-sm">Nadie está reparando en la zona</p>
-                                </div>
-                            )}
+                        {/* En progreso */}
+                        <div className="flex-1 flex flex-col min-w-[240px]">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                                <Clock className="w-4 h-4 text-orange-500" />
+                                <span className="font-black text-slate-700 text-sm">Trabajando</span>
+                                <span className="ml-auto bg-orange-100 text-orange-700 text-xs font-black px-2 py-0.5 rounded-full">{kanban.inProgress.length}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                                {kanban.inProgress.map(t => <TicketCard key={t.id} ticket={t} col="inProgress" />)}
+                                {kanban.inProgress.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center h-32 text-slate-400">
+                                        <p className="text-sm font-medium">Nada en progreso</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* COLUMNA 3: COMPLETADOS (SLA RECORDED) */}
-                    <div className="w-1/3 min-w-[320px] bg-slate-100 rounded-3xl p-5 border border-slate-200 flex flex-col h-full overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
-                        <h3 className="font-black text-slate-700 mb-4 flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                Historial
-                            </span>
-                            <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs">{kanban.resolved.length}</span>
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-4">
-                            {kanban.resolved.map(ticket => (
-                                <div key={ticket.id} className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100 flex flex-col items-start gap-1.5">
-                                    <h4 className="font-bold text-sm leading-tight text-slate-500 line-through decoration-slate-300">{cleanTitle(ticket.title)}</h4>
-                                    {cleanDescription(ticket.description) && (
-                                        <p className="text-xs text-slate-400 font-medium leading-relaxed">{cleanDescription(ticket.description)}</p>
-                                    )}
-                                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full border border-emerald-100 whitespace-nowrap mt-1">
-                                         TDR: {ticket.resolutionTimeMinutes || '?'} min
-                                    </span>
-                                </div>
-                            ))}
+                        {/* Resueltos */}
+                        <div className="flex-1 flex flex-col min-w-[240px]">
+                            <div className="flex items-center gap-2 mb-3 px-1">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <span className="font-black text-slate-700 text-sm">Resueltos</span>
+                                <span className="ml-auto bg-emerald-100 text-emerald-700 text-xs font-black px-2 py-0.5 rounded-full">{kanban.resolved.length}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                                {kanban.resolved.map(t => <TicketCard key={t.id} ticket={t} col="resolved" />)}
+                            </div>
                         </div>
-                    </div>
 
+                    </div>
                 </div>
             </main>
         </div>
