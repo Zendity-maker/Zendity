@@ -50,13 +50,15 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     const [loadingRoster, setLoadingRoster] = useState(false);
 
     useEffect(() => {
-        if (isOpen && hqId && fullRoster.length <= 1) {
+        if (isOpen && hqId) {
             const fetchRoster = async () => {
                 setLoadingRoster(true);
                 try {
                     const res = await fetch(`/api/hr/staff?headquartersId=${hqId}`);
                     const data = await res.json();
-                    if (data.success && data.staff) setFullRoster(data.staff);
+                    // hr/staff devuelve el array directamente (sin wrapper success/staff)
+                    if (Array.isArray(data)) setFullRoster(data);
+                    else if (data.success && data.staff) setFullRoster(data.staff);
                 } catch (e) {
                     console.error("Failed to fetch full roster");
                 } finally {
