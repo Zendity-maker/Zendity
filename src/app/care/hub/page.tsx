@@ -3,13 +3,36 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { GraduationCap, Tablet, FileWarning, LogOut, ChevronRight } from "lucide-react";
+import { GraduationCap, Tablet, FileWarning, LogOut, ChevronRight, TrendingUp } from "lucide-react";
+
+interface ScoreData {
+    score: number;
+    breakdown: {
+        base: number;
+        positives: number;
+        negatives: number;
+        observationPenalty: number;
+        evaluationDelta: number;
+        extraDelta: number;
+        roundBonus: number;
+        total: number;
+        details: {
+            medsOmitted: number;
+            rotationsLate: number;
+            unclosedSessions: number;
+            incompleteHandovers: number;
+            medsAdministered: number;
+            rotationsOnTime: number;
+        };
+    };
+}
 
 export default function CareHubPage() {
     const { user, logout } = useAuth();
     const router = useRouter();
     const [obsPending, setObsPending] = useState(0);
     const [loadingObs, setLoadingObs] = useState(true);
+    const [scoreData, setScoreData] = useState<ScoreData | null>(null);
 
     useEffect(() => {
         const fetchObs = async () => {
@@ -20,7 +43,15 @@ export default function CareHubPage() {
             } catch {}
             finally { setLoadingObs(false); }
         };
+        const fetchScore = async () => {
+            try {
+                const res = await fetch("/api/care/my-score");
+                const data = await res.json();
+                if (data.success) setScoreData({ score: data.score, breakdown: data.breakdown });
+            } catch {}
+        };
         fetchObs();
+        fetchScore();
     }, []);
 
     // Hora de bienvenida
@@ -51,6 +82,33 @@ export default function CareHubPage() {
                     ¿Qué deseas hacer hoy?
                 </p>
             </div>
+
+            {/* Score Card */}
+            {scoreData && (() => {
+                const s = scoreData.score;
+                const d = scoreData.breakdown?.details ?? {};
+                const colorClass = s >= 80 ? 'text-emerald-400' : s >= 60 ? 'text-amber-400' : 'text-rose-400';
+                const borderClass = s >= 80 ? 'border-emerald-500/20' : s >= 60 ? 'border-amber-500/20' : 'border-rose-500/20';
+                const bgClass = s >= 80 ? 'bg-emerald-500/5' : s >= 60 ? 'bg-amber-500/5' : 'bg-rose-500/5';
+                const label = s >= 80 ? 'Excelente' : s >= 60 ? 'Buen trabajo' : 'En progreso';
+                const tip =
+                    (d.medsOmitted ?? 0) > 0 ? `${d.medsOmitted} medicamento${d.medsOmitted > 1 ? 's' : ''} omitido${d.medsOmitted > 1 ? 's' : ''}` :
+                    (d.unclosedSessions ?? 0) > 0 ? 'Cierra tu sesión correctamente' :
+                    (d.incompleteHandovers ?? 0) > 0 ? 'Completa el hand-over' :
+                    (d.rotationsLate ?? 0) > 0 ? `${d.rotationsLate} rotación${d.rotationsLate > 1 ? 'es' : ''} tarde` :
+                    (d.medsAdministered ?? 0) > 0 ? 'Sigue así, vas bien' :
+                    'Registra actividades para sumar puntos';
+                return (
+                    <div className={`mx-5 mb-4 max-w-md mx-auto rounded-2xl px-5 py-4 flex items-center gap-4 border ${borderClass} ${bgClass}`}>
+                        <TrendingUp className={`w-5 h-5 shrink-0 ${colorClass} opacity-70`} />
+                        <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-bold uppercase tracking-widest ${colorClass}`}>{label}</p>
+                            <p className="text-slate-500 text-xs mt-0.5 truncate">{tip}</p>
+                        </div>
+                        <p className={`text-3xl font-black tabular-nums shrink-0 ${colorClass}`}>{s}</p>
+                    </div>
+                );
+            })()}
 
             {/* Options */}
             <div className="flex-1 px-5 space-y-4 pb-8 max-w-md mx-auto w-full">
