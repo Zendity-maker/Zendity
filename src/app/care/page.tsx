@@ -329,7 +329,7 @@ export default function ZendityCareTabletPage() {
     // Z-Score panel (topbar badge)
     const [scorePanelOpen, setScorePanelOpen] = useState(false);
     const scorePanelRef = useRef<HTMLDivElement>(null);
-    const [myScore, setMyScore] = useState<{ score: number; recentEvents: any[] } | null>(null);
+    const [myScore, setMyScore] = useState<{ score: number; breakdown: any } | null>(null);
 
     // Fetch de notificaciones propias (campana del topbar)
     useEffect(() => {
@@ -371,7 +371,7 @@ export default function ZendityCareTabletPage() {
         if (!user?.id) return;
         fetch('/api/care/my-score')
             .then(r => r.json())
-            .then(d => { if (d.success) setMyScore({ score: d.score, recentEvents: d.recentEvents }); })
+            .then(d => { if (d.success) setMyScore({ score: d.score, breakdown: d.breakdown }); })
             .catch(() => {});
     }, [user?.id]);
 
@@ -2174,58 +2174,108 @@ export default function ZendityCareTabletPage() {
                     </button>
 
                     {scorePanelOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-80 bg-[#1F2D3A] border border-[#2a3b4d] rounded-[16px] shadow-2xl z-50 overflow-hidden">
+                        <div className="absolute top-full right-0 mt-2 w-[320px] bg-[#1F2D3A] border border-[#2a3b4d] rounded-[20px] shadow-2xl z-50 overflow-hidden">
                             {/* Header */}
                             <div className="px-4 py-3 border-b border-[#2a3b4d] flex items-center justify-between">
-                                <h4 className="font-display text-sm font-semibold text-white">Mi Z-Score</h4>
+                                <h4 className="text-sm font-black text-white">Mi Puntuación Zéndity</h4>
                                 <button onClick={() => setScorePanelOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
                                     <X className="w-3.5 h-3.5 text-[#94a3b8]" />
                                 </button>
                             </div>
 
-                            {/* Score circle */}
-                            <div className="flex flex-col items-center py-5 gap-2 border-b border-[#2a3b4d]">
-                                <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${myScore && myScore.score >= 80 ? 'border-emerald-400 bg-emerald-400/10' : myScore && myScore.score >= 60 ? 'border-amber-400 bg-amber-400/10' : 'border-rose-400 bg-rose-400/10'}`}>
-                                    <span className={`text-3xl font-black ${myScore && myScore.score >= 80 ? 'text-emerald-300' : myScore && myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300'}`}>
+                            {/* Score + rank */}
+                            <div className="flex items-center gap-4 px-4 py-4 border-b border-[#2a3b4d]">
+                                <div className={`w-16 h-16 rounded-full shrink-0 flex items-center justify-center border-[3px] ${myScore && myScore.score >= 80 ? 'border-emerald-400 bg-emerald-400/10' : myScore && myScore.score >= 60 ? 'border-amber-400 bg-amber-400/10' : 'border-rose-400 bg-rose-400/10'}`}>
+                                    <span className={`text-2xl font-black tabular-nums ${myScore && myScore.score >= 80 ? 'text-emerald-300' : myScore && myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300'}`}>
                                         {myScore?.score ?? '—'}
                                     </span>
                                 </div>
-                                <p className="text-[11px] text-[#94a3b8] font-medium">
-                                    {myScore && myScore.score >= 80 ? '¡Excelente desempeño! Sigue así.' : myScore && myScore.score >= 60 ? 'Buen nivel. Puedes mejorar.' : 'Necesita atención. ¡Tú puedes!'}
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                    {myScore && (() => {
+                                        const r = getZendityRank(myScore.score);
+                                        return <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-full mb-1 ${r.badge}`}>{r.icon} {r.label}</span>;
+                                    })()}
+                                    <p className="text-[11px] text-[#94a3b8] font-medium leading-tight">
+                                        {!myScore ? '—' :
+                                         myScore.score >= 90 ? 'Rendimiento excepcional. ¡Sigue así!' :
+                                         myScore.score >= 80 ? '¡Excelente! Cerca del tope.' :
+                                         myScore.score >= 70 ? 'Buen nivel. Reduce las brechas.' :
+                                         myScore.score >= 60 ? 'Hay margen de mejora. Revisa abajo.' :
+                                         'Atención necesaria. Cada registro cuenta.'}
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Recent events */}
-                            <div className="max-h-60 overflow-y-auto">
-                                {myScore && myScore.recentEvents.length > 0 ? myScore.recentEvents.map((ev: any) => {
-                                    const isPos = ev.delta > 0;
-                                    const catIcon: Record<string, string> = {
-                                        VITALS: '🩺', MEDS: '💊', ROTATION: '🔄', MISSION: '⭐',
-                                        ACADEMY: '🎓', INCIDENT: '⚠️', SHIFT: '🕐', PREVENTIVE: '🛡️',
-                                        PHOTO: '📷', EVALUATION: '📋',
+                            {/* Desglose de la fórmula */}
+                            <div className="overflow-y-auto max-h-[340px]">
+                                {myScore?.breakdown ? (() => {
+                                    const b = myScore.breakdown;
+                                    const d = b.details;
+
+                                    type Row = { icon: string; label: string; value: number; detail: string; type: 'neutral' | 'pos' | 'neg' | 'warn' };
+                                    const rows: Row[] = [
+                                        { icon: '🏁', label: 'Base',               value: b.base,               detail: 'Punto de partida',                                        type: 'neutral' },
+                                        { icon: '✅', label: 'Positivos clínicos', value: b.positives,           detail: `${d.rotationsOnTime} rot. a tiempo · ${d.medsAdministered} meds · ${d.preventiveAlerts} alertas prev.`, type: b.positives > 0 ? 'pos' : 'neutral' },
+                                        { icon: '🔴', label: 'Negativos clínicos', value: -b.negatives,         detail: `${d.medsOmitted} meds omitidos · ${d.rotationsLate} rot. tardías · ${d.fastActionsFailed} fast-actions fallidas`, type: b.negatives > 0 ? 'neg' : 'neutral' },
+                                        { icon: '🔒', label: 'Sesiones sin cerrar',value: -(d.unclosedSessions * 10), detail: `${d.unclosedSessions} sesión(es) sin cerrar (últimos 14 días)`, type: d.unclosedSessions > 0 ? 'neg' : 'neutral' },
+                                        { icon: '🤝', label: 'Handovers',          value: -(d.incompleteHandovers * 10), detail: `${d.incompleteHandovers} handover(s) sin completar`,  type: d.incompleteHandovers > 0 ? 'neg' : 'neutral' },
+                                        { icon: '📋', label: 'Observaciones',      value: -b.observationPenalty, detail: `${d.appliedObservationsCount} observación(es) aplicada(s)`, type: b.observationPenalty > 0 ? 'neg' : 'neutral' },
+                                        { icon: '📊', label: 'Evaluación supervisor', value: b.evaluationDelta, detail: `${d.evaluationsCount} evaluación(es) · la más reciente pesa doble`, type: b.evaluationDelta > 0 ? 'pos' : b.evaluationDelta < 0 ? 'neg' : 'neutral' },
+                                        { icon: '⭐', label: 'Misiones / Academy', value: b.extraDelta,          detail: `${d.extraScoreEventsCount} evento(s) · máximo +10 pts`,    type: b.extraDelta > 0 ? 'pos' : 'neutral' },
+                                        { icon: '🔵', label: 'Ronda de grupo',     value: b.roundBonus,          detail: b.roundBonus >= 10 ? 'Cobertura ≥90% del grupo ✓' : b.roundBonus >= 5 ? 'Cobertura ≥70%' : b.roundBonus < 0 ? 'Cobertura <50% — ronda incompleta' : 'Sin grupo asignado o cobertura 50–69%', type: b.roundBonus > 0 ? 'pos' : b.roundBonus < 0 ? 'neg' : 'neutral' },
+                                    ];
+
+                                    const typeStyle: Record<Row['type'], { delta: string; bg: string }> = {
+                                        neutral: { delta: 'text-[#94a3b8]',  bg: '' },
+                                        pos:     { delta: 'text-emerald-400 font-black', bg: '' },
+                                        neg:     { delta: 'text-rose-400 font-black',    bg: 'bg-rose-500/5' },
+                                        warn:    { delta: 'text-amber-400 font-black',   bg: 'bg-amber-500/5' },
                                     };
-                                    const ago = (() => {
-                                        const diff = Date.now() - new Date(ev.createdAt).getTime();
-                                        const h = Math.floor(diff / 3600000);
-                                        if (h < 1) return 'Hace <1 h';
-                                        if (h < 24) return `Hace ${h} h`;
-                                        return `Hace ${Math.floor(h / 24)} días`;
-                                    })();
+
                                     return (
-                                        <div key={ev.id} className="px-4 py-2.5 border-b border-[#2a3b4d] flex items-center gap-3">
-                                            <span className="text-base shrink-0">{catIcon[ev.category] ?? '📌'}</span>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] text-white font-medium truncate">{ev.reason}</p>
-                                                <p className="text-[10px] text-[#94a3b8]">{ago}</p>
+                                        <div>
+                                            {rows.map((row, i) => {
+                                                const s = typeStyle[row.type];
+                                                const displayVal = row.value === 0 ? '0' : row.value > 0 ? `+${row.value}` : `${row.value}`;
+                                                return (
+                                                    <div key={i} className={`flex items-start gap-3 px-4 py-2.5 border-b border-[#2a3b4d]/60 ${s.bg}`}>
+                                                        <span className="text-sm shrink-0 mt-0.5">{row.icon}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[11px] text-white font-bold leading-tight">{row.label}</p>
+                                                            <p className="text-[10px] text-[#64748b] leading-tight mt-0.5">{row.detail}</p>
+                                                        </div>
+                                                        <span className={`shrink-0 text-xs tabular-nums ${s.delta}`}>{displayVal}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {/* Total */}
+                                            <div className="flex items-center justify-between px-4 py-3 bg-white/5">
+                                                <p className="text-[11px] text-white font-black uppercase tracking-wide">Puntuación final</p>
+                                                <span className={`text-base font-black tabular-nums ${myScore.score >= 80 ? 'text-emerald-300' : myScore.score >= 60 ? 'text-amber-300' : 'text-rose-300'}`}>
+                                                    {myScore.score} / 100
+                                                </span>
                                             </div>
-                                            <span className={`shrink-0 text-xs font-black px-2 py-0.5 rounded-full ${isPos ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
-                                                {isPos ? `+${ev.delta}` : ev.delta}
-                                            </span>
+                                            {/* Tip contextual */}
+                                            {(() => {
+                                                const tips = [];
+                                                if (d.unclosedSessions > 0) tips.push('Cierra tu sesión al terminar el turno.');
+                                                if (d.incompleteHandovers > 0) tips.push('Completa el handover antes de salir.');
+                                                if (d.medsOmitted > 0) tips.push('Justifica los medicamentos omitidos.');
+                                                if (d.rotationsLate > 0) tips.push('Registra las rotaciones dentro de las 2h.');
+                                                if (b.roundBonus < 0) tips.push('Visita a todos los residentes de tu grupo.');
+                                                if (tips.length === 0 && myScore.score < 100) tips.push('Mantén el ritmo y sube al tope.');
+                                                return tips.length > 0 ? (
+                                                    <div className="px-4 py-3 bg-teal-500/10 border-t border-teal-500/20">
+                                                        <p className="text-[10px] text-teal-300 font-bold uppercase tracking-wide mb-1">💡 Para subir tu puntuación</p>
+                                                        {tips.map((t, i) => <p key={i} className="text-[11px] text-[#94a3b8] font-medium">· {t}</p>)}
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                         </div>
                                     );
-                                }) : (
+                                })() : (
                                     <div className="px-4 py-8 text-center">
-                                        <p className="text-[12px] text-[#94a3b8] font-medium">Sin movimientos recientes</p>
+                                        <p className="text-[12px] text-[#94a3b8] font-medium">Cargando desglose…</p>
                                     </div>
                                 )}
                             </div>

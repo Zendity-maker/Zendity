@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,34 +14,13 @@ export async function GET() {
 
         const userId = (session.user as any).id;
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { complianceScore: true },
-        });
-
-        if (!user) {
-            return NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 404 });
-        }
-
-        const recentEvents = await prisma.scoreEvent.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: 5,
-            select: {
-                id: true,
-                delta: true,
-                reason: true,
-                category: true,
-                scoreBefore: true,
-                scoreAfter: true,
-                createdAt: true,
-            },
-        });
+        // Calcular score dinámico en tiempo real + desglose completo
+        const result = await calculateDynamicScore(userId);
 
         return NextResponse.json({
             success: true,
-            score: user.complianceScore,
-            recentEvents,
+            score: result.score,
+            breakdown: result.breakdown,
         });
 
     } catch (err) {
