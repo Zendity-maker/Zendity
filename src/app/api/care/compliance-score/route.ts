@@ -209,7 +209,10 @@ export async function calculateDynamicScore(userId: string) {
         },
         select: { delta: true },
     });
-    const extraDelta = extraScoreEvents.reduce((sum, e) => sum + e.delta, 0);
+    const rawExtraDelta = extraScoreEvents.reduce((sum, e) => sum + e.delta, 0);
+    // Cap +10: las misiones/Academy/Shift premian el compromiso pero no deben
+    // compensar penalizaciones clínicas (handovers, observaciones, etc.)
+    const extraDelta = Math.min(rawExtraDelta, 10);
 
     // ── Cálculo final ──
     const rawPositives = (rotationsOnTime * 1.5) + (medsAdministered * 0.5) + (preventiveAlerts * 5);
