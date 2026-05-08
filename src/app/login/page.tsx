@@ -41,13 +41,21 @@ export default function LoginPage() {
             });
 
             if (res?.error) {
-                setError(res.error);
+                const raw = res.error || '';
+                // Nunca mostrar errores técnicos internos al usuario
+                if (raw.includes('database') || raw.includes('prisma') || raw.includes('neon') || raw.includes('server') || raw.includes('ECONNREFUSED')) {
+                    setError("Servicio temporalmente no disponible. Intenta de nuevo en unos segundos.");
+                } else if (raw === 'CredentialsSignin' || raw.toLowerCase().includes('credential')) {
+                    setError("Email o PIN incorrecto. Verifica tus datos.");
+                } else {
+                    setError("No se pudo iniciar sesión. Intenta de nuevo.");
+                }
                 setLoading(false);
             } else {
-                router.refresh(); // El AuthContext detectará el login y redirigirá según el Rol
+                router.refresh();
             }
         } catch (error) {
-            setError("Error de conexión con el Servidor ZENDITY.");
+            setError("Sin conexión. Verifica tu red e intenta de nuevo.");
             setLoading(false);
         }
     };
