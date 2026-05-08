@@ -140,8 +140,8 @@ export async function POST(req: Request) {
             const event = await prisma.headquartersEvent.create({
                 data: {
                     headquartersId: hqId,
-                    title: `Reporte de Mantenimiento / Operación [Severidad: ${severity}]`,
-                    description: `[Firmado por ${invokerId}] - ${description}`,
+                    title: description ? description.substring(0, 120) : `Reporte de mantenimiento`,
+                    description: description || null,
                     type: "INFRASTRUCTURE",
                     patientId: patientId || null,
                     startTime: new Date(),
