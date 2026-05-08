@@ -74,7 +74,8 @@ export async function GET(req: Request) {
         todayStart.setHours(0, 0, 0, 0);
 
         // Prioridad 1: color del ScheduledShift publicado de HOY
-        // (evita que redistribuciones de días anteriores sobreescriban el color real de hoy)
+        // colorGroup 'ALL' se guarda como 'ALL' para que la cuidadora solitaria
+        // vea todos los residentes. 'UNASSIGNED' se descarta.
         const colorMap = new Map<string, string>();
         const todayScheduledShifts = await prisma.scheduledShift.findMany({
             where: {
@@ -88,8 +89,8 @@ export async function GET(req: Request) {
             orderBy: { date: 'desc' }
         });
         for (const s of todayScheduledShifts) {
-            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'ALL' && s.colorGroup !== 'UNASSIGNED') {
-                colorMap.set(s.userId, s.colorGroup);
+            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
+                colorMap.set(s.userId, s.colorGroup); // incluye 'ALL'
             }
         }
 
@@ -101,14 +102,19 @@ export async function GET(req: Request) {
             orderBy: { assignedAt: 'desc' }
         });
         for (const ca of todayColorAssignments) {
-            // Sobreescribe el color programado solo si la redistribución ocurrió hoy
             if (!colorMap.has(ca.userId)) colorMap.set(ca.userId, ca.color);
         }
 
-        // Residentes ACTIVE por color group en esta HQ
-        const distinctColors = [...new Set(colorMap.values())];
+        // Residentes ACTIVE por color group en esta HQ.
+        // Si alguna cuidadora tiene color 'ALL', traer todos los residentes.
+        const hasAll = [...colorMap.values()].some(c => c === 'ALL');
+        const distinctColors = [...new Set(colorMap.values())].filter(c => c !== 'ALL');
         const allGroupPatients = await prisma.patient.findMany({
-            where: { headquartersId: hqId, status: 'ACTIVE', colorGroup: { in: distinctColors as any[] } },
+            where: {
+                headquartersId: hqId,
+                status: 'ACTIVE',
+                ...(hasAll ? {} : { colorGroup: { in: distinctColors as any[] } })
+            },
             select: { id: true, name: true, roomNumber: true, colorGroup: true },
             orderBy: { roomNumber: 'asc' }
         });
@@ -141,7 +147,10 @@ export async function GET(req: Request) {
                     };
                 }
 
-                const groupPatients = allGroupPatients.filter(p => p.colorGroup === colorGroup);
+                // Color ALL → ve todos los residentes de la HQ
+                const groupPatients = colorGroup === 'ALL'
+                    ? allGroupPatients
+                    : allGroupPatients.filter(p => p.colorGroup === colorGroup);
                 const groupSize = groupPatients.length;
 
                 if (groupSize === 0) {
