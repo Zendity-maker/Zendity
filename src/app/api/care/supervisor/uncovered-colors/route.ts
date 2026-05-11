@@ -24,8 +24,10 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
 
-        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+        // Usar UTC midnight — los shifts se guardan como 2026-05-11T00:00:00.000Z.
+        // setHours(0,0,0,0) en servidor UTC-4 produce 04:00 UTC, excluyendo esos shifts.
+        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
+        const todayEnd = new Date(); todayEnd.setUTCHours(23, 59, 59, 999);
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
 
         // Turno activo según hora PR
@@ -114,7 +116,7 @@ export async function POST(req: Request) {
         }
 
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
-        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
 
         // Residentes activos del grupo sin cobertura
         const residents = await prisma.patient.findMany({

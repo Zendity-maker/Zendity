@@ -70,8 +70,15 @@ export async function GET(req: Request) {
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
 
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
+        // Los shifts se guardan como medianoche UTC del día que representan
+        // (ej. May 11 → 2026-05-11T00:00:00.000Z). El servidor corre en UTC-4
+        // (Puerto Rico), por lo que setHours(0,0,0,0) produce 04:00 UTC —
+        // 4 horas después de los shifts, excluyéndolos y filtrando shifts del
+        // futuro. Usar setUTCHours para anclar al día UTC correcto.
+        const todayStartUTC = new Date();
+        todayStartUTC.setUTCHours(0, 0, 0, 0);
+        const todayEndUTC = new Date();
+        todayEndUTC.setUTCHours(23, 59, 59, 999);
 
         // Prioridad 1: color del ScheduledShift publicado de HOY
         // colorGroup 'ALL' se guarda como 'ALL' para que la cuidadora solitaria
@@ -80,13 +87,13 @@ export async function GET(req: Request) {
         const todayScheduledShifts = await prisma.scheduledShift.findMany({
             where: {
                 userId: { in: caregiverIds },
-                date: { gte: todayStart },
+                date: { gte: todayStartUTC, lte: todayEndUTC },
                 isAbsent: false,
                 colorGroup: { not: null },
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' }
             },
             select: { userId: true, colorGroup: true },
-            orderBy: { date: 'desc' }
+            orderBy: { date: 'asc' }
         });
         for (const s of todayScheduledShifts) {
             if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
@@ -97,7 +104,7 @@ export async function GET(req: Request) {
         // Prioridad 2: ShiftColorAssignment de HOY (redistribuciones por ausencia ocurridas hoy)
         // Solo aplica si no se encontró un turno programado para este cuidador
         const todayColorAssignments = await prisma.shiftColorAssignment.findMany({
-            where: { userId: { in: caregiverIds }, assignedAt: { gte: todayStart } },
+            where: { userId: { in: caregiverIds }, assignedAt: { gte: todayStartUTC } },
             select: { userId: true, color: true, assignedAt: true },
             orderBy: { assignedAt: 'desc' }
         });

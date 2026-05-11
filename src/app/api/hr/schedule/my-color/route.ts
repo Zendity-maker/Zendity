@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { startOfDay, endOfDay } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 
@@ -43,11 +42,19 @@ export async function GET(req: Request) {
         let shiftNotes: string | null = null;
         let source: 'assignment' | 'roster' | 'none' | 'no_color_assigned' = 'none';
 
+        // Los shifts se guardan como medianoche UTC (ej. 2026-05-11T00:00:00.000Z).
+        // startOfDay(date-fns) usa la TZ local del servidor (UTC-4 en Vercel PR)
+        // y produce 04:00 UTC, que excluye esos shifts. Usar UTC midnight puro.
+        const todayUTCStart = new Date();
+        todayUTCStart.setUTCHours(0, 0, 0, 0);
+        const todayUTCEnd = new Date();
+        todayUTCEnd.setUTCHours(23, 59, 59, 999);
+
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
             where: {
                 userId,
                 headquartersId: hqId,
-                assignedAt: { gte: startOfDay(today), lte: endOfDay(today) }
+                assignedAt: { gte: todayUTCStart, lte: todayUTCEnd }
             },
             orderBy: { assignedAt: 'desc' }
         });
@@ -77,7 +84,7 @@ export async function GET(req: Request) {
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
-                    date: { gte: startOfDay(today), lte: endOfDay(today) },
+                    date: { gte: todayUTCStart, lte: todayUTCEnd },
                     shiftType: { in: shiftTypesToCheck as any[] },
                     isAbsent: false,
                     schedule: {
@@ -85,8 +92,7 @@ export async function GET(req: Request) {
                         status: 'PUBLISHED'
                     }
                 },
-                // Priorizar el turno que coincide con el horario actual; si hay varios,
-                // el más reciente del día gana.
+                // Si hay múltiples turnos del día, priorizar el más reciente.
                 orderBy: { date: 'desc' }
             });
             if (todayShift) {
