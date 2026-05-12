@@ -132,7 +132,7 @@ export default function CorporateDashboardPage() {
         clinicalDay: string;
         generatedAt: string;
         summary: string;
-        bullets: Array<{ priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'; title: string; description: string; action: string }>;
+        bullets: Array<{ priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'; title: string; description: string; action: string; link?: string }>;
         model: string;
     } | null>(null);
     const [briefingLoading, setBriefingLoading] = useState(false);
@@ -486,19 +486,31 @@ export default function CorporateDashboardPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                                 {briefing.bullets.map((b, i) => {
                                     const s = priorityStyles[b.priority] || priorityStyles.MEDIUM;
+                                    const CardWrapper = b.link
+                                        ? ({ children }: { children: React.ReactNode }) => (
+                                            <Link href={b.link!} className={`block border rounded-xl p-3 ${s.card} hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 group`}>
+                                                {children}
+                                            </Link>
+                                        )
+                                        : ({ children }: { children: React.ReactNode }) => (
+                                            <div className={`border rounded-xl p-3 ${s.card}`}>{children}</div>
+                                        );
                                     return (
-                                        <div key={i} className={`border rounded-xl p-3 ${s.card}`}>
+                                        <CardWrapper key={i}>
                                             <div className="flex items-center justify-between mb-1.5">
                                                 <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${s.badge} px-2 py-0.5 rounded`}>
                                                     {s.icon} {s.label}
                                                 </span>
+                                                {b.link && (
+                                                    <ArrowRight size={13} className="text-[#0F6B78]/50 group-hover:text-[#0F6B78] group-hover:translate-x-0.5 transition-all" />
+                                                )}
                                             </div>
                                             <h4 className="font-bold text-[#1F2D3A] text-sm mb-1">{b.title}</h4>
                                             <p className="text-xs text-[#1F2D3A]/75 leading-relaxed mb-2">{b.description}</p>
                                             <p className="text-xs text-[#0F6B78] font-bold leading-relaxed flex items-start gap-1">
                                                 <ArrowRight size={12} className="mt-0.5 flex-shrink-0" /> {b.action}
                                             </p>
-                                        </div>
+                                        </CardWrapper>
                                     );
                                 })}
                             </div>

@@ -16,11 +16,32 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
 
 type Priority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
+// Rutas de navegación disponibles para cada categoría de alerta
+const BULLET_LINKS: Record<string, string> = {
+    vitals:     '/corporate/medical/patients',
+    handovers:  '/corporate/medical/handovers',
+    emar:       '/corporate/medical/emar',
+    upps:       '/corporate/medical/upp-dashboard',
+    falls:      '/corporate/medical/fall-risk',
+    triage:     '/corporate/triage',
+    incidents:  '/corporate/hr',
+    meals:      '/care/supervisor',
+    coverage:   '/care/supervisor',
+    default:    '/corporate',
+};
+
 interface BriefingBullet {
     priority: Priority;
     title: string;
     description: string;
     action: string;
+    link?: string;   // ruta interna a la que navega el botón de acción
+}
+
+// Las temperaturas pueden estar guardadas en °F (>50) o °C (<50).
+// Normalizar a °C antes de comparar para evitar falsos positivos.
+function normalizeTempC(temp: number): number {
+    return temp > 50 ? (temp - 32) * 5 / 9 : temp;
 }
 
 function isAbnormalVital(v: {
@@ -30,7 +51,8 @@ function isAbnormalVital(v: {
     if (v.systolic > 140 || v.systolic < 90) return true;
     if (v.diastolic > 90 || v.diastolic < 60) return true;
     if (v.heartRate < 50 || v.heartRate > 100) return true;
-    if (v.temperature > 38 || v.temperature < 36) return true;
+    const tempC = normalizeTempC(v.temperature);
+    if (tempC > 38 || tempC < 36) return true;
     return false;
 }
 
@@ -146,11 +168,14 @@ Reglas de priorización:
 - MEDIUM: métricas aceptables pero con tendencia riesgosa.
 - LOW: nota de felicitación si algo va bien (opcional, máximo 1 bullet LOW).
 
+Categorías válidas (elige la más apropiada para cada bullet):
+vitals | handovers | emar | upps | falls | triage | incidents | meals | coverage | default
+
 Responde SOLO JSON válido con esta forma exacta:
 {
   "summary": "Una frase ejecutiva de 15-25 palabras con el estado general.",
   "bullets": [
-    { "priority": "CRITICAL", "title": "...", "description": "...", "action": "..." },
+    { "priority": "CRITICAL", "category": "vitals", "title": "...", "description": "...", "action": "..." },
     ...
   ]
 }
@@ -158,6 +183,7 @@ Responde SOLO JSON válido con esta forma exacta:
 - title: máximo 8 palabras, categórico
 - description: 1 frase con números concretos del snapshot
 - action: qué debe hacer el Director específicamente hoy (imperativo, 1 frase)
+- category: la categoría del bullet (vitals, handovers, emar, etc.)
 - Si no hay nada CRITICAL, balancea con HIGH/MEDIUM, nunca inventes problemas.
 - Idioma: español de Puerto Rico, directo, sin relleno.`;
 
@@ -178,6 +204,7 @@ Responde SOLO JSON válido con esta forma exacta:
                 title: String(b.title || '').slice(0, 80),
                 description: String(b.description || '').slice(0, 240),
                 action: String(b.action || '').slice(0, 240),
+                link: BULLET_LINKS[b.category] || BULLET_LINKS.default,
             }))
             : [];
 
@@ -197,59 +224,66 @@ function fallbackBriefing(ctx: any): { summary: string; bullets: BriefingBullet[
     if (ctx.vitals.abnormal > 0) {
         bullets.push({
             priority: 'CRITICAL',
-            title: 'Vitales anómalos detectados',
-            description: `${ctx.vitals.abnormal} de ${ctx.vitals.total} lecturas fuera de rango clínico hoy.`,
-            action: 'Revisar bitácora de enfermería y validar seguimiento de los casos.',
+            title: 'Vitales Anómalos Significativos',
+            description: `${ctx.vitals.abnormal} de ${ctx.vitals.total} registros de vitales fuera de rango clínico hoy.`,
+            action: 'Coordina una revisión médica urgente para los pacientes con vitales anómalos.',
+            link: BULLET_LINKS.vitals,
         });
     }
     if (ctx.handovers.pending > 0) {
         bullets.push({
-            priority: 'HIGH',
-            title: 'Handovers sin firmar por supervisor',
-            description: `${ctx.handovers.pending} de ${ctx.handovers.total} reportes de turno sin firma supervisoria.`,
-            action: 'Enviar recordatorio al supervisor de turno para firmar antes del cierre del día.',
+            priority: 'CRITICAL',
+            title: 'Handovers Sin Firmar',
+            description: `${ctx.handovers.pending} handovers pendientes de firma supervisoria hoy.`,
+            action: 'Asegura la firma inmediata de los handovers pendientes para evitar lapsos de comunicación.',
+            link: BULLET_LINKS.handovers,
         });
     }
     if (ctx.meds.compliance !== null && ctx.meds.compliance < 90) {
         bullets.push({
             priority: ctx.meds.compliance < 80 ? 'CRITICAL' : 'HIGH',
-            title: 'Cumplimiento eMAR bajo meta',
+            title: 'Cumplimiento eMAR Bajo Meta',
             description: `Hoy ${ctx.meds.compliance}% (${ctx.meds.given}/${ctx.meds.scheduled}); ${ctx.meds.missed} MISSED, ${ctx.meds.refused} REFUSED.`,
             action: 'Solicitar reporte de enfermería sobre causas de omisiones y plan correctivo.',
+            link: BULLET_LINKS.emar,
         });
     }
     if (ctx.triageOpen > 0) {
         bullets.push({
             priority: ctx.triageOpen >= 3 ? 'HIGH' : 'MEDIUM',
-            title: 'Tickets de triage abiertos',
+            title: 'Tickets de Triage Abiertos',
             description: `${ctx.triageOpen} tickets abiertos en el centro de triage.`,
             action: 'Revisar despacho y confirmar asignaciones pendientes.',
+            link: BULLET_LINKS.triage,
         });
     }
     if (ctx.meals.coverage !== null && ctx.meals.coverage < 70) {
         bullets.push({
-            priority: 'MEDIUM',
-            title: 'Cobertura de comidas baja',
-            description: `Cobertura ${ctx.meals.coverage}% (${ctx.meals.uniquePatientMeals} de ${ctx.patientsCount * 3}).`,
-            action: 'Verificar con cocina y cuidadores por qué residentes no registran comidas.',
+            priority: 'HIGH',
+            title: 'Cobertura de Comidas Baja',
+            description: `La cobertura de comidas es del ${ctx.meals.coverage}%.`,
+            action: 'Revisa y mejora la planificación de comidas para aumentar la cobertura.',
+            link: BULLET_LINKS.meals,
         });
     }
     if (ctx.incidentsWeek > 3) {
         bullets.push({
-            priority: 'MEDIUM',
-            title: 'Incidentes de personal semanal elevados',
-            description: `${ctx.incidentsWeek} observaciones registradas en los últimos 7 días.`,
-            action: 'Reunirse con supervisor de RRHH para revisar patrón.',
+            priority: 'HIGH',
+            title: 'Incidentes Semanales Elevados',
+            description: `Se han registrado ${ctx.incidentsWeek} incidentes esta semana.`,
+            action: 'Investiga las causas de los incidentes y desarrolla un plan de mitigación.',
+            link: BULLET_LINKS.incidents,
         });
     }
 
-    // Bullet LOW opcional si todo va relativamente bien
-    if (bullets.length < 2 && ctx.meds.compliance !== null && ctx.meds.compliance >= 95) {
+    // Bullet LOW opcional si el eMAR va bien
+    if (bullets.length < 3 && ctx.meds.compliance !== null && ctx.meds.compliance >= 95) {
         bullets.push({
             priority: 'LOW',
-            title: 'eMAR en zona verde',
-            description: `Cumplimiento ${ctx.meds.compliance}% hoy — sobre meta.`,
-            action: 'Reconocer al equipo de enfermería en el próximo huddle.',
+            title: 'Cumplimiento eMAR Excelente',
+            description: `Cumplimiento de medicamentos al ${ctx.meds.compliance}%.`,
+            action: 'Felicita al equipo de enfermería por el excelente cumplimiento en la próxima reunión.',
+            link: BULLET_LINKS.emar,
         });
     }
 
@@ -257,9 +291,10 @@ function fallbackBriefing(ctx: any): { summary: string; bullets: BriefingBullet[
     if (bullets.length === 0) {
         bullets.push({
             priority: 'LOW',
-            title: 'Día clínico estable',
+            title: 'Día Clínico Estable',
             description: `${ctx.patientsCount} residentes activos, sin desviaciones críticas registradas.`,
             action: 'Mantener supervisión de rutina y confirmar cierre de turno.',
+            link: BULLET_LINKS.default,
         });
     }
 
