@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from 'next/link';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -89,6 +89,14 @@ function DeltaPill({ value, suffix = '%', inverted = false }: { value: number | 
 export default function CorporateDashboardPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
+    // Guard: si la sesión expira, detener polling y redirigir en lugar de generar ola de 401s
+    const sessionExpiredRef = useRef(false);
+    const handleSessionExpiry = () => {
+        if (!sessionExpiredRef.current) {
+            sessionExpiredRef.current = true;
+            router.push('/auth/signin?callbackUrl=/corporate');
+        }
+    };
     const { activeHqId, activeHqName, setActiveHq, accessibleHqs, isMultiHqRole } = useActiveHq();
     // Compat: mantener el mismo nombre en el resto del archivo, pero ahora proviene del contexto global
     const selectedFacility = activeHqId;
@@ -178,12 +186,14 @@ export default function CorporateDashboardPage() {
         let isMounted = true;
 
         async function loadDashboard(showSpinner: boolean) {
+            if (sessionExpiredRef.current) return;
             if (showSpinner) setLoading(true);
             try {
                 const timestamp = new Date().getTime();
                 const res = await fetch(`/api/corporate?hqId=${selectedFacility}&t=${timestamp}`, {
                     cache: 'no-store'
                 });
+                if (res.status === 401) { handleSessionExpiry(); return; }
                 const data = await res.json();
                 if (!isMounted) return;
 

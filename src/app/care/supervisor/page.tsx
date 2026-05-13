@@ -172,13 +172,24 @@ export default function SupervisorMissionControlPage() {
         return () => clearInterval(tick);
     }, []);
 
+    // Detiene el polling si la sesión expira (evita ola de 401s)
+    const sessionExpiredRef = useRef(false);
+    const handleSessionExpiry = () => {
+        if (!sessionExpiredRef.current) {
+            sessionExpiredRef.current = true;
+            router.push('/auth/signin?callbackUrl=/care/supervisor');
+        }
+    };
+
     useEffect(() => {
         if (user) {
+            sessionExpiredRef.current = false;
             fetchSupervisorData();
             fetchLiveData();
             fetchCaregiverRounds();
             fetchUncoveredColors();
             const interval = setInterval(() => {
+                if (sessionExpiredRef.current) return;
                 fetchLiveData();
                 fetchCaregiverRounds();
                 fetchUncoveredColors();
@@ -188,21 +199,23 @@ export default function SupervisorMissionControlPage() {
     }, [user]);
 
     const fetchLiveData = async () => {
-        if (!user) return;
+        if (!user || sessionExpiredRef.current) return;
         const hqId = (user as any).hqId || (user as any).headquartersId || "hq-demo-1";
         try {
             const res = await fetch(`/api/care/supervisor/live?hqId=${hqId}`);
+            if (res.status === 401) { handleSessionExpiry(); return; }
             const data = await res.json();
             if (data.success) setLiveData(data);
         } catch (e) { console.error("Live fetch error", e); }
     };
 
     const fetchCaregiverRounds = async () => {
-        if (!user) return;
+        if (!user || sessionExpiredRef.current) return;
         const hqId = (user as any).hqId || (user as any).headquartersId || "hq-demo-1";
         setRoundsLoading(true);
         try {
             const res = await fetch(`/api/care/supervisor/caregiver-rounds?hqId=${hqId}`);
+            if (res.status === 401) { handleSessionExpiry(); return; }
             const data = await res.json();
             if (data.success) {
                 setCaregiverRounds(data.caregivers || []);
@@ -214,10 +227,11 @@ export default function SupervisorMissionControlPage() {
     };
 
     const fetchUncoveredColors = async () => {
-        if (!user) return;
+        if (!user || sessionExpiredRef.current) return;
         const hqId = (user as any).hqId || (user as any).headquartersId || '';
         try {
             const res = await fetch(`/api/care/supervisor/uncovered-colors?hqId=${hqId}`);
+            if (res.status === 401) { handleSessionExpiry(); return; }
             const data = await res.json();
             if (data.success) {
                 setUncoveredColors(data.uncoveredColors || []);
@@ -252,6 +266,7 @@ export default function SupervisorMissionControlPage() {
     const fetchSupervisorData = async () => {
         try {
             const res = await fetch("/api/care/supervisor");
+            if (res.status === 401) { handleSessionExpiry(); return; }
             const data = await res.json();
             if (data.success) {
                 setStaff(data.staff || []);

@@ -18,7 +18,7 @@ import { authOptions } from '@/lib/auth';
  *
  * Body opcional: { patientIds: string[] } → limitar a un subconjunto.
  */
-export const maxDuration = 300; // 5 minutos (Vercel Pro/Edge)
+export const maxDuration = 60; // Límite seguro para todos los planes de Vercel
 export const dynamic = 'force-dynamic';
 
 const PAI_SCHEMA = z.object({
