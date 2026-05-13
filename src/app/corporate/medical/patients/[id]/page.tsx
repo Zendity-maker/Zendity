@@ -371,6 +371,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <h1 className="text-2xl font-bold text-slate-800 tracking-tight">{patientData?.name || "Residente No Encontrado"}</h1>
                                 {patientData?.status === 'ACTIVE' && <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">ACTIVO</span>}
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
+                                {patientData?.needsDialysis && <span className="bg-blue-100 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">🩺 Diálisis</span>}
                                 {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && <span className="bg-slate-200 text-slate-600 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">EGRESADO / INACTIVO</span>}
                             </div>
                             <div className="text-slate-500 mt-1 font-medium flex-wrap flex items-center gap-2">
@@ -386,6 +387,21 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                     </button>
                                     <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
                                         <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Perfil
+                                    </button>
+                                    <button
+                                        title={patientData?.needsDialysis ? 'Quitar flag de diálisis' : 'Marcar como paciente de diálisis'}
+                                        onClick={async () => {
+                                            const newVal = !patientData?.needsDialysis;
+                                            const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ needsDialysis: newVal })
+                                            });
+                                            if ((await res.json()).success !== false) fetchPatientData();
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${patientData?.needsDialysis ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        🩺 {patientData?.needsDialysis ? 'Diálisis ✓' : 'Diálisis'}
                                     </button>
                                     </>
                                 )}

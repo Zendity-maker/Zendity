@@ -1614,6 +1614,47 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    // Salida a diálisis
+    const departDialysis = async (patientId: string, patientName: string) => {
+        if (!confirm(`¿Confirmar salida a diálisis de ${patientName}?`)) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch('/api/care/dialysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'DEPART', patientId, caregiverId: user?.id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchPatients(selectedColor!);
+            } else {
+                alert('Error al registrar salida: ' + data.error);
+            }
+        } catch (e) { console.error(e); }
+        finally { setSubmitting(false); }
+    };
+
+    // Retorno de diálisis
+    const returnDialysis = async (patientId: string) => {
+        if (!confirm('¿Confirmar que el residente ha regresado de diálisis?')) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch('/api/care/dialysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'RETURN', patientId, caregiverId: user?.id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('Retorno de diálisis registrado. Recuerda tomar vitales post-diálisis.');
+                fetchPatients(selectedColor!);
+            } else {
+                alert('Error al registrar retorno: ' + data.error);
+            }
+        } catch (e) { console.error(e); }
+        finally { setSubmitting(false); }
+    };
+
     const colorStyles: Record<string, string> = { RED: "bg-red-600", YELLOW: "bg-amber-500", GREEN: "bg-emerald-500", BLUE: "bg-blue-600" };
 
     // =========================================================
@@ -2735,14 +2776,24 @@ export default function ZendityCareTabletPage() {
 
                                     {isAbsent && (
                                         <div className="absolute inset-0 bg-slate-900/10 z-10 flex flex-col items-center justify-center backdrop-blur-[1px] gap-4">
-                                            <div className="bg-[#fef3c7] border border-[#fde68a] text-[#92400e] px-6 py-2 rounded-full font-semibold flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105">
-                                                Residente Fuera ({p.leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})
+                                            <div className={`px-6 py-2 rounded-full font-semibold flex items-center gap-2 shadow-2xl rotate-[-5deg] transform scale-105 ${
+                                                p.leaveType === 'DIALYSIS'
+                                                    ? 'bg-[#dbeafe] border border-[#93c5fd] text-[#1e40af]'
+                                                    : 'bg-[#fef3c7] border border-[#fde68a] text-[#92400e]'
+                                            }`}>
+                                                {p.leaveType === 'DIALYSIS' ? '🩺 En Diálisis' :
+                                                 p.leaveType === 'HOSPITAL' ? '🚑 En Hospital' : '🏠 Visita Familiar'}
                                             </div>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); returnResident(p.id); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    p.leaveType === 'DIALYSIS'
+                                                        ? returnDialysis(p.id)
+                                                        : returnResident(p.id);
+                                                }}
                                                 className="bg-[#22A06B] hover:opacity-90 text-white px-5 py-2 rounded-xl font-semibold shadow-lg transition pointer-events-auto"
                                             >
-                                                Registrar Retorno al Piso
+                                                {p.leaveType === 'DIALYSIS' ? '✓ Registrar Retorno de Diálisis' : 'Registrar Retorno al Piso'}
                                             </button>
                                         </div>
                                     )}
@@ -2953,6 +3004,17 @@ export default function ZendityCareTabletPage() {
                                                 <span className="text-base leading-none">🚑</span> Trasladar ER
                                             </button>
                                         </div>
+
+                                        {/* Row 4 — Diálisis (solo residentes con needsDialysis) */}
+                                        {p.needsDialysis && p.status === 'ACTIVE' && (
+                                            <button
+                                                onClick={() => departDialysis(p.id, p.name)}
+                                                disabled={submitting}
+                                                className="mt-1.5 w-full min-h-[52px] bg-[#1e40af] hover:bg-[#1d4ed8] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-60"
+                                            >
+                                                <span className="text-base leading-none">🩺</span> Salida a Diálisis
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             );

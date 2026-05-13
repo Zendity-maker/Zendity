@@ -54,6 +54,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             address,
             // Sprint P — identificadores separados + encargado primario
             idNumber, medicareNumber, medicaidNumber, primaryFamilyMemberId,
+            // Diálisis
+            needsDialysis,
         } = body;
 
         const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -85,6 +87,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
         // FASE 84 — dirección previa
         if (address !== undefined) updateData.address = address || null;
+        if (needsDialysis !== undefined) updateData.needsDialysis = Boolean(needsDialysis);
 
         // Sprint P — Admisión Unificada
         if (idNumber !== undefined) updateData.idNumber = idNumber || null;

@@ -537,6 +537,7 @@ model Patient {
   dischargeDate   DateTime?
   dischargeReason String?
   photoUrl        String? // FASE 48: URL de foto de perfil
+  needsDialysis   Boolean @default(false) // Marca residentes con tratamiento de diálisis periódica
 
   // FASE 52: Documentos Críticos del Residente (Fotografías)
   idCardUrl       String?
@@ -1835,6 +1836,7 @@ enum PatientStatus {
 enum LeaveType {
   HOSPITAL
   FAMILY_VISIT
+  DIALYSIS
   OTHER
 }
 
