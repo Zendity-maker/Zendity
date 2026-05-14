@@ -15,16 +15,31 @@ export async function POST(req: Request) {
         }
 
         const { areaId, status, photoUrl, notes, photoRequested } = await req.json();
+        const hqId = (session.user as any).headquartersId;
 
         if (!areaId) {
             return NextResponse.json({ success: false, error: 'areaId requerido' }, { status: 400 });
+        }
+        if (!hqId) {
+            return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
+        }
+
+        // Validar que el área pertenece a esta sede (cierra agujero de multi-tenancy)
+        const area = await prisma.cleaningArea.findUnique({ where: { id: areaId } });
+        if (!area || area.headquartersId !== hqId) {
+            return NextResponse.json({ success: false, error: 'Área no encontrada' }, { status: 404 });
+        }
+
+        // Validar foto requerida en server (la UI lo valida, pero un cliente malicioso podría saltarlo)
+        if (area.requiresPhoto && status !== 'SKIPPED' && !photoUrl) {
+            return NextResponse.json({ success: false, error: 'Foto requerida para esta área' }, { status: 400 });
         }
 
         const log = await prisma.cleaningLog.create({
             data: {
                 areaId,
                 cleanedById: session.user.id,
-                headquartersId: (session.user as any).headquartersId,
+                headquartersId: hqId,
                 status: status || 'COMPLETED',
                 photoUrl: photoUrl || null,
                 photoRequested: photoRequested || false,
@@ -51,11 +66,11 @@ export async function GET(req: Request) {
         }
 
         const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+        const hqId = (session.user as any).headquartersId;
         const dateParam = searchParams.get('date');
 
         if (!hqId) {
-            return NextResponse.json({ success: false, error: 'hqId requerido' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
         const targetDate = dateParam ? new Date(dateParam) : new Date();

@@ -14,11 +14,10 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+        const hqId = (session.user as any).headquartersId;
 
         if (!hqId) {
-            return NextResponse.json({ success: false, error: 'hqId requerido' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
         const now = new Date();
@@ -106,8 +105,9 @@ export async function PATCH(req: Request) {
             return NextResponse.json({ success: false, error: 'requestId y status requeridos' }, { status: 400 });
         }
 
+        const hqId = (session.user as any).headquartersId;
         const existing = await prisma.cleaningRequest.findUnique({ where: { id: requestId } });
-        if (!existing) {
+        if (!existing || existing.headquartersId !== hqId) {
             return NextResponse.json({ success: false, error: 'Solicitud no encontrada' }, { status: 404 });
         }
 

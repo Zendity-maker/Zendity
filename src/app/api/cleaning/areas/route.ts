@@ -12,11 +12,10 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+        const hqId = (session.user as any).headquartersId;
 
         if (!hqId) {
-            return NextResponse.json({ success: false, error: 'hqId requerido' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
         const areas = await prisma.cleaningArea.findMany({
