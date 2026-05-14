@@ -15,9 +15,9 @@ const CATEGORY_STYLES: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-    BATHROOM: "Bano",
-    ROOM: "Habitacion",
-    COMMON: "Area Comun",
+    BATHROOM: "Baño",
+    ROOM: "Habitación",
+    COMMON: "Área Común",
     TRASH: "Zafacones",
 };
 
@@ -316,7 +316,7 @@ export default function CleaningDashboardPage() {
                         <SprayCan className="w-5 h-5" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-white tracking-tight">Limpieza & Sanitizacion</h1>
+                        <h1 className="text-xl font-black text-white tracking-tight">Limpieza & Sanitización</h1>
                         <span className="text-[10px] uppercase font-black tracking-widest text-teal-400">Zendity Cleaning</span>
                     </div>
                 </div>

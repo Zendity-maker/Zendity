@@ -15,9 +15,9 @@ const CATEGORY_STYLES: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-    BATHROOM: "Bano",
-    ROOM: "Habitacion",
-    COMMON: "Area Comun",
+    BATHROOM: "Baño",
+    ROOM: "Habitación",
+    COMMON: "Área Común",
     TRASH: "Zafacones",
 };
 
@@ -112,7 +112,7 @@ export default function CorporateCleaningDashboard() {
             <div>
                 <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                     <SprayCan className="w-8 h-8 text-teal-600" />
-                    Limpieza & Sanitizacion
+                    Limpieza & Sanitización
                 </h1>
                 <p className="text-slate-500 font-medium mt-1">Panel de supervision — desempeno de limpieza de la sede</p>
             </div>
