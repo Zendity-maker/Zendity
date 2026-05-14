@@ -8,10 +8,15 @@ import { z } from 'zod';
 const ALLOWED_ROLES_WRITE = ['CLEANING', 'MAINTENANCE'];
 const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
+// ~1.5MB en base64 ≈ ~1.1MB de imagen real. La UI comprime a 500px JPEG 0.8
+// (~30-60KB), así que este cap es un techo de seguridad contra clientes
+// maliciosos o bugs de compresión, no un límite operativo.
+const MAX_PHOTO_BASE64_LEN = 1_500_000;
+
 const LogSchema = z.object({
     areaId: z.string().uuid(),
     status: z.enum(['COMPLETED', 'SKIPPED']).optional(),
-    photoUrl: z.string().nullable().optional(),
+    photoUrl: z.string().max(MAX_PHOTO_BASE64_LEN, 'Foto excede el tamaño máximo permitido').nullable().optional(),
     notes: z.string().max(1000).nullable().optional(),
     photoRequested: z.boolean().optional(),
 });

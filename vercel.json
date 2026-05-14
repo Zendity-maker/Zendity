@@ -47,6 +47,14 @@
     {
       "path": "/api/cron/expire-cleaning-requests",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-cleaning-stats",
+      "schedule": "55 23 * * *"
+    },
+    {
+      "path": "/api/cron/purge-cleaning-photos",
+      "schedule": "0 3 * * *"
     }
   ]
 }

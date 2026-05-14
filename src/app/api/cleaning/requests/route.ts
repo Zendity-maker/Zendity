@@ -13,10 +13,14 @@ const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR',
 const ALLOWED_ROLES_CREATE = ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'NURSE'];
 const ALLOWED_ROLES_UPDATE = ['CLEANING', 'MAINTENANCE'];
 
+// Cap server-side al tamaño de foto base64 (~1.5MB ≈ 1.1MB de imagen real).
+// La UI comprime a 500px — esto es un techo de seguridad contra abuse.
+const MAX_PHOTO_BASE64_LEN = 1_500_000;
+
 const CreateSchema = z.object({
     areaName: z.string().min(1).max(120),
     description: z.string().min(1).max(1000),
-    photoUrl: z.string().nullable().optional(),
+    photoUrl: z.string().max(MAX_PHOTO_BASE64_LEN, 'Foto excede el tamaño máximo permitido').nullable().optional(),
     priority: z.enum(['NORMAL', 'URGENT']).optional(),
     areaId: z.string().uuid().nullable().optional(),
 });

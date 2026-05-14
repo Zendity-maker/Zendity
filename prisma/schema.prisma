@@ -114,9 +114,10 @@ model Headquarters {
   shiftColorAssignments ShiftColorAssignment[]
 
   // Cleaning & Sanitization Module
-  cleaningAreas    CleaningArea[]
-  cleaningLogs     CleaningLog[]
-  cleaningRequests CleaningRequest[]
+  cleaningAreas      CleaningArea[]
+  cleaningLogs       CleaningLog[]
+  cleaningRequests   CleaningRequest[]
+  cleaningDailyStats CleaningDailyStats[]
 
   // Social Work Module
   socialWorkNotes    SocialWorkNote[]
@@ -2352,6 +2353,26 @@ model CleaningRequest {
   requestedBy     User           @relation("CleaningRequestsCreated", fields: [requestedById], references: [id])
   assignedTo      User?          @relation("CleaningRequestsAssigned", fields: [assignedToId], references: [id])
   area            CleaningArea?  @relation(fields: [areaId], references: [id])
+}
+
+// Snapshot diario de stats de limpieza por sede.
+// Resuelve el bug de "% completado" que dividía entre el conteo ACTUAL de
+// áreas activas — ahora cada día queda fotografiado con su denominador real.
+// Lo escribe el cron /api/cron/snapshot-cleaning-stats a las 23:55.
+model CleaningDailyStats {
+  id                String   @id @default(uuid())
+  headquartersId    String
+  date              DateTime // 00:00 del día snapshot, UTC
+  totalAreas        Int      // áreas activas al momento del snapshot
+  completedCount    Int      // logs COMPLETED ese día
+  skippedCount      Int      // logs SKIPPED ese día
+  uniqueAreasLogged Int      // áreas distintas con cualquier log ese día
+  createdAt         DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@unique([headquartersId, date])
+  @@index([headquartersId, date])
 }
 
 // =======================

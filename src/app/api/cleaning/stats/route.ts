@@ -45,16 +45,47 @@ export async function GET(req: Request) {
             orderBy: { cleanedAt: 'asc' },
         });
 
-        // 1. % completado por dia
+        // 1. % completado por día — usa snapshots históricos cuando existen
+        // (resuelve el bug de dividir entre el conteo ACTUAL de áreas activas).
+        // Para días pasados: snapshot. Para hoy: cálculo en vivo con totalAreas actual.
+        const todayStart = startOfDay(new Date());
         const days = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+
+        const snapshots = await prisma.cleaningDailyStats.findMany({
+            where: {
+                headquartersId: hqId,
+                date: { gte: rangeStart, lte: rangeEnd },
+            },
+        });
+        const snapshotByDate: Record<string, typeof snapshots[number]> = {};
+        for (const s of snapshots) snapshotByDate[format(s.date, 'yyyy-MM-dd')] = s;
+
         const completionByDay = days.map(day => {
             const dayStart = startOfDay(day);
             const dayEnd = endOfDay(day);
+            const dayKey = format(day, 'yyyy-MM-dd');
+            const isToday = dayStart.getTime() === todayStart.getTime();
+            const snap = snapshotByDate[dayKey];
+
+            // Días pasados con snapshot: usar el snapshot (denominador histórico real)
+            if (snap && !isToday) {
+                return {
+                    date: dayKey,
+                    total: snap.completedCount + snap.skippedCount,
+                    completed: snap.completedCount,
+                    skipped: snap.skippedCount,
+                    percentage: snap.totalAreas > 0
+                        ? Math.round((snap.completedCount / snap.totalAreas) * 100)
+                        : 0,
+                };
+            }
+
+            // Hoy o días sin snapshot (legacy pre-cron): cálculo en vivo
             const dayLogs = logs.filter(l => l.cleanedAt >= dayStart && l.cleanedAt <= dayEnd);
             const completed = dayLogs.filter(l => l.status === 'COMPLETED').length;
             const skipped = dayLogs.filter(l => l.status === 'SKIPPED').length;
             return {
-                date: format(day, 'yyyy-MM-dd'),
+                date: dayKey,
                 total: dayLogs.length,
                 completed,
                 skipped,
