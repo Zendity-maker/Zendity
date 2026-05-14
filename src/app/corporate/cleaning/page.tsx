@@ -106,15 +106,30 @@ export default function CorporateCleaningDashboard() {
         );
     }
 
+    const downloadExport = () => {
+        const url = `/api/cleaning/export?from=${sevenDaysAgo}&to=${today}`;
+        window.location.href = url;
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page header */}
-            <div>
-                <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                    <SprayCan className="w-8 h-8 text-teal-600" />
-                    Limpieza & Sanitización
-                </h1>
-                <p className="text-slate-500 font-medium mt-1">Panel de supervision — desempeno de limpieza de la sede</p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                        <SprayCan className="w-8 h-8 text-teal-600" />
+                        Limpieza & Sanitización
+                    </h1>
+                    <p className="text-slate-500 font-medium mt-1">Panel de supervisión — desempeño de limpieza de la sede</p>
+                </div>
+                <button
+                    onClick={downloadExport}
+                    className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-all active:scale-95 shadow-sm flex items-center gap-2 shrink-0"
+                    title="Descargar CSV de los últimos 7 días para auditorías"
+                >
+                    <TrendingUp className="w-4 h-4" />
+                    Descargar CSV (7 días)
+                </button>
             </div>
 
             {/* KPIs */}

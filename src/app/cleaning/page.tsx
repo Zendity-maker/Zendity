@@ -39,10 +39,21 @@ type CleaningLog = {
     photoUrl: string | null;
     photoRequested: boolean;
     notes: string | null;
+    productsUsed: string[];
     cleanedAt: string;
     area: { id: string; name: string };
     cleanedBy: { id: string; name: string };
 };
+
+const COMMON_PRODUCTS = [
+    "Cloro",
+    "Lysol",
+    "Pine-Sol",
+    "Fabuloso",
+    "Mr. Limpio",
+    "Alcohol",
+    "Detergente",
+];
 
 export default function CleaningDashboardPage() {
     const { user, logout } = useAuth();
@@ -62,6 +73,7 @@ export default function CleaningDashboardPage() {
     const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [confirmNotes, setConfirmNotes] = useState("");
+    const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // History tab state
@@ -189,6 +201,15 @@ export default function CleaningDashboardPage() {
         setPhotoRequired(needsPhoto);
         setCapturedPhoto(null);
         setConfirmNotes("");
+        setSelectedProducts([]);
+    };
+
+    const toggleProduct = (product: string) => {
+        setSelectedProducts(prev =>
+            prev.includes(product)
+                ? prev.filter(p => p !== product)
+                : prev.length >= 10 ? prev : [...prev, product]
+        );
     };
 
     // Handle file capture
@@ -231,6 +252,7 @@ export default function CleaningDashboardPage() {
                     photoUrl: mode === "COMPLETED" ? (capturedPhoto || null) : null,
                     photoRequested: mode === "COMPLETED" ? photoRequired : false,
                     notes: confirmNotes || null,
+                    productsUsed: mode === "COMPLETED" ? selectedProducts : [],
                 }),
             });
             const data = await res.json();
@@ -636,6 +658,30 @@ export default function CleaningDashboardPage() {
                                     <p className="font-bold text-teal-800">Confirmas que limpiaste esta area?</p>
                                 </div>
                             )}
+
+                            {/* Productos químicos usados (regulatorio) */}
+                            <div>
+                                <p className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wide">
+                                    Productos usados <span className="text-slate-400 font-normal">(opcional)</span>
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {COMMON_PRODUCTS.map(p => {
+                                        const isSelected = selectedProducts.includes(p);
+                                        return (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => toggleProduct(p)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-full border-2 transition-all ${isSelected
+                                                    ? "bg-teal-600 text-white border-teal-600"
+                                                    : "bg-white text-slate-600 border-slate-200 hover:border-teal-300"}`}
+                                            >
+                                                {isSelected ? "✓ " : ""}{p}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
                             {/* Notes — obligatorio si vas a omitir */}
                             <input

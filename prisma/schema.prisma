@@ -2327,6 +2327,7 @@ model CleaningLog {
   photoUrl        String?
   photoRequested  Boolean  @default(false)
   notes           String?
+  productsUsed    String[] // Productos/desinfectantes usados (regulatorio Senior Living)
   cleanedAt       DateTime @default(now())
 
   area            CleaningArea   @relation(fields: [areaId], references: [id])

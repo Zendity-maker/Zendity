@@ -19,6 +19,7 @@ const LogSchema = z.object({
     photoUrl: z.string().max(MAX_PHOTO_BASE64_LEN, 'Foto excede el tamaño máximo permitido').nullable().optional(),
     notes: z.string().max(1000).nullable().optional(),
     photoRequested: z.boolean().optional(),
+    productsUsed: z.array(z.string().min(1).max(80)).max(10).optional(),
 });
 
 export async function POST(req: Request) {
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
                 { status: 400 }
             );
         }
-        const { areaId, status, photoUrl, notes, photoRequested } = parsed.data;
+        const { areaId, status, photoUrl, notes, photoRequested, productsUsed } = parsed.data;
         const hqId = (session.user as any).headquartersId;
 
         if (!hqId) {
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
                 photoUrl: photoUrl || null,
                 photoRequested: photoRequested || false,
                 notes: notes || null,
+                productsUsed: productsUsed || [],
             },
             include: {
                 area: true,

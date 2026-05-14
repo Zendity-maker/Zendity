@@ -55,6 +55,10 @@
     {
       "path": "/api/cron/purge-cleaning-photos",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleaning-overdue-alerts",
+      "schedule": "0 9 * * *"
     }
   ]
 }
