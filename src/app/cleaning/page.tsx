@@ -215,10 +215,11 @@ export default function CleaningDashboardPage() {
         };
     };
 
-    // Submit cleaning log
-    const submitLog = async () => {
+    // Submit cleaning log — accepts COMPLETED or SKIPPED (con razón)
+    const submitLog = async (mode: "COMPLETED" | "SKIPPED" = "COMPLETED") => {
         if (!confirmArea || !user) return;
-        if (photoRequired && !capturedPhoto) return;
+        if (mode === "COMPLETED" && photoRequired && !capturedPhoto) return;
+        if (mode === "SKIPPED" && !confirmNotes.trim()) return; // razón obligatoria al omitir
         setSubmitting(true);
         try {
             const res = await fetch("/api/cleaning/log", {
@@ -226,9 +227,9 @@ export default function CleaningDashboardPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     areaId: confirmArea.id,
-                    status: "COMPLETED",
-                    photoUrl: capturedPhoto || null,
-                    photoRequested: photoRequired,
+                    status: mode,
+                    photoUrl: mode === "COMPLETED" ? (capturedPhoto || null) : null,
+                    photoRequested: mode === "COMPLETED" ? photoRequired : false,
                     notes: confirmNotes || null,
                 }),
             });
@@ -248,15 +249,21 @@ export default function CleaningDashboardPage() {
     const AreaCard = ({ area }: { area: CleaningArea }) => {
         const log = getLogForArea(area.id);
         const isDone = !!log;
+        const isSkipped = log?.status === "SKIPPED";
+        const cardBg = isSkipped
+            ? "bg-amber-50 border-amber-200"
+            : isDone
+                ? "bg-emerald-50 border-emerald-200"
+                : "bg-white border-slate-200 hover:border-teal-300";
         return (
-            <div className={`rounded-2xl p-5 border-2 transition-all ${isDone ? "bg-emerald-50 border-emerald-200" : "bg-white border-slate-200 hover:border-teal-300"}`}>
+            <div className={`rounded-2xl p-5 border-2 transition-all ${cardBg}`}>
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${CATEGORY_STYLES[area.category] || CATEGORY_STYLES.COMMON}`}>
                                 {CATEGORY_LABELS[area.category] || area.category}
                             </span>
-                            {area.requiresPhoto && (
+                            {area.requiresPhoto && !isDone && (
                                 <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
                                     <Camera className="w-3 h-3" /> Foto requerida
                                 </span>
@@ -266,15 +273,31 @@ export default function CleaningDashboardPage() {
                         {area.category === "ROOM" && area.roomNumber && (
                             <p className="text-xs text-slate-500 mt-0.5">Hab. {area.roomNumber}</p>
                         )}
+                        {isSkipped && log?.notes && (
+                            <p className="text-xs text-amber-700 mt-1.5 italic">Razón: {log.notes}</p>
+                        )}
                     </div>
                     {isDone ? (
                         <div className="flex flex-col items-end shrink-0">
-                            <span className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm">
-                                <CheckCircle2 className="w-5 h-5" /> Completada
-                            </span>
-                            <span className="text-[10px] text-emerald-600 font-medium mt-0.5">
-                                {new Date(log!.cleanedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
+                            {isSkipped ? (
+                                <>
+                                    <span className="flex items-center gap-1.5 text-amber-700 font-bold text-sm">
+                                        <AlertTriangle className="w-5 h-5" /> Omitida
+                                    </span>
+                                    <span className="text-[10px] text-amber-600 font-medium mt-0.5">
+                                        {new Date(log!.cleanedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm">
+                                        <CheckCircle2 className="w-5 h-5" /> Completada
+                                    </span>
+                                    <span className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                                        {new Date(log!.cleanedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <button
@@ -614,31 +637,42 @@ export default function CleaningDashboardPage() {
                                 </div>
                             )}
 
-                            {/* Notes */}
+                            {/* Notes — obligatorio si vas a omitir */}
                             <input
                                 type="text"
                                 value={confirmNotes}
                                 onChange={(e) => setConfirmNotes(e.target.value)}
-                                placeholder="Notas (opcional)"
+                                placeholder="Notas (opcional, requerido si omites)"
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
                             />
                         </div>
 
                         {/* Modal footer */}
-                        <div className="px-6 pb-6 flex gap-3">
+                        <div className="px-6 pb-6 flex flex-col gap-2">
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmArea(null)}
+                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => submitLog("COMPLETED")}
+                                    disabled={submitting || (photoRequired && !capturedPhoto)}
+                                    className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-teal-600/30 flex items-center justify-center gap-2"
+                                >
+                                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                    {submitting ? "Registrando..." : "Confirmar"}
+                                </button>
+                            </div>
                             <button
-                                onClick={() => setConfirmArea(null)}
-                                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors"
+                                onClick={() => submitLog("SKIPPED")}
+                                disabled={submitting || !confirmNotes.trim()}
+                                title={!confirmNotes.trim() ? "Escribe una razón para omitir" : "Marcar como no realizada"}
+                                className="w-full py-2.5 text-amber-700 hover:bg-amber-50 font-semibold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={submitLog}
-                                disabled={submitting || (photoRequired && !capturedPhoto)}
-                                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-teal-600/30 flex items-center justify-center gap-2"
-                            >
-                                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                {submitting ? "Registrando..." : "Confirmar"}
+                                <AlertTriangle className="w-4 h-4" />
+                                Omitir esta área (con razón)
                             </button>
                         </div>
                     </div>

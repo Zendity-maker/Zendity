@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
+import { z } from 'zod';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -11,6 +12,19 @@ if (process.env.SENDGRID_API_KEY) {
 const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 const ALLOWED_ROLES_CREATE = ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'NURSE'];
 const ALLOWED_ROLES_UPDATE = ['CLEANING', 'MAINTENANCE'];
+
+const CreateSchema = z.object({
+    areaName: z.string().min(1).max(120),
+    description: z.string().min(1).max(1000),
+    photoUrl: z.string().nullable().optional(),
+    priority: z.enum(['NORMAL', 'URGENT']).optional(),
+    areaId: z.string().uuid().nullable().optional(),
+});
+
+const PatchSchema = z.object({
+    requestId: z.string().uuid(),
+    status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'EXPIRED']),
+});
 
 export async function GET(req: Request) {
     try {
@@ -25,19 +39,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
-        const now = new Date();
-
-        // Auto-expire pending requests past their SLA
-        await prisma.cleaningRequest.updateMany({
-            where: {
-                headquartersId: hqId,
-                status: { in: ['PENDING', 'IN_PROGRESS'] },
-                expiresAt: { lt: now },
-            },
-            data: { status: 'EXPIRED' },
-        });
-
-        // Fetch active requests
+        // Auto-expire ahora vive en /api/cron/expire-cleaning-requests (cada 5 min).
+        // GET es idempotente — no genera writes.
         const requests = await prisma.cleaningRequest.findMany({
             where: {
                 headquartersId: hqId,
@@ -65,11 +68,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { areaName, description, photoUrl, priority, areaId } = await req.json();
-
-        if (!areaName || !description) {
-            return NextResponse.json({ success: false, error: 'areaName y description requeridos' }, { status: 400 });
+        const parsed = CreateSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { success: false, error: 'Datos inválidos', issues: parsed.error.issues },
+                { status: 400 }
+            );
         }
+        const { areaName, description, photoUrl, priority, areaId } = parsed.data;
 
         const expiresAt = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes SLA
         const hqId = (session.user as any).headquartersId;
@@ -165,11 +171,14 @@ export async function PATCH(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { requestId, status } = await req.json();
-
-        if (!requestId || !status) {
-            return NextResponse.json({ success: false, error: 'requestId y status requeridos' }, { status: 400 });
+        const parsed = PatchSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { success: false, error: 'Datos inválidos', issues: parsed.error.issues },
+                { status: 400 }
+            );
         }
+        const { requestId, status } = parsed.data;
 
         const hqId = (session.user as any).headquartersId;
         const existing = await prisma.cleaningRequest.findUnique({ where: { id: requestId } });

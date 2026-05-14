@@ -3,9 +3,18 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
+import { z } from 'zod';
 
 const ALLOWED_ROLES_WRITE = ['CLEANING', 'MAINTENANCE'];
 const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+const LogSchema = z.object({
+    areaId: z.string().uuid(),
+    status: z.enum(['COMPLETED', 'SKIPPED']).optional(),
+    photoUrl: z.string().nullable().optional(),
+    notes: z.string().max(1000).nullable().optional(),
+    photoRequested: z.boolean().optional(),
+});
 
 export async function POST(req: Request) {
     try {
@@ -14,12 +23,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { areaId, status, photoUrl, notes, photoRequested } = await req.json();
+        const parsed = LogSchema.safeParse(await req.json());
+        if (!parsed.success) {
+            return NextResponse.json(
+                { success: false, error: 'Datos inválidos', issues: parsed.error.issues },
+                { status: 400 }
+            );
+        }
+        const { areaId, status, photoUrl, notes, photoRequested } = parsed.data;
         const hqId = (session.user as any).headquartersId;
 
-        if (!areaId) {
-            return NextResponse.json({ success: false, error: 'areaId requerido' }, { status: 400 });
-        }
         if (!hqId) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }

@@ -34,6 +34,8 @@ const clinicalNavigation = [
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
     { name: 'Mis Observaciones', href: '/my-observations', icon: FileWarning, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
+    // Limpieza — dashboard de turno solo para personal CLEANING/MAINTENANCE
+    { name: 'Limpieza & Sanitización', href: '/cleaning', icon: SprayCan, onlyRoles: ['CLEANING', 'MAINTENANCE'] },
 ];
 
 const corporateNavigationSections = [
