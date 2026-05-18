@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
+import { computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,9 @@ export async function GET(req: Request) {
  * POST /api/care/supervisor/uncovered-colors
  *
  * Redistribuye los residentes de un color sin cobertura entre las cuidadoras activas.
- * Mismo mecanismo que la redistribución por ausencia.
+ * Usa computeShiftCoverage para idempotencia: solo procesa residentes que NO tienen
+ * un ShiftPatientOverride activo todavía. Previene duplicados al tocar el botón
+ * múltiples veces.
  */
 export async function POST(req: Request) {
     try {
@@ -114,159 +117,166 @@ export async function POST(req: Request) {
         if (!color || !shiftType) {
             return NextResponse.json({ success: false, error: 'color y shiftType son requeridos' }, { status: 400 });
         }
-
-        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
-        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
-
-        // Residentes activos del grupo sin cobertura
-        const residents = await prisma.patient.findMany({
-            where: { headquartersId: hqId, status: 'ACTIVE', colorGroup: color as any },
-            select: { id: true, name: true, colorGroup: true }
-        });
-
-        if (residents.length === 0) {
-            return NextResponse.json({ success: true, message: 'Sin residentes en este grupo', residentsRedistributed: 0 });
+        if (!['MORNING', 'EVENING', 'NIGHT'].includes(shiftType)) {
+            return NextResponse.json({ success: false, error: 'shiftType inválido' }, { status: 400 });
         }
 
-        // Cuidadoras activas (con sesión abierta)
-        const activeSessions = await prisma.shiftSession.findMany({
-            where: {
-                actualEndTime: null,
-                startTime: { gte: fourteenHrsAgo },
-                caregiver: { headquartersId: hqId, role: 'CAREGIVER' }
-            },
-            select: { id: true, caregiverId: true, caregiver: { select: { name: true } } }
-        });
+        const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
+        const colorLabel = colorLabels[color] || color;
 
-        if (activeSessions.length === 0) {
-            return NextResponse.json({ success: false, error: 'No hay cuidadoras activas para redistribuir' }, { status: 400 });
+        // Una sola fuente de verdad: computeShiftCoverage ya excluye los pacientes
+        // con override activo. Por eso usa ESTE helper en vez de queries propias.
+        const coverage = await computeShiftCoverage({ hqId, shiftType: shiftType as ShiftT });
+
+        // Residentes del color solicitado que aún NO tienen override.
+        const pendingResidents = coverage.uncoveredPatients.filter(p => p.colorGroup === color);
+
+        if (pendingResidents.length === 0) {
+            // O no hay residentes con ese color, o todos ya están redistribuidos.
+            // En cualquiera de los dos casos no hay nada que hacer — mensaje claro.
+            const alreadyDoneCount = coverage.activeOverrides.filter(o => o.originalColor === color).length;
+            return NextResponse.json({
+                success: true,
+                residentsRedistributed: 0,
+                alreadyRedistributed: alreadyDoneCount,
+                message: alreadyDoneCount > 0
+                    ? `Los residentes del Grupo ${colorLabel} ya están redistribuidos (${alreadyDoneCount}).`
+                    : `Sin residentes pendientes en el Grupo ${colorLabel}.`,
+            });
         }
 
-        // Color de cada cuidadora activa para calcular carga actual
-        const activeIds = activeSessions.map(s => s.caregiverId);
-        const colorAssignments = await prisma.shiftColorAssignment.findMany({
-            where: { userId: { in: activeIds }, assignedAt: { gte: todayStart } },
-            select: { userId: true, color: true },
-            orderBy: { assignedAt: 'desc' }
-        });
-        const colorMap = new Map<string, string>();
-        for (const ca of colorAssignments) {
-            if (!colorMap.has(ca.userId)) colorMap.set(ca.userId, ca.color);
-        }
-        // Fallback a ScheduledShift de hoy
-        const todayShifts = await prisma.scheduledShift.findMany({
-            where: { userId: { in: activeIds }, date: { gte: todayStart }, isAbsent: false, schedule: { headquartersId: hqId, status: 'PUBLISHED' } },
-            select: { userId: true, colorGroup: true },
-        });
-        for (const s of todayShifts) {
-            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'ALL') colorMap.set(s.userId, s.colorGroup);
+        const recipients = coverage.activeCaregivers.filter(c => c.color);
+        if (recipients.length === 0) {
+            return NextResponse.json({
+                success: false,
+                error: 'No hay cuidadoras activas con color asignado para redistribuir',
+            }, { status: 400 });
         }
 
-        // Calcular carga actual de cada cuidadora activa
-        const caregiverLoads = await Promise.all(
-            activeSessions.map(async s => {
-                const baseColor = colorMap.get(s.caregiverId);
-                const colorsToCount = baseColor ? [baseColor] : [];
-
-                // Sumar residentes de overrides activos de hoy
-                const overrideCount = await prisma.shiftPatientOverride.count({
-                    where: { caregiverId: s.caregiverId, isActive: true, shiftDate: { gte: todayStart } }
-                });
-
-                const baseCount = colorsToCount.length > 0
-                    ? await prisma.patient.count({ where: { headquartersId: hqId, status: 'ACTIVE', colorGroup: { in: colorsToCount as any[] } } })
-                    : 0;
-
-                return { session: s, currentLoad: baseCount + overrideCount, assigned: [] as typeof residents };
-            })
-        );
-
-        // Distribución equitativa round-robin por carga ascendente
-        caregiverLoads.sort((a, b) => a.currentLoad - b.currentLoad);
-        residents.forEach((resident, i) => {
-            caregiverLoads[i % caregiverLoads.length].assigned.push(resident);
-        });
-
-        // Crear ShiftPatientOverride + ShiftColorAssignment por cuidadora
+        const now = new Date();
         const shiftDate = new Date(); shiftDate.setHours(0, 0, 0, 0);
 
-        await Promise.all(
-            caregiverLoads
-                .filter(c => c.assigned.length > 0)
-                .map(async c => {
-                    // 1. Redistribuir residentes (crítico — siempre ejecutar)
-                    await prisma.shiftPatientOverride.createMany({
-                        data: c.assigned.map(p => ({
-                            headquartersId: hqId,
-                            patientId: p.id,
-                            originalColor: color,
-                            assignedColor: colorMap.get(c.session.caregiverId) || color,
-                            caregiverId: c.session.caregiverId,
-                            shiftDate,
-                            shiftType,
-                            reason: 'ABSENCE_REDISTRIB',
-                            autoAssigned: true,
-                            isActive: true,
-                        }))
-                    });
+        // Round-robin sobre receptores con check de duplicado por residente.
+        type Override = { id: string; patientId: string; patientName: string; caregiverId: string; caregiverName: string };
+        const overridesCreated: Override[] = [];
+        const notifyByCaregiver = new Map<string, string[]>();
 
-                    // 2. Registrar asignación de color (best-effort — solo si hay ScheduledShift)
-                    const scheduledShift = await prisma.scheduledShift.findFirst({
-                        where: {
-                            userId: c.session.caregiverId,
-                            date: { gte: shiftDate },
-                            schedule: { headquartersId: hqId, status: 'PUBLISHED' }
-                        },
-                        select: { id: true }
-                    });
-                    if (scheduledShift) {
-                        try {
-                            await prisma.shiftColorAssignment.create({
-                                data: {
-                                    headquartersId: hqId,
-                                    scheduledShiftId: scheduledShift.id,
-                                    color,
-                                    userId: c.session.caregiverId,
-                                    assignedBy: markedById,
-                                    isAutoAssigned: true,
-                                    assignedAt: new Date()
-                                }
-                            });
-                        } catch (colorErr) {
-                            console.warn('[uncovered-colors] ShiftColorAssignment skipped:', colorErr);
-                        }
-                    }
-                })
+        for (let i = 0; i < pendingResidents.length; i++) {
+            const patient = pendingResidents[i];
+            const recipient = recipients[i % recipients.length];
+
+            // Defensa adicional: aunque coverage.uncoveredPatients ya filtra
+            // overrides, validamos por si pasó algo concurrente entre lecturas.
+            const dupe = await prisma.shiftPatientOverride.findFirst({
+                where: {
+                    patientId: patient.patientId,
+                    shiftDate: { gte: shiftDate, lt: new Date(shiftDate.getTime() + 24 * 3600000) },
+                    shiftType,
+                    isActive: true,
+                },
+                select: { id: true },
+            });
+            if (dupe) continue;
+
+            const override = await prisma.shiftPatientOverride.create({
+                data: {
+                    headquartersId: hqId,
+                    patientId: patient.patientId,
+                    originalColor: color,
+                    assignedColor: recipient.color || color,
+                    caregiverId: recipient.userId,
+                    shiftDate,
+                    shiftType,
+                    reason: 'ABSENCE_REDISTRIB',
+                    autoAssigned: false,
+                    isActive: true,
+                },
+            });
+
+            overridesCreated.push({
+                id: override.id,
+                patientId: patient.patientId,
+                patientName: patient.name,
+                caregiverId: recipient.userId,
+                caregiverName: recipient.name,
+            });
+
+            if (!notifyByCaregiver.has(recipient.userId)) notifyByCaregiver.set(recipient.userId, []);
+            notifyByCaregiver.get(recipient.userId)!.push(patient.name);
+        }
+
+        if (overridesCreated.length === 0) {
+            return NextResponse.json({
+                success: true,
+                residentsRedistributed: 0,
+                message: `Sin cambios. Los residentes del Grupo ${colorLabel} ya están cubiertos.`,
+            });
+        }
+
+        // Notificar receptores (una por cuidadora con la lista completa)
+        await Promise.all(
+            Array.from(notifyByCaregiver.entries()).map(([cgId, names]) =>
+                notifyUser(cgId, {
+                    type: 'SHIFT_ALERT',
+                    title: `Cobertura adicional — Grupo ${colorLabel}`,
+                    message: `Se te asignaron ${names.length} residente${names.length === 1 ? '' : 's'} del Grupo ${colorLabel} por ausencia: ${names.join(', ')}.`,
+                    link: '/care',
+                }).catch(e => console.error('[uncovered-colors notifyUser]', e))
+            )
         );
 
-        // Notificaciones
-        const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
-        await Promise.all([
-            ...caregiverLoads.filter(c => c.assigned.length > 0).map(c =>
-                notifyUser(c.session.caregiverId, {
-                    type: 'SHIFT_ALERT',
-                    title: `Cobertura adicional — Grupo ${colorLabels[color] || color}`,
-                    message: `Se te asignaron ${c.assigned.length} residente${c.assigned.length === 1 ? '' : 's'} del Grupo ${colorLabels[color] || color} (sin cuidadora en piso): ${c.assigned.map(p => p.name).join(', ')}.`,
-                    link: '/care'
+        // Notificar supervisión (agregado)
+        try {
+            const distribLine = Array.from(notifyByCaregiver.entries())
+                .map(([cgId, names]) => {
+                    const r = recipients.find(x => x.userId === cgId);
+                    return `${r?.name || 'Cuidadora'} (${names.length})`;
                 })
-            ),
-            notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                .join(', ');
+            await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
                 type: 'SHIFT_ALERT',
-                title: `Grupo ${colorLabels[color] || color} redistribuido — sin cobertura`,
-                message: `${residents.length} residente${residents.length === 1 ? '' : 's'} distribuidos entre ${caregiverLoads.filter(c => c.assigned.length > 0).length} cuidadora${caregiverLoads.filter(c => c.assigned.length > 0).length === 1 ? '' : 's'}: ${caregiverLoads.filter(c => c.assigned.length > 0).map(c => `${c.session.caregiver?.name} (${c.assigned.length})`).join(', ')}.`,
-                link: '/care/supervisor'
-            })
-        ]);
+                title: `Grupo ${colorLabel} redistribuido (manual)`,
+                message: `${overridesCreated.length} residente${overridesCreated.length === 1 ? '' : 's'} distribuido${overridesCreated.length === 1 ? '' : 's'}: ${distribLine}.`,
+                link: '/care/supervisor',
+            });
+        } catch (e) {
+            console.error('[uncovered-colors notifyRoles]', e);
+        }
 
-        const distribution = caregiverLoads
-            .filter(c => c.assigned.length > 0)
-            .map(c => ({ caregiver: c.session.caregiver?.name, count: c.assigned.length }));
+        // Audit trail mínimo (best-effort)
+        try {
+            await prisma.systemAuditLog.create({
+                data: {
+                    headquartersId: hqId,
+                    entityName: 'ShiftPatientOverride',
+                    entityId: overridesCreated[0].id,
+                    action: 'SHIFT_REDISTRIBUTE' as any,
+                    performedById: markedById,
+                    payloadChanges: {
+                        trigger: 'MANUAL_UNCOVERED_COLOR',
+                        color,
+                        shiftType,
+                        shiftDate: shiftDate.toISOString(),
+                        redistributedCount: overridesCreated.length,
+                        overrideIds: overridesCreated.map(o => o.id),
+                    } as any,
+                },
+            });
+        } catch (e) { console.error('[uncovered-colors audit]', e); }
+
+        // void unused var (markedById ya está usado en audit + assignedBy si lo necesitaras)
+        void now;
+
+        const distribution = Array.from(notifyByCaregiver.entries()).map(([cgId, names]) => {
+            const r = recipients.find(x => x.userId === cgId);
+            return { caregiver: r?.name || 'Cuidadora', count: names.length };
+        });
 
         return NextResponse.json({
             success: true,
-            residentsRedistributed: residents.length,
+            residentsRedistributed: overridesCreated.length,
             distribution,
-            message: `${residents.length} residente${residents.length === 1 ? '' : 's'} del Grupo ${colorLabels[color] || color} distribuidos entre ${distribution.length} cuidadora${distribution.length === 1 ? '' : 's'}.`
+            message: `${overridesCreated.length} residente${overridesCreated.length === 1 ? '' : 's'} del Grupo ${colorLabel} distribuido${overridesCreated.length === 1 ? '' : 's'} entre ${distribution.length} cuidadora${distribution.length === 1 ? '' : 's'}.`,
         });
 
     } catch (err: any) {
