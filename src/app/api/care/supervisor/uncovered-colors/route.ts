@@ -57,10 +57,12 @@ export async function GET(req: Request) {
         });
         const activeIds = new Set(activeSessions.map(s => s.caregiverId));
 
-        // Colores que YA están siendo cubiertos por ColorAssignment activa de hoy
-        // (cobertura manual o redistribución reciente). Si alguien con sesión activa
-        // tiene asignado este color, ya no es "uncovered" aunque su ScheduledShift
-        // original sea distinto.
+        // Colores que YA están siendo cubiertos por:
+        //   (a) ColorAssignment activa de hoy (cobertura manual del supervisor)
+        //   (b) ShiftPatientOverride activo de hoy (redistribución por ausencia)
+        // Si cualquiera de las dos existe para una cuidadora con sesión activa,
+        // el color YA NO es "uncovered" aunque la cuidadora originalmente
+        // programada para ese color no tenga sesión.
         const todayAssignments = activeSessions.length > 0
             ? await prisma.shiftColorAssignment.findMany({
                 where: {
@@ -71,6 +73,20 @@ export async function GET(req: Request) {
             })
             : [];
         const coveredByAssignment = new Set(todayAssignments.map(a => a.color).filter(Boolean));
+
+        const todayOverrides = activeSessions.length > 0
+            ? await prisma.shiftPatientOverride.findMany({
+                where: {
+                    headquartersId: hqId,
+                    isActive: true,
+                    shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
+                    shiftType: activeShiftType,
+                    caregiverId: { in: Array.from(activeIds) },
+                },
+                select: { originalColor: true },
+            })
+            : [];
+        const coveredByOverride = new Set(todayOverrides.map(o => o.originalColor).filter(Boolean));
 
         // Detectar colores sin cobertura efectiva
         const uncoveredColors: { color: string; assignedCaregiverName: string; assignedCaregiver: string }[] = [];
@@ -85,7 +101,8 @@ export async function GET(req: Request) {
             //              alguien activo tiene ColorAssignment de este color hoy.
             const isCoveredByScheduled = activeIds.has(shift.userId);
             const isCoveredByAssignment = coveredByAssignment.has(shift.colorGroup);
-            if (isCoveredByScheduled || isCoveredByAssignment) continue;
+            const isCoveredByOverride = coveredByOverride.has(shift.colorGroup);
+            if (isCoveredByScheduled || isCoveredByAssignment || isCoveredByOverride) continue;
 
             uncoveredColors.push({
                 color: shift.colorGroup,
