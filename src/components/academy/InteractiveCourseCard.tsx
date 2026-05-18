@@ -111,6 +111,15 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
     const [stage, setStage] = useState<Stage>(initialStatus === 'COMPLETED' ? 'COMPLETED' : 'IDLE');
     const [error, setError] = useState('');
 
+    // Resultado de la certificación: delta REAL aplicado al Z-Score + flags.
+    // Si alreadyCompleted=true, evita mostrar fanfarria como si fuera nuevo.
+    const [completionResult, setCompletionResult] = useState<{
+        delta: number;
+        unblocked: boolean;
+        alreadyCompleted: boolean;
+    } | null>(null);
+    const [isSubmittingCompletion, setIsSubmittingCompletion] = useState(false);
+
     // Course structure
     const [courseMeta, setCourseMeta] = useState<CourseMeta | null>(null);
     const [sections, setSections] = useState<ParsedSection[]>([]);
@@ -269,21 +278,45 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
         : 0;
 
     const completeCourse = async () => {
+        // Guard contra doble-click: si ya estamos enviando, salir.
+        if (isSubmittingCompletion) return;
+        setIsSubmittingCompletion(true);
         try {
-            await fetch('/api/academy', {
+            const res = await fetch('/api/academy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     employeeId: user.id,
                     courseId: course.id,
                     hqId,
-                    examScore: totalScore
-                })
+                    examScore: totalScore,
+                }),
             });
-            setStage('RESULT');
+            const data = await res.json().catch(() => ({}));
+            if (data?.success) {
+                setCompletionResult({
+                    delta: data.delta ?? 0,
+                    unblocked: !!data.unblocked,
+                    alreadyCompleted: !!data.alreadyCompleted,
+                });
+                if (data.alreadyCompleted) {
+                    // Ya estaba completado — sin fanfarria, ir directo a estado COMPLETED.
+                    setStage('COMPLETED');
+                } else {
+                    setStage('RESULT');
+                }
+            } else {
+                // Falla del backend: igual mostramos RESULT (mejor que dejar al usuario colgado)
+                // pero sin info de delta.
+                setCompletionResult({ delta: 0, unblocked: false, alreadyCompleted: false });
+                setStage('RESULT');
+            }
             if (onCourseCompleted) onCourseCompleted();
         } catch {
+            setCompletionResult({ delta: 0, unblocked: false, alreadyCompleted: false });
             setStage('RESULT');
+        } finally {
+            setIsSubmittingCompletion(false);
         }
     };
 
@@ -344,21 +377,52 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
     // ── RENDER: RESULT ─────────────────────────────────────────────────────────
 
     if (stage === 'RESULT') return (
-        <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-8">
-            <div className="w-20 h-20 bg-teal-700 rounded-full flex items-center justify-center mb-6 border-4 border-teal-500">
+        <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-8 overflow-y-auto">
+            <div className="w-20 h-20 bg-teal-700 rounded-full flex items-center justify-center mb-6 border-4 border-teal-500 animate-bounce">
                 <span className="text-4xl">🏆</span>
             </div>
-            <h3 className="text-white font-black text-2xl mb-2">Certificado obtenido!</h3>
-            <p className="text-slate-400 mb-1">Puntuacion promedio: <span className="font-black text-teal-400">{totalScore}%</span></p>
+            <h3 className="text-white font-black text-2xl mb-2">¡Certificado obtenido!</h3>
+            <p className="text-slate-400 mb-1">Puntuación promedio: <span className="font-black text-teal-400">{totalScore}%</span></p>
             <p className="text-slate-500 text-sm mb-2">{sections.length} secciones completadas</p>
-            <div className="flex flex-wrap gap-2 mb-6 justify-center">
+            <div className="flex flex-wrap gap-2 mb-4 justify-center">
                 {sectionScores.map((s, i) => (
                     <span key={i} className="bg-teal-900/50 text-teal-400 text-xs font-bold px-2 py-1 rounded-lg">
                         S{i + 1}: {s}%
                     </span>
                 ))}
             </div>
-            <p className="text-slate-500 text-sm mb-8">Has completado <span className="font-bold text-white">{course.title}</span></p>
+
+            {/* Delta REAL del Z-Score (puede ser 0 si ya está en el cap de 100) */}
+            {completionResult && (
+                <div className="mb-4 text-center">
+                    {completionResult.delta > 0 ? (
+                        <div className="bg-emerald-900/40 border border-emerald-500/30 rounded-2xl px-5 py-3">
+                            <p className="text-emerald-400 font-black text-lg">
+                                +{completionResult.delta} puntos en tu Z-Score
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="bg-amber-900/40 border border-amber-500/30 rounded-2xl px-5 py-3">
+                            <p className="text-amber-300 font-bold text-sm">
+                                Ya estás en el máximo Z-Score (100). ¡Excelente!
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Banner si la cuidadora estaba bloqueada por RRHH y este curso la desbloqueó */}
+            {completionResult?.unblocked && (
+                <div className="mb-4 bg-blue-900/40 border border-blue-500/30 rounded-2xl px-5 py-3 max-w-sm text-center">
+                    <p className="text-blue-300 font-bold text-sm">
+                        🔓 Tu acceso a turnos fue restablecido.
+                    </p>
+                </div>
+            )}
+
+            <p className="text-slate-500 text-sm mb-8 text-center">
+                Has completado <span className="font-bold text-white">{course.title}</span>
+            </p>
             <button
                 onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
                 className="w-full max-w-sm bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"

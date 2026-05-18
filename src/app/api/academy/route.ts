@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { requireRole, requireSession } from '@/lib/api-auth';
 import { applyScoreEvent } from '@/lib/score-event';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { logError, logWarn } from '@/lib/logger';
+
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'KITCHEN', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const SUPERVISORY_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 const CompleteBody = z.object({
     employeeId: z.string().min(1, 'employeeId requerido'),
@@ -14,15 +18,25 @@ const CompleteBody = z.object({
 
 // 1. OBTENER CURSOS DISPONIBLES O HISTORIAL POR EMPLEADO
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const hqId = searchParams.get('hqId');
-    const employeeId = searchParams.get('employeeId');
-
-    if (!hqId) {
-        return NextResponse.json({ success: false, error: "Headquarters ID requerido" }, { status: 400 });
-    }
-
     try {
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
+
+        const { searchParams } = new URL(req.url);
+        const hqId = searchParams.get('hqId');
+        const employeeId = searchParams.get('employeeId');
+
+        if (!hqId) {
+            return NextResponse.json({ success: false, error: "Headquarters ID requerido" }, { status: 400 });
+        }
+        // Tenant: la sede pedida debe ser la del invocador.
+        if (hqId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Sede fuera de tu alcance" }, { status: 403 });
+        }
+        // Identidad: si pide historial de otro empleado, debe ser supervisión.
+        if (employeeId && employeeId !== auth.id && !SUPERVISORY_ROLES.includes(auth.role)) {
+            return NextResponse.json({ success: false, error: "No puedes consultar historial ajeno" }, { status: 403 });
+        }
         if (employeeId) {
             // Historial de un Solo Empleado
             const enrollments = await prisma.userCourse.findMany({
@@ -68,6 +82,11 @@ export async function GET(req: Request) {
 //     en lugar de caer al fallback de SHIFT_ALERT.
 export async function POST(req: Request) {
     try {
+        // Auth obligatoria + rol clínico/operativo (antes este endpoint era público).
+        // requireRole soporta primary OR secondary roles vía /lib/api-auth.
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const rawBody = await req.json().catch(() => null);
         const parsed = CompleteBody.safeParse(rawBody);
         if (!parsed.success) {
@@ -79,6 +98,18 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
         const { employeeId, courseId, hqId, examScore } = parsed.data;
+
+        // Tenant: la sede del body debe ser la del invocador.
+        if (hqId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Sede fuera de tu alcance" }, { status: 403 });
+        }
+        // Identidad: solo puedes certificar TU propio curso, salvo que seas supervisión.
+        if (employeeId !== auth.id && !SUPERVISORY_ROLES.includes(auth.role)) {
+            return NextResponse.json({
+                success: false,
+                error: "Solo supervisión puede certificar cursos a otros empleados",
+            }, { status: 403 });
+        }
 
         const course = await prisma.course.findUnique({ where: { id: courseId } });
         if (!course) {
