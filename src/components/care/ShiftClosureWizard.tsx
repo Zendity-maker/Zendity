@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import SignatureCanvas from "react-signature-canvas";
+import { AlertOctagon, AlertTriangle, CheckCircle, PenTool, Lock, ArrowRight, Loader2, Sparkles, FileText, HelpCircle, X, Eraser } from "lucide-react";
 
 export interface ClosureWarning {
     id: string;
@@ -63,6 +64,30 @@ export default function ShiftClosureWizard({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [signature, setSignature] = useState<string | null>(null);
     const [confirmed, setConfirmed] = useState(false);
+    const [showHelp, setShowHelp] = useState(true);
+    const sigCanvas = useRef<any>(null);
+
+    const handleSigEnd = () => {
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) return;
+        try {
+            const dataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+            setSignature(dataUrl);
+        } catch {
+            // getTrimmedCanvas puede fallar si el trazo es de 0 px;
+            // fallback al canvas completo.
+            try {
+                const dataUrl = sigCanvas.current.toDataURL('image/png');
+                setSignature(dataUrl);
+            } catch (e) {
+                console.error('[ShiftClosureWizard] no se pudo capturar firma', e);
+            }
+        }
+    };
+
+    const handleClearSignature = () => {
+        sigCanvas.current?.clear();
+        setSignature(null);
+    };
 
     useEffect(() => {
         setActiveWarnings(warnings);
@@ -109,11 +134,16 @@ export default function ShiftClosureWizard({
         }
     }, [isOpen, isBlocked, zendiSummary, isGenerating, previewError, fetchPreview]);
 
-    // Si cambian las justificaciones mientras ya hay reporte, invalidar y re-pedir
+    // Si cambian las justificaciones mientras ya hay reporte, invalidar y re-pedir.
+    // También invalidamos la firma si existía: lo que firmó ya no será el texto final.
     useEffect(() => {
         if (zendiSummary) {
             setZendiSummary('');
             setHasReadReport(false);
+            if (signature) {
+                setSignature(null);
+                sigCanvas.current?.clear();
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [JSON.stringify(justifications)]);
@@ -151,17 +181,63 @@ export default function ShiftClosureWizard({
                             <CheckCircle size={32} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-800">Cierre Operativo</h2>
-                            <p className="text-slate-500 font-bold text-sm mt-1 tracking-widest uppercase">Traspaso de Guardia Validado</p>
+                            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-800">Cierre de turno</h2>
+                            <p className="text-slate-500 font-bold text-sm mt-1 tracking-widest uppercase">Reporte para el próximo equipo</p>
                         </div>
+                        {!showHelp && (
+                            <button
+                                onClick={() => setShowHelp(true)}
+                                className="ml-2 flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-colors"
+                            >
+                                <HelpCircle size={14} /> ¿Cómo funciona?
+                            </button>
+                        )}
                     </div>
                     <div className="ml-auto flex items-center gap-3 px-5 py-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-[1.5rem] shadow-sm">
                         <Lock size={22} strokeWidth={2.8} />
                         <span className="font-black text-xs md:text-sm uppercase tracking-widest leading-tight max-w-[260px]">
-                            Debes leer y firmar tu reporte antes de cerrar tu turno
+                            Tu turno se cierra cuando firmes este reporte
                         </span>
                     </div>
                 </div>
+
+                {/* Banner explicativo — cerrable */}
+                {showHelp && (
+                    <div className="px-8 md:px-12 py-5 bg-teal-50 border-b border-teal-100 shrink-0">
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-white border border-teal-200 flex items-center justify-center text-teal-600 shrink-0">
+                                <HelpCircle size={20} strokeWidth={2.5} />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-sm font-black text-teal-900 uppercase tracking-widest mb-2">¿Cómo funciona el cierre?</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-slate-700">
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-black text-xs flex items-center justify-center shrink-0">1</span>
+                                        <span><strong>Lees y firmas</strong> tu reporte aquí.</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-black text-xs flex items-center justify-center shrink-0">2</span>
+                                        <span>Le llega al <strong>supervisor</strong> para su firma.</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-6 h-6 rounded-full bg-teal-600 text-white font-black text-xs flex items-center justify-center shrink-0">3</span>
+                                        <span>El <strong>próximo turno</strong> lo recibe al entrar.</span>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-xs text-slate-600 italic">
+                                    Si dejas el turno sin firmar este cierre, el sistema descuenta puntos automáticamente.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowHelp(false)}
+                                className="text-teal-700 hover:text-teal-900 p-1 rounded-lg hover:bg-teal-100 transition-colors shrink-0"
+                                aria-label="Cerrar ayuda"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Split-View Content */}
                 <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
@@ -169,7 +245,7 @@ export default function ShiftClosureWizard({
                     {/* LEFT — Warnings & Blockers */}
                     <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto border-r border-slate-200 custom-scrollbar flex flex-col gap-10 bg-slate-50/50">
                         <div className="flex items-center gap-4">
-                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Paso 1 — Carga Clínica Restante</h3>
+                            <h3 className="text-2xl font-black text-slate-800 tracking-tight">Paso 1 — Pendientes de tu turno</h3>
                             <span className="px-4 py-1.5 bg-white border border-slate-200 shadow-sm text-slate-600 rounded-full text-xs font-black uppercase tracking-widest">{hardBlockers.length + activeWarnings.length} Tareas</span>
                         </div>
 
@@ -207,16 +283,20 @@ export default function ShiftClosureWizard({
                                                 <p className="font-black text-slate-900 text-2xl leading-tight mb-2">{warn.title}</p>
                                                 <p className="text-base text-slate-500 font-medium">{warn.description}</p>
                                             </div>
-                                            <div className="flex flex-col gap-4">
-                                                <div className="border-t border-slate-100 pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                    <button onClick={() => handleQuickResolve(warn.id, "REFUSED")} className="py-5 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-black text-lg rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm">
-                                                        Rehusó
+                                            <div className="flex flex-col gap-3">
+                                                <p className="text-xs text-slate-500 font-semibold border-t border-slate-100 pt-5">¿Qué pasó con esta tarea? Elige una opción:</p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                    <button onClick={() => handleQuickResolve(warn.id, "REFUSED")} className="py-4 px-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm flex flex-col gap-1">
+                                                        <span className="font-black text-lg">Rehusó</span>
+                                                        <span className="text-[11px] font-medium text-slate-500 leading-tight">El residente no aceptó</span>
                                                     </button>
-                                                    <button onClick={() => handleQuickResolve(warn.id, "ASLEEP")} className="py-5 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-black text-lg rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm">
-                                                        Durmió
+                                                    <button onClick={() => handleQuickResolve(warn.id, "ASLEEP")} className="py-4 px-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-[1.5rem] transition-all active:scale-95 text-center shadow-sm flex flex-col gap-1">
+                                                        <span className="font-black text-lg">Durmió</span>
+                                                        <span className="text-[11px] font-medium text-slate-500 leading-tight">Estaba dormido(a)</span>
                                                     </button>
-                                                    <button onClick={() => handleQuickResolve(warn.id, "TRANSFERRED")} className="py-5 bg-slate-900 text-white hover:bg-slate-800 border-2 border-slate-800 font-black text-lg rounded-[1.5rem] transition-all flex items-center justify-center gap-3 active:scale-95 shadow-md">
-                                                        Trasladar <ArrowRight size={20} strokeWidth={3} />
+                                                    <button onClick={() => handleQuickResolve(warn.id, "TRANSFERRED")} className="py-4 px-3 bg-slate-900 text-white hover:bg-slate-800 border-2 border-slate-800 rounded-[1.5rem] transition-all active:scale-95 shadow-md flex flex-col gap-1">
+                                                        <span className="font-black text-lg flex items-center justify-center gap-2">Trasladar <ArrowRight size={18} strokeWidth={3} /></span>
+                                                        <span className="text-[11px] font-medium text-white/70 leading-tight">Que lo haga el próximo turno</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -264,7 +344,8 @@ export default function ShiftClosureWizard({
                             </div>
 
                             <p className="text-xs text-slate-500 font-semibold mb-4 leading-relaxed">
-                                Este es el reporte que Zendi generó con los datos reales de tu turno. Léelo completo, confirma que es correcto y luego firma.
+                                Zendi armó este reporte con lo que tú hiciste hoy: medicamentos, baños, comidas, vitales e incidentes.
+                                Léelo completo. Si algo está mal, avisa a tu supervisor <em>antes</em> de firmar.
                             </p>
 
                             {isGenerating ? (
@@ -290,9 +371,26 @@ export default function ShiftClosureWizard({
                                             <MiniKpi label="Vitales" value={zendiActivity.vitalCount} />
                                         </div>
                                     )}
-                                    <div className="bg-white border border-slate-200 rounded-2xl p-5 max-h-[320px] overflow-y-auto custom-scrollbar">
-                                        <pre className="whitespace-pre-wrap text-slate-800 font-medium text-sm md:text-base leading-relaxed font-sans">{zendiSummary || '(sin reporte)'}</pre>
-                                    </div>
+                                    <textarea
+                                        value={zendiSummary}
+                                        onChange={(e) => {
+                                            const next = e.target.value;
+                                            setZendiSummary(next);
+                                            // Si edita después de firmar, invalidamos la firma.
+                                            // La cuidadora debe volver a leer y firmar lo nuevo.
+                                            if (signature) {
+                                                setSignature(null);
+                                                sigCanvas.current?.clear();
+                                            }
+                                            if (hasReadReport) setHasReadReport(false);
+                                        }}
+                                        rows={12}
+                                        className="w-full bg-white border border-slate-200 rounded-2xl p-5 max-h-[320px] min-h-[180px] overflow-y-auto custom-scrollbar whitespace-pre-wrap text-slate-800 font-medium text-sm md:text-base leading-relaxed font-sans resize-y focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-300"
+                                        placeholder="(sin reporte)"
+                                    />
+                                    <p className="mt-2 text-[11px] text-slate-500 font-medium italic leading-relaxed">
+                                        Puedes corregir el texto si algo está mal. Si lo editas después de firmar, tendrás que firmar de nuevo.
+                                    </p>
                                 </>
                             )}
 
@@ -317,28 +415,46 @@ export default function ShiftClosureWizard({
 
                         {/* Paso 3 — Firma (solo habilitado después de confirmar lectura) */}
                         <div className={`transition-opacity duration-300 ${canSign ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-                            <h3 className="text-slate-700 font-black uppercase tracking-widest text-xs mb-3 flex items-center gap-3">
-                                <PenTool size={16} className="text-teal-600" />
-                                Paso 3 — Firma
-                            </h3>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-slate-700 font-black uppercase tracking-widest text-xs flex items-center gap-3">
+                                    <PenTool size={16} className="text-teal-600" />
+                                    Paso 3 — Firma con el dedo
+                                </h3>
+                                {signature && (
+                                    <button
+                                        onClick={handleClearSignature}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300 rounded-lg transition-colors"
+                                    >
+                                        <Eraser size={12} /> Limpiar
+                                    </button>
+                                )}
+                            </div>
                             <div
-                                className={`rounded-[2rem] p-6 h-40 flex flex-col items-center justify-center cursor-pointer transition-all border-4
-                                    ${signature ? 'border-emerald-500 bg-emerald-50 shadow-inner' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}
+                                className={`rounded-[2rem] overflow-hidden transition-all border-4 relative
+                                    ${signature ? 'border-emerald-500 bg-emerald-50' : 'border-dashed border-slate-300 bg-white'}
                                 `}
-                                onClick={() => canSign && setSignature("Firma Registrada " + Date.now())}
                             >
-                                {signature ? (
-                                    <div className="flex flex-col gap-2 text-emerald-600 items-center animate-in zoom-in-95">
-                                        <CheckCircle size={40} strokeWidth={3} />
-                                        <span className="font-bold text-3xl signature-font text-emerald-800">Firma Registrada</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-3 text-slate-400 items-center transition-colors">
-                                        <PenTool size={36} strokeWidth={2.5} className="text-slate-300" />
-                                        <span className="font-black text-base text-slate-500 tracking-tight">Toque aquí para firmar electrónicamente</span>
+                                {/* línea base sutil tipo papel */}
+                                <div className="absolute left-4 right-4 bottom-6 border-b border-dashed border-slate-200 pointer-events-none"></div>
+                                <SignatureCanvas
+                                    ref={sigCanvas}
+                                    penColor="#0F6E56"
+                                    onEnd={handleSigEnd}
+                                    canvasProps={{ className: 'w-full h-40 cursor-crosshair touch-none' }}
+                                />
+                                {!signature && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="font-bold text-sm text-slate-400 tracking-tight">
+                                            Firma aquí con el dedo o el lápiz
+                                        </span>
                                     </div>
                                 )}
                             </div>
+                            {signature && (
+                                <p className="mt-2 text-[11px] text-emerald-700 font-bold flex items-center gap-1.5">
+                                    <CheckCircle size={12} strokeWidth={3} /> Firma registrada
+                                </p>
+                            )}
                         </div>
 
                         {/* Controles Finales */}
@@ -369,13 +485,15 @@ export default function ShiftClosureWizard({
                                 {isSubmitting ? 'CERRANDO TURNO...' : 'CONFIRMAR CIERRE DE TURNO'}
                                 {!isSubmitting && <CheckCircle size={28} strokeWidth={3} className={!canSubmit ? "opacity-50" : ""} />}
                             </button>
+                            <p className="text-center text-xs text-slate-500 font-medium leading-relaxed -mt-1">
+                                Después de firmar, tu reporte se envía al <strong>supervisor</strong>. El próximo cuidador también lo verá al entrar.
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <style dangerouslySetInnerHTML={{__html: `
-                .signature-font { font-family: 'Brush Script MT', cursive, sans-serif; }
                 .custom-scrollbar::-webkit-scrollbar { width: 8px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
