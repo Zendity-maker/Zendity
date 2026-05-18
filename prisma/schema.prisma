@@ -198,8 +198,8 @@ model User {
   handoversGiven    ShiftHandover[] @relation("OutgoingNurse")
   handoversReceived ShiftHandover[] @relation("IncomingNurse")
 
-  // Sprint D: Reportes de Turno
-  seniorHandovers     ShiftHandover[] @relation("SeniorCaregiver")
+  // Reportes de Turno — flujo nuevo: cuidador firma → supervisor firma
+  // (rol "senior" eliminado en mayo 2026)
   supervisorHandovers ShiftHandover[] @relation("SupervisorSigned")
 
   // FASE 23 Clínico (Prevención de UPPs y Caídas)
@@ -1433,17 +1433,13 @@ model ShiftHandover {
   colorGroups     String[]  @default([]) // ["RED","YELLOW"] — colores que manejó en el turno. Vacío = prólogo o handover global.
   isDailyPrologue Boolean   @default(false) // true = prólogo diario generado por cron 6 AM; false = handover individual de cuidador
 
-  // Sprint D: Confirmación Senior + Firma Supervisor + Tracking Director
-  seniorCaregiverId    String?
-  seniorConfirmedAt    DateTime?
-  seniorNote           String?   @db.Text
+  // Firma Supervisor + Tracking Director (rol senior eliminado mayo 2026)
   supervisorSignedById String?
   supervisorSignedAt   DateTime?
   supervisorSignature  String?   @db.Text
   supervisorNote       String?   @db.Text
   directorViewedAt     DateTime?
 
-  seniorCaregiver  User? @relation("SeniorCaregiver",   fields: [seniorCaregiverId],    references: [id])
   supervisorSigned User? @relation("SupervisorSigned",  fields: [supervisorSignedById], references: [id])
 
   // Enlace a la Sesión de Turno (Fase 44)
