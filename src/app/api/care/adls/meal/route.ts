@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { MealType, MealQuality } from '@prisma/client';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -18,15 +17,9 @@ const MealBody = z.object({
 export async function POST(req: Request) {
     try {
         // Auth + rol clínico (antes este endpoint era público)
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-        }
-        const invokerRole = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ success: false, error: "Rol no autorizado" }, { status: 403 });
-        }
-        const sessionHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const sessionHqId = auth.headquartersId;
 
         const rawBody = await req.json().catch(() => null);
         const parsed = MealBody.safeParse(rawBody);

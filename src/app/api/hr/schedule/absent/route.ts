@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
@@ -29,19 +28,9 @@ const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
  */
 export async function POST(req: Request) {
     try {
-        // ── Auth ──────────────────────────────────────────────────────
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes(session.user.role)) {
-            return NextResponse.json(
-                { success: false, error: 'Solo supervisores pueden marcar ausencias' },
-                { status: 403 }
-            );
-        }
-
-        const markedById = session.user.id;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const markedById = auth.id;
         const { scheduledShiftId, hqId } = await req.json();
 
         if (!scheduledShiftId || !hqId) {

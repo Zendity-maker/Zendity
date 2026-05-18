@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 
 const BathBody = z.object({
     patientId:      z.string().min(1, 'patientId requerido'),
@@ -12,13 +11,9 @@ const BathBody = z.object({
 
 export async function POST(req: Request) {
     try {
-        // Auth + rol clínico/operativo
-        const session = await getServerSession(authOptions);
-        if (!session || !['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
-        }
-
-        const sessionHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+        if (auth instanceof NextResponse) return auth;
+        const sessionHqId = auth.headquartersId;
         const rawBody = await req.json().catch(() => null);
         const parsed = BathBody.safeParse(rawBody);
         if (!parsed.success) {

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
+
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export const dynamic = 'force-dynamic';
 
@@ -15,15 +16,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        const role = (session.user as any).role;
-        if (!['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(role)) {
-            return NextResponse.json({ success: false, error: 'Acceso restringido' }, { status: 403 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
         const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+        const hqId = searchParams.get('hqId') || auth.headquartersId;
 
         // Usar UTC midnight — los shifts se guardan como 2026-05-11T00:00:00.000Z.
         // setHours(0,0,0,0) en servidor UTC-4 produce 04:00 UTC, excluyendo esos shifts.
@@ -103,15 +100,9 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        const role = (session.user as any).role;
-        if (!['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(role)) {
-            return NextResponse.json({ success: false, error: 'Acceso restringido' }, { status: 403 });
-        }
-
-        const markedById = (session.user as any).id;
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: markedById, headquartersId: hqId } = auth;
         const { color, shiftType } = await req.json();
 
         if (!color || !shiftType) {

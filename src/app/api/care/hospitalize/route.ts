@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,18 +14,9 @@ const HospitalizeBody = z.object({
 
 export async function PATCH(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-        }
-
-        const userRole = (session.user as any).role as string | undefined;
-        if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
-            return NextResponse.json({ success: false, error: "No tienes permiso para marcar residente en hospital" }, { status: 403 });
-        }
-
-        const sessionHqId = (session.user as any).headquartersId as string | undefined;
-        const authorId = session.user.id;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: authorId, headquartersId: sessionHqId } = auth;
 
         const rawBody = await req.json().catch(() => null);
         const parsed = HospitalizeBody.safeParse(rawBody);
@@ -48,7 +38,7 @@ export async function PATCH(req: Request) {
         if (!patientCheck) {
             return NextResponse.json({ success: false, error: "Residente no encontrado" }, { status: 404 });
         }
-        if (!sessionHqId || patientCheck.headquartersId !== sessionHqId) {
+        if (patientCheck.headquartersId !== sessionHqId) {
             return NextResponse.json({ success: false, error: "Sede no coincide" }, { status: 403 });
         }
 

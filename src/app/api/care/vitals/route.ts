@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
@@ -42,12 +41,9 @@ const VitalsPostBody = z.discriminatedUnion('type', [
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'].includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
-        }
-
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE']);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
         const { searchParams } = new URL(req.url);
         const patientId = searchParams.get('patientId');
 
@@ -124,17 +120,9 @@ const ALLOWED_POST_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADM
 
 export async function POST(req: Request) {
     try {
-        // ── Seguridad (FIX 2) ──
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-        }
-        const invokerId = (session.user as any).id;
-        const invokerRole = (session.user as any).role;
-        const invokerHqId = (session.user as any).headquartersId;
-        if (!ALLOWED_POST_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ success: false, error: "Rol no autorizado para registrar vitales" }, { status: 403 });
-        }
+        const auth = await requireRole(ALLOWED_POST_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, headquartersId: invokerHqId } = auth;
 
         const rawBody = await req.json().catch(() => null);
         const parsed = VitalsPostBody.safeParse(rawBody);

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { notifyRoles } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -56,19 +55,9 @@ function deriveRiskLevel(bleeding: boolean, painLevel: number | undefined): 'HIG
 
 export async function POST(req: Request) {
     try {
-        // ─── Validación de sesión + rol ───
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-
-        const invokerId = (session.user as any).id;
-        const invokerRole = (session.user as any).role;
-        const invokerHqId = (session.user as any).headquartersId;
-
-        if (!ALLOWED_ROLES.includes(invokerRole)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado para reportar incidentes' }, { status: 403 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, headquartersId: invokerHqId } = auth;
 
         const rawBody = await req.json().catch(() => null);
         const parsed = IncidentPostBody.safeParse(rawBody);

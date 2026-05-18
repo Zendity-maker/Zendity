@@ -4,8 +4,7 @@ import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,21 +121,10 @@ async function resolveAssignedPatients(caregiverId: string, hqId: string) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-        }
-        const secondaryRoles: string[] = (session.user as any).secondaryRoles ?? [];
-        const hasClinicalAccess =
-            CAREGIVER_ROLES.includes(session.user.role) ||
-            secondaryRoles.some(r => CAREGIVER_ROLES.includes(r));
-
-        if (!hasClinicalAccess) {
-            return NextResponse.json(
-                { success: false, error: "Solo cuidadores y enfermeras pueden iniciar turno clínico" },
-                { status: 403 },
-            );
-        }
+        // requireRole ya valida primary OR secondary roles, así soportamos
+        // usuarios con doble rol (ej. SUPERVISOR + CAREGIVER) iniciando turno.
+        const auth = await requireRole(CAREGIVER_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
         const { caregiverId, headquartersId, initialCensus } = await req.json();
 

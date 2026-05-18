@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireRole } from '@/lib/api-auth';
 import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const hqId = session.user.headquartersId;
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR']);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 

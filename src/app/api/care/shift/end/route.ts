@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireSession } from '@/lib/api-auth';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
 import { notifyRoles } from '@/lib/notifications';
@@ -35,14 +34,10 @@ const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const authSession = await getServerSession(authOptions);
-        if (!authSession?.user) {
-            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-        }
-        const invokerId = (authSession.user as any).id;
-        const invokerRole = (authSession.user as any).role;
-        const invokerHqId = (authSession.user as any).headquartersId;
-        const invokerName = (authSession.user as any).name || 'Supervisor';
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, role: invokerRole, headquartersId: invokerHqId } = auth;
+        const invokerName = auth.name || 'Supervisor';
 
         const { shiftSessionId, handoverData, signature, forceEnd } = await req.json();
 
