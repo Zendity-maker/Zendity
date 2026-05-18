@@ -159,6 +159,8 @@ export default function ZendityCareTabletPage() {
     const [patients, setPatients] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    // Nivel 2/3 — auto-escalación a ALL cuando es la única en piso
+    const [isSoloMode, setIsSoloMode] = useState(false);
 
     // Gamification Logic
     const getZendityRank = (score: number) => {
@@ -569,6 +571,7 @@ export default function ZendityCareTabletPage() {
                             if (patientData.success) {
                                 setPatients(patientData.patients || []);
                                 setEvents(patientData.events || []);
+                                setIsSoloMode(!!patientData.isSolo);
                             }
                             return; // No necesita elegir manualmente
                         }
@@ -595,6 +598,7 @@ export default function ZendityCareTabletPage() {
                         if (patientData.success) {
                             setPatients(patientData.patients || []);
                             setEvents(patientData.events || []);
+                            setIsSoloMode(!!patientData.isSolo);
                         }
                     }
                 }
@@ -660,6 +664,7 @@ export default function ZendityCareTabletPage() {
                 const data = await res.json();
                 if (data.success) {
                     setPatients(data.patients);
+                    setIsSoloMode(!!data.isSolo);
                     const initChecks: Record<string, string> = {};
                     data.patients.forEach((p: any) => {
                         if (p.status === 'TEMPORARY_LEAVE') initChecks[p.id] = p.leaveType || 'HOSPITAL';
@@ -875,6 +880,7 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setPatients(data.patients);
                 setEvents(data.events || []);
+                setIsSoloMode(!!data.isSolo);
             }
         } catch (error) {
             console.error(error);
@@ -891,6 +897,7 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setPatients(data.patients);
                 setEvents(data.events || []);
+                setIsSoloMode(!!data.isSolo);
                 setActivePatient((prev: any) => {
                     if (!prev) return prev;
                     return data.patients.find((p: any) => p.id === prev.id) || prev;
@@ -2738,20 +2745,42 @@ export default function ZendityCareTabletPage() {
                             </div>
                         ) : (
                             <>
-                            {/* Grid View Toggle Header */}
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                    Residentes <span className="text-sm font-bold text-slate-400">({patients.length})</span>
-                                </h2>
-                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-                                    <button onClick={() => setGridView('1col')} className={`p-2 rounded-md transition-colors ${gridView === '1col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Una columna">
-                                        <LayoutList className="w-4 h-4" />
-                                    </button>
-                                    <button onClick={() => setGridView('2col')} className={`p-2 rounded-md transition-colors ${gridView === '2col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Dos columnas">
-                                        <LayoutGrid className="w-4 h-4" />
-                                    </button>
+                            {/* Banner — modo cuidadora solitaria (Nivel 2) */}
+                            {isSoloMode && (
+                                <div className="mb-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 text-xl">⚠️</div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-black text-amber-900 leading-tight">Modo cuidadora única</p>
+                                        <p className="text-xs text-amber-800 font-medium mt-0.5">Eres la única en piso. Ves todos los residentes activos de la sede.</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Grid View Toggle Header (Nivel 3 — desglose propios vs cobertura) */}
+                            {(() => {
+                                const coverageCount = patients.filter((p: any) => p.overrideInfo).length;
+                                const ownCount = patients.length - coverageCount;
+                                return (
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 flex-wrap">
+                                            Residentes <span className="text-sm font-bold text-slate-400">({patients.length})</span>
+                                            {coverageCount > 0 && (
+                                                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                                    {ownCount} tuyos · {coverageCount} por cobertura
+                                                </span>
+                                            )}
+                                        </h2>
+                                        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+                                            <button onClick={() => setGridView('1col')} className={`p-2 rounded-md transition-colors ${gridView === '1col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Una columna">
+                                                <LayoutList className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setGridView('2col')} className={`p-2 rounded-md transition-colors ${gridView === '2col' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-600'}`} title="Dos columnas">
+                                                <LayoutGrid className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <div className={`grid ${gridView === '2col' ? 'grid-cols-2 gap-3' : 'grid-cols-1 max-w-2xl mx-auto gap-3'}`}>
                                 {patients.map(p => {
                                     const isAbsent = p.status === 'TEMPORARY_LEAVE';

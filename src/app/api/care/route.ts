@@ -47,6 +47,22 @@ export async function GET(req: Request) {
 
         const todayStart = todayStartAST();
         const todayEnd = new Date();
+        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+
+        // Nivel 2 — Auto-escalación a ALL para cuidadora solitaria.
+        // Si el invocador es el único cuidador clínico (CAREGIVER + NURSE) con
+        // sesión activa en la sede, ignoramos el filtro de color y mostramos
+        // todos los residentes. Auto-corrige cuando otro cuidador inicia turno
+        // porque se recalcula en cada poll.
+        const activeCount = await prisma.shiftSession.count({
+            where: {
+                headquartersId: hqId,
+                actualEndTime: null,
+                startTime: { gte: fourteenHrsAgo },
+                caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
+            },
+        });
+        const isSolo = activeCount <= 1;
 
         // Sprint N.4 — Overrides asignados a ESTE cuidador hoy (shiftPatientOverride
         // con isActive=true). Se combinan con el colorFilter propio vía OR para que
@@ -64,8 +80,9 @@ export async function GET(req: Request) {
         const overridePatientIds = overrideRows.map(o => o.patientId);
         const overrideByPatientId = new Map(overrideRows.map(o => [o.patientId, o]));
 
-        // Filtro por color propio.
-        const includesAll = colors.includes('ALL');
+        // Filtro por color propio. Si la cuidadora es la única en piso, se
+        // ignora el filtro y se traen todos.
+        const includesAll = colors.includes('ALL') || isSolo;
         const ownColorFilter = (colors.length === 0 || includesAll)
             ? {}
             : { colorGroup: { in: colors as any[] } };
@@ -162,7 +179,13 @@ export async function GET(req: Request) {
 
         const hospitalizedCount = patientsRaw.filter(p => p.status === 'TEMPORARY_LEAVE' && p.leaveType === 'HOSPITAL').length;
 
+        // Nivel 3 — desglose propios vs cobertura para el header del tablet.
+        const overrideSet = new Set(overridePatientIds);
+        const ownCount = patientsRaw.filter(p => !overrideSet.has(p.id)).length;
+        const coverageCount = patientsRaw.filter(p => overrideSet.has(p.id)).length;
+
         // Events targeted a este cuidador: ALL + match con cualquiera de sus colores.
+        // Si es cuidadora solitaria (isSolo → includesAll forzado), ve todos los eventos.
         const eventColorOrs = colors.length > 0 && !includesAll
             ? colors.map(c => ({ targetGroups: { has: c } }))
             : [];
@@ -186,7 +209,15 @@ export async function GET(req: Request) {
             orderBy: { startTime: 'asc' }
         });
 
-        return NextResponse.json({ success: true, patients, events, hospitalizedCount });
+        return NextResponse.json({
+            success: true,
+            patients,
+            events,
+            hospitalizedCount,
+            isSolo,
+            ownCount,
+            coverageCount,
+        });
     } catch (error: any) {
         console.error("Care Fetch Error:", error);
         return NextResponse.json({ success: false, error: "Error: " + (error.message || String(error)) }, { status: 500 });

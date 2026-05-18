@@ -87,8 +87,22 @@ async function resolveAssignedPatients(caregiverId: string, hqId: string) {
         }
     }
 
-    // 4. Sin color o 'ALL' → cuidadora solitaria, trae todos los ACTIVE
-    const unrestricted = colors.length === 0 || colors.includes('ALL');
+    // 4. Nivel 2 — Auto-escalación a ALL si esta cuidadora es la única en piso.
+    //    Auto-corrige: si entra otra cuidadora luego, el siguiente poll de
+    //    /api/care recalcula y aplica el filtro normal.
+    const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+    const activeCount = await prisma.shiftSession.count({
+        where: {
+            headquartersId: hqId,
+            actualEndTime: null,
+            startTime: { gte: fourteenHrsAgo },
+            caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
+        },
+    });
+    const isSolo = activeCount <= 1;
+
+    // 5. Sin color, 'ALL' o cuidadora solitaria → trae todos los ACTIVE
+    const unrestricted = colors.length === 0 || colors.includes('ALL') || isSolo;
 
     const validColors = colors.filter(c =>
         (['RED', 'YELLOW', 'GREEN', 'BLUE', 'UNASSIGNED'] as string[]).includes(c)
