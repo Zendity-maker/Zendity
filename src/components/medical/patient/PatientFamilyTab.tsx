@@ -300,16 +300,15 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             <Pencil className="w-3 h-3" /> Editar
                                         </button>
                                     )}
-                                    {!m.isRegistered && (
-                                        <button
-                                            onClick={() => handleResend(m)}
-                                            disabled={resendingId === m.id}
-                                            className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                                        >
-                                            {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                                            Reenviar
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={() => handleResend(m)}
+                                        disabled={resendingId === m.id}
+                                        className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                                        title={m.isRegistered ? 'Generar PIN nuevo y enviarlo por email' : 'Enviar credenciales por primera vez'}
+                                    >
+                                        {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                        {m.isRegistered ? 'Resetear PIN' : 'Reenviar'}
+                                    </button>
                                     {canDelete && (
                                         <button
                                             onClick={() => handleDelete(m)}
