@@ -130,18 +130,31 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     };
 
     const handleDelete = async (m: FamilyMember) => {
-        if (!confirm(`¿Eliminar el acceso de ${m.name}?\nEsta acción no se puede deshacer.`)) return;
+        if (!confirm(
+            `¿Eliminar a ${m.name}?\n\n` +
+            `Esto borra el registro del familiar y su acceso al portal.\n` +
+            `Si solo olvidó su PIN, usa "Reenviar invitación" en lugar de eliminar.\n\n` +
+            `Esta acción no se puede deshacer.`
+        )) return;
         setDeletingId(m.id);
         try {
             const res = await fetch(`/api/corporate/family/${m.id}`, { method: "DELETE" });
-            const data = await res.json();
-            if (data.success) {
+            let data: any = null;
+            try { data = await res.json(); } catch { /* respuesta no-JSON, manejamos abajo */ }
+
+            if (res.ok && data?.success) {
                 setToast({ msg: `${m.name} eliminado`, type: "ok" });
                 setMembers(prev => prev.filter(x => x.id !== m.id));
             } else {
-                setToast({ msg: data.error || "Error eliminando", type: "err" });
+                // Alert + toast: el toast solo se ve pocos segundos. Para errores
+                // de borrado (que pueden confundir al supervisor luego), también
+                // mostramos alert nativo que requiere click para cerrar.
+                const errMsg = data?.error || `Error ${res.status} eliminando ${m.name}`;
+                alert(`No se pudo eliminar a ${m.name}:\n\n${errMsg}`);
+                setToast({ msg: errMsg, type: "err" });
             }
-        } catch {
+        } catch (err: any) {
+            alert(`Error de conexión al eliminar:\n${err?.message || ''}`);
             setToast({ msg: "Error de conexión", type: "err" });
         } finally {
             setDeletingId(null);
@@ -304,7 +317,7 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
                                         >
                                             {deletingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                            {m.isRegistered ? "Revocar" : "Eliminar"}
+                                            Eliminar
                                         </button>
                                     )}
                                 </div>

@@ -112,9 +112,30 @@ export async function POST(req: Request) {
             });
             if (!patient) return NextResponse.json({ error: 'Residente no encontrado' }, { status: 404 });
 
-            const existing = await prisma.familyMember.findUnique({ where: { email } });
+            const existing = await prisma.familyMember.findUnique({
+                where: { email },
+                include: { patient: { select: { name: true, headquartersId: true } } },
+            });
             if (existing) {
-                return NextResponse.json({ error: 'Ya existe un familiar con ese email' }, { status: 409 });
+                // Caso A: pertenece a OTRO residente (mismo hogar o no)
+                if (existing.patientId !== patientId) {
+                    const sameHq = existing.patient?.headquartersId === hqId;
+                    return NextResponse.json({
+                        error: sameHq
+                            ? `Este email ya está asociado al familiar "${existing.name}" del residente ${existing.patient?.name || 'otro'}. Usa otro email o gestiona desde la ficha de ese residente.`
+                            : `Este email ya está usado por otro hogar. Usa un email distinto.`,
+                        existingFamilyMemberId: sameHq ? existing.id : undefined,
+                    }, { status: 409 });
+                }
+
+                // Caso B: es el MISMO residente, ya hay familiar con ese email
+                return NextResponse.json({
+                    error: existing.isRegistered
+                        ? `Ya hay un familiar registrado con ese email ("${existing.name}"). Si olvidó su PIN, usa "Reenviar invitación".`
+                        : `Hay una invitación pendiente para ese email ("${existing.name}"). Usa "Reenviar invitación" para enviarle un PIN nuevo.`,
+                    existingFamilyMemberId: existing.id,
+                    canResend: true,
+                }, { status: 409 });
             }
 
             const level = accessLevel === 'Read-Only' ? 'Read-Only' : 'Full';
