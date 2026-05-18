@@ -154,6 +154,8 @@ export default function SupervisorMissionControlPage() {
 
     // Panel de Rondas por Cuidador
     const [caregiverRounds, setCaregiverRounds] = useState<any[]>([]);
+    // Drill-down: cuidadora seleccionada para ver detalles completos
+    const [drillCaregiver, setDrillCaregiver] = useState<any | null>(null);
     const [roundsNightShift, setRoundsNightShift] = useState(false);
     const [roundsLoading, setRoundsLoading] = useState(false);
     const [roundsLastUpdated, setRoundsLastUpdated] = useState<Date | null>(null);
@@ -747,7 +749,13 @@ export default function SupervisorMissionControlPage() {
                                 const labelClass = cg.colorGroup ? (colorLabel[cg.colorGroup] || 'text-slate-600') : 'text-slate-600';
 
                                 return (
-                                    <div key={cg.caregiverId} className={`rounded-[1.5rem] border p-5 ${borderClass} ${isLate ? 'ring-2 ring-amber-400/40' : ''}`}>
+                                    <button
+                                        key={cg.caregiverId}
+                                        type="button"
+                                        onClick={() => setDrillCaregiver(cg)}
+                                        className={`text-left w-full rounded-[1.5rem] border p-5 ${borderClass} ${isLate ? 'ring-2 ring-amber-400/40' : ''} hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer`}
+                                        aria-label={`Ver detalles de ${cg.name}`}
+                                    >
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex items-center gap-2.5">
@@ -850,7 +858,7 @@ export default function SupervisorMissionControlPage() {
                                                 )}
                                             </>
                                         )}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -1878,6 +1886,136 @@ export default function SupervisorMissionControlPage() {
                     fetchLiveData();
                 }}
             />
+
+            {/* DRILL-DOWN MODAL — detalle de cuidadora */}
+            {drillCaregiver && (() => {
+                const cg = drillCaregiver;
+                const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Toda la sede' };
+                const colorBgs: Record<string, string> = {
+                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500',
+                    GREEN: 'bg-emerald-500', ALL: 'bg-slate-700',
+                };
+                const pct = cg.residentsInGroup > 0
+                    ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
+                    : 0;
+                const colorName = cg.colorGroup ? (colorLabels[cg.colorGroup] || cg.colorGroup) : null;
+                const colorBg = cg.colorGroup ? (colorBgs[cg.colorGroup] || 'bg-slate-400') : 'bg-slate-400';
+                return (
+                    <div
+                        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+                        onClick={() => setDrillCaregiver(null)}
+                    >
+                        <div
+                            className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="px-6 py-5 border-b border-slate-200 flex items-start justify-between bg-slate-50">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-2xl ${colorBg} text-white font-black text-xl flex items-center justify-center shadow-md`}>
+                                        {cg.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-800 leading-tight">{cg.name}</h2>
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mt-0.5">
+                                            {colorName ? `Grupo ${colorName}` : 'Sin grupo asignado'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setDrillCaregiver(null)}
+                                    className="text-slate-400 hover:text-slate-700 p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                                    aria-label="Cerrar"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* KPIs */}
+                            <div className="grid grid-cols-3 gap-3 px-6 py-4 bg-slate-50/60 border-b border-slate-100">
+                                <div className="bg-white rounded-2xl p-3 border border-slate-200 text-center">
+                                    <p className={`text-2xl font-black leading-none ${cg.roundsCompleted >= 2 ? 'text-emerald-600' : cg.roundsCompleted === 1 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                        {cg.roundsCompleted}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1">Rondas hoy</p>
+                                </div>
+                                <div className="bg-white rounded-2xl p-3 border border-slate-200 text-center">
+                                    <p className={`text-2xl font-black leading-none ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-slate-500'}`}>
+                                        {pct}%
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1">Ronda actual</p>
+                                </div>
+                                <div className="bg-white rounded-2xl p-3 border border-slate-200 text-center">
+                                    <p className="text-2xl font-black leading-none text-slate-700">
+                                        {cg.minutesSinceLastRound !== null ? `${cg.minutesSinceLastRound}m` : '—'}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mt-1">Desde última ronda</p>
+                                </div>
+                            </div>
+
+                            {/* Progreso de ronda actual */}
+                            <div className="px-6 py-4 border-b border-slate-100">
+                                <div className="flex justify-between items-baseline mb-2">
+                                    <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide">
+                                        Ronda actual
+                                    </h3>
+                                    <span className="text-xs font-bold text-slate-500">
+                                        {cg.attendedThisRound} / {cg.residentsInGroup} residentes
+                                    </span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-3 border border-slate-200 overflow-hidden">
+                                    <div
+                                        className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-slate-300'}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Pendientes — lista COMPLETA */}
+                            <div className="px-6 py-4 overflow-y-auto flex-1">
+                                {cg.noColorGroup ? (
+                                    <p className="text-sm text-slate-500 italic text-center py-6">
+                                        Sin grupo de color asignado para este turno.
+                                    </p>
+                                ) : cg.emptyGroup ? (
+                                    <p className="text-sm text-slate-500 italic text-center py-6">
+                                        El grupo no tiene residentes activos.
+                                    </p>
+                                ) : (cg.pendingResidents && cg.pendingResidents.length > 0) ? (
+                                    <>
+                                        <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide mb-3">
+                                            Pendientes en esta ronda ({cg.pendingResidents.length})
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {cg.pendingResidents.map((r: any, i: number) => (
+                                                <div key={i} className="flex items-center justify-between gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 text-sm">{r.name}</p>
+                                                        <p className="text-xs text-slate-500 font-medium">Habitación {r.room || '—'}</p>
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-1 rounded-full uppercase tracking-wide">
+                                                        Pendiente
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 mb-3 text-2xl">
+                                            ✓
+                                        </div>
+                                        <p className="font-black text-slate-800 text-base">Ronda completa</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Todos los residentes del grupo fueron atendidos.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
