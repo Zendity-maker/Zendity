@@ -12,27 +12,35 @@ const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 export async function PATCH(req: Request) {
     try {
         const session = await getServerSession(authOptions);
-        const body = await req.json();
-
-        // Validamos autenticación base, pero permitimos caregiverId del body si es módulo tablet
-        if (!session && !body.caregiverId) return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
-
-        const { patientId, reason, headquartersId, caregiverId } = body;
-
-        if (!patientId || !reason || !headquartersId) {
-            return NextResponse.json({ success: false, error: "Faltan datos requeridos (Paciente, Sede o Razón)" }, { status: 400 });
+        if (!session?.user?.id) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
         }
 
-        // Validación de rol — solo CAREGIVER, NURSE, SUPERVISOR (y niveles superiores) pueden marcar hospital
-        let userRole: string | null = (session?.user as any)?.role || null;
-        if (!userRole && caregiverId) {
-            const caregiver = await prisma.user.findUnique({ where: { id: caregiverId }, select: { role: true, headquartersId: true } });
-            if (!caregiver) return NextResponse.json({ success: false, error: "Cuidador no encontrado" }, { status: 403 });
-            if (caregiver.headquartersId !== headquartersId) return NextResponse.json({ success: false, error: "Sede no coincide" }, { status: 403 });
-            userRole = caregiver.role;
-        }
+        const userRole = (session.user as any).role as string | undefined;
         if (!userRole || !ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ success: false, error: "No tienes permiso para marcar residente en hospital" }, { status: 403 });
+        }
+
+        const sessionHqId = (session.user as any).headquartersId as string | undefined;
+        const authorId = session.user.id;
+
+        const body = await req.json();
+        const { patientId, reason } = body;
+
+        if (!patientId || !reason) {
+            return NextResponse.json({ success: false, error: "Faltan datos requeridos (Paciente o Razón)" }, { status: 400 });
+        }
+
+        // Tenant check: el paciente debe pertenecer a la sede del usuario en sesión.
+        const patientCheck = await prisma.patient.findUnique({
+            where: { id: patientId },
+            select: { headquartersId: true }
+        });
+        if (!patientCheck) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado" }, { status: 404 });
+        }
+        if (!sessionHqId || patientCheck.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "Sede no coincide" }, { status: 403 });
         }
 
         // 1. Modificar el estado del paciente a TEMPORARY_LEAVE y tipo HOSPITAL
@@ -63,17 +71,16 @@ export async function PATCH(req: Request) {
         });
 
         // Info del autor para el resumen impreso
-        const authorId = caregiverId || session?.user?.id;
-        const author = authorId ? await prisma.user.findUnique({
+        const author = await prisma.user.findUnique({
             where: { id: authorId },
             select: { name: true, role: true }
-        }) : null;
+        });
 
         // 2. Opcionalmente registrar estp como un Ticket/Reporte Clinico (Hub)
         await prisma.dailyLog.create({
             data: {
                 patientId,
-                authorId: caregiverId || session?.user?.id || "emergency-bypass",
+                authorId,
                 bathCompleted: false,
                 foodIntake: 0,
                 notes: `[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: ${reason}`,

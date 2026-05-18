@@ -62,7 +62,6 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
         pendingComplaints,
         incidentsLast7d,
         todayHandoverAuthors,
-        endedSchedulesToday,
         medsAdministeredToday,
         meds_total_today,
     ] = await Promise.all([
@@ -96,14 +95,6 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
             },
             select: { outgoingNurseId: true },
         }),
-        // Turnos que terminaron hoy (schedules vencidos)
-        prisma.shiftSchedule.findMany({
-            where: {
-                headquartersId: hqId,
-                endTime: { lt: now, gte: todayStart },
-            },
-            select: { employeeId: true },
-        }),
         // Meds administrados hoy
         prisma.medicationAdministration.count({
             where: {
@@ -122,9 +113,10 @@ export async function calculateFacilityHealthScore(hqId: string): Promise<Facili
         }),
     ]);
 
-    // Handovers faltantes hoy
-    const handoversDoneIds = new Set(todayHandoverAuthors.map(h => h.outgoingNurseId));
-    const missingHandovers = endedSchedulesToday.filter(s => !handoversDoneIds.has(s.employeeId)).length;
+    // Handovers faltantes hoy — pendiente de migrar a ScheduledShift (Schedule Builder).
+    // Antes leíamos ShiftSchedule (legacy, sin datos en prod) y siempre daba 0.
+    void todayHandoverAuthors;
+    const missingHandovers = 0;
 
     // Compliance de meds del día (0–100%)
     const medCompliancePct = meds_total_today > 0
