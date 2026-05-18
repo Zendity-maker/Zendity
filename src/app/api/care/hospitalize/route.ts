@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-
-
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+const HospitalizeBody = z.object({
+    patientId: z.string().min(1, 'patientId requerido'),
+    reason:    z.string().min(3, 'razón demasiado corta').max(1000),
+});
 
 export async function PATCH(req: Request) {
     try {
@@ -24,12 +28,17 @@ export async function PATCH(req: Request) {
         const sessionHqId = (session.user as any).headquartersId as string | undefined;
         const authorId = session.user.id;
 
-        const body = await req.json();
-        const { patientId, reason } = body;
-
-        if (!patientId || !reason) {
-            return NextResponse.json({ success: false, error: "Faltan datos requeridos (Paciente o Razón)" }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = HospitalizeBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
+        const { patientId, reason } = parsed.data;
 
         // Tenant check: el paciente debe pertenecer a la sede del usuario en sesión.
         const patientCheck = await prisma.patient.findUnique({

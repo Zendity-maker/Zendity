@@ -1,15 +1,52 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import {  MealType, MealQuality } from '@prisma/client';
+import { z } from 'zod';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { MealType, MealQuality } from '@prisma/client';
 
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
+const MealBody = z.object({
+    patientId:      z.string().min(1, 'patientId requerido'),
+    caregiverId:    z.string().min(1, 'caregiverId requerido'),
+    shiftSessionId: z.string().min(1, 'shiftSessionId requerido'),
+    mealType:       z.nativeEnum(MealType),
+    quality:        z.nativeEnum(MealQuality),
+});
 
 export async function POST(req: Request) {
     try {
-        const { patientId, caregiverId, shiftSessionId, mealType, quality } = await req.json();
+        // Auth + rol clínico (antes este endpoint era público)
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        }
+        const invokerRole = (session.user as any).role;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ success: false, error: "Rol no autorizado" }, { status: 403 });
+        }
+        const sessionHqId = (session.user as any).headquartersId;
 
-        if (!patientId || !caregiverId || !shiftSessionId || !mealType || !quality) {
-            return NextResponse.json({ success: false, error: "Todos los campos de la comida son requeridos." }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = MealBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
+        }
+        const { patientId, caregiverId, shiftSessionId, mealType, quality } = parsed.data;
+
+        // Tenant check — el residente DEBE pertenecer a la sede del invocador
+        const patient = await prisma.patient.findUnique({
+            where: { id: patientId },
+            select: { headquartersId: true }
+        });
+        if (!patient || patient.headquartersId !== sessionHqId) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede." }, { status: 404 });
         }
 
         // Validar Ventanas de Tiempo Estrictas (Huso Horario America/Puerto_Rico)
@@ -47,8 +84,8 @@ export async function POST(req: Request) {
                 patientId,
                 caregiverId,
                 shiftSessionId,
-                mealType: mealType as MealType,
-                quality: quality as MealQuality
+                mealType,
+                quality,
             }
         });
 

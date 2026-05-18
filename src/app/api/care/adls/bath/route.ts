@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+
+const BathBody = z.object({
+    patientId:      z.string().min(1, 'patientId requerido'),
+    caregiverId:    z.string().min(1, 'caregiverId requerido'),
+    shiftSessionId: z.string().min(1, 'shiftSessionId requerido'),
+});
 
 export async function POST(req: Request) {
     try {
@@ -12,11 +19,17 @@ export async function POST(req: Request) {
         }
 
         const sessionHqId = (session.user as any).headquartersId;
-        const { patientId, caregiverId, shiftSessionId } = await req.json();
-
-        if (!patientId || !caregiverId || !shiftSessionId) {
-            return NextResponse.json({ success: false, error: "Faltan identificadores para registrar el baño." }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = BathBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
+        const { patientId, caregiverId, shiftSessionId } = parsed.data;
 
         // Tenant check — el residente DEBE pertenecer a la sede de la sesión
         const patient = await prisma.patient.findUnique({
