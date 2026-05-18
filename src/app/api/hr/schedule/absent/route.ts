@@ -14,14 +14,18 @@ const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
  *   2. Marca ScheduledShift.isAbsent = true
  *   3. Detecta residentes del color del ausente
  *   4. Selecciona cuidador receptor (menor carga activa)
- *   5. Crea ShiftPatientOverride por cada residente
- *   6. Crea ShiftColorAssignment en el turno receptor
- *      (para que computeShiftCoverage lo detecte)
- *   7. Notifica al cuidador receptor + roles supervisores
+ *   5. Crea ShiftPatientOverride por cada residente — idempotente
+ *      (no crea si ya hay override activo del paciente para el turno)
+ *   6. Notifica al cuidador receptor + roles supervisores
  *
- * Antes: la redistribución dependía de un setInterval del browser
- * con 15 min, que se perdía al cerrar el tab y usaba el ID de turno
- * incorrecto. Ahora es atómica y server-side.
+ * Importante: NO se crea ShiftColorAssignment para los receptores. El
+ * cuidador receptor mantiene su color base del Builder y recibe los
+ * residentes adicionales vía override (el endpoint /api/care ya hace
+ * el OR entre color propio + overrides activos).
+ *
+ * Antes: la redistribución creaba ShiftColorAssignment con el color del
+ * ausente para los receptores, lo que sobreescribía su color base
+ * (ej. Yeray BLUE → YELLOW). Eso rompía la UX y la lógica clínica.
  */
 export async function POST(req: Request) {
     try {
@@ -140,37 +144,46 @@ export async function POST(req: Request) {
             caregiverLoads[i % caregiverLoads.length].assigned.push(resident);
         });
 
-        // ── 6. ShiftPatientOverride + ShiftColorAssignment por cuidador ─
+        // ── 6. ShiftPatientOverride por cuidador (idempotente) ─────────
+        // NO crear ShiftColorAssignment: el color base del receptor lo da
+        // ScheduledShift. Mover su color base sobreescribiría sus residentes
+        // originales y rompería el flujo del piso.
+        //
+        // Idempotencia: si por alguna razón ya existe un override activo del
+        // residente para el mismo shiftDate+shiftType, lo saltamos. Evita
+        // duplicados si el endpoint se invoca dos veces o tras un crash.
+        const dayStartForOv = new Date(shift.date);
+        const dayEndForOv = new Date(dayStartForOv.getTime() + 24 * 3600000);
         await Promise.all(
             caregiverLoads
                 .filter(c => c.assigned.length > 0)
                 .map(async c => {
-                    await prisma.shiftPatientOverride.createMany({
-                        data: c.assigned.map(p => ({
-                            headquartersId: hqId,
-                            patientId: p.id,
-                            originalColor: absentColorGroup,
-                            assignedColor: c.shift.colorGroup || absentColorGroup,
-                            caregiverId: c.shift.userId,
-                            shiftDate: shift.date,
-                            shiftType: shift.shiftType,
-                            reason: 'ABSENCE_REDISTRIB',
-                            autoAssigned: true,
-                            isActive: true,
-                        }))
-                    });
-                    // Registrar el color cubierto para computeShiftCoverage
-                    await prisma.shiftColorAssignment.create({
-                        data: {
-                            headquartersId: hqId,
-                            scheduledShiftId: c.shift.id,
-                            color: absentColorGroup,
-                            userId: c.shift.userId,
-                            assignedBy: markedById,
-                            isAutoAssigned: true,
-                            assignedAt: new Date()
-                        }
-                    });
+                    for (const p of c.assigned) {
+                        const existing = await prisma.shiftPatientOverride.findFirst({
+                            where: {
+                                patientId: p.id,
+                                shiftDate: { gte: dayStartForOv, lt: dayEndForOv },
+                                shiftType: shift.shiftType,
+                                isActive: true,
+                            },
+                            select: { id: true },
+                        });
+                        if (existing) continue;
+                        await prisma.shiftPatientOverride.create({
+                            data: {
+                                headquartersId: hqId,
+                                patientId: p.id,
+                                originalColor: absentColorGroup,
+                                assignedColor: c.shift.colorGroup || absentColorGroup,
+                                caregiverId: c.shift.userId,
+                                shiftDate: shift.date,
+                                shiftType: shift.shiftType,
+                                reason: 'ABSENCE_REDISTRIB',
+                                autoAssigned: true,
+                                isActive: true,
+                            },
+                        });
+                    }
                 })
         );
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
+import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -19,42 +20,74 @@ const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
 const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
 
 // Resuelve los residentes asignados al cuidador para la ventana de vitales.
-// Prioridad:
-//   1. ShiftColorAssignment (overrides intra-turno) → color(es) específicos
-//   2. ScheduledShift del día → colorGroup del turno programado
-//   3. Fallback: sin color → cuidador solitario, trae todos los ACTIVE de la sede
-// Si el color resuelve a 'ALL' o vacío → sin filtro de color.
+//
+// Modelo:
+//   - El COLOR BASE viene de ScheduledShift del Builder (semana publicada),
+//     filtrado por el shiftType actual.
+//   - ShiftColorAssignment NO reemplaza el color base — lo SUMA. Sirve para
+//     coberturas adicionales (ej. cuidadora cubre EVENING/YELLOW además de
+//     su EVENING/BLUE programado) o para reasignaciones explícitas cuando un
+//     cuidador hace overtime en un shiftType distinto del programado.
+//   - Si no hay match con el shiftType actual y no hay ColorAssignment, se
+//     hace fallback a la ScheduledShift más reciente del día (caso overtime).
+//   - Si después de todo no hay colores o aparece 'ALL', se traen todos los
+//     residentes ACTIVE de la sede (caso cuidadora solitaria).
+//
+// Reformulado tras descubrir que el endpoint legacy /api/hr/schedule/absent
+// creaba ShiftColorAssignment con el color del AUSENTE para los receptores,
+// sobreescribiendo el color base de cuidadoras como Yeray (BLUE → YELLOW).
 async function resolveAssignedPatients(caregiverId: string, hqId: string) {
     const dayStart = todayStartAST();
+    const currentShiftType = inferShiftTypeFromAST();
 
-    // 1. ShiftColorAssignment del día clínico para este cuidador
+    // 1. Color base del Builder para el shiftType actual
+    const scheduledNow = await prisma.scheduledShift.findFirst({
+        where: {
+            userId: caregiverId,
+            date: { gte: dayStart },
+            shiftType: currentShiftType as any,
+            isAbsent: false,
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+        },
+        select: { colorGroup: true },
+    });
+    const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
+        ? [scheduledNow.colorGroup]
+        : [];
+
+    // 2. ShiftColorAssignments del día — coberturas adicionales que SUMAN al base
     const colorAssignments = await prisma.shiftColorAssignment.findMany({
         where: {
             headquartersId: hqId,
             userId: caregiverId,
-            assignedAt: { gte: dayStart }
+            assignedAt: { gte: dayStart },
         },
-        select: { color: true }
+        select: { color: true },
     });
-    let colors = colorAssignments.map(a => a.color).filter(Boolean);
+    const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
 
-    // 2. Fallback a ScheduledShift del día
+    // Unión deduplicada: base + coberturas
+    let colors = Array.from(new Set([...baseColor, ...overrideColors]));
+
+    // 3. Fallback overtime: sin match del shiftType actual ni cobertura → usar
+    //    la ScheduledShift más reciente del día (cuidadora extendió su turno).
     if (colors.length === 0) {
-        const now = new Date();
-        const startWindow = new Date(now.getTime() - 14 * 60 * 60 * 1000);
-        const scheduled = await prisma.scheduledShift.findFirst({
+        const fallback = await prisma.scheduledShift.findFirst({
             where: {
                 userId: caregiverId,
-                date: { gte: startWindow, lte: now },
-                isAbsent: false
+                date: { gte: dayStart },
+                isAbsent: false,
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
             },
             orderBy: { date: 'desc' },
-            select: { colorGroup: true }
+            select: { colorGroup: true },
         });
-        if (scheduled?.colorGroup) colors = [scheduled.colorGroup];
+        if (fallback?.colorGroup && fallback.colorGroup !== 'UNASSIGNED') {
+            colors = [fallback.colorGroup];
+        }
     }
 
-    // 3. Sin color / 'ALL' → cuidador solitario, trae todos los ACTIVE
+    // 4. Sin color o 'ALL' → cuidadora solitaria, trae todos los ACTIVE
     const unrestricted = colors.length === 0 || colors.includes('ALL');
 
     const validColors = colors.filter(c =>
