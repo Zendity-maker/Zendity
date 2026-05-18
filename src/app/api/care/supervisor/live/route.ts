@@ -4,6 +4,9 @@ import { todayStartAST } from '@/lib/dates';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { logError } from '@/lib/logger';
+
+const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export interface TriageTicket {
     id: string;
@@ -28,6 +31,13 @@ export async function GET(req: Request) {
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        }
+        // Cierre de agujero de seguridad: antes este endpoint solo validaba
+        // sesión, así cualquier usuario (CAREGIVER, NURSE, FAMILY) podía leer
+        // toda la telemetría operacional del supervisor llamando a /live.
+        const role = (session.user as any).role;
+        if (!SUPERVISOR_ROLES.includes(role)) {
+            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
         }
 
         const { searchParams } = new URL(req.url);
@@ -665,7 +675,7 @@ export async function GET(req: Request) {
         });
 
     } catch (error) {
-        console.error("Live Supervisor Sync Error:", error);
+        logError('care.supervisor.live.get', error);
         return NextResponse.json({ success: false, error: "Error obteniendo telemetría en vivo" }, { status: 500 });
     }
 }

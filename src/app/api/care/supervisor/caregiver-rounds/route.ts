@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { todayStartAST } from '@/lib/dates';
+import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+
+const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +38,7 @@ export async function GET(req: Request) {
         }
 
         const role = (session.user as any).role;
-        if (!['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(role)) {
+        if (!SUPERVISOR_ROLES.includes(role)) {
             return NextResponse.json({ success: false, error: 'Acceso restringido a supervisores' }, { status: 403 });
         }
 
@@ -70,13 +74,10 @@ export async function GET(req: Request) {
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
 
-        // Los shifts se guardan como medianoche UTC del día que representan
-        // (ej. May 11 → 2026-05-11T00:00:00.000Z). El servidor corre en UTC-4
-        // (Puerto Rico), por lo que setHours(0,0,0,0) produce 04:00 UTC —
-        // 4 horas después de los shifts, excluyéndolos y filtrando shifts del
-        // futuro. Usar setUTCHours para anclar al día UTC correcto.
-        const todayStartUTC = new Date();
-        todayStartUTC.setUTCHours(0, 0, 0, 0);
+        // Día clínico estandarizado (AST 6 AM como inicio).
+        // Antes este endpoint usaba setUTCHours(0,0,0,0) lo cual divergía
+        // del resto del sistema y excluía shifts entre 4-6 AM AST.
+        const todayStartUTC = todayStartAST();
         const todayEndUTC = new Date();
         todayEndUTC.setUTCHours(23, 59, 59, 999);
 
@@ -92,13 +93,7 @@ export async function GET(req: Request) {
         // como YELLOW en el panel, no como RED.
         const colorMap = new Map<string, string>();
 
-        // Calcular shiftType actual desde hora local Puerto Rico
-        const prHourNow = parseInt(
-            new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico' })
-                .format(new Date()), 10
-        ) % 24;
-        const currentShiftType = prHourNow >= 22 || prHourNow < 6 ? 'NIGHT'
-            : prHourNow >= 14 ? 'EVENING' : 'MORNING';
+        const currentShiftType = inferShiftTypeFromAST();
 
         // Prioridad 1: ShiftColorAssignment más reciente de HOY
         const todayColorAssignments = await prisma.shiftColorAssignment.findMany({
@@ -160,12 +155,7 @@ export async function GET(req: Request) {
             orderBy: { roomNumber: 'asc' }
         });
 
-        // Detectar si es guardia nocturna (hora local Puerto Rico)
-        const prHour = parseInt(
-            new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico' })
-                .format(new Date()), 10
-        ) % 24;
-        const isNightShift = prHour >= 22 || prHour < 6;
+        const isNightShift = currentShiftType === 'NIGHT';
 
         const now = new Date();
 

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 import { notifyUser } from '@/lib/notifications';
 
 // POST /api/care/supervisor/close-task
@@ -9,44 +10,33 @@ import { notifyUser } from '@/lib/notifications';
 // Permite a un supervisor cerrar manualmente una FastActionAssignment
 // como COMPLETED o FAILED — sin penalidad automática de compliance.
 // El cuidador recibe notificación del cierre.
-//
-// Body: { assignmentId: string, status: 'COMPLETED' | 'FAILED' }
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
+const CloseTaskBody = z.object({
+    assignmentId: z.string().min(1, 'assignmentId requerido'),
+    status:       z.enum(['COMPLETED', 'FAILED']),
+});
+
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        // requireRole soporta secondaryRoles por diseño (FASE 51: SUPERVISOR + CAREGIVER)
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { headquartersId: invokerHqId } = auth;
+        const supervisorName = auth.name || 'Supervisor';
+
+        const rawBody = await req.json().catch(() => null);
+        const parsed = CloseTaskBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
-
-        // Soporta dual role (FASE 51): SUPERVISOR + CAREGIVER secundario
-        const userRole = (session.user as any).role;
-        const secondaryRoles: string[] = (session.user as any).secondaryRoles ?? [];
-        const hasAccess =
-            ALLOWED_ROLES.includes(userRole) ||
-            secondaryRoles.some(r => ALLOWED_ROLES.includes(r));
-
-        if (!hasAccess) {
-            return NextResponse.json(
-                { success: false, error: 'Solo supervisores pueden cerrar tareas' },
-                { status: 403 }
-            );
-        }
-
-        const invokerHqId = (session.user as any).headquartersId;
-        const supervisorName = (session.user as any).name || 'Supervisor';
-
-        const body = await req.json();
-        const { assignmentId, status } = body;
-
-        if (!assignmentId || !['COMPLETED', 'FAILED'].includes(status)) {
-            return NextResponse.json(
-                { success: false, error: 'assignmentId y status (COMPLETED|FAILED) son requeridos' },
-                { status: 400 }
-            );
-        }
+        const { assignmentId, status } = parsed.data;
 
         const task = await prisma.fastActionAssignment.findUnique({
             where: { id: assignmentId },
@@ -88,7 +78,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, task: updated });
     } catch (error: any) {
-        console.error('[close-task] error:', error);
+        logError('care.supervisor.close_task.post', error);
         return NextResponse.json(
             { success: false, error: error.message || 'Error cerrando tarea' },
             { status: 500 }

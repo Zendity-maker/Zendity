@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { z } from 'zod';
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 import { notifyUser } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -9,24 +10,31 @@ export const revalidate = 0;
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
+const DispatchBody = z.object({
+    headquartersId: z.string().optional(),
+    caregiverId:    z.string().min(1, 'caregiverId requerido'),
+    description:    z.string().min(1, 'descripción requerida').max(500),
+    sourceType:     z.string().optional(),
+    sourceId:       z.union([z.string(), z.array(z.string())]).optional(),
+    expirationMins: z.coerce.number().int().min(1).max(720).optional(),
+});
+
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ error: "Rol no autorizado" }, { status: 403 });
-        }
-        const invokerId = (session.user as any).id;
-        const invokerHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, headquartersId: invokerHqId } = auth;
 
-        const body = await req.json();
-        const { headquartersId, caregiverId, description, sourceType, sourceId, expirationMins } = body;
-
-        if (!caregiverId || !description) {
-            return NextResponse.json({ error: "Missing required fields for dispatch" }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = DispatchBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
+        const { headquartersId, caregiverId, description, sourceType, sourceId, expirationMins } = parsed.data;
         // hqId siempre desde sesión. Si viene del body debe coincidir.
         if (headquartersId && headquartersId !== invokerHqId) {
             return NextResponse.json({ error: "Sede fuera de tu alcance" }, { status: 403 });
@@ -66,7 +74,7 @@ export async function POST(req: Request) {
         });
 
         // 2. Mark the source as handled if possible — con tenant check
-        if (sourceType === 'COMPLAINT' && sourceId) {
+        if (sourceType === 'COMPLAINT' && typeof sourceId === 'string' && sourceId) {
             const c = await prisma.complaint.findUnique({
                 where: { id: sourceId },
                 select: { headquartersId: true },
@@ -95,7 +103,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, assignment });
     } catch (error: unknown) {
-        console.error("Error creating fast action assignment:", error);
+        logError('care.supervisor.dispatch.post', error);
         return NextResponse.json({ error: (error as Error).message || "Internal server error" }, { status: 500 });
     }
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
 import { todayStartAST } from '@/lib/dates';
+import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -21,10 +22,11 @@ export async function GET() {
             select: { id: true, name: true, role: true }
         });
 
-        // Traer Horarios del turno activo actual (ScheduledShift publicado)
-        const currentHour = new Date().getHours();
-        const activeShiftType = currentHour >= 22 || currentHour < 6 ? 'NIGHT'
-            : currentHour >= 14 ? 'EVENING' : 'MORNING';
+        // Traer Horarios del turno activo actual (ScheduledShift publicado).
+        // Fix: antes usaba new Date().getHours() — eso es UTC del servidor.
+        // En Puerto Rico (UTC-4) entre 8pm-medianoche local, getHours()
+        // retornaba 0-4 y marcaba MORNING/NIGHT incorrectamente.
+        const activeShiftType = inferShiftTypeFromAST();
 
         const schedules = await prisma.scheduledShift.findMany({
             where: {

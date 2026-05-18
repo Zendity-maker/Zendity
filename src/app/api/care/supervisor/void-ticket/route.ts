@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+const VoidBody = z.object({
+    headquartersId: z.string().optional(),
+    sourceType:     z.string().min(1, 'sourceType requerido'),
+    sourceId:       z.string().min(1, 'sourceId requerido'),
+    reason:         z.string().min(10, 'el motivo debe tener al menos 10 caracteres').max(1000),
+});
 
 /**
  * Sprint R — Void/descartar ticket con motivo obligatorio (≥10 chars).
@@ -17,26 +25,22 @@ const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
-        const invokerId = (session.user as any).id;
-        const invokerName = (session.user as any).name || 'Supervisor';
-        const invokerHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, headquartersId: invokerHqId } = auth;
+        const invokerName = auth.name || 'Supervisor';
 
-        const body = await req.json();
-        const { headquartersId: bodyHqId, sourceType, sourceId, reason } = body;
-
-        if (!sourceType || !sourceId) {
-            return NextResponse.json({ success: false, error: 'sourceType y sourceId requeridos' }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = VoidBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
-        if (!reason || typeof reason !== 'string' || reason.trim().length < 10) {
-            return NextResponse.json({ success: false, error: 'El motivo debe tener al menos 10 caracteres' }, { status: 400 });
-        }
+        const { headquartersId: bodyHqId, sourceType, sourceId, reason } = parsed.data;
 
         if (bodyHqId && bodyHqId !== invokerHqId) {
             return NextResponse.json({ success: false, error: 'Sede fuera de tu alcance' }, { status: 403 });
@@ -112,11 +116,11 @@ export async function POST(req: Request) {
                     } as any,
                 },
             });
-        } catch (e) { console.error('[void-ticket audit]', e); }
+        } catch (e) { logWarn('care.supervisor.void_ticket.audit', e, { sourceType, sourceId }); }
 
         return NextResponse.json({ success: true, affected });
     } catch (error: any) {
-        console.error('void-ticket error:', error);
+        logError('care.supervisor.void_ticket.post', error);
         return NextResponse.json({
             success: false,
             error: error.message || 'Error descartando ticket',

@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+const DispatchMaintBody = z.object({
+    headquartersId: z.string().optional(),
+    sourceId:       z.string().min(1, 'sourceId requerido'),
+    description:    z.string().min(1, 'descripción requerida').max(1000),
+});
 
 /**
  * Sprint R — Despachar ticket de mantenimiento al rol MAINTENANCE.
@@ -18,23 +25,22 @@ const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
-        const invokerId = (session.user as any).id;
-        const invokerName = (session.user as any).name || 'Supervisor';
-        const invokerHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const { id: invokerId, headquartersId: invokerHqId } = auth;
+        const invokerName = auth.name || 'Supervisor';
 
-        const body = await req.json();
-        const { headquartersId: bodyHqId, sourceId, description } = body;
-
-        if (!sourceId || !description) {
-            return NextResponse.json({ success: false, error: 'sourceId y description requeridos' }, { status: 400 });
+        const rawBody = await req.json().catch(() => null);
+        const parsed = DispatchMaintBody.safeParse(rawBody);
+        if (!parsed.success) {
+            const first = parsed.error.issues[0];
+            const path = first?.path?.join('.') || 'body';
+            return NextResponse.json({
+                success: false,
+                error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
+            }, { status: 400 });
         }
+        const { headquartersId: bodyHqId, sourceId, description } = parsed.data;
 
         if (bodyHqId && bodyHqId !== invokerHqId) {
             return NextResponse.json({ success: false, error: 'Sede fuera de tu alcance' }, { status: 403 });
@@ -86,7 +92,7 @@ export async function POST(req: Request) {
                     } as any,
                 },
             });
-        } catch (e) { console.error('[dispatch-maintenance audit]', e); }
+        } catch (e) { logWarn('care.supervisor.dispatch_maintenance.audit', e, { sourceId }); }
 
         return NextResponse.json({
             success: true,
@@ -95,7 +101,7 @@ export async function POST(req: Request) {
             complaintUpdated,
         });
     } catch (error: any) {
-        console.error('dispatch-maintenance error:', error);
+        logError('care.supervisor.dispatch_maintenance.post', error);
         return NextResponse.json({
             success: false,
             error: error.message || 'Error despachando a mantenimiento',

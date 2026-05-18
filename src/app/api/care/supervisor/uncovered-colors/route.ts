@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
-import type { ShiftT } from '@/lib/shift-coverage';
+import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
+import { todayStartAST } from '@/lib/dates';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -23,18 +24,11 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const hqId = searchParams.get('hqId') || auth.headquartersId;
 
-        // Usar UTC midnight — los shifts se guardan como 2026-05-11T00:00:00.000Z.
-        // setHours(0,0,0,0) en servidor UTC-4 produce 04:00 UTC, excluyendo esos shifts.
-        const todayStart = new Date(); todayStart.setUTCHours(0, 0, 0, 0);
-        const todayEnd = new Date(); todayEnd.setUTCHours(23, 59, 59, 999);
+        const todayStart = todayStartAST();
+        const todayEnd = new Date(todayStart.getTime() + 24 * 3600000);
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
 
-        // Turno activo según hora PR
-        const prHour = parseInt(
-            new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico' })
-                .format(new Date()), 10
-        ) % 24;
-        const activeShiftType = prHour >= 22 || prHour < 6 ? 'NIGHT' : prHour >= 14 ? 'EVENING' : 'MORNING';
+        const activeShiftType = inferShiftTypeFromAST();
 
         // Turnos programados para el turno activo de hoy (publicados, no ausentes)
         const scheduledShifts = await prisma.scheduledShift.findMany({
