@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { todayStartAST } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { logError } from '@/lib/logger';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -159,119 +160,148 @@ export async function GET(req: Request) {
 
         const now = new Date();
 
-        // Calcular progreso por cuidador en paralelo
-        const caregiverResults = await Promise.all(
-            activeSessions.map(async (sess) => {
-                const caregiverId = sess.caregiverId;
-                const name = sess.caregiver?.name || 'Cuidador';
-                const shiftStart = sess.startTime;
-                const colorGroup = colorMap.get(caregiverId) ?? null;
-
-                if (!colorGroup) {
-                    return {
-                        caregiverId, name, colorGroup: null,
-                        noColorGroup: true,
-                        roundsCompleted: 0, residentsInGroup: 0,
-                        attendedThisRound: 0, remainingThisRound: 0,
-                        pendingResidents: [], minutesSinceLastRound: null,
-                        isNightShift, shiftStartedAt: shiftStart,
-                    };
-                }
-
-                // Color ALL → ve todos los residentes de la HQ
-                const groupPatients = colorGroup === 'ALL'
-                    ? allGroupPatients
-                    : allGroupPatients.filter(p => p.colorGroup === colorGroup);
-                const groupSize = groupPatients.length;
-
-                if (groupSize === 0) {
-                    return {
-                        caregiverId, name, colorGroup,
-                        emptyGroup: true,
-                        roundsCompleted: 0, residentsInGroup: 0,
-                        attendedThisRound: 0, remainingThisRound: 0,
-                        pendingResidents: [], minutesSinceLastRound: null,
-                        isNightShift, shiftStartedAt: shiftStart,
-                    };
-                }
-
-                const groupIds = groupPatients.map(p => p.id);
-
-                // Atenciones del turno según tipo de guardia
-                if (isNightShift) {
-                    // Nocturna: rotaciones posturales + notas de ronda nocturna
-                    const [rotations, roundNotes] = await Promise.all([
-                        prisma.posturalChangeLog.findMany({
-                            where: { nurseId: caregiverId, patientId: { in: groupIds }, performedAt: { gte: shiftStart } },
-                            select: { patientId: true, performedAt: true },
-                            orderBy: { performedAt: 'asc' }
-                        }),
-                        prisma.dailyLog.findMany({
-                            where: {
-                                authorId: caregiverId, patientId: { in: groupIds },
-                                createdAt: { gte: shiftStart }, notes: { contains: '[RONDA NOCTURNA' }
-                            },
-                            select: { patientId: true, createdAt: true },
-                            orderBy: { createdAt: 'asc' }
-                        })
-                    ]);
-                    const allTouches = [
-                        ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
-                        ...roundNotes.map(r => ({ patientId: r.patientId, at: r.createdAt })),
-                    ].sort((a, b) => a.at.getTime() - b.at.getTime());
-
-                    return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });
-                } else {
-                    // Diurno: rotaciones + baños + comidas + notas diarias + pañales diurnos
-                    const [rotations, baths, meals, dailyLogs, dayDiapers] = await Promise.all([
-                        prisma.posturalChangeLog.findMany({
-                            where: { nurseId: caregiverId, patientId: { in: groupIds }, performedAt: { gte: shiftStart } },
-                            select: { patientId: true, performedAt: true },
-                            orderBy: { performedAt: 'asc' }
-                        }),
-                        prisma.bathLog.findMany({
-                            where: { caregiverId, patientId: { in: groupIds }, timeLogged: { gte: shiftStart } },
-                            select: { patientId: true, timeLogged: true },
-                            orderBy: { timeLogged: 'asc' }
-                        }),
-                        prisma.mealLog.findMany({
-                            where: { caregiverId, patientId: { in: groupIds }, timeLogged: { gte: shiftStart } },
-                            select: { patientId: true, timeLogged: true },
-                            orderBy: { timeLogged: 'asc' }
-                        }),
-                        prisma.dailyLog.findMany({
-                            where: { authorId: caregiverId, patientId: { in: groupIds }, createdAt: { gte: shiftStart } },
-                            select: { patientId: true, createdAt: true },
-                            orderBy: { createdAt: 'asc' }
-                        }),
-                        prisma.clinicalNote.findMany({
-                            where: {
-                                authorId: caregiverId,
-                                patientId: { in: groupIds },
-                                createdAt: { gte: shiftStart },
-                                content: { contains: '[CAMBIO PAÑAL DIURNO ZENDI]' }
-                            },
-                            select: { patientId: true, createdAt: true },
-                            orderBy: { createdAt: 'asc' }
-                        })
-                    ]);
-                    const allTouches = [
-                        ...rotations.map(r => ({ patientId: r.patientId, at: r.performedAt })),
-                        ...baths.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
-                        ...meals.map(r => ({ patientId: r.patientId, at: r.timeLogged })),
-                        ...dailyLogs.map(r => ({ patientId: r.patientId, at: r.createdAt })),
-                        ...dayDiapers.map(r => ({ patientId: r.patientId, at: r.createdAt })),
-                    ].sort((a, b) => a.at.getTime() - b.at.getTime());
-
-                    return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });
-                }
-            })
+        // Batch query refactor: en lugar de N×5 queries (1 set por cuidadora dentro
+        // del Promise.all del map), se hacen 5 queries globales que traen TODOS los
+        // touches de TODOS los cuidadores activos desde el shiftStart más antiguo,
+        // y se agrupan en memoria por caregiverId. Reduce ~85% de queries con 5
+        // cuidadoras en piso.
+        const minShiftStart = activeSessions.reduce<Date>(
+            (min, s) => (s.startTime < min ? s.startTime : min),
+            activeSessions[0].startTime
         );
+        const allPatientIds = allGroupPatients.map(p => p.id);
+
+        type Touch = { patientId: string; at: Date };
+        const rotationsByCg = new Map<string, Touch[]>();
+        const bathsByCg = new Map<string, Touch[]>();
+        const mealsByCg = new Map<string, Touch[]>();
+        const dailyLogsByCg = new Map<string, Touch[]>();
+        const nightRoundNotesByCg = new Map<string, Touch[]>();
+        const dayDiapersByCg = new Map<string, Touch[]>();
+
+        // Solo 5 queries globales en paralelo. Selección y filtrado por shiftStart
+        // individual + groupIds del cuidador se hacen en memoria después.
+        const queries: Array<Promise<any>> = [
+            prisma.posturalChangeLog.findMany({
+                where: { nurseId: { in: caregiverIds }, patientId: { in: allPatientIds }, performedAt: { gte: minShiftStart } },
+                select: { nurseId: true, patientId: true, performedAt: true },
+            }),
+            prisma.dailyLog.findMany({
+                where: { authorId: { in: caregiverIds }, patientId: { in: allPatientIds }, createdAt: { gte: minShiftStart } },
+                select: { authorId: true, patientId: true, createdAt: true, notes: true },
+            }),
+        ];
+        if (!isNightShift) {
+            queries.push(
+                prisma.bathLog.findMany({
+                    where: { caregiverId: { in: caregiverIds }, patientId: { in: allPatientIds }, timeLogged: { gte: minShiftStart } },
+                    select: { caregiverId: true, patientId: true, timeLogged: true },
+                }),
+                prisma.mealLog.findMany({
+                    where: { caregiverId: { in: caregiverIds }, patientId: { in: allPatientIds }, timeLogged: { gte: minShiftStart } },
+                    select: { caregiverId: true, patientId: true, timeLogged: true },
+                }),
+                prisma.clinicalNote.findMany({
+                    where: {
+                        authorId: { in: caregiverIds },
+                        patientId: { in: allPatientIds },
+                        createdAt: { gte: minShiftStart },
+                        content: { contains: '[CAMBIO PAÑAL DIURNO ZENDI]' },
+                    },
+                    select: { authorId: true, patientId: true, createdAt: true },
+                }),
+            );
+        }
+        const results = await Promise.all(queries);
+        const allRotations = results[0] as Array<{ nurseId: string; patientId: string; performedAt: Date }>;
+        const allDailyLogs = results[1] as Array<{ authorId: string; patientId: string; createdAt: Date; notes: string | null }>;
+        const allBaths = (results[2] || []) as Array<{ caregiverId: string; patientId: string; timeLogged: Date }>;
+        const allMeals = (results[3] || []) as Array<{ caregiverId: string; patientId: string; timeLogged: Date }>;
+        const allDiapers = (results[4] || []) as Array<{ authorId: string; patientId: string; createdAt: Date }>;
+
+        // Agrupar por caregiverId
+        const pushTouch = (map: Map<string, Touch[]>, cgId: string, t: Touch) => {
+            const arr = map.get(cgId);
+            if (arr) arr.push(t); else map.set(cgId, [t]);
+        };
+        for (const r of allRotations) pushTouch(rotationsByCg, r.nurseId, { patientId: r.patientId, at: r.performedAt });
+        for (const r of allDailyLogs) {
+            const touch: Touch = { patientId: r.patientId, at: r.createdAt };
+            pushTouch(dailyLogsByCg, r.authorId, touch);
+            if (isNightShift && r.notes?.includes('[RONDA NOCTURNA')) {
+                pushTouch(nightRoundNotesByCg, r.authorId, touch);
+            }
+        }
+        for (const r of allBaths) pushTouch(bathsByCg, r.caregiverId, { patientId: r.patientId, at: r.timeLogged });
+        for (const r of allMeals) pushTouch(mealsByCg, r.caregiverId, { patientId: r.patientId, at: r.timeLogged });
+        for (const r of allDiapers) pushTouch(dayDiapersByCg, r.authorId, { patientId: r.patientId, at: r.createdAt });
+
+        // Por cuidadora: filtrar por shiftStart individual + groupIds + construir allTouches
+        const caregiverResults = activeSessions.map((sess) => {
+            const caregiverId = sess.caregiverId;
+            const name = sess.caregiver?.name || 'Cuidador';
+            const shiftStart = sess.startTime;
+            const shiftStartMs = shiftStart.getTime();
+            const colorGroup = colorMap.get(caregiverId) ?? null;
+
+            if (!colorGroup) {
+                return {
+                    caregiverId, name, colorGroup: null,
+                    noColorGroup: true,
+                    roundsCompleted: 0, residentsInGroup: 0,
+                    attendedThisRound: 0, remainingThisRound: 0,
+                    pendingResidents: [], minutesSinceLastRound: null,
+                    isNightShift, shiftStartedAt: shiftStart,
+                };
+            }
+
+            const groupPatients = colorGroup === 'ALL'
+                ? allGroupPatients
+                : allGroupPatients.filter(p => p.colorGroup === colorGroup);
+            const groupSize = groupPatients.length;
+
+            if (groupSize === 0) {
+                return {
+                    caregiverId, name, colorGroup,
+                    emptyGroup: true,
+                    roundsCompleted: 0, residentsInGroup: 0,
+                    attendedThisRound: 0, remainingThisRound: 0,
+                    pendingResidents: [], minutesSinceLastRound: null,
+                    isNightShift, shiftStartedAt: shiftStart,
+                };
+            }
+
+            const groupIds = groupPatients.map(p => p.id);
+            const groupIdsSet = new Set(groupIds);
+
+            // Filtra touches del cuidador por shiftStart individual + groupIds
+            const filterTouches = (touches: Touch[] | undefined): Touch[] =>
+                (touches || []).filter(t => t.at.getTime() >= shiftStartMs && groupIdsSet.has(t.patientId));
+
+            let allTouches: Touch[];
+            if (isNightShift) {
+                allTouches = [
+                    ...filterTouches(rotationsByCg.get(caregiverId)),
+                    ...filterTouches(nightRoundNotesByCg.get(caregiverId)),
+                ];
+            } else {
+                allTouches = [
+                    ...filterTouches(rotationsByCg.get(caregiverId)),
+                    ...filterTouches(bathsByCg.get(caregiverId)),
+                    ...filterTouches(mealsByCg.get(caregiverId)),
+                    ...filterTouches(dailyLogsByCg.get(caregiverId)),
+                    ...filterTouches(dayDiapersByCg.get(caregiverId)),
+                ];
+            }
+            allTouches.sort((a, b) => a.at.getTime() - b.at.getTime());
+
+            return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });
+        });
 
         return NextResponse.json({ success: true, isNightShift, caregivers: caregiverResults });
 
     } catch (err: any) {
-        console.error('[caregiver-rounds]', err);
+        logError('care.supervisor.caregiver_rounds.get', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }

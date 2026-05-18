@@ -188,12 +188,16 @@ export default function SupervisorMissionControlPage() {
             fetchLiveData();
             fetchCaregiverRounds();
             fetchUncoveredColors();
+            // Polling 30s (antes 15s). El dashboard del supervisor no necesita
+            // refresco sub-30s; ahorra ~50% de requests al backend sin afectar
+            // la UX. Las acciones del supervisor (despachar, redistribuir, etc.)
+            // hacen fetch inmediato vía sus propios handlers.
             const interval = setInterval(() => {
                 if (sessionExpiredRef.current) return;
                 fetchLiveData();
                 fetchCaregiverRounds();
                 fetchUncoveredColors();
-            }, 15000);
+            }, 30000);
             return () => clearInterval(interval);
         }
     }, [user]);
