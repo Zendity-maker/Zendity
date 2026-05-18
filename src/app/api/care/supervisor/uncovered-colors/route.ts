@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
 import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -24,8 +24,12 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const hqId = searchParams.get('hqId') || auth.headquartersId;
 
+        // todayStart = 10am UTC (6am AST) → para filtros sobre timestamps reales
+        //   (assignedAt de ColorAssignment).
+        // scheduledDayRange.start = 00:00 UTC del día calendar correspondiente
+        //   al día clínico → para ScheduledShift.date (que se guarda como UTC midnight).
         const todayStart = todayStartAST();
-        const todayEnd = new Date(todayStart.getTime() + 24 * 3600000);
+        const scheduledDayRange = clinicalDayCalendarUTCRange();
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
 
         const activeShiftType = inferShiftTypeFromAST();
@@ -33,7 +37,7 @@ export async function GET(req: Request) {
         // Turnos programados para el turno activo de hoy (publicados, no ausentes)
         const scheduledShifts = await prisma.scheduledShift.findMany({
             where: {
-                date: { gte: todayStart, lte: todayEnd },
+                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 shiftType: activeShiftType,
                 isAbsent: false,
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' },

@@ -55,3 +55,38 @@ export function todayStartAST(): Date {
 export function todayEndAST(): Date {
     return new Date();
 }
+
+/**
+ * Retorna el `date` UTC midnight del día CALENDAR AST correspondiente al
+ * día clínico actual. Útil para queries sobre ScheduledShift.date, que se
+ * guarda como medianoche UTC del día calendar (ej. 2026-05-18T00:00:00.000Z
+ * para shifts del 18 de mayo).
+ *
+ * NO confundir con todayStartAST() — ese retorna las 10am UTC (= 6am AST),
+ * que se usa para filtrar timestamps reales (createdAt, performedAt, etc).
+ *
+ * Lógica:
+ *   - Si hora actual AST >= 6 → día clínico = fecha AST hoy
+ *   - Si hora actual AST < 6  → día clínico = fecha AST de ayer (turno noche
+ *     se queda en el día clínico anterior)
+ */
+export function clinicalDayCalendarUTC(): Date {
+    const now = new Date();
+    const nowAST = new Date(now.getTime() - AST_OFFSET_MIN * 60 * 1000);
+    const y = nowAST.getUTCFullYear();
+    const m = nowAST.getUTCMonth();
+    const d = nowAST.getUTCDate();
+    const h = nowAST.getUTCHours();
+    const calendarDay = h >= 6 ? d : d - 1;
+    return new Date(Date.UTC(y, m, calendarDay, 0, 0, 0, 0));
+}
+
+/**
+ * Rango completo del día calendar AST en UTC — útil cuando una query
+ * combina `gte` y `lt`/`lte` sobre ScheduledShift.date.
+ */
+export function clinicalDayCalendarUTCRange(): { start: Date; end: Date } {
+    const start = clinicalDayCalendarUTC();
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return { start, end };
+}

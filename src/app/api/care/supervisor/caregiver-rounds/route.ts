@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { logError } from '@/lib/logger';
 
@@ -75,12 +75,14 @@ export async function GET(req: Request) {
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
 
-        // Día clínico estandarizado (AST 6 AM como inicio).
-        // Antes este endpoint usaba setUTCHours(0,0,0,0) lo cual divergía
-        // del resto del sistema y excluía shifts entre 4-6 AM AST.
+        // Para timestamps reales (assignedAt de ColorAssignments) usamos
+        // todayStartAST() (6am AST = 10am UTC).
+        // Para ScheduledShift.date (que se guarda como medianoche UTC del día
+        // calendar correspondiente) usamos clinicalDayCalendarUTCRange()
+        // — antes este endpoint usaba todayStartAST() ahí, lo cual EXCLUÍA los
+        // shifts publicados del día porque date=00:00 UTC < 10:00 UTC.
         const todayStartUTC = todayStartAST();
-        const todayEndUTC = new Date();
-        todayEndUTC.setUTCHours(23, 59, 59, 999);
+        const scheduledDayRange = clinicalDayCalendarUTCRange();
 
         // Resolver color efectivo de cada cuidadora con la misma prioridad que
         // resolveAssignedPatients en shift/start:
@@ -110,7 +112,7 @@ export async function GET(req: Request) {
         const currentShiftScheduled = await prisma.scheduledShift.findMany({
             where: {
                 userId: { in: caregiverIds },
-                date: { gte: todayStartUTC, lte: todayEndUTC },
+                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 shiftType: currentShiftType as any,
                 isAbsent: false,
                 colorGroup: { not: null },
@@ -128,7 +130,7 @@ export async function GET(req: Request) {
         const fallbackShifts = await prisma.scheduledShift.findMany({
             where: {
                 userId: { in: caregiverIds },
-                date: { gte: todayStartUTC, lte: todayEndUTC },
+                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 isAbsent: false,
                 colorGroup: { not: null },
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' }

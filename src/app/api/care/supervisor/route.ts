@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
-import { todayStartAST } from '@/lib/dates';
+import { clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +13,7 @@ export async function GET() {
         const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR']);
         if (auth instanceof NextResponse) return auth;
         const hqId = auth.headquartersId;
-        const todayStart = todayStartAST();
-        const todayEnd = new Date();
+        const scheduledDayRange = clinicalDayCalendarUTCRange();
 
         // Traer Staff para armar los horarios
         const staff = await prisma.user.findMany({
@@ -30,7 +29,7 @@ export async function GET() {
 
         const schedules = await prisma.scheduledShift.findMany({
             where: {
-                date: { gte: todayStart, lte: todayEnd },
+                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 shiftType: activeShiftType,
                 isAbsent: false,
                 schedule: { status: 'PUBLISHED' }

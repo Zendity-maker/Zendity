@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
@@ -79,8 +79,16 @@ export async function computeShiftCoverage(params: {
 }): Promise<ShiftCoverage> {
     const { hqId, shiftType } = params;
 
+    // todayStart (10am UTC = 6am AST): para timestamps reales como
+    //   ShiftPatientOverride.shiftDate (que ya se guardaba con esta convención).
+    // scheduledDayRange (00:00 UTC del día calendar): para ScheduledShift.date
+    //   que se guarda como medianoche UTC del día calendario correspondiente.
+    //   ANTES este archivo filtraba ScheduledShift.date con todayStart, lo que
+    //   excluía los shifts del día (00:00 < 10:00) — bug raíz de "imposible
+    //   redistribuir" y "sin grupo asignado" en piso.
     const todayStart = todayStartAST();
     const tomorrow = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const scheduledDayRange = clinicalDayCalendarUTCRange();
     const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
 
     // FIX: pre-fetch scheduleIds en paralelo con las otras queries para evitar el JOIN
@@ -122,7 +130,7 @@ export async function computeShiftCoverage(params: {
         where: {
             scheduleId: { in: scheduleIds },
             shiftType: shiftType as any,
-            date: { gte: todayStart, lt: tomorrow },
+            date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
             isAbsent: false,
             colorGroup: { not: null },
         },
