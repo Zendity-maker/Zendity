@@ -80,11 +80,56 @@ export async function GET(req: Request) {
         const todayEndUTC = new Date();
         todayEndUTC.setUTCHours(23, 59, 59, 999);
 
-        // Prioridad 1: color del ScheduledShift publicado de HOY
-        // colorGroup 'ALL' se guarda como 'ALL' para que la cuidadora solitaria
-        // vea todos los residentes. 'UNASSIGNED' se descarta.
+        // Resolver color efectivo de cada cuidadora con la misma prioridad que
+        // resolveAssignedPatients en shift/start:
+        //   1. ShiftColorAssignment más reciente de HOY (cobertura manual /
+        //      redistribución reciente — refleja qué color cubre AHORA).
+        //   2. ScheduledShift del shiftType ACTUAL (color base del Builder).
+        //   3. Fallback overtime: cualquier ScheduledShift de hoy más reciente.
+        //
+        // Caso real: si Joaneliz tiene ScheduledShift MORNING/RED (ya terminó)
+        // + ColorAssignment YELLOW de hace 1h (cubriendo EVENING), debe verse
+        // como YELLOW en el panel, no como RED.
         const colorMap = new Map<string, string>();
-        const todayScheduledShifts = await prisma.scheduledShift.findMany({
+
+        // Calcular shiftType actual desde hora local Puerto Rico
+        const prHourNow = parseInt(
+            new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico' })
+                .format(new Date()), 10
+        ) % 24;
+        const currentShiftType = prHourNow >= 22 || prHourNow < 6 ? 'NIGHT'
+            : prHourNow >= 14 ? 'EVENING' : 'MORNING';
+
+        // Prioridad 1: ShiftColorAssignment más reciente de HOY
+        const todayColorAssignments = await prisma.shiftColorAssignment.findMany({
+            where: { userId: { in: caregiverIds }, assignedAt: { gte: todayStartUTC } },
+            select: { userId: true, color: true, assignedAt: true },
+            orderBy: { assignedAt: 'desc' }
+        });
+        for (const ca of todayColorAssignments) {
+            if (!colorMap.has(ca.userId) && ca.color) colorMap.set(ca.userId, ca.color);
+        }
+
+        // Prioridad 2: ScheduledShift del shiftType actual (color base del Builder)
+        const currentShiftScheduled = await prisma.scheduledShift.findMany({
+            where: {
+                userId: { in: caregiverIds },
+                date: { gte: todayStartUTC, lte: todayEndUTC },
+                shiftType: currentShiftType as any,
+                isAbsent: false,
+                colorGroup: { not: null },
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' }
+            },
+            select: { userId: true, colorGroup: true },
+        });
+        for (const s of currentShiftScheduled) {
+            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
+                colorMap.set(s.userId, s.colorGroup);
+            }
+        }
+
+        // Prioridad 3 (overtime fallback): cualquier ScheduledShift de hoy
+        const fallbackShifts = await prisma.scheduledShift.findMany({
             where: {
                 userId: { in: caregiverIds },
                 date: { gte: todayStartUTC, lte: todayEndUTC },
@@ -93,23 +138,12 @@ export async function GET(req: Request) {
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' }
             },
             select: { userId: true, colorGroup: true },
-            orderBy: { date: 'asc' }
+            orderBy: { date: 'desc' }
         });
-        for (const s of todayScheduledShifts) {
+        for (const s of fallbackShifts) {
             if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
-                colorMap.set(s.userId, s.colorGroup); // incluye 'ALL'
+                colorMap.set(s.userId, s.colorGroup);
             }
-        }
-
-        // Prioridad 2: ShiftColorAssignment de HOY (redistribuciones por ausencia ocurridas hoy)
-        // Solo aplica si no se encontró un turno programado para este cuidador
-        const todayColorAssignments = await prisma.shiftColorAssignment.findMany({
-            where: { userId: { in: caregiverIds }, assignedAt: { gte: todayStartUTC } },
-            select: { userId: true, color: true, assignedAt: true },
-            orderBy: { assignedAt: 'desc' }
-        });
-        for (const ca of todayColorAssignments) {
-            if (!colorMap.has(ca.userId)) colorMap.set(ca.userId, ca.color);
         }
 
         // Residentes ACTIVE por color group en esta HQ.
