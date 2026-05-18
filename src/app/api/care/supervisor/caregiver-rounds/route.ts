@@ -162,6 +162,34 @@ export async function GET(req: Request) {
 
         const now = new Date();
 
+        // Cobertura adicional por overrides activos. Cada cuidadora puede tener
+        // residentes EXTRA por redistribución (su color base + residentes de
+        // otro color asignados vía ShiftPatientOverride). Para el panel del
+        // supervisor mostramos el desglose.
+        const activeOverrides = await prisma.shiftPatientOverride.findMany({
+            where: {
+                headquartersId: hqId,
+                caregiverId: { in: caregiverIds },
+                isActive: true,
+                shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
+                shiftType: currentShiftType,
+            },
+            include: {
+                patient: { select: { id: true, name: true, roomNumber: true } },
+            },
+        });
+        // Agrupar por caregiverId → lista de coberturas { patientId, name, room, originalColor }
+        const coverageByCaregiver = new Map<string, Array<{ patientId: string; name: string; room: string | null; originalColor: string }>>();
+        for (const ov of activeOverrides) {
+            if (!coverageByCaregiver.has(ov.caregiverId)) coverageByCaregiver.set(ov.caregiverId, []);
+            coverageByCaregiver.get(ov.caregiverId)!.push({
+                patientId: ov.patientId,
+                name: ov.patient?.name || 'Residente',
+                room: ov.patient?.roomNumber ?? null,
+                originalColor: ov.originalColor,
+            });
+        }
+
         // Batch query refactor: en lugar de N×5 queries (1 set por cuidadora dentro
         // del Promise.all del map), se hacen 5 queries globales que traen TODOS los
         // touches de TODOS los cuidadores activos desde el shiftStart más antiguo,
@@ -246,6 +274,14 @@ export async function GET(req: Request) {
             const shiftStartMs = shiftStart.getTime();
             const colorGroup = colorMap.get(caregiverId) ?? null;
 
+            // Cobertura adicional: residentes extra por override (otro color)
+            const coverageResidents = coverageByCaregiver.get(caregiverId) || [];
+            const coverageCount = coverageResidents.length;
+            const coverageByColor: Record<string, number> = {};
+            for (const c of coverageResidents) {
+                coverageByColor[c.originalColor] = (coverageByColor[c.originalColor] || 0) + 1;
+            }
+
             if (!colorGroup) {
                 return {
                     caregiverId, name, colorGroup: null,
@@ -254,6 +290,7 @@ export async function GET(req: Request) {
                     attendedThisRound: 0, remainingThisRound: 0,
                     pendingResidents: [], minutesSinceLastRound: null,
                     isNightShift, shiftStartedAt: shiftStart,
+                    coverageCount, coverageByColor, coverageResidents,
                 };
             }
 
@@ -270,6 +307,7 @@ export async function GET(req: Request) {
                     attendedThisRound: 0, remainingThisRound: 0,
                     pendingResidents: [], minutesSinceLastRound: null,
                     isNightShift, shiftStartedAt: shiftStart,
+                    coverageCount, coverageByColor, coverageResidents,
                 };
             }
 
@@ -297,7 +335,12 @@ export async function GET(req: Request) {
             }
             allTouches.sort((a, b) => a.at.getTime() - b.at.getTime());
 
-            return computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now });
+            return {
+                ...computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now }),
+                coverageCount,
+                coverageByColor,
+                coverageResidents,
+            };
         });
 
         return NextResponse.json({ success: true, isNightShift, caregivers: caregiverResults });

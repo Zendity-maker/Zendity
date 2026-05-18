@@ -828,6 +828,35 @@ export default function SupervisorMissionControlPage() {
                                                     )}
                                                 </div>
 
+                                                {/* Cobertura adicional (overrides activos) */}
+                                                {cg.coverageCount > 0 && (
+                                                    <div className="mt-3 pt-3 border-t border-white/60">
+                                                        <div className="flex flex-wrap gap-1.5 items-center">
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                                                + cobertura:
+                                                            </span>
+                                                            {Object.entries(cg.coverageByColor || {}).map(([color, count]) => {
+                                                                const pillColor =
+                                                                    color === 'RED' ? 'bg-red-100 text-red-700 border-red-200'
+                                                                    : color === 'YELLOW' ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                                                    : color === 'BLUE' ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                                                    : color === 'GREEN' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                                    : 'bg-slate-100 text-slate-700 border-slate-200';
+                                                                const colorName =
+                                                                    color === 'RED' ? 'rojos'
+                                                                    : color === 'YELLOW' ? 'amarillos'
+                                                                    : color === 'BLUE' ? 'azules'
+                                                                    : color === 'GREEN' ? 'verdes' : String(color).toLowerCase();
+                                                                return (
+                                                                    <span key={color} className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${pillColor}`}>
+                                                                        +{count as number} {colorName}
+                                                                    </span>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Residentes pendientes */}
                                                 {cg.pendingResidents && cg.pendingResidents.length > 0 && cg.pendingResidents.length <= 5 && (
                                                     <div className="mt-3 pt-3 border-t border-white/60">
@@ -1960,7 +1989,10 @@ export default function SupervisorMissionControlPage() {
                                         Ronda actual
                                     </h3>
                                     <span className="text-xs font-bold text-slate-500">
-                                        {cg.attendedThisRound} / {cg.residentsInGroup} residentes
+                                        {cg.attendedThisRound} / {cg.residentsInGroup} {colorName ? `${colorName.toLowerCase()}s` : 'residentes'}
+                                        {cg.coverageCount > 0 && (
+                                            <span className="text-slate-400 font-medium"> · +{cg.coverageCount} cobertura</span>
+                                        )}
                                     </span>
                                 </div>
                                 <div className="w-full bg-slate-100 rounded-full h-3 border border-slate-200 overflow-hidden">
@@ -1969,6 +2001,11 @@ export default function SupervisorMissionControlPage() {
                                         style={{ width: `${pct}%` }}
                                     />
                                 </div>
+                                {cg.coverageCount > 0 && (
+                                    <p className="text-[11px] text-slate-500 mt-2 italic leading-relaxed">
+                                        Las rondas se cuentan sobre su grupo base. La cobertura adicional se lista abajo.
+                                    </p>
+                                )}
                             </div>
 
                             {/* Pendientes — lista COMPLETA */}
@@ -2009,6 +2046,66 @@ export default function SupervisorMissionControlPage() {
                                         <p className="text-xs text-slate-500 mt-1">
                                             Todos los residentes del grupo fueron atendidos.
                                         </p>
+                                    </div>
+                                )}
+
+                                {/* Cobertura adicional (residentes extra por override) */}
+                                {cg.coverageCount > 0 && (
+                                    <div className="mt-6">
+                                        <div className="flex items-baseline justify-between mb-3">
+                                            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide">
+                                                Cobertura adicional
+                                            </h3>
+                                            <span className="text-xs font-bold text-slate-500">
+                                                +{cg.coverageCount} residente{cg.coverageCount !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                                            Residentes que se le sumaron a {cg.name.split(' ')[0]} por redistribución
+                                            (ausencia o cobertura manual). Las rondas se cuentan contra su color base.
+                                        </p>
+                                        {(() => {
+                                            const colorLabelMap: Record<string, string> = {
+                                                RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde',
+                                            };
+                                            const colorBadgeBg: Record<string, string> = {
+                                                RED: 'bg-red-100 text-red-700 border-red-200',
+                                                YELLOW: 'bg-amber-100 text-amber-700 border-amber-200',
+                                                BLUE: 'bg-blue-100 text-blue-700 border-blue-200',
+                                                GREEN: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                                            };
+                                            // Agrupar visualmente por color
+                                            const grouped: Record<string, Array<{ name: string; room: string | null; patientId: string }>> = {};
+                                            for (const c of (cg.coverageResidents || [])) {
+                                                const k = c.originalColor;
+                                                if (!grouped[k]) grouped[k] = [];
+                                                grouped[k].push(c);
+                                            }
+                                            return (
+                                                <div className="space-y-3">
+                                                    {Object.entries(grouped).map(([color, residents]) => (
+                                                        <div key={color}>
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wide ${colorBadgeBg[color] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                                                    Grupo {colorLabelMap[color] || color}
+                                                                </span>
+                                                                <span className="text-xs font-bold text-slate-500">
+                                                                    {residents.length} residente{residents.length !== 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                            <div className="space-y-1.5">
+                                                                {residents.map((r, i) => (
+                                                                    <div key={r.patientId || i} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                                                                        <p className="font-semibold text-slate-800 text-sm">{r.name}</p>
+                                                                        <p className="text-xs text-slate-500 font-medium">Hab {r.room || '—'}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>
