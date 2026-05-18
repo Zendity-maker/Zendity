@@ -4,6 +4,7 @@ import { todayStartAST } from '@/lib/dates';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -219,7 +220,7 @@ export async function GET(req: Request) {
             coverageCount,
         });
     } catch (error: any) {
-        console.error("Care Fetch Error:", error);
+        logError('care.get', error);
         return NextResponse.json({ success: false, error: "Error: " + (error.message || String(error)) }, { status: 500 });
     }
 }

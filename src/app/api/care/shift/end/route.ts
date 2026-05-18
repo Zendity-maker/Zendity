@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
 import { notifyRoles } from '@/lib/notifications';
@@ -204,7 +205,7 @@ export async function POST(req: Request) {
                     message: `${session.caregiver?.name || 'Un cuidador(a)'} firmó el reporte del turno ${shiftLabel}. Pendiente tu firma.`,
                 });
             } catch (e) {
-                console.error('[shift/end notify supervisor]', e);
+                logWarn('care.shift.end.notify_supervisor', e, { shiftSessionId });
             }
 
             return NextResponse.json({ success: true, shiftSession: closedSession, handover });
@@ -285,7 +286,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, shiftSession: forcedSession, handover: forcedHandover, forced: true });
 
     } catch (error) {
-        console.error("Shift End Error:", error);
+        logError('care.shift.end.post', error);
         return NextResponse.json({ success: false, error: "Error de Servidor al Consolidar la Guardia" }, { status: 500 });
     }
 }

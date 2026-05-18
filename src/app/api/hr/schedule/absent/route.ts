@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
@@ -217,7 +218,7 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
-        console.error('[absent] error:', error);
+        logError('hr.schedule.absent.post', error);
         return NextResponse.json(
             { success: false, error: error.message || 'Error procesando ausencia' },
             { status: 500 }

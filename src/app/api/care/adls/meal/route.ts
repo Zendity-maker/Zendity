@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 import { MealType, MealQuality } from '@prisma/client';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, meal: newMeal });
 
     } catch (error) {
-        console.error("Meal Route Error:", error);
+        logError('care.adls.meal.post', error);
         return NextResponse.json({ success: false, error: "Error interno procesando la bandeja de comida" }, { status: 500 });
     }
 }

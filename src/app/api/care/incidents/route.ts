@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -142,7 +143,7 @@ export async function POST(req: Request) {
                     title: `Caída reportada — ${derivedSeverity}`,
                     message: `${fallPatient.name} — ${interventions.substring(0, 120)}`,
                 });
-            } catch (e) { console.error('[notify TRIAGE fall]', e); }
+            } catch (e) { logWarn('care.incidents.notify_fall', e, { patientId }); }
 
             return NextResponse.json({
                 success: true,
@@ -195,7 +196,7 @@ export async function POST(req: Request) {
                     title: 'Nuevo ticket de Triage',
                     message: `${patientName} — Mantenimiento: ${(description || 'sin descripción').substring(0, 120)}`,
                 });
-            } catch (e) { console.error('[notify TRIAGE incident]', e); }
+            } catch (e) { logWarn('care.incidents.notify_other', e, { patientId }); }
 
             return NextResponse.json({ success: true, event });
         }
@@ -203,7 +204,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Invalid Incident Type" }, { status: 400 });
 
     } catch (error: any) {
-        console.error("Care Incidents POST Error:", error);
+        logError('care.incidents.post', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

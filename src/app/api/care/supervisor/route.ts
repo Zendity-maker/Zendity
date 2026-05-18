@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,7 @@ export async function GET() {
         return NextResponse.json({ success: true, staff, schedules });
 
     } catch (error) {
-        console.error('API Error:', error);
+        logError('care.supervisor.get', error);
         return NextResponse.json({ error: 'Failed to fetch supervisor data' }, { status: 500 });
     }
 }

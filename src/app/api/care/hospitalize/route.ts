@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,7 @@ export async function PATCH(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("Create Hospitalization Error:", error);
+        logError('care.hospitalize.patch', error);
         return NextResponse.json({ success: false, error: "Error de servidor al procesar el traslado", msg: error.message }, { status: 500 });
     }
 }

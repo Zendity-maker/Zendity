@@ -24,6 +24,7 @@ import { prisma } from './prisma';
 import { computeShiftCoverage, type ShiftT } from './shift-coverage';
 import { todayStartAST } from './dates';
 import { notifyUser, notifyRoles } from './notifications';
+import { logWarn } from './logger';
 
 const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
 
@@ -203,7 +204,7 @@ export async function redistributeUncoveredColors(opts: {
                     message: `Recibes ${patientLines.length === 1 ? 'a' : 'a los siguientes residentes'} por ausencia del cuidador asignado: ${patientLines.join(', ')}. Revisa sus tarjetas en el tablet.`,
                 });
             } catch (e) {
-                console.error('[shift-redistribute helper notifyUser]', e);
+                logWarn('shift_redistribute.notify_user', e, { caregiverId, count: patientLines.length });
             }
         }
 
@@ -216,7 +217,7 @@ export async function redistributeUncoveredColors(opts: {
                 message: `${overridesCreated.length} residentes de ${colorsSummary} distribuidos entre ${notifyByCaregiver.size} cuidadores.`,
             });
         } catch (e) {
-            console.error('[shift-redistribute helper notifyRoles]', e);
+            logWarn('shift_redistribute.notify_supervision', e, { hqId, count: overridesCreated.length });
         }
     }
 

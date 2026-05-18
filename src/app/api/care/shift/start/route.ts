@@ -5,6 +5,7 @@ import { todayStartAST } from '@/lib/dates';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -271,14 +272,14 @@ export async function POST(req: Request) {
                                 title: 'Residentes devueltos a su grupo',
                                 message: `El cuidador de ${colorList} llegó. Los residentes ${data.patientNames.slice(0, 5).join(', ')}${data.patientNames.length > 5 ? '…' : ''} vuelven a su grupo original.`,
                             });
-                        } catch (e) { console.error('[shift/start resolve override notify]', e); }
+                        } catch (e) { logWarn('care.shift.start.resolve_override_notify', e, { receiverId }); }
                     }
 
                     console.log(`[shift/start] Resolvidos ${overrides.length} overrides para colores ${myColors.join(',')} por llegada de ${caregiverId}`);
                 }
             }
         } catch (ovErr) {
-            console.error('[shift/start] Fallo resolviendo overrides:', ovErr);
+            logWarn('care.shift.start.resolve_overrides', ovErr, { caregiverId, headquartersId });
         }
 
         // ── Sprint J: Abrir ventana de 4h para tomar vitales a residentes asignados ──
@@ -335,7 +336,7 @@ export async function POST(req: Request) {
             }
         } catch (vitalsErr) {
             // Never-throw: si falla el pre-seed de vitales no rompemos el inicio de turno
-            console.error('[shift/start] Fallo abriendo ventana de vitales:', vitalsErr);
+            logWarn('care.shift.start.vitals_preseed', vitalsErr, { caregiverId, headquartersId });
         }
 
         // --- Reporte de turno previo para el cuidador entrante ---
@@ -376,7 +377,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, shiftSession: newSession });
 
     } catch (error) {
-        console.error("Shift Start Error:", error);
+        logError('care.shift.start.post', error);
         return NextResponse.json({ success: false, error: "Fallo registrando el inicio de turno" }, { status: 500 });
     }
 }
@@ -403,7 +404,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ success: true, activeSession });
 
     } catch (error) {
-        console.error("Shift GET Error:", error);
+        logError('care.shift.start.get', error);
         return NextResponse.json({ success: false, error: "Error obteniendo sesión" }, { status: 500 });
     }
 }

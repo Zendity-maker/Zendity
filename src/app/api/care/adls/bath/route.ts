@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError } from '@/lib/logger';
 
 const BathBody = z.object({
     patientId:      z.string().min(1, 'patientId requerido'),
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, bath: newBath });
 
     } catch (error) {
-        console.error("Bath Route Error:", error);
+        logError('care.adls.bath.post', error);
         return NextResponse.json({ success: false, error: "Error interno procesando el baño" }, { status: 500 });
     }
 }

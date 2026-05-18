@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
@@ -111,7 +112,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, vitals, activePatients });
         }
     } catch (error: any) {
-        console.error("Care Vitals GET Error:", error);
+        logError('care.vitals.get', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
@@ -280,7 +281,7 @@ export async function POST(req: Request) {
                             title: 'Nuevo ticket de Triage',
                             message: `${patient.name} — Alerta clínica: ${(data.notes || 'sin descripción').substring(0, 120)}`,
                         });
-                    } catch (e) { console.error('[notify TRIAGE vitals]', e); }
+                    } catch (e) { logWarn('care.vitals.notify_triage', e, { patientId }); }
                 }
             }
         }
@@ -288,7 +289,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, message: `Registro ${type} guardado con éxito en PAI` });
 
     } catch (error: any) {
-        console.error("Care Vitals/Log POST Error:", error);
+        logError('care.vitals.post', error);
         return NextResponse.json({ success: false, error: `DB Error: ${error.message || String(error)}` }, { status: 500 });
     }
 }

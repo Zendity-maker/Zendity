@@ -7,6 +7,7 @@ import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
 import { todayStartAST } from '@/lib/dates';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
+import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
                     } as any,
                 },
             });
-        } catch (e) { console.error('[redistribute audit]', e); }
+        } catch (e) { logWarn('care.shift.redistribute.audit', e, { hqId, shiftType, trigger }); }
 
         return NextResponse.json({
             success: true,
@@ -136,7 +137,7 @@ export async function POST(req: Request) {
             shiftType,
         });
     } catch (error: any) {
-        console.error('shift/redistribute error:', error);
+        logError('care.shift.redistribute.post', error);
         return NextResponse.json({
             success: false,
             error: error.message || 'Error ejecutando redistribución',

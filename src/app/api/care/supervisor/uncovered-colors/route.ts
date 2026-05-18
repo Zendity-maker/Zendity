@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
+import { logError, logWarn } from '@/lib/logger';
 import type { ShiftT } from '@/lib/shift-coverage';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -85,7 +86,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ success: true, activeShiftType, uncoveredColors, activeCaregivers });
 
     } catch (err: any) {
-        console.error('[uncovered-colors GET]', err);
+        logError('care.supervisor.uncovered_colors.get', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
@@ -155,7 +156,7 @@ export async function POST(req: Request) {
                     } as any,
                 },
             });
-        } catch (e) { console.error('[uncovered-colors audit]', e); }
+        } catch (e) { logWarn('care.supervisor.uncovered_colors.audit', e, { hqId, color, shiftType }); }
 
         const distribution = result.overridesCreated.reduce<Array<{ caregiver: string; count: number }>>((acc, ov) => {
             const existing = acc.find(d => d.caregiver === ov.caregiverName);
@@ -172,7 +173,7 @@ export async function POST(req: Request) {
         });
 
     } catch (err: any) {
-        console.error('[uncovered-colors POST]', err);
+        logError('care.supervisor.uncovered_colors.post', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
