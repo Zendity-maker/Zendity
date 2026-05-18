@@ -59,7 +59,22 @@ export async function GET(req: Request) {
         });
         const activeIds = new Set(activeSessions.map(s => s.caregiverId));
 
-        // Detectar colores sin sesión activa
+        // Colores que YA están siendo cubiertos por ColorAssignment activa de hoy
+        // (cobertura manual o redistribución reciente). Si alguien con sesión activa
+        // tiene asignado este color, ya no es "uncovered" aunque su ScheduledShift
+        // original sea distinto.
+        const todayAssignments = activeSessions.length > 0
+            ? await prisma.shiftColorAssignment.findMany({
+                where: {
+                    userId: { in: Array.from(activeIds) },
+                    assignedAt: { gte: todayStart },
+                },
+                select: { color: true },
+            })
+            : [];
+        const coveredByAssignment = new Set(todayAssignments.map(a => a.color).filter(Boolean));
+
+        // Detectar colores sin cobertura efectiva
         const uncoveredColors: { color: string; assignedCaregiverName: string; assignedCaregiver: string }[] = [];
         const seenColors = new Set<string>();
 
@@ -68,13 +83,17 @@ export async function GET(req: Request) {
             if (seenColors.has(shift.colorGroup)) continue;
             seenColors.add(shift.colorGroup);
 
-            if (!activeIds.has(shift.userId)) {
-                uncoveredColors.push({
-                    color: shift.colorGroup,
-                    assignedCaregiver: shift.userId,
-                    assignedCaregiverName: shift.user?.name || 'Desconocida',
-                });
-            }
+            // Cubierto si: el cuidador asignado tiene sesión activa, O
+            //              alguien activo tiene ColorAssignment de este color hoy.
+            const isCoveredByScheduled = activeIds.has(shift.userId);
+            const isCoveredByAssignment = coveredByAssignment.has(shift.colorGroup);
+            if (isCoveredByScheduled || isCoveredByAssignment) continue;
+
+            uncoveredColors.push({
+                color: shift.colorGroup,
+                assignedCaregiver: shift.userId,
+                assignedCaregiverName: shift.user?.name || 'Desconocida',
+            });
         }
 
         // Cuidadoras activas con su color asignado (para mostrar quiénes pueden recibir)
