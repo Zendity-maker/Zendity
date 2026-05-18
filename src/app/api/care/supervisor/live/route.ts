@@ -76,8 +76,6 @@ export async function GET(req: Request) {
             recentIncidents,
             pxWithUPP,
             briefing,
-            endedSchedules,
-            todayHandovers,
             activeFastActions,
             clinicalAlerts,
             fallIncidents,
@@ -113,10 +111,8 @@ export async function GET(req: Request) {
             prisma.patient.findMany({ where: { headquartersId: hqId, status: 'ACTIVE', pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
             // 8. Zendi Morning Briefing — Sprint L: solo el prólogo del cron (isDailyPrologue=true)
             prisma.shiftHandover.findFirst({ where: { headquartersId: hqId, shiftType: 'MORNING', isDailyPrologue: true, createdAt: { gte: todayStart }, aiSummaryReport: { not: null } }, orderBy: { createdAt: 'desc' } }),
-            // 9. Schedules para validar Handovers (Ultimas 12 hrs)
-            prisma.shiftSchedule.findMany({ where: { headquartersId: hqId, endTime: { lt: new Date(), gte: twelveHrsAgo } }, include: { employee: true } }),
-            // 10. Handovers enviados hoy
-            prisma.shiftHandover.findMany({ where: { headquartersId: hqId, createdAt: { gte: twelveHrsAgo } }, select: { outgoingNurseId: true, shiftType: true } }),
+            // 9-10. (Removidos) Schedules ShiftSchedule legacy + Handovers para missingHandovers.
+            //       Tabla legacy sin datos en prod; pendiente re-implementación contra ScheduledShift.
             // 11. Fast Actions Activas
             prisma.fastActionAssignment.findMany({ where: { headquartersId: hqId, status: 'PENDING', expiresAt: { gt: new Date() } }, include: { caregiver: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' } }),
             // 12. Alertas Clínicas del Action Hub (DailyLog con isClinicalAlert = true, últimas 24h)
@@ -177,7 +173,6 @@ export async function GET(req: Request) {
                 include: {
                     outgoingNurse: { select: { id: true, name: true } },
                     incomingNurse: { select: { id: true, name: true } },
-                    seniorCaregiver: { select: { id: true, name: true } },
                     supervisorSigned: { select: { id: true, name: true } },
                     _count: { select: { notes: true } },
                 },
@@ -430,14 +425,8 @@ export async function GET(req: Request) {
         }
 
         // Procesar Handovers Faltantes
-        const handoverAuthors = todayHandovers.map(h => h.outgoingNurseId);
-        const missingHandovers = endedSchedules
-            .filter(sch => !handoverAuthors.includes(sch.employeeId))
-            .map(sch => ({
-                employeeName: sch.employee.name,
-                endTime: sch.endTime.toISOString(),
-                shiftType: sch.startTime.getHours() < 12 ? 'MORNING' : (sch.startTime.getHours() < 20 ? 'EVENING' : 'NIGHT')
-            }));
+        // (Antes derivado de ShiftSchedule legacy. Pendiente de migrar a ScheduledShift.)
+        const missingHandovers: { employeeName: string; endTime: string; shiftType: string }[] = [];
 
         // ====================================================================
         // SPRINT K — PROCESAMIENTO POST-DB
@@ -589,13 +578,11 @@ export async function GET(req: Request) {
             }));
 
         // — Handovers feed (individuales por cuidador, sin el prólogo del cron) —
-        // Sprint L: cada fila es el reporte de una cuidadora con los colores que cubrió.
-        // Estado derivado: PENDING_CONFIRMATION → CONFIRMED → SUPERVISOR_SIGNED.
+        // Cada fila es el reporte de una cuidadora con los colores que cubrió.
+        // Estado derivado: PENDING_SUPERVISOR → SUPERVISOR_SIGNED.
         const handoversFeed = handoversTodayFull.map(h => {
-            const derivedStatus: 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'SUPERVISOR_SIGNED' =
-                h.supervisorSignedAt ? 'SUPERVISOR_SIGNED'
-                : h.seniorConfirmedAt ? 'CONFIRMED'
-                : 'PENDING_CONFIRMATION';
+            const derivedStatus: 'PENDING_SUPERVISOR' | 'SUPERVISOR_SIGNED' =
+                h.supervisorSignedAt ? 'SUPERVISOR_SIGNED' : 'PENDING_SUPERVISOR';
             return {
                 id: h.id,
                 shiftType: h.shiftType,
@@ -603,13 +590,11 @@ export async function GET(req: Request) {
                 derivedStatus,
                 createdAt: h.createdAt,
                 signedOutAt: h.signedOutAt,
-                seniorConfirmedAt: h.seniorConfirmedAt,
                 supervisorSignedAt: h.supervisorSignedAt,
                 handoverCompleted: h.handoverCompleted,
                 outgoingName: h.outgoingNurse?.name || null,
                 outgoingId: h.outgoingNurseId,
                 incomingName: h.incomingNurse?.name || null,
-                seniorName: h.seniorCaregiver?.name || null,
                 supervisorName: h.supervisorSigned?.name || null,
                 colorGroups: h.colorGroups || [],
                 patientCount: h._count?.notes ?? 0,

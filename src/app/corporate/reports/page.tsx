@@ -16,20 +16,18 @@ interface ReportListItem {
     status: Status;
     createdAt: string;
     acceptedAt: string | null;
-    seniorConfirmedAt: string | null;
+    signedOutAt: string | null;
     supervisorSignedAt: string | null;
     directorViewedAt: string | null;
     aiSummaryPreview: string;
     hasAiSummary: boolean;
     outgoingNurse: { id: string; name: string; role: string } | null;
-    seniorCaregiver: { id: string; name: string; role: string } | null;
     supervisorSigned: { id: string; name: string; role: string } | null;
     notesCount: number;
 }
 
 interface ReportDetail extends ReportListItem {
     aiSummaryReport: string | null;
-    seniorNote: string | null;
     supervisorNote: string | null;
     notes: Array<{
         id: string;
@@ -97,8 +95,9 @@ export default function CorporateReportsPage() {
         const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         const pending: ReportListItem[] = [];
         const signed: ReportListItem[] = [];
+        // Flujo nuevo: cuidador firmó (signedOutAt) → pendiente firma supervisor.
         reports.forEach(r => {
-            if (r.seniorConfirmedAt && !r.supervisorSignedAt) {
+            if (r.signedOutAt && !r.supervisorSignedAt) {
                 pending.push(r);
             } else if (r.supervisorSignedAt) {
                 if (new Date(r.supervisorSignedAt).getTime() >= thirtyDaysAgo) signed.push(r);
@@ -125,16 +124,14 @@ export default function CorporateReportsPage() {
                 status: r.status,
                 createdAt: r.createdAt,
                 acceptedAt: r.acceptedAt,
-                seniorConfirmedAt: r.seniorConfirmedAt,
+                signedOutAt: r.signedOutAt,
                 supervisorSignedAt: r.supervisorSignedAt,
                 directorViewedAt: r.directorViewedAt,
                 aiSummaryPreview: (r.aiSummaryReport || '').slice(0, 200),
                 hasAiSummary: !!r.aiSummaryReport,
                 aiSummaryReport: r.aiSummaryReport,
-                seniorNote: r.seniorNote,
                 supervisorNote: r.supervisorNote,
                 outgoingNurse: r.outgoingNurse,
-                seniorCaregiver: r.seniorCaregiver,
                 supervisorSigned: r.supervisorSigned,
                 notesCount: r.notes?.length || 0,
                 notes: r.notes || [],
@@ -206,13 +203,13 @@ export default function CorporateReportsPage() {
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 <CheckCircle2 size={12} /> Firmado
                             </span>
-                        ) : r.seniorConfirmedAt ? (
+                        ) : r.signedOutAt ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-amber-50 text-[#E5A93D] border border-amber-200">
                                 <PenTool size={12} /> Pendiente firma
                             </span>
                         ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-slate-100 text-slate-600 border border-slate-200">
-                                <Clock size={12} /> Esperando senior
+                                <Clock size={12} /> En curso
                             </span>
                         )}
                     </div>
@@ -229,9 +226,6 @@ export default function CorporateReportsPage() {
 
                 <div className="text-[11px] text-[#1F2D3A]/55 mb-3 flex flex-wrap gap-x-4 gap-y-1">
                     <span>Notas: <strong>{r.notesCount}</strong></span>
-                    {r.seniorCaregiver && (
-                        <span>Senior: <strong>{r.seniorCaregiver.name}</strong></span>
-                    )}
                     {r.supervisorSigned && (
                         <span>Supervisor: <strong>{r.supervisorSigned.name}</strong></span>
                     )}
@@ -342,21 +336,6 @@ export default function CorporateReportsPage() {
                                     <h4 className="text-xs font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-1">Resumen Zendi</h4>
                                     <div className="bg-[#fafaf9] border border-[#e7e5e4] rounded-xl p-3 text-sm text-[#1F2D3A]/85 whitespace-pre-wrap">
                                         {signingFor.aiSummaryReport}
-                                    </div>
-                                </div>
-                            )}
-
-                            {signingFor.seniorCaregiver && signingFor.seniorConfirmedAt && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-1">Confirmación del Senior</h4>
-                                    <div className="bg-[#fafaf9] border border-[#e7e5e4] rounded-xl p-3 text-sm text-[#1F2D3A]/85">
-                                        <div className="font-semibold">{signingFor.seniorCaregiver.name}</div>
-                                        <div className="text-xs text-[#1F2D3A]/55 mb-1">
-                                            {new Date(signingFor.seniorConfirmedAt).toLocaleString('es-PR')}
-                                        </div>
-                                        {signingFor.seniorNote && (
-                                            <p className="mt-1 whitespace-pre-wrap">{signingFor.seniorNote}</p>
-                                        )}
                                     </div>
                                 </div>
                             )}

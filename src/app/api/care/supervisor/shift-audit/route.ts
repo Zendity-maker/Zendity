@@ -223,7 +223,6 @@ export async function GET(req: Request) {
                     handoverCompleted: true, supervisorSignedAt: true,
                     supervisorSigned: { select: { name: true } },
                     incomingNurse: { select: { name: true } },
-                    seniorCaregiver: { select: { name: true } },
                     colorGroups: true,
                 },
                 orderBy: { createdAt: 'desc' }
@@ -480,7 +479,7 @@ export async function GET(req: Request) {
                     completedAt: handover.signedOutAt,
                     supervisorSignedAt: handover.supervisorSignedAt,
                     supervisorName: handover.supervisorSigned?.name || null,
-                    incomingName: handover.incomingNurse?.name || handover.seniorCaregiver?.name || null,
+                    incomingName: handover.incomingNurse?.name || null,
                     colorGroups: handover.colorGroups,
                 } : null,
             }

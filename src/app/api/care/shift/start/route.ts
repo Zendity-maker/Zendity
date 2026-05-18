@@ -303,19 +303,29 @@ export async function POST(req: Request) {
             console.error('[shift/start] Fallo abriendo ventana de vitales:', vitalsErr);
         }
 
-        // --- FASE 44: Verificar Relevos Pendientes (Clock-In Lock) ---
-        const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
+        // --- Reporte de turno previo para el cuidador entrante ---
+        // El entrante recibe el último handover del turno anterior firmado por
+        // el cuidador saliente. Lo ve esté pendiente de firma del supervisor
+        // (PENDING) o ya firmado (ACCEPTED). Excluye el prólogo diario del cron.
+        // Ventana 12h: cubre cualquier cambio de turno reciente.
+        //
+        // Caso edge cubierto: si la misma cuidadora cierra un turno y arranca
+        // el siguiente, debe ver el reporte que ella misma firmó (cubre dos
+        // turnos seguidos). Por eso filtramos por shiftSessionId (excluir la
+        // sesión recién creada) en lugar de excluir por outgoingNurseId.
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const pendingHandover = await prisma.shiftHandover.findFirst({
             where: {
                 headquartersId,
-                status: 'PENDING',
-                createdAt: { gte: eightHoursAgo }
+                isDailyPrologue: false,
+                handoverCompleted: true,
+                createdAt: { gte: twelveHoursAgo },
             },
             orderBy: { createdAt: 'desc' },
             include: {
                 outgoingNurse: { select: { name: true } },
-                notes: true
-            }
+                notes: true,
+            },
         });
 
         if (pendingHandover) {
@@ -323,7 +333,7 @@ export async function POST(req: Request) {
                 success: true,
                 shiftSession: newSession,
                 requireHandoverAccept: true,
-                pendingHandover
+                pendingHandover,
             });
         }
         // -------------------------------------------------------------

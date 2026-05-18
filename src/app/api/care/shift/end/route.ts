@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
-import { applyScoreEvent } from '@/lib/score-event';
+import { notifyRoles } from '@/lib/notifications';
 import {
     inferShiftType,
     resolveColorGroupsForCaregiver,
@@ -106,6 +106,8 @@ export async function POST(req: Request) {
             }
 
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
+                // Flujo nuevo: cuidador firma → supervisor firma directo.
+                // Sin paso de "senior confirma" (eliminado).
                 const shiftHandover = await tx.shiftHandover.create({
                     data: {
                         headquartersId: session.headquartersId,
@@ -119,9 +121,6 @@ export async function POST(req: Request) {
                         handoverCompleted: true,
                         colorGroups,
                         isDailyPrologue: false,
-                        seniorCaregiverId: session.caregiverId,
-                        seniorConfirmedAt: now,
-                        seniorNote: 'Cuidador(a) autoconfirmó su reporte individual al cierre de turno.',
                     },
                 });
 
@@ -196,6 +195,23 @@ export async function POST(req: Request) {
                 return [shiftHandover, updatedSession];
             });
 
+            // Notificar a SUPERVISOR/DIRECTOR/ADMIN que hay reporte pendiente de firma.
+            // Soft-error: si falla la notificación no revertimos el cierre.
+            try {
+                const shiftLabel =
+                    shiftTypeDraft === 'MORNING'    ? 'mañana'
+                    : shiftTypeDraft === 'EVENING'  ? 'tarde'
+                    : shiftTypeDraft === 'NIGHT'    ? 'noche'
+                    : shiftTypeDraft;
+                await notifyRoles(session.headquartersId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                    type: 'HANDOVER',
+                    title: 'Reporte de turno pendiente de firma',
+                    message: `${session.caregiver?.name || 'Un cuidador(a)'} firmó el reporte del turno ${shiftLabel}. Pendiente tu firma.`,
+                });
+            } catch (e) {
+                console.error('[shift/end notify supervisor]', e);
+            }
+
             return NextResponse.json({ success: true, shiftSession: closedSession, handover });
         }
 
@@ -267,15 +283,10 @@ export async function POST(req: Request) {
             return [handover, updatedSession];
         });
 
-        // Penalidad: -10 al cuidador cuyo turno fue cerrado forzosamente
-        await applyScoreEvent(
-            session.caregiverId,
-            session.headquartersId,
-            -10,
-            'Turno cerrado forzosamente por supervisor',
-            'SHIFT',
-        );
-
+        // Nota: NO aplicamos applyScoreEvent aquí. La penalidad de -10 ya la
+        // cuenta /api/care/compliance-score automáticamente por
+        // handoverCompleted=false (ventana 14 días). Aplicarla aquí causaba
+        // doble penalidad (-20) al cuidador cuyo turno fue cerrado.
         return NextResponse.json({ success: true, shiftSession: forcedSession, handover: forcedHandover, forced: true });
 
     } catch (error) {

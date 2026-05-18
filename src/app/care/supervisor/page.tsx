@@ -1406,9 +1406,7 @@ export default function SupervisorMissionControlPage() {
                                 const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
                                 const statusConfig = h.derivedStatus === 'SUPERVISOR_SIGNED'
                                     ? { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-emerald-200 text-emerald-800', label: 'Firmado por supervisor' }
-                                    : h.derivedStatus === 'CONFIRMED'
-                                    ? { bg: 'bg-amber-50', border: 'border-amber-200', pill: 'bg-amber-200 text-amber-800', label: 'Pendiente firma supervisor' }
-                                    : { bg: 'bg-rose-50', border: 'border-rose-200', pill: 'bg-rose-200 text-rose-800', label: 'Pendiente confirmación' };
+                                    : { bg: 'bg-amber-50', border: 'border-amber-200', pill: 'bg-amber-200 text-amber-800', label: 'Pendiente firma supervisor' };
 
                                 const COLOR_BADGES: Record<string, string> = {
                                     RED: 'bg-rose-500 text-white',
@@ -1453,7 +1451,6 @@ export default function SupervisorMissionControlPage() {
 
                                                 <p className="text-[11px] text-slate-500 font-medium">
                                                     {h.signedOutAt && <span>✓ Firmó · </span>}
-                                                    {h.seniorConfirmedAt && <span>✓ Confirmado · </span>}
                                                     {h.supervisorSignedAt && <span className="font-bold text-emerald-700">✓ Supervisor</span>}
                                                 </p>
                                             </div>

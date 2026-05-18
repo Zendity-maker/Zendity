@@ -124,14 +124,6 @@ export default function CorporateReportDetailPage() {
             done: true,
         },
         {
-            key: 'confirmed',
-            label: 'Confirmado por Senior',
-            icon: UserCheck,
-            at: report.seniorConfirmedAt,
-            who: report.seniorCaregiver?.name || '—',
-            done: !!report.seniorConfirmedAt,
-        },
-        {
             key: 'signed',
             label: 'Firmado por Supervisor',
             icon: PenTool,
@@ -262,19 +254,6 @@ export default function CorporateReportDetailPage() {
                                     <p className="text-[#1F2D3A]/80 mt-1 whitespace-pre-wrap">{n.clinicalNotes}</p>
                                 </div>
                             ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Nota del Senior */}
-                {report.seniorNote && (
-                    <div className="bg-white border border-[#e7e5e4] rounded-2xl p-5 mb-5">
-                        <h2 className="text-sm font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-2 flex items-center gap-2">
-                            <UserCheck size={14} className="text-[#0F6B78]" />
-                            Nota del Senior {report.seniorCaregiver?.name ? `(${report.seniorCaregiver.name})` : ''}
-                        </h2>
-                        <div className="text-sm text-[#1F2D3A]/85 leading-relaxed whitespace-pre-wrap">
-                            {report.seniorNote}
                         </div>
                     </div>
                 )}
