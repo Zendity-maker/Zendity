@@ -195,26 +195,30 @@ export async function redistributeUncoveredColors(opts: {
     }
 
     if (notify && overridesCreated.length > 0) {
-        // Notificar receptores (best-effort)
+        // Notificar receptores (best-effort).
+        // link='/care' → cuidadoras van a su tablet donde ven los residentes nuevos.
         for (const [caregiverId, patientLines] of notifyByCaregiver.entries()) {
             try {
                 await notifyUser(caregiverId, {
                     type: 'EMAR_ALERT',
                     title: `Residentes redistribuidos (${patientLines.length})`,
                     message: `Recibes ${patientLines.length === 1 ? 'a' : 'a los siguientes residentes'} por ausencia del cuidador asignado: ${patientLines.join(', ')}. Revisa sus tarjetas en el tablet.`,
+                    link: '/care',
                 });
             } catch (e) {
                 logWarn('shift_redistribute.notify_user', e, { caregiverId, count: patientLines.length });
             }
         }
 
-        // Notificar supervisión (agregado)
+        // Notificar supervisión (agregado).
+        // link='/care/supervisor' → panel de supervisión donde ven la cobertura.
         try {
             const colorsSummary = Array.from(new Set(overridesCreated.map(o => o.originalColor))).join(', ');
             await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
                 type: 'EMAR_ALERT',
                 title: `Redistribución (${trigger})`,
                 message: `${overridesCreated.length} residentes de ${colorsSummary} distribuidos entre ${notifyByCaregiver.size} cuidadores.`,
+                link: '/care/supervisor',
             });
         } catch (e) {
             logWarn('shift_redistribute.notify_supervision', e, { hqId, count: overridesCreated.length });

@@ -284,19 +284,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
 
     const getNotifUrl = (notif: any): string | null => {
-        // Override por link: mensajes familiares abren el panel, no navegan
+        // 1. Sentinels — abren panel, no navegan
         if (notif.link === '/corporate/family-messages') return 'FAMILY_MESSAGES';
-        // Observaciones del empleado: usar el link directo para ir a /my-observations/[id]
-        if (notif.link?.startsWith('/my-observations/')) return notif.link;
+        if (notif.type === 'STAFF_MESSAGE') return 'STAFF_CHAT';
+
+        // 2. Link explícito SIEMPRE gana sobre el fallback por type.
+        //    Antes el switch sobreescribía notif.link para SHIFT_ALERT/HANDOVER
+        //    y mandaba a cuidadoras a /care/supervisor aunque tenían link válido a /care.
+        if (notif.link) return notif.link;
+
+        // 3. Fallback role-aware cuando NO hay link explícito.
+        //    Cuidadoras/enfermeras → /care (donde ven sus residentes y tareas).
+        //    Supervisión → /care/supervisor (panel de gestión).
+        const role = user?.role;
+        const isSupervision = role && ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(role);
+        const isClinical    = role && ['CAREGIVER', 'NURSE'].includes(role);
+
         switch (notif.type) {
-            case 'SHIFT_ALERT':      return '/care/supervisor';
-            case 'EMAR_ALERT':       return notif.link || '/care/supervisor';
             case 'COURSE_COMPLETED': return '/academy';
-            case 'FAMILY_VISIT':     return '/reception';
-            case 'TRIAGE':           return '/corporate/triage';
-            case 'HANDOVER':         return '/care/supervisor';
-            case 'STAFF_MESSAGE':    return 'STAFF_CHAT'; // Sentinel — abre el panel, no navega
-            default:                 return notif.link || null;
+            case 'FAMILY_VISIT':     return isSupervision ? '/reception' : '/care';
+            case 'TRIAGE':           return isSupervision ? '/corporate/triage' : '/care';
+            case 'HANDOVER':         return isSupervision ? '/care/supervisor' : '/care';
+            case 'SHIFT_ALERT':      return isSupervision ? '/care/supervisor' : (isClinical ? '/care' : null);
+            case 'EMAR_ALERT':       return isClinical ? '/care' : (isSupervision ? '/care/supervisor' : null);
+            case 'EVALUATION_COMPLETE': return '/care/profile';
+            case 'SCHEDULE_PUBLISHED':  return isClinical ? '/care/profile' : '/hr/schedule';
+            case 'SHIFT_BLOCKED':       return '/care/profile';
+            case 'CONCIERGE_SERVICE':   return isSupervision ? '/corporate/concierge' : '/family/marketplace';
+            default:                 return null;
         }
     };
 

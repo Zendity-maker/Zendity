@@ -203,6 +203,7 @@ export async function POST(req: Request) {
                     type: 'HANDOVER',
                     title: 'Reporte de turno pendiente de firma',
                     message: `${session.caregiver?.name || 'Un cuidador(a)'} firmó el reporte del turno ${shiftLabel}. Pendiente tu firma.`,
+                    link: `/corporate/reports/${handover.id}`,
                 });
             } catch (e) {
                 logWarn('care.shift.end.notify_supervisor', e, { shiftSessionId });
