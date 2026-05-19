@@ -183,6 +183,15 @@ export interface LiveDataPayload {
     activeCaregivers: number;
     liveStats: LiveStats;
     activeSessions: CaregiverSession[];
+    // Turnos zombies (>12h sin cerrar, hasta 7 días atrás). Query separada
+    // del backend para que olvidos antiguos sigan visibles en el panel.
+    zombieSessions?: Array<{
+        id: string;
+        caregiverId: string;
+        startTime: string;
+        hoursOpen: number;
+        caregiver: { id: string; name: string; role: string } | null;
+    }>;
     triageFeed: TriageTicket[];
     morningBriefing: string | null;
     lastBriefingAt: string | null;

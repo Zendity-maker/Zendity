@@ -478,7 +478,12 @@ export default function SupervisorMissionControlPage() {
     const missingHandovers = liveData?.missingHandovers || [];
     const activeEmployeeIds = activeSessions.map((s: CaregiverSession) => s.caregiverId);
     const enPiso = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 < 12);
-    const zombis = activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 >= 12);
+    // Zombies vienen del backend (query separada, hasta 7 días atrás) para que los
+    // turnos olvidados de días previos sigan visibles y cerrables. Si el backend no
+    // los provee (cliente viejo), fallback al filtro local sobre activeSessions.
+    const zombis: any[] = (liveData?.zombieSessions && Array.isArray(liveData.zombieSessions))
+        ? liveData.zombieSessions
+        : activeSessions.filter((s: CaregiverSession) => (nowTime - new Date(s.startTime).getTime()) / 3600000 >= 12);
 
     const progMissing = (schedules || []).filter((s: any) => {
         const empId = s.userId || s.employeeId;

@@ -57,6 +57,11 @@ export async function GET(req: Request) {
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600000);
+        // Ventana de zombies: sesiones sin cerrar de los últimos 7 días.
+        // Independiente de la ventana de 14h de activeSessions para asegurar
+        // que turnos viejos (>14h) sigan visibles en el panel del supervisor
+        // y puedan ser cerrados. Antes los zombies >14h se volvían invisibles.
+        const zombieWindowStart = sevenDaysAgo;
 
         // ── Turno clínico activo según hora local AST (America/Puerto_Rico) ──
         // MORNING 6-13 · EVENING 14-21 · NIGHT 22-5
@@ -79,6 +84,7 @@ export async function GET(req: Request) {
         // ============================================================================
         const [
             activeSessions,
+            zombieSessionsRaw,
             bathsToday,
             mealsToday,
             incidentsToday,
@@ -107,6 +113,18 @@ export async function GET(req: Request) {
             //    iniciaron 16 min antes de las 6am AST. Antes usaba gte: todayStart
             //    (6am AST) y dejaba fuera al NIGHT vivo.
             prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: fourteenHrsAgo } }, include: { caregiver: { select: { id: true, name: true, role: true, pinCode: true, complianceScore: true } } } }),
+            // 1b. Sesiones zombies — turnos sin cerrar de los últimos 7 días.
+            // Sin filtro de 14h para que los olvidos viejos sigan visibles
+            // en el panel del supervisor y puedan ser cerrados manualmente.
+            prisma.shiftSession.findMany({
+                where: {
+                    headquartersId: hqId,
+                    actualEndTime: null,
+                    startTime: { gte: zombieWindowStart, lt: twelveHrsAgo },
+                },
+                include: { caregiver: { select: { id: true, name: true, role: true } } },
+                orderBy: { startTime: 'asc' },
+            }),
             // 2. Progreso de Baños
             prisma.bathLog.count({ where: { timeLogged: { gte: todayStart }, patient: { headquartersId: hqId } } }),
             // 3. Progreso de Comidas
@@ -637,6 +655,17 @@ export async function GET(req: Request) {
                 triageInbox: pendingComplaintsList.length
             },
             activeSessions,
+            // Sesiones zombies (>12h sin cerrar, hasta 7 días atrás) — visibles
+            // en el panel para cerrar manualmente con ForceCloseShiftButton.
+            zombieSessions: zombieSessionsRaw.map((s: any) => ({
+                id: s.id,
+                caregiverId: s.caregiverId,
+                startTime: s.startTime,
+                hoursOpen: Math.round((Date.now() - new Date(s.startTime).getTime()) / 360000) / 10,
+                caregiver: s.caregiver
+                    ? { id: s.caregiver.id, name: s.caregiver.name, role: s.caregiver.role }
+                    : null,
+            })),
             missingHandovers,
             pendingComplaints: pendingComplaintsList,
             triageFeed: finalTriage,
