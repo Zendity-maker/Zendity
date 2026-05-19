@@ -6,6 +6,25 @@
  *  - Score siempre en [0, 100] (clamp)
  *  - Historial auditables con scoreBefore / scoreAfter
  *  - Nunca lanza excepción al caller (best-effort en el registro del evento)
+ *
+ * DEUDA TÉCNICA — coexistencia de dos modelos de Z-Score:
+ *
+ *   1) User.complianceScore RAW: este helper lo actualiza directamente
+ *      cada vez que se llama. Es lo que muestran HR/staff, evaluaciones
+ *      y panel de empleado individual.
+ *
+ *   2) Score DINÁMICO calculado en /api/care/compliance-score: parte de
+ *      base 75 + reglas (rondas, meds, observaciones) + extraDelta capeado
+ *      a +15 que suma ScoreEvents (ACADEMY/PHOTO/MISSION/SHIFT/VITALS) de
+ *      últimos 90 días. Es lo que ve la cuidadora en /care/profile.
+ *
+ *   Como resultado, ambos números pueden divergir (ej. cuidador con
+ *   muchos cursos viejos antes del rebalanceo de mayo 2026 puede tener
+ *   complianceScore RAW=100 pero dynamic=85).
+ *
+ *   Plan de migración futura: dejar de escribir a User.complianceScore
+ *   y calcular dinámicamente siempre, eliminando el campo o usándolo
+ *   solo como snapshot diario para queries rápidas.
  */
 import { prisma } from '@/lib/prisma';
 import { clampComplianceScore } from '@/lib/compliance-score';

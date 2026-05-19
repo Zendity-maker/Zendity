@@ -242,9 +242,14 @@ export async function calculateDynamicScore(userId: string) {
         select: { delta: true },
     });
     const rawExtraDelta = extraScoreEvents.reduce((sum, e) => sum + e.delta, 0);
-    // Cap +10: las misiones/Academy/Shift premian el compromiso pero no deben
-    // compensar penalizaciones clínicas (handovers, observaciones, etc.)
-    const extraDelta = Math.min(rawExtraDelta, 10);
+    // Cap +15: educación + extras operacionales premian compromiso pero
+    // no deben compensar penalizaciones clínicas (handovers, observaciones).
+    // Subido de +10 a +15 cuando rebalanceamos bonusCompliance de cursos
+    // a escala 3/5/8 — antes con cursos de +125/+100/+75 el cap +10 era
+    // efectivamente meaningless; ahora con escala razonable, +15 deja
+    // espacio real para reconocer educación + misiones + fotos sin
+    // diluir la señal clínica.
+    const extraDelta = Math.min(rawExtraDelta, 15);
 
     // ── Cálculo final ──
     const rawPositives = (rotationsOnTime * 1.5) + (medsAdministered * 0.5) + (preventiveAlerts * 5);
