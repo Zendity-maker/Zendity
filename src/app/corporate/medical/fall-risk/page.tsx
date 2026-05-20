@@ -4,15 +4,21 @@ import {  FallRiskLevel, IncidentSeverity } from '@prisma/client';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // FASE 24: Tablero B2B de Riesgo de Caídas e Incidentes
 export default async function FallRiskDashboard() {
-    // 1. Obtener Residentes de la Sede Activa y Agrupar por Fall Risk Level
-    // Mock Sede B2B
-    const hqId = "0f5ed479-05db-442c-a226-eb6f0edc4069";
+    // Obtener sede desde la sesión real del usuario
+    const session = await getServerSession(authOptions);
+    if (!session?.user) redirect('/login');
+
+    const hqId = (session.user as any).headquartersId;
+    if (!hqId) redirect('/corporate');
 
     // Traer a todos los residentes y su última evaluación de caída
     const patients = await prisma.patient.findMany({

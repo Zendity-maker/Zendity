@@ -45,18 +45,14 @@ export default function HandoversPage() {
     const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
 
     // -- FASE 23: UPP COMPLIANCE LOCK --
+    // Los datos reales vendrán del backend (PosturalLogs) — Sprint de Incidentes
     const [hasNegligenceWarning, setHasNegligenceWarning] = useState(false);
-    const [patientsWithOverdueRotations, setPatientsWithOverdueRotations] = useState<{ name: string, overdueHours: number }[]>([
-        // Mock de datos para prueba de Phase 23. En Prod, esto vendría del Backend (PosturalLogs)
-        { name: "Carmen Rivera", overdueHours: 2.5 }
-    ]);
+    const [patientsWithOverdueRotations, setPatientsWithOverdueRotations] = useState<{ id: string, name: string, overdueHours: number }[]>([]);
 
     // -- FASE 24: FALL RISK LOCK --
+    // Los datos reales vendrán del backend (ClinicalIncidents) — Sprint de Incidentes
     const [hasFallRiskWarning, setHasFallRiskWarning] = useState(false);
-    const [recentFallsWithoutNotes, setRecentFallsWithoutNotes] = useState<{ id: string, name: string, time: string }[]>([
-        // Mock de datos para prueba de Phase 24. Residentes con incidentes en las últimas 8 hrs.
-        { id: "p-roberto", name: "Roberto González", time: "Hace 4 horas (Baño)" }
-    ]);
+    const [recentFallsWithoutNotes, setRecentFallsWithoutNotes] = useState<{ id: string, name: string, time: string }[]>([]);
 
     const fetchHandovers = async () => {
         if (!activeHqId) {
@@ -87,14 +83,21 @@ export default function HandoversPage() {
         if (!activeHqId) return alert("Falta Contexto HQ.");
         setIsModalOpen(true);
         try {
-            // Llenar Lista de Residentes (Asignables)
-            const pRes = await fetch(`/api/patients?headquartersId=${activeHqId}`);
+            // Llenar Lista de Residentes (Asignables) — datos reales de la sede activa
+            const pRes = await fetch(`/api/patients?hqId=${activeHqId}`);
             if (pRes.ok) setPatients(await pRes.json());
 
-            // Llenar Lista de Enfermeros Entrantes (B2B Staff)
-            // Asumimos un endpoint corporativo existente de RRHH o lo simulamos
-            const uRes = await fetch(`/api/corporate/users?headquartersId=${activeHqId}&role=NURSE,CAREGIVER`);
-            if (uRes.ok) setNurses(await uRes.json());
+            // Llenar Lista de Enfermeros Entrantes — staff de la sede activa
+            const uRes = await fetch(`/api/hr/staff?hqId=${activeHqId}`);
+            if (uRes.ok) {
+                const staffData = await uRes.json();
+                // Filtrar solo NURSE y CAREGIVER
+                setNurses(
+                    (staffData as { id: string; name: string; role: string }[])
+                        .filter(u => ['NURSE', 'CAREGIVER', 'SUPERVISOR'].includes(u.role))
+                        .map(u => ({ id: u.id, name: u.name }))
+                );
+            }
         } catch (e) { console.error(e); }
     };
 
@@ -109,7 +112,7 @@ export default function HandoversPage() {
             const res = await fetch('/api/ai/zendi-digest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ headquartersId: activeHqId })
+                body: JSON.stringify({ hqId: activeHqId })
             });
             if (res.ok) {
                 const data = await res.json();
@@ -157,17 +160,24 @@ export default function HandoversPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     action: "CREATE_HANDOVER",
-                    headquartersId: activeHqId,
                     shiftType: formShift,
                     outgoingNurseId: user?.id,
                     incomingNurseId: formIncomingUser,
-                    // Si se forzó el handover, adjuntamos la infracción auto-generada
+                    // Si se forzó el handover a pesar de alertas, adjuntamos la infracción auto-generada
                     notes: hasNegligenceWarning ? [
                         ...formNotes,
-                        { patientId: patientsWithOverdueRotations[0]?.name === "Carmen Rivera" && patients[0]?.id ? patients[0].id : patientsWithOverdueRotations[0]?.name || "UNKNOWN", clinicalNotes: "ALERTA DE SISTEMA: Entrega de turno con rotaciones postulares vencidas (>2 hrs).", isCritical: true }
+                        {
+                            patientId: patientsWithOverdueRotations[0]?.id || patients[0]?.id || "UNKNOWN",
+                            clinicalNotes: "ALERTA DE SISTEMA: Entrega de turno con rotaciones postulares vencidas (>2 hrs).",
+                            isCritical: true
+                        }
                     ] : hasFallRiskWarning ? [
                         ...formNotes,
-                        { patientId: unreportedFalls[0]?.id !== "p-roberto" ? unreportedFalls[0].id : (patients[0]?.id || "UNKNOWN"), clinicalNotes: `ALERTA DE SISTEMA: Entrega de turno omitiendo ampliación sobre Incidente de Caída en ${unreportedFalls[0]?.name || 'Residente'}.`, isCritical: true }
+                        {
+                            patientId: unreportedFalls[0]?.id || patients[0]?.id || "UNKNOWN",
+                            clinicalNotes: `ALERTA DE SISTEMA: Entrega de turno omitiendo ampliación sobre Incidente de Caída en ${unreportedFalls[0]?.name || 'Residente'}.`,
+                            isCritical: true
+                        }
                     ] : formNotes
                 })
             });
@@ -480,8 +490,8 @@ export default function HandoversPage() {
                                                 }}
                                             >
                                                 <option value="">Seleccionar Residente</option>
-                                                <option value="p-roberto">Roberto González (H. 101)</option>
                                                 {patients.map(p => <option key={p.id} value={p.id}>{p.name} (H. {p.roomNumber})</option>)}
+                                                {patients.length === 0 && <option disabled>No hay residentes activos en esta sede</option>}
                                             </select>
 
                                             <textarea

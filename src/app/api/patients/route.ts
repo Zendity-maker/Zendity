@@ -1,18 +1,37 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
-export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const headquartersId = searchParams.get('headquartersId');
+// Roles permitidos: cualquier staff que necesite la lista de residentes
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'];
 
-    // Mock estático para saltear la dependencia DB en la UI del Handover
-    const mockPatients = [
-        { id: "p1", name: "Carmen Rivera", roomNumber: "101A" },
-        { id: "4", name: "Arthur Dent", roomNumber: "204B" },
-    ];
+export async function GET(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+        const invokerRole = (session.user as any).role;
+        if (!ALLOWED_ROLES.includes(invokerRole)) {
+            return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        }
 
-    if (!headquartersId) {
-        return NextResponse.json(mockPatients);
+        // Acepta tanto ?hqId= como ?headquartersId= para compatibilidad
+        const { searchParams } = new URL(request.url);
+        const requestedHqId = searchParams.get('hqId') || searchParams.get('headquartersId');
+        const hqId = await resolveEffectiveHqId(session, requestedHqId);
+
+        const patients = await prisma.patient.findMany({
+            where: { headquartersId: hqId, status: 'ACTIVE' },
+            select: { id: true, name: true, roomNumber: true },
+            orderBy: { name: 'asc' },
+        });
+
+        return NextResponse.json(patients);
+    } catch (error) {
+        console.error('GET /api/patients Error:', error);
+        return NextResponse.json({ error: 'Failed to fetch patients' }, { status: 500 });
     }
-
-    return NextResponse.json(mockPatients);
 }
