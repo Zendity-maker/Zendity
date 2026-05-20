@@ -393,6 +393,7 @@ function PipelineTab({
 }) {
     const [filter, setFilter] = useState<string>("ALL");
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
 
     const filtered = useMemo(() => {
         if (filter === "ALL") return prospects;
@@ -409,8 +410,22 @@ function PipelineTab({
     const updateProspect = (id: string, patch: Partial<Prospect>) =>
         setProspects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
+    const deleteProspect = (id: string) =>
+        setProspects((prev) => prev.filter((p) => p.id !== id));
+
     return (
         <div className="space-y-8">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-black text-white">Pipeline de Ventas ({prospects.length})</h2>
+                <button
+                    onClick={() => setModalOpen(true)}
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] text-white text-sm font-bold shadow-lg shadow-[#3CC6C4]/20 hover:brightness-110 transition flex items-center gap-2"
+                >
+                    <Plus className="w-4 h-4" /> Nuevo Prospecto
+                </button>
+            </div>
+
             {/* Métricas */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <MiniMetric label="Total" value={prospects.length} />
@@ -478,7 +493,13 @@ function PipelineTab({
                                 </div>
                             </button>
 
-                            {expanded && <ProspectEditor prospect={p} onUpdate={(patch) => updateProspect(p.id, patch)} />}
+                            {expanded && (
+                                <ProspectEditor
+                                    prospect={p}
+                                    onUpdate={(patch) => updateProspect(p.id, patch)}
+                                    onDelete={() => { deleteProspect(p.id); setExpandedId(null); }}
+                                />
+                            )}
                         </div>
                     );
                 })}
@@ -486,6 +507,13 @@ function PipelineTab({
                     <p className="text-center text-sm text-slate-500 py-10">No hay prospectos que coincidan con el filtro.</p>
                 )}
             </div>
+
+            {modalOpen && (
+                <NewProspectModal
+                    onClose={() => setModalOpen(false)}
+                    onCreated={(p) => { setProspects((prev) => [p, ...prev]); setModalOpen(false); }}
+                />
+            )}
         </div>
     );
 }
@@ -493,9 +521,11 @@ function PipelineTab({
 function ProspectEditor({
     prospect,
     onUpdate,
+    onDelete,
 }: {
     prospect: Prospect;
     onUpdate: (patch: Partial<Prospect>) => void;
+    onDelete: () => void;
 }) {
     const [draft, setDraft] = useState({
         stage: prospect.stage,
@@ -617,7 +647,259 @@ function ProspectEditor({
                 <button onClick={preparePitch} className="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm font-bold hover:bg-slate-700 transition flex items-center gap-2">
                     <Target className="w-4 h-4" /> Preparar pitch
                 </button>
+                <button
+                    onClick={async () => {
+                        if (!confirm(`¿Eliminar "${prospect.name}" del pipeline? Esta acción no se puede deshacer.`)) return;
+                        await fetch(`/api/admin/prospects/${prospect.id}`, { method: "DELETE" });
+                        onDelete();
+                    }}
+                    className="ml-auto px-4 py-2 rounded-lg bg-rose-500/10 text-rose-400 text-sm font-bold border border-rose-500/20 hover:bg-rose-500/20 transition flex items-center gap-2"
+                >
+                    <X className="w-4 h-4" /> Eliminar
+                </button>
             </div>
+        </div>
+    );
+}
+
+// ── Modal: Nuevo Prospecto ────────────────────────────────────────
+const PR_MUNICIPALITIES = [
+    "Aguadilla","Aibonito","Añasco","Arecibo","Arroyo","Barceloneta","Barranquitas",
+    "Bayamón","Cabo Rojo","Caguas","Camuy","Canóvanas","Carolina","Cataño","Cayey",
+    "Ceiba","Ciales","Cidra","Coamo","Comerío","Corozal","Culebra","Dorado","Fajardo",
+    "Florida","Guánica","Guayama","Guayanilla","Guaynabo","Gurabo","Hatillo","Hormigueros",
+    "Humacao","Isabela","Jayuya","Juana Díaz","Juncos","Lajas","Lares","Las Marías",
+    "Las Piedras","Loíza","Luquillo","Manatí","Maricao","Maunabo","Mayagüez","Moca",
+    "Morovis","Naguabo","Naranjito","Orocovis","Patillas","Peñuelas","Ponce","Quebradillas",
+    "Rincón","Río Grande","Sabana Grande","Salinas","San Germán","San Juan","San Lorenzo",
+    "San Sebastián","Santa Isabel","Toa Alta","Toa Baja","Trujillo Alto","Utuado",
+    "Vega Alta","Vega Baja","Vieques","Villalba","Yabucoa","Yauco",
+];
+
+function NewProspectModal({
+    onClose,
+    onCreated,
+}: {
+    onClose: () => void;
+    onCreated: (p: Prospect) => void;
+}) {
+    const [form, setForm] = useState({
+        name: "",
+        municipality: "",
+        contactName: "",
+        phone: "",
+        email: "",
+        priority: "MEDIA",
+        estimatedBeds: "",
+        planInterest: "",
+        notes: "",
+        nextFollowUp: "",
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/admin/prospects", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...form,
+                    estimatedBeds: form.estimatedBeds ? Number(form.estimatedBeds) : null,
+                    planInterest: form.planInterest || null,
+                    notes: form.notes || null,
+                    nextFollowUp: form.nextFollowUp || null,
+                    phone: form.phone || null,
+                    email: form.email || null,
+                    contactName: form.contactName || null,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onCreated({
+                    ...data.prospect,
+                    lastContactAt: null,
+                    assignedTo: null,
+                });
+            } else {
+                setError(data.error || "Error al crear prospecto");
+            }
+        } catch {
+            setError("Error de conexión");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+            <form
+                onSubmit={submit}
+                className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+            >
+                <header className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 p-5 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] flex items-center justify-center">
+                            <Target className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-white">Nuevo Prospecto</h2>
+                            <p className="text-xs text-slate-500">Se añade al pipeline en etapa PROSPECTO</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white">
+                        <X className="w-5 h-5" />
+                    </button>
+                </header>
+
+                <div className="p-5 space-y-5">
+                    {error && (
+                        <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl p-3 text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Sede */}
+                    <Section title="Información de la sede">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Nombre de la sede *" span={2}>
+                                <input
+                                    required
+                                    value={form.name}
+                                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                    placeholder="Ej. Hogar Santa Rosa"
+                                    className={inputCls}
+                                />
+                            </Field>
+                            <Field label="Municipio *" span={2}>
+                                <select
+                                    required
+                                    value={form.municipality}
+                                    onChange={(e) => setForm({ ...form, municipality: e.target.value })}
+                                    className={inputCls}
+                                >
+                                    <option value="">— Selecciona municipio —</option>
+                                    {PR_MUNICIPALITIES.map((m) => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                        </div>
+                    </Section>
+
+                    {/* Contacto */}
+                    <Section title="Persona de contacto">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Nombre del contacto">
+                                <input
+                                    value={form.contactName}
+                                    onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                                    placeholder="Ej. María González"
+                                    className={inputCls}
+                                />
+                            </Field>
+                            <Field label="Teléfono">
+                                <input
+                                    value={form.phone}
+                                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                                    placeholder="(787) 000-0000"
+                                    className={inputCls}
+                                />
+                            </Field>
+                            <Field label="Email" span={2}>
+                                <input
+                                    type="email"
+                                    value={form.email}
+                                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                                    placeholder="contacto@hogar.com"
+                                    className={inputCls}
+                                />
+                            </Field>
+                        </div>
+                    </Section>
+
+                    {/* Pipeline */}
+                    <Section title="Calificación inicial">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Prioridad">
+                                <div className="flex gap-2">
+                                    {["ALTA", "MEDIA", "BAJA"].map((p) => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            onClick={() => setForm({ ...form, priority: p })}
+                                            className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
+                                                form.priority === p
+                                                    ? PRIORITY_STYLES[p]
+                                                    : "bg-slate-800/40 text-slate-500 border-slate-700 hover:border-slate-600"
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </Field>
+                            <Field label="Plan de interés">
+                                <select
+                                    value={form.planInterest}
+                                    onChange={(e) => setForm({ ...form, planInterest: e.target.value })}
+                                    className={inputCls}
+                                >
+                                    <option value="">— Sin definir —</option>
+                                    <option value="LITE">LITE ($299/mes)</option>
+                                    <option value="PRO">PRO ($599/mes)</option>
+                                    <option value="ENTERPRISE">ENTERPRISE ($999/mes)</option>
+                                </select>
+                            </Field>
+                            <Field label="Camas estimadas">
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={form.estimatedBeds}
+                                    onChange={(e) => setForm({ ...form, estimatedBeds: e.target.value })}
+                                    placeholder="Ej. 30"
+                                    className={inputCls}
+                                />
+                            </Field>
+                            <Field label="Próximo seguimiento">
+                                <input
+                                    type="date"
+                                    value={form.nextFollowUp}
+                                    onChange={(e) => setForm({ ...form, nextFollowUp: e.target.value })}
+                                    className={`${inputCls} [color-scheme:dark]`}
+                                />
+                            </Field>
+                            <Field label="Notas iniciales" span={2}>
+                                <textarea
+                                    rows={3}
+                                    value={form.notes}
+                                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                                    placeholder="Contexto de cómo lo conociste, objeciones iniciales, etc."
+                                    className={inputCls}
+                                />
+                            </Field>
+                        </div>
+                    </Section>
+                </div>
+
+                <footer className="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 p-4 flex items-center justify-end gap-2">
+                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800">
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        {loading ? "Guardando…" : "Agregar al pipeline"}
+                    </button>
+                </footer>
+            </form>
         </div>
     );
 }
