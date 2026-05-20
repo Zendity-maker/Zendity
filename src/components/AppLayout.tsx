@@ -99,6 +99,7 @@ const corporateNavigationSections = [
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
             { name: "Configurar Kiosco", href: "/corporate/reception-setup", icon: QrCode, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            { name: "Guía de Onboarding", href: "/corporate/onboarding", icon: CheckCircle2, requiredRoles: ["DIRECTOR", "ADMIN"] },
         ]
     },
     {

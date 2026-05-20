@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
     Building2,
     DollarSign,
@@ -144,7 +145,7 @@ type ZendityMessage = {
 
 // =============== Dashboard ===============
 export default function AdminDashboard({ userName }: { userName: string }) {
-    const [tab, setTab] = useState<"overview" | "pipeline" | "sedes" | "comunicaciones">("overview");
+    const [tab, setTab] = useState<"overview" | "pipeline" | "sedes" | "comunicaciones" | "legal">("overview");
     const [overview, setOverview] = useState<Overview | null>(null);
     const [prospects, setProspects] = useState<Prospect[]>([]);
     const [sedes, setSedes] = useState<Sede[]>([]);
@@ -207,6 +208,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                             { id: "pipeline", label: "Pipeline de Ventas", icon: Target },
                             { id: "sedes", label: "Sedes Activas", icon: Building2 },
                             { id: "comunicaciones", label: "Comunicaciones", icon: MessageSquare, badge: messages.filter((m) => !m.isRead).length },
+                            { id: "legal", label: "Legal & SLA", icon: FileText },
                         ] as const
                     ).map((t) => {
                         const Icon = t.icon;
@@ -258,6 +260,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                                 onMarkRead={(id) => setMessages((prev) => prev.map((m) => m.id === id ? { ...m, isRead: true, readAt: new Date().toISOString() } : m))}
                             />
                         )}
+                        {tab === "legal" && <LegalTab />}
                     </>
                 )}
             </main>
@@ -1590,5 +1593,79 @@ function FilterPill({ children, active, onClick }: { children: React.ReactNode; 
         >
             {children}
         </button>
+    );
+}
+
+// =============== Tab 5 — Legal & SLA ===============
+function LegalTab() {
+    const cards = [
+        {
+            icon: "📄",
+            title: "Acuerdos BAA (HIPAA)",
+            desc: "Gestiona los Business Associate Agreements con cada sede. Requerido por la Ley HIPAA para el manejo de PHI.",
+            href: "/admin/baa",
+            badge: "2 pendientes",
+            badgeColor: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+            cta: "Gestionar BAAs →",
+        },
+        {
+            icon: "📋",
+            title: "Acuerdo de Nivel de Servicio (SLA)",
+            desc: "Define los compromisos de uptime (99.5%), tiempos de respuesta y compensaciones para todos los clientes.",
+            href: "/admin/sla",
+            badge: "v2.0",
+            badgeColor: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+            cta: "Ver SLA →",
+        },
+        {
+            icon: "✅",
+            title: "Onboarding de Nuevas Sedes",
+            desc: "Checklist guiado que cada director sigue para configurar Zéndity paso a paso después de contratar.",
+            href: "/corporate/onboarding",
+            badge: "En producción",
+            badgeColor: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+            cta: "Ver checklist →",
+        },
+        {
+            icon: "🎫",
+            title: "Tickets de Soporte",
+            desc: "Solicitudes de soporte enviadas desde todas las sedes. Gestiona BUGs, preguntas y peticiones de features.",
+            href: "/admin/support",
+            badge: null,
+            badgeColor: "",
+            cta: "Ver tickets →",
+        },
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-xl font-bold text-white">Legal & Soporte</h2>
+                <p className="text-sm text-slate-500 mt-1">Documentos legales, nivel de servicio y atención a sedes</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cards.map((c) => (
+                    <Link
+                        key={c.href}
+                        href={c.href}
+                        className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 hover:border-[#3CC6C4]/40 transition-all group"
+                    >
+                        <div className="flex items-start justify-between mb-3">
+                            <span className="text-3xl">{c.icon}</span>
+                            {c.badge && (
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${c.badgeColor}`}>
+                                    {c.badge}
+                                </span>
+                            )}
+                        </div>
+                        <h3 className="text-base font-bold text-white group-hover:text-[#3CC6C4] transition-colors mb-1">
+                            {c.title}
+                        </h3>
+                        <p className="text-sm text-slate-400 leading-relaxed mb-4">{c.desc}</p>
+                        <span className="text-sm font-semibold text-[#3CC6C4]">{c.cta}</span>
+                    </Link>
+                ))}
+            </div>
+        </div>
     );
 }
