@@ -93,6 +93,9 @@ model Headquarters {
   // FASE 60 Zendi AI Broadcast
   globalAnnouncements GlobalAnnouncement[]
 
+  // Tab Comunicaciones — mensajes de Zéndity Corp a esta sede
+  zendityMessages ZendityMessage[] @relation("ZendityMessagesReceived")
+
   // FASE 8: Zendity Kitchen Menu Sync
   dailyMenus DailyMenu[]
 
@@ -276,6 +279,9 @@ model User {
 
   // Sprint I: admin.zendity.com — prospectos SaaS asignados (solo SUPER_ADMIN)
   assignedProspects SaaSProspect[] @relation("AssignedProspects")
+
+  // Tab Comunicaciones — mensajes enviados por este super admin
+  sentZendityMessages ZendityMessage[] @relation("ZendityMessageAuthor")
 
   // Sprint N — Residentes reasignados a este cuidador por ausencia/tardanza
   patientOverrides ShiftPatientOverride[]
@@ -2634,4 +2640,26 @@ model ScoreEvent {
 
   @@index([userId, createdAt])
   @@index([headquartersId, createdAt])
+}
+
+// =======================
+// Tab Comunicaciones — Mensajes Zéndity Corp → sedes clientes
+// =======================
+
+model ZendityMessage {
+  id             String    @id @default(uuid())
+  targetHqId     String?   // null = broadcast a todas las sedes activas
+  authorId       String
+  title          String
+  body           String    @db.Text
+  category       String    @default("ANNOUNCEMENT") // ANNOUNCEMENT | BILLING | SUPPORT | MAINTENANCE
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  author   User          @relation("ZendityMessageAuthor", fields: [authorId], references: [id])
+  targetHq Headquarters? @relation("ZendityMessagesReceived", fields: [targetHqId], references: [id])
+
+  @@index([targetHqId, createdAt])
+  @@index([authorId, createdAt])
 }

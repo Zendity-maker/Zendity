@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import sgMail from '@sendgrid/mail';
 import { requireSuperAdmin } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
@@ -161,6 +162,70 @@ export async function POST(req: Request) {
 
             return { hq, director, contract };
         });
+
+        // ── Email de bienvenida ─────────────────────────────────────────
+        const sgKey = process.env.SENDGRID_API_KEY;
+        if (sgKey) {
+            try {
+                sgMail.setApiKey(sgKey);
+                await sgMail.send({
+                    to: directorEmail,
+                    from: process.env.SENDGRID_FROM_EMAIL as string,
+                    subject: `Bienvenido a Zéndity — ${name}`,
+                    html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0f172a;">
+                        <div style="background: linear-gradient(135deg, #0F6B78, #3CC6C4); padding: 36px 32px; border-radius: 12px 12px 0 0; text-align: center;">
+                            <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px;">Zéndity</h1>
+                            <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">Healthcare Management Platform</p>
+                        </div>
+                        <div style="background: #f8fafc; padding: 36px 32px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none;">
+                            <h2 style="margin-top: 0; font-size: 22px;">¡Bienvenido${directorName ? `, ${directorName}` : ''}!</h2>
+                            <p style="color: #475569; line-height: 1.6;">
+                                Tu sede <strong style="color: #0f172a;">${name}</strong> ha sido activada exitosamente
+                                en la plataforma Zéndity. Ya puedes acceder y comenzar a configurar tu equipo y residentes.
+                            </p>
+
+                            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; margin: 28px 0;">
+                                <h3 style="margin: 0 0 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b;">Credenciales de acceso</h3>
+                                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #64748b; width: 80px;">Email</td>
+                                        <td style="padding: 6px 0; font-weight: 600;">${directorEmail}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #64748b;">PIN</td>
+                                        <td style="padding: 6px 0;">
+                                            <span style="font-family: monospace; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 4px 12px; border-radius: 6px; font-size: 20px; font-weight: 900; letter-spacing: 4px;">${directorPinCode}</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="color: #ef4444; font-size: 12px; margin: 16px 0 0; display: flex; align-items: center; gap: 6px;">
+                                    ⚠️ Cambia tu PIN en cuanto accedas por primera vez desde Configuración → Mi perfil.
+                                </p>
+                            </div>
+
+                            <a href="https://app.zendity.com/login"
+                               style="display: inline-block; background: linear-gradient(135deg, #0F6B78, #3CC6C4); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 800; font-size: 15px; margin-bottom: 28px;">
+                                Acceder a Zéndity →
+                            </a>
+
+                            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                                <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.6;">
+                                    ¿Tienes preguntas? Escríbenos a
+                                    <a href="mailto:zendityinfo@gmail.com" style="color: #0F6B78; font-weight: 600;">zendityinfo@gmail.com</a>
+                                    o WhatsApp al (787) 200-0000.<br/>
+                                    El equipo de Zéndity está disponible para ayudarte durante tu arranque.
+                                </p>
+                            </div>
+                        </div>
+                    </div>`,
+                });
+                console.log('[sedes POST] Welcome email enviado a:', directorEmail);
+            } catch (emailErr) {
+                // No-fatal: la sede fue creada, el email es secundario
+                console.error('[sedes POST] Welcome email error:', emailErr);
+            }
+        }
 
         return NextResponse.json({ success: true, onboarding: result });
     } catch (e: any) {

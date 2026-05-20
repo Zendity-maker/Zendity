@@ -1,11 +1,13 @@
 import React from "react";
 import { cookies } from "next/headers";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { stopImpersonation } from "@/actions/audit/impersonate.actions";
 
 export default async function ImpersonationBanner() {
   const cookieStore = await cookies();
-  const impersonatedHqId = (await cookieStore).get("Zendity-Impersonated-HQ")?.value;
-  const impersonatedName = (await cookieStore).get("Zendity-Impersonated-Name")?.value || impersonatedHqId;
+  const impersonatedHqId = cookieStore.get("Zendity-Impersonated-HQ")?.value;
+  const impersonatedName = cookieStore.get("Zendity-Impersonated-Name")?.value || impersonatedHqId;
 
   if (!impersonatedHqId) return null;
 
@@ -20,9 +22,10 @@ export default async function ImpersonationBanner() {
       </div>
       <form action={async () => {
         "use server";
-        await stopImpersonation("SUPERADMIN-001"); // Simulando fallback del perfil autenticado
+        const session = await getServerSession(authOptions);
+        await stopImpersonation(session?.user?.id ?? "UNKNOWN");
       }}>
-        <button 
+        <button
           type="submit"
           className="bg-yellow-900 border border-yellow-400 hover:bg-black text-white px-4 py-1 rounded-full text-xs transition"
         >

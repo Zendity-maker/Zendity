@@ -21,6 +21,14 @@ import {
     Crown,
     FileText,
     Loader2,
+    MessageSquare,
+    Send,
+    Globe,
+    BookOpen,
+    Wrench,
+    ReceiptText,
+    Eye,
+    EyeOff,
 } from "lucide-react";
 
 // =============== Tipos ===============
@@ -120,13 +128,28 @@ function stageLabel(s: string): string {
     return s.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// ── Tipo mensaje Zéndity ─────────────────────────────────────────
+type ZendityMessage = {
+    id: string;
+    targetHqId: string | null;
+    title: string;
+    body: string;
+    category: string;
+    isRead: boolean;
+    readAt: string | null;
+    createdAt: string;
+    author: { id: string; name: string };
+    targetHq: { id: string; name: string } | null;
+};
+
 // =============== Dashboard ===============
 export default function AdminDashboard({ userName }: { userName: string }) {
-    const [tab, setTab] = useState<"overview" | "pipeline" | "sedes">("overview");
+    const [tab, setTab] = useState<"overview" | "pipeline" | "sedes" | "comunicaciones">("overview");
     const [overview, setOverview] = useState<Overview | null>(null);
     const [prospects, setProspects] = useState<Prospect[]>([]);
     const [sedes, setSedes] = useState<Sede[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [messages, setMessages] = useState<ZendityMessage[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Load all data on mount
@@ -134,16 +157,18 @@ export default function AdminDashboard({ userName }: { userName: string }) {
         (async () => {
             setLoading(true);
             try {
-                const [ovR, prR, seR, inR] = await Promise.all([
+                const [ovR, prR, seR, inR, msgR] = await Promise.all([
                     fetch("/api/admin/overview").then((r) => r.json()),
                     fetch("/api/admin/prospects").then((r) => r.json()),
                     fetch("/api/admin/sedes").then((r) => r.json()),
                     fetch("/api/admin/invoices").then((r) => r.json()),
+                    fetch("/api/admin/messages").then((r) => r.json()),
                 ]);
                 if (ovR.success) setOverview(ovR.overview);
                 if (prR.success) setProspects(prR.prospects);
                 if (seR.success) setSedes(seR.sedes);
                 if (inR.success) setInvoices(inR.invoices);
+                if (msgR.success) setMessages(msgR.messages);
             } catch (e) {
                 console.error("Admin load error:", e);
             } finally {
@@ -181,21 +206,28 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                             { id: "overview", label: "Visión General", icon: Activity },
                             { id: "pipeline", label: "Pipeline de Ventas", icon: Target },
                             { id: "sedes", label: "Sedes Activas", icon: Building2 },
+                            { id: "comunicaciones", label: "Comunicaciones", icon: MessageSquare, badge: messages.filter((m) => !m.isRead).length },
                         ] as const
                     ).map((t) => {
                         const Icon = t.icon;
                         const active = tab === t.id;
+                        const unread = "badge" in t ? t.badge : 0;
                         return (
                             <button
                                 key={t.id}
                                 onClick={() => setTab(t.id)}
-                                className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
+                                className={`relative flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-colors ${
                                     active
                                         ? "text-[#3CC6C4] border-[#3CC6C4]"
                                         : "text-slate-400 border-transparent hover:text-slate-200"
                                 }`}
                             >
                                 <Icon className="w-4 h-4" /> {t.label}
+                                {unread > 0 && (
+                                    <span className="absolute -top-0.5 -right-1 w-4 h-4 bg-rose-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
+                                        {unread}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -218,6 +250,14 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                         }} />}
                         {tab === "pipeline" && <PipelineTab prospects={prospects} setProspects={setProspects} />}
                         {tab === "sedes" && <SedesTab sedes={sedes} onCreated={(s) => setSedes((prev) => [s, ...prev])} />}
+                        {tab === "comunicaciones" && (
+                            <CommsTab
+                                messages={messages}
+                                sedes={sedes}
+                                onSent={(msg) => setMessages((prev) => [msg, ...prev])}
+                                onMarkRead={(id) => setMessages((prev) => prev.map((m) => m.id === id ? { ...m, isRead: true, readAt: new Date().toISOString() } : m))}
+                            />
+                        )}
                     </>
                 )}
             </main>
@@ -793,6 +833,277 @@ function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
                     </button>
                 </footer>
             </form>
+        </div>
+    );
+}
+
+// =============== Tab 4 — Comunicaciones ===============
+const CATEGORIES = [
+    { id: "ANNOUNCEMENT", label: "Aviso General", icon: Globe, color: "text-sky-400 border-sky-500/30 bg-sky-500/10" },
+    { id: "BILLING",      label: "Facturación",   icon: ReceiptText, color: "text-amber-400 border-amber-500/30 bg-amber-500/10" },
+    { id: "SUPPORT",      label: "Soporte",        icon: BookOpen, color: "text-purple-400 border-purple-500/30 bg-purple-500/10" },
+    { id: "MAINTENANCE",  label: "Mantenimiento",  icon: Wrench, color: "text-rose-400 border-rose-500/30 bg-rose-500/10" },
+] as const;
+
+type CategoryId = (typeof CATEGORIES)[number]["id"];
+
+function CommsTab({
+    messages,
+    sedes,
+    onSent,
+    onMarkRead,
+}: {
+    messages: ZendityMessage[];
+    sedes: Sede[];
+    onSent: (msg: ZendityMessage) => void;
+    onMarkRead: (id: string) => void;
+}) {
+    const [form, setForm] = useState({
+        targetHqId: "" as string, // "" = broadcast
+        category: "ANNOUNCEMENT" as CategoryId,
+        title: "",
+        body: "",
+    });
+    const [sending, setSending] = useState(false);
+    const [sendError, setSendError] = useState<string | null>(null);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    const send = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSending(true);
+        setSendError(null);
+        try {
+            const res = await fetch("/api/admin/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    targetHqId: form.targetHqId || null,
+                    title: form.title,
+                    body: form.body,
+                    category: form.category,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                onSent(data.message);
+                setForm({ targetHqId: "", category: "ANNOUNCEMENT", title: "", body: "" });
+            } else {
+                setSendError(data.error || "Error enviando");
+            }
+        } catch {
+            setSendError("Error de conexión");
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const markRead = async (id: string) => {
+        onMarkRead(id);
+        await fetch("/api/admin/messages", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messageId: id }),
+        });
+    };
+
+    const unread = messages.filter((m) => !m.isRead).length;
+
+    return (
+        <div className="space-y-8">
+            {/* Métricas rápidas */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <MiniMetric label="Total enviados" value={messages.length} />
+                <MiniMetric label="Sin leer (sedes)" value={unread} accent={unread > 0 ? "amber" : "slate"} />
+                <MiniMetric label="Broadcasts" value={messages.filter((m) => !m.targetHqId).length} accent="aqua" />
+                <MiniMetric label="Específicos" value={messages.filter((m) => !!m.targetHqId).length} accent="teal" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* ── Formulario de redacción ── */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#0F6B78]/20 flex items-center justify-center">
+                            <Send className="w-4 h-4 text-[#3CC6C4]" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-black text-white">Redactar comunicado</h2>
+                            <p className="text-[11px] text-slate-500">Zéndity Corp → sedes clientes</p>
+                        </div>
+                    </div>
+
+                    <form onSubmit={send} className="p-6 space-y-5">
+                        {sendError && (
+                            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl p-3 text-sm">
+                                {sendError}
+                            </div>
+                        )}
+
+                        {/* Destinatario */}
+                        <div>
+                            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
+                                Destinatario
+                            </label>
+                            <select
+                                value={form.targetHqId}
+                                onChange={(e) => setForm({ ...form, targetHqId: e.target.value })}
+                                className={inputCls}
+                            >
+                                <option value="">📢 Todas las sedes (broadcast)</option>
+                                {sedes.filter((s) => s.isActive).map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Categoría */}
+                        <div>
+                            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
+                                Categoría
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {CATEGORIES.map((c) => {
+                                    const CIcon = c.icon;
+                                    const active = form.category === c.id;
+                                    return (
+                                        <button
+                                            key={c.id}
+                                            type="button"
+                                            onClick={() => setForm({ ...form, category: c.id })}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                                active
+                                                    ? c.color
+                                                    : "text-slate-500 border-slate-700 bg-slate-800/40 hover:border-slate-600"
+                                            }`}
+                                        >
+                                            <CIcon className="w-3 h-3" /> {c.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Asunto */}
+                        <div>
+                            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
+                                Asunto
+                            </label>
+                            <input
+                                required
+                                value={form.title}
+                                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                                placeholder="Ej. Actualización del sistema — 3 de junio"
+                                className={inputCls}
+                            />
+                        </div>
+
+                        {/* Cuerpo */}
+                        <div>
+                            <label className="block text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
+                                Mensaje
+                            </label>
+                            <textarea
+                                required
+                                rows={6}
+                                value={form.body}
+                                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                                placeholder="Escribe el mensaje completo aquí…"
+                                className={inputCls}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={sending}
+                            className="w-full px-5 py-3 rounded-xl bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] text-white font-bold text-sm shadow-lg shadow-[#3CC6C4]/20 hover:brightness-110 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            {sending ? "Enviando…" : "Enviar comunicado"}
+                        </button>
+                    </form>
+                </div>
+
+                {/* ── Historial de mensajes ── */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-[#0F6B78]/20 flex items-center justify-center">
+                                <MessageSquare className="w-4 h-4 text-[#3CC6C4]" />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-black text-white">Historial</h2>
+                                <p className="text-[11px] text-slate-500">{messages.length} mensaje{messages.length !== 1 ? "s" : ""} enviados</p>
+                            </div>
+                        </div>
+                        {unread > 0 && (
+                            <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-black border border-amber-500/20 uppercase tracking-widest">
+                                {unread} sin leer
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="divide-y divide-slate-800 max-h-[560px] overflow-y-auto">
+                        {messages.length === 0 ? (
+                            <p className="text-center text-slate-500 text-sm py-12">No hay mensajes enviados todavía.</p>
+                        ) : (
+                            messages.map((msg) => {
+                                const cat = CATEGORIES.find((c) => c.id === msg.category) ?? CATEGORIES[0];
+                                const CatIcon = cat.icon;
+                                const expanded = expandedId === msg.id;
+                                return (
+                                    <div key={msg.id} className={`transition-colors ${!msg.isRead ? "bg-amber-500/5" : ""}`}>
+                                        <button
+                                            onClick={() => {
+                                                setExpandedId(expanded ? null : msg.id);
+                                                if (!msg.isRead) markRead(msg.id);
+                                            }}
+                                            className="w-full text-left px-5 py-4 hover:bg-slate-800/30 transition-colors"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <div className={`mt-0.5 p-1.5 rounded-lg border ${cat.color} shrink-0`}>
+                                                    <CatIcon className="w-3 h-3" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className={`text-sm font-bold truncate ${!msg.isRead ? "text-white" : "text-slate-300"}`}>
+                                                            {msg.title}
+                                                        </p>
+                                                        {!msg.isRead && (
+                                                            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                                        <span>{msg.targetHq ? msg.targetHq.name : "📢 Todas las sedes"}</span>
+                                                        <span>·</span>
+                                                        <span>{relativeTime(msg.createdAt)}</span>
+                                                        <span>·</span>
+                                                        {msg.isRead
+                                                            ? <span className="text-emerald-500 flex items-center gap-1"><Eye className="w-3 h-3" /> Leído</span>
+                                                            : <span className="text-amber-400 flex items-center gap-1"><EyeOff className="w-3 h-3" /> Sin leer</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                {expanded ? <ChevronDown className="w-4 h-4 text-slate-500 shrink-0 mt-1" /> : <ChevronRight className="w-4 h-4 text-slate-500 shrink-0 mt-1" />}
+                                            </div>
+                                        </button>
+                                        {expanded && (
+                                            <div className="px-5 pb-5 -mt-1">
+                                                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                                    {msg.body}
+                                                </div>
+                                                {msg.readAt && (
+                                                    <p className="text-[11px] text-slate-600 mt-2">
+                                                        Leído el {new Date(msg.readAt).toLocaleDateString("es-PR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
