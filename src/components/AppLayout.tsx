@@ -15,7 +15,8 @@ import {
     Package, Calendar, UserCheck, Receipt, Settings, Scale,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
-    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen
+    Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
+    Shield
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -94,6 +95,13 @@ const corporateNavigationSections = [
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
+        ]
+    },
+    {
+        title: "Zéndity Corp",
+        links: [
+            // Solo visible para empleados de Zéndity (SUPER_ADMIN)
+            { name: "Panel de Administración", href: "/admin", icon: Shield, requiredRoles: ["SUPER_ADMIN"] },
         ]
     }
 ];
@@ -255,6 +263,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchIntakePending, 60000);
         return () => clearInterval(interval);
     }, [isIntakeRole]);
+
+    // SUPER_ADMIN siempre va a /admin — no tiene contexto de sede cliente
+    useEffect(() => {
+        if (!loading && (user?.role as string) === 'SUPER_ADMIN' && !pathname.startsWith('/admin') && pathname !== '/login') {
+            router.replace('/admin');
+        }
+    }, [user, loading, pathname]);
 
     const markAllRead = async () => {
         if (!user?.id || unreadCount === 0) return;
