@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar, FaCalendarAlt } from "react-icons/fa";
+import { FaHome, FaHeartbeat, FaCommentDots, FaSignOutAlt, FaSpa, FaFileInvoiceDollar, FaCalendarAlt, FaBook } from "react-icons/fa";
 import { prisma } from '@/lib/prisma';
 
 
@@ -18,6 +18,20 @@ export default async function FamilyLayout({ children }: { children: React.React
     const hq = await prisma.headquarters.findUnique({ where: { id: hqId } });
     const hqName = hq?.name || "Zendity Partner";
     const logoUrl = hq?.logoUrl || null;
+
+    // Conteo de mensajes no leídos para el badge en navegación
+    let unreadMessages = 0;
+    try {
+        const familyMember = await prisma.familyMember.findUnique({
+            where: { email: session.user?.email as string },
+            select: { patientId: true },
+        });
+        if (familyMember?.patientId) {
+            unreadMessages = await prisma.familyMessage.count({
+                where: { patientId: familyMember.patientId, senderType: 'STAFF', isRead: false },
+            });
+        }
+    } catch { /* no-fatal */ }
 
     return (
         <div className="absolute inset-0 bg-slate-50 font-sans text-slate-800 overflow-y-auto w-full h-full pb-20">
@@ -42,14 +56,19 @@ export default async function FamilyLayout({ children }: { children: React.React
                             <Link href="/family" className="text-slate-500 hover:text-rose-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
                                 <FaHome /> Inicio
                             </Link>
-                            <Link href="/family/concierge" className="text-slate-500 hover:text-indigo-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
-                                <FaSpa /> Marketplace
+                            <Link href="/family/feed" className="text-slate-500 hover:text-emerald-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
+                                <FaBook /> Diario
                             </Link>
                             <Link href="/family/calendar" className="text-slate-500 hover:text-teal-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
                                 <FaCalendarAlt /> Citas
                             </Link>
-                            <Link href="/family/messages" className="text-slate-500 hover:text-rose-500 transition-colors hidden sm:flex items-center gap-2 font-medium">
+                            <Link href="/family/messages" className="text-slate-500 hover:text-rose-500 transition-colors hidden sm:flex items-center gap-2 font-medium relative">
                                 <FaCommentDots /> Mensajes
+                                {unreadMessages > 0 && (
+                                    <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
+                                        {unreadMessages > 9 ? '9+' : unreadMessages}
+                                    </span>
+                                )}
                             </Link>
                             <Link href="/family/billing" className="text-slate-500 hover:text-indigo-900 transition-colors hidden sm:flex items-center gap-2 font-medium">
                                 <FaFileInvoiceDollar /> Facturación
@@ -74,17 +93,22 @@ export default async function FamilyLayout({ children }: { children: React.React
                         <FaHome className="text-xl mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-wider">Inicio</span>
                     </Link>
-                    <Link href="/family/concierge" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-500">
-                        <FaSpa className="text-xl mb-1" />
-                        <span className="text-[10px] uppercase font-bold tracking-wider">Concierge</span>
+                    <Link href="/family/feed" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-500">
+                        <FaBook className="text-xl mb-1" />
+                        <span className="text-[10px] uppercase font-bold tracking-wider">Diario</span>
                     </Link>
-                    <Link href="/family/messages" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-rose-500">
+                    <Link href="/family/messages" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-rose-500 relative">
                         <FaCommentDots className="text-xl mb-1" />
+                        {unreadMessages > 0 && (
+                            <span className="absolute top-1 right-3 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
+                                {unreadMessages > 9 ? '9+' : unreadMessages}
+                            </span>
+                        )}
                         <span className="text-[10px] uppercase font-bold tracking-wider">Mensajes</span>
                     </Link>
-                    <Link href="/family/billing" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-indigo-900">
-                        <FaFileInvoiceDollar className="text-xl mb-1" />
-                        <span className="text-[10px] uppercase font-bold tracking-wider">Facturación</span>
+                    <Link href="/family/calendar" className="flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-teal-500">
+                        <FaCalendarAlt className="text-xl mb-1" />
+                        <span className="text-[10px] uppercase font-bold tracking-wider">Citas</span>
                     </Link>
                 </div>
             </div>

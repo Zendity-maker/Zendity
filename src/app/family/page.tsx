@@ -26,6 +26,7 @@ export default function FamilyDashboard() {
     const [resident, setResident] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         fetch("/api/family/dashboard")
@@ -42,6 +43,12 @@ export default function FamilyDashboard() {
                 setError("Error de conexión");
                 setLoading(false);
             });
+
+        // Cargar conteo de mensajes no leídos
+        fetch("/api/family/unread")
+            .then(r => r.json())
+            .then(d => setUnreadCount(d.count || 0))
+            .catch(() => {});
     }, []);
 
     if (loading)
@@ -76,9 +83,10 @@ export default function FamilyDashboard() {
         : [];
 
     const quickLinks = [
-        { icon: "💬", label: "Mensajes", href: "/family/messages", color: "bg-blue-50 border-blue-100" },
-        { icon: "📅", label: "Citas",    href: "/family/calendar", color: "bg-amber-50 border-amber-100" },
-        { icon: "📋", label: "Mi PAI",   href: "/family/pai",      color: "bg-teal-50 border-teal-100"  },
+        { icon: "💬", label: "Mensajes", href: "/family/messages", color: "bg-blue-50 border-blue-100", badge: unreadCount },
+        { icon: "📖", label: "Diario",   href: "/family/feed",     color: "bg-emerald-50 border-emerald-100", badge: 0 },
+        { icon: "📅", label: "Citas",    href: "/family/calendar", color: "bg-amber-50 border-amber-100", badge: 0 },
+        { icon: "📋", label: "Mi PAI",   href: "/family/pai",      color: "bg-teal-50 border-teal-100", badge: 0  },
     ];
 
     return (
@@ -209,14 +217,19 @@ export default function FamilyDashboard() {
                 <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                     Accesos Rápidos
                 </h2>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-2">
                     {quickLinks.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}
-                            className={`${item.color} border rounded-xl p-3 text-center flex flex-col items-center gap-1 hover:opacity-80 transition-opacity`}
+                            className={`${item.color} border rounded-xl p-3 text-center flex flex-col items-center gap-1 hover:opacity-80 transition-opacity relative`}
                         >
                             <span className="text-2xl">{item.icon}</span>
+                            {item.badge > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                    {item.badge > 9 ? '9+' : item.badge}
+                                </span>
+                            )}
                             <span className="text-xs font-medium text-slate-600">{item.label}</span>
                         </Link>
                     ))}

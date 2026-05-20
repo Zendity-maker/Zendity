@@ -49,6 +49,17 @@ export async function GET(req: Request) {
                 : (staffMap.get(m.senderId) || 'Personal'),
         }));
 
+        // Marcar todos los mensajes de STAFF no leídos como leídos (familiar abrió la bandeja)
+        const unreadStaffIds = messages
+            .filter(m => m.senderType === 'STAFF' && !m.isRead)
+            .map(m => m.id);
+        if (unreadStaffIds.length > 0) {
+            await prisma.familyMessage.updateMany({
+                where: { id: { in: unreadStaffIds } },
+                data: { isRead: true },
+            }).catch(() => {}); // no-fatal
+        }
+
         return NextResponse.json({ success: true, messages: messagesWithNames });
     } catch (e) {
         console.error("[FamilyMessages GET] Error:", e);
