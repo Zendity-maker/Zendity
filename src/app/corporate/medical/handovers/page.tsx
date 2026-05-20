@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { FileSignature, Users, AlertOctagon, ActivitySquare } from 'lucide-react';
+import { FileSignature, Users, AlertOctagon, ActivitySquare, Info, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 interface PatientNote {
     patient: { name: string; roomNumber: string };
@@ -224,6 +225,27 @@ export default function HandoversPage() {
 
     return (
         <div className="p-8 space-y-6">
+
+            {/* Banner: sistema legado — el flujo de firma actual es /corporate/reports */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                <Info className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                    <p className="text-sm font-bold text-amber-800">
+                        Esta vista muestra los últimos 30 días. Los relevos pendientes de firma se firman en{' '}
+                        <Link href="/corporate/reports" className="underline hover:text-amber-900">
+                            Reportes de Turno
+                        </Link>
+                        {' '}con firma digital del supervisor.
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">
+                        El contador de pendientes se actualiza automáticamente — los relevos con más de 72 horas sin firma se cierran solos.
+                    </p>
+                </div>
+                <Link href="/corporate/reports" className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors">
+                    Ir a Firma <ArrowRight className="w-3 h-3" />
+                </Link>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200/60 mb-8">
                 <div>
                     <h1 className="text-3xl font-black bg-gradient-to-r from-teal-900 to-teal-700 bg-clip-text text-transparent tracking-tight flex items-center gap-3">

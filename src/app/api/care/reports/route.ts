@@ -34,6 +34,24 @@ export async function GET(req: Request) {
         const limitParam = parseInt(searchParams.get('limit') || '20', 10);
         const limit = Math.min(Math.max(Number.isFinite(limitParam) ? limitParam : 20, 1), 100);
 
+        // Auto-cierre preventivo: handovers completados hace >72h sin firma del supervisor
+        // → se marcan ACCEPTED automáticamente para evitar acumulación infinita.
+        // Solo aplica a reportes reales (handoverCompleted=true), no a cierres forzados.
+        const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        await prisma.shiftHandover.updateMany({
+            where: {
+                headquartersId: hqId,
+                status: 'PENDING',
+                handoverCompleted: true,
+                supervisorSignedAt: null,
+                createdAt: { lt: seventyTwoHoursAgo },
+            },
+            data: {
+                status: 'ACCEPTED',
+                acceptedAt: new Date(),
+            },
+        }).catch(() => { /* silencioso — no bloquear la respuesta */ });
+
         const where: any = { headquartersId: hqId };
         if (statusParam === 'PENDING' || statusParam === 'ACCEPTED') {
             where.status = statusParam;
@@ -56,6 +74,8 @@ export async function GET(req: Request) {
             status: r.status,
             createdAt: r.createdAt,
             acceptedAt: r.acceptedAt,
+            signedOutAt: r.signedOutAt,          // ← fecha de firma del cuidador
+            handoverCompleted: r.handoverCompleted, // ← true si completó el Wizard
             supervisorSignedAt: r.supervisorSignedAt,
             directorViewedAt: r.directorViewedAt,
             aiSummaryPreview: (r.aiSummaryReport || '').slice(0, 200),

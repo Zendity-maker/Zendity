@@ -18,8 +18,29 @@ export async function GET() {
             return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
         }
 
+        // Auto-cierre: handovers >72h sin firma del supervisor → marcar ACCEPTED
+        // Resuelve la acumulación histórica que llegó a >200 registros
+        const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        await prisma.shiftHandover.updateMany({
+            where: {
+                headquartersId: hqId,
+                status: 'PENDING',
+                supervisorSignedAt: null,
+                createdAt: { lt: seventyTwoHoursAgo },
+            },
+            data: { status: 'ACCEPTED', acceptedAt: new Date() },
+        }).catch(() => {});
+
+        // Limitar a los últimos 30 días para no devolver toda la historia
+        // (antes no había filtro → acumulaba cientos de registros)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
         const handovers = await prisma.shiftHandover.findMany({
-            where: { headquartersId: hqId },
+            where: {
+                headquartersId: hqId,
+                createdAt: { gte: thirtyDaysAgo },
+            },
             include: {
                 outgoingNurse: { select: { name: true, role: true } },
                 incomingNurse: { select: { name: true, role: true } },
@@ -29,7 +50,8 @@ export async function GET() {
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 200,
         });
 
         return NextResponse.json(handovers);
