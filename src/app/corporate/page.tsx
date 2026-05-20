@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake, X, ChevronRight } from 'lucide-react';
+import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -498,6 +499,11 @@ export default function CorporateDashboardPage() {
 
     return (
         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* 0a. Checklist de arranque — solo DIRECTOR/ADMIN, sede específica, sede nueva */}
+            {isDirector && selectedFacility && selectedFacility !== 'ALL' && (
+                <OnboardingChecklist hqId={selectedFacility} />
+            )}
 
             {/* 0. Zendi Director Briefing (solo DIRECTOR/ADMIN) */}
             {isDirector && (
