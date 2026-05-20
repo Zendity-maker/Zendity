@@ -9,6 +9,7 @@ import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
 import BackToDashboard from "./ui/BackToDashboard";
+import SupportButton from "./support/SupportButton"; // Punto 8 — Soporte
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
@@ -474,6 +475,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
             <ZendiWidget />
+
+            {/* Punto 8 — Botón de soporte flotante (oculto para FAMILY) */}
+            {user?.role !== 'FAMILY' && <SupportButton />}
 
             {/* FASE 81: Chat interno staff (oculto para FAMILY) */}
             {user?.role !== 'FAMILY' && (

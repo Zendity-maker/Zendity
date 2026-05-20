@@ -96,6 +96,9 @@ model Headquarters {
   // Tab Comunicaciones — mensajes de Zéndity Corp a esta sede
   zendityMessages ZendityMessage[] @relation("ZendityMessagesReceived")
 
+  // Punto 8 — Soporte técnico
+  supportTickets SupportTicket[]
+
   // FASE 8: Zendity Kitchen Menu Sync
   dailyMenus DailyMenu[]
 
@@ -293,6 +296,9 @@ model User {
   insightDismissalsGiven    InsightDismissal[] @relation("DismissedBy")
   // Centro de Mando AI — banderas descartadas sobre este empleado
   insightDismissalsReceived InsightDismissal[] @relation("DismissedEmployee")
+
+  // Punto 8 — Soporte técnico
+  supportTickets SupportTicket[]
 }
 
 model Account {
@@ -2681,4 +2687,27 @@ model ZendityMessage {
 
   @@index([targetHqId, createdAt])
   @@index([authorId, createdAt])
+}
+
+// =======================
+// Punto 8 — Soporte Técnico Zéndity
+// =======================
+
+model SupportTicket {
+  id             String   @id @default(uuid())
+  headquartersId String
+  submittedById  String
+  category       String   @default("QUESTION") // BUG | QUESTION | FEATURE | URGENT
+  description    String   @db.Text
+  status         String   @default("OPEN")     // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  adminNote      String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  submittedBy  User         @relation(fields: [submittedById], references: [id])
+
+  @@index([headquartersId, createdAt])
+  @@index([submittedById, createdAt])
+  @@index([status, createdAt])
 }
