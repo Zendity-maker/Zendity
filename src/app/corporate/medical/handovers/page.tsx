@@ -62,10 +62,30 @@ export default function HandoversPage() {
 
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/medical/handovers?hqId=${activeHqId}`);
-            if (res.ok) {
-                const data = await res.json();
+            const [handoverRes, incidentRes] = await Promise.all([
+                fetch(`/api/medical/handovers?hqId=${activeHqId}`),
+                fetch(`/api/care/incidents?hqId=${activeHqId}&type=FALL&hoursBack=8`),
+            ]);
+
+            if (handoverRes.ok) {
+                const data = await handoverRes.json();
                 setHandovers(data);
+            }
+
+            // Caídas reales de las últimas 8 horas — alimentan el FALL RISK LOCK
+            if (incidentRes.ok) {
+                const incData = await incidentRes.json();
+                if (incData.success && Array.isArray(incData.incidents)) {
+                    setRecentFallsWithoutNotes(
+                        incData.incidents.map((f: any) => ({
+                            id: f.patientId,
+                            name: f.patientName,
+                            time: new Date(f.occurredAt).toLocaleString('es-PR', {
+                                hour: '2-digit', minute: '2-digit', month: 'short', day: '2-digit'
+                            }),
+                        }))
+                    );
+                }
             }
         } catch (error) {
             console.error(error);

@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +140,15 @@ export async function POST(req: Request) {
                 }
             });
 
+            // Audit trail
+            await logAudit({
+                headquartersId: hqId, performedById: invokerId,
+                action: 'INCIDENT_REPORTED', entityName: 'FallIncident',
+                entityId: incident.id,
+                resourceName: `Caída — ${fallPatient.name} (${derivedSeverity})`,
+                request: req,
+            });
+
             // Notificar
             try {
                 await notifyRoles(fallPatient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
@@ -201,10 +214,138 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, event });
         }
 
+        // ─── FLUJO MEDICATION_ERROR ───
+        if ((parsed.data as any).type === 'MEDICATION_ERROR') {
+            const d = parsed.data as any;
+            const medPatient = await prisma.patient.findFirst({
+                where: { id: d.patientId, headquartersId: hqId },
+                select: { id: true, headquartersId: true, name: true }
+            });
+            if (!medPatient) {
+                return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
+            }
+
+            await prisma.triageTicket.create({
+                data: {
+                    headquartersId: hqId,
+                    patientId: d.patientId,
+                    originType: 'INCIDENT',
+                    priority: 'HIGH',
+                    status: 'OPEN',
+                    description: `Error de Medicación — ${medPatient.name}: ${d.description}`,
+                }
+            });
+
+            await logAudit({
+                headquartersId: hqId, performedById: invokerId,
+                action: 'INCIDENT_REPORTED', entityName: 'TriageTicket',
+                entityId: d.patientId,
+                resourceName: `Error de Medicación — ${medPatient.name}`,
+                request: req,
+            });
+
+            try {
+                await notifyRoles(hqId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
+                    type: 'TRIAGE',
+                    title: '⚠️ Error de Medicación',
+                    message: `${medPatient.name}: ${(d.description || '').substring(0, 120)}`,
+                });
+            } catch (e) { logWarn('care.incidents.notify_med_error', e, {}); }
+
+            return NextResponse.json({ success: true });
+        }
+
         return NextResponse.json({ success: false, error: "Invalid Incident Type" }, { status: 400 });
 
     } catch (error: any) {
         logError('care.incidents.post', error);
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+/**
+ * GET /api/care/incidents?hqId=&hoursBack=&type=&page=
+ *
+ * Retorna FallIncidents de la sede + incidentes del TriageTicket
+ * unificados en un array común para el dashboard y el relay de turno.
+ */
+export async function GET(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+        const { searchParams } = new URL(request.url);
+        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
+        const hoursBack = parseInt(searchParams.get('hoursBack') || '720', 10); // 30 días default
+        const onlyFalls = searchParams.get('type') === 'FALL';
+        const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+
+        // FallIncidents reales (el modelo más rico para caídas clínicas)
+        const falls = await prisma.fallIncident.findMany({
+            where: {
+                patient: { headquartersId: hqId },
+                incidentDate: { gte: since },
+            },
+            include: {
+                patient: { select: { id: true, name: true, roomNumber: true } },
+            },
+            orderBy: { incidentDate: 'desc' },
+            take: 200,
+        });
+
+        const fallsMapped = falls.map(f => ({
+            id: f.id,
+            type: 'FALL' as const,
+            severity: f.severity,
+            patientId: f.patient.id,
+            patientName: f.patient.name,
+            roomNumber: f.patient.roomNumber,
+            description: f.notes || f.interventions,
+            location: f.location,
+            occurredAt: f.incidentDate,
+            createdAt: f.reportedAt,
+        }));
+
+        if (onlyFalls) {
+            return NextResponse.json({ success: true, incidents: fallsMapped });
+        }
+
+        // Triage tickets de tipo FALL/INCIDENT (incluye errores de med y otros)
+        const tickets = await prisma.triageTicket.findMany({
+            where: {
+                headquartersId: hqId,
+                originType: { in: ['FALL', 'INCIDENT'] },
+                createdAt: { gte: since },
+            },
+            include: {
+                patient: { select: { id: true, name: true, roomNumber: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+        });
+
+        const ticketsMapped = tickets
+            .filter(t => !falls.find(f => f.id === t.originReferenceId)) // no duplicar caídas
+            .map(t => ({
+                id: t.id,
+                type: t.originType as string,
+                severity: t.priority === 'CRITICAL' ? 'SEVERE' : t.priority === 'HIGH' ? 'MILD' : 'NONE',
+                patientId: t.patient?.id || null,
+                patientName: t.patient?.name || 'Sin residente',
+                roomNumber: t.patient?.roomNumber || null,
+                description: t.description,
+                location: null,
+                occurredAt: t.createdAt,
+                createdAt: t.createdAt,
+                status: t.status,
+            }));
+
+        const combined = [...fallsMapped, ...ticketsMapped]
+            .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+
+        return NextResponse.json({ success: true, incidents: combined, total: combined.length });
+    } catch (error: any) {
+        logError('care.incidents.get', error);
+        return NextResponse.json({ success: false, error: 'Failed to fetch incidents' }, { status: 500 });
     }
 }
