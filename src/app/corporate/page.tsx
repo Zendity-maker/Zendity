@@ -86,6 +86,66 @@ function DeltaPill({ value, suffix = '%', inverted = false }: { value: number | 
     );
 }
 
+// Sparkline mini — curva pura SVG sin recharts (mejor performance para los
+// 4 KPIs del tope del dashboard). Acepta serie de números, normaliza al
+// rango propio y dibuja una polyline + área suave debajo.
+function Sparkline({
+    data,
+    color = '#0F6B78',
+    width = 120,
+    height = 32,
+}: {
+    data: Array<number | null>;
+    color?: string;
+    width?: number;
+    height?: number;
+}) {
+    const clean = data.map(v => (v === null || Number.isNaN(v) ? null : Number(v)));
+    const valid = clean.filter((v): v is number => v !== null);
+    if (valid.length < 2) {
+        return (
+            <svg width={width} height={height} className="opacity-40">
+                <line x1={0} y1={height / 2} x2={width} y2={height / 2}
+                    stroke={color} strokeWidth={1} strokeDasharray="2 3" />
+            </svg>
+        );
+    }
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    const range = max - min || 1;
+    const stepX = width / (clean.length - 1);
+    // Reemplaza nulls por interpolación lineal para no romper la curva
+    const filled: number[] = clean.map((v, i) => {
+        if (v !== null) return v;
+        // busca anterior y siguiente válidos
+        let prev = i - 1;
+        while (prev >= 0 && clean[prev] === null) prev--;
+        let next = i + 1;
+        while (next < clean.length && clean[next] === null) next++;
+        const pv = prev >= 0 ? clean[prev]! : valid[0];
+        const nv = next < clean.length ? clean[next]! : valid[valid.length - 1];
+        return (pv + nv) / 2;
+    });
+    const points = filled.map((v, i) => {
+        const x = i * stepX;
+        const y = height - ((v - min) / range) * (height - 4) - 2;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const linePath = `M ${points.join(' L ')}`;
+    const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
+    const last = filled[filled.length - 1];
+    const lastX = (filled.length - 1) * stepX;
+    const lastY = height - ((last - min) / range) * (height - 4) - 2;
+    return (
+        <svg width={width} height={height} className="overflow-visible">
+            <path d={areaPath} fill={color} opacity={0.12} />
+            <path d={linePath} fill="none" stroke={color} strokeWidth={1.5}
+                strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx={lastX} cy={lastY} r={2.2} fill={color} />
+        </svg>
+    );
+}
+
 export default function CorporateDashboardPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
@@ -634,6 +694,8 @@ export default function CorporateDashboardPage() {
                         delta: trends?.deltas.deltaTriage ?? null,
                         deltaSuffix: '%',
                         deltaInverted: true, // bajar es bueno
+                        sparkData: trends?.series.triage.map(d => d.opened) ?? null,
+                        sparkColor: '#D9534F',
                     },
                     {
                         label: "Cumplimiento Salud",
@@ -645,8 +707,10 @@ export default function CorporateDashboardPage() {
                         delta: trends?.deltas.deltaMeds ?? null,
                         deltaSuffix: 'pp',
                         deltaInverted: false, // subir es bueno
+                        sparkData: trends?.series.emar.map(d => d.compliance) ?? null,
+                        sparkColor: '#7C3AED',
                     }
-                ].map((kpi, i) => (
+                ].map((kpi: any, i) => (
                     <div key={i} className={`rounded-2xl p-5 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
                         <div className="flex justify-between items-start">
                             <div>
@@ -659,7 +723,17 @@ export default function CorporateDashboardPage() {
                                 </div>
                             )}
                         </div>
-                        <p className="text-xs font-medium mt-3 opacity-90">{kpi.sub}</p>
+                        <div className="mt-3 flex items-end justify-between gap-3">
+                            <p className="text-xs font-medium opacity-90 flex-1">{kpi.sub}</p>
+                            {kpi.sparkData && Array.isArray(kpi.sparkData) && kpi.sparkData.length >= 2 && (
+                                <Sparkline
+                                    data={kpi.sparkData}
+                                    color={kpi.sparkColor}
+                                    width={90}
+                                    height={28}
+                                />
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>
