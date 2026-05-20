@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
     Users, Plus, Shield, Mail, Key, ShieldAlert,
-    MoreVertical, Ban, CheckCircle2, UserCog, Building2, Trash2
+    MoreVertical, Ban, CheckCircle2, UserCog, Building2, Trash2, Copy
 } from "lucide-react";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 
@@ -36,6 +36,13 @@ export default function StaffManagementPage() {
         pinCode: "1234"
     });
     const [formSaving, setFormSaving] = useState(false);
+
+    // Modal de confirmación: muestra el PIN una sola vez tras crear el empleado
+    const [pinConfirmModal, setPinConfirmModal] = useState<{
+        name: string;
+        pin: string;
+        copied: boolean;
+    } | null>(null);
 
     useEffect(() => {
         fetchStaff();
@@ -75,7 +82,12 @@ export default function StaffManagementPage() {
             if (res.ok) {
                 await fetchStaff();
                 setIsCreateModalOpen(false);
+                // Guardar el PIN para mostrarlo UNA SOLA VEZ en el modal de confirmación
+                // El PIN NO se envía en el correo de bienvenida por seguridad
+                const pinToShow = formData.pinCode || "No asignado";
+                const nameToShow = formData.name;
                 setFormData({ name: "", email: "", role: "CAREGIVER", pinCode: "1234" });
+                setPinConfirmModal({ name: nameToShow, pin: pinToShow, copied: false });
             } else {
                 const err = await res.json();
                 alert(err.error || "Error al crear empleado");
@@ -364,6 +376,56 @@ export default function StaffManagementPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Modal de Confirmación de PIN ────────────────────────────────
+                Muestra el PIN una sola vez tras crear el empleado.
+                El PIN NO viaja en el correo — se entrega en persona.
+            ─────────────────────────────────────────────────────────────────── */}
+            {pinConfirmModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle2 className="w-9 h-9 text-green-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">Empleado creado</h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            <strong>{pinConfirmModal.name}</strong> ya tiene acceso al sistema.
+                        </p>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-2">PIN de acceso</p>
+                            <div className="flex items-center justify-center gap-3">
+                                <span className="text-4xl font-black tracking-[0.3em] text-slate-900 font-mono">
+                                    {pinConfirmModal.pin}
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(pinConfirmModal.pin);
+                                        setPinConfirmModal(m => m ? { ...m, copied: true } : null);
+                                    }}
+                                    className="text-xs text-teal-600 hover:text-teal-700 font-semibold border border-teal-200 hover:border-teal-400 px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    {pinConfirmModal.copied ? '✓ Copiado' : 'Copiar'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-left">
+                            <p className="text-xs text-amber-800 font-medium flex items-start gap-2">
+                                <span className="mt-0.5">⚠️</span>
+                                <span>Este PIN <strong>no se envía por correo</strong> por seguridad institucional. Entrégalo en persona al empleado antes de su primer turno.</span>
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setPinConfirmModal(null)}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 rounded-xl transition-colors"
+                        >
+                            Entendido, lo entrego en persona
+                        </button>
                     </div>
                 </div>
             )}

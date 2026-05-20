@@ -171,11 +171,14 @@ export async function POST(request: Request) {
                             
                             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
                             
-                            <h3 style="color: #0f172a; margin-bottom: 15px; font-size: 18px;">Tus Credenciales Seguras de Acceso:</h3>
+                            <h3 style="color: #0f172a; margin-bottom: 15px; font-size: 18px;">Tu Acceso Institucional:</h3>
                             <ul style="list-style: none; padding: 0; margin: 0;">
-                                <li style="margin-bottom: 10px; font-size: 15px; color: #475569;"> <strong>Usuario (Correo):</strong> <span style="font-family: monospace; font-size: 16px;">${cleanEmail}</span></li>
-                                <li style="margin-bottom: 20px; font-size: 15px; color: #475569;"> <strong>PIN Codificado:</strong> <span style="background-color: #f1f5f9; padding: 6px 12px; border-radius: 6px; font-family: monospace; font-size: 18px; font-weight: bold; color: #0f172a; border: 1px solid #cbd5e1; letter-spacing: 2px;">${pinCode || 'No asignado'}</span></li>
+                                <li style="margin-bottom: 10px; font-size: 15px; color: #475569;">📧 <strong>Usuario (Correo):</strong> <span style="font-family: monospace; font-size: 16px;">${cleanEmail}</span></li>
+                                <li style="margin-bottom: 20px; font-size: 15px; color: #475569;">🔐 <strong>PIN de Acceso:</strong> Tu administrador te lo entregará en persona antes de tu primer turno.</li>
                             </ul>
+                            <div style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; margin-top: 10px;">
+                                <p style="margin: 0; font-size: 13px; color: #92400e;">⚠️ Por seguridad institucional, tu PIN no se envía por correo electrónico. Solicítalo directamente a tu supervisor o Director de la sede.</p>
+                            </div>
                         </div>
                         
                         <div style="text-align: center; margin-top: 25px; color: #1F2D3A; font-size: 13px; padding-top: 15px; border-top: 1px dashed #C9D4D8;">
