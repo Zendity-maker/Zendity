@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 
 const ALLOWED_ROLES = ["NURSE", "SUPERVISOR", "DIRECTOR", "ADMIN"];
 
@@ -37,6 +38,7 @@ function PrintCellValue({ field, value }: { field: string; value: number | null 
 
 export default function VitalsPage() {
     const { user } = useAuth();
+    const { activeHqId } = useActiveHq();
     const router = useRouter();
     const [tab, setTab] = useState<"today" | "history">("today");
 
@@ -70,7 +72,7 @@ export default function VitalsPage() {
 
     // Fetch HQ info
     useEffect(() => {
-        const hqId = user?.hqId || user?.headquartersId;
+        const hqId = (activeHqId && activeHqId !== 'ALL') ? activeHqId : (user?.hqId || user?.headquartersId);
         if (!hqId) return;
         fetch(`/api/corporate?headquartersId=${hqId}`)
             .then(r => r.json())
@@ -90,8 +92,9 @@ export default function VitalsPage() {
 
     const fetchToday = useCallback(async () => {
         try {
+            const hqParam = (activeHqId && activeHqId !== 'ALL') ? `&hqId=${activeHqId}` : '';
             const today = new Date().toISOString().split("T")[0];
-            const res = await fetch(`/api/care/vitals?date=${today}`);
+            const res = await fetch(`/api/care/vitals?date=${today}${hqParam}`);
             const data = await res.json();
             if (data.success) {
                 setTodayVitals(data.vitals || []);
@@ -109,7 +112,7 @@ export default function VitalsPage() {
         fetchToday();
         const interval = setInterval(fetchToday, 30000);
         return () => clearInterval(interval);
-    }, [fetchToday]);
+    }, [fetchToday, activeHqId]);
 
     useEffect(() => {
         if (activePatients.length > 0) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -9,6 +10,7 @@ import { CheckCircle2, Loader2, Star } from "lucide-react";
 
 export default function KitchenDashboard() {
     const { user, logout } = useAuth();
+    const { activeHqId } = useActiveHq();
     const router = useRouter();
 
     const [loading, setLoading] = useState(true);
@@ -36,11 +38,14 @@ export default function KitchenDashboard() {
         }
         fetchDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    }, [user, activeHqId]);
 
     const fetchDashboard = async () => {
         try {
-            const res = await fetch(`/api/kitchen/dashboard?hqId=${(user as any)?.headquartersId || (user as any)?.hqId}`);
+            const hq = (activeHqId && activeHqId !== 'ALL')
+                ? activeHqId
+                : ((user as any)?.headquartersId || (user as any)?.hqId);
+            const res = await fetch(`/api/kitchen/dashboard?hqId=${hq}`);
             const data = await res.json();
             if (data.success) {
                 setActivePatients(data.activePatients);

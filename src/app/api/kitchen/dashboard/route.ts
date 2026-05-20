@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { searchParams } = new URL(request.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
 
         const [activePatients, hospitalPatients, observations, todayMenu] = await Promise.all([
             prisma.patient.findMany({

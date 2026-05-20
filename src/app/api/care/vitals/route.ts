@@ -6,6 +6,9 @@ import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 // ── Schemas Zod con rangos clínicos plausibles ──
 // Acepta ints o numeric strings y los convierte a número.
@@ -54,7 +57,12 @@ export async function GET(req: Request) {
     try {
         const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE']);
         if (auth instanceof NextResponse) return auth;
-        const hqId = auth.headquartersId;
+
+        // Respeta el switcher de sede para directores multi-HQ
+        const session = await getServerSession(authOptions);
+        const requestedHqId = new URL(req.url).searchParams.get('hqId');
+        const hqId = await resolveEffectiveHqId(session!, requestedHqId);
+
         const { searchParams } = new URL(req.url);
         const patientId = searchParams.get('patientId');
 
