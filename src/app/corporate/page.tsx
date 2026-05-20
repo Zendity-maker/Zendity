@@ -497,12 +497,12 @@ export default function CorporateDashboardPage() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* 0. Zendi Director Briefing (solo DIRECTOR/ADMIN) */}
             {isDirector && (
-                <div className="bg-gradient-to-br from-[#0F6B78]/5 via-white to-[#E5A93D]/5 border border-[#0F6B78]/20 rounded-2xl p-5 shadow-sm">
-                    <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <div className="bg-gradient-to-br from-[#0F6B78]/5 via-white to-[#E5A93D]/5 border border-[#0F6B78]/20 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-[#0F6B78] text-white flex items-center justify-center">
                                 <Sparkles size={20} />
@@ -603,27 +603,33 @@ export default function CorporateDashboardPage() {
             )}
 
             {/* 1. Header & Global Selector */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard Gerencial</h1>
-                    <p className="text-slate-500 mt-1">Visión consolidada y mando central de todas las dependencias.</p>
+                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard Gerencial</h1>
+                    <p className="text-xs text-slate-500 mt-0.5">Visión consolidada y mando central de todas las dependencias.</p>
                 </div>
 
                 <div className="flex items-center space-x-4">
                     {canSelectFacility ? (
-                        <div className="relative">
-                            <select
-                                value={selectedFacility}
-                                onChange={(e) => setSelectedFacility(e.target.value)}
-                                className="appearance-none bg-white border border-slate-200 text-slate-800 text-sm rounded-xl font-bold px-4 py-2.5 pr-10 hover:border-teal-400 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-all cursor-pointer"
-                            >
-                                {facilities.map(f => (
-                                    <option key={f.id} value={f.id}>{f.name}</option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
+                        /* Segmented chips — una por sede + "Todas" */
+                        <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl p-1 shadow-sm">
+                            {facilities.map(f => {
+                                const isActive = selectedFacility === f.id;
+                                const label = f.name.trim().replace('Consolidado Global (Todas las Sedes)', 'Todas').replace('Vivid Senior Living ', '');
+                                return (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setSelectedFacility(f.id)}
+                                        className={`text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                                            isActive
+                                                ? 'bg-[#0F6B78] text-white shadow-sm'
+                                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : facilities.length > 0 && (
                         <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl font-bold px-4 py-2.5 inline-flex items-center gap-2 shadow-sm">
@@ -635,11 +641,11 @@ export default function CorporateDashboardPage() {
                     {/* Botón Bandeja Family Link */}
                     <button
                         onClick={() => { setShowInbox(true); setActiveThread(null); }}
-                        className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                        className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
                     >
-                        <MessageSquare className="w-4 h-4" /> Chats Familiares
+                        <MessageSquare className="w-3.5 h-3.5" /> Chats Familiares
                         {inboxThreads.some(t => t.unreadCount > 0) && (
-                            <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white text-xs font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                            <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
                                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
                             </span>
                         )}
@@ -648,26 +654,26 @@ export default function CorporateDashboardPage() {
                     {/* Botón Chat Staff (Sprint G-C) */}
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('zendity:open-staff-chat'))}
-                        className="relative bg-[#0F6B78] hover:bg-[#0d5a66] text-white border border-[#0F6B78] font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                        className="relative bg-[#0F6B78] hover:bg-[#0d5a66] text-white border border-[#0F6B78] font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
                         title="Chat interno del equipo"
                     >
-                        <Radio className="w-4 h-4" /> Chat Staff
+                        <Radio className="w-3.5 h-3.5" /> Chat Staff
                     </button>
 
-                    <Link href="/corporate/hr" className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        Directorio RRHH
+                    <Link href="/corporate/hr" className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        RRHH
                     </Link>
 
-                    <Link href="/corporate/triage" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Centro de Triage
+                    <Link href="/corporate/triage" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Triage
                     </Link>
                 </div>
             </div>
 
             {/* 2. Top-Level KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {[
                     {
                         label: "Sedes Activas",
@@ -714,26 +720,26 @@ export default function CorporateDashboardPage() {
                         sparkColor: '#7C3AED',
                     }
                 ].map((kpi: any, i) => (
-                    <div key={i} className={`rounded-2xl p-5 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
+                    <div key={i} className={`rounded-xl p-4 border shadow-sm ${kpi.color} transition-all hover:shadow-md`}>
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-wider opacity-80">{kpi.label}</p>
-                                <h3 className="text-3xl font-black mt-1">{kpi.value}</h3>
+                                <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{kpi.label}</p>
+                                <h3 className="text-2xl font-black mt-0.5">{kpi.value}</h3>
                             </div>
                             {kpi.delta !== null && (
-                                <div className="mt-1">
+                                <div className="mt-0.5">
                                     <DeltaPill value={kpi.delta} suffix={kpi.deltaSuffix} inverted={kpi.deltaInverted} />
                                 </div>
                             )}
                         </div>
-                        <div className="mt-3 flex items-end justify-between gap-3">
-                            <p className="text-xs font-medium opacity-90 flex-1">{kpi.sub}</p>
+                        <div className="mt-2 flex items-end justify-between gap-2">
+                            <p className="text-[11px] font-medium opacity-90 flex-1 leading-tight">{kpi.sub}</p>
                             {kpi.sparkData && Array.isArray(kpi.sparkData) && kpi.sparkData.length >= 2 && (
                                 <Sparkline
                                     data={kpi.sparkData}
                                     color={kpi.sparkColor}
-                                    width={90}
-                                    height={28}
+                                    width={80}
+                                    height={24}
                                 />
                             )}
                         </div>
@@ -742,8 +748,8 @@ export default function CorporateDashboardPage() {
             </div>
 
             {/* 2.25 Sala de mando — "En este momento" (Sprint G-C) */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <div>
                         <h3 className="text-lg font-bold text-[#1F2D3A] tracking-tight flex items-center gap-2">
                             <Radio size={18} className="text-[#0F6B78]" /> En este momento
@@ -1402,74 +1408,131 @@ export default function CorporateDashboardPage() {
                 </div>
             </div>
 
-            {/* INBOX MODAL (Family Link) FASE 13 */}
+            {/* FAMILY LINK — SIDE PANEL (drawer lateral derecho, no interrumpe el dashboard) */}
             {showInbox && (
-                <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl relative">
-                        <button onClick={() => setShowInbox(false)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 text-slate-500 rounded-full font-bold">X</button>
-                        <h3 className="text-3xl font-black text-slate-900 mb-6 flex items-center gap-3"> Centro de Mensajes</h3>
+                <>
+                    {/* Backdrop sutil — click fuera cierra el panel */}
+                    <div
+                        className="fixed inset-0 bg-slate-900/25 z-40 backdrop-blur-[2px]"
+                        onClick={() => { setShowInbox(false); setActiveThread(null); }}
+                    />
 
-                        <div className="flex flex-col h-[600px] -mt-4">
-                            {!activeThread ? (
-                                <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                                    <p className="text-sm font-bold text-slate-500 mb-4 px-1">Consultas y Requerimientos de Familiares</p>
-                                    {inboxThreads.length === 0 ? (
-                                        <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 font-bold">Sin mensajes hoy. </div>
-                                    ) : (
-                                        inboxThreads.map((thread: any, idx) => (
-                                            <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
-                                                <div>
-                                                    <h4 className="font-black text-slate-800 text-lg group-hover:text-teal-600">{thread.patient.name}</h4>
-                                                    <p className="text-xs text-slate-500 font-bold uppercase">Cuarto {thread.patient.room}  {thread.messages.length} Mensajes Totales</p>
-                                                </div>
-                                                {thread.unreadCount > 0 && (
-                                                    <span className="bg-rose-500 text-white font-black text-sm px-3 py-1 rounded-full">{thread.unreadCount} Nuevos</span>
-                                                )}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col h-full bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative">
-                                    {/* Hilo Específico */}
-                                    <div className="p-4 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-                                        <button onClick={() => { setActiveThread(null); fetchMessages(); }} className="text-slate-500 hover:text-slate-800 font-bold px-2 py-1 bg-slate-100 rounded-lg">← Volver</button>
-                                        <span className="font-black text-slate-800 text-lg">{activeThread.patient.name}</span>
-                                    </div>
+                    {/* Panel lateral */}
+                    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-[440px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
 
-                                    <div className="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col">
-                                        {activeThread.messages.map((msg: any) => {
-                                            const isStaff = msg.senderType === 'STAFF';
-                                            return (
-                                                <div key={msg.id} className={`max-w-[85%] p-4 rounded-2xl ${isStaff ? 'bg-teal-600 text-white self-end rounded-br-none shadow-md' : 'bg-white border border-slate-200 text-slate-800 self-start rounded-bl-none shadow-sm'}`}>
-                                                    <p className="text-sm font-medium">{msg.content}</p>
-                                                    <div className={`text-[10px] mt-2 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-500'}`}>
-                                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {isStaff && ''}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="p-4 bg-white border-t border-slate-200">
-                                        <form onSubmit={(e) => { e.preventDefault(); sendReply(activeThread.patient.id); }} className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                value={replyContent}
-                                                onChange={(e) => setReplyContent(e.target.value)}
-                                                placeholder="Escribe una respuesta autorizada..."
-                                                className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
-                                            />
-                                            <button type="submit" disabled={sendingReply || !replyContent.trim()} className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-black px-6 rounded-xl shadow-md transition-all">
-                                                Enviar
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            )}
+                        {/* Header del panel */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white shrink-0">
+                            <div className="flex items-center gap-2">
+                                {activeThread && (
+                                    <button
+                                        onClick={() => { setActiveThread(null); fetchMessages(); }}
+                                        className="text-slate-500 hover:text-slate-800 font-bold px-2 py-1 bg-slate-100 rounded-lg text-sm mr-1"
+                                    >
+                                        ← Volver
+                                    </button>
+                                )}
+                                <MessageSquare className="w-5 h-5 text-[#0F6B78]" />
+                                <h3 className="text-base font-black text-slate-900 leading-tight">
+                                    {activeThread ? activeThread.patient.name : 'Chats Familiares'}
+                                </h3>
+                                {!activeThread && inboxThreads.some((t: any) => t.unreadCount > 0) && (
+                                    <span className="bg-rose-500 text-white font-black text-xs px-2 py-0.5 rounded-full ml-1">
+                                        {inboxThreads.reduce((acc: number, t: any) => acc + t.unreadCount, 0)} nuevos
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => { setShowInbox(false); setActiveThread(null); }}
+                                className="w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full flex items-center justify-center transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
+
+                        {/* Lista de hilos */}
+                        {!activeThread && (
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2">
+                                    Consultas y Requerimientos de Familiares
+                                </p>
+                                {inboxThreads.length === 0 ? (
+                                    <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 font-bold text-sm">
+                                        Sin mensajes hoy.
+                                    </div>
+                                ) : (
+                                    inboxThreads.map((thread: any, idx: number) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => { setActiveThread(thread); fetchMessages(); }}
+                                            className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group"
+                                        >
+                                            <div>
+                                                <h4 className="font-black text-slate-800 group-hover:text-teal-600">{thread.patient.name}</h4>
+                                                <p className="text-xs text-slate-500 font-bold uppercase mt-0.5">
+                                                    Cuarto {thread.patient.room} · {thread.messages.length} mensajes
+                                                </p>
+                                            </div>
+                                            {thread.unreadCount > 0 && (
+                                                <span className="bg-rose-500 text-white font-black text-xs px-2.5 py-1 rounded-full shrink-0">
+                                                    {thread.unreadCount} Nuevos
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Hilo activo — burbuja de mensajes */}
+                        {activeThread && (
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col bg-slate-50">
+                                {activeThread.messages.map((msg: any) => {
+                                    const isStaff = msg.senderType === 'STAFF';
+                                    return (
+                                        <div
+                                            key={msg.id}
+                                            className={`max-w-[85%] p-3.5 rounded-2xl ${isStaff
+                                                ? 'bg-[#0F6B78] text-white self-end rounded-br-none shadow-md'
+                                                : 'bg-white border border-slate-200 text-slate-800 self-start rounded-bl-none shadow-sm'
+                                            }`}
+                                        >
+                                            <p className="text-sm font-medium leading-relaxed">{msg.content}</p>
+                                            <div className={`text-[10px] mt-1.5 font-bold text-right ${isStaff ? 'text-teal-200' : 'text-slate-400'}`}>
+                                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {isStaff && ' ✓'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Caja de respuesta — solo en hilo activo */}
+                        {activeThread && (
+                            <div className="p-4 bg-white border-t border-slate-200 shrink-0">
+                                <form
+                                    onSubmit={(e) => { e.preventDefault(); sendReply(activeThread.patient.id); }}
+                                    className="flex gap-2"
+                                >
+                                    <input
+                                        type="text"
+                                        value={replyContent}
+                                        onChange={(e) => setReplyContent(e.target.value)}
+                                        placeholder="Escribe una respuesta autorizada..."
+                                        className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 text-sm font-medium rounded-xl focus:ring-2 focus:ring-teal-500 outline-none"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={sendingReply || !replyContent.trim()}
+                                        className="bg-[#0F6B78] hover:bg-[#0d5a66] disabled:bg-slate-300 text-white font-black px-5 rounded-xl shadow-md transition-all"
+                                    >
+                                        Enviar
+                                    </button>
+                                </form>
+                            </div>
+                        )}
                     </div>
-                </div>
+                </>
             )}
         </div>
     );
