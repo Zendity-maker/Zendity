@@ -248,7 +248,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                                 setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, status: "PAID", paidAt: new Date().toISOString() } : i)));
                             }
                         }} />}
-                        {tab === "pipeline" && <PipelineTab prospects={prospects} setProspects={setProspects} />}
+                        {tab === "pipeline" && <PipelineTab prospects={prospects} setProspects={setProspects} onSedeCreated={(s) => setSedes((prev) => [s, ...prev])} />}
                         {tab === "sedes" && <SedesTab sedes={sedes} onCreated={(s) => setSedes((prev) => [s, ...prev])} />}
                         {tab === "comunicaciones" && (
                             <CommsTab
@@ -387,13 +387,16 @@ function OverviewTab({
 function PipelineTab({
     prospects,
     setProspects,
+    onSedeCreated,
 }: {
     prospects: Prospect[];
     setProspects: React.Dispatch<React.SetStateAction<Prospect[]>>;
+    onSedeCreated: (s: Sede) => void;
 }) {
     const [filter, setFilter] = useState<string>("ALL");
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+    const [convertingProspect, setConvertingProspect] = useState<Prospect | null>(null);
 
     const filtered = useMemo(() => {
         if (filter === "ALL") return prospects;
@@ -498,6 +501,7 @@ function PipelineTab({
                                     prospect={p}
                                     onUpdate={(patch) => updateProspect(p.id, patch)}
                                     onDelete={() => { deleteProspect(p.id); setExpandedId(null); }}
+                                    onConvert={() => setConvertingProspect(p)}
                                 />
                             )}
                         </div>
@@ -514,6 +518,29 @@ function PipelineTab({
                     onCreated={(p) => { setProspects((prev) => [p, ...prev]); setModalOpen(false); }}
                 />
             )}
+
+            {convertingProspect && (
+                <NewSedeModal
+                    prefill={{
+                        name: convertingProspect.name,
+                        directorName: convertingProspect.contactName ?? "",
+                        directorEmail: convertingProspect.email ?? "",
+                        ownerPhone: convertingProspect.phone ?? "",
+                        plan: convertingProspect.planInterest ?? "PRO",
+                        capacity: convertingProspect.estimatedBeds?.toString() ?? "50",
+                        beds: convertingProspect.estimatedBeds?.toString() ?? "",
+                    }}
+                    prospectId={convertingProspect.id}
+                    onClose={() => setConvertingProspect(null)}
+                    onCreated={(s) => {
+                        onSedeCreated(s);
+                        // Marcar prospecto como CERRADO en la lista local
+                        updateProspect(convertingProspect.id, { stage: "CERRADO" });
+                        setConvertingProspect(null);
+                        setExpandedId(null);
+                    }}
+                />
+            )}
         </div>
     );
 }
@@ -522,10 +549,12 @@ function ProspectEditor({
     prospect,
     onUpdate,
     onDelete,
+    onConvert,
 }: {
     prospect: Prospect;
     onUpdate: (patch: Partial<Prospect>) => void;
     onDelete: () => void;
+    onConvert: () => void;
 }) {
     const [draft, setDraft] = useState({
         stage: prospect.stage,
@@ -647,6 +676,22 @@ function ProspectEditor({
                 <button onClick={preparePitch} className="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm font-bold hover:bg-slate-700 transition flex items-center gap-2">
                     <Target className="w-4 h-4" /> Preparar pitch
                 </button>
+
+                {/* ── Conversión a sede activa ── */}
+                {prospect.stage !== "CERRADO" && (
+                    <button
+                        onClick={onConvert}
+                        className="px-4 py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-bold border border-emerald-500/30 hover:bg-emerald-500/20 transition flex items-center gap-2"
+                    >
+                        <Building2 className="w-4 h-4" /> Convertir en cliente →
+                    </button>
+                )}
+                {prospect.stage === "CERRADO" && (
+                    <span className="px-3 py-2 rounded-lg bg-emerald-500/5 text-emerald-600 text-xs font-bold border border-emerald-500/10 flex items-center gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Cliente activo
+                    </span>
+                )}
+
                 <button
                     onClick={async () => {
                         if (!confirm(`¿Eliminar "${prospect.name}" del pipeline? Esta acción no se puede deshacer.`)) return;
@@ -998,20 +1043,42 @@ function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) =>
     );
 }
 
-function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: (s: Sede) => void }) {
+type SedeFormPrefill = {
+    name?: string;
+    directorName?: string;
+    directorEmail?: string;
+    ownerPhone?: string;
+    plan?: string;
+    capacity?: string;
+    beds?: string;
+};
+
+function NewSedeModal({
+    onClose,
+    onCreated,
+    prefill,
+    prospectId,
+}: {
+    onClose: () => void;
+    onCreated: (s: Sede) => void;
+    prefill?: SedeFormPrefill;
+    prospectId?: string;
+}) {
+    const isConversion = !!prospectId;
+
     const [form, setForm] = useState({
-        name: "",
-        capacity: "50",
+        name: prefill?.name ?? "",
+        capacity: prefill?.capacity ?? "50",
         licenseMonths: "12",
-        directorName: "",
-        directorEmail: "",
+        directorName: prefill?.directorName ?? "",
+        directorEmail: prefill?.directorEmail ?? "",
         directorPinCode: "",
-        ownerPhone: "",
+        ownerPhone: prefill?.ownerPhone ?? "",
         taxId: "",
         billingAddress: "",
-        plan: "PRO",
+        plan: prefill?.plan ?? "PRO",
         pricePerBed: "",
-        beds: "",
+        beds: prefill?.beds ?? "",
         monthlyAmount: "",
     });
     const [loading, setLoading] = useState(false);
@@ -1029,7 +1096,14 @@ function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             });
             const data = await res.json();
             if (data.success) {
-                // reconstruir el objeto Sede con defaults mínimos — el GET /sedes se volverá a hacer al recargar
+                // Si viene de un prospecto, marcarlo como CERRADO
+                if (prospectId) {
+                    await fetch(`/api/admin/prospects/${prospectId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ stage: "CERRADO" }),
+                    });
+                }
                 const hq = data.onboarding.hq;
                 onCreated({
                     ...hq,
@@ -1058,12 +1132,18 @@ function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             >
                 <header className="sticky top-0 bg-slate-900/95 backdrop-blur border-b border-slate-800 p-5 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] flex items-center justify-center">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isConversion ? "bg-gradient-to-br from-emerald-600 to-[#3CC6C4]" : "bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4]"}`}>
                             <Building2 className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-white">Nueva Sede</h2>
-                            <p className="text-xs text-slate-500">Onboarding atómico: HQ + Director + Contrato</p>
+                            <h2 className="text-lg font-black text-white">
+                                {isConversion ? `Activar sede — ${form.name}` : "Nueva Sede"}
+                            </h2>
+                            <p className="text-xs text-slate-500">
+                                {isConversion
+                                    ? "Datos pre-llenados desde el pipeline — revisa y completa"
+                                    : "Onboarding atómico: HQ + Director + Contrato"}
+                            </p>
                         </div>
                     </div>
                     <button type="button" onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white">
@@ -1073,6 +1153,19 @@ function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
                 <div className="p-5 space-y-5">
                     {error && <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-xl p-3 text-sm">{error}</div>}
+
+                    {isConversion && (
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-start gap-3">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                            <div className="text-sm">
+                                <p className="font-bold text-emerald-300">Datos pre-llenados desde el pipeline</p>
+                                <p className="text-emerald-400/70 text-xs mt-1">
+                                    Revisa nombre, contacto y plan. Solo falta el <strong>PIN inicial</strong> y opcionalmente los datos del contrato.
+                                    Al confirmar se crea la cuenta del Director y se le envía el email de bienvenida automáticamente.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     <Section title="Sede">
                         <div className="grid grid-cols-2 gap-3">
@@ -1109,9 +1202,17 @@ function NewSedeModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
                 <footer className="sticky bottom-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 p-4 flex items-center justify-end gap-2">
                     <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-slate-800">Cancelar</button>
-                    <button type="submit" disabled={loading} className="px-5 py-2 rounded-lg bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2">
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        {loading ? "Creando..." : "Crear sede"}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`px-5 py-2 rounded-lg text-white text-sm font-bold disabled:opacity-50 flex items-center gap-2 ${
+                            isConversion
+                                ? "bg-gradient-to-r from-emerald-600 to-[#3CC6C4] shadow-lg shadow-emerald-500/20"
+                                : "bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] shadow-lg shadow-[#3CC6C4]/20"
+                        }`}
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4 h-4" />}
+                        {loading ? "Activando…" : isConversion ? "Activar sede y notificar director" : "Crear sede"}
                     </button>
                 </footer>
             </form>
