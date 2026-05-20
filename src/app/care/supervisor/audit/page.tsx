@@ -25,6 +25,8 @@ interface AuditEntry {
 interface PatientAudit {
     id: string; name: string; room: string; colorGroup: string;
     hasActiveUPP: boolean;
+    isAway?: boolean;
+    leaveType?: 'HOSPITAL' | 'DIALYSIS' | 'OTHER' | null;
     entries: AuditEntry[];
     gaps: { label: string; severity: 'warn' | 'critical' }[];
     counts: Record<string, number>;
@@ -92,6 +94,13 @@ function PatientCard({ p }: { p: PatientAudit }) {
                         <p className="text-[11px] text-slate-500 font-medium">
                             Hab. {p.room} · Grupo {COLOR_LABEL[p.colorGroup] || p.colorGroup}
                             {p.hasActiveUPP && <span className="ml-1 text-orange-600 font-bold">· UPP Activa</span>}
+                            {p.isAway && (
+                                <span className="ml-2 inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-black text-[10px]">
+                                    {p.leaveType === 'HOSPITAL' ? '🏥 Hospital' :
+                                     p.leaveType === 'DIALYSIS' ? '🩺 Diálisis' :
+                                     '✈️ Fuera del hogar'}
+                                </span>
+                            )}
                         </p>
                     </div>
                 </div>

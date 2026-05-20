@@ -89,6 +89,10 @@ export async function GET(req: Request) {
             },
             select: {
                 id: true, name: true, colorGroup: true, roomNumber: true,
+                // status + leaveType para excluir de brechas a quien está fuera
+                // del hogar (HOSPITAL, DIALYSIS, OTHER). Un residente en hospital
+                // no puede tener "baño no registrado" — no está en la sede.
+                status: true, leaveType: true,
                 pressureUlcers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 }
             },
             orderBy: { roomNumber: 'asc' }
@@ -380,39 +384,51 @@ export async function GET(req: Request) {
             // ── Brechas (gaps) ─────────────────────────────────────────────
             const gaps: { label: string; severity: 'warn' | 'critical' }[] = [];
 
-            // Sin atención en todo el turno
-            if (entries.length === 0) {
-                gaps.push({ label: 'Sin actividad registrada en este turno', severity: 'critical' });
-            }
+            // Residentes fuera del hogar (HOSPITAL/DIALYSIS/OTHER) NO generan
+            // brechas: no están físicamente en la sede para recibir cuidados.
+            // Se muestra solo un badge informativo y se omite toda evaluación.
+            const isAway = (patient as any).status === 'TEMPORARY_LEAVE';
+            const leaveType = (patient as any).leaveType as string | null;
 
-            // Sin baño (solo turno diurno y vespertino)
-            if (!isNight && baths.filter(b => b.patientId === pid).length === 0) {
-                gaps.push({ label: 'Baño no registrado', severity: 'warn' });
-            }
+            if (isAway) {
+                // No agregamos a gaps — el residente no está disponible.
+                // El frontend muestra el badge "🏥 Hospital" / "🩺 Diálisis" según leaveType.
+            } else {
+                // Sin atención en todo el turno
+                if (entries.length === 0) {
+                    gaps.push({ label: 'Sin actividad registrada en este turno', severity: 'critical' });
+                }
 
-            // Sin comida registrada (turno diurno)
-            if (shiftType === 'MORNING') {
-                const hasMeal = meals.some(m => m.patientId === pid);
-                if (!hasMeal) gaps.push({ label: 'Ninguna comida registrada (turno AM)', severity: 'warn' });
-            }
+                // Sin baño — SOLO turno AM (la ventana de baño cierra a las 10am,
+                // ningún otro turno tiene baño obligatorio en el protocolo).
+                if (shiftType === 'MORNING' && baths.filter(b => b.patientId === pid).length === 0) {
+                    gaps.push({ label: 'Baño no registrado (ventana AM hasta 10am)', severity: 'warn' });
+                }
 
-            // Meds omitidos sin justificación
-            const omitSinJust = medsOmitted.filter(m =>
-                m.patientMedication?.patientId === pid && (!m.notes || m.notes.trim().length < 5)
-            );
-            if (omitSinJust.length > 0) {
-                gaps.push({ label: `${omitSinJust.length} medicamento(s) omitido(s) sin justificación`, severity: 'critical' });
-            }
+                // Sin comida registrada (turno diurno)
+                if (shiftType === 'MORNING') {
+                    const hasMeal = meals.some(m => m.patientId === pid);
+                    if (!hasMeal) gaps.push({ label: 'Ninguna comida registrada (turno AM)', severity: 'warn' });
+                }
 
-            // Residente con UPP activa y sin rotaciones
-            if (hasActiveUPP && rotations.filter(r => r.patientId === pid).length === 0) {
-                gaps.push({ label: 'Úlcera activa (UPP) — sin rotaciones posturales registradas', severity: 'critical' });
-            }
+                // Meds omitidos sin justificación
+                const omitSinJust = medsOmitted.filter(m =>
+                    m.patientMedication?.patientId === pid && (!m.notes || m.notes.trim().length < 5)
+                );
+                if (omitSinJust.length > 0) {
+                    gaps.push({ label: `${omitSinJust.length} medicamento(s) omitido(s) sin justificación`, severity: 'critical' });
+                }
 
-            // Rotaciones tardías
-            const lateRotations = rotations.filter(r => r.patientId === pid && r.isComplianceAlert);
-            if (lateRotations.length > 0) {
-                gaps.push({ label: `${lateRotations.length} rotación(es) fuera de tiempo`, severity: 'warn' });
+                // Residente con UPP activa y sin rotaciones
+                if (hasActiveUPP && rotations.filter(r => r.patientId === pid).length === 0) {
+                    gaps.push({ label: 'Úlcera activa (UPP) — sin rotaciones posturales registradas', severity: 'critical' });
+                }
+
+                // Rotaciones tardías
+                const lateRotations = rotations.filter(r => r.patientId === pid && r.isComplianceAlert);
+                if (lateRotations.length > 0) {
+                    gaps.push({ label: `${lateRotations.length} rotación(es) fuera de tiempo`, severity: 'warn' });
+                }
             }
 
             return {
@@ -421,6 +437,10 @@ export async function GET(req: Request) {
                 room: patient.roomNumber || '—',
                 colorGroup: patient.colorGroup,
                 hasActiveUPP,
+                // Estado físico: si está fuera del hogar el frontend muestra
+                // un badge informativo y no espera brechas.
+                isAway,
+                leaveType: isAway ? leaveType : null,
                 entries,
                 gaps,
                 counts: {
