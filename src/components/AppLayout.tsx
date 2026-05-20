@@ -46,6 +46,7 @@ const corporateNavigationSections = [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
             { name: "Triage Center", href: "/corporate/triage", icon: ShieldAlert },
             { name: "Incidentes Clínicos", href: "/corporate/incidents", icon: AlertTriangle },
+            { name: "Runbook Operacional", href: "/corporate/runbook", icon: FileText },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
             { name: "Limpieza & Sanitización", href: "/corporate/cleaning", icon: SprayCan },
             { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },

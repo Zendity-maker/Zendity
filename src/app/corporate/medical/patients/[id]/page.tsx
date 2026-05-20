@@ -426,6 +426,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <Link href={`/care/patient/emar-print?patientId=${patientData.id}`} target="_blank" className="flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Auditoría eMAR
                                 </Link>
+                                <Link href={`/corporate/patients/${patientData.id}/emergency-print`} target="_blank" className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                    🆘 Tarjeta de Emergencia
+                                </Link>
                                 <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal
                                 </button>
