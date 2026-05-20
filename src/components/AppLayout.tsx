@@ -17,7 +17,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield
+    Shield, QrCode
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -98,6 +98,7 @@ const corporateNavigationSections = [
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
+            { name: "Configurar Kiosco", href: "/corporate/reception-setup", icon: QrCode, requiredRoles: ["DIRECTOR", "ADMIN"] },
         ]
     },
     {
