@@ -45,6 +45,7 @@ export default function ReceptionKiosk() {
     const hqId = searchParams?.get('hqId') || null;
 
     const [step, setStep] = useState<KioskStep>("welcome");
+    const [hqName, setHqName] = useState("Zéndity");
 
     // Display states (usados en JSX para mostrar nombres)
     const [residentName, setResidentName] = useState("");
@@ -249,10 +250,20 @@ export default function ReceptionKiosk() {
         });
     };
 
+    // ── Cargar nombre de la sede al montar ───────────────────────────────────
+    useEffect(() => {
+        if (!hqId) return;
+        fetch(`/api/reception/hq-info?hqId=${encodeURIComponent(hqId)}`)
+            .then(r => r.json())
+            .then(d => { if (d.name) setHqName(d.name); })
+            .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hqId]);
+
     // ── Bienvenida al montar — solo una vez ─────────────────────────────────
     useEffect(() => {
         const timer = setTimeout(() => {
-            speak('Bienvenido a Vivid Senior Living Coo-peh-y. Soy Zendi, su asistente de recepción.');
+            speak(`Bienvenido a ${hqName}. Soy Zendi, su asistente de recepción.`);
         }, 800);
         return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -468,7 +479,7 @@ export default function ReceptionKiosk() {
             {/* Header */}
             <div className="w-full max-w-2xl mb-6 text-center">
                 <h1 className="text-white font-black text-3xl tracking-wide mb-1">
-                    Vivid Senior Living Cupey
+                    {hqName}
                 </h1>
                 <p className="text-teal-400 text-sm font-medium tracking-widest uppercase">
                     Recepción · Powered by Zéndity
