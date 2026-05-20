@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useActiveHq } from '@/contexts/ActiveHqContext';
 import { FileSignature, Users, AlertOctagon, ActivitySquare, Info, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,7 +25,11 @@ interface Handover {
 
 export default function HandoversPage() {
     const { user } = useAuth();
-    const activeHqId = user?.headquartersId || user?.hqId;
+    const { activeHqId: contextHqId } = useActiveHq();
+    // Prefiere el switcher de sede (contextHqId) sobre el JWT del usuario
+    const activeHqId = (contextHqId && contextHqId !== 'ALL')
+        ? contextHqId
+        : (user?.headquartersId || user?.hqId);
     const [handovers, setHandovers] = useState<Handover[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -61,7 +66,7 @@ export default function HandoversPage() {
 
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/medical/handovers?headquartersId=${activeHqId}`);
+            const res = await fetch(`/api/medical/handovers?hqId=${activeHqId}`);
             if (res.ok) {
                 const data = await res.json();
                 setHandovers(data);
@@ -75,7 +80,7 @@ export default function HandoversPage() {
 
     useEffect(() => {
         if (user !== undefined) fetchHandovers();
-    }, [activeHqId, user]);
+    }, [activeHqId, contextHqId, user]);
 
     // -- ABRIR MODAL & CARGAR DATA --
     const handleOpenModal = async () => {

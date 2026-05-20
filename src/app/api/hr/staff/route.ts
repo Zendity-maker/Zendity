@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 // Inicializar SendGrid
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -18,7 +19,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const hqId = session.user.headquartersId;
+        const requestedHqId = new URL(request.url).searchParams.get('hqId');
+        const hqId = await resolveEffectiveHqId(session, requestedHqId);
 
         const staff = await prisma.user.findMany({
             where: { headquartersId: hqId, isActive: true },
@@ -96,7 +98,8 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         const { name, email, role, secondaryRoles, pinCode } = body;
-        const hqId = session.user.headquartersId;
+        // hqId del body (cliente multi-sede) o fallback al JWT
+        const hqId = await resolveEffectiveHqId(session, body.hqId || null);
 
         if (!name || !email || !role) {
             return NextResponse.json({ error: 'Missing fields' }, { status: 400 });

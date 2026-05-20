@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 
 interface Medication { id: string; name: string; dosage: string; }
@@ -9,6 +10,7 @@ interface Patient { id: string; name: string; roomNumber: string; colorGroup: st
 
 export default function ZendityMedPage() {
     const { user } = useAuth();
+    const { activeHqId } = useActiveHq();
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('MAR'); // MAR, OCR, CART
@@ -34,7 +36,7 @@ export default function ZendityMedPage() {
 
     useEffect(() => {
         fetchPatients();
-    }, []);
+    }, [activeHqId]);
 
     // Deep-link desde la ficha del residente: ?addForPatient=<id>
     // pre-abre el modal de "Añadir Medicamento" con el paciente seleccionado.
@@ -53,7 +55,9 @@ export default function ZendityMedPage() {
 
     const fetchPatients = async () => {
         try {
-            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
+            const hq = (activeHqId && activeHqId !== 'ALL')
+                ? activeHqId
+                : (user?.hqId || user?.headquartersId || "hq-demo-1");
             const res = await fetch(`/api/med?hqId=${hq}`);
             const data = await res.json();
             if (data.success) {

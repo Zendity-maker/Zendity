@@ -2,21 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
-// Obtener los Relevos de Guardia (filtrados por la sede del invocador)
-export async function GET() {
+// Obtener los Relevos de Guardia (filtrados por la sede activa del invocador)
+export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
         const invokerRole = (session.user as any).role;
-        const hqId = (session.user as any).headquartersId;
         if (!ALLOWED_ROLES.includes(invokerRole)) {
             return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
         }
+        // Respeta el switcher de sede para DIRECTOR/ADMIN multi-HQ
+        const requestedHqId = new URL(request.url).searchParams.get('hqId');
+        const hqId = await resolveEffectiveHqId(session, requestedHqId);
 
         // Auto-cierre: si el cuidador firmó (signedOutAt) el relevo debería ser ACCEPTED.
         // Nueva política: firma del cuidador = suficiente. Migra todos los PENDING con firma.

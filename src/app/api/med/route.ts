@@ -2,23 +2,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 // Cualquier rol staff — FAMILY no.
 const STAFF_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER', 'KITCHEN', 'MAINTENANCE'];
 const POST_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 // GET: Fetch all pending medications para la sede del invocador
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
         const invokerRole = (session.user as any).role;
-        const hqId = (session.user as any).headquartersId;
         if (!STAFF_ROLES.includes(invokerRole)) {
             return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
         }
+        // Respeta el switcher de sede para DIRECTOR/ADMIN multi-HQ
+        const requestedHqId = new URL(request.url).searchParams.get('hqId');
+        const hqId = await resolveEffectiveHqId(session, requestedHqId);
 
         // FIX (bug Wilfredo): antes devolvíamos sólo patientMedication.findMany,
         // lo que ocultaba a TODOS los residentes sin meds asignadas (recién

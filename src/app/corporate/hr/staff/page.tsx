@@ -7,6 +7,7 @@ import {
     Users, Plus, Shield, Mail, Key, ShieldAlert,
     MoreVertical, Ban, CheckCircle2, UserCog, Building2, Trash2
 } from "lucide-react";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 
 type StaffMember = {
     id: string;
@@ -22,6 +23,7 @@ type StaffMember = {
 import Link from 'next/link';
 
 export default function StaffManagementPage() {
+    const { activeHqId } = useActiveHq();
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -37,11 +39,15 @@ export default function StaffManagementPage() {
 
     useEffect(() => {
         fetchStaff();
-    }, []);
+    }, [activeHqId]);
 
     const fetchStaff = async () => {
         try {
-            const res = await fetch("/api/hr/staff");
+            setLoading(true);
+            const url = activeHqId && activeHqId !== 'ALL'
+                ? `/api/hr/staff?hqId=${activeHqId}`
+                : '/api/hr/staff';
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 setStaff(data);
@@ -60,7 +66,10 @@ export default function StaffManagementPage() {
             const res = await fetch("/api/hr/staff", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    ...(activeHqId && activeHqId !== 'ALL' ? { hqId: activeHqId } : {})
+                })
             });
 
             if (res.ok) {
