@@ -36,6 +36,21 @@ export default function ZendityMedPage() {
         fetchPatients();
     }, []);
 
+    // Deep-link desde la ficha del residente: ?addForPatient=<id>
+    // pre-abre el modal de "Añadir Medicamento" con el paciente seleccionado.
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const targetPatient = params.get('addForPatient');
+        if (!targetPatient) return;
+        // Carga catálogo y abre modal.
+        fetch("/api/med/crud").then(r => r.json()).then(d => {
+            setCatalog(d.medications || []);
+            setAddForm(prev => ({ ...prev, patientId: targetPatient }));
+            setAddMedModalOpen(true);
+        }).catch(() => {});
+    }, []);
+
     const fetchPatients = async () => {
         try {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";

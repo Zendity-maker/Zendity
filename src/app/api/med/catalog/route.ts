@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
-
+// HIPAA: el catálogo farmacéutico es información clínica. Personal clínico
+// con responsabilidad (NURSE+) puede agregar/editar entradas — no auxiliares
+// ni roles operativos sin entrenamiento médico.
+const WRITE_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function PUT(req: Request) {
     try {
+        const auth = await requireRole(WRITE_ROLES);
+        if (auth instanceof NextResponse) return auth;
         const data = await req.json();
         const {
             id,
@@ -48,6 +54,8 @@ export async function PUT(req: Request) {
 
 export async function POST(req: Request) {
     try {
+        const auth = await requireRole(WRITE_ROLES);
+        if (auth instanceof NextResponse) return auth;
         const data = await req.json();
         const {
             name,

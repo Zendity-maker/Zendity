@@ -186,13 +186,35 @@ export default function PatientEMARTab({ patientId }: { patientId: string }) {
 
             {/* 2. Listado de Medicamentos Activos con su Historial Reciente */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
                     <h3 className="text-lg font-black text-slate-800">Posología y Trazabilidad (Últimos 20 Eventos)</h3>
+                    {/* Botón "Añadir Medicamento" — visible para NURSE+. Abre /med
+                        con el paciente pre-cargado vía ?addForPatient=. Resuelve
+                        el bug de UX donde la enfermera llegaba a la ficha y no
+                        encontraba cómo prescribir desde ahí. */}
+                    {user?.role && ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role) && (
+                        <a
+                            href={`/med?addForPatient=${patientId}`}
+                            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-sm transition-colors"
+                        >
+                            <BeakerIcon className="w-4 h-4" />
+                            Añadir Medicamento
+                        </a>
+                    )}
                 </div>
 
                 {medications.length === 0 ? (
                     <div className="p-8 text-center">
                         <p className="text-slate-500 font-medium">El residente no figura con tratamientos farmacológicos activos.</p>
+                        {user?.role && ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role) && (
+                            <a
+                                href={`/med?addForPatient=${patientId}`}
+                                className="inline-flex items-center gap-2 mt-4 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
+                            >
+                                <BeakerIcon className="w-4 h-4" />
+                                Prescribir primer medicamento
+                            </a>
+                        )}
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-100">
