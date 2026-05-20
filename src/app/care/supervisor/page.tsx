@@ -21,7 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
     Brain, Users, Loader2, Sparkles, Send, CheckCircle2, Activity, Droplets, Coffee,
     Siren, Play, Square, AlertTriangle, ShieldAlert, FileText, Clock, XCircle, ChevronDown,
-    Heart, Pill, ClipboardSignature, MessageSquareWarning, Utensils, CalendarClock, ArrowRight,
+    Heart, Pill, ClipboardSignature, MessageSquareWarning, MessageSquare, Utensils, CalendarClock, ArrowRight,
     Gavel, AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck,
 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
@@ -30,6 +30,7 @@ import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
+import StaffChat from "@/components/StaffChat";
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -135,6 +136,10 @@ export default function SupervisorMissionControlPage() {
     const [processedMemo, setProcessedMemo] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
+
+    // Staff Chat — disponible también en esta vista full-screen
+    const [staffChatOpen, setStaffChatOpen] = useState(false);
+    const [staffChatUnread, setStaffChatUnread] = useState(0);
 
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
@@ -538,6 +543,7 @@ export default function SupervisorMissionControlPage() {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-slate-100 p-6 md:p-8 font-sans">
             <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-6 pb-16">
 
@@ -563,7 +569,23 @@ export default function SupervisorMissionControlPage() {
                                 <p className="text-white font-black text-lg">{shiftMeta.icon} {shiftMeta.es}</p>
                                 <p className="text-slate-500 text-xs font-bold mt-0.5">{shiftMeta.window} · Hora de Puerto Rico</p>
                             </div>
-                            <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-6 py-4 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm w-max" />
+                            <div className="flex items-center gap-3 flex-wrap mt-2">
+                                <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-5 py-3 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm" />
+                                {/* Botón Chat Staff — visible en esta vista full-screen */}
+                                <button
+                                    onClick={() => setStaffChatOpen(v => !v)}
+                                    className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm px-4 py-3 rounded-[1.5rem] shadow-sm transition-all"
+                                    title="Chat interno del equipo"
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    Chat Staff
+                                    {staffChatUnread > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-teal-400 rounded-full text-[9px] font-black text-slate-900 flex items-center justify-center leading-none">
+                                            {staffChatUnread > 9 ? '9+' : staffChatUnread}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -2121,5 +2143,13 @@ export default function SupervisorMissionControlPage() {
                 );
             })()}
         </div>
+
+        {/* Staff Chat — overlay disponible en esta vista full-screen */}
+        <StaffChat
+            open={staffChatOpen}
+            onClose={() => setStaffChatOpen(false)}
+            onUnreadChange={setStaffChatUnread}
+        />
+        </>
     );
 }

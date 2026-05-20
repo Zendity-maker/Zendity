@@ -124,11 +124,12 @@ export async function POST(req: Request) {
                     message: preview,
                 });
             } else {
+                // excludeUserId: el emisor no se notifica de su propio anuncio
                 await notifyRoles(hqId, ALLOWED_ROLES, {
                     type: 'STAFF_MESSAGE',
                     title: `Anuncio de ${senderName}`,
                     message: preview,
-                });
+                }, userId);
             }
         } catch (e) { console.error('[notify STAFF_MESSAGE]', e); }
 

@@ -20,11 +20,16 @@ interface NotifPayload {
 export async function notifyRoles(
     hqId: string,
     roles: string[],
-    payload: NotifPayload
+    payload: NotifPayload,
+    excludeUserId?: string
 ): Promise<number> {
     try {
         const users = await prisma.user.findMany({
-            where: { headquartersId: hqId, role: { in: roles as any } },
+            where: {
+                headquartersId: hqId,
+                role: { in: roles as any },
+                ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+            },
             select: { id: true },
         });
         if (users.length === 0) return 0;
