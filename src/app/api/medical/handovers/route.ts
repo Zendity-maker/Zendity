@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { logAudit } from '@/lib/audit';
 
 const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -149,6 +150,24 @@ export async function POST(request: Request) {
                     }
                 }
             });
+
+            // Audit trail — non-fatal
+            await logAudit({
+                headquartersId: hqId,
+                performedById: invokerId,
+                action: 'HANDOVER_CREATED',
+                entityName: 'ShiftHandover',
+                entityId: newHandover.id,
+                resourceName: `Turno ${shiftType} — ${notes.length} nota(s)`,
+                payloadChanges: {
+                    shiftType,
+                    outgoingNurseId,
+                    incomingNurseId,
+                    criticalNotes: notes.filter((n: any) => n.isCritical).length,
+                },
+                request,
+            });
+
             return NextResponse.json(newHandover);
         }
 

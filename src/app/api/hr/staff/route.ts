@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { logAudit } from '@/lib/audit';
 
 // Inicializar SendGrid
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -197,6 +198,19 @@ export async function POST(request: Request) {
             // We intentionally swallow the error and return 201 so the employee is still successfully created.
         }
 
+        // Audit trail — non-fatal
+        const invokerId = (session.user as any).id;
+        await logAudit({
+            headquartersId: hqId,
+            performedById: invokerId,
+            action: 'USER_CREATED',
+            entityName: 'User',
+            entityId: newUser.id,
+            resourceName: `${name} (${role})`,
+            payloadChanges: { name, email: cleanEmail, role },
+            request,
+        });
+
         return NextResponse.json({ success: true, user: newUser }, { status: 201 });
 
     } catch (error) {
@@ -253,6 +267,22 @@ export async function PATCH(request: Request) {
         const updatedUser = await prisma.user.update({
             where: { id },
             data: updateData
+        });
+
+        // Audit trail — non-fatal
+        const patchHqId = updatedUser.headquartersId || (session.user as any).headquartersId;
+        const auditAction = isShiftBlocked === true ? 'USER_BLOCKED'
+            : isDeleted === true ? 'USER_DELETED'
+            : 'USER_UPDATED';
+        await logAudit({
+            headquartersId: patchHqId,
+            performedById: (session.user as any).id,
+            action: auditAction,
+            entityName: 'User',
+            entityId: id,
+            resourceName: updatedUser.name,
+            payloadChanges: updateData,
+            request,
         });
 
         return NextResponse.json({ success: true, user: updatedUser }, { status: 200 });

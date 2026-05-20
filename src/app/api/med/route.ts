@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { logAudit } from '@/lib/audit';
 
 // Cualquier rol staff — FAMILY no.
 const STAFF_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER', 'KITCHEN', 'MAINTENANCE'];
@@ -91,6 +92,22 @@ export async function POST(request: Request) {
                 status: status || 'ADMINISTERED', // ADMINISTERED, MISSED, REFUSED
                 notes,
             }
+        });
+
+        // Audit trail — no-fatal
+        const auditActionMap: Record<string, 'MEDICATION_ADMINISTERED' | 'MEDICATION_MISSED' | 'MEDICATION_REFUSED'> = {
+            ADMINISTERED: 'MEDICATION_ADMINISTERED',
+            MISSED: 'MEDICATION_MISSED',
+            REFUSED: 'MEDICATION_REFUSED',
+        };
+        await logAudit({
+            headquartersId: hqId,
+            performedById: invokerId,
+            action: auditActionMap[status || 'ADMINISTERED'] ?? 'MEDICATION_ADMINISTERED',
+            entityName: 'PatientMedication',
+            entityId: patientMedicationId,
+            payloadChanges: { status: status || 'ADMINISTERED', notes: notes ?? null },
+            request,
         });
 
         return NextResponse.json({ success: true, record }, { status: 201 });
