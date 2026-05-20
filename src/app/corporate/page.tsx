@@ -154,7 +154,10 @@ export default function CorporateDashboardPage() {
     const handleSessionExpiry = () => {
         if (!sessionExpiredRef.current) {
             sessionExpiredRef.current = true;
-            router.push('/auth/signin?callbackUrl=/corporate');
+            // FIX (incidente masivo "fuera de servicio"): la ruta canónica
+            // de signin en este app es /login — NO /auth/signin (esa nunca
+            // existió y devolvía 404 a todos al expirar sesión).
+            router.push('/login?callbackUrl=/corporate');
         }
     };
     const { activeHqId, activeHqName, setActiveHq, accessibleHqs, isMultiHqRole } = useActiveHq();

@@ -179,7 +179,9 @@ export default function SupervisorMissionControlPage() {
     const handleSessionExpiry = () => {
         if (!sessionExpiredRef.current) {
             sessionExpiredRef.current = true;
-            router.push('/auth/signin?callbackUrl=/care/supervisor');
+            // FIX (incidente "fuera de servicio"): la ruta canónica es /login,
+            // /auth/signin nunca existió y devolvía 404.
+            router.push('/login?callbackUrl=/care/supervisor');
         }
     };
 

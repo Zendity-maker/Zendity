@@ -9,7 +9,9 @@ export default async function FamilyDocumentsPage() {
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "FAMILY") {
-        redirect("/auth/signin");
+        // FIX (incidente "fuera de servicio"): /auth/signin nunca existió,
+        // la ruta canónica es /login. Familiares iban a 404 al expirar sesión.
+        redirect("/login");
     }
 
     const documents = await prisma.legalDocument.findMany({
