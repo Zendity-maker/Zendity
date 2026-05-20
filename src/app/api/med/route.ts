@@ -20,17 +20,28 @@ export async function GET() {
             return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
         }
 
-        const patientMeds = await prisma.patientMedication.findMany({
-            where: {
-                patient: { headquartersId: hqId }
-            },
+        // FIX (bug Wilfredo): antes devolvíamos sólo patientMedication.findMany,
+        // lo que ocultaba a TODOS los residentes sin meds asignadas (recién
+        // ingresados o sin prescripciones). La enfermera no podía añadir el
+        // primer medicamento porque el paciente no aparecía en la lista.
+        //
+        // Nuevo contrato: devolvemos pacientes ACTIVE de la sede con su array
+        // de meds (puede ser []). Mantenemos `data` plano para retrocompat
+        // con consumidores que aún hacen el groupBy en el cliente.
+        const patients = await prisma.patient.findMany({
+            where: { headquartersId: hqId, status: 'ACTIVE' },
             include: {
-                patient: true,
-                medication: true,
-            }
+                medications: { include: { medication: true } },
+            },
+            orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
         });
 
-        return NextResponse.json({ success: true, data: patientMeds });
+        // Construimos `data` aplanado (compat) y `patients` agrupado (nuevo).
+        const data = patients.flatMap(p =>
+            p.medications.map(m => ({ ...m, patient: p, medication: m.medication })),
+        );
+
+        return NextResponse.json({ success: true, data, patients });
     } catch (error) {
         console.error('API Error:', error);
         return NextResponse.json({ success: false, error: 'Failed to fetch medications' }, { status: 500 });

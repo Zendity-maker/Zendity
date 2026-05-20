@@ -42,18 +42,29 @@ export default function ZendityMedPage() {
             const res = await fetch(`/api/med?hqId=${hq}`);
             const data = await res.json();
             if (data.success) {
-                // The API returns patientMeds which is an array of medications.
-                // We need to group them by patient.
-                const grouped = data.data.reduce((acc: any, curr: any) => {
-                    if (!acc[curr.patient.id]) {
-                        acc[curr.patient.id] = { ...curr.patient, medications: [] };
-                    }
-                    if (curr.alertsEnabled !== false) { // Don't show discontinued meds
-                        acc[curr.patient.id].medications.push(curr);
-                    }
-                    return acc;
-                }, {});
-                setPatients(Object.values(grouped));
+                // Nuevo contrato: si el backend ya envía `patients` agrupados,
+                // los usamos directos (incluye residentes sin meds — necesario
+                // para que la enfermera pueda añadir el PRIMER medicamento).
+                // Si no, hacemos fallback al groupBy histórico sobre data.
+                if (Array.isArray(data.patients)) {
+                    setPatients(
+                        data.patients.map((p: any) => ({
+                            ...p,
+                            medications: (p.medications || []).filter((m: any) => m.isActive !== false),
+                        }))
+                    );
+                } else {
+                    const grouped = data.data.reduce((acc: any, curr: any) => {
+                        if (!acc[curr.patient.id]) {
+                            acc[curr.patient.id] = { ...curr.patient, medications: [] };
+                        }
+                        if (curr.alertsEnabled !== false) {
+                            acc[curr.patient.id].medications.push(curr);
+                        }
+                        return acc;
+                    }, {});
+                    setPatients(Object.values(grouped));
+                }
             }
         } catch (error) {
             console.error(error);
