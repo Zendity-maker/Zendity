@@ -1475,8 +1475,8 @@ export default function SupervisorMissionControlPage() {
                             {handoversFeed.map((h: HandoverFeedItem) => {
                                 const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
                                 const statusConfig = h.derivedStatus === 'SUPERVISOR_SIGNED'
-                                    ? { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-emerald-200 text-emerald-800', label: 'Firmado por supervisor' }
-                                    : { bg: 'bg-amber-50', border: 'border-amber-200', pill: 'bg-amber-200 text-amber-800', label: 'Pendiente firma supervisor' };
+                                    ? { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-emerald-200 text-emerald-800', label: 'Revisado por supervisor' }
+                                    : { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-teal-100 text-teal-800', label: 'Turno cerrado por cuidador' };
 
                                 const COLOR_BADGES: Record<string, string> = {
                                     RED: 'bg-rose-500 text-white',
@@ -1530,7 +1530,7 @@ export default function SupervisorMissionControlPage() {
                                                     onClick={() => router.push(`/care/reports/${h.id}`)}
                                                     className="shrink-0 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 self-start"
                                                 >
-                                                    Revisar y Firmar
+                                                    Revisar Reporte
                                                 </button>
                                             )}
                                         </div>

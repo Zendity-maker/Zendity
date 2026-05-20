@@ -18,15 +18,13 @@ export async function GET() {
             return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
         }
 
-        // Auto-cierre: handovers >72h sin firma del supervisor → marcar ACCEPTED
-        // Resuelve la acumulación histórica que llegó a >200 registros
-        const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        // Auto-cierre: si el cuidador firmó (signedOutAt) el relevo debería ser ACCEPTED.
+        // Nueva política: firma del cuidador = suficiente. Migra todos los PENDING con firma.
         await prisma.shiftHandover.updateMany({
             where: {
                 headquartersId: hqId,
                 status: 'PENDING',
-                supervisorSignedAt: null,
-                createdAt: { lt: seventyTwoHoursAgo },
+                signedOutAt: { not: null },
             },
             data: { status: 'ACCEPTED', acceptedAt: new Date() },
         }).catch(() => {});

@@ -104,12 +104,17 @@ export async function POST(req: Request) {
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
                 // Flujo nuevo: cuidador firma → supervisor firma directo.
                 // Sin paso de "senior confirma" (eliminado).
+                // La firma del cuidador en el Wizard es suficiente para cerrar el relevo.
+                // Status → ACCEPTED directamente (no requiere firma adicional del supervisor).
+                // El supervisor puede ver y revisar el reporte en /corporate/reports pero
+                // el relevo no queda bloqueado esperando su firma.
                 const shiftHandover = await tx.shiftHandover.create({
                     data: {
                         headquartersId: session.headquartersId,
                         shiftType: shiftTypeDraft,
                         outgoingNurseId: session.caregiverId,
-                        status: 'PENDING',
+                        status: 'ACCEPTED',
+                        acceptedAt: now,
                         aiSummaryReport: zendiSummary,
                         signature,
                         signedOutAt: now,
@@ -201,8 +206,8 @@ export async function POST(req: Request) {
                     : shiftTypeDraft;
                 await notifyRoles(session.headquartersId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
                     type: 'HANDOVER',
-                    title: 'Reporte de turno pendiente de firma',
-                    message: `${session.caregiver?.name || 'Un cuidador(a)'} firmó el reporte del turno ${shiftLabel}. Pendiente tu firma.`,
+                    title: 'Cierre de turno confirmado',
+                    message: `${session.caregiver?.name || 'Un cuidador(a)'} completó y firmó el reporte del turno de ${shiftLabel}.`,
                     link: `/corporate/reports/${handover.id}`,
                 });
             } catch (e) {

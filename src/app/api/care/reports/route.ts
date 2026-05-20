@@ -34,17 +34,14 @@ export async function GET(req: Request) {
         const limitParam = parseInt(searchParams.get('limit') || '20', 10);
         const limit = Math.min(Math.max(Number.isFinite(limitParam) ? limitParam : 20, 1), 100);
 
-        // Auto-cierre preventivo: handovers completados hace >72h sin firma del supervisor
-        // → se marcan ACCEPTED automáticamente para evitar acumulación infinita.
-        // Solo aplica a reportes reales (handoverCompleted=true), no a cierres forzados.
-        const seventyTwoHoursAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        // Auto-cierre: cualquier handover con firma del cuidador (signedOutAt) que
+        // siga en PENDING es un registro legado — la nueva política establece que la
+        // firma del cuidador es suficiente para cerrar. Migrar a ACCEPTED.
         await prisma.shiftHandover.updateMany({
             where: {
                 headquartersId: hqId,
                 status: 'PENDING',
-                handoverCompleted: true,
-                supervisorSignedAt: null,
-                createdAt: { lt: seventyTwoHoursAgo },
+                signedOutAt: { not: null },   // cuidador firmó → debe estar ACCEPTED
             },
             data: {
                 status: 'ACCEPTED',

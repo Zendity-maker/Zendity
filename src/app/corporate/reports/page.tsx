@@ -95,12 +95,16 @@ export default function CorporateReportsPage() {
         const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         const pending: ReportListItem[] = [];
         const signed: ReportListItem[] = [];
-        // Flujo nuevo: cuidador firmó (signedOutAt) → pendiente firma supervisor.
+        // Nueva política: la firma del cuidador (signedOutAt) es suficiente para cerrar.
+        // "Pendientes" = relevos sin firma del cuidador (cierres forzados o legado).
+        // "Confirmados" = tienen signedOutAt (cuidador firmó) en los últimos 30 días.
         reports.forEach(r => {
-            if (r.signedOutAt && !r.supervisorSignedAt) {
+            const ts = new Date(r.createdAt).getTime();
+            if (!r.signedOutAt && r.status === 'PENDING') {
+                // Sin firma del cuidador → acción pendiente (ej: cierre forzado)
                 pending.push(r);
-            } else if (r.supervisorSignedAt) {
-                if (new Date(r.supervisorSignedAt).getTime() >= thirtyDaysAgo) signed.push(r);
+            } else if (r.signedOutAt && ts >= thirtyDaysAgo) {
+                signed.push(r);
             }
         });
         return { pendingFirma: pending, firmados: signed };
@@ -244,7 +248,7 @@ export default function CorporateReportsPage() {
                             disabled={detailLoading}
                             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-[#0F6B78] text-white hover:bg-[#0d5a66] disabled:opacity-60 transition-colors"
                         >
-                            <PenTool size={14} /> Revisar y Firmar
+                            <PenTool size={14} /> Revisar Reporte
                         </button>
                     )}
                 </div>
@@ -261,7 +265,7 @@ export default function CorporateReportsPage() {
                     </div>
                     <div>
                         <h1 className="text-2xl font-black text-[#1F2D3A] tracking-tight">Reportes de Turno</h1>
-                        <p className="text-[#1F2D3A]/60 text-sm">Confirmación del cuidador senior + tu firma cierra cada turno.</p>
+                        <p className="text-[#1F2D3A]/60 text-sm">La firma del cuidador en el reporte de entrega confirma el cierre de turno.</p>
                     </div>
                 </div>
 
@@ -280,12 +284,12 @@ export default function CorporateReportsPage() {
                     <>
                         <section className="mb-8">
                             <h2 className="text-sm font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-3">
-                                Pendientes de firma ({pendingFirma.length})
+                                Sin confirmar — requieren atención ({pendingFirma.length})
                             </h2>
                             {pendingFirma.length === 0 ? (
                                 <div className="bg-white rounded-2xl border border-[#e7e5e4] p-8 text-center text-[#1F2D3A]/50 text-sm">
                                     <CheckCircle2 className="mx-auto text-emerald-400 mb-2" size={28} />
-                                    No hay reportes pendientes de firma.
+                                    Todo en orden. No hay cierres de turno sin confirmar.
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -296,12 +300,12 @@ export default function CorporateReportsPage() {
 
                         <section>
                             <h2 className="text-sm font-bold text-[#1F2D3A]/70 uppercase tracking-wide mb-3">
-                                Firmados (últimos 30 días — {firmados.length})
+                                Confirmados (últimos 30 días — {firmados.length})
                             </h2>
                             {firmados.length === 0 ? (
                                 <div className="bg-white rounded-2xl border border-[#e7e5e4] p-8 text-center text-[#1F2D3A]/50 text-sm">
                                     <FileText className="mx-auto text-[#1F2D3A]/25 mb-2" size={28} />
-                                    Aún no hay reportes firmados en los últimos 30 días.
+                                    Aún no hay cierres de turno confirmados en los últimos 30 días.
                                 </div>
                             ) : (
                                 <div className="space-y-3">
@@ -319,7 +323,7 @@ export default function CorporateReportsPage() {
                     <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex items-start justify-between gap-3 p-5 border-b border-[#e7e5e4] sticky top-0 bg-white z-10">
                             <div>
-                                <h3 className="text-lg font-black text-[#1F2D3A]">Revisar y Firmar Reporte</h3>
+                                <h3 className="text-lg font-black text-[#1F2D3A]">Revisar Cierre de Turno</h3>
                                 <p className="text-xs text-[#1F2D3A]/60 mt-0.5">
                                     {SHIFT_STYLES[signingFor.shiftType]?.label} ·{' '}
                                     {new Date(signingFor.createdAt).toLocaleString('es-PR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}

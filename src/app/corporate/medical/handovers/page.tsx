@@ -354,7 +354,7 @@ export default function HandoversPage() {
                                             onClick={() => handleAcceptHandover(handover.id)}
                                             className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl font-bold transition-colors shadow-md shadow-amber-200 text-sm"
                                         >
-                                            Asumir Piso (Recibir)
+                                            Confirmar Cierre de Turno
                                         </button>
                                     )}
                                 </div>
