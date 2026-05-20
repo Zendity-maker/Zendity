@@ -11,6 +11,16 @@ import { applyScoreEvent } from '@/lib/score-event';
 // Acepta ints o numeric strings y los convierte a número.
 const coerceNum = z.coerce.number();
 
+// Para opcionales numéricos: trata "", null, undefined como "no enviado".
+// Sin este wrapper, z.coerce.number() convierte "" → 0 y rompe min() en
+// glucose/spo2 cuando la cuidadora deja el campo en blanco (no a todos los
+// residentes se les toma dextro).
+const optionalNum = (schema: z.ZodType<number, any, any>) =>
+    z.preprocess(
+        (v) => (v === '' || v === null || v === undefined ? undefined : v),
+        schema.optional(),
+    ) as z.ZodType<number | undefined, any, any>;
+
 // Rangos basados en literatura clínica geriátrica:
 //   Sistólica   60–250 mmHg  (hipotensión severa hasta crisis hipertensiva)
 //   Diastólica  30–150 mmHg
@@ -23,8 +33,8 @@ const VitalsDataSchema = z.object({
     dia:        coerceNum.int().min(30).max(150),
     hr:         coerceNum.int().min(25).max(250),
     temp:       coerceNum.min(30).max(115), // soporta °C o °F, validamos en runtime
-    glucose:    coerceNum.int().min(20).max(800).optional().nullable(),
-    spo2:       coerceNum.int().min(50).max(100).optional().nullable(),
+    glucose:    optionalNum(coerceNum.int().min(20).max(800)),
+    spo2:       optionalNum(coerceNum.int().min(50).max(100)),
     lateReason: z.string().optional(),
 });
 

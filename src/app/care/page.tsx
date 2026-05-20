@@ -1048,10 +1048,18 @@ export default function ZendityCareTabletPage() {
         setVitalsErrors({ sys: false, dia: false, hr: false, temp: false });
         setSubmitting(true);
         try {
+            // Stripping de opcionales vacíos: glucose y spo2 son OPCIONALES en
+            // backend (z.optional().nullable()) pero z.coerce.number() convierte
+            // "" → 0, lo que rompe min(20)/min(50). Si la cuidadora no toma
+            // dextro/oxímetro a ese residente, debe poder guardar sin ellos.
+            // Solución: omitir el campo del payload si viene vacío.
+            const cleanVitals: any = { ...vitals };
+            if (cleanVitals.glucose === '' || cleanVitals.glucose == null) delete cleanVitals.glucose;
+            if (cleanVitals.spo2    === '' || cleanVitals.spo2    == null) delete cleanVitals.spo2;
             const payload = {
                 patientId: activePatient.id,
                 type: 'VITALS',
-                data: lateReason ? { ...vitals, lateReason } : vitals
+                data: lateReason ? { ...cleanVitals, lateReason } : cleanVitals
             };
             const res = await fetch("/api/care/vitals", {
                 method: "POST", headers: { "Content-Type": "application/json" },
