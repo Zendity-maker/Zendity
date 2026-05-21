@@ -201,7 +201,7 @@ export default function IntakeWizardPage() {
     const res = await submitIntake(formData.patientId);
     if (res.success) {
       alert("¡Ingreso Completado! Residente en Radar Operativo.");
-      router.push("/corporate/patients");
+      router.push("/corporate/medical/patients");
     } else {
       alert("Error al emitir Intake: " + res.error);
     }
