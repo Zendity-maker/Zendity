@@ -131,8 +131,37 @@ Antes de cada commit:
 npx tsc --noEmit 2>&1 | head -10 && echo "TSC_EXIT:0"
 Solo hacer commit si TSC_EXIT: 0
 
-DB Push a producción:
-export $(cat .env | grep -v '^#' | xargs) && npx prisma db push 2>&1 | tail -5
+## 🛑 REGLAS CRÍTICAS DE BASE DE DATOS (NO NEGOCIABLES)
+
+El 20-may-2026 se perdió toda la data de producción por correr
+`prisma db push --force-reset` accidentalmente. NO debe volver a pasar.
+
+### Prohibido absolutamente
+- **NUNCA** corras `prisma db push --force-reset` por ningún motivo
+- **NUNCA** corras `prisma migrate reset` contra producción
+- **NUNCA** corras `prisma db push` directo a Neon sin guard
+- **NUNCA** uses `export $(cat .env ...) && npx prisma db push` (es el patrón viejo
+  que causó el desastre — `.env` apunta a producción)
+
+### Si Prisma sugiere `--force-reset`
+Significa que el schema está en drift. La respuesta correcta es:
+1. **DETENERSE** y reportar al usuario antes de tocar nada
+2. Considerar generar una migration formal con `npx prisma migrate dev --name <descripcion>`
+3. Pedir confirmación explícita antes de cualquier comando destructivo
+
+### Cambios de schema legítimos (uso normal)
+Para sincronizar cambios del schema:
+```bash
+npm run db:push              # corre el guard que bloquea producción
+```
+Si necesitas correr contra producción intencionalmente:
+```bash
+ALLOW_PROD_PUSH=1 npm run db:push
+```
+El guard rechaza `--force-reset` siempre, sin excepción.
+
+### Antes de cualquier operación destructiva en DB
+Pregunta al usuario primero. Sin excepciones. Sin "para acelerar".
 
 ## Paleta de Colores Tailwind
 

@@ -44,4 +44,5 @@ next-env.d.ts
 .env*.local
 test-results/
 playwright-report/
-scripts/
+scripts/*
+!scripts/db-push-guard.sh
