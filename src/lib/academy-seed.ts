@@ -4545,48 +4545,82 @@ EXPLICACION: Los documentos faltantes o vencidos en los expedientes ponen en rie
 ];
 
 // ── Execution ──────────────────────────────────────────────────────────────────
+//
+// USO:
+//   - Seed a TODAS las sedes activas:   npx tsx src/lib/academy-seed.ts
+//   - Seed a una sede específica:       SEED_HQ_ID=<uuid> npx tsx src/lib/academy-seed.ts
+//
+// Idempotente: usa upsert. Seguro de correr múltiples veces.
+// NO borra datos. Solo crea o actualiza.
+//
 
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-    const HQ_ID = 'b5d13d84-0a57-42fe-a1ed-bff887ed0c09'
-
-    for (const course of ACADEMY_SEED_COURSES) {
-        await prisma.course.upsert({
-            where: {
-                id: course.id
-            },
-            update: {
-                title: course.title,
-                description: course.description,
-                content: course.content,
-                durationMins: course.durationMins,
-                bonusCompliance: course.bonusCompliance,
-                emoji: course.emoji,
-                category: course.category || 'General',
-                order: course.order || 0,
-                isGlobal: true,
-            },
-            create: {
-                id: course.id,
-                headquartersId: HQ_ID,
-                title: course.title,
-                description: course.description,
-                content: course.content,
-                durationMins: course.durationMins,
-                bonusCompliance: course.bonusCompliance,
-                emoji: course.emoji,
-                category: course.category || 'General',
-                order: course.order || 0,
-                isGlobal: true,
-            }
+    // Si se pasa SEED_HQ_ID, sembrar solo esa sede. Si no, sembrar a todas las activas.
+    let hqIds: string[] = []
+    if (process.env.SEED_HQ_ID) {
+        hqIds = [process.env.SEED_HQ_ID]
+        console.log(`Sembrando para sede específica: ${process.env.SEED_HQ_ID}`)
+    } else {
+        const hqs = await prisma.headquarters.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true }
         })
-        console.log(`✓ ${course.id} → ${course.title}`)
+        if (hqs.length === 0) {
+            console.error('❌ No hay sedes activas en la base de datos.')
+            process.exit(1)
+        }
+        hqIds = hqs.map(h => h.id)
+        console.log(`Sembrando para ${hqs.length} sede(s) activa(s):`)
+        hqs.forEach(h => console.log(`  - ${h.name} (${h.id})`))
     }
-    console.log('\nSeed completo')
+
+    for (const HQ_ID of hqIds) {
+        console.log(`\n📚 Sede: ${HQ_ID}`)
+        for (const course of ACADEMY_SEED_COURSES) {
+            const imageUrl = `/academy/${course.id}.jpg`
+            // ID compuesto para que cada sede tenga su propio set de cursos
+            // sin colisiones de ID entre sedes.
+            const compositeId = `${HQ_ID}__${course.id}`
+            await prisma.course.upsert({
+                where: { id: compositeId },
+                update: {
+                    title: course.title,
+                    description: course.description,
+                    content: course.content,
+                    durationMins: course.durationMins,
+                    bonusCompliance: course.bonusCompliance,
+                    emoji: course.emoji,
+                    imageUrl,
+                    category: course.category || 'General',
+                    order: course.order || 0,
+                    isGlobal: true,
+                    isActive: true,
+                },
+                create: {
+                    id: compositeId,
+                    headquartersId: HQ_ID,
+                    title: course.title,
+                    description: course.description,
+                    content: course.content,
+                    durationMins: course.durationMins,
+                    bonusCompliance: course.bonusCompliance,
+                    emoji: course.emoji,
+                    imageUrl,
+                    category: course.category || 'General',
+                    order: course.order || 0,
+                    isGlobal: true,
+                    isActive: true,
+                }
+            })
+            console.log(`  ✓ ${course.id} → ${course.title}`)
+        }
+    }
+    console.log('\n✅ Seed completo')
 }
 
 main()
-    .catch(console.error)
+    .catch((e) => { console.error(e); process.exit(1) })
     .finally(() => prisma.$disconnect())
