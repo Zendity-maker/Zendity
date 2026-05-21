@@ -12,6 +12,7 @@
   /* Zendity Brand Typography */
   --font-sans: var(--font-plus-jakarta);
   --font-display: var(--font-outfit);
+  --font-serif: var(--font-fraunces);
 
   /* Zendity Core Colors */
   --color-zendity-teal: #0F6B78;

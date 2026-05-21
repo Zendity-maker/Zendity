@@ -1,32 +1,17 @@
 "use client";
 
 /**
- * /family/preview — MOCKUP del rediseño Premium Warmth
+ * /family/preview — Editorial Calm
  *
- * Esta página es un PREVIEW para validar la dirección de rediseño.
- * Carga la misma data real de /api/family/dashboard que el portal actual,
- * pero con la nueva estética.
- *
- * Si se aprueba, este código reemplaza /family/page.tsx.
+ * Magazine-style. Serif display protagonista. Narrativa en lugar de data.
+ * Hairline dividers en lugar de cards. Mucho whitespace.
  */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-    Heart,
-    Activity,
-    Thermometer,
-    Wind,
-    UtensilsCrossed,
-    Droplets,
-    MessageCircle,
-    BookOpen,
-    Calendar,
-    FileHeart,
-    Sparkles,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
-// ── Helper: tiempo humano (no "hace 4h", sino "Esta mañana", "Anoche") ──
+// ── Tiempo humano ──
 function humanTime(date: string | Date): string {
     const d = new Date(date);
     const now = new Date();
@@ -36,7 +21,6 @@ function humanTime(date: string | Date): string {
     if (diffMin < 5) return "justo ahora";
     if (diffMin < 60) return `hace ${diffMin} minutos`;
 
-    // Mismo día calendario
     const sameDay =
         d.getFullYear() === now.getFullYear() &&
         d.getMonth() === now.getMonth() &&
@@ -47,7 +31,6 @@ function humanTime(date: string | Date): string {
         return "esta noche";
     }
 
-    // Ayer
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     const isYesterday =
@@ -61,9 +44,7 @@ function humanTime(date: string | Date): string {
     }
 
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 7) {
-        return d.toLocaleDateString("es-PR", { weekday: "long" });
-    }
+    if (diffDays < 7) return d.toLocaleDateString("es-PR", { weekday: "long" });
     return d.toLocaleDateString("es-PR", { day: "numeric", month: "long" });
 }
 
@@ -76,59 +57,27 @@ function fechaHoyLarga(): string {
 }
 
 function getMonogram(name: string): string {
-    return name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w.charAt(0).toUpperCase())
-        .join("");
+    return name.trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join("");
 }
 
-// ── Monogram avatar elegante (fallback cuando no hay foto) ──────────────
-function Monogram({ name, size = "lg" }: { name: string; size?: "sm" | "lg" }) {
-    const cls =
-        size === "lg"
-            ? "w-32 h-32 text-4xl"
-            : "w-14 h-14 text-lg";
+// ── Hairline section divider ──
+function Diamond() {
     return (
-        <div
-            className={`${cls} rounded-full flex items-center justify-center font-display tracking-tight text-white shadow-[0_8px_24px_-8px_rgba(15,110,120,0.4)]`}
-            style={{
-                background: "linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)",
-            }}
-        >
-            {getMonogram(name)}
+        <div className="flex justify-center py-12">
+            <span className="text-stone-300 text-base tracking-[1em]">◆ ◆ ◆</span>
         </div>
     );
 }
 
-// ── Vital tile — datos como números editoriales, no cajitas ─────────────
-function VitalLine({
-    icon: Icon,
-    label,
-    value,
-    unit,
-}: {
-    icon: any;
-    label: string;
-    value: string | number;
-    unit?: string;
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
     return (
-        <div className="flex items-baseline gap-3 py-3 border-b border-stone-100 last:border-0">
-            <Icon className="w-4 h-4 text-stone-400 self-center" strokeWidth={1.5} />
-            <span className="text-sm text-stone-500 flex-1">{label}</span>
-            <span className="font-display text-2xl text-stone-900 tracking-tight">
-                {value}
-            </span>
-            {unit && (
-                <span className="text-xs text-stone-400 font-medium">{unit}</span>
-            )}
-        </div>
+        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-6 text-center">
+            {children}
+        </p>
     );
 }
 
-export default function FamilyDashboardPreview() {
+export default function FamilyDashboardEditorial() {
     const [resident, setResident] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -136,7 +85,7 @@ export default function FamilyDashboardPreview() {
 
     useEffect(() => {
         fetch("/api/family/dashboard")
-            .then((res) => res.json())
+            .then((r) => r.json())
             .then((data) => {
                 if (data.success) setResident(data.resident);
                 else setError(data.error || "No se encontraron datos");
@@ -153,24 +102,24 @@ export default function FamilyDashboardPreview() {
             .catch(() => {});
     }, []);
 
-    if (loading)
+    if (loading) {
         return (
-            <div className="flex justify-center items-center h-96">
-                <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
-                <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse mx-1.5" style={{ animationDelay: "0.15s" }} />
-                <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+            <div className="min-h-[60vh] flex items-center justify-center">
+                <span className="font-serif italic text-stone-300 text-lg">cargando…</span>
             </div>
         );
+    }
 
-    if (error || !resident)
+    if (error || !resident) {
         return (
-            <div className="text-center py-24">
-                <p className="font-display text-2xl text-stone-700 mb-2">Bienvenido</p>
+            <div className="text-center py-32">
+                <p className="font-serif text-3xl text-stone-700 italic mb-3">Bienvenido</p>
                 <p className="text-sm text-stone-500 max-w-sm mx-auto leading-relaxed">
                     {error || "Esta cuenta no tiene residentes asignados. Contacta a la Gerencia."}
                 </p>
             </div>
         );
+    }
 
     const latestVitals = resident.vitalSigns?.[0];
     const latestLog = resident.dailyLogs?.[0];
@@ -178,211 +127,226 @@ export default function FamilyDashboardPreview() {
     const firstName = resident.name?.split(" ")[0] || "tu familiar";
 
     const quickLinks = [
-        { icon: BookOpen, label: "Diario", href: "/family/feed", badge: 0 },
-        { icon: MessageCircle, label: "Mensajes", href: "/family/messages", badge: unreadCount },
-        { icon: Calendar, label: "Citas", href: "/family/calendar", badge: 0 },
-        { icon: FileHeart, label: "Mi PAI", href: "/family/pai", badge: 0 },
+        { label: "Diario", href: "/family/feed", note: "Notas y fotos del equipo" },
+        { label: "Mensajes", href: "/family/messages", note: unreadCount > 0 ? `${unreadCount} sin leer` : "Conversación con cuidadores" },
+        { label: "Citas", href: "/family/calendar", note: "Visitas y servicios" },
+        { label: "Mi PAI", href: "/family/pai", note: "Plan de cuidado integral" },
     ];
 
     return (
         <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
-            <div className="max-w-2xl mx-auto px-6 sm:px-8 py-10 sm:py-16 space-y-16">
+            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
 
-                {/* ═══ HERO ═══════════════════════════════════════════════════ */}
-                <header className="text-center space-y-6">
-                    <p className="text-xs uppercase tracking-[0.2em] text-stone-400 font-medium capitalize">
+                {/* ═══ MASTHEAD — dateline editorial ═══════════════════════ */}
+                <header className="text-center mb-16 sm:mb-20">
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-2 capitalize">
                         {fechaHoyLarga()}
                     </p>
+                    <p className="font-serif italic text-stone-400 text-sm mb-12">
+                        Diario de cuidado · {resident.headquarters?.name || "Zéndity"}
+                    </p>
 
-                    <div className="flex justify-center">
+                    {/* Foto o monograma */}
+                    <div className="flex justify-center mb-10">
                         {resident.photoUrl ? (
                             <img
                                 src={resident.photoUrl}
                                 alt={resident.name}
-                                className="w-32 h-32 rounded-full object-cover shadow-[0_8px_32px_-8px_rgba(15,110,120,0.35)] ring-1 ring-stone-200/60"
+                                className="w-36 h-36 rounded-full object-cover grayscale-[0.15]"
+                                style={{
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 24px 48px -16px rgba(15,110,120,0.18)",
+                                }}
                             />
                         ) : (
-                            <Monogram name={resident.name} size="lg" />
+                            <div className="w-36 h-36 rounded-full flex items-center justify-center bg-stone-100 ring-1 ring-stone-200">
+                                <span
+                                    className="font-serif text-5xl tracking-tight"
+                                    style={{ color: "#0F6E56", fontStyle: "italic" }}
+                                >
+                                    {getMonogram(resident.name)}
+                                </span>
+                            </div>
                         )}
                     </div>
 
-                    <div className="space-y-1.5">
-                        <h1 className="font-display text-4xl sm:text-5xl text-stone-900 tracking-tight leading-tight">
-                            {resident.name}
-                        </h1>
-                        <p className="text-sm text-stone-500">
-                            Habitación {resident.roomNumber || "—"}
-                            {resident.insurancePlanName && (
-                                <span className="text-stone-300 mx-2">·</span>
-                            )}
-                            {resident.insurancePlanName && (
-                                <span>{resident.insurancePlanName}</span>
-                            )}
-                        </p>
+                    {/* Headline tipo magazine */}
+                    <h1
+                        className="font-serif text-stone-900 leading-[1.05] tracking-tight mb-4"
+                        style={{
+                            fontSize: "clamp(2.5rem, 8vw, 4.5rem)",
+                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
+                        }}
+                    >
+                        {resident.name}
+                    </h1>
+
+                    {/* Hairline divider con ornamento */}
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <span className="block w-12 h-px bg-stone-300" />
+                        <span className="text-stone-300 text-xs">◆</span>
+                        <span className="block w-12 h-px bg-stone-300" />
                     </div>
+
+                    <p className="font-serif italic text-stone-500 text-base">
+                        Habitación {resident.roomNumber || "—"}
+                        {resident.insurancePlanName && (
+                            <>
+                                <span className="mx-2 text-stone-300">·</span>
+                                <span>{resident.insurancePlanName}</span>
+                            </>
+                        )}
+                    </p>
                 </header>
 
-                {/* ═══ POSTCARD: Últimas noticias del equipo ═════════════════ */}
+                <Diamond />
+
+                {/* ═══ DEL EQUIPO — narrativa estilo columna ═════════════ */}
                 <section>
-                    <h2 className="text-xs uppercase tracking-[0.2em] text-stone-400 font-medium mb-5 flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5" strokeWidth={1.5} />
-                        Del equipo de cuidado
-                    </h2>
+                    <SectionLabel>Del equipo de cuidado</SectionLabel>
 
                     {wellnessNotes.length > 0 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-12 max-w-xl mx-auto">
                             {wellnessNotes.slice(0, 2).map((note: any, idx: number) => (
-                                <article
-                                    key={idx}
-                                    className="bg-white rounded-2xl px-7 py-6 shadow-[0_2px_24px_-4px_rgba(15,110,120,0.06)] ring-1 ring-stone-100"
-                                >
-                                    <p className="font-display text-lg leading-relaxed text-stone-800 first-letter:text-3xl first-letter:font-medium first-letter:text-teal-700 first-letter:mr-0.5 first-letter:float-left first-letter:leading-none first-letter:mt-1">
-                                        {note.note.replace(/^\[Zendi Update\]\s*/i, "")}
+                                <article key={idx} className="text-center">
+                                    <p
+                                        className="font-serif text-stone-800 leading-[1.6] tracking-tight"
+                                        style={{
+                                            fontSize: "1.375rem",
+                                            fontVariationSettings: "'opsz' 24, 'SOFT' 50",
+                                        }}
+                                    >
+                                        &ldquo;{note.note.replace(/^\[Zendi Update\]\s*/i, "")}&rdquo;
                                     </p>
-                                    <p className="text-xs text-stone-400 mt-4 flex items-center gap-2">
-                                        <span className="w-6 h-px bg-stone-200" />
-                                        <span>{note.author?.name || "Equipo de cuidado"}</span>
-                                        <span className="text-stone-300">·</span>
-                                        <span>{humanTime(note.createdAt)}</span>
+                                    <p className="mt-5 text-xs text-stone-400 tracking-wide italic font-serif">
+                                        — {note.author?.name || "Equipo de cuidado"}, {humanTime(note.createdAt)}
                                     </p>
                                 </article>
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl px-7 py-10 text-center ring-1 ring-stone-100">
-                            <p className="font-display text-base text-stone-500 leading-relaxed">
-                                El equipo todavía no ha enviado<br />
-                                actualizaciones de {firstName} hoy.
+                        <div className="text-center max-w-md mx-auto">
+                            <p
+                                className="font-serif text-stone-500 leading-relaxed italic"
+                                style={{ fontSize: "1.25rem" }}
+                            >
+                                El equipo todavía no ha publicado<br />
+                                notas de {firstName} hoy.
                             </p>
-                            <p className="text-xs text-stone-400 mt-3">
-                                Verás aquí las notas, fotos y momentos especiales en cuanto se publiquen.
+                            <p className="text-xs text-stone-400 mt-4 font-serif italic">
+                                Las verás aquí en cuanto las compartan.
                             </p>
                         </div>
                     )}
                 </section>
 
-                {/* ═══ HOY: Signos vitales + estado del día ═════════════════ */}
-                <section>
-                    <h2 className="text-xs uppercase tracking-[0.2em] text-stone-400 font-medium mb-5">
-                        Hoy
-                    </h2>
+                <Diamond />
 
-                    <div className="bg-white rounded-2xl shadow-[0_2px_24px_-4px_rgba(15,110,120,0.06)] ring-1 ring-stone-100 overflow-hidden">
-                        {/* Vitales como datos editoriales */}
-                        {latestVitals ? (
-                            <div className="px-7 py-2">
-                                <VitalLine
-                                    icon={Heart}
-                                    label="Presión arterial"
-                                    value={`${latestVitals.systolic}/${latestVitals.diastolic}`}
-                                    unit="mmHg"
-                                />
-                                <VitalLine
-                                    icon={Activity}
-                                    label="Pulso"
-                                    value={latestVitals.heartRate}
-                                    unit="bpm"
-                                />
-                                <VitalLine
-                                    icon={Thermometer}
-                                    label="Temperatura"
-                                    value={latestVitals.temperature}
-                                    unit="°F"
-                                />
-                                <VitalLine
-                                    icon={Wind}
-                                    label="Oxigenación"
-                                    value={latestVitals.spo2 ?? "—"}
-                                    unit={latestVitals.spo2 ? "%" : ""}
-                                />
-                            </div>
-                        ) : (
-                            <p className="px-7 py-8 text-sm text-stone-400 text-center">
-                                Vitales del día aún no registrados
-                            </p>
-                        )}
+                {/* ═══ VITALES — typeset table editorial ═══════════════════ */}
+                {latestVitals && (
+                    <>
+                        <section>
+                            <SectionLabel>Signos vitales</SectionLabel>
 
-                        {/* Separador editorial */}
-                        <div className="px-7">
-                            <div className="border-t border-stone-100" />
-                        </div>
-
-                        {/* Cuidados del día */}
-                        <div className="px-7 py-5 space-y-3">
-                            <div className="flex items-center gap-3">
-                                <UtensilsCrossed className="w-4 h-4 text-stone-400" strokeWidth={1.5} />
-                                <span className="text-sm text-stone-500 flex-1">Alimentación</span>
-                                <span className="text-sm font-medium text-stone-700">
-                                    {latestLog?.foodIntake != null ? `${latestLog.foodIntake}%` : "Sin registrar"}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Droplets className="w-4 h-4 text-stone-400" strokeWidth={1.5} />
-                                <span className="text-sm text-stone-500 flex-1">Higiene</span>
-                                <span className="text-sm font-medium text-stone-700">
-                                    {latestLog?.bathCompleted ? "Completada" : "Pendiente"}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Footer del card */}
-                        {(latestVitals || latestLog) && (
-                            <div className="px-7 py-4 bg-stone-50/60 border-t border-stone-100">
-                                <p className="text-xs text-stone-400">
-                                    Última actualización · {humanTime(latestVitals?.createdAt || latestLog?.createdAt)}
+                            <div className="max-w-sm mx-auto">
+                                <dl className="font-serif">
+                                    {[
+                                        { label: "Presión arterial", value: `${latestVitals.systolic} / ${latestVitals.diastolic}`, unit: "mmHg" },
+                                        { label: "Pulso", value: latestVitals.heartRate, unit: "bpm" },
+                                        { label: "Temperatura", value: latestVitals.temperature, unit: "°F" },
+                                        { label: "Oxigenación", value: latestVitals.spo2 ?? "—", unit: latestVitals.spo2 ? "%" : "" },
+                                    ].map((v) => (
+                                        <div
+                                            key={v.label}
+                                            className="flex items-baseline justify-between py-4 border-b border-stone-200 last:border-b-0"
+                                        >
+                                            <dt className="text-sm text-stone-500 italic">{v.label}</dt>
+                                            <dd className="text-stone-900 tracking-tight">
+                                                <span className="text-xl">{v.value}</span>
+                                                {v.unit && <span className="text-xs text-stone-400 ml-1.5 italic">{v.unit}</span>}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                                <p className="text-[11px] text-stone-400 italic text-center mt-4 font-serif">
+                                    Tomadas {humanTime(latestVitals.createdAt)}
                                 </p>
                             </div>
-                        )}
+                        </section>
+
+                        <Diamond />
+                    </>
+                )}
+
+                {/* ═══ CUIDADOS DEL DÍA — minimalista ═══════════════════════ */}
+                <section>
+                    <SectionLabel>Cuidados de hoy</SectionLabel>
+
+                    <div className="max-w-sm mx-auto space-y-4 font-serif">
+                        <div className="flex justify-between items-baseline py-2">
+                            <span className="text-stone-500 italic text-sm">Alimentación</span>
+                            <span className="text-stone-900 text-lg tracking-tight">
+                                {latestLog?.foodIntake != null ? `${latestLog.foodIntake}%` : "Sin registrar"}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-baseline py-2 border-t border-stone-200">
+                            <span className="text-stone-500 italic text-sm">Higiene</span>
+                            <span className="text-stone-900 text-lg tracking-tight">
+                                {latestLog?.bathCompleted ? "Completada" : "Pendiente"}
+                            </span>
+                        </div>
                     </div>
 
-                    {/* Notas adicionales del cuidador, si las hay */}
                     {latestLog?.notes && (
-                        <div className="mt-4 px-7">
-                            <p className="text-sm text-stone-600 leading-relaxed italic">
-                                "{latestLog.notes.trim()}"
+                        <div className="mt-12 max-w-md mx-auto text-center">
+                            <p
+                                className="font-serif italic text-stone-600 leading-relaxed"
+                                style={{ fontSize: "1.0625rem" }}
+                            >
+                                &ldquo;{latestLog.notes.trim()}&rdquo;
+                            </p>
+                            <p className="text-xs text-stone-400 italic font-serif mt-3">
+                                — anotado {humanTime(latestLog.createdAt)}
                             </p>
                         </div>
                     )}
                 </section>
 
-                {/* ═══ ACCESOS RÁPIDOS — cards editoriales ═══════════════════ */}
-                <section>
-                    <h2 className="text-xs uppercase tracking-[0.2em] text-stone-400 font-medium mb-5">
-                        Explora
-                    </h2>
+                <Diamond />
 
-                    <div className="grid grid-cols-2 gap-3">
-                        {quickLinks.map((item) => {
-                            const Icon = item.icon;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className="group relative bg-white rounded-2xl px-5 py-6 ring-1 ring-stone-100 shadow-[0_2px_24px_-4px_rgba(15,110,120,0.04)] hover:shadow-[0_8px_32px_-4px_rgba(15,110,120,0.12)] hover:-translate-y-0.5 transition-all duration-300"
-                                >
-                                    <div className="flex flex-col gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
-                                            <Icon className="w-5 h-5 text-teal-700" strokeWidth={1.5} />
-                                        </div>
-                                        <span className="font-display text-base text-stone-800">
-                                            {item.label}
-                                        </span>
-                                    </div>
-                                    {item.badge > 0 && (
-                                        <span className="absolute top-4 right-4 min-w-[20px] h-5 px-1.5 bg-teal-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                            {item.badge > 9 ? "9+" : item.badge}
-                                        </span>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                {/* ═══ EXPLORAR — links como índice editorial ═══════════════ */}
+                <section>
+                    <SectionLabel>Explora</SectionLabel>
+
+                    <div className="max-w-sm mx-auto">
+                        {quickLinks.map((link, idx) => (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                className="group flex items-baseline justify-between py-5 border-b border-stone-200 last:border-b-0 hover:bg-stone-50/0 transition-colors"
+                            >
+                                <div className="flex-1">
+                                    <p className="font-serif text-stone-900 text-2xl tracking-tight group-hover:text-teal-700 transition-colors">
+                                        {link.label}
+                                    </p>
+                                    <p className="text-xs text-stone-400 italic font-serif mt-0.5">
+                                        {link.note}
+                                    </p>
+                                </div>
+                                <ArrowUpRight
+                                    className="w-5 h-5 text-stone-300 group-hover:text-teal-600 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all"
+                                    strokeWidth={1.25}
+                                />
+                            </Link>
+                        ))}
                     </div>
                 </section>
 
-                {/* ═══ FOOTER discreto ═══════════════════════════════════════ */}
-                <footer className="text-center pt-8 pb-4">
-                    <p className="text-xs text-stone-400">
-                        Con cariño desde el equipo de {resident.headquarters?.name || "Zéndity"}
+                {/* ═══ COLOFÓN — footer editorial ═══════════════════════════ */}
+                <footer className="text-center mt-20 sm:mt-28 pb-8">
+                    <p className="text-stone-300 text-xs tracking-[0.5em] mb-3">◆ ◆ ◆</p>
+                    <p className="font-serif italic text-stone-400 text-xs leading-relaxed">
+                        Con cariño desde<br />
+                        {resident.headquarters?.name || "Zéndity"}
                     </p>
                 </footer>
 

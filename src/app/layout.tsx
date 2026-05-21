@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ActiveHqProvider } from "@/contexts/ActiveHqContext";
@@ -15,6 +15,13 @@ const outfit = Outfit({
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
   subsets: ["latin"],
+});
+
+// Fraunces — serif editorial con personalidad (para Family Portal Editorial Calm)
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 
 import { Viewport } from "next";
@@ -54,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${outfit.variable} ${plusJakartaSans.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
+        className={`${outfit.variable} ${plusJakartaSans.variable} ${fraunces.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
       >
         <NextAuthProvider>
           <AuthProvider>
