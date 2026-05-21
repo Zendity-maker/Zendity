@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Building2, Plus, Pencil, X, Users, Bed, Calendar, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { getPlanDisplayName, PLAN_PRICING } from "@/lib/entitlements";
 
 // Paleta warm
 const COLORS = {
@@ -272,7 +273,7 @@ export default function SedesPage() {
                                                         >
                                                             {row.isActive ? "Activa" : "Inactiva"}
                                                         </span>
-                                                        <span className="text-[10px] text-slate-500 font-mono">{row.subscriptionPlan}</span>
+                                                        <span className="text-[10px] text-slate-500 font-bold">{getPlanDisplayName(row.subscriptionPlan)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -501,9 +502,9 @@ export default function SedesPage() {
                                         onChange={e => setForm({ ...form, subscriptionPlan: e.target.value })}
                                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-teal-500 transition-colors"
                                     >
-                                        <option value="LITE">LITE ($299/mes) — eMAR Core</option>
-                                        <option value="PRO">PRO ($599/mes) — Operations & Academy</option>
-                                        <option value="ENTERPRISE">ENTERPRISE ($999/mes) — CRM + Voz + Family</option>
+                                        <option value="LITE">Plan Esencial — ${PLAN_PRICING.LITE.pricePerBed}/cama/mes (mín ${PLAN_PRICING.LITE.monthlyMinimum})</option>
+                                        <option value="PRO">Plan Profesional — ${PLAN_PRICING.PRO.pricePerBed}/cama/mes (mín ${PLAN_PRICING.PRO.monthlyMinimum})</option>
+                                        <option value="ENTERPRISE">Plan Corporativo — ${PLAN_PRICING.ENTERPRISE.pricePerBed}/cama/mes (mín ${PLAN_PRICING.ENTERPRISE.monthlyMinimum})</option>
                                     </select>
                                 </div>
                             </div>

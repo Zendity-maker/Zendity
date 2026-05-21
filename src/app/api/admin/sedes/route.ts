@@ -4,6 +4,7 @@ import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
 import { requireSuperAdmin } from '@/lib/admin-auth';
+import { normalizePlan } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,7 +126,7 @@ export async function POST(req: Request) {
                     ownerPhone: ownerPhone || null,
                     taxId: taxId || null,
                     billingAddress: billingAddress || null,
-                    subscriptionPlan: plan || 'PRO',
+                    subscriptionPlan: normalizePlan(plan) || 'PRO',
                     subscriptionStatus: 'ACTIVE',
                 },
             });

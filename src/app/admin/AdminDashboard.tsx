@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getPlanDisplayName } from "@/lib/entitlements";
 import {
     Building2,
     DollarSign,
@@ -329,7 +330,7 @@ function OverviewTab({
                                         </p>
                                     </div>
                                     <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                                        {s.subscriptionPlan}
+                                        {getPlanDisplayName(s.subscriptionPlan)}
                                     </span>
                                 </div>
                                 <HealthBar score={s.healthScore} />
@@ -992,7 +993,7 @@ function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) =>
                                     </td>
                                     <td className="p-4 text-center">
                                         <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                                            {s.subscriptionPlan}
+                                            {getPlanDisplayName(s.subscriptionPlan)}
                                         </span>
                                     </td>
                                     <td className="p-4 text-center text-slate-300">

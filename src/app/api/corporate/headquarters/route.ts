@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { normalizePlan } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,10 +91,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Fecha de licencia inválida' }, { status: 400 });
         }
 
-        const VALID_PLANS = ['LITE', 'PRO', 'ENTERPRISE', 'BASIC', 'PROFESSIONAL'];
-        const plan = body.subscriptionPlan && VALID_PLANS.includes(body.subscriptionPlan)
-            ? body.subscriptionPlan
-            : 'PRO';
+        // Acepta nombres comerciales (Esencial/Profesional/Corporativo) o
+        // códigos internos (LITE/PRO/ENTERPRISE). Cualquier otro valor → 400.
+        const planInput = body.subscriptionPlan ?? 'PRO';
+        const plan = normalizePlan(planInput);
+        if (!plan) {
+            return NextResponse.json({
+                success: false,
+                error: `Plan no reconocido: "${planInput}". Usa Esencial, Profesional o Corporativo.`
+            }, { status: 400 });
+        }
 
         const hq = await prisma.headquarters.create({
             data: {
@@ -165,10 +172,14 @@ export async function PATCH(req: NextRequest) {
         if (body.ownerPhone !== undefined) data.ownerPhone = body.ownerPhone || null;
         if (body.taxId !== undefined) data.taxId = body.taxId || null;
         if (body.subscriptionPlan) {
-            const VALID_PLANS = ['LITE', 'PRO', 'ENTERPRISE', 'BASIC', 'PROFESSIONAL'];
-            if (VALID_PLANS.includes(body.subscriptionPlan)) {
-                data.subscriptionPlan = body.subscriptionPlan;
+            const normalized = normalizePlan(body.subscriptionPlan);
+            if (!normalized) {
+                return NextResponse.json({
+                    success: false,
+                    error: `Plan no reconocido: "${body.subscriptionPlan}". Usa Esencial, Profesional o Corporativo.`
+                }, { status: 400 });
             }
+            data.subscriptionPlan = normalized;
         }
 
         const updated = await prisma.headquarters.update({
