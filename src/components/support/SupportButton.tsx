@@ -68,7 +68,7 @@ export default function SupportButton() {
             <button
                 onClick={handleOpen}
                 title="Contactar Soporte Zéndity"
-                className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
+                className="fixed bottom-24 right-6 z-50 w-12 h-12 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
             >
                 <HelpCircle className="w-6 h-6" />
             </button>
