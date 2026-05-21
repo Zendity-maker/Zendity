@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getPlanDisplayName } from "@/lib/entitlements";
+import { getPlanDisplayName, PLAN_PRICING, normalizePlan } from "@/lib/entitlements";
 import {
     Building2,
     DollarSign,
@@ -899,9 +899,9 @@ function NewProspectModal({
                                     className={inputCls}
                                 >
                                     <option value="">— Sin definir —</option>
-                                    <option value="LITE">LITE ($299/mes)</option>
-                                    <option value="PRO">PRO ($599/mes)</option>
-                                    <option value="ENTERPRISE">ENTERPRISE ($999/mes)</option>
+                                    <option value="LITE">Plan Esencial — ${PLAN_PRICING.LITE.pricePerBed}/cama</option>
+                                    <option value="PRO">Plan Profesional — ${PLAN_PRICING.PRO.pricePerBed}/cama</option>
+                                    <option value="ENTERPRISE">Plan Corporativo — ${PLAN_PRICING.ENTERPRISE.pricePerBed}/cama</option>
                                 </select>
                             </Field>
                             <Field label="Camas estimadas">
@@ -1070,6 +1070,9 @@ function NewSedeModal({
 }) {
     const isConversion = !!prospectId;
 
+    // Normaliza el plan del prefill (acepta nombres comerciales o códigos internos)
+    const initialPlan = normalizePlan(prefill?.plan ?? "PRO") ?? "PRO";
+
     const [form, setForm] = useState({
         name: prefill?.name ?? "",
         capacity: prefill?.capacity ?? "50",
@@ -1080,8 +1083,9 @@ function NewSedeModal({
         ownerPhone: prefill?.ownerPhone ?? "",
         taxId: "",
         billingAddress: "",
-        plan: prefill?.plan ?? "PRO",
-        pricePerBed: "",
+        plan: initialPlan,
+        // Auto-prellena el precio según el plan elegido
+        pricePerBed: String(PLAN_PRICING[initialPlan].pricePerBed),
         beds: prefill?.beds ?? "",
         monthlyAmount: "",
     });
@@ -1191,13 +1195,26 @@ function NewSedeModal({
                     <Section title="Contrato SaaS (opcional)">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Plan">
-                                <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} className={inputCls}>
-                                    <option value="LITE">LITE</option>
-                                    <option value="PRO">PRO</option>
-                                    <option value="ENTERPRISE">ENTERPRISE</option>
+                                <select
+                                    value={form.plan}
+                                    onChange={(e) => {
+                                        const newPlan = e.target.value;
+                                        // Al cambiar el plan, actualiza también el precio por cama
+                                        // al valor estándar del plan (puede sobreescribirlo manualmente después).
+                                        setForm({
+                                            ...form,
+                                            plan: newPlan,
+                                            pricePerBed: String(PLAN_PRICING[newPlan]?.pricePerBed ?? form.pricePerBed),
+                                        });
+                                    }}
+                                    className={inputCls}
+                                >
+                                    <option value="LITE">Plan Esencial — ${PLAN_PRICING.LITE.pricePerBed}/cama (mín ${PLAN_PRICING.LITE.monthlyMinimum})</option>
+                                    <option value="PRO">Plan Profesional — ${PLAN_PRICING.PRO.pricePerBed}/cama (mín ${PLAN_PRICING.PRO.monthlyMinimum})</option>
+                                    <option value="ENTERPRISE">Plan Corporativo — ${PLAN_PRICING.ENTERPRISE.pricePerBed}/cama (mín ${PLAN_PRICING.ENTERPRISE.monthlyMinimum})</option>
                                 </select>
                             </Field>
-                            <Field label="Precio por cama"><input type="number" min={0} step="0.01" value={form.pricePerBed} onChange={(e) => setForm({ ...form, pricePerBed: e.target.value })} className={inputCls} /></Field>
+                            <Field label={`Precio por cama (estándar $${PLAN_PRICING[form.plan]?.pricePerBed ?? 0})`}><input type="number" min={0} step="0.01" value={form.pricePerBed} onChange={(e) => setForm({ ...form, pricePerBed: e.target.value })} className={inputCls} /></Field>
                             <Field label="Camas facturadas"><input type="number" min={0} value={form.beds} onChange={(e) => setForm({ ...form, beds: e.target.value })} className={inputCls} /></Field>
                             <Field label="Mensualidad total ($)"><input type="number" min={0} step="0.01" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} className={inputCls} placeholder="Dejar en 0 si no crea contrato" /></Field>
                         </div>
