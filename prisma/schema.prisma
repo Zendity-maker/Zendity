@@ -166,7 +166,7 @@ model User {
   preferredShift String? // nullable string "MORNING", "EVENING", "NIGHT"
   offDays        String[] // String Array of weekdays e.g. ["Wednesday", "Sunday"]
 
-  complianceScore Int      @default(50) // FASE 46: Inicia en 50 para gamificar onboarding (Sube a 100 al acabar el Academy)
+  complianceScore Int      @default(75) // Sprint Z-Align: base 75 (alineado con fórmula dinámica en /api/care/compliance-score). 100 se gana con rondas + Academy + eval alta.
   createdAt       DateTime @default(now())
   hiredAt         DateTime? // Sprint D: fecha real de ingreso (para detectar cuidador senior del turno)
 
