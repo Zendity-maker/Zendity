@@ -23,13 +23,28 @@ export async function GET(_req: Request) {
             return NextResponse.json({ success: false, error: 'Usuario sin sede asignada' }, { status: 400 });
         }
 
-        // 1. Fetch Staff with low compliance scores
+        // 1. Fetch Staff con compliance bajo el rango neutral (< 75)
+        //
+        // Bandas oficiales del sistema:
+        //   ≥ 90       verde — excelente
+        //   75-89      ámbar — área de mejora (NO se alerta)
+        //   60-74      naranja — bajo rendimiento (warning MEDIUM)
+        //   < 60       rojo — riesgo operacional (CRITICAL)
+        //
+        // Excluye staff con menos de 7 días en el sistema — un empleado
+        // recién creado arranca en 75 y todavía no tiene actividad para
+        // que el cron lo mueva arriba. Alertar de él sería falso positivo.
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
         const lowScoreStaff = await prisma.user.findMany({
             where: {
                 headquartersId: hqId,
-                complianceScore: { lt: 80 },
+                complianceScore: { lt: 75 },
+                createdAt: { lt: sevenDaysAgo },
                 isDeleted: false,
-                role: { in: ['CAREGIVER', 'NURSE', 'KITCHEN', 'SOCIAL_WORKER', 'MAINTENANCE'] }
+                isActive: true,
+                role: { in: ['CAREGIVER', 'NURSE', 'KITCHEN', 'SOCIAL_WORKER', 'MAINTENANCE', 'CLEANING'] }
             },
             select: { id: true, name: true, role: true, complianceScore: true }
         });
@@ -60,14 +75,18 @@ export async function GET(_req: Request) {
         // 3. Compile "Red Flags"
         const insights: any[] = [];
 
-        // Add Red Flags for Low Score Staff
+        // Add Red Flags for Low Score Staff — dos tiers según severidad
         lowScoreStaff.forEach(staff => {
+            const score = staff.complianceScore;
+            const isCritical = score < 60;
             insights.push({
                 id: `compliance_risk_${staff.id}`,
-                type: 'CRITICAL',
+                type: isCritical ? 'CRITICAL' : 'MEDIUM',
                 category: 'STAFF_COMPLIANCE',
-                title: 'Bajo Rendimiento Crítico',
-                description: `El score de ${staff.name} (${staff.role}) ha caído a ${staff.complianceScore} pts. Esto representa un riesgo operacional y de certificación activa.`,
+                title: isCritical ? 'Bajo Rendimiento Crítico' : 'Rendimiento Bajo',
+                description: isCritical
+                    ? `El score de ${staff.name} (${staff.role}) está en ${score} pts. Representa un riesgo operacional — revisión urgente recomendada.`
+                    : `El score de ${staff.name} (${staff.role}) está en ${score} pts, por debajo del rango neutral (75). Conviene revisar rondas, observaciones y completitud de Academy.`,
                 employeeId: staff.id,
                 employeeName: staff.name,
                 employeeRole: staff.role,
@@ -121,9 +140,15 @@ export async function GET(_req: Request) {
         // Filtrar banderas suprimidas en las últimas 24h
         const visibleInsights = insights.filter(i => !dismissedSet.has(i.id));
 
+        // Orden de severidad: CRITICAL → HIGH → MEDIUM
+        const severityOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
+        const sortedInsights = visibleInsights.sort(
+            (a, b) => (severityOrder[a.type] ?? 99) - (severityOrder[b.type] ?? 99)
+        );
+
         return NextResponse.json({
             success: true,
-            insights: visibleInsights.sort((a, b) => b.type === 'CRITICAL' ? -1 : 1) // Critical first
+            insights: sortedInsights
         });
 
     } catch (error) {
