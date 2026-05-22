@@ -1,7 +1,26 @@
 "use client";
 
+/**
+ * /family/calendar — Editorial Calm
+ *
+ * Magazine-style. Serif display protagonista. Hairlines en lugar de cards.
+ * Mucho whitespace. Sin emojis.
+ */
+
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Plus, X, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Calendar,
+    X,
+    CheckCircle2,
+    AlertCircle,
+    ChevronLeft,
+    ChevronRight,
+    Home,
+    Video,
+    Phone,
+    Briefcase,
+    PartyPopper,
+} from "lucide-react";
 
 type AppointmentType = 'VISIT' | 'VIDEO_CALL' | 'PHONE_CALL' | 'DIRECTOR_MEETING' | 'SPECIAL_OCCASION';
 type AppStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -21,12 +40,12 @@ interface Appointment {
     approvedBy?: { name: string };
 }
 
-const TYPE_OPTIONS: { value: AppointmentType; label: string; icon: string }[] = [
-    { value: 'VISIT',            label: 'Visita Presencial',    icon: '🏠' },
-    { value: 'VIDEO_CALL',       label: 'Videollamada',         icon: '📹' },
-    { value: 'PHONE_CALL',       label: 'Llamada Telefónica',   icon: '📞' },
-    { value: 'DIRECTOR_MEETING', label: 'Reunión con Director', icon: '👔' },
-    { value: 'SPECIAL_OCCASION', label: 'Ocasión Especial',     icon: '🎉' },
+const TYPE_OPTIONS: { value: AppointmentType; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
+    { value: 'VISIT',            label: 'Visita presencial',     Icon: Home },
+    { value: 'VIDEO_CALL',       label: 'Videollamada',          Icon: Video },
+    { value: 'PHONE_CALL',       label: 'Llamada telefónica',    Icon: Phone },
+    { value: 'DIRECTOR_MEETING', label: 'Reunión con director',  Icon: Briefcase },
+    { value: 'SPECIAL_OCCASION', label: 'Ocasión especial',      Icon: PartyPopper },
 ];
 
 const DURATION_OPTIONS = [
@@ -35,12 +54,54 @@ const DURATION_OPTIONS = [
     { value: 120, label: '2 horas' },
 ];
 
-// Genera slots de 30 min entre 10:00 AM y 5:30 PM
+const STATUS_LABELS: Record<AppStatus, string> = {
+    PENDING:  'Pendiente',
+    APPROVED: 'Aprobada',
+    REJECTED: 'No aprobada',
+};
+
+// ── humanTime helper (copia exacta de /family/page.tsx) ──
+function humanTime(date: string | Date): string {
+    const d = new Date(date);
+    const now = new Date();
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+    const hour = d.getHours();
+
+    if (diffMin < 5) return "justo ahora";
+    if (diffMin < 60) return `hace ${diffMin} minutos`;
+
+    const sameDay =
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+    if (sameDay) {
+        if (hour < 12) return "esta mañana";
+        if (hour < 18) return "esta tarde";
+        return "esta noche";
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday =
+        d.getFullYear() === yesterday.getFullYear() &&
+        d.getMonth() === yesterday.getMonth() &&
+        d.getDate() === yesterday.getDate();
+    if (isYesterday) {
+        if (hour < 12) return "ayer en la mañana";
+        if (hour < 18) return "ayer en la tarde";
+        return "anoche";
+    }
+
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 7) return d.toLocaleDateString("es-PR", { weekday: "long" });
+    return d.toLocaleDateString("es-PR", { day: "numeric", month: "long" });
+}
+
 function generateTimeSlots(): string[] {
     const slots: string[] = [];
     for (let h = 10; h < 18; h++) {
         for (const m of [0, 30]) {
-            if (h === 17 && m === 30) break; // last valid start for 30min appt
+            if (h === 17 && m === 30) break;
             const period = h < 12 ? 'AM' : 'PM';
             const displayH = h > 12 ? h - 12 : h;
             slots.push(`${displayH}:${m === 0 ? '00' : '30'} ${period}`);
@@ -49,39 +110,27 @@ function generateTimeSlots(): string[] {
     return slots;
 }
 
-// Genera los próximos 30 días (excluyendo lunes)
-function generateAvailableDates(): Date[] {
-    const dates: Date[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 1; i <= 30; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        if (d.getDay() !== 1) dates.push(d); // excluir lunes
-    }
-    return dates;
+const TIME_SLOTS = generateTimeSlots();
+
+function Diamond() {
+    return (
+        <div className="flex justify-center py-12">
+            <span className="text-stone-300 text-base tracking-[1em]">◆ ◆ ◆</span>
+        </div>
+    );
 }
 
-const STATUS_STYLES: Record<AppStatus, string> = {
-    PENDING:  'bg-amber-50  border-amber-200  text-amber-700',
-    APPROVED: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    REJECTED: 'bg-red-50    border-red-200    text-red-700',
-};
-const STATUS_ICONS: Record<AppStatus, string> = {
-    PENDING:  '⏳',
-    APPROVED: '✅',
-    REJECTED: '❌',
-};
-const STATUS_LABELS: Record<AppStatus, string> = {
-    PENDING:  'Pendiente',
-    APPROVED: 'Aprobada',
-    REJECTED: 'No aprobada',
-};
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-8 text-center">
+            {children}
+        </p>
+    );
+}
 
-const TIME_SLOTS = generateTimeSlots();
-const AVAILABLE_DATES = generateAvailableDates();
+const MONTHS_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-export default function FamilyCalendarPage() {
+export default function FamilyCalendarEditorial() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -140,7 +189,7 @@ export default function FamilyCalendarPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type,
-                    title:         `${typeOption.icon} ${typeOption.label}`,
+                    title:         typeOption.label,
                     description:   description.trim() || null,
                     requestedDate: selectedDate.toISOString(),
                     requestedTime: selectedTime,
@@ -169,7 +218,7 @@ export default function FamilyCalendarPage() {
     const calDays = (() => {
         const year  = calMonth.getFullYear();
         const month = calMonth.getMonth();
-        const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+        const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const today = new Date(); today.setHours(0,0,0,0);
         const maxDate = new Date(today); maxDate.setDate(today.getDate() + 30);
@@ -187,178 +236,257 @@ export default function FamilyCalendarPage() {
         return cells;
     })();
 
+    const now = new Date();
     const pending  = appointments.filter(a => a.status === 'PENDING');
-    const approved = appointments.filter(a => a.status === 'APPROVED' && new Date(a.requestedDate) >= new Date());
-    const history  = appointments.filter(a => a.status === 'REJECTED' || (a.status === 'APPROVED' && new Date(a.requestedDate) < new Date()));
+    const approved = appointments.filter(a => a.status === 'APPROVED' && new Date(a.requestedDate) >= now);
+    const upcoming = [...pending, ...approved].sort((a, b) =>
+        new Date(a.requestedDate).getTime() - new Date(b.requestedDate).getTime()
+    );
+    const history  = appointments
+        .filter(a => a.status === 'REJECTED' || (a.status === 'APPROVED' && new Date(a.requestedDate) < now))
+        .sort((a, b) => new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime());
 
-    const typeLabel = (a: Appointment) => TYPE_OPTIONS.find(t => t.value === a.type);
+    const isEmpty = !loading && upcoming.length === 0 && history.length === 0;
 
     return (
-        <div className="space-y-6 pb-10 animate-in fade-in duration-500">
+        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
+            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
 
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-teal-500 rounded-2xl flex items-center justify-center shadow-md shadow-teal-200">
-                        <Calendar className="w-5 h-5 text-white" />
+                {/* ═══ MASTHEAD ═══ */}
+                <header className="text-center mb-16">
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-6">
+                        Agenda
+                    </p>
+                    <h1
+                        className="font-serif text-stone-900 leading-[1.05] tracking-tight mb-5"
+                        style={{
+                            fontSize: "clamp(2.75rem, 9vw, 4.5rem)",
+                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
+                        }}
+                    >
+                        Citas
+                    </h1>
+                    <div className="flex items-center justify-center gap-3 mb-5">
+                        <span className="block w-12 h-px bg-stone-300" />
+                        <span className="text-stone-300 text-xs">◆</span>
+                        <span className="block w-12 h-px bg-stone-300" />
                     </div>
-                    <div>
-                        <h1 className="text-xl font-extrabold text-slate-900 leading-tight">Calendario y Citas</h1>
-                        <p className="text-xs text-slate-500 font-semibold mt-0.5">Gestiona tus visitas y solicitudes</p>
+                    <p className="font-serif italic text-stone-500 text-base max-w-sm mx-auto leading-relaxed">
+                        Visitas, llamadas y momentos especiales con tu familiar
+                    </p>
+
+                    <div className="mt-10">
+                        <button
+                            onClick={openModal}
+                            className="font-serif italic text-base text-teal-700 hover:text-teal-800 underline decoration-stone-300 hover:decoration-teal-600 underline-offset-[6px] decoration-1 transition-colors"
+                        >
+                            Agendar una cita
+                        </button>
                     </div>
-                </div>
-                <button
-                    onClick={openModal}
-                    className="flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white font-black rounded-2xl px-4 py-3 text-sm shadow-md shadow-teal-200 transition-all active:scale-95"
-                >
-                    <Plus className="w-4 h-4" />
-                    Solicitar Cita
-                </button>
+                </header>
+
+                {loading && (
+                    <div className="text-center py-16">
+                        <span className="font-serif italic text-stone-300 text-lg">cargando…</span>
+                    </div>
+                )}
+
+                {/* ═══ EMPTY STATE ═══ */}
+                {isEmpty && (
+                    <>
+                        <Diamond />
+                        <div className="text-center max-w-md mx-auto py-12">
+                            <Calendar className="w-16 h-16 mx-auto text-stone-300 mb-8" strokeWidth={1} />
+                            <p
+                                className="font-serif italic text-stone-500 leading-relaxed mb-8"
+                                style={{ fontSize: "1.375rem" }}
+                            >
+                                Aún no tienes citas<br />agendadas
+                            </p>
+                            <button
+                                onClick={openModal}
+                                className="font-serif italic text-base text-teal-700 hover:text-teal-800 underline decoration-stone-300 hover:decoration-teal-600 underline-offset-[6px] decoration-1 transition-colors"
+                            >
+                                Agendar la primera
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {/* ═══ PRÓXIMAS ═══ */}
+                {upcoming.length > 0 && (
+                    <>
+                        <Diamond />
+                        <section>
+                            <SectionLabel>Próximas</SectionLabel>
+                            <div className="max-w-xl mx-auto">
+                                {upcoming.map(a => (
+                                    <AppointmentRow key={a.id} appt={a} />
+                                ))}
+                            </div>
+                        </section>
+                    </>
+                )}
+
+                {/* ═══ PASADAS ═══ */}
+                {history.length > 0 && (
+                    <>
+                        <Diamond />
+                        <section>
+                            <SectionLabel>Pasadas</SectionLabel>
+                            <div className="max-w-xl mx-auto opacity-80">
+                                {history.map(a => (
+                                    <AppointmentRow key={a.id} appt={a} muted />
+                                ))}
+                            </div>
+                        </section>
+                    </>
+                )}
+
+                {/* ═══ COLOFÓN ═══ */}
+                <footer className="text-center mt-20 sm:mt-28 pb-8">
+                    <p className="text-stone-300 text-xs tracking-[0.5em] mb-3">◆ ◆ ◆</p>
+                    <p className="font-serif italic text-stone-400 text-xs leading-relaxed">
+                        Las solicitudes son revisadas<br />en 24 a 48 horas
+                    </p>
+                </footer>
             </div>
 
-            {/* Pendientes */}
-            {pending.length > 0 && (
-                <section>
-                    <h2 className="text-xs font-black uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-2">
-                        <span>⏳</span> Solicitudes Pendientes ({pending.length})
-                    </h2>
-                    <div className="space-y-3">
-                        {pending.map(a => (
-                            <AppointmentCard key={a.id} appt={a} typeLabel={typeLabel(a)} />
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Aprobadas próximas */}
-            {approved.length > 0 && (
-                <section>
-                    <h2 className="text-xs font-black uppercase tracking-widest text-emerald-600 mb-3 flex items-center gap-2">
-                        <span>✅</span> Citas Aprobadas Próximas ({approved.length})
-                    </h2>
-                    <div className="space-y-3">
-                        {approved.map(a => (
-                            <AppointmentCard key={a.id} appt={a} typeLabel={typeLabel(a)} />
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Vacío */}
-            {!loading && pending.length === 0 && approved.length === 0 && history.length === 0 && (
-                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
-                    <div className="text-center mb-5">
-                        <div className="text-4xl mb-3 opacity-30">📅</div>
-                        <p className="font-bold text-slate-700">Sin solicitudes aún</p>
-                        <p className="text-sm text-slate-400 mt-1">Presiona "Solicitar Cita" para coordinar tu primera visita.</p>
-                    </div>
-                    <div className="mt-4 space-y-2">
-                        <p className="text-xs font-semibold text-gray-400 mb-3">Tipos de cita disponibles:</p>
-                        {[
-                            { color: '#0F6B78', label: 'Visita presencial — Mar a Dom, 10AM a 6PM' },
-                            { color: '#1D9E75', label: 'Videollamada o llamada telefónica' },
-                            { color: '#5DCAA5', label: 'Reunión con el Director' },
-                            { color: '#9FE1CB', label: 'Ocasión especial o cumpleaños' },
-                        ].map(item => (
-                            <div key={item.label} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
-                                <p className="text-xs text-gray-600">{item.label}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Historial */}
-            {history.length > 0 && (
-                <section>
-                    <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Historial</h2>
-                    <div className="space-y-3">
-                        {history.map(a => (
-                            <AppointmentCard key={a.id} appt={a} typeLabel={typeLabel(a)} />
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Modal solicitar cita */}
+            {/* ═══ MODAL ═══ */}
             {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-6 duration-300">
-
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
+                    <div
+                        className="bg-stone-50 ring-1 ring-stone-200 rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto animate-in slide-in-from-bottom-6 duration-300"
+                        style={{ boxShadow: "0 24px 64px -16px rgba(15,110,120,0.2)" }}
+                    >
                         {/* Modal header */}
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-3xl z-10">
-                            <div className="flex items-center gap-2.5">
-                                <Calendar className="w-5 h-5 text-teal-600" />
-                                <h2 className="font-extrabold text-slate-800 text-base">Solicitar Cita</h2>
+                        <div className="flex items-center justify-between px-8 pt-8 pb-6 sticky top-0 bg-stone-50 z-10 rounded-t-3xl">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-1">
+                                    Nueva
+                                </p>
+                                <h2
+                                    className="font-serif text-stone-900 tracking-tight"
+                                    style={{
+                                        fontSize: "2rem",
+                                        fontVariationSettings: "'opsz' 48, 'SOFT' 50",
+                                    }}
+                                >
+                                    Agendar cita
+                                </h2>
                             </div>
-                            <button onClick={() => setModalOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
-                                <X className="w-5 h-5 text-slate-500" />
+                            <button
+                                onClick={() => setModalOpen(false)}
+                                className="p-2 rounded-full hover:bg-stone-100 transition-colors"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-5 h-5 text-stone-500" strokeWidth={1.5} />
                             </button>
                         </div>
 
                         {formSuccess ? (
-                            <div className="p-8 flex flex-col items-center text-center">
-                                <CheckCircle2 className="w-16 h-16 text-teal-500 mb-4" />
-                                <h3 className="font-extrabold text-slate-800 text-lg">¡Solicitud enviada!</h3>
-                                <p className="text-slate-500 text-sm mt-2">El equipo revisará tu solicitud en 24-48 horas.</p>
+                            <div className="px-8 py-16 flex flex-col items-center text-center">
+                                <CheckCircle2 className="w-14 h-14 text-teal-600 mb-6" strokeWidth={1.25} />
+                                <p
+                                    className="font-serif italic text-stone-700 leading-relaxed mb-3"
+                                    style={{ fontSize: "1.5rem" }}
+                                >
+                                    Solicitud enviada
+                                </p>
+                                <p className="font-serif italic text-stone-400 text-sm">
+                                    El equipo te responderá pronto
+                                </p>
                             </div>
                         ) : (
-                            <form onSubmit={handleSubmit} className="p-5 space-y-5">
+                            <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-8">
 
                                 {formError && (
-                                    <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-                                        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                        <p className="text-sm text-red-700 font-semibold">{formError}</p>
+                                    <div className="flex items-center gap-2.5 border-b border-red-300 pb-3">
+                                        <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" strokeWidth={1.5} />
+                                        <p className="font-serif italic text-sm text-red-600">{formError}</p>
                                     </div>
                                 )}
 
                                 {/* Tipo de cita */}
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Tipo de cita</label>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {TYPE_OPTIONS.map(opt => (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                onClick={() => setType(opt.value)}
-                                                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 text-left transition-all ${
-                                                    type === opt.value
-                                                        ? 'border-teal-400 bg-teal-50 text-teal-800'
-                                                        : 'border-slate-100 hover:border-slate-200 text-slate-700'
-                                                }`}
-                                            >
-                                                <span className="text-xl">{opt.icon}</span>
-                                                <span className="font-semibold text-sm">{opt.label}</span>
-                                            </button>
-                                        ))}
+                                    <label className="block text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-4">
+                                        Tipo
+                                    </label>
+                                    <div className="space-y-px">
+                                        {TYPE_OPTIONS.map(opt => {
+                                            const Icon = opt.Icon;
+                                            const active = type === opt.value;
+                                            return (
+                                                <button
+                                                    key={opt.value}
+                                                    type="button"
+                                                    onClick={() => setType(opt.value)}
+                                                    className={`w-full flex items-center gap-4 py-3 border-b border-stone-200 text-left transition-colors ${
+                                                        active
+                                                            ? 'text-teal-700'
+                                                            : 'text-stone-700 hover:bg-stone-100/50'
+                                                    }`}
+                                                >
+                                                    <Icon
+                                                        className={`w-4 h-4 ${active ? 'text-teal-600' : 'text-stone-400'}`}
+                                                        strokeWidth={1.5}
+                                                    />
+                                                    <span
+                                                        className="font-serif italic flex-1"
+                                                        style={{ fontSize: "1.0625rem" }}
+                                                    >
+                                                        {opt.label}
+                                                    </span>
+                                                    {active && (
+                                                        <span className="text-teal-600 text-xs">◆</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
-                                {/* Calendario */}
+                                {/* Fecha */}
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">
-                                        Fecha <span className="font-normal normal-case text-slate-400">(lunes no disponibles)</span>
+                                    <label className="block text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-4">
+                                        Fecha
+                                        <span className="ml-2 normal-case tracking-normal font-serif italic text-stone-400 text-xs">
+                                            (lunes no disponibles)
+                                        </span>
                                     </label>
-                                    {/* Month nav */}
-                                    <div className="flex items-center justify-between mb-2">
-                                        <button type="button" onClick={prevMonth} className="p-1.5 rounded-xl hover:bg-slate-100">
-                                            <ChevronLeft className="w-4 h-4" />
+                                    <div className="flex items-center justify-between mb-4">
+                                        <button
+                                            type="button"
+                                            onClick={prevMonth}
+                                            className="p-1.5 rounded-full hover:bg-stone-100 transition-colors"
+                                            aria-label="Mes anterior"
+                                        >
+                                            <ChevronLeft className="w-4 h-4 text-stone-500" strokeWidth={1.5} />
                                         </button>
-                                        <span className="text-sm font-bold text-slate-700 capitalize">
+                                        <span className="font-serif italic text-stone-700 capitalize text-base">
                                             {calMonth.toLocaleDateString('es-PR', { month: 'long', year: 'numeric' })}
                                         </span>
-                                        <button type="button" onClick={nextMonth} className="p-1.5 rounded-xl hover:bg-slate-100">
-                                            <ChevronRight className="w-4 h-4" />
+                                        <button
+                                            type="button"
+                                            onClick={nextMonth}
+                                            className="p-1.5 rounded-full hover:bg-stone-100 transition-colors"
+                                            aria-label="Mes siguiente"
+                                        >
+                                            <ChevronRight className="w-4 h-4 text-stone-500" strokeWidth={1.5} />
                                         </button>
                                     </div>
-                                    {/* Day headers */}
-                                    <div className="grid grid-cols-7 mb-1">
+                                    <div className="grid grid-cols-7 mb-2">
                                         {['D','L','M','M','J','V','S'].map((d, i) => (
-                                            <div key={i} className={`text-center text-[10px] font-black py-1 ${i === 1 ? 'text-slate-300' : 'text-slate-400'}`}>{d}</div>
+                                            <div
+                                                key={i}
+                                                className={`text-center text-[10px] uppercase tracking-[0.2em] py-1 ${
+                                                    i === 1 ? 'text-stone-200' : 'text-stone-400'
+                                                }`}
+                                            >
+                                                {d}
+                                            </div>
                                         ))}
                                     </div>
-                                    {/* Days grid */}
                                     <div className="grid grid-cols-7 gap-1">
                                         {calDays.map((cell, i) => (
                                             <button
@@ -366,14 +494,14 @@ export default function FamilyCalendarPage() {
                                                 type="button"
                                                 disabled={!cell.date || !cell.available}
                                                 onClick={() => cell.date && cell.available && setSelectedDate(cell.date)}
-                                                className={`aspect-square rounded-xl text-sm font-bold transition-all ${
+                                                className={`aspect-square rounded-full text-sm tabular-nums font-sans transition-colors ${
                                                     !cell.date
                                                         ? 'invisible'
                                                         : cell.selected
-                                                            ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
+                                                            ? 'bg-teal-600 text-white'
                                                             : cell.available
-                                                                ? 'hover:bg-teal-50 hover:text-teal-700 text-slate-700'
-                                                                : 'text-slate-200 cursor-not-allowed'
+                                                                ? 'text-stone-700 hover:bg-stone-200/60'
+                                                                : 'text-stone-300 cursor-not-allowed'
                                                 }`}
                                             >
                                                 {cell.date?.getDate()}
@@ -381,7 +509,7 @@ export default function FamilyCalendarPage() {
                                         ))}
                                     </div>
                                     {selectedDate && (
-                                        <p className="text-xs text-teal-600 font-bold mt-2 text-center">
+                                        <p className="font-serif italic text-teal-700 text-sm mt-4 text-center">
                                             {selectedDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })}
                                         </p>
                                     )}
@@ -389,17 +517,19 @@ export default function FamilyCalendarPage() {
 
                                 {/* Hora */}
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Hora</label>
-                                    <div className="grid grid-cols-4 gap-1.5 max-h-36 overflow-y-auto">
+                                    <label className="block text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-4">
+                                        Hora
+                                    </label>
+                                    <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
                                         {TIME_SLOTS.map(slot => (
                                             <button
                                                 key={slot}
                                                 type="button"
                                                 onClick={() => setSelectedTime(slot)}
-                                                className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                                className={`py-2 text-xs tabular-nums font-sans rounded-full transition-colors ${
                                                     selectedTime === slot
-                                                        ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
-                                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
+                                                        ? 'bg-teal-600 text-white'
+                                                        : 'text-stone-600 hover:bg-stone-200/60'
                                                 }`}
                                             >
                                                 {slot}
@@ -410,17 +540,19 @@ export default function FamilyCalendarPage() {
 
                                 {/* Duración */}
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Duración</label>
+                                    <label className="block text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-4">
+                                        Duración
+                                    </label>
                                     <div className="flex gap-2">
                                         {DURATION_OPTIONS.map(d => (
                                             <button
                                                 key={d.value}
                                                 type="button"
                                                 onClick={() => setDuration(d.value)}
-                                                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                                                className={`flex-1 py-2.5 font-serif italic text-sm rounded-full transition-colors ${
                                                     duration === d.value
-                                                        ? 'bg-teal-500 text-white shadow-md shadow-teal-200'
-                                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
+                                                        ? 'bg-teal-600 text-white'
+                                                        : 'text-stone-600 hover:bg-stone-200/60 ring-1 ring-stone-200'
                                                 }`}
                                             >
                                                 {d.label}
@@ -429,40 +561,46 @@ export default function FamilyCalendarPage() {
                                     </div>
                                 </div>
 
-                                {/* Descripción */}
+                                {/* Notas */}
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">
-                                        Notas <span className="font-normal normal-case text-slate-400">(opcional)</span>
+                                    <label className="block text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-3">
+                                        Notas
+                                        <span className="ml-2 normal-case tracking-normal font-serif italic text-stone-400 text-xs">
+                                            (opcional)
+                                        </span>
                                     </label>
                                     <textarea
                                         rows={3}
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
-                                        placeholder="Motivo o notas especiales…"
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 focus:outline-none focus:border-teal-300 focus:ring-4 focus:ring-teal-50 transition-all text-sm font-medium text-slate-800 placeholder:text-slate-400 placeholder:font-normal resize-none"
+                                        placeholder="Motivo o detalles…"
+                                        className="w-full bg-transparent border-0 border-b border-stone-200 px-0 py-2 focus:outline-none focus:border-teal-600 transition-colors font-serif italic text-stone-800 placeholder:text-stone-400 resize-none"
+                                        style={{ fontSize: "1.0625rem" }}
                                     />
                                 </div>
 
-                                {/* Nota informativa */}
-                                <div className="bg-sky-50 border border-sky-100 rounded-2xl px-4 py-3 flex gap-2 items-start">
-                                    <Clock className="w-4 h-4 text-sky-500 flex-shrink-0 mt-0.5" />
-                                    <p className="text-xs text-sky-700 font-medium leading-relaxed">
-                                        Las solicitudes son revisadas en <strong>24-48 horas</strong> por el equipo. Recibirás una confirmación por correo y en el portal.
-                                    </p>
+                                {/* Botones */}
+                                <div className="flex items-center justify-between pt-4 border-t border-stone-200">
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalOpen(false)}
+                                        className="font-serif italic text-stone-500 hover:text-stone-700 text-sm transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={sending || !selectedDate || !selectedTime}
+                                        className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-serif italic rounded-full px-7 py-3 text-sm transition-colors"
+                                    >
+                                        {sending ? (
+                                            <>
+                                                <span className="animate-spin inline-block w-3.5 h-3.5 border border-white border-t-transparent rounded-full" />
+                                                Enviando
+                                            </>
+                                        ) : 'Enviar solicitud'}
+                                    </button>
                                 </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={sending || !selectedDate || !selectedTime}
-                                    className="w-full flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl py-4 transition-all active:scale-[.98] shadow-md shadow-teal-200 text-sm uppercase tracking-wider"
-                                >
-                                    {sending ? (
-                                        <>
-                                            <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                                            Enviando…
-                                        </>
-                                    ) : 'Enviar Solicitud'}
-                                </button>
                             </form>
                         )}
                     </div>
@@ -472,35 +610,92 @@ export default function FamilyCalendarPage() {
     );
 }
 
-function AppointmentCard({ appt, typeLabel }: { appt: Appointment; typeLabel?: { icon: string; label: string } }) {
-    const formattedDate = new Date(appt.requestedDate).toLocaleDateString('es-PR', {
-        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    });
+// ── Row editorial: fecha izquierda, contenido derecha ──
+function AppointmentRow({ appt, muted = false }: { appt: Appointment; muted?: boolean }) {
+    const d = new Date(appt.requestedDate);
+    const day = d.getDate();
+    const monthAbbr = MONTHS_ABBR[d.getMonth()];
+    const weekday = d.toLocaleDateString('es-PR', { weekday: 'long' });
+    const typeOption = TYPE_OPTIONS.find(t => t.value === appt.type);
+    const Icon = typeOption?.Icon || Calendar;
+    const label = typeOption?.label || appt.title;
+
+    const statusTone =
+        appt.status === 'PENDING'  ? 'text-amber-700' :
+        appt.status === 'APPROVED' ? 'text-teal-700' :
+                                     'text-stone-400';
 
     return (
-        <div className={`border rounded-2xl p-4 ${STATUS_STYLES[appt.status]}`}>
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">{typeLabel?.icon || '📅'}</span>
-                        <span className="font-bold text-sm truncate">{typeLabel?.label || appt.type}</span>
-                        <span className={`ml-auto text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap ${STATUS_STYLES[appt.status]}`}>
-                            {STATUS_ICONS[appt.status]} {STATUS_LABELS[appt.status]}
-                        </span>
-                    </div>
-                    <p className="text-xs font-semibold capitalize">{formattedDate} · {appt.requestedTime}</p>
-                    <p className="text-[11px] mt-0.5 opacity-70">Duración: {appt.durationMins} min · {appt.patient.name}</p>
-                    {appt.description && (
-                        <p className="text-xs mt-1.5 italic opacity-80">{appt.description}</p>
-                    )}
-                    {appt.status === 'REJECTED' && appt.rejectedReason && (
-                        <p className="text-xs mt-2 bg-red-100 rounded-xl px-3 py-1.5 font-medium">{appt.rejectedReason}</p>
-                    )}
+        <article className={`group flex items-start gap-6 py-6 border-b border-stone-200 hover:bg-stone-100/50 transition-colors -mx-4 px-4 rounded-sm ${muted ? 'opacity-70' : ''}`}>
+            {/* Fecha grande */}
+            <div className="flex-shrink-0 w-16 text-center">
+                <p
+                    className="font-serif text-stone-900 leading-none tracking-tight tabular-nums"
+                    style={{
+                        fontSize: "2.25rem",
+                        fontVariationSettings: "'opsz' 48, 'SOFT' 50",
+                    }}
+                >
+                    {day}
+                </p>
+                <p className="font-serif italic text-stone-400 text-xs mt-1 lowercase">
+                    {monthAbbr}
+                </p>
+            </div>
+
+            {/* Contenido */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                    <Icon className="w-4 h-4 text-stone-400 flex-shrink-0" strokeWidth={1.5} />
+                    <p
+                        className="font-serif text-stone-900 tracking-tight"
+                        style={{
+                            fontSize: "1.25rem",
+                            fontVariationSettings: "'opsz' 24, 'SOFT' 50",
+                        }}
+                    >
+                        {label}
+                    </p>
+                </div>
+                <p className="font-serif italic text-stone-500 text-sm capitalize">
+                    {weekday}
+                    <span className="mx-2 text-stone-300">·</span>
+                    <span className="font-sans not-italic tabular-nums text-stone-600">{appt.requestedTime}</span>
+                    <span className="mx-2 text-stone-300">·</span>
+                    <span className="font-sans not-italic tabular-nums text-stone-500">{appt.durationMins} min</span>
+                </p>
+
+                {appt.description && (
+                    <p
+                        className="font-serif italic text-stone-600 leading-relaxed mt-3"
+                        style={{ fontSize: "0.9375rem" }}
+                    >
+                        &ldquo;{appt.description}&rdquo;
+                    </p>
+                )}
+
+                <div className="flex items-center gap-3 mt-3 text-xs">
+                    <span className={`uppercase tracking-[0.25em] text-[10px] font-medium ${statusTone}`}>
+                        {STATUS_LABELS[appt.status]}
+                    </span>
                     {appt.status === 'APPROVED' && appt.approvedBy && (
-                        <p className="text-[11px] mt-1.5 opacity-60">Aprobada por {appt.approvedBy.name}</p>
+                        <span className="font-serif italic text-stone-400">
+                            — confirmada por {appt.approvedBy.name}
+                        </span>
+                    )}
+                    {appt.status === 'APPROVED' && appt.approvedAt && (
+                        <span className="font-serif italic text-stone-400">
+                            {humanTime(appt.approvedAt)}
+                        </span>
                     )}
                 </div>
+
+                {appt.status === 'REJECTED' && appt.rejectedReason && (
+                    <p className="font-serif italic text-stone-500 text-sm mt-3 pl-3 border-l border-stone-300 leading-relaxed">
+                        {appt.rejectedReason}
+                    </p>
+                )}
             </div>
-        </div>
+        </article>
     );
 }

@@ -1,7 +1,67 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FaFileInvoiceDollar, FaCheckCircle, FaExclamationCircle, FaLock, FaRegClock, FaCloudDownloadAlt } from "react-icons/fa";
+import { CheckCircle2, Clock, AlertCircle, Lock, Download, Receipt } from "lucide-react";
+
+// ── Tiempo humano ──
+function humanTime(date: string | Date): string {
+    const d = new Date(date);
+    const now = new Date();
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (diffMin < 5) return "justo ahora";
+    if (diffMin < 60) return `hace ${diffMin} minutos`;
+    const sameDay =
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+    if (sameDay) return "hoy";
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday =
+        d.getFullYear() === yesterday.getFullYear() &&
+        d.getMonth() === yesterday.getMonth() &&
+        d.getDate() === yesterday.getDate();
+    if (isYesterday) return "ayer";
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 7) return d.toLocaleDateString("es-PR", { weekday: "long" });
+    return d.toLocaleDateString("es-PR", { day: "numeric", month: "long" });
+}
+
+function fechaCorta(date: string | Date): string {
+    return new Date(date).toLocaleDateString("es-PR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function Diamond() {
+    return (
+        <div className="flex justify-center py-12">
+            <span className="text-stone-300 text-base tracking-[1em]">◆ ◆ ◆</span>
+        </div>
+    );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-6 text-center">
+            {children}
+        </p>
+    );
+}
+
+function StatusLine({ status }: { status: string }) {
+    const map: Record<string, { label: string; icon: any; color: string }> = {
+        PAID:    { label: "Pagada",    icon: CheckCircle2, color: "text-teal-700" },
+        PENDING: { label: "Pendiente", icon: Clock,         color: "text-stone-500" },
+        OVERDUE: { label: "Vencida",   icon: AlertCircle,   color: "text-stone-700" },
+    };
+    const s = map[status] ?? { label: status, icon: Clock, color: "text-stone-500" };
+    const Icon = s.icon;
+    return (
+        <span className={`inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.25em] font-medium ${s.color} font-sans`}>
+            <Icon className="w-3 h-3" strokeWidth={1.5} />
+            {s.label}
+        </span>
+    );
+}
 
 export default function FamilyBilling() {
     const [invoices, setInvoices] = useState<any[]>([]);
@@ -21,132 +81,184 @@ export default function FamilyBilling() {
             .catch(() => setLoading(false));
     }, []);
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-    };
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
-    const StatusBadge = ({ status }: { status: string }) => {
-        switch (status) {
-            case 'PAID':
-                return <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaCheckCircle /> Pagado</span>;
-            case 'PENDING':
-                return <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaRegClock /> Pendiente</span>;
-            case 'OVERDUE':
-                return <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1"><FaExclamationCircle /> Vencido</span>;
-            default:
-                return <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest">{status}</span>;
-        }
-    };
+    if (loading) {
+        return (
+            <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex items-center justify-center">
+                <span className="font-serif italic text-stone-300 text-lg">cargando…</span>
+            </div>
+        );
+    }
+
+    const pendingInvoices = invoices.filter(i => i.status !== 'PAID');
+    const paidInvoices    = invoices.filter(i => i.status === 'PAID');
 
     return (
-        <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700">
-            {/* Encabezado */}
-            <div className="rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden" style={{ backgroundColor: '#0F6B78' }}>
-                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full blur-3xl -z-0" />
-                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="bg-white/15 p-2.5 rounded-xl">
-                                <FaFileInvoiceDollar className="text-xl" style={{ color: '#E1F5EE' }} />
-                            </div>
-                            <h2 className="font-extrabold text-2xl tracking-tight">Facturación</h2>
-                        </div>
-                        {resident ? (
-                            <p className="text-sm font-medium" style={{ color: '#E1F5EE' }}>
-                                {resident.name}{resident.roomNumber ? ` · Habitación ${resident.roomNumber}` : ''}
-                            </p>
-                        ) : (
-                            <p className="text-sm font-medium" style={{ color: '#E1F5EE' }}>Estado de Cuenta Mensual</p>
-                        )}
-                    </div>
-                    {invoices.length === 0 && !loading && (
-                        <span className="text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-xl"
-                            style={{ backgroundColor: '#E1F5EE', color: '#0F6B78' }}>
-                            ✓ Balance al día
-                        </span>
+        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
+            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
+
+                {/* ═══ MASTHEAD ═══════════════════════════════════════════ */}
+                <header className="text-center mb-12">
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-2">
+                        Estado de cuenta
+                    </p>
+                    {resident && (
+                        <p className="font-serif italic text-stone-400 text-sm mb-10">
+                            {resident.name}
+                            {resident.roomNumber && (
+                                <>
+                                    <span className="mx-2 text-stone-300">·</span>
+                                    Habitación {resident.roomNumber}
+                                </>
+                            )}
+                        </p>
                     )}
-                </div>
-            </div>
-
-            {/* Area Principal - Facturas */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100">
-                <h3 className="font-black text-slate-800 text-lg mb-6 flex items-center gap-2">
-                    Mis Facturas
-                </h3>
-
-                {loading ? (
-                    <div className="flex justify-center items-center h-32">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+                    <h1
+                        className="font-serif text-stone-900 leading-[1.05] tracking-tight"
+                        style={{
+                            fontSize: "clamp(2.5rem, 8vw, 4rem)",
+                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
+                        }}
+                    >
+                        Facturación
+                    </h1>
+                    <div className="flex items-center justify-center gap-3 mt-6">
+                        <span className="block w-12 h-px bg-stone-300" />
+                        <span className="text-stone-300 text-xs">◆</span>
+                        <span className="block w-12 h-px bg-stone-300" />
                     </div>
-                ) : invoices.length === 0 ? (
-                    <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 border border-slate-100/50">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                            <FaFileInvoiceDollar className="text-2xl text-slate-500" />
-                        </div>
-                        <h4 className="font-bold text-slate-700">Sin Facturas Pendientes</h4>
-                        <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto">Actualmente no existen registros de facturación asociados al residente.</p>
+                </header>
+
+                {invoices.length === 0 ? (
+                    <div className="text-center py-20">
+                        <Receipt className="w-12 h-12 text-stone-300 mx-auto mb-6" strokeWidth={1.25} />
+                        <p
+                            className="font-serif italic text-stone-500 leading-relaxed"
+                            style={{ fontSize: "1.25rem" }}
+                        >
+                            Balance al día.<br />
+                            No hay facturas registradas.
+                        </p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        {invoices.map((inv) => (
-                            <div key={inv.id} className="group border border-slate-100 hover:border-teal-100 rounded-2xl p-5 sm:p-6 transition-all bg-white hover:shadow-md hover:shadow-teal-50/50 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/50 rounded-bl-[100px] -z-0 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <div className="relative z-10 flex flex-col sm:flex-row justify-between gap-6">
+                    <>
+                        {/* ═══ Facturas pendientes ═══════════════════════ */}
+                        {pendingInvoices.length > 0 && (
+                            <>
+                                <Diamond />
+                                <section>
+                                    <SectionLabel>
+                                        {pendingInvoices.length === 1 ? "Factura pendiente" : `${pendingInvoices.length} facturas pendientes`}
+                                    </SectionLabel>
 
-                                    {/* Info Principal */}
-                                    <div className="space-y-3 flex-1">
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-black text-slate-800 tracking-wider">#{inv.invoiceNumber}</span>
-                                            <StatusBadge status={inv.status} />
-                                        </div>
+                                    <div className="space-y-12">
+                                        {pendingInvoices.map((inv) => (
+                                            <article key={inv.id} className="max-w-lg mx-auto">
 
-                                        <div className="text-sm text-slate-500 font-medium">
-                                            <p>Vence el: <span className="font-bold text-slate-700">{new Date(inv.dueDate).toLocaleDateString()}</span></p>
-                                        </div>
+                                                {/* Heading: número + status */}
+                                                <div className="flex items-baseline justify-between mb-4">
+                                                    <span className="font-serif italic text-stone-400 text-sm">
+                                                        Factura {inv.invoiceNumber}
+                                                    </span>
+                                                    <StatusLine status={inv.status} />
+                                                </div>
 
-                                        {/* Breakdowns (Items) */}
-                                        {inv.items && inv.items.length > 0 && (
-                                            <div className="mt-4 pt-4 border-t border-dashed border-slate-100 space-y-2">
-                                                {inv.items.map((item: any) => (
-                                                    <div key={item.id} className="flex justify-between text-sm">
-                                                        <span className="text-slate-600 font-medium">{item.description} <span className="text-slate-500 text-xs">x{item.quantity}</span></span>
-                                                        <span className="font-bold text-slate-800">{formatCurrency(item.totalPrice)}</span>
-                                                    </div>
-                                                ))}
+                                                {/* Total — el dato protagonista */}
+                                                <p
+                                                    className="font-serif text-stone-900 leading-none tracking-tight mb-2"
+                                                    style={{
+                                                        fontSize: "3.5rem",
+                                                        fontVariationSettings: "'opsz' 144, 'SOFT' 50",
+                                                    }}
+                                                >
+                                                    {formatCurrency(inv.totalAmount)}
+                                                </p>
+                                                <p className="font-serif italic text-stone-500 text-sm mb-8">
+                                                    Vence el {fechaCorta(inv.dueDate)}
+                                                </p>
+
+                                                {/* Items desglosados */}
+                                                {inv.items && inv.items.length > 0 && (
+                                                    <dl className="font-serif mb-8">
+                                                        {inv.items.map((item: any) => (
+                                                            <div
+                                                                key={item.id}
+                                                                className="flex items-baseline justify-between py-3 border-b border-stone-200 last:border-b-0"
+                                                            >
+                                                                <dt className="text-sm text-stone-600 italic flex-1 pr-4">
+                                                                    {item.description}
+                                                                    {item.quantity > 1 && (
+                                                                        <span className="text-stone-400 not-italic"> · {item.quantity}</span>
+                                                                    )}
+                                                                </dt>
+                                                                <dd className="text-stone-900 text-base tracking-tight tabular-nums">
+                                                                    {formatCurrency(item.totalPrice)}
+                                                                </dd>
+                                                            </div>
+                                                        ))}
+                                                    </dl>
+                                                )}
+
+                                                {/* CTA pagar */}
+                                                <button className="w-full bg-teal-700 hover:bg-teal-800 text-white py-4 rounded-full transition-colors flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-wide">
+                                                    <Lock className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                                    Pagar de forma segura
+                                                </button>
+                                            </article>
+                                        ))}
+                                    </div>
+                                </section>
+                            </>
+                        )}
+
+                        {/* ═══ Historial pagado ═══════════════════════════ */}
+                        {paidInvoices.length > 0 && (
+                            <>
+                                <Diamond />
+                                <section>
+                                    <SectionLabel>Historial</SectionLabel>
+
+                                    <div className="max-w-lg mx-auto">
+                                        {paidInvoices.map((inv) => (
+                                            <div
+                                                key={inv.id}
+                                                className="group flex items-baseline justify-between py-5 border-b border-stone-200 last:border-b-0 hover:bg-stone-100/50 -mx-4 px-4 transition-colors"
+                                            >
+                                                <div className="flex-1">
+                                                    <p className="font-serif text-stone-900 text-lg tracking-tight">
+                                                        {formatCurrency(inv.totalAmount)}
+                                                    </p>
+                                                    <p className="text-xs text-stone-400 italic font-serif">
+                                                        {inv.invoiceNumber} · Pagada {inv.paidAt ? humanTime(inv.paidAt) : "previamente"}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    title="Descargar recibo"
+                                                    className="text-stone-400 hover:text-teal-700 transition-colors p-2"
+                                                >
+                                                    <Download className="w-4 h-4" strokeWidth={1.5} />
+                                                </button>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
-
-                                    {/* Columna Acciones / Total */}
-                                    <div className="flex flex-col items-start sm:items-end justify-between border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-6">
-                                        <div className="text-left sm:text-right w-full mb-4 sm:mb-0">
-                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">Total a Pagar</p>
-                                            <p className="text-3xl font-black text-slate-800 tracking-tighter">{formatCurrency(inv.totalAmount)}</p>
-                                        </div>
-
-                                        <div className="flex flex-col gap-2 w-full sm:w-auto">
-                                            {inv.status !== 'PAID' ? (
-                                                <button className="flex items-center justify-center gap-2 text-white px-6 py-2.5 rounded-xl font-bold transition-all w-full" style={{ backgroundColor: '#0F6B78' }}>
-                                                    <FaLock className="text-xs" /> Pagar Seguro
-                                                </button>
-                                            ) : (
-                                                <button className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl font-bold transition-all w-full">
-                                                    <FaCloudDownloadAlt /> Recibo
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                </section>
+                            </>
+                        )}
+                    </>
                 )}
-            </div>
 
-            <p className="text-center text-xs text-slate-500 font-semibold uppercase tracking-widest">
-                <FaLock className="inline-block mb-1 mr-1" /> Zendity Secure Payments
-            </p>
+                {/* ═══ COLOFÓN ═══════════════════════════════════════════ */}
+                <footer className="text-center mt-20 sm:mt-28 pb-8">
+                    <p className="text-stone-300 text-xs tracking-[0.5em] mb-3">◆ ◆ ◆</p>
+                    <p className="font-serif italic text-stone-400 text-xs leading-relaxed flex items-center justify-center gap-1.5">
+                        <Lock className="w-3 h-3" strokeWidth={1.5} />
+                        Pagos seguros por Zéndity
+                    </p>
+                </footer>
+
+            </div>
         </div>
     );
 }
