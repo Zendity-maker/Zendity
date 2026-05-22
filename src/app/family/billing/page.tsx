@@ -205,11 +205,21 @@ export default function FamilyBilling() {
                                                     </dl>
                                                 )}
 
-                                                {/* CTA pagar */}
-                                                <button className="w-full bg-teal-700 hover:bg-teal-800 text-white py-4 rounded-full transition-colors flex items-center justify-center gap-2 font-sans font-medium text-sm tracking-wide">
-                                                    <Lock className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                                    Pagar de forma segura
-                                                </button>
+                                                {/* Pagos: instrucción honesta — el procesamiento lo hace la sede */}
+                                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+                                                    <p className="text-sm font-semibold text-slate-600 mb-1">
+                                                        Pagos procesados por tu facilidad
+                                                    </p>
+                                                    <p className="text-xs text-slate-400">
+                                                        Para realizar un pago contacta al director de la facilidad.
+                                                    </p>
+                                                    <a
+                                                        href="/family/messages"
+                                                        className="inline-block mt-3 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-4 py-1.5 hover:bg-teal-50 transition-colors"
+                                                    >
+                                                        Enviar mensaje al director →
+                                                    </a>
+                                                </div>
                                             </article>
                                         ))}
                                     </div>
@@ -238,12 +248,13 @@ export default function FamilyBilling() {
                                                         {inv.invoiceNumber} · Pagada {inv.paidAt ? humanTime(inv.paidAt) : "previamente"}
                                                     </p>
                                                 </div>
-                                                <button
-                                                    title="Descargar recibo"
-                                                    className="text-stone-400 hover:text-teal-700 transition-colors p-2"
+                                                <span
+                                                    title="Disponible próximamente"
+                                                    className="text-stone-300 p-2 cursor-not-allowed"
+                                                    aria-disabled="true"
                                                 >
                                                     <Download className="w-4 h-4" strokeWidth={1.5} />
-                                                </button>
+                                                </span>
                                             </div>
                                         ))}
                                     </div>

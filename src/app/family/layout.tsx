@@ -9,6 +9,8 @@ import {
     Calendar,
     Receipt,
     LogOut,
+    ShoppingBag,
+    FileText,
 } from "lucide-react";
 import { prisma } from '@/lib/prisma';
 
@@ -48,12 +50,15 @@ export default async function FamilyLayout({ children }: { children: React.React
         }
     } catch { /* no-fatal */ }
 
+    // mobile: true → visible en bottom nav mobile. false → solo desktop top nav.
     const navLinks = [
-        { href: "/family", label: "Inicio", icon: Home, badge: 0 },
-        { href: "/family/feed", label: "Diario", icon: BookOpen, badge: 0 },
-        { href: "/family/messages", label: "Mensajes", icon: MessageCircle, badge: unreadMessages },
-        { href: "/family/calendar", label: "Citas", icon: Calendar, badge: 0 },
-        { href: "/family/billing", label: "Facturación", icon: Receipt, badge: 0 },
+        { href: "/family", label: "Inicio", icon: Home, badge: 0, mobile: true },
+        { href: "/family/feed", label: "Diario", icon: BookOpen, badge: 0, mobile: true },
+        { href: "/family/messages", label: "Mensajes", icon: MessageCircle, badge: unreadMessages, mobile: true },
+        { href: "/family/calendar", label: "Citas", icon: Calendar, badge: 0, mobile: true },
+        { href: "/family/concierge", label: "Servicios", icon: ShoppingBag, badge: 0, mobile: true },
+        { href: "/family/billing", label: "Facturación", icon: Receipt, badge: 0, mobile: false },
+        { href: "/family/documents", label: "Documentos", icon: FileText, badge: 0, mobile: false },
     ];
 
     return (
@@ -135,7 +140,7 @@ export default async function FamilyLayout({ children }: { children: React.React
                 style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
                 <div className="flex justify-around items-stretch h-[68px]">
-                    {navLinks.slice(0, 4).map((link) => {
+                    {navLinks.filter(l => l.mobile).map((link) => {
                         const Icon = link.icon;
                         return (
                             <Link

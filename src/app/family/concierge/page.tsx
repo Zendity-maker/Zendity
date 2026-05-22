@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaSpa, FaShoppingCart, FaGift, FaWallet, FaCheckCircle, FaHeartbeat, FaCalendarAlt, FaClipboardList } from "react-icons/fa";
-import { X, ChevronLeft, ChevronRight, Clock, Camera, Bell, Users, ChevronDown, ChevronUp, Heart } from "lucide-react";
+import {
+    X, ChevronLeft, ChevronRight, Clock, Camera, Bell, Users, ChevronDown, ChevronUp, Heart,
+    Sparkles, ShoppingCart, Gift, Wallet, CheckCircle2, Activity, Calendar as CalendarIcon, ClipboardList,
+} from "lucide-react";
 
 interface MarketplaceItem {
     id: string;
@@ -217,12 +219,12 @@ export default function ConciergePage() {
 
     if (loading) return (
         <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
         </div>
     );
 
     if (errorMsg) return (
-        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-rose-100 flex flex-col items-center mt-10">
+        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-teal-100 flex flex-col items-center mt-10">
             <p className="text-xl font-bold text-slate-800">Error al cargar el Marketplace</p>
             <p className="text-slate-500 mt-2">{errorMsg}</p>
         </div>
@@ -243,20 +245,20 @@ export default function ConciergePage() {
         <div className="space-y-6 animate-in slide-in-from-bottom-6 duration-700 pb-10">
 
             {/* Header & Balance */}
-            <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
+            <div className="bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl"></div>
                 <div className="relative z-10 flex flex-col md:flex-row items-start justify-between gap-6">
                     <div>
-                        <div className="flex items-center gap-3 mb-2 text-indigo-200">
-                            <FaSpa className="text-xl" />
+                        <div className="flex items-center gap-3 mb-2 text-teal-100">
+                            <Sparkles className="w-5 h-5" />
                             <h2 className="text-sm font-black uppercase tracking-widest">Zendity Concierge</h2>
                         </div>
                         <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">Marketplace de Servicios</h1>
-                        <p className="text-indigo-200/70 font-medium max-w-md">Terapias, estética y servicios especiales. Elige fecha y hora y lo coordinamos.</p>
+                        <p className="text-teal-100/70 font-medium max-w-md">Terapias, estética y servicios especiales. Elige fecha y hora y lo coordinamos.</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 min-w-[200px] text-right">
-                        <p className="text-xs uppercase font-bold tracking-widest text-indigo-200 mb-1 flex items-center justify-end gap-2">
-                            <FaWallet /> Saldo Concierge
+                        <p className="text-xs uppercase font-bold tracking-widest text-teal-100 mb-1 flex items-center justify-end gap-2">
+                            <Wallet className="w-4 h-4" /> Saldo Concierge
                         </p>
                         <p className="text-4xl font-black text-white">${data.balance.toFixed(2)}</p>
                     </div>
@@ -265,7 +267,7 @@ export default function ConciergePage() {
 
             {successMsg && (
                 <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-2xl font-bold flex items-center gap-3 shadow-sm">
-                    <FaCheckCircle className="text-xl flex-shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                     {successMsg}
                 </div>
             )}
@@ -276,13 +278,13 @@ export default function ConciergePage() {
                     onClick={() => setActiveTab('marketplace')}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'marketplace' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <FaSpa /> Catálogo de Servicios
+                    <Sparkles className="w-4 h-4" /> Catálogo de Servicios
                 </button>
                 <button
                     onClick={() => setActiveTab('reservas')}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 relative ${activeTab === 'reservas' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <FaClipboardList /> Mis Reservas
+                    <ClipboardList className="w-4 h-4" /> Mis Reservas
                     {pendingCount > 0 && (
                         <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
                             {pendingCount}
@@ -295,20 +297,20 @@ export default function ConciergePage() {
             {activeTab === 'marketplace' && (
                 <>
                     {/* ── Banner: Foto + Notificación al familiar ── */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-5">
-                        <p className="text-sm font-black text-indigo-800 mb-3 flex items-center gap-2">
-                            <Bell className="w-4 h-4 text-indigo-500" /> ¿Cómo funciona?
+                    <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-2xl p-5">
+                        <p className="text-sm font-black text-teal-800 mb-3 flex items-center gap-2">
+                            <Bell className="w-4 h-4 text-teal-600" /> ¿Cómo funciona?
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-indigo-100">
-                                <Camera className="w-8 h-8 text-indigo-500 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-teal-100">
+                                <Camera className="w-8 h-8 text-teal-600 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-xs font-black text-slate-800">📸 Foto del servicio</p>
                                     <p className="text-xs text-slate-500 mt-0.5">Al completarse cada sesión, el equipo envía una foto al familiar para que veas cómo disfrutó el residente.</p>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-indigo-100">
-                                <Bell className="w-8 h-8 text-violet-500 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 bg-white/70 rounded-xl p-3 border border-teal-100">
+                                <Bell className="w-8 h-8 text-teal-500 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-xs font-black text-slate-800">🔔 Notificación en tiempo real</p>
                                     <p className="text-xs text-slate-500 mt-0.5">Recibes una notificación aquí en el portal cuando el servicio comienza, se completa o cuando un producto es entregado.</p>
@@ -320,7 +322,7 @@ export default function ConciergePage() {
                     {/* Servicios */}
                     <div>
                         <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
-                            <FaHeartbeat className="text-rose-500" /> Especialidades y Terapias
+                            <Activity className="w-5 h-5 text-teal-600" /> Especialidades y Terapias
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             {data.services.map((service) => {
@@ -331,8 +333,8 @@ export default function ConciergePage() {
                                 return (
                                 <div key={service.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group flex flex-col relative">
                                     {service.isOffer && (
-                                        <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow flex items-center gap-1">
-                                            <FaGift /> Oferta
+                                        <div className="absolute top-3 right-3 z-10 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                                            <Gift className="w-3.5 h-3.5" /> Oferta
                                         </div>
                                     )}
                                     {service.imageUrl && (
@@ -352,20 +354,20 @@ export default function ConciergePage() {
                                             <div className="flex gap-2 mb-3">
                                                 <button
                                                     onClick={() => setYogaMode('grupal')}
-                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'grupal' ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300'}`}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'grupal' ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}
                                                 >
                                                     <Users className="w-3 h-3" /> Grupal · $39.99
                                                 </button>
                                                 <button
                                                     onClick={() => setYogaMode('privada')}
-                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'privada' ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'}`}
+                                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'privada' ? 'bg-teal-600 text-white border-teal-500' : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'}`}
                                                 >
                                                     <Heart className="w-3 h-3" /> Privada Familiar · $59.99
                                                 </button>
                                             </div>
                                         )}
                                         {isYoga && yogaMode === 'privada' && (
-                                            <p className="text-[11px] text-rose-600 font-bold bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">
+                                            <p className="text-[11px] text-amber-700 font-bold bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
                                                 💑 El familiar puede unirse y practicar junto al residente en una sesión privada exclusiva.
                                             </p>
                                         )}
@@ -375,7 +377,7 @@ export default function ConciergePage() {
                                             <div className="mb-3">
                                                 <button
                                                     onClick={() => setExpandedService(isExpanded ? null : service.id)}
-                                                    className="w-full flex items-center justify-between text-xs font-black text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl px-3 py-2 transition-colors border border-indigo-100"
+                                                    className="w-full flex items-center justify-between text-xs font-black text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl px-3 py-2 transition-colors border border-teal-100"
                                                 >
                                                     <span>Descripción y beneficios</span>
                                                     {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -393,10 +395,10 @@ export default function ConciergePage() {
                                                 {service.isOffer && service.originalPrice && (
                                                     <p className="text-xs text-slate-400 line-through">${service.originalPrice.toFixed(2)}</p>
                                                 )}
-                                                <p className="text-xl font-black text-indigo-600">${displayPrice.toFixed(2)}</p>
+                                                <p className="text-xl font-black text-teal-700">${displayPrice.toFixed(2)}</p>
                                             </div>
                                             <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                <FaCalendarAlt /> Elige fecha y hora
+                                                <CalendarIcon className="w-4 h-4" /> Elige fecha y hora
                                             </div>
                                         </div>
                                         <button
@@ -408,9 +410,9 @@ export default function ConciergePage() {
                                                 }
                                             }}
                                             disabled={buying === service.id}
-                                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                                            className="w-full py-3 bg-teal-700 hover:bg-teal-800 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2"
                                         >
-                                            <FaCalendarAlt />
+                                            <CalendarIcon className="w-4 h-4" />
                                             {buying === service.id ? 'Reservando...' : 'Reservar — Elegir Fecha'}
                                         </button>
                                     </div>
@@ -423,14 +425,14 @@ export default function ConciergePage() {
                     {/* Productos */}
                     <div>
                         <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
-                            <FaShoppingCart className="text-sky-500" /> Tienda y Gift Cards
+                            <ShoppingCart className="w-5 h-5 text-teal-600" /> Tienda y Gift Cards
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                             {data.products.map((product) => (
                                 <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-lg transition-all flex flex-col relative">
                                     {product.isOffer && (
-                                        <div className="absolute top-3 right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow flex items-center gap-1">
-                                            <FaGift /> Oferta
+                                        <div className="absolute top-3 right-3 z-10 bg-teal-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow flex items-center gap-1">
+                                            <Gift className="w-3.5 h-3.5" /> Oferta
                                         </div>
                                     )}
                                     {product.imageUrl && (
@@ -444,7 +446,7 @@ export default function ConciergePage() {
                                             <div className="mb-2">
                                                 <button
                                                     onClick={() => setExpandedService(expandedService === product.id ? null : product.id)}
-                                                    className="w-full flex items-center justify-between text-xs font-black text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl px-3 py-2 transition-colors border border-sky-100 mb-1"
+                                                    className="w-full flex items-center justify-between text-xs font-black text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl px-3 py-2 transition-colors border border-teal-100 mb-1"
                                                 >
                                                     <span>Descripción del producto</span>
                                                     {expandedService === product.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -468,7 +470,7 @@ export default function ConciergePage() {
                                             disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
                                             className={`w-full py-3 font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 ${product.category === 'GiftCards'
                                                 ? 'bg-amber-100 hover:bg-amber-500 text-amber-700 hover:text-white'
-                                                : 'bg-slate-100 hover:bg-indigo-600 text-slate-700 hover:text-white'}`}
+                                                : 'bg-slate-100 hover:bg-teal-700 text-slate-700 hover:text-white'}`}
                                         >
                                             {buying === product.id ? 'Procesando...' : product.category === 'GiftCards' ? '+ Recargar Saldo' : 'Comprar'}
                                         </button>
@@ -485,10 +487,10 @@ export default function ConciergePage() {
                 <div className="space-y-4">
                     {!data.myAppointments || data.myAppointments.length === 0 ? (
                         <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-12 text-center">
-                            <FaCalendarAlt className="text-4xl text-slate-300 mx-auto mb-3" />
+                            <CalendarIcon className="w-12 h-12 text-stone-300 mx-auto mb-3" strokeWidth={1.25} />
                             <p className="font-bold text-slate-600">No tienes reservas activas</p>
                             <p className="text-sm text-slate-400 mt-1">Ve al catálogo y elige un servicio para comenzar.</p>
-                            <button onClick={() => setActiveTab('marketplace')} className="mt-4 bg-indigo-600 text-white font-bold px-6 py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors">
+                            <button onClick={() => setActiveTab('marketplace')} className="mt-4 bg-teal-700 text-white font-bold px-6 py-2 rounded-xl text-sm hover:bg-teal-800 transition-colors">
                                 Ver catálogo
                             </button>
                         </div>
@@ -519,12 +521,12 @@ export default function ConciergePage() {
                                             <p className="text-xs text-slate-400 mt-0.5">{appt.service.category}</p>
                                             <div className="mt-3 flex flex-wrap gap-3">
                                                 <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                                                    <FaCalendarAlt className="text-indigo-400" />
+                                                    <CalendarIcon className="w-4 h-4 text-teal-600" />
                                                     <span className="font-medium capitalize">{dateStr}</span>
                                                 </div>
                                                 {timeStr && (
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                                                        <Clock size={12} className="text-indigo-400" />
+                                                        <Clock size={12} className="text-teal-600" />
                                                         <span className="font-medium">{timeStr}</span>
                                                     </div>
                                                 )}
@@ -552,10 +554,10 @@ export default function ConciergePage() {
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" style={{ maxHeight: '92vh' }}>
 
                         {/* Modal header */}
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-teal-50 to-white">
                             <div>
                                 <h3 className="font-black text-slate-800 text-lg leading-snug">{bookingItem.name}</h3>
-                                <p className="text-sm text-indigo-600 font-bold mt-0.5">${bookingItem.price.toFixed(2)}</p>
+                                <p className="text-sm text-teal-700 font-bold mt-0.5">${bookingItem.price.toFixed(2)}</p>
                             </div>
                             <button onClick={closeBookingModal} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
                                 <X size={16} />
@@ -567,7 +569,7 @@ export default function ConciergePage() {
                             {/* Selector de fecha — calendario mensual */}
                             <div>
                                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
-                                    <FaCalendarAlt className="text-indigo-400" /> Selecciona una Fecha
+                                    <CalendarIcon className="w-4 h-4 text-teal-600" /> Selecciona una Fecha
                                 </p>
 
                                 {/* Navegación de mes */}
@@ -612,10 +614,10 @@ export default function ConciergePage() {
                                                         disabled={!isAvailable || isPast}
                                                         className={`h-9 rounded-lg text-sm font-bold transition-all flex items-center justify-center
                                                             ${isSelected
-                                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 scale-105'
+                                                                ? 'bg-teal-700 text-white shadow-md shadow-teal-200 scale-105'
                                                                 : isPast || !isAvailable
                                                                     ? 'text-slate-300 cursor-not-allowed'
-                                                                    : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-600'
+                                                                    : 'text-slate-700 hover:bg-teal-50 hover:text-teal-700'
                                                             }`}
                                                     >
                                                         {day.getDate()}
@@ -637,7 +639,7 @@ export default function ConciergePage() {
                             {selectedDate && (
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
-                                        <Clock size={12} className="text-indigo-400" /> Selecciona una Hora
+                                        <Clock size={12} className="text-teal-600" /> Selecciona una Hora
                                     </p>
                                     <div className="grid grid-cols-4 gap-2">
                                         {TIME_SLOTS.map((slot) => (
@@ -645,8 +647,8 @@ export default function ConciergePage() {
                                                 key={slot}
                                                 onClick={() => setSelectedTime(slot)}
                                                 className={`py-2 rounded-xl text-xs font-bold transition-all ${selectedTime === slot
-                                                    ? 'bg-indigo-600 text-white shadow-md'
-                                                    : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-200'}`}
+                                                    ? 'bg-teal-700 text-white shadow-md'
+                                                    : 'bg-slate-50 text-slate-700 hover:bg-teal-50 hover:text-teal-700 border border-slate-200'}`}
                                             >
                                                 {slot}
                                             </button>
@@ -664,7 +666,7 @@ export default function ConciergePage() {
                                         onChange={(e) => setBookingNotes(e.target.value)}
                                         placeholder="Ej: prefiero por la mañana, tiene alergia a X..."
                                         rows={2}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
                                     />
                                 </div>
                             )}
@@ -674,19 +676,19 @@ export default function ConciergePage() {
                         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50">
                             {selectedDate && selectedTime ? (
                                 <div className="space-y-3">
-                                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-sm text-indigo-800 font-medium">
+                                    <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3 text-sm text-teal-800 font-medium">
                                         <span className="font-black">{selectedDate.toLocaleDateString('es-PR', { weekday: 'short', day: '2-digit', month: 'short' })}</span>
                                         {' '}a las{' '}
                                         <span className="font-black">{selectedTime}</span>
                                         {' · '}
-                                        <span className="text-indigo-600 font-black">${bookingItem.price.toFixed(2)}</span>
+                                        <span className="text-teal-700 font-black">${bookingItem.price.toFixed(2)}</span>
                                     </div>
                                     <button
                                         onClick={confirmBooking}
                                         disabled={!!buying}
-                                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-black rounded-xl transition-all active:scale-95 shadow-md shadow-indigo-200 flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white font-black rounded-xl transition-all active:scale-95 shadow-md shadow-teal-200 flex items-center justify-center gap-2"
                                     >
-                                        <FaCheckCircle />
+                                        <CheckCircle2 className="w-4 h-4" />
                                         {buying ? 'Confirmando...' : 'Confirmar Reserva'}
                                     </button>
                                 </div>

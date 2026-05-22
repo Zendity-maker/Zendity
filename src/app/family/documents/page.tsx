@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { FileSignature, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, CheckCircle2, FileText, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -9,97 +9,148 @@ export default async function FamilyDocumentsPage() {
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "FAMILY") {
-        // FIX (incidente "fuera de servicio"): /auth/signin nunca existió,
-        // la ruta canónica es /login. Familiares iban a 404 al expirar sesión.
+        // /auth/signin nunca existió — la ruta canónica es /login.
         redirect("/login");
     }
 
     const documents = await prisma.legalDocument.findMany({
-        where: {
-            familyMemberId: session.user.id
-        },
-        orderBy: {
-            createdAt: "desc"
-        },
-        include: {
-            patient: true
-        }
+        where: { familyMemberId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        include: { patient: true }
     });
 
-    const pending = documents.filter((d: any) => d.status === "PENDING");
+    const pending   = documents.filter((d: any) => d.status === "PENDING");
     const completed = documents.filter((d: any) => d.status === "SIGNED");
 
     return (
-        <div className="p-6 max-w-5xl mx-auto space-y-6">
-            <div className="flex items-center gap-3 mb-8">
-                <div className="p-3 bg-blue-500/10 rounded-xl">
-                    <FileSignature className="w-8 h-8 text-blue-500" />
-                </div>
-                <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Documentos y Acuerdos
+        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
+            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
+
+                {/* ═══ MASTHEAD ═══════════════════════════════════════════ */}
+                <header className="text-center mb-12">
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-6">
+                        Documentos legales
+                    </p>
+                    <div className="flex justify-center mb-5">
+                        <FileText className="w-14 h-14 text-teal-700" strokeWidth={1.25} />
+                    </div>
+                    <h1
+                        className="font-serif text-stone-900 leading-[1.05] tracking-tight"
+                        style={{
+                            fontSize: "clamp(2.25rem, 7vw, 3.5rem)",
+                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
+                        }}
+                    >
+                        Documentos
                     </h1>
-                    <p className="text-gray-500">Revise y firme los contratos legales y permisos hospitalarios.</p>
-                </div>
+                    <div className="flex items-center justify-center gap-3 mt-5">
+                        <span className="block w-12 h-px bg-stone-300" />
+                        <span className="text-stone-300 text-xs">◆</span>
+                        <span className="block w-12 h-px bg-stone-300" />
+                    </div>
+                    <p className="font-serif italic text-stone-500 text-sm mt-4 max-w-md mx-auto leading-relaxed">
+                        Contratos y permisos clínicos que requieren tu revisión y firma.
+                    </p>
+                </header>
+
+                {/* ═══ Pendientes de firma ═══════════════════════════════ */}
+                {pending.length > 0 && (
+                    <section className="mb-16">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-6 text-center flex items-center justify-center gap-2">
+                            <ShieldAlert className="w-3.5 h-3.5 text-amber-600" strokeWidth={1.5} />
+                            Requieren tu firma · {pending.length}
+                        </p>
+
+                        <div className="max-w-lg mx-auto">
+                            {pending.map((doc: any) => (
+                                <Link
+                                    key={doc.id}
+                                    href={`/family/documents/${doc.id}`}
+                                    className="group flex items-baseline justify-between py-5 border-b border-stone-200 last:border-b-0 hover:bg-stone-100/50 -mx-4 px-4 transition-colors"
+                                >
+                                    <div className="flex-1 pr-4">
+                                        <p className="font-serif text-stone-900 text-xl tracking-tight group-hover:text-teal-700 transition-colors">
+                                            {doc.title}
+                                        </p>
+                                        <p className="text-xs text-stone-400 italic font-serif mt-1">
+                                            {doc.patient?.name} · expedido el {new Date(doc.createdAt).toLocaleDateString("es-PR", { day: "numeric", month: "long" })}
+                                        </p>
+                                    </div>
+                                    <ArrowUpRight
+                                        className="w-5 h-5 text-stone-300 group-hover:text-teal-600 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all flex-shrink-0"
+                                        strokeWidth={1.25}
+                                    />
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* ═══ Diamond separator si hay ambas secciones ════════ */}
+                {pending.length > 0 && completed.length > 0 && (
+                    <div className="flex justify-center py-8">
+                        <span className="text-stone-300 text-base tracking-[1em]">◆ ◆ ◆</span>
+                    </div>
+                )}
+
+                {/* ═══ Historial firmado ═══════════════════════════════ */}
+                {completed.length > 0 && (
+                    <section>
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-6 text-center flex items-center justify-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-teal-700" strokeWidth={1.5} />
+                            Historial firmado · {completed.length}
+                        </p>
+
+                        <div className="max-w-lg mx-auto">
+                            {completed.map((doc: any) => (
+                                <Link
+                                    key={doc.id}
+                                    href={`/family/documents/${doc.id}`}
+                                    className="group flex items-baseline justify-between py-5 border-b border-stone-200 last:border-b-0 hover:bg-stone-100/50 -mx-4 px-4 transition-colors"
+                                >
+                                    <div className="flex-1 pr-4">
+                                        <p className="font-serif text-stone-800 text-lg tracking-tight group-hover:text-teal-700 transition-colors">
+                                            {doc.title}
+                                        </p>
+                                        <p className="text-xs text-stone-400 italic font-serif mt-1">
+                                            Firmado el {doc.signedAt ? new Date(doc.signedAt).toLocaleDateString("es-PR", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+                                        </p>
+                                    </div>
+                                    <ArrowUpRight
+                                        className="w-4 h-4 text-stone-300 group-hover:text-teal-600 transition-colors flex-shrink-0"
+                                        strokeWidth={1.25}
+                                    />
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* ═══ Empty state ═══════════════════════════════════════ */}
+                {documents.length === 0 && (
+                    <div className="text-center py-20 max-w-md mx-auto">
+                        <p
+                            className="font-serif italic text-stone-500 leading-relaxed"
+                            style={{ fontSize: "1.25rem" }}
+                        >
+                            No tienes documentos pendientes.
+                        </p>
+                        <p className="font-serif italic text-stone-400 text-sm mt-3">
+                            Cuando el equipo te pida firmar algo, lo verás aquí.
+                        </p>
+                    </div>
+                )}
+
+                {/* ═══ COLOFÓN ═══════════════════════════════════════════ */}
+                <footer className="text-center mt-20 sm:mt-28 pb-8 max-w-md mx-auto">
+                    <p className="text-stone-300 text-xs tracking-[0.5em] mb-3">◆ ◆ ◆</p>
+                    <p className="font-serif italic text-stone-400 text-xs leading-relaxed">
+                        Todos los documentos firmados quedan respaldados<br />
+                        legalmente con sello de tiempo.
+                    </p>
+                </footer>
+
             </div>
-
-            {pending.length > 0 && (
-                <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200 shadow-sm">
-                    <h2 className="text-xl font-bold text-amber-800 mb-4 flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5" />
-                        Requieren su Firma ({pending.length})
-                    </h2>
-                    <div className="space-y-3">
-                        {pending.map((doc: any) => (
-                            <div key={doc.id} className="bg-white p-4 rounded-xl border border-amber-100 flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-bold text-gray-800">{doc.title}</h3>
-                                    <p className="text-sm text-gray-500">Residente: {doc.patient?.name} | Expedido: {doc.createdAt.toLocaleDateString()}</p>
-                                </div>
-                                <Link
-                                    href={`/family/documents/${doc.id}`}
-                                    className="bg-amber-500 hover:bg-amber-600 text-white font-medium px-5 py-2 rounded-lg transition-colors"
-                                >
-                                    Leer y Firmar
-                                </Link>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {completed.length > 0 && (
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        Historial de Archivos
-                    </h2>
-                    <div className="space-y-3">
-                        {completed.map((doc: any) => (
-                            <div key={doc.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-bold text-gray-600">{doc.title}</h3>
-                                    <p className="text-sm text-gray-500">Firmado el: {doc.signedAt?.toLocaleDateString()}</p>
-                                </div>
-                                <Link
-                                    href={`/family/documents/${doc.id}`}
-                                    className="text-blue-500 hover:text-blue-600 font-medium px-4 py-2 border border-blue-100 bg-white rounded-lg transition-colors"
-                                >
-                                    Ver PDF Legal
-                                </Link>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {documents.length === 0 && (
-                <div className="text-center py-20">
-                    <FileSignature className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-500">Su bóveda está vacía</h3>
-                    <p className="text-gray-500">No hay documentos legales pendientes de firma.</p>
-                </div>
-            )}
         </div>
     );
 }
