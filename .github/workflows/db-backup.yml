@@ -1,0 +1,142 @@
+name: DB Backup → Cloudflare R2
+
+# Sprint 1 — Anti-desastre.
+# Después del incidente del 20-may-2026 (force-reset borró producción),
+# este workflow es una capa adicional de protección además del PITR de Neon.
+#
+# Corre TODOS LOS DÍAS a las 3:00 AM AST (7:00 UTC) y sube un pg_dump
+# comprimido a Cloudflare R2.
+#
+# Retención: 30 días (configurada como lifecycle policy en el bucket R2).
+# También se puede correr manualmente con "Run workflow" desde GitHub Actions.
+
+on:
+  schedule:
+    # 3:00 AM AST = 7:00 UTC (PR no tiene DST)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    # Permite trigger manual desde GitHub UI para testing
+    inputs:
+      tag:
+        description: 'Tag opcional para el backup (ej: pre-migration, before-upgrade)'
+        required: false
+        default: 'manual'
+
+jobs:
+  backup:
+    name: Backup PostgreSQL → R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Install PostgreSQL 17 client
+        # Neon corre PG 17 — el pg_dump del sistema (PG 16) falla por version mismatch.
+        run: |
+          sudo apt-get update -qq
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list'
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17 awscli > /dev/null
+          pg_dump --version
+
+      - name: Generate backup filename
+        id: filename
+        run: |
+          DATE=$(date -u +"%Y-%m-%d_%H-%M-%S")
+          TAG="${{ github.event.inputs.tag || 'daily' }}"
+          echo "name=zendity-prod-${DATE}-${TAG}.sql.gz" >> $GITHUB_OUTPUT
+
+      - name: Dump database and compress
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL no configurado en GitHub Secrets"
+            exit 1
+          fi
+          echo "→ Corriendo pg_dump..."
+          pg_dump \
+            --no-owner \
+            --no-acl \
+            --format=plain \
+            --exclude-table=_prisma_migrations \
+            "$DATABASE_URL" | gzip -9 > backup.sql.gz
+
+          SIZE=$(du -h backup.sql.gz | cut -f1)
+          echo "✅ Dump completo: $SIZE"
+
+          # Verifica que el dump no esté vacío (>1KB)
+          if [ $(stat -c%s backup.sql.gz) -lt 1024 ]; then
+            echo "❌ Backup demasiado pequeño — algo falló"
+            exit 1
+          fi
+
+      - name: Verify backup contents
+        run: |
+          # Inspecciona la primera línea del dump (decomprimida) para
+          # confirmar que es un dump válido de Postgres.
+          FIRST_LINE=$(gunzip -c backup.sql.gz | head -1)
+          if [[ "$FIRST_LINE" != *"PostgreSQL database dump"* ]]; then
+            echo "❌ El archivo no parece un pg_dump válido"
+            echo "Primera línea: $FIRST_LINE"
+            exit 1
+          fi
+          echo "✅ Dump verificado"
+
+      - name: Upload to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          if [ -z "$R2_ACCOUNT_ID" ] || [ -z "$R2_BUCKET" ]; then
+            echo "❌ R2_ACCOUNT_ID o R2_BUCKET no configurados"
+            exit 1
+          fi
+
+          aws s3 cp backup.sql.gz \
+            "s3://${R2_BUCKET}/${{ steps.filename.outputs.name }}" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --checksum-algorithm CRC32
+
+          echo "✅ Subido a R2: ${{ steps.filename.outputs.name }}"
+
+      - name: Cleanup old backups (>30 días)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          # Lista todos los backups y borra los > 30 días.
+          CUTOFF=$(date -u -d '30 days ago' +%Y-%m-%d)
+          echo "→ Cutoff date: $CUTOFF"
+
+          aws s3 ls "s3://${R2_BUCKET}/" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            | awk '{print $4}' \
+            | grep -E "^zendity-prod-" \
+            | while read filename; do
+                # Extrae fecha del filename: zendity-prod-2026-05-22_...
+                FILE_DATE=$(echo "$filename" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+                if [ -n "$FILE_DATE" ] && [[ "$FILE_DATE" < "$CUTOFF" ]]; then
+                  echo "  Eliminando $filename (de $FILE_DATE)"
+                  aws s3 rm "s3://${R2_BUCKET}/$filename" \
+                    --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+                fi
+              done
+
+          echo "✅ Limpieza completa"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Backup falló — revisar logs en GitHub Actions"
+          # TODO: integrar SendGrid o Slack para notificación automática
