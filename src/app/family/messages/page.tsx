@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Send, MessageCircle } from "lucide-react";
+import { IconMensajes } from "@/components/icons/ZendityIcons";
 
 type RecipientType = "ADMINISTRATION" | "NURSING";
 
@@ -132,6 +133,9 @@ export default function FamilyMessagesEditorial() {
                     <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-4">
                         Correspondencia
                     </p>
+                    <div className="flex justify-center mb-4">
+                        <IconMensajes size={56} />
+                    </div>
                     <h1
                         className="font-serif text-stone-900 leading-[1.05] tracking-tight mb-4"
                         style={{

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Printer, FileText } from "lucide-react";
+import { IconPAI } from "@/components/icons/ZendityIcons";
 
 const TYPE_LABELS: Record<string, string> = {
     INITIAL:   "Plan Inicial",
@@ -99,9 +100,12 @@ export default function FamilyPaiPage() {
                     <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-2">
                         Plan de Atención Integral
                     </p>
-                    <p className="font-serif italic text-stone-400 text-sm mb-10">
+                    <p className="font-serif italic text-stone-400 text-sm mb-6">
                         Aprobado por el equipo clínico
                     </p>
+                    <div className="flex justify-center mb-4">
+                        <IconPAI size={56} />
+                    </div>
                     <h1
                         className="font-serif text-stone-900 leading-[1.05] tracking-tight"
                         style={{

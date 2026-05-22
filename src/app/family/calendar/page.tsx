@@ -21,6 +21,7 @@ import {
     Briefcase,
     PartyPopper,
 } from "lucide-react";
+import { IconCitas } from "@/components/icons/ZendityIcons";
 
 type AppointmentType = 'VISIT' | 'VIDEO_CALL' | 'PHONE_CALL' | 'DIRECTOR_MEETING' | 'SPECIAL_OCCASION';
 type AppStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -257,6 +258,9 @@ export default function FamilyCalendarEditorial() {
                     <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-6">
                         Agenda
                     </p>
+                    <div className="flex justify-center mb-5">
+                        <IconCitas size={56} />
+                    </div>
                     <h1
                         className="font-serif text-stone-900 leading-[1.05] tracking-tight mb-5"
                         style={{

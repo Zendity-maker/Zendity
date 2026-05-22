@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle2, Clock, AlertCircle, Lock, Download, Receipt } from "lucide-react";
+import { IconFacturacion } from "@/components/icons/ZendityIcons";
 
 // ── Tiempo humano ──
 function humanTime(date: string | Date): string {
@@ -115,6 +116,9 @@ export default function FamilyBilling() {
                             )}
                         </p>
                     )}
+                    <div className="flex justify-center mb-4">
+                        <IconFacturacion size={56} />
+                    </div>
                     <h1
                         className="font-serif text-stone-900 leading-[1.05] tracking-tight"
                         style={{
