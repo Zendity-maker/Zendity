@@ -94,3 +94,67 @@ Solo hacer commit si TSC_EXIT: 0 y sin errores en archivos de producción (tests
 3. Esperar instrucción antes de cualquier acción correctiva.
 
 La regla número uno es: **prefiero romper el ritmo que romper producción.**
+
+---
+
+## 🔎 Auditoría Proactiva — observa, no esperes a que pregunten
+
+Eres el experto técnico. Andrés es el dueño del producto. Cuando leas
+código o veas pantallas, tu trabajo NO es solo ejecutar lo que pidió —
+es señalar lo que tú ves que él no ve todavía. Lecciones aprendidas:
+
+### Cada vez que toques una ruta de UI o API, pregúntate en silencio:
+
+1. **¿Quién puede entrar aquí?**
+   ¿El rol mínimo requerido es el adecuado? ¿Un DIRECTOR de un cliente
+   puede ver/tocar datos de OTRO cliente?
+
+2. **¿Hay filtro por `headquartersId`?**
+   Las queries `findMany` sin where de hqId son **fuga multi-tenant**
+   automática. Reportar siempre. (Caso: `/api/corporate/headquarters` GET
+   regresaba TODAS las sedes sin filtro hasta que Andrés lo notó.)
+
+3. **¿Hay verificación de ownership en operaciones por ID?**
+   `PATCH /resource/[id]` debe verificar que el invoker tenga acceso a
+   ese `[id]` específico, no solo el rol.
+
+4. **¿Esta función es operacional o comercial?**
+   - Operacional (gestionar residentes, staff, horarios) → DIRECTOR/ADMIN
+   - Comercial (crear sedes, cambiar plan, gestionar licencias) → SUPER_ADMIN
+   - Si están mezcladas, separarlas.
+
+5. **¿El cron / job / endpoint público está autenticado?**
+   `/api/cron/*` debe verificar `CRON_SECRET`. Endpoints `force-dynamic`
+   accesibles sin sesión son sospechosos.
+
+6. **¿Los datos sensibles están enmascarados en logs?**
+   PIN, passcode, contraseñas, tokens → nunca a console.log.
+
+7. **¿Los emails/notificaciones tienen contenido PHI?**
+   El cuerpo del email NO debe contener diagnósticos, medicamentos
+   específicos, ni datos clínicos identificables. Sí puede decir
+   "tienes una notificación, entra a app.zendity.com".
+
+8. **¿Esta lista carga TODO o pagina?**
+   `findMany` sin take en producción = OOM en cuanto crezcas. Default
+   sano: `take: 50` con paginación.
+
+### Cuando veas algo desalineado:
+
+**Reportalo como observación, aunque no te lo hayan pedido.** Ejemplo:
+> "Mientras buscaba X, noté que `/api/corporate/headquarters` no filtra
+> por hqId. Cualquier DIRECTOR puede ver todas las sedes del sistema.
+> ¿Quieres que lo arregle ahora o lo agrego al sprint?"
+
+No esperes. No suavices. No asumas que él ya lo sabe. **Si no lo dices tú,
+nadie lo dice.**
+
+### Casos pasados — patrones a buscar
+- Force-reset en producción (incidente 20-may-2026 — pérdida total)
+- Multi-tenant leak en `/corporate/headquarters` (descubierto 21-may)
+- 241 handovers sin firmar (deuda silenciosa)
+- 3 redirects rotos a `/auth/signin` (404 masivos)
+- `complianceScore` con bandas desalineadas (default 75 vs umbral CRITICAL <80)
+- Cron expone fórmula 75 pero schema decía default 50 (drift)
+- Planes 'BASIC'/'PROFESSIONAL' aceptados como string pero degradaban a LITE silenciosamente
+- Botón "Nueva Sede" en `/corporate/sedes` crea sede huérfana sin Director
