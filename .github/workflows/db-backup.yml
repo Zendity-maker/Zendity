@@ -1,21 +1,23 @@
 name: DB Backup → Cloudflare R2
 
 # Sprint 1 — Anti-desastre.
-# Después del incidente del 20-may-2026 (force-reset borró producción),
-# este workflow es una capa adicional de protección además del PITR de Neon.
+# Backup secundario a Cloudflare R2. La capa primaria son los Snapshots
+# nativos de Neon (Console → Backup & Restore). Este workflow garantiza
+# un dump portable fuera de Neon como defensa en profundidad.
 #
-# Corre TODOS LOS DÍAS a las 3:00 AM AST (7:00 UTC) y sube un pg_dump
-# comprimido a Cloudflare R2.
+# Schedule: 4:00 AM AST (8:00 UTC) — ventana de baja actividad en Vivid.
+# A esa hora el plan Scale (max_connections=112) tiene ~10-15 conexiones
+# activas vs ~80+ durante el día, lo que evita el error "remaining
+# connection slots reserved for SUPERUSER" causado por agotamiento.
 #
-# Retención: 30 días (configurada como lifecycle policy en el bucket R2).
-# También se puede correr manualmente con "Run workflow" desde GitHub Actions.
+# Retención: 30 días (cleanup automático al final).
+# Trigger manual disponible vía workflow_dispatch para testing.
 
 on:
   schedule:
-    # 3:00 AM AST = 7:00 UTC (PR no tiene DST)
-    - cron: '0 7 * * *'
+    # 4:00 AM AST = 8:00 UTC (PR no tiene DST)
+    - cron: '0 8 * * *'
   workflow_dispatch:
-    # Permite trigger manual desde GitHub UI para testing
     inputs:
       tag:
         description: 'Tag opcional para el backup (ej: pre-migration, before-upgrade)'
@@ -26,7 +28,7 @@ jobs:
   backup:
     name: Backup PostgreSQL → R2
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Install PostgreSQL 17 client
@@ -44,7 +46,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client-17 > /dev/null
           pg_dump --version
-          aws --version  # preinstalado en ubuntu-latest, debe imprimir aws-cli/2.x
+          psql --version
+          aws --version  # preinstalado en ubuntu-latest
 
       - name: Generate backup filename
         id: filename
@@ -53,49 +56,103 @@ jobs:
           TAG="${{ github.event.inputs.tag || 'daily' }}"
           echo "name=zendity-prod-${DATE}-${TAG}.sql.gz" >> $GITHUB_OUTPUT
 
-      - name: Dump database and compress
+      - name: Dump database with retry + backoff
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          set -uo pipefail
+
           if [ -z "$DATABASE_URL" ]; then
             echo "❌ DATABASE_URL no configurado en GitHub Secrets"
             exit 1
           fi
 
-          # Neon expone dos URLs por sede:
-          #   - DATABASE_URL (con -pooler) → para la app, usa pgbouncer
-          #     y bloquea queries administrativas tipo SET ROLE, COPY,
-          #     pg_dump, etc. (de ahí "remaining connection slots
-          #     reserved for SUPERUSER" + dump vacío de 4K).
-          #   - URL directa (sin -pooler) → conexión real a Postgres,
-          #     soporta pg_dump.
-          # En vez de pedir un secret separado, derivamos la URL directa
-          # removiendo "-pooler" del host. Funciona porque Neon expone el
-          # mismo endpoint con y sin pooler en el mismo dominio.
+          # ── Conexión directa (sin -pooler) ─────────────────────────────
+          # El pooler (pgbouncer) bloquea pg_dump. Usamos la URL directa.
           DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/-pooler//')
           echo "→ Pooler URL : $(echo "$DATABASE_URL" | sed 's|://[^@]*@|://***@|')"
           echo "→ Direct URL : $(echo "$DIRECT_URL"   | sed 's|://[^@]*@|://***@|')"
 
-          echo "→ Corriendo pg_dump contra conexión directa..."
-          pg_dump \
-            --no-owner \
-            --no-acl \
-            --format=plain \
-            --exclude-table=_prisma_migrations \
-            "$DIRECT_URL" | gzip -9 > backup.sql.gz
+          # ── Pre-flight: cuántas conexiones activas hay ────────────────
+          # Si Neon tiene >90 conexiones activas (de ~112 max), el slot
+          # para pg_dump probablemente esté tomado. Esperamos 90s antes
+          # de intentar para darle tiempo al app de liberar conexiones.
+          echo ""
+          echo "──────────────────────────────────────────────────────"
+          echo "PRE-FLIGHT CHECK: connection pool de Neon"
+          echo "──────────────────────────────────────────────────────"
+          ACTIVE=$(psql "$DIRECT_URL" -tAc \
+            "SELECT count(*) FROM pg_stat_activity WHERE state IS NOT NULL;" 2>/dev/null || echo "?")
+          MAX=$(psql "$DIRECT_URL" -tAc \
+            "SELECT current_setting('max_connections');" 2>/dev/null || echo "?")
+          echo "Conexiones activas: $ACTIVE / $MAX"
 
-          SIZE=$(du -h backup.sql.gz | cut -f1)
-          echo "✅ Dump completo: $SIZE"
+          if [ "$ACTIVE" != "?" ] && [ "$ACTIVE" -gt 90 ]; then
+            echo "⚠️  Pool saturado (>90). Esperando 90s antes del primer intento..."
+            sleep 90
+          fi
 
-          # Verifica que el dump no esté vacío (>1KB).
-          # Un dump de ~4KB típicamente significa que el pooler rechazó
-          # pg_dump — el archivo solo tiene comments y un header vacío.
-          BYTES=$(stat -c%s backup.sql.gz)
-          if [ "$BYTES" -lt 10240 ]; then
-            echo "❌ Backup demasiado pequeño ($BYTES bytes) — pg_dump falló"
-            echo "   Si ves 'reserved for SUPERUSER', estás usando el pooler."
-            echo "   Contenido del archivo:"
-            gunzip -c backup.sql.gz | head -20
+          # ── pg_dump con retry + backoff exponencial ───────────────────
+          # Hasta 5 intentos: 60s, 120s, 180s, 240s entre fallos.
+          # Cada intento intenta el dump completo desde cero (no incremental).
+          # Tamaño mínimo aceptable: 10 KB (un dump real >300 KB comprimido).
+          MAX_ATTEMPTS=5
+          MIN_BYTES=10000
+          SUCCESS=0
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo ""
+            echo "──────────────────────────────────────────────────────"
+            echo "INTENTO $i / $MAX_ATTEMPTS"
+            echo "──────────────────────────────────────────────────────"
+
+            # Limpia archivo previo si existe (intento parcial)
+            rm -f backup.sql.gz
+
+            # Captura stderr para diagnóstico
+            if pg_dump \
+                --no-owner \
+                --no-acl \
+                --format=plain \
+                --exclude-table=_prisma_migrations \
+                "$DIRECT_URL" 2> /tmp/pg_dump_err.log | gzip -9 > backup.sql.gz; then
+              :
+            else
+              echo "→ pg_dump retornó error. stderr:"
+              cat /tmp/pg_dump_err.log | head -20
+            fi
+
+            BYTES=$(stat -c%s backup.sql.gz 2>/dev/null || echo 0)
+            SIZE_HUMAN=$(du -h backup.sql.gz 2>/dev/null | cut -f1)
+            echo "→ Tamaño del dump: $SIZE_HUMAN ($BYTES bytes)"
+
+            if [ "$BYTES" -gt "$MIN_BYTES" ]; then
+              echo "✅ Dump válido en intento $i"
+              SUCCESS=1
+              break
+            fi
+
+            if [ $i -lt $MAX_ATTEMPTS ]; then
+              WAIT=$((i * 60))
+              echo "⚠️  Dump insuficiente (<$MIN_BYTES bytes)."
+              echo "    Probable causa: connection slots saturados."
+              echo "    Esperando ${WAIT}s antes del próximo intento..."
+              sleep $WAIT
+            fi
+          done
+
+          if [ "$SUCCESS" -ne 1 ]; then
+            echo ""
+            echo "═════════════════════════════════════════════════════════"
+            echo "❌ Backup R2 falló tras $MAX_ATTEMPTS intentos."
+            echo ""
+            echo "Causa probable: connection slots de Neon saturados durante"
+            echo "toda la ventana de retry. El plan Scale tiene max=112 y la"
+            echo "app+crons consumen ~80 normalmente."
+            echo ""
+            echo "🛟 Snapshot de Neon (Console → Backup & Restore) sigue"
+            echo "activo como respaldo primario. Verifica que esté configurado."
+            echo "═════════════════════════════════════════════════════════"
             exit 1
           fi
 
@@ -162,5 +219,14 @@ jobs:
       - name: Notify on failure
         if: failure()
         run: |
-          echo "❌ Backup falló — revisar logs en GitHub Actions"
+          echo "❌ Backup R2 falló — revisar logs en GitHub Actions"
+          echo ""
+          echo "Esto NO es una emergencia inmediata porque:"
+          echo "  • Snapshot de Neon (capa primaria) sigue activo"
+          echo "  • PITR de Neon disponible para últimas 2 días"
+          echo ""
+          echo "Próximos pasos:"
+          echo "  1. Revisar Neon Console → Backup & Restore → verificar snapshots recientes"
+          echo "  2. Reintentar workflow manual (workflow_dispatch) en otra hora"
+          echo "  3. Si persiste por 3+ días, escalar y considerar Opción 2 (branching)"
           # TODO: integrar SendGrid o Slack para notificación automática
