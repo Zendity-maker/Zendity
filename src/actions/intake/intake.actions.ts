@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { IntakeStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { categorizeMedication, normalizeMedicationName } from "@/lib/medication-categorize";
 
 /**
  * 1. GUARDADO SILENCIOSO (Fase A)
@@ -154,18 +155,25 @@ export async function submitIntake(patientId: string) {
         for (const medObj of parsedMeds) {
           if (!medObj.name) continue;
 
-          // Buscamos un anclaje en el catálogo o creamos uno de transición
+          // Normalizar nombre (trim, capitalización consistente)
+          const normalizedName = normalizeMedicationName(medObj.name);
+
+          // Buscamos un anclaje en el catálogo (case-insensitive) o lo creamos.
           let medRecord = await tx.medication.findFirst({
-            where: { name: { contains: medObj.name.trim(), mode: "insensitive" } }
+            where: { name: { contains: normalizedName, mode: "insensitive" } }
           });
-          
+
           if (!medRecord) {
+            // Crecimiento orgánico: categoriza automáticamente por heurística
+            // del nombre del medicamento. Si no hay match → "Sin clasificar"
+            // (legible, en vez del "Intake Draft" críptico).
+            const inferredCategory = categorizeMedication(normalizedName);
             medRecord = await tx.medication.create({
               data: {
-                name: medObj.name.trim(),
+                name: normalizedName,
                 dosage: "Por Definir",
                 route: "Oral",
-                category: "Intake Draft"
+                category: inferredCategory,
               }
             });
           }
