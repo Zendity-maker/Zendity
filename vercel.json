@@ -21,12 +21,8 @@
       "schedule": "30 3 * * *"
     },
     {
-      "path": "/api/cron/vitals-reminder",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/shift-redistribute",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/dispatch-frequent",
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/health-monitor",
@@ -42,11 +38,7 @@
     },
     {
       "path": "/api/cron/keep-warm",
-      "schedule": "*/4 * * * *"
-    },
-    {
-      "path": "/api/cron/expire-cleaning-requests",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/snapshot-cleaning-stats",
@@ -62,4 +54,3 @@
     }
   ]
 }
-
