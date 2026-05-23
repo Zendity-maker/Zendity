@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Install PostgreSQL 17 client
         # Neon corre PG 17 — el pg_dump del sistema (PG 16) falla por version mismatch.
+        # NO instalamos awscli vía apt — el paquete ya no existe en repos recientes.
+        # En su lugar usamos el AWS CLI v2 que viene preinstalado en ubuntu-latest.
         run: |
           sudo apt-get update -qq
           sudo install -d /usr/share/postgresql-common/pgdg
@@ -40,8 +42,9 @@ jobs:
             https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             > /etc/apt/sources.list.d/pgdg.list'
           sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client-17 awscli > /dev/null
+          sudo apt-get install -y postgresql-client-17 > /dev/null
           pg_dump --version
+          aws --version  # preinstalado en ubuntu-latest, debe imprimir aws-cli/2.x
 
       - name: Generate backup filename
         id: filename
