@@ -4,8 +4,39 @@ import { useEffect, useState } from "react";
 import {
     X, ChevronLeft, ChevronRight, Clock, Camera, Bell, Users, ChevronDown, ChevronUp, Heart,
     Sparkles, ShoppingCart, Gift, Wallet, CheckCircle2, Activity, Calendar as CalendarIcon, ClipboardList,
-    ShoppingBag,
+    ShoppingBag, Shield, Leaf, Package,
 } from "lucide-react";
+
+// ── Placeholder visual cuando no hay imageUrl ─────────────────────────
+// Map de categoría → ícono Lucide
+const CATEGORY_ICON: Record<string, any> = {
+    Terapia:    Heart,
+    Belleza:    Sparkles,
+    Higiene:    Shield,
+    Nutrición:  Leaf,
+    Nutricion:  Leaf,      // por si llega sin tilde desde DB
+    GiftCards:  Gift,
+    "Gift Cards": Gift,
+};
+
+function CategoryPlaceholder({ category, size = "large" }: { category: string; size?: "large" | "small" }) {
+    const Icon = CATEGORY_ICON[category] || (size === "small" ? Package : ShoppingBag);
+    if (size === "small") {
+        return (
+            <div className="w-20 h-20 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-100 flex-shrink-0">
+                <Icon className="w-7 h-7 text-teal-300" strokeWidth={1.25} />
+            </div>
+        );
+    }
+    return (
+        <div className="h-36 w-full rounded-xl flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-100 mb-3">
+            <Icon className="w-10 h-10 text-teal-300" strokeWidth={1} />
+            <span className="text-xs font-medium text-teal-500 uppercase tracking-wide">
+                {category}
+            </span>
+        </div>
+    );
+}
 
 interface MarketplaceItem {
     id: string;
@@ -334,13 +365,16 @@ export default function ConciergePage() {
                                                 <Gift size={11} /> Oferta
                                             </div>
                                         )}
-                                        {service.imageUrl && (
+                                        {service.imageUrl ? (
                                             <div className="h-36 w-full rounded-xl overflow-hidden bg-stone-100 mb-3 relative">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={service.imageUrl} alt={service.name} className="object-cover w-full h-full" />
                                                 <span className="absolute bottom-2 left-2 bg-white/90 backdrop-blur text-slate-700 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full">
                                                     {service.category}
                                                 </span>
                                             </div>
+                                        ) : (
+                                            <CategoryPlaceholder category={service.category} />
                                         )}
                                         <h4 className="text-base font-semibold text-slate-800 leading-tight mb-1">{service.name}</h4>
 
@@ -426,10 +460,13 @@ export default function ConciergePage() {
                                                 <Gift size={11} /> Oferta
                                             </div>
                                         )}
-                                        {product.imageUrl && (
+                                        {product.imageUrl ? (
                                             <div className="h-36 w-full rounded-xl overflow-hidden bg-stone-100 mb-3">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={product.imageUrl} alt={product.name} className="object-cover w-full h-full" />
                                             </div>
+                                        ) : (
+                                            <CategoryPlaceholder category={product.category} />
                                         )}
                                         <h4 className="text-base font-semibold text-slate-800 leading-tight mb-1">{product.name}</h4>
                                         {product.description && (
@@ -497,10 +534,13 @@ export default function ConciergePage() {
                                 return (
                                     <div key={appt.id} className="bg-white rounded-2xl border border-slate-100 shadow-none p-4">
                                         <div className="flex gap-4">
-                                            {appt.service.imageUrl && (
+                                            {appt.service.imageUrl ? (
                                                 <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img src={appt.service.imageUrl} alt={appt.service.name} className="object-cover w-full h-full" />
                                                 </div>
+                                            ) : (
+                                                <CategoryPlaceholder category={appt.service.category} size="small" />
                                             )}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-2 flex-wrap">
