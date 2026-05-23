@@ -1,16 +1,23 @@
 "use client";
 
+/**
+ * /family/billing — Humanista Suave (Propuesta C)
+ *
+ * Facturación. Cards blancas con borde suave, fondo cálido neutro,
+ * acento teal-700. Pagos honestos: procesados por la facilidad.
+ */
+
 import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, AlertCircle, Lock, Download, Receipt } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Download } from "lucide-react";
 import { IconFacturacion } from "@/components/icons/ZendityIcons";
 
-// ── Tiempo humano ──
+// ── Tiempo humano ──────────────────────────────────────────────────────
 function humanTime(date: string | Date): string {
     const d = new Date(date);
     const now = new Date();
     const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
     if (diffMin < 5) return "justo ahora";
-    if (diffMin < 60) return `hace ${diffMin} minutos`;
+    if (diffMin < 60) return `hace ${diffMin} min`;
     const sameDay =
         d.getFullYear() === now.getFullYear() &&
         d.getMonth() === now.getMonth() &&
@@ -32,39 +39,24 @@ function fechaCorta(date: string | Date): string {
     return new Date(date).toLocaleDateString("es-PR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-function Diamond() {
-    return (
-        <div className="flex justify-center py-12">
-            <span className="text-stone-300 text-base tracking-[1em]">◆ ◆ ◆</span>
-        </div>
-    );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-    return (
-        <p className="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-medium mb-6 text-center">
-            {children}
-        </p>
-    );
-}
-
-function StatusLine({ status }: { status: string }) {
-    const map: Record<string, { label: string; icon: any; color: string }> = {
-        PAID:    { label: "Pagada",    icon: CheckCircle2, color: "text-teal-700" },
-        PENDING: { label: "Pendiente", icon: Clock,         color: "text-stone-500" },
-        OVERDUE: { label: "Vencida",   icon: AlertCircle,   color: "text-stone-700" },
+// ── Status badge ──────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+    const map: Record<string, { label: string; cls: string; Icon: any }> = {
+        PAID:    { label: "Pagada",    cls: "bg-teal-50 text-teal-700",  Icon: CheckCircle2 },
+        PENDING: { label: "Pendiente", cls: "bg-amber-50 text-amber-700", Icon: Clock },
+        OVERDUE: { label: "Vencida",   cls: "bg-red-50 text-red-600",     Icon: AlertCircle },
     };
-    const s = map[status] ?? { label: status, icon: Clock, color: "text-stone-500" };
-    const Icon = s.icon;
+    const s = map[status] ?? map.PENDING;
+    const Icon = s.Icon;
     return (
-        <span className={`inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.25em] font-medium ${s.color} font-sans`}>
+        <span className={`inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-0.5 ${s.cls}`}>
             <Icon className="w-3 h-3" strokeWidth={1.5} />
             {s.label}
         </span>
     );
 }
 
-export default function FamilyBilling() {
+export default function FamilyBillingPage() {
     const [invoices, setInvoices] = useState<any[]>([]);
     const [resident, setResident] = useState<{ name: string; roomNumber?: string } | null>(null);
     const [loading, setLoading] = useState(true);
@@ -85,194 +77,147 @@ export default function FamilyBilling() {
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
-    if (loading) {
-        return (
-            <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex items-center justify-center">
-                <span className="font-serif italic text-stone-300 text-lg">cargando…</span>
-            </div>
-        );
-    }
-
     const pendingInvoices = invoices.filter(i => i.status !== 'PAID');
     const paidInvoices    = invoices.filter(i => i.status === 'PAID');
 
     return (
-        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
-            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-16 sm:py-24">
+        <div className="bg-[#FAFAF8] -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
 
-                {/* ═══ MASTHEAD ═══════════════════════════════════════════ */}
-                <header className="text-center mb-12">
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-2">
-                        Estado de cuenta
-                    </p>
-                    {resident && (
-                        <p className="font-serif italic text-stone-400 text-sm mb-10">
-                            {resident.name}
-                            {resident.roomNumber && (
-                                <>
-                                    <span className="mx-2 text-stone-300">·</span>
-                                    Habitación {resident.roomNumber}
-                                </>
-                            )}
+            {/* ═══ HEADER ═══ */}
+            <div className="bg-white border-b border-stone-100 px-4 py-5">
+                <div className="max-w-2xl mx-auto flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                        <IconFacturacion size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-xl font-bold text-slate-800 leading-tight">
+                            Facturación
+                        </h1>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                            {resident?.name || "Estado de cuenta"}
                         </p>
-                    )}
-                    <div className="flex justify-center mb-4">
-                        <IconFacturacion size={56} />
                     </div>
-                    <h1
-                        className="font-serif text-stone-900 leading-[1.05] tracking-tight"
-                        style={{
-                            fontSize: "clamp(2.5rem, 8vw, 4rem)",
-                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
-                        }}
-                    >
-                        Facturación
-                    </h1>
-                    <div className="flex items-center justify-center gap-3 mt-6">
-                        <span className="block w-12 h-px bg-stone-300" />
-                        <span className="text-stone-300 text-xs">◆</span>
-                        <span className="block w-12 h-px bg-stone-300" />
-                    </div>
-                </header>
+                </div>
+            </div>
 
-                {invoices.length === 0 ? (
-                    <div className="text-center py-20">
-                        <Receipt className="w-12 h-12 text-stone-300 mx-auto mb-6" strokeWidth={1.25} />
-                        <p
-                            className="font-serif italic text-stone-500 leading-relaxed"
-                            style={{ fontSize: "1.25rem" }}
-                        >
-                            Balance al día.<br />
-                            No hay facturas registradas.
-                        </p>
+            {/* ═══ BODY ═══ */}
+            <div className="max-w-2xl mx-auto px-4 py-4 space-y-4 pb-28">
+
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <div className="flex gap-1.5">
+                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
+                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                        </div>
+                    </div>
+                ) : invoices.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+                        <CheckCircle2 className="w-12 h-12 text-slate-200 mx-auto mb-3" strokeWidth={1.25} />
+                        <p className="text-sm text-slate-500 font-medium">Balance al día</p>
+                        <p className="text-xs text-slate-400 mt-1">No hay facturas registradas.</p>
                     </div>
                 ) : (
                     <>
-                        {/* ═══ Facturas pendientes ═══════════════════════ */}
+                        {/* Facturas pendientes */}
                         {pendingInvoices.length > 0 && (
-                            <>
-                                <Diamond />
-                                <section>
-                                    <SectionLabel>
-                                        {pendingInvoices.length === 1 ? "Factura pendiente" : `${pendingInvoices.length} facturas pendientes`}
-                                    </SectionLabel>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
+                                    {pendingInvoices.length === 1 ? "Pendiente" : `${pendingInvoices.length} pendientes`}
+                                </p>
+                                <div className="space-y-3">
+                                    {pendingInvoices.map(inv => (
+                                        <div key={inv.id} className="bg-white rounded-2xl border border-slate-100 p-5">
 
-                                    <div className="space-y-12">
-                                        {pendingInvoices.map((inv) => (
-                                            <article key={inv.id} className="max-w-lg mx-auto">
+                                            {/* Heading: número + status */}
+                                            <div className="flex items-baseline justify-between mb-3">
+                                                <span className="text-xs text-slate-400 font-medium">
+                                                    Factura {inv.invoiceNumber}
+                                                </span>
+                                                <StatusBadge status={inv.status} />
+                                            </div>
 
-                                                {/* Heading: número + status */}
-                                                <div className="flex items-baseline justify-between mb-4">
-                                                    <span className="font-serif italic text-stone-400 text-sm">
-                                                        Factura {inv.invoiceNumber}
-                                                    </span>
-                                                    <StatusLine status={inv.status} />
-                                                </div>
+                                            {/* Total hero */}
+                                            <p className="text-3xl font-bold text-slate-800 tabular-nums mb-1">
+                                                {formatCurrency(inv.totalAmount)}
+                                            </p>
+                                            <p className="text-xs text-slate-400 mb-5">
+                                                Vence el {fechaCorta(inv.dueDate)}
+                                            </p>
 
-                                                {/* Total — el dato protagonista */}
-                                                <p
-                                                    className="font-serif text-stone-900 leading-none tracking-tight mb-2"
-                                                    style={{
-                                                        fontSize: "3.5rem",
-                                                        fontVariationSettings: "'opsz' 144, 'SOFT' 50",
-                                                    }}
-                                                >
-                                                    {formatCurrency(inv.totalAmount)}
-                                                </p>
-                                                <p className="font-serif italic text-stone-500 text-sm mb-8">
-                                                    Vence el {fechaCorta(inv.dueDate)}
-                                                </p>
-
-                                                {/* Items desglosados */}
-                                                {inv.items && inv.items.length > 0 && (
-                                                    <dl className="font-serif mb-8">
+                                            {/* Items */}
+                                            {inv.items && inv.items.length > 0 && (
+                                                <div className="border-t border-slate-100 -mx-5 px-5 pt-4 mb-4">
+                                                    <ul className="space-y-2">
                                                         {inv.items.map((item: any) => (
-                                                            <div
-                                                                key={item.id}
-                                                                className="flex items-baseline justify-between py-3 border-b border-stone-200 last:border-b-0"
-                                                            >
-                                                                <dt className="text-sm text-stone-600 italic flex-1 pr-4">
+                                                            <li key={item.id} className="flex items-baseline justify-between text-sm">
+                                                                <span className="text-slate-600 flex-1 pr-4">
                                                                     {item.description}
                                                                     {item.quantity > 1 && (
-                                                                        <span className="text-stone-400 not-italic"> · {item.quantity}</span>
+                                                                        <span className="text-slate-400"> · {item.quantity}</span>
                                                                     )}
-                                                                </dt>
-                                                                <dd className="text-stone-900 text-base tracking-tight tabular-nums">
+                                                                </span>
+                                                                <span className="text-slate-800 font-medium tabular-nums">
                                                                     {formatCurrency(item.totalPrice)}
-                                                                </dd>
-                                                            </div>
+                                                                </span>
+                                                            </li>
                                                         ))}
-                                                    </dl>
-                                                )}
-
-                                                {/* Pagos: instrucción honesta — el procesamiento lo hace la sede */}
-                                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
-                                                    <p className="text-sm font-semibold text-slate-600 mb-1">
-                                                        Pagos procesados por tu facilidad
-                                                    </p>
-                                                    <p className="text-xs text-slate-400">
-                                                        Para realizar un pago contacta al director de la facilidad.
-                                                    </p>
-                                                    <a
-                                                        href="/family/messages"
-                                                        className="inline-block mt-3 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-4 py-1.5 hover:bg-teal-50 transition-colors"
-                                                    >
-                                                        Enviar mensaje al director →
-                                                    </a>
+                                                    </ul>
                                                 </div>
-                                            </article>
-                                        ))}
-                                    </div>
-                                </section>
-                            </>
+                                            )}
+
+                                            {/* Pago honesto */}
+                                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                                                <p className="text-sm font-semibold text-slate-600 mb-1">
+                                                    Pagos procesados por tu facilidad
+                                                </p>
+                                                <p className="text-xs text-slate-400">
+                                                    Para realizar un pago contacta al director.
+                                                </p>
+                                                <a
+                                                    href="/family/messages"
+                                                    className="inline-block mt-3 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-4 py-1.5 hover:bg-teal-50 transition-colors"
+                                                >
+                                                    Enviar mensaje al director →
+                                                </a>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
 
-                        {/* ═══ Historial pagado ═══════════════════════════ */}
+                        {/* Historial */}
                         {paidInvoices.length > 0 && (
-                            <>
-                                <Diamond />
-                                <section>
-                                    <SectionLabel>Historial</SectionLabel>
-
-                                    <div className="max-w-lg mx-auto">
-                                        {paidInvoices.map((inv) => (
-                                            <div
-                                                key={inv.id}
-                                                className="group flex items-baseline justify-between py-5 border-b border-stone-200 last:border-b-0 hover:bg-stone-100/50 -mx-4 px-4 transition-colors"
-                                            >
-                                                <div className="flex-1">
-                                                    <p className="font-serif text-stone-900 text-lg tracking-tight">
-                                                        {formatCurrency(inv.totalAmount)}
-                                                    </p>
-                                                    <p className="text-xs text-stone-400 italic font-serif">
-                                                        {inv.invoiceNumber} · Pagada {inv.paidAt ? humanTime(inv.paidAt) : "previamente"}
-                                                    </p>
-                                                </div>
-                                                <span
-                                                    title="Disponible próximamente"
-                                                    className="text-stone-300 p-2 cursor-not-allowed"
-                                                    aria-disabled="true"
-                                                >
-                                                    <Download className="w-4 h-4" strokeWidth={1.5} />
-                                                </span>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
+                                    Historial
+                                </p>
+                                <div className="bg-white rounded-2xl border border-slate-100 divide-y divide-slate-100">
+                                    {paidInvoices.map(inv => (
+                                        <div key={inv.id} className="flex items-baseline justify-between p-4">
+                                            <div className="flex-1">
+                                                <p className="text-base font-semibold text-slate-800 tabular-nums">
+                                                    {formatCurrency(inv.totalAmount)}
+                                                </p>
+                                                <p className="text-xs text-slate-400 mt-0.5">
+                                                    {inv.invoiceNumber} · Pagada {inv.paidAt ? humanTime(inv.paidAt) : "previamente"}
+                                                </p>
                                             </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            </>
+                                            <span
+                                                title="Disponible próximamente"
+                                                className="text-slate-300 p-2 cursor-not-allowed"
+                                                aria-disabled="true"
+                                            >
+                                                <Download className="w-4 h-4" strokeWidth={1.5} />
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </>
                 )}
-
-                {/* ═══ COLOFÓN ═══════════════════════════════════════════ */}
-                <footer className="text-center mt-20 sm:mt-28 pb-8">
-                    <p className="text-stone-300 text-xs tracking-[0.5em] mb-3">◆ ◆ ◆</p>
-                    <p className="font-serif italic text-stone-400 text-xs leading-relaxed flex items-center justify-center gap-1.5">
-                        <Lock className="w-3 h-3" strokeWidth={1.5} />
-                        Pagos seguros por Zéndity
-                    </p>
-                </footer>
-
             </div>
         </div>
     );

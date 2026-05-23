@@ -1,19 +1,18 @@
 "use client";
 
 /**
- * /family/messages — Editorial Calm
+ * /family/messages — Propuesta C · Humanista Suave
  *
- * Conversación tipo correspondencia. Serif para metadatos, sans para el cuerpo.
- * Sin cards. Burbujas suaves sobre stone-50. Mucho whitespace.
+ * Conversación con tabs de destinatario, burbujas suaves y compose fijo abajo.
  */
 
 import { useState, useEffect, useRef } from "react";
-import { Send, MessageCircle } from "lucide-react";
+import { Send, MessageCircle, Loader2 } from "lucide-react";
 import { IconMensajes } from "@/components/icons/ZendityIcons";
 
 type RecipientType = "ADMINISTRATION" | "NURSING";
 
-// ── Tiempo humano (copiado de /family/page.tsx) ──
+// ── Helpers de tiempo ──
 function humanTime(date: string | Date): string {
     const d = new Date(date);
     const now = new Date();
@@ -21,16 +20,14 @@ function humanTime(date: string | Date): string {
     const hour = d.getHours();
 
     if (diffMin < 5) return "justo ahora";
-    if (diffMin < 60) return `hace ${diffMin} minutos`;
+    if (diffMin < 60) return `hace ${diffMin} min`;
 
     const sameDay =
         d.getFullYear() === now.getFullYear() &&
         d.getMonth() === now.getMonth() &&
         d.getDate() === now.getDate();
     if (sameDay) {
-        if (hour < 12) return "esta mañana";
-        if (hour < 18) return "esta tarde";
-        return "esta noche";
+        return d.toLocaleTimeString("es-PR", { hour: "numeric", minute: "2-digit" });
     }
 
     const yesterday = new Date(now);
@@ -40,14 +37,10 @@ function humanTime(date: string | Date): string {
         d.getMonth() === yesterday.getMonth() &&
         d.getDate() === yesterday.getDate();
     if (isYesterday) {
-        if (hour < 12) return "ayer en la mañana";
-        if (hour < 18) return "ayer en la tarde";
-        return "anoche";
+        return `ayer ${d.toLocaleTimeString("es-PR", { hour: "numeric", minute: "2-digit" })}`;
     }
 
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 7) return d.toLocaleDateString("es-PR", { weekday: "long" });
-    return d.toLocaleDateString("es-PR", { day: "numeric", month: "long" });
+    return d.toLocaleDateString("es-PR", { day: "numeric", month: "short" });
 }
 
 function isSameDay(a: string, b: string): boolean {
@@ -65,7 +58,7 @@ function dayLabel(dateStr: string): string {
     return d.toLocaleDateString("es-PR", { weekday: "long", day: "numeric", month: "long" });
 }
 
-export default function FamilyMessagesEditorial() {
+export default function FamilyMessagesPage() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [recipientType, setRecipientType] = useState<RecipientType>("ADMINISTRATION");
@@ -91,7 +84,7 @@ export default function FamilyMessagesEditorial() {
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+    }, [messages, recipientType]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -124,39 +117,36 @@ export default function FamilyMessagesEditorial() {
     const recipientLabel =
         recipientType === "ADMINISTRATION" ? "Administración" : "Enfermería";
 
+    // Filtrar por destinatario activo
+    const filteredMessages = messages.filter((m: any) => {
+        // Si no tiene recipientType definido, asumir ADMINISTRATION
+        const r = m.recipientType || "ADMINISTRATION";
+        return r === recipientType;
+    });
+
     return (
-        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
-            <div className="max-w-2xl mx-auto px-6 sm:px-10 py-12 pb-40">
-
-                {/* ═══ MASTHEAD ═══════════════════════════════════════════ */}
-                <header className="text-center mb-12">
-                    <p className="text-[10px] uppercase tracking-[0.4em] text-stone-400 font-medium mb-4">
-                        Correspondencia
-                    </p>
-                    <div className="flex justify-center mb-4">
-                        <IconMensajes size={56} />
+        <div className="bg-[#FAFAF8] -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex flex-col">
+            {/* ═══ HEADER ═════════════════════════════════════════════ */}
+            <header className="bg-white border-b border-stone-100 px-4 py-5 sticky top-0 z-10">
+                <div className="max-w-2xl mx-auto flex items-center gap-3">
+                    <IconMensajes size={24} className="text-teal-700" />
+                    <div className="flex flex-col">
+                        <h1 className="text-xl font-bold text-slate-800 leading-tight">
+                            Mensajes
+                        </h1>
+                        <span className="text-xs text-slate-400">
+                            Comunicación con el equipo
+                        </span>
                     </div>
-                    <h1
-                        className="font-serif text-stone-900 leading-[1.05] tracking-tight mb-4"
-                        style={{
-                            fontSize: "clamp(2.5rem, 8vw, 4rem)",
-                            fontVariationSettings: "'opsz' 144, 'SOFT' 50",
-                        }}
-                    >
-                        Mensajes
-                    </h1>
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                        <span className="block w-12 h-px bg-stone-300" />
-                        <span className="text-stone-300 text-xs">◆</span>
-                        <span className="block w-12 h-px bg-stone-300" />
-                    </div>
-                    <p className="font-serif italic text-stone-400 text-base">
-                        Conversación con el equipo de cuidado
-                    </p>
-                </header>
+                </div>
+            </header>
 
-                {/* ═══ SELECTOR DE DESTINATARIO ═══════════════════════════ */}
-                <div className="flex items-center justify-center gap-8 mb-14">
+            {/* ═══ TABS DESTINATARIO ══════════════════════════════════ */}
+            <div className="max-w-2xl mx-auto w-full px-4 pt-4">
+                <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
+                    Destinatario
+                </p>
+                <div className="flex gap-2 mb-4">
                     {(["ADMINISTRATION", "NURSING"] as RecipientType[]).map((r) => {
                         const isActive = recipientType === r;
                         const label = r === "ADMINISTRATION" ? "Administración" : "Enfermería";
@@ -164,145 +154,124 @@ export default function FamilyMessagesEditorial() {
                             <button
                                 key={r}
                                 onClick={() => setRecipientType(r)}
-                                className={`relative pb-2 font-serif text-base tracking-tight transition-colors ${
+                                className={`rounded-full px-4 py-1.5 text-xs font-semibold border transition-colors ${
                                     isActive
-                                        ? "text-teal-700 italic"
-                                        : "text-stone-400 hover:text-stone-600"
+                                        ? "bg-teal-50 text-teal-700 border-teal-100"
+                                        : "bg-white text-slate-500 border-slate-200 hover:text-slate-700"
                                 }`}
-                                style={isActive ? { fontVariationSettings: "'opsz' 24, 'SOFT' 50" } : undefined}
                             >
                                 {label}
-                                {isActive && (
-                                    <span className="absolute left-0 right-0 -bottom-0.5 h-px bg-teal-600" />
-                                )}
                             </button>
                         );
                     })}
                 </div>
+            </div>
 
-                {/* ═══ CHAT ═══════════════════════════════════════════════ */}
-                <section className="space-y-6">
-                    {loading && messages.length === 0 ? (
-                        <div className="min-h-[40vh] flex items-center justify-center">
-                            <span className="font-serif italic text-stone-300 text-lg">cargando…</span>
-                        </div>
-                    ) : messages.length === 0 ? (
-                        <div className="text-center py-20">
-                            <div className="flex justify-center mb-8">
-                                <MessageCircle
-                                    className="w-16 h-16 text-stone-300"
-                                    strokeWidth={1}
-                                />
-                            </div>
-                            <p
-                                className="font-serif italic text-stone-500 leading-relaxed mb-3"
-                                style={{
-                                    fontSize: "1.625rem",
-                                    fontVariationSettings: "'opsz' 24, 'SOFT' 50",
-                                }}
-                            >
-                                Aún no hay mensajes
-                            </p>
-                            <p className="font-serif italic text-stone-400 text-sm max-w-xs mx-auto leading-relaxed">
-                                Escribe lo primero a Carmen, Yeray<br />
-                                o cualquier miembro del equipo.
-                            </p>
-                        </div>
-                    ) : (
-                        messages.map((msg: any, idx: number) => {
+            {/* ═══ CONVERSACIÓN ═══════════════════════════════════════ */}
+            <section className="flex-1 max-w-2xl mx-auto w-full px-4 pb-32">
+                {loading && filteredMessages.length === 0 ? (
+                    <div className="min-h-[40vh] flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 text-slate-300 animate-spin" strokeWidth={1.5} />
+                    </div>
+                ) : filteredMessages.length === 0 ? (
+                    <div className="text-center py-20">
+                        <MessageCircle
+                            className="w-12 h-12 text-slate-200 mx-auto mb-4"
+                            strokeWidth={1.5}
+                        />
+                        <p className="text-sm text-slate-400 italic mb-1">
+                            Aún no hay mensajes con {recipientLabel}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                            Escribe el primero para iniciar la conversación
+                        </p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-3 pt-2">
+                        {filteredMessages.map((msg: any, idx: number) => {
                             const isFamily = msg.senderType === "FAMILY";
                             const showDateSeparator =
-                                idx === 0 || !isSameDay(messages[idx - 1].createdAt, msg.createdAt);
+                                idx === 0 ||
+                                !isSameDay(filteredMessages[idx - 1].createdAt, msg.createdAt);
+                            const senderName = msg.sender?.name || msg.senderName;
 
                             return (
-                                <div key={msg.id}>
+                                <div key={msg.id} className="flex flex-col">
                                     {showDateSeparator && (
-                                        <div className="flex items-center justify-center py-6">
-                                            <span className="text-[10px] uppercase tracking-[0.3em] text-stone-400">
+                                        <div className="flex items-center gap-3 my-3">
+                                            <span className="flex-1 h-px bg-slate-100" />
+                                            <span className="text-xs text-slate-400 capitalize">
                                                 {dayLabel(msg.createdAt)}
                                             </span>
+                                            <span className="flex-1 h-px bg-slate-100" />
                                         </div>
                                     )}
 
-                                    <div className={`flex flex-col ${isFamily ? "items-end" : "items-start"}`}>
-                                        {!isFamily && msg.senderName && (
-                                            <span className="text-[11px] italic font-serif text-stone-400 mb-1.5 px-2">
-                                                {msg.senderName}
-                                                {msg.recipientType && (
-                                                    <>
-                                                        <span className="mx-1.5 text-stone-300">·</span>
-                                                        <span>
-                                                            {msg.recipientType === "NURSING" ? "Enfermería" : "Administración"}
-                                                        </span>
-                                                    </>
-                                                )}
+                                    {isFamily ? (
+                                        <div className="flex flex-col items-end max-w-[80%] self-end">
+                                            <div className="bg-teal-600 rounded-2xl rounded-tr-sm px-4 py-2.5">
+                                                <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">
+                                                    {msg.content}
+                                                </p>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 mt-1 pr-1">
+                                                {humanTime(msg.createdAt)}
                                             </span>
-                                        )}
-
-                                        <div
-                                            className={`max-w-[85%] sm:max-w-[75%] px-5 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${
-                                                isFamily
-                                                    ? "bg-teal-600 text-white"
-                                                    : "bg-stone-100 text-stone-800"
-                                            }`}
-                                            style={{ borderRadius: "18px" }}
-                                        >
-                                            {msg.imageBase64 && (
-                                                <img
-                                                    src={msg.imageBase64}
-                                                    alt="Imagen adjunta"
-                                                    className="rounded-xl mb-3 max-w-full object-cover"
-                                                    style={{ maxHeight: "220px" }}
-                                                />
-                                            )}
-                                            <p className="font-sans text-[15px] leading-relaxed whitespace-pre-wrap">
-                                                {msg.content}
-                                            </p>
                                         </div>
-
-                                        <span
-                                            className={`text-[11px] italic font-serif text-stone-400 mt-1.5 px-2 ${
-                                                isFamily ? "text-right" : "text-left"
-                                            }`}
-                                        >
-                                            {humanTime(msg.createdAt)}
-                                        </span>
-                                    </div>
+                                    ) : (
+                                        <div className="flex flex-col items-start max-w-[80%] self-start">
+                                            {senderName && (
+                                                <span className="text-xs text-slate-400 mb-1 pl-1">
+                                                    {senderName}
+                                                </span>
+                                            )}
+                                            <div className="bg-teal-50 rounded-2xl rounded-tl-sm px-4 py-2.5">
+                                                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                                    {msg.content}
+                                                </p>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400 mt-1 pl-1">
+                                                {humanTime(msg.createdAt)}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             );
-                        })
-                    )}
-                    <div ref={messagesEndRef} />
-                </section>
-            </div>
+                        })}
+                        <div ref={messagesEndRef} />
+                    </div>
+                )}
+            </section>
 
-            {/* ═══ COMPOSE BAR — sticky bottom ═══════════════════════════ */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-stone-100 z-20">
-                <div className="max-w-2xl mx-auto px-6 sm:px-10 py-4">
-                    <form onSubmit={handleSend} className="flex items-end gap-3">
-                        <div className="flex-1">
-                            <textarea
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend(e as any);
-                                    }
-                                }}
-                                placeholder={`Escribe a ${recipientLabel}…`}
-                                rows={1}
-                                className="w-full resize-none bg-white rounded-2xl ring-1 ring-stone-200 focus:ring-2 focus:ring-teal-600 focus:outline-none px-4 py-3 font-sans text-[15px] text-stone-800 placeholder:text-stone-400 placeholder:italic placeholder:font-serif leading-relaxed transition-all"
-                                style={{ maxHeight: "120px" }}
-                            />
-                        </div>
+            {/* ═══ COMPOSE BAR — fixed bottom ═════════════════════════ */}
+            <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-white border-t border-stone-100 z-20">
+                <div className="max-w-2xl mx-auto px-4 py-3">
+                    <form onSubmit={handleSend} className="flex gap-2 items-end">
+                        <textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend(e as any);
+                                }
+                            }}
+                            placeholder={`Escribe a ${recipientLabel}…`}
+                            rows={1}
+                            className="flex-1 bg-stone-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 resize-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 focus:outline-none transition-all"
+                            style={{ maxHeight: "120px" }}
+                        />
                         <button
                             type="submit"
                             disabled={!newMessage.trim() || sending}
-                            className="w-11 h-11 flex items-center justify-center rounded-full bg-teal-600 hover:bg-teal-700 disabled:bg-stone-200 disabled:cursor-not-allowed text-white transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.06)] flex-shrink-0"
+                            className="w-11 h-11 rounded-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors flex-shrink-0"
                             aria-label="Enviar"
                         >
-                            <Send className="w-4 h-4" strokeWidth={2} />
+                            {sending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
+                            ) : (
+                                <Send className="w-4 h-4" strokeWidth={2} />
+                            )}
                         </button>
                     </form>
                 </div>
