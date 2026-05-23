@@ -61,20 +61,41 @@ jobs:
             echo "❌ DATABASE_URL no configurado en GitHub Secrets"
             exit 1
           fi
-          echo "→ Corriendo pg_dump..."
+
+          # Neon expone dos URLs por sede:
+          #   - DATABASE_URL (con -pooler) → para la app, usa pgbouncer
+          #     y bloquea queries administrativas tipo SET ROLE, COPY,
+          #     pg_dump, etc. (de ahí "remaining connection slots
+          #     reserved for SUPERUSER" + dump vacío de 4K).
+          #   - URL directa (sin -pooler) → conexión real a Postgres,
+          #     soporta pg_dump.
+          # En vez de pedir un secret separado, derivamos la URL directa
+          # removiendo "-pooler" del host. Funciona porque Neon expone el
+          # mismo endpoint con y sin pooler en el mismo dominio.
+          DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/-pooler//')
+          echo "→ Pooler URL : $(echo "$DATABASE_URL" | sed 's|://[^@]*@|://***@|')"
+          echo "→ Direct URL : $(echo "$DIRECT_URL"   | sed 's|://[^@]*@|://***@|')"
+
+          echo "→ Corriendo pg_dump contra conexión directa..."
           pg_dump \
             --no-owner \
             --no-acl \
             --format=plain \
             --exclude-table=_prisma_migrations \
-            "$DATABASE_URL" | gzip -9 > backup.sql.gz
+            "$DIRECT_URL" | gzip -9 > backup.sql.gz
 
           SIZE=$(du -h backup.sql.gz | cut -f1)
           echo "✅ Dump completo: $SIZE"
 
-          # Verifica que el dump no esté vacío (>1KB)
-          if [ $(stat -c%s backup.sql.gz) -lt 1024 ]; then
-            echo "❌ Backup demasiado pequeño — algo falló"
+          # Verifica que el dump no esté vacío (>1KB).
+          # Un dump de ~4KB típicamente significa que el pooler rechazó
+          # pg_dump — el archivo solo tiene comments y un header vacío.
+          BYTES=$(stat -c%s backup.sql.gz)
+          if [ "$BYTES" -lt 10240 ]; then
+            echo "❌ Backup demasiado pequeño ($BYTES bytes) — pg_dump falló"
+            echo "   Si ves 'reserved for SUPERUSER', estás usando el pooler."
+            echo "   Contenido del archivo:"
+            gunzip -c backup.sql.gz | head -20
             exit 1
           fi
 
