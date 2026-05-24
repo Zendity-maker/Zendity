@@ -78,6 +78,7 @@ function timeAgo(date: string | Date): string {
 
 export default function FamilyDashboard() {
     const [resident, setResident] = useState<any>(null);
+    const [digest, setDigest] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -93,6 +94,14 @@ export default function FamilyDashboard() {
                 setError("Error de conexión");
                 setLoading(false);
             });
+
+        // Canal ambiental: resumen narrativo del día (no bloquea el render)
+        fetch("/api/family/digest")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setDigest(data.digest);
+            })
+            .catch(() => {});
     }, []);
 
     if (loading) {
@@ -119,12 +128,16 @@ export default function FamilyDashboard() {
     }
 
     // Derivar data limpia
-    const latestVitals = resident.vitalSigns?.[0];
     const latestLog = resident.dailyLogs?.[0];
     const wellnessNotes: any[] = resident.wellnessNotes ?? [];
     const bathToday = !!latestLog?.bathCompleted;
 
-    // Adaptación: spo2 / heartRate (DB) → SpO₂ / Pulso (UI)
+    // shareLevel + wellness los define el servidor (lib/family/disclosure)
+    const shareLevel: string = resident.shareLevel ?? "LIFESTYLE";
+    const wellness = resident.wellness ?? {};
+
+    // Adaptación: spo2 / heartRate (DB) → SpO₂ / Pulso (UI) — solo en FULL
+    const latestVitals = shareLevel === "FULL" ? resident.vitalSigns?.[0] : null;
     const safeVitals = latestVitals
         ? {
               systolic: latestVitals.systolic,
@@ -181,6 +194,18 @@ export default function FamilyDashboard() {
             {/* ═══ BODY ═════════════════════════════════════════════════ */}
             <div className="px-4 py-4 space-y-4 max-w-md mx-auto">
 
+                {/* SECCIÓN 0 — "El día de…" (resumen narrativo, canal ambiental) */}
+                {digest?.narrative && (
+                    <div className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm">
+                        <p className="text-xs font-bold text-teal-700 tracking-widest uppercase mb-2">
+                            El día de {resident.name?.split(/\s+/)[0]}
+                        </p>
+                        <p className="text-[15px] text-slate-700 leading-relaxed">
+                            {digest.narrative}
+                        </p>
+                    </div>
+                )}
+
                 {/* SECCIÓN 1 — Update del equipo de cuidado */}
                 <div className="bg-teal-50 rounded-2xl p-4 border border-teal-100">
                     <div className="flex items-center gap-3 mb-3">
@@ -211,12 +236,14 @@ export default function FamilyDashboard() {
                     )}
                 </div>
 
-                {/* SECCIÓN 2 — Vitales con iconos custom */}
-                <div>
-                    <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
-                        Signos Vitales
-                    </p>
-                    {safeVitals ? (
+                {/* SECCIÓN 2 — Estado de bienestar
+                    LIFESTYLE (default): banda cualitativa siempre presente, sin números.
+                    FULL (consentido): la rejilla clínica completa. */}
+                {shareLevel === "FULL" && safeVitals ? (
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
+                            Signos Vitales
+                        </p>
                         <div className="grid grid-cols-4 gap-3">
                             {[
                                 {
@@ -251,12 +278,15 @@ export default function FamilyDashboard() {
                                 </div>
                             ))}
                         </div>
-                    ) : (
-                        <div className="bg-slate-50 rounded-xl p-3 text-center">
-                            <p className="text-xs text-slate-400">Vitales del día pendientes</p>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                ) : (
+                    <div className="bg-teal-50 rounded-2xl p-4 border border-teal-100 flex items-center gap-3">
+                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0" />
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            {wellness.vitalsBand || "Sus signos están estables y monitoreados por su equipo."}
+                        </p>
+                    </div>
+                )}
 
                 {/* SECCIÓN 3 — Reporte del día */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-100">
@@ -267,7 +297,15 @@ export default function FamilyDashboard() {
                         {[
                             {
                                 Icon: IconAlimentacion,
-                                value: latestLog?.foodIntake != null ? `${latestLog.foodIntake}%` : "—",
+                                // FULL muestra %, LIFESTYLE muestra banda cualitativa
+                                value:
+                                    shareLevel === "FULL"
+                                        ? latestLog?.foodIntake != null
+                                            ? `${latestLog.foodIntake}%`
+                                            : "—"
+                                        : wellness.foodBand
+                                          ? ({ bien: "Bien", parcial: "Parcial", poco: "Poco" } as Record<string, string>)[wellness.foodBand]
+                                          : "—",
                                 label: "Comida",
                             },
                             {
@@ -277,7 +315,20 @@ export default function FamilyDashboard() {
                             },
                             {
                                 Icon: IconMedicamentos,
-                                value: "100%",
+                                // medsOnTrack derivado del servidor.
+                                // LIFESTYLE (default): true="Al día", false/null="—" (neutral,
+                                //   sin implicar acción a la familia — eso es del equipo).
+                                // FULL (consentido): true="Al día", false="Revisar", null="—".
+                                value:
+                                    shareLevel === "FULL"
+                                        ? wellness.medsOnTrack === true
+                                            ? "Al día"
+                                            : wellness.medsOnTrack === false
+                                              ? "Revisar"
+                                              : "—"
+                                        : wellness.medsOnTrack === true
+                                          ? "Al día"
+                                          : "—",
                                 label: "Meds",
                             },
                         ].map(({ Icon, value, label }, i) => (

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { isCleanNote } from '@/lib/family/disclosure';
 
 interface FeedItem {
   id: string;
@@ -63,14 +64,19 @@ export async function GET() {
       }),
     ]);
 
-    const diaryFeed: FeedItem[] = diaryEntries.map((entry) => ({
-      id: entry.id,
-      type: entry.mediaUrl ? 'PHOTO' : 'NOTE',
-      content: entry.note,
-      mediaUrl: entry.mediaUrl ?? null,
-      authorName: (entry.author as any)?.name ?? 'Equipo de cuidado',
-      createdAt: entry.createdAt.toISOString(),
-    }));
+    // Filtra notas con prefijos de alerta clínica interna ([ALERTA / [ACCIÓN
+    // PREVENTIVA / [alerta) — esas son señales del equipo para auditoría,
+    // nunca narrativa para la familia. Defensa centralizada en disclosure.
+    const diaryFeed: FeedItem[] = diaryEntries
+      .filter((entry) => isCleanNote(entry.note))
+      .map((entry) => ({
+        id: entry.id,
+        type: entry.mediaUrl ? 'PHOTO' : 'NOTE',
+        content: entry.note,
+        mediaUrl: entry.mediaUrl ?? null,
+        authorName: (entry.author as any)?.name ?? 'Equipo de cuidado',
+        createdAt: entry.createdAt.toISOString(),
+      }));
 
     const momentsFeed: FeedItem[] = moments.map((moment) => ({
       id: moment.id,

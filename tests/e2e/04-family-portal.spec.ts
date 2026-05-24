@@ -26,14 +26,17 @@ test.describe('04 — Portal Familiar (/family)', () => {
         expect(body?.trim().length).toBeGreaterThan(200);
     });
 
-    test('Sección de vitales del residente visible', async ({ page }) => {
+    test('Sección de bienestar del residente visible', async ({ page }) => {
+        // En LIFESTYLE (default), el dashboard muestra la banda cualitativa
+        // "Sus signos están estables y monitoreados por su equipo." (wellness.vitalsBand).
+        // En FULL, muestra la rejilla de vitales numéricos. Al menos uno debe estar.
         await page.goto('/family', { waitUntil: 'networkidle' });
         await page.waitForTimeout(5000);
-        const vitals = page.getByText(/vital|presión|temperatura|pulso|saturación/i).first();
-        const hasVitals = await vitals.isVisible().catch(() => false);
-        // Los vitales pueden no estar si no se han registrado hoy
+        const wellness = page.getByText(/signos están estables|monitoreados|presión|temperatura|pulso|saturación/i).first();
+        const hasWellness = await wellness.isVisible().catch(() => false);
         const body = await page.locator('body').textContent();
         expect(body?.length).toBeGreaterThan(200);
+        expect(hasWellness).toBe(true);
     });
 
     test('Sección de actualizaciones Zendi visible', async ({ page }) => {

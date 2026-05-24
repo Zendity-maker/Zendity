@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { isCleanNote } from '@/lib/family/disclosure';
 
 
 
@@ -38,14 +39,19 @@ export async function GET(_request: NextRequest) {
             return NextResponse.json({ success: false, error: "No autorizado" }, { status: 403 });
         }
 
-        const diaryEntries = patient.wellnessNotes.map(n => ({
-            id: n.id,
-            date: new Date(n.createdAt).toLocaleString('es-PR', { dateStyle: 'medium', timeStyle: 'short' }),
-            author: n.author.name,
-            content: n.note,
-            icon: "", // Por ahora, estático
-            color: "bg-teal-50 text-teal-700"
-        }));
+        // Filtra notas con prefijos de alerta clínica interna ([ALERTA, [ACCIÓN
+        // PREVENTIVA, [alerta) — esas son señales del equipo, no narrativa para
+        // la familia. Defensa centralizada en lib/family/disclosure.
+        const diaryEntries = patient.wellnessNotes
+            .filter(n => isCleanNote(n.note))
+            .map(n => ({
+                id: n.id,
+                date: new Date(n.createdAt).toLocaleString('es-PR', { dateStyle: 'medium', timeStyle: 'short' }),
+                author: n.author.name,
+                content: n.note,
+                icon: "", // Por ahora, estático
+                color: "bg-teal-50 text-teal-700"
+            }));
 
         return NextResponse.json({
             patient: {

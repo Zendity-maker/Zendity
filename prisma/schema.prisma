@@ -552,6 +552,11 @@ model Patient {
   photoUrl        String? // FASE 48: URL de foto de perfil
   needsDialysis   Boolean @default(false) // Marca residentes con tratamiento de diálisis periódica
 
+  // Portal Familiar — Nivel de divulgación de data hacia la familia.
+  // LIFESTYLE (default): banda cualitativa siempre presente, cero números clínicos.
+  // FULL: vista clínica completa (vitales + meds), solo con consentimiento explícito del residente.
+  familyShareLevel String @default("LIFESTYLE") // "LIFESTYLE" | "FULL"
+
   // FASE 52: Documentos Críticos del Residente (Fotografías)
   idCardUrl       String?
   medicalPlanUrl  String?
@@ -603,6 +608,7 @@ model Patient {
   // FASE 9 Integrations
   healthAppointments  HealthAppointment[]
   zendiFamilyMoments  ZendiFamilyMoment[]
+  dailyDigests        DailyDigest[]
   zendiNursingUpdates ZendiNursingUpdate[]
 
   // FASE 18 Integrations
@@ -2710,4 +2716,28 @@ model SupportTicket {
   @@index([headquartersId, createdAt])
   @@index([submittedById, createdAt])
   @@index([status, createdAt])
+}
+
+// Portal Familiar — Resumen narrativo diario ("El día de…").
+// Generado 1×/día por el cron family-digest a partir de la actividad de
+// estilo de vida del día clínico (comidas, actividades, ánimo). Bandas
+// cualitativas + prosa cálida vía Gemini. NUNCA contiene data clínica cruda.
+// Un registro por (patientId, digestDate) — ver @@unique.
+model DailyDigest {
+  id             String   @id @default(uuid())
+  patientId      String
+  headquartersId String
+  digestDate     DateTime // inicio del día clínico (todayStartAST)
+
+  narrative    String // prosa cálida en español, según familyShareLevel
+  foodBand     String? // "bien" | "parcial" | "poco" | null
+  activityNote String? // resumen breve de participación/ánimo si hubo registro
+  medsOnTrack  Boolean? // null = sin datos, true = sin omisiones, false = hubo omisiones
+
+  generatedAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@unique([patientId, digestDate])
+  @@index([patientId, digestDate])
 }

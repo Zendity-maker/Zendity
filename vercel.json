@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/family-digest",
+      "schedule": "0 23 * * *"
+    },
+    {
       "path": "/api/cron/clinical-day-start",
       "schedule": "0 10 * * *"
     },
