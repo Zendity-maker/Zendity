@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { astDateTime, parseTimeOfDay } from '@/lib/dates';
+import { EventType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -17,6 +19,22 @@ const TYPE_LABELS: Record<string, string> = {
     DIRECTOR_MEETING: 'Reunión con Director',
     SPECIAL_OCCASION: 'Ocasión Especial',
 };
+
+// Mapeo de FamilyAppointment.type (string) → EventType (enum del calendario).
+// Las llamadas usan tipos dedicados para que el calendario las pinte distinto
+// de las visitas presenciales (ver corporate/calendar/page.tsx eventPropGetter).
+// DIRECTOR_MEETING y SPECIAL_OCCASION son eventos presenciales en la sede,
+// por lo que se mantienen como FAMILY_VISIT.
+function mapToEventType(apptType: string): EventType {
+    switch (apptType) {
+        case 'VIDEO_CALL':       return EventType.FAMILY_VIDEO_CALL;
+        case 'PHONE_CALL':       return EventType.FAMILY_PHONE_CALL;
+        case 'VISIT':
+        case 'DIRECTOR_MEETING':
+        case 'SPECIAL_OCCASION':
+        default:                 return EventType.FAMILY_VISIT;
+    }
+}
 
 // PATCH — aprobar o rechazar una cita
 export async function PATCH(
@@ -67,38 +85,48 @@ export async function PATCH(
 
         // ── APROBAR ────────────────────────────────────────────────────────────
         if (action === 'APPROVE') {
-            const updated = await prisma.familyAppointment.update({
-                where: { id },
-                data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date() },
-            });
+            // Construir startTime / endTime anclados a AST (no al reloj UTC del servidor).
+            // requestedDate viene como medianoche AST → UTC; requestedTime es hora de pared AST.
+            let startTime: Date;
+            let endTime: Date;
+            try {
+                const { hour, minute } = parseTimeOfDay(appt.requestedTime);
+                startTime = astDateTime(appt.requestedDate, hour, minute);
+                endTime = new Date(startTime.getTime() + appt.durationMins * 60_000);
+            } catch (err) {
+                console.error('[family-appointments PATCH] Hora inválida:', err);
+                return NextResponse.json(
+                    { success: false, error: `Hora inválida en la solicitud: "${appt.requestedTime}"` },
+                    { status: 400 }
+                );
+            }
 
-            // Construir startTime y endTime para el HeadquartersEvent
-            const [timePart, period] = appt.requestedTime.split(' ');
-            const [hStr, mStr] = timePart.split(':');
-            let startHour = parseInt(hStr);
-            const startMin = parseInt(mStr);
-            if (period?.toUpperCase() === 'PM' && startHour !== 12) startHour += 12;
-            if (period?.toUpperCase() === 'AM' && startHour === 12) startHour = 0;
+            // Tipo del evento alineado al canal: visita / videollamada / llamada.
+            const eventType = mapToEventType(appt.type);
 
-            const startTime = new Date(appt.requestedDate);
-            startTime.setHours(startHour, startMin, 0, 0);
-            const endTime = new Date(startTime.getTime() + appt.durationMins * 60_000);
-
-            // Crear evento en el calendario institucional
-            await prisma.headquartersEvent.create({
-                data: {
-                    headquartersId:   hqId,
-                    title:            `${typeLabel} — ${appt.familyMember.name} con ${appt.patient.name}`,
-                    description:      appt.description || undefined,
-                    type:             'FAMILY_VISIT',
-                    status:           'PENDING',
-                    startTime,
-                    endTime,
-                    patientId:        appt.patientId,
-                    targetPopulation: 'SPECIFIC',
-                    targetPatients:   [appt.patientId],
-                },
-            });
+            // ATÓMICO: la cita pasa a APPROVED Y el evento se crea en la misma transacción.
+            // Si el create del evento falla, el update se revierte y la cita queda PENDING
+            // — evitando el estado fantasma "APPROVED sin evento" del bug original.
+            const [updated] = await prisma.$transaction([
+                prisma.familyAppointment.update({
+                    where: { id },
+                    data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date() },
+                }),
+                prisma.headquartersEvent.create({
+                    data: {
+                        headquartersId:   hqId,
+                        title:            `${typeLabel} — ${appt.familyMember.name} con ${appt.patient.name}`,
+                        description:      appt.description || undefined,
+                        type:             eventType,
+                        status:           'PENDING',
+                        startTime,
+                        endTime,
+                        patientId:        appt.patientId,
+                        targetPopulation: 'SPECIFIC',
+                        targetPatients:   [appt.patientId],
+                    },
+                }),
+            ]);
 
             // Notificación in-app al familiar (best-effort)
             try {
