@@ -64,11 +64,22 @@ export async function GET() {
       }),
     ]);
 
-    // Filtra notas con prefijos de alerta clínica interna ([ALERTA / [ACCIÓN
-    // PREVENTIVA / [alerta) — esas son señales del equipo para auditoría,
-    // nunca narrativa para la familia. Defensa centralizada en disclosure.
+    // Filtros aplicados al diary:
+    //
+    // 1. Alertas clínicas internas: prefijos [ALERTA / [ACCIÓN PREVENTIVA / [alerta
+    //    son señales del equipo para auditoría, nunca narrativa para la familia.
+    //
+    // 2. DEDUPLICACIÓN con momentsFeed (regla "una entrada canónica por evento"):
+    //    Al aprobar un ZendiFamilyMoment, family-moments/[id]/action escribe DOS
+    //    veces — el moment (status=SENT) Y un WellnessDiary con prefijo
+    //    "[Zendi Update]". Ese doble-write es intencional (el WellnessDiary es
+    //    audit trail leído por dashboard y digest cron), pero en el feed canon
+    //    el moment es la entrada (tiene type='MOMENT', etiqueta y formato propio).
+    //    Por tanto descartamos del diary cualquier nota que empiece con
+    //    "[Zendi Update]" — el moment ya representa ese evento.
     const diaryFeed: FeedItem[] = diaryEntries
       .filter((entry) => isCleanNote(entry.note))
+      .filter((entry) => !/^\[Zendi Update\]/i.test(entry.note.trim()))
       .map((entry) => ({
         id: entry.id,
         type: entry.mediaUrl ? 'PHOTO' : 'NOTE',
