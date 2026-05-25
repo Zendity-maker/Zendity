@@ -248,11 +248,11 @@ export default function FamilyDashboard() {
                 {/* ── 3. ESTADO AMBIENTAL — banda sutil de signos (LIFESTYLE) ── */}
                 {/*    En FULL muestra grilla. En LIFESTYLE muestra una línea-status. */}
                 {shareLevel === "FULL" && safeVitals ? (
-                    <section className="bg-white rounded-2xl p-4 border border-stone-100">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-3">
+                    <section className="bg-white rounded-2xl p-5 border border-stone-100">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-4">
                             Signos vitales
                         </p>
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-3">
                             {[
                                 { Icon: IconPresion,      value: `${safeVitals.systolic}/${safeVitals.diastolic}`, label: "Presión" },
                                 { Icon: IconSpO2,         value: `${safeVitals.spO2}`,                              label: "SpO₂" },
@@ -260,8 +260,10 @@ export default function FamilyDashboard() {
                                 { Icon: IconPulso,        value: `${safeVitals.pulse}`,                             label: "Pulso" },
                             ].map(({ Icon, value, label }) => (
                                 <div key={label} className="flex flex-col items-center text-center">
-                                    <Icon size={20} />
-                                    <span className="text-[11px] font-bold text-slate-700 leading-none mt-1">
+                                    <div style={{ color: 'var(--brand-primary)' }}>
+                                        <Icon size={28} />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-slate-700 leading-none mt-1.5">
                                         {value}
                                     </span>
                                     <span className="text-[10px] text-slate-400 mt-0.5">{label}</span>
@@ -283,11 +285,11 @@ export default function FamilyDashboard() {
                 )}
 
                 {/* ── 4. SU DÍA — grid secundario, suave ── */}
-                <section className="bg-white rounded-2xl px-5 py-4 border border-stone-100">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-3">
+                <section className="bg-white rounded-2xl px-5 py-5 border border-stone-100">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-4">
                         Su día
                     </p>
-                    <div className="grid grid-cols-3">
+                    <div className="grid grid-cols-3 gap-2">
                         {[
                             {
                                 Icon: IconAlimentacion,
@@ -326,10 +328,13 @@ export default function FamilyDashboard() {
                         ].map(({ Icon, value, label, highlight }, i) => (
                             <div
                                 key={label}
-                                className={`text-center py-1 ${i < 2 ? "border-r border-stone-100" : ""}`}
+                                className={`text-center py-2 ${i < 2 ? "border-r border-stone-100" : ""}`}
                             >
-                                <div className="flex justify-center mb-1">
-                                    <Icon size={20} />
+                                <div
+                                    className="flex justify-center mb-2"
+                                    style={{ color: 'var(--brand-primary)' }}
+                                >
+                                    <Icon size={34} />
                                 </div>
                                 <p
                                     className="text-sm font-semibold"
@@ -355,9 +360,18 @@ export default function FamilyDashboard() {
                         <Link
                             key={label}
                             href={href}
-                            className="bg-white border border-stone-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-[color:var(--brand-secondary)] transition-colors"
+                            className="bg-white border border-stone-100 rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-[color:var(--brand-secondary)] transition-colors"
                         >
-                            <Icon size={22} />
+                            {/* Contenedor circular con tinte suave de marca — ancla el icono en la card */}
+                            <div
+                                className="w-12 h-12 rounded-full flex items-center justify-center mb-1"
+                                style={{
+                                    backgroundColor: 'color-mix(in srgb, var(--brand-secondary) 16%, transparent)',
+                                    color: 'var(--brand-primary)',
+                                }}
+                            >
+                                <Icon size={32} />
+                            </div>
                             <span className="text-xs font-medium text-slate-600">
                                 {label}
                             </span>
