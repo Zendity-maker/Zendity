@@ -116,7 +116,7 @@ export default function CorporateCalendarPage() {
 
             const payload = {
                 title,
-                description: type === 'FAMILY_CALL'
+                description: type === 'FAMILY_PHONE_CALL'
                     ? `Llamada familiar — ${familyCallerName}${familyPhone ? ` — Tel: ${familyPhone}` : ''}`
                     : desc,
                 type,
@@ -168,10 +168,11 @@ export default function CorporateCalendarPage() {
         switch (event.resource.type) {
             case 'LABORATORY': backgroundColor = '#ef4444'; break; // Rojo
             case 'MEDICAL_VISIT': backgroundColor = '#3b82f6'; break; // Azul
-            case 'FAMILY_VISIT': backgroundColor = '#f59e0b'; break; // Ambar
+            case 'FAMILY_VISIT': backgroundColor = '#f59e0b'; break; // Ámbar — visita presencial
+            case 'FAMILY_VIDEO_CALL': backgroundColor = '#2563eb'; break; // Azul intenso — videollamada
+            case 'FAMILY_PHONE_CALL': backgroundColor = '#0891b2'; break; // Cyan — llamada telefónica
             case 'ACTIVITY': backgroundColor = '#10b981'; break; // Verde
             case 'CONCIERGE_SERVICE': backgroundColor = '#7c3aed'; break; // Violeta
-            case 'FAMILY_CALL': backgroundColor = '#2563eb'; break;
             default: backgroundColor = '#64748b'; break; // Gris
         }
         return { style: { backgroundColor, borderRadius: '6px', border: 'none', color: 'white', fontWeight: 'bold' } };
@@ -248,10 +249,11 @@ export default function CorporateCalendarPage() {
                                     <select value={type} onChange={e => setType(e.target.value)} className="w-full font-bold text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none">
                                         <option value="LABORATORY"> Laboratorio (Rojo)</option>
                                         <option value="MEDICAL_VISIT"> Visita Médica (Azul)</option>
-                                        <option value="FAMILY_VISIT"> Visita Familiar (Ambar)</option>
+                                        <option value="FAMILY_VISIT"> Visita Familiar (Ámbar)</option>
+                                        <option value="FAMILY_VIDEO_CALL">📹 Videollamada Familiar (Azul)</option>
+                                        <option value="FAMILY_PHONE_CALL">📞 Llamada Familiar (Cyan)</option>
                                         <option value="ACTIVITY"> Recreación (Verde)</option>
                                         <option value="CONCIERGE_SERVICE">🛎️ Servicio Concierge (Violeta)</option>
-                                        <option value="FAMILY_CALL">📞 Llamada Familiar</option>
                                         <option value="OTHER"> Otro / Administrativo</option>
                                     </select>
                                 </div>
@@ -277,7 +279,7 @@ export default function CorporateCalendarPage() {
                                 <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej. Mantener al residente en ayunas..." className="w-full font-medium text-slate-900 border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"></textarea>
                             </div>
 
-                            {type === 'FAMILY_CALL' && (
+                            {type === 'FAMILY_PHONE_CALL' && (
                                 <div className="space-y-3 bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Nombre del Familiar</label>

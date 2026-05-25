@@ -90,3 +90,51 @@ export function clinicalDayCalendarUTCRange(): { start: Date; end: Date } {
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
     return { start, end };
 }
+
+/**
+ * Combina una fecha (medianoche del día calendar AST, guardada como UTC) con
+ * una hora de pared en AST y retorna el instante UTC correspondiente.
+ *
+ * Caso de uso: FamilyAppointment guarda `requestedDate` como medianoche AST
+ * (ej. 2026-05-27T04:00:00.000Z = 27-may 00:00 AST) y `requestedTime` como
+ * string "1:00 PM" (hora de pared AST). Para crear el HeadquartersEvent con
+ * el startTime correcto, hay que componer ambos respetando que el servidor
+ * corre en UTC, NO en AST.
+ *
+ * Ejemplo:
+ *   astDateTime(new Date('2026-05-27T04:00:00.000Z'), 13, 0)
+ *   → 2026-05-27T17:00:00.000Z   (= 1:00 PM AST = 17:00 UTC)
+ *
+ * NO usar `Date.setHours()` directamente sobre la fecha — eso aplica la hora
+ * sobre el reloj del servidor (UTC en Vercel) y queda corrida −4h en AST.
+ */
+export function astDateTime(date: Date, hour: number, minute: number = 0): Date {
+    // Leer la fecha calendar AST del input (subir 4h hacia atrás convierte el
+    // instante UTC en "reloj de pared AST" representado como UTC).
+    const astWall = new Date(date.getTime() - AST_OFFSET_MIN * 60 * 1000);
+    const y = astWall.getUTCFullYear();
+    const m = astWall.getUTCMonth();
+    const d = astWall.getUTCDate();
+    // Componer y/m/d hour:minute "como si AST fuera UTC", luego trasladar a UTC real.
+    const composed = new Date(Date.UTC(y, m, d, hour, minute, 0, 0));
+    return new Date(composed.getTime() + AST_OFFSET_MIN * 60 * 1000);
+}
+
+/**
+ * Parser de strings tipo "1:00 PM" / "11:30 AM" → { hour: 0-23, minute: 0-59 }.
+ * Tolerante con espacios extra y mayúsculas/minúsculas. Lanza si no parsea.
+ */
+export function parseTimeOfDay(raw: string): { hour: number; minute: number } {
+    const trimmed = raw.trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    if (!match) throw new Error(`Hora inválida: "${raw}"`);
+    let hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    const period = match[3]?.toUpperCase();
+    if (period === 'PM' && hour !== 12) hour += 12;
+    if (period === 'AM' && hour === 12) hour = 0;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        throw new Error(`Hora fuera de rango: "${raw}"`);
+    }
+    return { hour, minute };
+}
