@@ -4,7 +4,7 @@
  * /family/pai — Humanista Suave (Propuesta C)
  *
  * Plan de Atención Integral. Cards blancas con borde suave,
- * fondo cálido neutro, acento teal-700.
+ * fondo cálido neutro, acento brand.
  */
 
 import { useEffect, useState } from "react";
@@ -57,7 +57,7 @@ export default function FamilyPaiPage() {
             {/* ═══ HEADER ═══ */}
             <div className="bg-white border-b border-stone-100 px-4 py-5">
                 <div className="max-w-2xl mx-auto flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center">
                         <IconPAI size={22} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -77,7 +77,7 @@ export default function FamilyPaiPage() {
                 {/* Back link sutil (mobile) */}
                 <Link
                     href="/family"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-teal-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-brand transition-colors"
                 >
                     <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
                     Volver al inicio
@@ -86,9 +86,9 @@ export default function FamilyPaiPage() {
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <div className="flex gap-1.5">
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
                         </div>
                     </div>
                 ) : plans.length === 0 ? (
@@ -118,12 +118,12 @@ export default function FamilyPaiPage() {
                                                 onClick={() => setSelected(plan)}
                                                 className={`rounded-full px-4 py-1.5 text-xs font-semibold border transition-colors ${
                                                     isActive
-                                                        ? "bg-teal-600 text-white border-teal-600"
-                                                        : "bg-white text-slate-600 border-slate-200 hover:border-teal-300"
+                                                        ? "bg-brand text-white border-brand"
+                                                        : "bg-white text-slate-600 border-slate-200 hover:border-brand/30"
                                                 }`}
                                             >
                                                 {TYPE_LABELS[plan.type] || plan.type}
-                                                <span className={`block text-[10px] font-normal mt-0.5 ${isActive ? "text-teal-100" : "text-slate-400"}`}>
+                                                <span className={`block text-[10px] font-normal mt-0.5 ${isActive ? "text-brand/30" : "text-slate-400"}`}>
                                                     {plan.approvedAt ? new Date(plan.approvedAt).toLocaleDateString('es-PR', { month: 'short', year: 'numeric' }) : '—'}
                                                 </span>
                                             </button>
@@ -139,7 +139,7 @@ export default function FamilyPaiPage() {
 
                                 {/* Badge tipo + fecha */}
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="bg-teal-50 text-teal-700 text-xs font-semibold rounded-full px-3 py-1">
+                                    <span className="bg-brand/10 text-brand text-xs font-semibold rounded-full px-3 py-1">
                                         {TYPE_LABELS[selected.type] || selected.type}
                                     </span>
                                     {selected.approvedAt && (
@@ -179,7 +179,7 @@ export default function FamilyPaiPage() {
                                                         {areas.map(a => (
                                                             <span
                                                                 key={a.key}
-                                                                className="bg-teal-50 text-teal-700 text-xs font-medium rounded-full px-3 py-1 capitalize"
+                                                                className="bg-brand/10 text-brand text-xs font-medium rounded-full px-3 py-1 capitalize"
                                                             >
                                                                 {a.key}
                                                             </span>
@@ -217,7 +217,7 @@ export default function FamilyPaiPage() {
                                 <Link
                                     href={`/family/pai/print/${selected.id}`}
                                     target="_blank"
-                                    className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-4 py-1.5 hover:bg-teal-50 transition-colors"
+                                    className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand border border-brand/25 rounded-full px-4 py-1.5 hover:bg-brand/10 transition-colors"
                                 >
                                     <Printer className="w-3.5 h-3.5" strokeWidth={1.5} />
                                     Imprimir plan completo

@@ -13,6 +13,7 @@ import {
     FileText,
 } from "lucide-react";
 import { prisma } from '@/lib/prisma';
+import { resolveFamilyTheme, themeCssVars } from '@/lib/family/theme';
 
 export default async function FamilyLayout({ children }: { children: React.ReactNode }) {
     const session = await getServerSession(authOptions);
@@ -23,7 +24,9 @@ export default async function FamilyLayout({ children }: { children: React.React
 
     const hqId = (session.user as any).headquartersId;
     const hq = await prisma.headquarters.findUnique({ where: { id: hqId } });
-    const hqName = hq?.name || "Zendity Partner";
+
+    // Tema por tenant — Vivid: navy + lima + crema. Fallback teal Zéndity.
+    const theme = resolveFamilyTheme(hq as any);
 
     // Conteo de mensajes no leídos para badge en navegación
     let unreadMessages = 0;
@@ -51,21 +54,33 @@ export default async function FamilyLayout({ children }: { children: React.React
     ];
 
     return (
-        <div className="absolute inset-0 bg-[#FAFAF8] text-slate-800 overflow-y-auto w-full h-full pb-20 sm:pb-0">
+        // CSS vars del tema vivirán en este wrapper — los hijos usan var(--brand-*)
+        <div
+            className="absolute inset-0 text-slate-800 overflow-y-auto w-full h-full pb-20 sm:pb-0"
+            style={{
+                ...themeCssVars(theme),
+                backgroundColor: 'var(--brand-bg)',
+            }}
+        >
 
-            {/* ═══ TOP NAV — minimalista Propuesta C ═══════════════════════ */}
+            {/* ═══ TOP NAV — marca del tenant (no "ZÉNDITY") ═══════════════ */}
             <nav className="bg-white border-b border-stone-100 sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-5 sm:px-8">
                     <div className="flex justify-between h-14 sm:h-16 items-center">
 
-                        {/* Brand */}
-                        <Link href="/family" className="flex items-center gap-2 group">
-                            <span className="text-sm font-bold text-teal-700 tracking-widest">
-                                ZÉNDITY
-                            </span>
-                            <span className="hidden sm:inline text-xs text-stone-400">
-                                · {hqName}
-                            </span>
+                        {/* Brand del tenant — Vivid en hogares Vivid, Zéndity como fallback */}
+                        <Link href="/family" className="flex items-baseline gap-2 group">
+                            {hq?.logoUrl ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img src={hq.logoUrl} alt={theme.brandName} className="h-7 sm:h-8 object-contain" />
+                            ) : (
+                                <span
+                                    className="text-base sm:text-lg font-serif font-semibold tracking-wide"
+                                    style={{ color: 'var(--brand-primary)' }}
+                                >
+                                    {theme.brandName}
+                                </span>
+                            )}
                         </Link>
 
                         {/* Nav links desktop */}
@@ -76,12 +91,15 @@ export default async function FamilyLayout({ children }: { children: React.React
                                     <Link
                                         key={link.href}
                                         href={link.href}
-                                        className="relative flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium text-slate-500 hover:text-teal-700 transition-colors"
+                                        className="relative flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium text-slate-500 transition-colors hover:[color:var(--brand-primary)]"
                                     >
                                         <Icon className="w-4 h-4" strokeWidth={1.5} />
                                         <span>{link.label}</span>
                                         {link.badge > 0 && (
-                                            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-teal-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                            <span
+                                                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                                                style={{ backgroundColor: 'var(--brand-primary)' }}
+                                            >
                                                 {link.badge > 9 ? "9+" : link.badge}
                                             </span>
                                         )}
@@ -107,7 +125,7 @@ export default async function FamilyLayout({ children }: { children: React.React
                 {children}
             </main>
 
-            {/* ═══ MOBILE BOTTOM NAV — Propuesta C ═══════════════════════ */}
+            {/* ═══ MOBILE BOTTOM NAV ═════════════════════════════════════════ */}
             <div
                 className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-stone-100 z-50"
                 style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -119,12 +137,15 @@ export default async function FamilyLayout({ children }: { children: React.React
                             <Link
                                 key={link.href}
                                 href={link.href}
-                                className="relative flex flex-col items-center justify-center w-full text-slate-400 hover:text-teal-700 active:scale-95 transition-all"
+                                className="relative flex flex-col items-center justify-center w-full text-slate-400 active:scale-95 transition-all hover:[color:var(--brand-primary)]"
                             >
                                 <div className="relative">
                                     <Icon className="w-[22px] h-[22px] mb-0.5" strokeWidth={1.5} />
                                     {link.badge > 0 && (
-                                        <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 bg-teal-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        <span
+                                            className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                                            style={{ backgroundColor: 'var(--brand-primary)' }}
+                                        >
                                             {link.badge > 9 ? "9+" : link.badge}
                                         </span>
                                     )}

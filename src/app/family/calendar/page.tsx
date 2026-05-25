@@ -3,7 +3,7 @@
 /**
  * /family/calendar — Humanista Suave
  *
- * Cards blancas, fondo cálido neutro, tipografía sans bold, acento teal-700.
+ * Cards blancas, fondo cálido neutro, tipografía sans bold, acento brand.
  */
 
 import { useState, useEffect } from "react";
@@ -261,7 +261,7 @@ export default function FamilyCalendarPage() {
                 {/* Botón solicitar */}
                 <button
                     onClick={openModal}
-                    className="w-full bg-teal-600 hover:bg-teal-700 text-white rounded-full py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+                    className="w-full bg-brand hover:bg-brand text-white rounded-full py-3 px-6 font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
                 >
                     <Plus className="w-4 h-4" strokeWidth={2} />
                     Solicitar nueva cita
@@ -289,9 +289,9 @@ export default function FamilyCalendarPage() {
                                 {EMPTY_GUIDE.map(({ Icon, title, desc }) => (
                                     <div
                                         key={title}
-                                        className="bg-teal-50 border border-teal-100 rounded-xl p-4 flex items-start gap-3"
+                                        className="bg-brand/10 border border-brand/20 rounded-xl p-4 flex items-start gap-3"
                                     >
-                                        <Icon className="w-5 h-5 text-teal-700 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+                                        <Icon className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                                         <div>
                                             <p className="font-semibold text-sm text-slate-800">{title}</p>
                                             <p className="text-xs text-slate-500 mt-1 leading-relaxed">{desc}</p>
@@ -355,7 +355,7 @@ export default function FamilyCalendarPage() {
 
                         {formSuccess ? (
                             <div className="px-6 py-12 flex flex-col items-center text-center">
-                                <CheckCircle2 className="w-14 h-14 text-teal-600 mb-4" strokeWidth={1.5} />
+                                <CheckCircle2 className="w-14 h-14 text-brand mb-4" strokeWidth={1.5} />
                                 <p className="font-bold text-slate-800 text-lg mb-1">Solicitud enviada</p>
                                 <p className="text-sm text-slate-500">El equipo te responderá pronto</p>
                             </div>
@@ -385,15 +385,15 @@ export default function FamilyCalendarPage() {
                                                     onClick={() => setType(opt.value)}
                                                     className={`bg-white border-2 rounded-xl p-3 flex flex-col items-center gap-2 transition-colors ${
                                                         active
-                                                            ? 'border-teal-500 bg-teal-50'
+                                                            ? 'border-brand-secondary bg-brand/10'
                                                             : 'border-slate-200 hover:border-slate-300'
                                                     }`}
                                                 >
                                                     <Icon
-                                                        className={active ? 'w-5 h-5 text-teal-700' : 'w-5 h-5 text-slate-500'}
+                                                        className={active ? 'w-5 h-5 text-brand' : 'w-5 h-5 text-slate-500'}
                                                         strokeWidth={1.5}
                                                     />
-                                                    <span className={`text-xs font-semibold text-center leading-tight ${active ? 'text-teal-700' : 'text-slate-700'}`}>
+                                                    <span className={`text-xs font-semibold text-center leading-tight ${active ? 'text-brand' : 'text-slate-700'}`}>
                                                         {opt.label}
                                                     </span>
                                                 </button>
@@ -449,9 +449,9 @@ export default function FamilyCalendarPage() {
                                                     !cell.date
                                                         ? 'invisible'
                                                         : cell.selected
-                                                            ? 'bg-teal-600 text-white font-semibold'
+                                                            ? 'bg-brand text-white font-semibold'
                                                             : cell.available
-                                                                ? 'bg-white text-slate-700 hover:bg-teal-50'
+                                                                ? 'bg-white text-slate-700 hover:bg-brand/10'
                                                                 : 'text-slate-300 cursor-not-allowed'
                                                 }`}
                                             >
@@ -460,7 +460,7 @@ export default function FamilyCalendarPage() {
                                         ))}
                                     </div>
                                     {selectedDate && (
-                                        <p className="text-sm text-teal-700 font-semibold mt-3 text-center capitalize">
+                                        <p className="text-sm text-brand font-semibold mt-3 text-center capitalize">
                                             {selectedDate.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'long' })}
                                         </p>
                                     )}
@@ -479,8 +479,8 @@ export default function FamilyCalendarPage() {
                                                 onClick={() => setSelectedTime(slot)}
                                                 className={`rounded-full px-3 py-1.5 text-xs tabular-nums transition-colors ${
                                                     selectedTime === slot
-                                                        ? 'bg-teal-600 text-white font-semibold'
-                                                        : 'bg-stone-50 text-slate-700 hover:bg-teal-50 border border-slate-200'
+                                                        ? 'bg-brand text-white font-semibold'
+                                                        : 'bg-stone-50 text-slate-700 hover:bg-brand/10 border border-slate-200'
                                                 }`}
                                             >
                                                 {slot}
@@ -502,8 +502,8 @@ export default function FamilyCalendarPage() {
                                                 onClick={() => setDuration(d.value)}
                                                 className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${
                                                     duration === d.value
-                                                        ? 'bg-teal-600 text-white'
-                                                        : 'bg-stone-50 text-slate-700 border border-slate-200 hover:bg-teal-50'
+                                                        ? 'bg-brand text-white'
+                                                        : 'bg-stone-50 text-slate-700 border border-slate-200 hover:bg-brand/10'
                                                 }`}
                                             >
                                                 {d.label}
@@ -522,7 +522,7 @@ export default function FamilyCalendarPage() {
                                         value={description}
                                         onChange={e => setDescription(e.target.value)}
                                         placeholder="Motivo o detalles…"
-                                        className="w-full bg-stone-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-500 focus:bg-white transition-colors resize-none"
+                                        className="w-full bg-stone-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-secondary focus:bg-white transition-colors resize-none"
                                     />
                                 </div>
                             </form>
@@ -542,7 +542,7 @@ export default function FamilyCalendarPage() {
                                     type="button"
                                     onClick={handleSubmit}
                                     disabled={sending || !selectedDate || !selectedTime}
-                                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-full px-6 py-2.5 text-sm transition-colors"
+                                    className="flex items-center gap-2 bg-brand hover:bg-brand disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-full px-6 py-2.5 text-sm transition-colors"
                                 >
                                     {sending ? (
                                         <>
@@ -570,7 +570,7 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
 
     const badgeClass =
         appt.status === 'PENDING'  ? 'bg-amber-50 text-amber-700' :
-        appt.status === 'APPROVED' ? 'bg-teal-50 text-teal-700' :
+        appt.status === 'APPROVED' ? 'bg-brand/10 text-brand' :
                                      'bg-red-50 text-red-600';
 
     return (
@@ -578,7 +578,7 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
             <div className="flex items-start gap-4">
                 {/* Fecha vertical */}
                 <div className="flex-shrink-0 w-12 text-center">
-                    <p className="text-2xl font-bold text-teal-700 leading-none tabular-nums">{day}</p>
+                    <p className="text-2xl font-bold text-brand leading-none tabular-nums">{day}</p>
                     <p className="text-xs text-slate-400 uppercase mt-1 font-semibold tracking-wide">{monthAbbr}</p>
                 </div>
 

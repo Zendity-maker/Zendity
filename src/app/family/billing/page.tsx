@@ -4,7 +4,7 @@
  * /family/billing — Humanista Suave (Propuesta C)
  *
  * Facturación. Cards blancas con borde suave, fondo cálido neutro,
- * acento teal-700. Pagos honestos: procesados por la facilidad.
+ * acento brand. Pagos honestos: procesados por la facilidad.
  */
 
 import { useState, useEffect } from "react";
@@ -42,7 +42,7 @@ function fechaCorta(date: string | Date): string {
 // ── Status badge ──────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, { label: string; cls: string; Icon: any }> = {
-        PAID:    { label: "Pagada",    cls: "bg-teal-50 text-teal-700",  Icon: CheckCircle2 },
+        PAID:    { label: "Pagada",    cls: "bg-brand/10 text-brand",  Icon: CheckCircle2 },
         PENDING: { label: "Pendiente", cls: "bg-amber-50 text-amber-700", Icon: Clock },
         OVERDUE: { label: "Vencida",   cls: "bg-red-50 text-red-600",     Icon: AlertCircle },
     };
@@ -86,7 +86,7 @@ export default function FamilyBillingPage() {
             {/* ═══ HEADER ═══ */}
             <div className="bg-white border-b border-stone-100 px-4 py-5">
                 <div className="max-w-2xl mx-auto flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center">
                         <IconFacturacion size={22} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -106,9 +106,9 @@ export default function FamilyBillingPage() {
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <div className="flex gap-1.5">
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
                         </div>
                     </div>
                 ) : invoices.length === 0 ? (
@@ -176,7 +176,7 @@ export default function FamilyBillingPage() {
                                                 </p>
                                                 <a
                                                     href="/family/messages"
-                                                    className="inline-block mt-3 text-xs font-semibold text-teal-700 border border-teal-200 rounded-full px-4 py-1.5 hover:bg-teal-50 transition-colors"
+                                                    className="inline-block mt-3 text-xs font-semibold text-brand border border-brand/25 rounded-full px-4 py-1.5 hover:bg-brand/10 transition-colors"
                                                 >
                                                     Enviar mensaje al director →
                                                 </a>

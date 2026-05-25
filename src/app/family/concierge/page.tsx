@@ -23,15 +23,15 @@ function CategoryPlaceholder({ category, size = "large" }: { category: string; s
     const Icon = CATEGORY_ICON[category] || (size === "small" ? Package : ShoppingBag);
     if (size === "small") {
         return (
-            <div className="w-20 h-20 rounded-xl flex items-center justify-center bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-100 flex-shrink-0">
-                <Icon className="w-7 h-7 text-teal-300" strokeWidth={1.25} />
+            <div className="w-20 h-20 rounded-xl flex items-center justify-center bg-gradient-to-br from-brand/10 to-brand/20 border border-brand/20 flex-shrink-0">
+                <Icon className="w-7 h-7 text-brand/40" strokeWidth={1.25} />
             </div>
         );
     }
     return (
-        <div className="h-36 w-full rounded-xl flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-100 mb-3">
-            <Icon className="w-10 h-10 text-teal-300" strokeWidth={1} />
-            <span className="text-xs font-medium text-teal-500 uppercase tracking-wide">
+        <div className="h-36 w-full rounded-xl flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand/10 to-brand/20 border border-brand/20 mb-3">
+            <Icon className="w-10 h-10 text-brand/40" strokeWidth={1} />
+            <span className="text-xs font-medium text-brand-secondary uppercase tracking-wide">
                 {category}
             </span>
         </div>
@@ -246,7 +246,7 @@ export default function ConciergePage() {
 
     if (loading) return (
         <div className="bg-[#FAFAF8] -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex justify-center items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-teal-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-brand-secondary"></div>
         </div>
     );
 
@@ -275,7 +275,7 @@ export default function ConciergePage() {
             {/* Header página */}
             <div className="bg-white border-b border-stone-100 px-4 py-5">
                 <div className="flex items-center gap-3">
-                    <ShoppingBag size={24} className="text-teal-700" />
+                    <ShoppingBag size={24} className="text-brand" />
                     <div>
                         <h1 className="text-xl font-bold text-slate-800">Servicios</h1>
                         <p className="text-xs text-slate-400">Bienestar y cuidado especial</p>
@@ -286,12 +286,12 @@ export default function ConciergePage() {
             <div className="px-4 py-5 space-y-5 max-w-5xl mx-auto">
 
                 {/* Saldo Concierge */}
-                <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 flex items-center justify-between">
+                <div className="bg-brand/10 border border-brand/20 rounded-2xl p-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Wallet size={18} className="text-teal-700" />
+                        <Wallet size={18} className="text-brand" />
                         <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Saldo Concierge</span>
                     </div>
-                    <p className="text-2xl font-bold text-teal-700">${data.balance.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-brand">${data.balance.toFixed(2)}</p>
                 </div>
 
                 {/* Success message */}
@@ -306,13 +306,13 @@ export default function ConciergePage() {
                 <div className="flex gap-2">
                     <button
                         onClick={() => setActiveTab('marketplace')}
-                        className={`rounded-full px-4 py-2 text-sm border flex items-center gap-2 transition-all ${activeTab === 'marketplace' ? 'bg-teal-50 text-teal-700 font-semibold border-teal-100' : 'bg-white text-slate-500 border-slate-100'}`}
+                        className={`rounded-full px-4 py-2 text-sm border flex items-center gap-2 transition-all ${activeTab === 'marketplace' ? 'bg-brand/10 text-brand font-semibold border-brand/20' : 'bg-white text-slate-500 border-slate-100'}`}
                     >
                         <Sparkles size={14} /> Catálogo de Servicios
                     </button>
                     <button
                         onClick={() => setActiveTab('reservas')}
-                        className={`rounded-full px-4 py-2 text-sm border flex items-center gap-2 transition-all relative ${activeTab === 'reservas' ? 'bg-teal-50 text-teal-700 font-semibold border-teal-100' : 'bg-white text-slate-500 border-slate-100'}`}
+                        className={`rounded-full px-4 py-2 text-sm border flex items-center gap-2 transition-all relative ${activeTab === 'reservas' ? 'bg-brand/10 text-brand font-semibold border-brand/20' : 'bg-white text-slate-500 border-slate-100'}`}
                     >
                         <ClipboardList size={14} /> Mis Reservas
                         {pendingCount > 0 && (
@@ -327,20 +327,20 @@ export default function ConciergePage() {
                 {activeTab === 'marketplace' && (
                     <>
                         {/* Cómo funciona */}
-                        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4">
-                            <p className="text-sm font-semibold text-teal-800 mb-3 flex items-center gap-2">
-                                <Bell size={16} className="text-teal-700" /> ¿Cómo funciona?
+                        <div className="bg-brand/10 border border-brand/20 rounded-2xl p-4">
+                            <p className="text-sm font-semibold text-brand mb-3 flex items-center gap-2">
+                                <Bell size={16} className="text-brand" /> ¿Cómo funciona?
                             </p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="flex items-start gap-3 bg-white rounded-xl p-3 border border-slate-100">
-                                    <Camera size={20} className="text-teal-700 flex-shrink-0 mt-0.5" />
+                                    <Camera size={20} className="text-brand flex-shrink-0 mt-0.5" />
                                     <div>
                                         <p className="text-xs font-semibold text-slate-800">Foto del servicio</p>
                                         <p className="text-xs text-slate-500 mt-0.5">Al completarse cada sesión, el equipo envía una foto al familiar.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3 bg-white rounded-xl p-3 border border-slate-100">
-                                    <Bell size={20} className="text-teal-700 flex-shrink-0 mt-0.5" />
+                                    <Bell size={20} className="text-brand flex-shrink-0 mt-0.5" />
                                     <div>
                                         <p className="text-xs font-semibold text-slate-800">Notificación en tiempo real</p>
                                         <p className="text-xs text-slate-500 mt-0.5">Recibes aviso cuando el servicio comienza, se completa o un producto es entregado.</p>
@@ -383,13 +383,13 @@ export default function ConciergePage() {
                                             <div className="flex gap-2 mb-3 mt-2">
                                                 <button
                                                     onClick={() => setYogaMode('grupal')}
-                                                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'grupal' ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-slate-600 border-slate-200'}`}
+                                                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'grupal' ? 'bg-brand text-white border-brand' : 'bg-white text-slate-600 border-slate-200'}`}
                                                 >
                                                     <Users size={12} /> Grupal · $39.99
                                                 </button>
                                                 <button
                                                     onClick={() => setYogaMode('privada')}
-                                                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'privada' ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-slate-600 border-slate-200'}`}
+                                                    className={`flex-1 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center justify-center gap-1 ${yogaMode === 'privada' ? 'bg-brand text-white border-brand' : 'bg-white text-slate-600 border-slate-200'}`}
                                                 >
                                                     <Heart size={12} /> Privada · $59.99
                                                 </button>
@@ -405,7 +405,7 @@ export default function ConciergePage() {
                                             <div className="mb-3">
                                                 <button
                                                     onClick={() => setExpandedService(isExpanded ? null : service.id)}
-                                                    className="w-full flex items-center justify-between text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl px-3 py-2 transition-colors border border-teal-100"
+                                                    className="w-full flex items-center justify-between text-xs font-semibold text-brand bg-brand/10 hover:bg-brand/15 rounded-xl px-3 py-2 transition-colors border border-brand/20"
                                                 >
                                                     <span>Descripción y beneficios</span>
                                                     {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -423,7 +423,7 @@ export default function ConciergePage() {
                                                 {service.isOffer && service.originalPrice && (
                                                     <p className="text-xs text-slate-400 line-through">${service.originalPrice.toFixed(2)}</p>
                                                 )}
-                                                <p className="text-lg text-teal-700 font-bold">${displayPrice.toFixed(2)}</p>
+                                                <p className="text-lg text-brand font-bold">${displayPrice.toFixed(2)}</p>
                                             </div>
                                             <div className="flex items-center gap-1 text-xs text-slate-400">
                                                 <CalendarIcon size={14} /> Elige fecha
@@ -438,7 +438,7 @@ export default function ConciergePage() {
                                                 }
                                             }}
                                             disabled={buying === service.id}
-                                            className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
+                                            className="bg-brand hover:bg-brand disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
                                         >
                                             <CalendarIcon size={14} />
                                             {buying === service.id ? 'Reservando…' : 'Reservar'}
@@ -473,7 +473,7 @@ export default function ConciergePage() {
                                             <div className="mb-2">
                                                 <button
                                                     onClick={() => setExpandedService(expandedService === product.id ? null : product.id)}
-                                                    className="w-full flex items-center justify-between text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-xl px-3 py-2 transition-colors border border-teal-100 mb-1"
+                                                    className="w-full flex items-center justify-between text-xs font-semibold text-brand bg-brand/10 hover:bg-brand/15 rounded-xl px-3 py-2 transition-colors border border-brand/20 mb-1"
                                                 >
                                                     <span>Descripción</span>
                                                     {expandedService === product.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -490,12 +490,12 @@ export default function ConciergePage() {
                                             {product.isOffer && product.originalPrice && (
                                                 <p className="text-xs text-slate-400 line-through">${product.originalPrice.toFixed(2)}</p>
                                             )}
-                                            <p className="text-lg text-teal-700 font-bold">${product.price.toFixed(2)}</p>
+                                            <p className="text-lg text-brand font-bold">${product.price.toFixed(2)}</p>
                                         </div>
                                         <button
                                             onClick={() => handleProductPurchase(product)}
                                             disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
-                                            className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
+                                            className="bg-brand hover:bg-brand disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
                                         >
                                             {product.category === 'GiftCards' ? <Gift size={14} /> : <ShoppingCart size={14} />}
                                             {buying === product.id ? 'Procesando…' : product.category === 'GiftCards' ? 'Recargar Saldo' : 'Comprar'}
@@ -517,7 +517,7 @@ export default function ConciergePage() {
                                 <p className="text-slate-400 text-xs mt-1">Ve al catálogo y elige un servicio para comenzar.</p>
                                 <button
                                     onClick={() => setActiveTab('marketplace')}
-                                    className="mt-4 bg-teal-600 hover:bg-teal-700 text-white rounded-full py-2.5 px-5 font-semibold text-sm transition-all"
+                                    className="mt-4 bg-brand hover:bg-brand text-white rounded-full py-2.5 px-5 font-semibold text-sm transition-all"
                                 >
                                     Ver catálogo
                                 </button>
@@ -552,12 +552,12 @@ export default function ConciergePage() {
                                                 <p className="text-xs text-slate-400 mt-0.5">{appt.service.category}</p>
                                                 <div className="mt-3 flex flex-wrap gap-2">
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-stone-50 border border-slate-100 px-3 py-1.5 rounded-full">
-                                                        <CalendarIcon size={12} className="text-teal-700" />
+                                                        <CalendarIcon size={12} className="text-brand" />
                                                         <span className="font-medium capitalize">{dateStr}</span>
                                                     </div>
                                                     {timeStr && (
                                                         <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-stone-50 border border-slate-100 px-3 py-1.5 rounded-full">
-                                                            <Clock size={12} className="text-teal-700" />
+                                                            <Clock size={12} className="text-brand" />
                                                             <span className="font-medium">{timeStr}</span>
                                                         </div>
                                                     )}
@@ -589,7 +589,7 @@ export default function ConciergePage() {
                         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-800 leading-snug">{bookingItem.name}</h3>
-                                <p className="text-sm text-teal-700 font-semibold mt-0.5">${bookingItem.price.toFixed(2)}</p>
+                                <p className="text-sm text-brand font-semibold mt-0.5">${bookingItem.price.toFixed(2)}</p>
                             </div>
                             <button onClick={closeBookingModal} className="w-9 h-9 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-slate-500 transition-colors">
                                 <X size={16} />
@@ -601,7 +601,7 @@ export default function ConciergePage() {
                             {/* Selector de fecha */}
                             <div>
                                 <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase mb-3 flex items-center gap-2">
-                                    <CalendarIcon size={14} className="text-teal-700" /> Selecciona una Fecha
+                                    <CalendarIcon size={14} className="text-brand" /> Selecciona una Fecha
                                 </p>
 
                                 <div className="flex items-center justify-between mb-3">
@@ -643,10 +643,10 @@ export default function ConciergePage() {
                                                         disabled={!isAvailable || isPast}
                                                         className={`rounded-full w-9 h-9 text-sm font-medium transition-all flex items-center justify-center
                                                             ${isSelected
-                                                                ? 'bg-teal-600 text-white shadow-md shadow-teal-200'
+                                                                ? 'bg-brand text-white shadow-md shadow-brand/25'
                                                                 : isPast || !isAvailable
                                                                     ? 'text-slate-300 cursor-not-allowed'
-                                                                    : 'text-slate-700 hover:bg-teal-50'
+                                                                    : 'text-slate-700 hover:bg-brand/10'
                                                             }`}
                                                     >
                                                         {day.getDate()}
@@ -668,7 +668,7 @@ export default function ConciergePage() {
                             {selectedDate && (
                                 <div>
                                     <p className="text-xs font-semibold text-slate-400 tracking-widest uppercase mb-3 flex items-center gap-2">
-                                        <Clock size={14} className="text-teal-700" /> Selecciona una Hora
+                                        <Clock size={14} className="text-brand" /> Selecciona una Hora
                                     </p>
                                     <div className="flex flex-wrap gap-2">
                                         {TIME_SLOTS.map((slot) => (
@@ -676,8 +676,8 @@ export default function ConciergePage() {
                                                 key={slot}
                                                 onClick={() => setSelectedTime(slot)}
                                                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all border ${selectedTime === slot
-                                                    ? 'bg-teal-600 text-white border-teal-600'
-                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-teal-50'}`}
+                                                    ? 'bg-brand text-white border-brand'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-brand/10'}`}
                                             >
                                                 {slot}
                                             </button>
@@ -695,7 +695,7 @@ export default function ConciergePage() {
                                         onChange={(e) => setBookingNotes(e.target.value)}
                                         placeholder="Ej: prefiero por la mañana, tiene alergia a X…"
                                         rows={2}
-                                        className="w-full bg-stone-50 border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all"
+                                        className="w-full bg-stone-50 border border-slate-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-secondary-500 transition-all"
                                     />
                                 </div>
                             )}
@@ -705,17 +705,17 @@ export default function ConciergePage() {
                         <div className="px-6 py-4 border-t border-slate-100 bg-stone-50">
                             {selectedDate && selectedTime ? (
                                 <div className="space-y-3">
-                                    <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 text-sm text-teal-800">
+                                    <div className="bg-brand/10 border border-brand/20 rounded-xl px-4 py-3 text-sm text-brand">
                                         <span className="font-semibold">{selectedDate.toLocaleDateString('es-PR', { weekday: 'short', day: '2-digit', month: 'short' })}</span>
                                         {' a las '}
                                         <span className="font-semibold">{selectedTime}</span>
                                         {' · '}
-                                        <span className="text-teal-700 font-bold">${bookingItem.price.toFixed(2)}</span>
+                                        <span className="text-brand font-bold">${bookingItem.price.toFixed(2)}</span>
                                     </div>
                                     <button
                                         onClick={confirmBooking}
                                         disabled={!!buying}
-                                        className="w-full bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white font-semibold rounded-xl py-3 transition-all flex items-center justify-center gap-2"
+                                        className="w-full bg-brand hover:bg-brand disabled:opacity-60 text-white font-semibold rounded-xl py-3 transition-all flex items-center justify-center gap-2"
                                     >
                                         <CheckCircle2 size={16} />
                                         {buying ? 'Confirmando…' : 'Confirmar Reserva'}
