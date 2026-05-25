@@ -41,6 +41,7 @@ interface Appointment {
     approvedAt?: string;
     patient: { name: string; roomNumber?: string };
     approvedBy?: { name: string };
+    headquarters?: { familyWhatsAppNumber?: string | null };
 }
 
 const TYPE_OPTIONS: { value: AppointmentType; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
@@ -592,14 +593,18 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
         appt.status === 'APPROVED' ? 'bg-brand/10 text-brand' :
                                      'bg-red-50 text-red-600';
 
-    // Hint de canal por tipo de cita — para citas APROBADAS. Mantiene paridad
-    // con la copia ramificada del email/ICS (src/lib/family/appointment-copy.ts)
-    // sin requerir hq.name del API. Si extendemos /api/family/appointments para
-    // traer hq, podemos cambiar este hint a la connectionInstructions canónica.
-    const connectionHint =
-        appt.type === 'VIDEO_CALL' ? '📹 Te llamarán por videollamada de WhatsApp. Mantente disponible.' :
-        appt.type === 'PHONE_CALL' ? '📞 Te llamarán por WhatsApp. Mantente disponible.' :
-        null;  // visitas presenciales no necesitan hint adicional
+    // Hint de canal por tipo de cita — para citas APROBADAS. Paridad con la copia
+    // ramificada del email/ICS (src/lib/family/appointment-copy.ts).
+    const waNumber = appt.headquarters?.familyWhatsAppNumber?.trim() || null;
+    let connectionHint: string | null = null;
+    if (appt.type === 'VIDEO_CALL') {
+        connectionHint = '📹 Te llamarán por videollamada de WhatsApp. Mantente disponible.';
+        if (waNumber) connectionHint += ` Guarda este número para reconocer la llamada: ${waNumber}.`;
+    } else if (appt.type === 'PHONE_CALL') {
+        connectionHint = '📞 Te llamarán por WhatsApp. Mantente disponible.';
+        if (waNumber) connectionHint += ` Guarda este número para reconocer la llamada: ${waNumber}.`;
+    }
+    // visitas presenciales no necesitan hint adicional
 
     return (
         <article className={`bg-white rounded-2xl border border-slate-100 p-4 mb-3 ${muted ? 'opacity-75' : ''}`}>

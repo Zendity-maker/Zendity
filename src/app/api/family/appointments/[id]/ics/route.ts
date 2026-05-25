@@ -44,7 +44,7 @@ export async function GET(
             include: {
                 patient:      { select: { name: true } },
                 familyMember: { select: { id: true, name: true } },
-                headquarters: { select: { name: true, billingAddress: true } },
+                headquarters: { select: { name: true, billingAddress: true, familyWhatsAppNumber: true } },
             },
         });
 
@@ -72,12 +72,13 @@ export async function GET(
             apptType: appt.type,
             hqName: appt.headquarters.name,
             hqAddress: appt.headquarters.billingAddress,
+            whatsAppNumber: appt.headquarters.familyWhatsAppNumber,
             description: appt.description,
         });
 
         const ics = buildAppointmentICS({
             id: appt.id,
-            title: `${appt.title} con ${appt.patient.name}`,
+            title: `${appt.title} con ${appt.patient.name.trim()}`,
             description: copy.icsDescription,
             startUtc,
             endUtc,

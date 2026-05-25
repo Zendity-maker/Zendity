@@ -103,10 +103,11 @@ export async function PATCH(
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: hqId },
-            select: { name: true, billingAddress: true },
+            select: { name: true, billingAddress: true, familyWhatsAppNumber: true },
         });
         const hqName = hq?.name || 'Vivid Senior Living';
         const hqAddress = hq?.billingAddress ?? null;
+        const hqWhatsApp = hq?.familyWhatsAppNumber ?? null;
 
         const typeLabel    = TYPE_LABELS[appt.type] || appt.type;
         // Fecha formateada anclada a AST — la familia vive fuera de PR; con
@@ -146,7 +147,7 @@ export async function PATCH(
                 prisma.headquartersEvent.create({
                     data: {
                         headquartersId:   hqId,
-                        title:            `${typeLabel} — ${appt.familyMember.name} con ${appt.patient.name}`,
+                        title:            `${typeLabel} — ${appt.familyMember.name.trim()} con ${appt.patient.name.trim()}`,
                         description:      appt.description || undefined,
                         type:             eventType,
                         status:           'PENDING',
@@ -166,6 +167,7 @@ export async function PATCH(
                 apptType: appt.type,
                 hqName,
                 hqAddress,
+                whatsAppNumber: hqWhatsApp,
                 description: appt.description,
             });
 
@@ -196,7 +198,7 @@ export async function PATCH(
             // local automática (DTSTART va como instante UTC absoluto).
             const icsContent = buildAppointmentICS({
                 id: updated.id,
-                title: `${typeLabel} con ${appt.patient.name}`,
+                title: `${typeLabel} con ${appt.patient.name.trim()}`,
                 description: copy.icsDescription,
                 startUtc: startTime,
                 endUtc: endTime,
@@ -206,7 +208,7 @@ export async function PATCH(
             });
             const gcalUrl = googleCalendarLink({
                 id: updated.id,
-                title: `${typeLabel} con ${appt.patient.name}`,
+                title: `${typeLabel} con ${appt.patient.name.trim()}`,
                 description: copy.icsDescription,
                 startUtc: startTime,
                 endUtc: endTime,
@@ -256,7 +258,7 @@ export async function PATCH(
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Fecha</span><br/><strong>${formattedDate}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Hora</span><br/><strong>${appt.requestedTime}</strong> <span style="color:#64748b;font-weight:500;font-size:13px;">(${AST_TZ_LABEL})</span></div>
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Duración</span><br/><strong>${appt.durationMins} minutos</strong></div>
-      <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name}</strong></div>
+      <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name.trim()}</strong></div>
     </div>
     ${appt.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${appt.description}</em></p>` : ''}
     <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 18px;margin:20px 0;">

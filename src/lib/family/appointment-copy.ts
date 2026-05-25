@@ -21,11 +21,10 @@ export interface AppointmentCopyInput {
     hqName: string;
     /** Dirección física del hogar — usada solo para LOCATION de visitas presenciales. */
     hqAddress?: string | null;
+    /** Número de WhatsApp del hogar — usado solo para VIDEO_CALL/PHONE_CALL si existe. */
+    whatsAppNumber?: string | null;
     /** Descripción libre que escribió el familiar al solicitar la cita (opcional). */
     description?: string | null;
-    // TODO: cuando el usuario confirme el número de WhatsApp de la sede, añadir aquí
-    //       `whatsAppNumber?: string | null` y enriquecer connectionInstructions con
-    //       "Guarda este número para reconocer la llamada: <#>".
 }
 
 export interface AppointmentCopy {
@@ -38,21 +37,32 @@ export interface AppointmentCopy {
 }
 
 export function buildAppointmentCopy(input: AppointmentCopyInput): AppointmentCopy {
-    const { apptType, hqName, hqAddress, description } = input;
+    const { apptType, hqName, hqAddress, whatsAppNumber, description } = input;
     let connectionInstructions: string;
     let location: string;
+
+    // Sufijo opcional con el número del hogar — solo para canales de WhatsApp y
+    // solo cuando la sede tiene el número configurado. Si la sede aún no lo tiene
+    // (Mayagüez antes de setup), omitimos la frase entera para no dejar un
+    // "Guarda este número:" colgando en blanco.
+    const waNumber = whatsAppNumber?.trim();
+    const waSuffix = waNumber
+        ? ` Guarda este número para reconocer la llamada: ${waNumber}.`
+        : '';
 
     switch (apptType) {
         case 'VIDEO_CALL':
             connectionInstructions =
                 `Recibirás una videollamada de WhatsApp desde el teléfono de ${hqName} ` +
-                `a la hora indicada (${AST_TZ_LABEL}). Ten WhatsApp listo y mantente disponible.`;
+                `a la hora indicada (${AST_TZ_LABEL}). Ten WhatsApp listo y mantente disponible.` +
+                waSuffix;
             location = 'Videollamada de WhatsApp';
             break;
         case 'PHONE_CALL':
             connectionInstructions =
                 `Recibirás una llamada de WhatsApp desde el teléfono de ${hqName} ` +
-                `a la hora indicada (${AST_TZ_LABEL}). Ten WhatsApp listo y mantente disponible.`;
+                `a la hora indicada (${AST_TZ_LABEL}). Ten WhatsApp listo y mantente disponible.` +
+                waSuffix;
             location = 'Llamada de WhatsApp';
             break;
         case 'VISIT':

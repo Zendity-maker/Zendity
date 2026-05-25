@@ -47,6 +47,9 @@ export async function GET() {
             include: {
                 patient: { select: { name: true, roomNumber: true } },
                 approvedBy: { select: { name: true } },
+                // Para que el card del portal pueda mostrar el número de WhatsApp
+                // del hogar (solo en citas de llamada cuando la sede lo tenga seteado).
+                headquarters: { select: { familyWhatsAppNumber: true } },
             },
         });
 

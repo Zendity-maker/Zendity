@@ -15,7 +15,7 @@ export async function GET() {
         const hqId = (session.user as any).headquartersId;
         const hq = await prisma.headquarters.findUnique({
             where: { id: hqId },
-            select: { logoUrl: true, name: true }
+            select: { logoUrl: true, name: true, familyWhatsAppNumber: true }
         });
 
         return NextResponse.json({ success: true, hq });
@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { logoUrl } = body;
+        const { logoUrl, familyWhatsAppNumber } = body;
         const hqId = (session.user as any).headquartersId;
 
         if (typeof logoUrl === 'string' && logoUrl.length > MAX_LOGO_PAYLOAD_BYTES) {
@@ -49,12 +49,31 @@ export async function PATCH(request: Request) {
             );
         }
 
+        // Normalizar WhatsApp number: trim + acepta vacío como null (limpiar el campo).
+        // Validación liviana: caracteres permitidos para teléfonos internacionales.
+        let waNumber: string | null | undefined = undefined;
+        if (typeof familyWhatsAppNumber === 'string') {
+            const trimmed = familyWhatsAppNumber.trim();
+            waNumber = trimmed.length === 0 ? null : trimmed;
+            if (waNumber && !/^[+()\-.\d\s]{6,30}$/.test(waNumber)) {
+                return NextResponse.json(
+                    { success: false, error: 'Número de WhatsApp inválido. Usa formato internacional, ej: +1 787-414-6858' },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Update parcial — solo los campos enviados (undefined los ignora Prisma).
         const updatedHq = await prisma.headquarters.update({
             where: { id: hqId },
-            data: { logoUrl }
+            data: {
+                ...(logoUrl !== undefined ? { logoUrl } : {}),
+                ...(waNumber !== undefined ? { familyWhatsAppNumber: waNumber } : {}),
+            },
+            select: { logoUrl: true, familyWhatsAppNumber: true },
         });
 
-        return NextResponse.json({ success: true, logoUrl: updatedHq.logoUrl });
+        return NextResponse.json({ success: true, ...updatedHq });
     } catch (error) {
         return NextResponse.json({ success: false, error: 'Failed' }, { status: 500 });
     }
