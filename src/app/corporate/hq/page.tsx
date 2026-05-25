@@ -35,6 +35,8 @@ export default function ZendityHQPage() {
     // Branding states
     const [logoUrl, setLogoUrl] = useState("");
     const [savingBranding, setSavingBranding] = useState(false);
+    const [processingLogo, setProcessingLogo] = useState(false);
+    const [logoError, setLogoError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDocs();
@@ -67,6 +69,99 @@ export default function ZendityHQPage() {
             if (data.success && data.hq?.logoUrl) setLogoUrl(data.hq.logoUrl);
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    // ─── Subida de logo: espejo del patrón de /api/corporate/patients/[id]/photo ──
+    // FileReader → (si raster) redimensionar via canvas a 256px de alto → base64 data URL → setLogoUrl
+    // Sin Vercel Blob, sin storage externo. El base64 vive en Headquarters.logoUrl (string).
+    const ACCEPTED_LOGO_TYPES = ["image/png", "image/svg+xml", "image/webp", "image/jpeg"];
+    const MAX_RAW_FILE_BYTES = 2 * 1024 * 1024; // pre-resize sanity check (2MB)
+    const TARGET_LOGO_HEIGHT_PX = 256; // se renderiza a h-8 (32px) — 256 cubre retina @8x con margen
+    const MAX_OUTPUT_BASE64_BYTES = 380 * 1024; // bajo el límite server (400KB)
+
+    const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // permitir re-seleccionar el mismo archivo
+        if (!file) return;
+
+        setLogoError(null);
+
+        if (!ACCEPTED_LOGO_TYPES.includes(file.type)) {
+            setLogoError("Formato no soportado. Usa PNG, JPG, WEBP o SVG.");
+            return;
+        }
+        if (file.size > MAX_RAW_FILE_BYTES) {
+            setLogoError(`Archivo muy grande (${Math.round(file.size / 1024)}KB). Máximo 2MB antes de redimensionar.`);
+            return;
+        }
+
+        setProcessingLogo(true);
+        try {
+            const reader = new FileReader();
+            const dataUrl: string = await new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(file);
+            });
+
+            // SVG es vectorial — no redimensionar via canvas, persistir tal cual
+            // (luego de verificar tamaño del base64).
+            if (file.type === "image/svg+xml") {
+                if (dataUrl.length > MAX_OUTPUT_BASE64_BYTES) {
+                    setLogoError(`SVG muy pesado (${Math.round(dataUrl.length / 1024)}KB). Optimízalo o usa PNG redimensionado.`);
+                    return;
+                }
+                setLogoUrl(dataUrl);
+                return;
+            }
+
+            // Raster: redimensionar a 256px de alto manteniendo aspecto
+            const resized = await new Promise<string>((resolve, reject) => {
+                const img = new window.Image();
+                img.onload = () => {
+                    try {
+                        const scale = TARGET_LOGO_HEIGHT_PX / img.height;
+                        const targetH = Math.min(TARGET_LOGO_HEIGHT_PX, img.height);
+                        const targetW = Math.round(img.width * (targetH / img.height));
+
+                        const canvas = document.createElement("canvas");
+                        canvas.width = targetW;
+                        canvas.height = targetH;
+                        const ctx = canvas.getContext("2d");
+                        if (!ctx) {
+                            reject(new Error("Canvas no disponible"));
+                            return;
+                        }
+                        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+                        // PNG preserva transparencia (logos suelen requerirla).
+                        // JPEG fallback para fuentes JPG por compresión más densa.
+                        const outFormat = file.type === "image/jpeg" ? "image/jpeg" : "image/png";
+                        const quality = outFormat === "image/jpeg" ? 0.85 : undefined;
+                        const out = canvas.toDataURL(outFormat, quality);
+                        // Silenciar parámetro no usado en path PNG
+                        void scale;
+                        resolve(out);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+                img.src = dataUrl;
+            });
+
+            if (resized.length > MAX_OUTPUT_BASE64_BYTES) {
+                setLogoError(`Logo redimensionado aún supera ${Math.round(MAX_OUTPUT_BASE64_BYTES / 1024)}KB. Sube una versión más simple.`);
+                return;
+            }
+
+            setLogoUrl(resized);
+        } catch (err) {
+            console.error("Error procesando logo:", err);
+            setLogoError("No se pudo procesar la imagen. Intenta otro archivo.");
+        } finally {
+            setProcessingLogo(false);
         }
     };
 
@@ -259,20 +354,49 @@ export default function ZendityHQPage() {
                              Zendity Branding
                         </h2>
                         <div className="space-y-4">
+                            {/* Subida de archivo — vía principal */}
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Logo URL (Marca Blanca)</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Subir logo</label>
+                                <input
+                                    type="file"
+                                    accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                                    onChange={handleLogoFile}
+                                    disabled={processingLogo}
+                                    className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                    PNG, JPG, WEBP o SVG. Se redimensiona automáticamente a 256px de alto.
+                                </p>
+                                {processingLogo && (
+                                    <p className="text-[11px] text-teal-600 mt-1 font-medium">Procesando imagen…</p>
+                                )}
+                                {logoError && (
+                                    <p className="text-[11px] text-red-600 mt-1 font-medium">{logoError}</p>
+                                )}
+                            </div>
+
+                            {/* URL manual — opción avanzada (no se elimina) */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">
+                                    Logo URL <span className="font-normal text-slate-400">(opción avanzada)</span>
+                                </label>
                                 <input
                                     type="text"
                                     placeholder="Ej: /vivid-logo.png o https://..."
                                     className="w-full border-slate-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-slate-50 text-sm"
-                                    value={logoUrl}
+                                    value={logoUrl.startsWith("data:") ? "" : logoUrl}
                                     onChange={(e) => setLogoUrl(e.target.value)}
                                 />
-                                <p className="text-[10px] text-slate-500 mt-1">Este logo reemplazará a Zendity en el Portal Familiar B2C.</p>
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                    {logoUrl.startsWith("data:")
+                                        ? `Hay un archivo subido (${Math.round(logoUrl.length / 1024)}KB). Pega aquí una URL para reemplazarlo.`
+                                        : "Este logo reemplazará a Zendity en el Portal Familiar B2C."}
+                                </p>
                             </div>
 
                             {logoUrl && (
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-center items-center h-24">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={logoUrl} alt="Preview Logo" className="max-h-full object-contain" />
                                 </div>
                             )}

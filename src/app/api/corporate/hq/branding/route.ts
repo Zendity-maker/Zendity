@@ -24,6 +24,10 @@ export async function GET() {
     }
 }
 
+// Guard de tamaño: el logo se reenvía en cada carga del portal familiar.
+// 400KB de string base64 ≈ 300KB de imagen raw. Más que suficiente para un logo h-8.
+const MAX_LOGO_PAYLOAD_BYTES = 400 * 1024;
+
 export async function PATCH(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -34,6 +38,16 @@ export async function PATCH(request: Request) {
         const body = await request.json();
         const { logoUrl } = body;
         const hqId = (session.user as any).headquartersId;
+
+        if (typeof logoUrl === 'string' && logoUrl.length > MAX_LOGO_PAYLOAD_BYTES) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `Logo demasiado grande (${Math.round(logoUrl.length / 1024)}KB). Máximo ${Math.round(MAX_LOGO_PAYLOAD_BYTES / 1024)}KB. Redimensiona o usa una URL externa.`,
+                },
+                { status: 413 }
+            );
+        }
 
         const updatedHq = await prisma.headquarters.update({
             where: { id: hqId },
