@@ -66,13 +66,13 @@ export default async function FamilyLayout({ children }: { children: React.React
             {/* ═══ TOP NAV — marca del tenant (no "ZÉNDITY") ═══════════════ */}
             <nav className="bg-white border-b border-stone-100 sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-5 sm:px-8">
-                    <div className="flex justify-between h-14 sm:h-16 items-center">
+                    <div className="flex justify-between h-16 sm:h-20 items-center">
 
                         {/* Brand del tenant — Vivid en hogares Vivid, Zéndity como fallback */}
-                        <Link href="/family" className="flex items-baseline gap-2 group">
+                        <Link href="/family" className="flex items-center gap-2 group">
                             {hq?.logoUrl ? (
                                 /* eslint-disable-next-line @next/next/no-img-element */
-                                <img src={hq.logoUrl} alt={theme.brandName} className="h-7 sm:h-8 object-contain" />
+                                <img src={hq.logoUrl} alt={theme.brandName} className="h-12 sm:h-14 object-contain" />
                             ) : (
                                 <span
                                     className="text-base sm:text-lg font-serif font-semibold tracking-wide"
