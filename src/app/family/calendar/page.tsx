@@ -592,6 +592,15 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
         appt.status === 'APPROVED' ? 'bg-brand/10 text-brand' :
                                      'bg-red-50 text-red-600';
 
+    // Hint de canal por tipo de cita — para citas APROBADAS. Mantiene paridad
+    // con la copia ramificada del email/ICS (src/lib/family/appointment-copy.ts)
+    // sin requerir hq.name del API. Si extendemos /api/family/appointments para
+    // traer hq, podemos cambiar este hint a la connectionInstructions canónica.
+    const connectionHint =
+        appt.type === 'VIDEO_CALL' ? '📹 Te llamarán por videollamada de WhatsApp. Mantente disponible.' :
+        appt.type === 'PHONE_CALL' ? '📞 Te llamarán por WhatsApp. Mantente disponible.' :
+        null;  // visitas presenciales no necesitan hint adicional
+
     return (
         <article className={`bg-white rounded-2xl border border-slate-100 p-4 mb-3 ${muted ? 'opacity-75' : ''}`}>
             <div className="flex items-start gap-4">
@@ -630,6 +639,11 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
 
                     {appt.status === 'APPROVED' && (
                         <>
+                            {connectionHint && (
+                                <p className="text-xs mt-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sky-900 leading-relaxed">
+                                    {connectionHint}
+                                </p>
+                            )}
                             {appt.approvedBy && (
                                 <p className="text-xs text-slate-400 mt-2">
                                     Confirmada por {appt.approvedBy.name}

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/lib/dates';
 import { buildAppointmentICS, googleCalendarLink } from '@/lib/ics';
+import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
 import { EventType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
@@ -102,9 +103,10 @@ export async function PATCH(
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: hqId },
-            select: { name: true },
+            select: { name: true, billingAddress: true },
         });
         const hqName = hq?.name || 'Vivid Senior Living';
+        const hqAddress = hq?.billingAddress ?? null;
 
         const typeLabel    = TYPE_LABELS[appt.type] || appt.type;
         // Fecha formateada anclada a AST — la familia vive fuera de PR; con
@@ -157,7 +159,18 @@ export async function PATCH(
                 }),
             ]);
 
-            // Notificación in-app al familiar (best-effort) — hora con etiqueta AST.
+            // Copia ramificada por tipo (WhatsApp vs presencial). Misma fuente para
+            // notificación, email y descripción del ICS — la familia ve siempre lo
+            // mismo en los tres canales.
+            const copy = buildAppointmentCopy({
+                apptType: appt.type,
+                hqName,
+                hqAddress,
+                description: appt.description,
+            });
+
+            // Notificación in-app al familiar (best-effort) — hora con etiqueta AST
+            // + instrucción de cómo conectar (WhatsApp / dirección).
             try {
                 const famUser = await prisma.user.findFirst({
                     where: { email: appt.familyMember.email },
@@ -169,7 +182,7 @@ export async function PATCH(
                             userId:  famUser.id,
                             type:    'FAMILY_VISIT',
                             title:   '✅ Cita aprobada',
-                            message: `Tu ${typeLabel} del ${formattedDate} a las ${appt.requestedTime} (${AST_TZ_LABEL}) fue aprobada. Te esperamos en ${hqName}.`,
+                            message: `Tu ${typeLabel} del ${formattedDate} a las ${appt.requestedTime} (${AST_TZ_LABEL}) fue aprobada. ${copy.connectionInstructions}`,
                             isRead:  false,
                             link:    '/family/calendar',
                         },
@@ -184,20 +197,20 @@ export async function PATCH(
             const icsContent = buildAppointmentICS({
                 id: updated.id,
                 title: `${typeLabel} con ${appt.patient.name}`,
-                description: appt.description ?? `Cita coordinada por ${hqName}.`,
+                description: copy.icsDescription,
                 startUtc: startTime,
                 endUtc: endTime,
-                location: hqName,
+                location: copy.location,
                 organizerName: hqName,
                 organizerEmail: process.env.SENDGRID_FROM_EMAIL || undefined,
             });
             const gcalUrl = googleCalendarLink({
                 id: updated.id,
                 title: `${typeLabel} con ${appt.patient.name}`,
-                description: appt.description ?? `Cita coordinada por ${hqName}.`,
+                description: copy.icsDescription,
                 startUtc: startTime,
                 endUtc: endTime,
-                location: hqName,
+                location: copy.location,
             });
 
             // Email al familiar — gate explícito y NO silencioso (cierre del bug del
@@ -246,6 +259,14 @@ export async function PATCH(
       <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name}</strong></div>
     </div>
     ${appt.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${appt.description}</em></p>` : ''}
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 18px;margin:20px 0;">
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;">
+        Cómo conectar
+      </p>
+      <p style="margin:0;font-size:14px;color:#0c4a6e;line-height:1.55;">
+        ${copy.connectionInstructions}
+      </p>
+    </div>
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 18px;margin:20px 0;">
       <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.5;">
         ⏰ <strong>La hora arriba es hora de Vivid (Puerto Rico, AST).</strong>

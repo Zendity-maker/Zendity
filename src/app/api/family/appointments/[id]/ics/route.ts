@@ -18,6 +18,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { astDateTime, parseTimeOfDay } from '@/lib/dates';
 import { buildAppointmentICS } from '@/lib/ics';
+import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
 
 export async function GET(
     _req: Request,
@@ -65,13 +66,22 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Hora inválida en la cita' }, { status: 400 });
         }
 
+        // Copia ramificada por tipo: WhatsApp para llamadas/videollamadas, dirección
+        // física para visitas presenciales. Misma fuente que email y notificación.
+        const copy = buildAppointmentCopy({
+            apptType: appt.type,
+            hqName: appt.headquarters.name,
+            hqAddress: appt.headquarters.billingAddress,
+            description: appt.description,
+        });
+
         const ics = buildAppointmentICS({
             id: appt.id,
             title: `${appt.title} con ${appt.patient.name}`,
-            description: appt.description ?? `Cita coordinada por ${appt.headquarters.name}.`,
+            description: copy.icsDescription,
             startUtc,
             endUtc,
-            location: appt.headquarters.billingAddress || appt.headquarters.name,
+            location: copy.location,
             organizerName: appt.headquarters.name,
             organizerEmail: process.env.SENDGRID_FROM_EMAIL || undefined,
         });
