@@ -125,11 +125,20 @@ export async function POST(req: Request) {
         });
         if (!patient) return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
 
+        // Anclar la cita a la sede DEL RESIDENTE, no a la del familiar.
+        // Caso multi-tenant futuro: si un FamilyMember fue invitado con headquartersId
+        // incorrecto, o si un residente se mueve de sede sin actualizar el familyMember,
+        // la cita debe quedar en la sede del residente — porque es allí donde está el
+        // equipo que la va a atender y donde el listado del staff filtra por hqId.
+        // Esto blinda Cupey + Mayagüez (y futuros tenants). Hoy ambos hqId coinciden,
+        // pero la fuente correcta es patient.
+        const apptHqId = patient.headquartersId;
+
         const appointment = await prisma.familyAppointment.create({
             data: {
                 patientId:      familyMember.patientId,
                 familyMemberId: familyMember.id,
-                headquartersId: familyMember.headquartersId,
+                headquartersId: apptHqId,
                 type,
                 title:          title.trim(),
                 description:    description?.trim() || null,
@@ -140,7 +149,8 @@ export async function POST(req: Request) {
             },
         });
 
-        // Notificar al equipo de la sede
+        // Notificar al equipo de LA SEDE DEL RESIDENTE (no del familiar) — mismo
+        // razonamiento: el equipo que atiende vive donde el residente está.
         const typeLabels: Record<string, string> = {
             VISIT:             'Visita Presencial',
             VIDEO_CALL:        'Videollamada',
@@ -150,7 +160,7 @@ export async function POST(req: Request) {
         };
         const formattedDate = dateObj.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'short' });
         await notifyRoles(
-            familyMember.headquartersId,
+            apptHqId,
             ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'],
             {
                 type:    'FAMILY_VISIT',

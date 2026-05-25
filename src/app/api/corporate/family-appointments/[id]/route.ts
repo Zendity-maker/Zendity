@@ -36,6 +36,33 @@ function mapToEventType(apptType: string): EventType {
     }
 }
 
+// Fallback de remitente — el resto del codebase (family/invite, zendi/moments, etc.)
+// usa este mismo hardcoded. Sin él, si SENDGRID_FROM_EMAIL no está en Vercel env,
+// el SDK recibe `from: undefined`, tira local, lo agarra el try/catch silente y
+// el correo nunca llega a SendGrid. Tenía que pasar en algún momento. Ahora no.
+const SENDER_FALLBACK_EMAIL = 'notificaciones@zendity.com';
+function senderFrom(hqName: string) {
+    return {
+        email: process.env.SENDGRID_FROM_EMAIL || SENDER_FALLBACK_EMAIL,
+        name: hqName,  // la familia ve "Vivid Senior Living" como remitente
+    };
+}
+
+// Logging enriquecido — el catch antes solo imprimía `emailErr.message`, que para
+// SendGrid es opaco. Lo que importa al diagnosticar es `response.body` (que dice
+// "Sender Identity not verified", "Maximum credits exceeded", etc.) más el code
+// y el to. Esto es lo que ocultó el bug 6 rondas; no volver a esconderlo.
+function logEmailError(stage: 'APPROVE' | 'REJECT', to: string, err: unknown) {
+    const e = err as { code?: string | number; message?: string; response?: { body?: unknown } };
+    console.error(
+        `[family-appointments PATCH ${stage}] Email error:`,
+        'to=' + to,
+        'code=' + (e?.code ?? 'n/a'),
+        'message=' + (e?.message ?? 'n/a'),
+        'sg_body=' + JSON.stringify(e?.response?.body ?? null),
+    );
+}
+
 // PATCH — aprobar o rechazar una cita
 export async function PATCH(
     req: Request,
@@ -148,12 +175,25 @@ export async function PATCH(
                 }
             } catch { /* no-fatal */ }
 
-            // Email al familiar (best-effort)
-            if (process.env.SENDGRID_API_KEY && appt.familyMember.email) {
+            // Email al familiar — gate explícito y NO silencioso:
+            //   - si falta el email del familiar (datos sucios) → console.warn explícito
+            //   - si falta la API key (config) → console.warn explícito
+            //   - si se intenta y falla → console.error enriquecido con response.body
+            if (!appt.familyMember.email) {
+                console.warn(
+                    '[family-appointments PATCH APPROVE] email skip:',
+                    'FamilyMember', appt.familyMemberId, 'sin email — datos sucios',
+                );
+            } else if (!process.env.SENDGRID_API_KEY) {
+                console.warn(
+                    '[family-appointments PATCH APPROVE] email skip:',
+                    'SENDGRID_API_KEY no configurado en este entorno',
+                );
+            } else {
                 try {
                     await sgMail.send({
                         to:      appt.familyMember.email,
-                        from:    process.env.SENDGRID_FROM_EMAIL as string,
+                        from:    senderFrom(hqName),
                         subject: `✅ Cita aprobada — ${typeLabel} el ${formattedDate}`,
                         html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
@@ -187,7 +227,7 @@ export async function PATCH(
 </div>`,
                     });
                 } catch (emailErr) {
-                    console.error('[family-appointments PATCH] Email error:', emailErr);
+                    logEmailError('APPROVE', appt.familyMember.email, emailErr);
                 }
             }
 
@@ -222,12 +262,22 @@ export async function PATCH(
             }
         } catch { /* no-fatal */ }
 
-        // Email al familiar (best-effort)
-        if (process.env.SENDGRID_API_KEY && appt.familyMember.email) {
+        // Email al familiar — mismo gate explícito que el bloque de aprobación.
+        if (!appt.familyMember.email) {
+            console.warn(
+                '[family-appointments PATCH REJECT] email skip:',
+                'FamilyMember', appt.familyMemberId, 'sin email — datos sucios',
+            );
+        } else if (!process.env.SENDGRID_API_KEY) {
+            console.warn(
+                '[family-appointments PATCH REJECT] email skip:',
+                'SENDGRID_API_KEY no configurado en este entorno',
+            );
+        } else {
             try {
                 await sgMail.send({
                     to:      appt.familyMember.email,
-                    from:    process.env.SENDGRID_FROM_EMAIL as string,
+                    from:    senderFrom(hqName),
                     subject: `❌ Solicitud de cita — ${typeLabel} el ${formattedDate}`,
                     html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
@@ -256,7 +306,7 @@ export async function PATCH(
 </div>`,
                 });
             } catch (emailErr) {
-                console.error('[family-appointments PATCH] Email error:', emailErr);
+                logEmailError('REJECT', appt.familyMember.email, emailErr);
             }
         }
 
