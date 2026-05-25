@@ -129,7 +129,7 @@ export default function FamilyMessagesPage() {
             {/* ═══ HEADER ═════════════════════════════════════════════ */}
             <header className="bg-white border-b border-stone-100 px-4 py-5 sticky top-0 z-10">
                 <div className="max-w-2xl mx-auto flex items-center gap-3">
-                    <IconMensajes size={24} className="text-teal-700" />
+                    <IconMensajes size={24} className="text-brand" />
                     <div className="flex flex-col">
                         <h1 className="text-xl font-bold text-slate-800 leading-tight">
                             Mensajes
@@ -156,7 +156,7 @@ export default function FamilyMessagesPage() {
                                 onClick={() => setRecipientType(r)}
                                 className={`rounded-full px-4 py-1.5 text-xs font-semibold border transition-colors ${
                                     isActive
-                                        ? "bg-teal-50 text-teal-700 border-teal-100"
+                                        ? "bg-brand/10 text-brand border-brand/20"
                                         : "bg-white text-slate-500 border-slate-200 hover:text-slate-700"
                                 }`}
                             >
@@ -209,7 +209,7 @@ export default function FamilyMessagesPage() {
 
                                     {isFamily ? (
                                         <div className="flex flex-col items-end max-w-[80%] self-end">
-                                            <div className="bg-teal-600 rounded-2xl rounded-tr-sm px-4 py-2.5">
+                                            <div className="bg-brand rounded-2xl rounded-tr-sm px-4 py-2.5">
                                                 <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">
                                                     {msg.content}
                                                 </p>
@@ -225,7 +225,7 @@ export default function FamilyMessagesPage() {
                                                     {senderName}
                                                 </span>
                                             )}
-                                            <div className="bg-teal-50 rounded-2xl rounded-tl-sm px-4 py-2.5">
+                                            <div className="bg-brand/10 rounded-2xl rounded-tl-sm px-4 py-2.5">
                                                 <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                                                     {msg.content}
                                                 </p>
@@ -258,13 +258,13 @@ export default function FamilyMessagesPage() {
                             }}
                             placeholder={`Escribe a ${recipientLabel}…`}
                             rows={1}
-                            className="flex-1 bg-stone-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 resize-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 focus:outline-none transition-all"
+                            className="flex-1 bg-stone-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 resize-none focus:ring-2 focus:ring-brand-secondary-500/30 focus:border-brand-secondary focus:outline-none transition-all"
                             style={{ maxHeight: "120px" }}
                         />
                         <button
                             type="submit"
                             disabled={!newMessage.trim() || sending}
-                            className="w-11 h-11 rounded-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors flex-shrink-0"
+                            className="w-11 h-11 rounded-full bg-brand hover:bg-brand disabled:bg-slate-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors flex-shrink-0"
                             aria-label="Enviar"
                         >
                             {sending ? (

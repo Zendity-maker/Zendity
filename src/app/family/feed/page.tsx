@@ -4,7 +4,7 @@
  * /family/feed — Humanista Suave (Propuesta C)
  *
  * Diario de cuidado. Cards blancas, fondo cálido neutro,
- * iconos Lucide, acento teal-700.
+ * iconos Lucide, acento brand.
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -77,8 +77,8 @@ export default function FamilyFeedPage() {
             {/* ═══ HEADER ═══ */}
             <div className="bg-white border-b border-stone-100 px-4 py-5">
                 <div className="max-w-2xl mx-auto flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
-                        <BookOpen className="w-5 h-5 text-teal-700" strokeWidth={1.5} />
+                    <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-brand" strokeWidth={1.5} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-bold text-slate-800 leading-tight">
@@ -97,9 +97,9 @@ export default function FamilyFeedPage() {
                 {loading ? (
                     <div className="flex justify-center py-12">
                         <div className="flex gap-1.5">
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
-                            <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
+                            <div className="w-2 h-2 bg-brand rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
                         </div>
                     </div>
                 ) : feed.length === 0 ? (
@@ -125,9 +125,9 @@ export default function FamilyFeedPage() {
                             >
                                 {/* Header: tipo + badge */}
                                 <div className="flex items-center gap-2 mb-3">
-                                    <TypeIcon className="w-4 h-4 text-teal-700" strokeWidth={1.5} />
+                                    <TypeIcon className="w-4 h-4 text-brand" strokeWidth={1.5} />
                                     {isMoment ? (
-                                        <span className="bg-teal-50 text-teal-700 text-xs font-semibold rounded-full px-2 py-0.5">
+                                        <span className="bg-brand/10 text-brand text-xs font-semibold rounded-full px-2 py-0.5">
                                             ✨ Momento Zendi
                                         </span>
                                     ) : isPhoto ? (
@@ -155,9 +155,9 @@ export default function FamilyFeedPage() {
 
                                 {/* Footer: autor + tiempo */}
                                 <div className="flex items-center gap-1.5 mt-3">
-                                    <div className="w-1 h-1 rounded-full bg-teal-500" />
+                                    <div className="w-1 h-1 rounded-full bg-brand-secondary" />
                                     <p className="text-xs">
-                                        <span className="text-teal-700 font-medium">
+                                        <span className="text-brand font-medium">
                                             {item.author?.name || "Equipo de cuidado"}
                                         </span>
                                         <span className="text-slate-400"> · {humanTime(item.createdAt)}</span>

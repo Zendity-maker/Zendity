@@ -3,9 +3,13 @@
 /**
  * /family — Portal Familiar Dashboard
  *
- * Propuesta C: Humanista Suave.
- * Iconos SVG originales de Zéndity, paleta teal-700/teal-500 + stone-50,
- * layout cálido y compacto para acceso rápido en mobile.
+ * Estilo: "retiro de lujo" (Vivid theme) — jerarquía emocional.
+ * Foto del residente como HERO. Card "El día de…" prominente arriba.
+ * Banda de signos como estado ambiental sutil. "Reporte" → "Su día"
+ * (renombrado, ahora secundario, más abajo).
+ *
+ * Tema POR TENANT vía CSS vars del layout (lib/family/theme.ts).
+ * Vivid: navy + lima + crema. Default: teal Zéndity.
  */
 
 import { useEffect, useState } from "react";
@@ -106,11 +110,11 @@ export default function FamilyDashboard() {
 
     if (loading) {
         return (
-            <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex justify-center items-center">
+            <div className="min-h-[60vh] flex justify-center items-center">
                 <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" />
-                    <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.15s" }} />
-                    <div className="w-2 h-2 bg-teal-600 rounded-full animate-pulse" style={{ animationDelay: "0.3s" }} />
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--brand-primary)' }} />
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--brand-primary)', animationDelay: "0.15s" }} />
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--brand-primary)', animationDelay: "0.3s" }} />
                 </div>
             </div>
         );
@@ -118,8 +122,8 @@ export default function FamilyDashboard() {
 
     if (error || !resident) {
         return (
-            <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen flex flex-col items-center justify-center text-center px-6">
-                <h1 className="text-xl font-bold text-slate-800">Bienvenido</h1>
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-6">
+                <h1 className="text-xl font-serif font-semibold text-slate-800">Bienvenido</h1>
                 <p className="text-sm text-slate-500 max-w-sm mt-2 leading-relaxed">
                     {error || "Esta cuenta no tiene residentes asignados. Contacta a la Gerencia."}
                 </p>
@@ -127,7 +131,6 @@ export default function FamilyDashboard() {
         );
     }
 
-    // Derivar data limpia
     const latestLog = resident.dailyLogs?.[0];
     const wellnessNotes: any[] = resident.wellnessNotes ?? [];
     const bathToday = !!latestLog?.bathCompleted;
@@ -148,156 +151,146 @@ export default function FamilyDashboard() {
           }
         : null;
 
+    // Última nota del equipo (después del filtro de disclosure en el server)
+    const ultimaNota = wellnessNotes[0] ?? null;
+
+    const firstName = resident.name?.split(/\s+/)[0] || "tu familiar";
+    const tieneFoto = !!resident.photoUrl;
+
     return (
-        <div className="bg-stone-50 -mx-4 sm:-mx-6 lg:-mx-8 -my-8 md:-my-12 min-h-screen">
+        <div className="max-w-2xl mx-auto px-4 -my-4 sm:-my-8 md:-my-12 -mx-4 sm:-mx-6 lg:-mx-8">
 
-            {/* ═══ HEADER ═══════════════════════════════════════════════ */}
-            <div className="bg-white border-b border-stone-100 px-4 pt-6 pb-5">
+            {/* ═══ HEADER MINIMAL — fecha sutil arriba ═══════════════════════ */}
+            <div className="text-center pt-8 pb-4 px-4">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium capitalize">
+                    {fechaLarga()}
+                </p>
+            </div>
 
-                {/* Top row: brand + fecha */}
-                <div className="flex justify-between items-center mb-4 max-w-md mx-auto">
-                    <span className="text-xs font-bold text-teal-700 tracking-widest">
-                        ZÉNDITY
-                    </span>
-                    <span className="bg-teal-50 border border-teal-100 rounded-full px-3 py-1 text-xs font-semibold text-teal-700 capitalize">
-                        {fechaLarga()}
-                    </span>
-                </div>
-
-                {/* Avatar */}
-                {resident.photoUrl ? (
+            {/* ═══ HÉROE — foto grande del residente ═══════════════════════ */}
+            <section className="flex flex-col items-center text-center px-4 pb-8">
+                {tieneFoto ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                         src={resident.photoUrl}
                         alt={resident.name}
-                        className="w-16 h-16 rounded-full object-cover border-[3px] border-teal-100 mx-auto mb-3"
+                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover mb-4 ring-4 ring-white"
+                        style={{ boxShadow: '0 12px 32px -8px rgba(28, 49, 112, 0.18)' }}
                     />
                 ) : (
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-50 to-teal-100 border-2 border-teal-100 flex items-center justify-center mx-auto mb-3">
-                        <span className="text-xl font-bold text-teal-700">
+                    <div
+                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full flex items-center justify-center mb-4 ring-4 ring-white"
+                        style={{
+                            background: 'linear-gradient(135deg, var(--brand-secondary) 0%, var(--brand-primary) 100%)',
+                            boxShadow: '0 12px 32px -8px rgba(28, 49, 112, 0.25)',
+                        }}
+                    >
+                        <span className="font-serif text-4xl sm:text-5xl text-white tracking-tight">
                             {iniciales(resident.name)}
                         </span>
                     </div>
                 )}
 
-                {/* Nombre + meta */}
-                <h1 className="text-xl font-bold text-center text-slate-800 leading-tight">
-                    {resident.name}
+                <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-slate-800 leading-tight">
+                    {resident.name?.trim()}
                 </h1>
-                <p className="text-xs text-center text-slate-400 mt-1">
+                <p className="text-sm text-slate-500 mt-1">
                     Habitación {resident.roomNumber || "—"}
-                    {" · "}
-                    {resident.insurancePlanName || "Plan Activo"}
                 </p>
-            </div>
+            </section>
 
-            {/* ═══ BODY ═════════════════════════════════════════════════ */}
-            <div className="px-4 py-4 space-y-4 max-w-md mx-auto">
+            {/* ═══ BODY ═════════════════════════════════════════════════════ */}
+            <div className="px-4 pb-12 space-y-5">
 
-                {/* SECCIÓN 0 — "El día de…" (resumen narrativo, canal ambiental) */}
+                {/* ── 1. EL DÍA DE… (digest narrativo) — tratamiento más cálido ── */}
                 {digest?.narrative && (
-                    <div className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm">
-                        <p className="text-xs font-bold text-teal-700 tracking-widest uppercase mb-2">
-                            El día de {resident.name?.split(/\s+/)[0]}
+                    <article
+                        className="rounded-3xl px-6 py-7 sm:px-8 sm:py-8"
+                        style={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                            border: '1px solid rgba(140, 187, 232, 0.25)',
+                            boxShadow: '0 4px 24px -8px rgba(28, 49, 112, 0.08)',
+                        }}
+                    >
+                        <p
+                            className="text-[11px] uppercase tracking-[0.25em] font-semibold mb-3"
+                            style={{ color: 'var(--brand-primary)' }}
+                        >
+                            El día de {firstName}
                         </p>
-                        <p className="text-[15px] text-slate-700 leading-relaxed">
+                        <p className="font-serif text-[17px] sm:text-lg text-slate-700 leading-relaxed">
                             {digest.narrative}
                         </p>
-                    </div>
+                    </article>
                 )}
 
-                {/* SECCIÓN 1 — Update del equipo de cuidado */}
-                <div className="bg-teal-50 rounded-2xl p-4 border border-teal-100">
-                    <div className="flex items-center gap-3 mb-3">
-                        <span className="text-xs font-bold text-teal-700 tracking-widest uppercase">
-                            Del equipo de cuidado
-                        </span>
-                        <div className="flex-1 h-px bg-teal-100" />
-                    </div>
-
-                    {wellnessNotes.length > 0 ? (
-                        wellnessNotes.slice(0, 1).map((note: any) => (
-                            <div key={note.id}>
-                                <p className="text-sm text-slate-600 leading-relaxed italic">
-                                    &ldquo;{note.note.replace(/^\[Zendi Update\]\s*/i, "").trim()}&rdquo;
-                                </p>
-                                <div className="flex items-center gap-1.5 mt-2">
-                                    <div className="w-1 h-1 rounded-full bg-teal-500" />
-                                    <p className="text-xs text-teal-600">
-                                        {note.author?.name || "Equipo de cuidado"} · {timeAgo(note.createdAt)}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-sm text-slate-400 italic">
-                            El equipo aún no ha publicado notas hoy.
+                {/* ── 2. ÚLTIMA NOTA DEL EQUIPO — mensaje personal, prominente ── */}
+                {ultimaNota && (
+                    <article className="bg-white rounded-2xl px-5 py-5 sm:px-6 sm:py-6 border border-stone-100">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: 'var(--brand-accent)' }}
+                            />
+                            <p className="text-[11px] uppercase tracking-[0.2em] font-semibold text-slate-500">
+                                Mensaje del equipo
+                            </p>
+                        </div>
+                        <p className="text-[15px] text-slate-700 leading-relaxed">
+                            {ultimaNota.note.replace(/^\[Zendi Update\]\s*/i, "").trim()}
                         </p>
-                    )}
-                </div>
+                        <p className="mt-3 text-xs text-slate-400">
+                            {ultimaNota.author?.name || "Equipo de cuidado"} · {timeAgo(ultimaNota.createdAt)}
+                        </p>
+                    </article>
+                )}
 
-                {/* SECCIÓN 2 — Estado de bienestar
-                    LIFESTYLE (default): banda cualitativa siempre presente, sin números.
-                    FULL (consentido): la rejilla clínica completa. */}
+                {/* ── 3. ESTADO AMBIENTAL — banda sutil de signos (LIFESTYLE) ── */}
+                {/*    En FULL muestra grilla. En LIFESTYLE muestra una línea-status. */}
                 {shareLevel === "FULL" && safeVitals ? (
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
-                            Signos Vitales
+                    <section className="bg-white rounded-2xl p-4 border border-stone-100">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-3">
+                            Signos vitales
                         </p>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-4 gap-2">
                             {[
-                                {
-                                    Icon: IconPresion,
-                                    value: `${safeVitals.systolic}/${safeVitals.diastolic}`,
-                                    label: "Presión",
-                                },
-                                {
-                                    Icon: IconSpO2,
-                                    value: `${safeVitals.spO2}`,
-                                    label: "SpO₂",
-                                },
-                                {
-                                    Icon: IconTemperatura,
-                                    value: `${safeVitals.temperature}`,
-                                    label: "Temp",
-                                },
-                                {
-                                    Icon: IconPulso,
-                                    value: `${safeVitals.pulse}`,
-                                    label: "Pulso",
-                                },
+                                { Icon: IconPresion,      value: `${safeVitals.systolic}/${safeVitals.diastolic}`, label: "Presión" },
+                                { Icon: IconSpO2,         value: `${safeVitals.spO2}`,                              label: "SpO₂" },
+                                { Icon: IconTemperatura,  value: `${safeVitals.temperature}`,                       label: "Temp" },
+                                { Icon: IconPulso,        value: `${safeVitals.pulse}`,                             label: "Pulso" },
                             ].map(({ Icon, value, label }) => (
-                                <div key={label} className="flex flex-col items-center">
-                                    <div className="w-14 h-14 rounded-full bg-white border-2 border-teal-50 flex flex-col items-center justify-center mb-1.5 shadow-sm shadow-teal-50">
-                                        <Icon size={18} />
-                                        <span className="text-[10px] font-bold text-slate-700 leading-none mt-0.5">
-                                            {value}
-                                        </span>
-                                    </div>
-                                    <span className="text-xs text-slate-400">{label}</span>
+                                <div key={label} className="flex flex-col items-center text-center">
+                                    <Icon size={20} />
+                                    <span className="text-[11px] font-bold text-slate-700 leading-none mt-1">
+                                        {value}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 mt-0.5">{label}</span>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
                 ) : (
-                    <div className="bg-teal-50 rounded-2xl p-4 border border-teal-100 flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0" />
-                        <p className="text-sm text-slate-600 leading-relaxed">
-                            {wellness.vitalsBand || "Sus signos están estables y monitoreados por su equipo."}
-                        </p>
+                    /* LIFESTYLE — solo una línea de status ambiental, no card prominente */
+                    <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs text-slate-500">
+                        <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: 'var(--brand-accent)' }}
+                        />
+                        <span>
+                            {wellness.vitalsBand || "Sus signos están estables, monitoreados por su equipo."}
+                        </span>
                     </div>
                 )}
 
-                {/* SECCIÓN 3 — Reporte del día */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-100">
-                    <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
-                        Reporte de Hoy
+                {/* ── 4. SU DÍA — grid secundario, suave ── */}
+                <section className="bg-white rounded-2xl px-5 py-4 border border-stone-100">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-3">
+                        Su día
                     </p>
                     <div className="grid grid-cols-3">
                         {[
                             {
                                 Icon: IconAlimentacion,
-                                // FULL muestra %, LIFESTYLE muestra banda cualitativa
                                 value:
                                     shareLevel === "FULL"
                                         ? latestLog?.foodIntake != null
@@ -307,18 +300,16 @@ export default function FamilyDashboard() {
                                           ? ({ bien: "Bien", parcial: "Parcial", poco: "Poco" } as Record<string, string>)[wellness.foodBand]
                                           : "—",
                                 label: "Comida",
+                                highlight: wellness.foodBand === "bien",
                             },
                             {
                                 Icon: IconHigiene,
                                 value: bathToday ? "✓" : "—",
                                 label: "Higiene",
+                                highlight: bathToday,
                             },
                             {
                                 Icon: IconMedicamentos,
-                                // medsOnTrack derivado del servidor.
-                                // LIFESTYLE (default): true="Al día", false/null="—" (neutral,
-                                //   sin implicar acción a la familia — eso es del equipo).
-                                // FULL (consentido): true="Al día", false="Revisar", null="—".
                                 value:
                                     shareLevel === "FULL"
                                         ? wellness.medsOnTrack === true
@@ -330,46 +321,49 @@ export default function FamilyDashboard() {
                                           ? "Al día"
                                           : "—",
                                 label: "Meds",
+                                highlight: wellness.medsOnTrack === true,
                             },
-                        ].map(({ Icon, value, label }, i) => (
+                        ].map(({ Icon, value, label, highlight }, i) => (
                             <div
                                 key={label}
-                                className={`text-center py-2 ${i < 2 ? "border-r border-slate-100" : ""}`}
+                                className={`text-center py-1 ${i < 2 ? "border-r border-stone-100" : ""}`}
                             >
-                                <div className="flex justify-center mb-1.5">
-                                    <Icon size={22} />
+                                <div className="flex justify-center mb-1">
+                                    <Icon size={20} />
                                 </div>
-                                <p className="text-sm font-bold text-slate-700">{value}</p>
-                                <p className="text-xs text-slate-400">{label}</p>
+                                <p
+                                    className="text-sm font-semibold"
+                                    style={{
+                                        color: highlight ? 'var(--brand-primary)' : '#475569',
+                                    }}
+                                >
+                                    {value}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{label}</p>
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
 
-                {/* SECCIÓN 4 — Accesos rápidos */}
-                <div>
-                    <p className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-3">
-                        Accesos Rápidos
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                        {[
-                            { Icon: IconMensajes, label: "Mensajes", href: "/family/messages" },
-                            { Icon: IconCitas, label: "Citas", href: "/family/calendar" },
-                            { Icon: IconPAI, label: "Mi PAI", href: "/family/pai" },
-                        ].map(({ Icon, label, href }) => (
-                            <Link
-                                key={label}
-                                href={href}
-                                className="bg-white border border-slate-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-teal-200 hover:bg-teal-50/30 transition-colors"
-                            >
-                                <Icon size={24} />
-                                <span className="text-xs font-semibold text-slate-600">
-                                    {label}
-                                </span>
-                            </Link>
-                        ))}
-                    </div>
-                </div>
+                {/* ── 5. ACCESOS — chips horizontales en lugar de tres cuadrados ── */}
+                <nav className="grid grid-cols-3 gap-3 pt-2">
+                    {[
+                        { Icon: IconMensajes, label: "Mensajes", href: "/family/messages" },
+                        { Icon: IconCitas, label: "Citas", href: "/family/calendar" },
+                        { Icon: IconPAI, label: "Mi PAI", href: "/family/pai" },
+                    ].map(({ Icon, label, href }) => (
+                        <Link
+                            key={label}
+                            href={href}
+                            className="bg-white border border-stone-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-[color:var(--brand-secondary)] transition-colors"
+                        >
+                            <Icon size={22} />
+                            <span className="text-xs font-medium text-slate-600">
+                                {label}
+                            </span>
+                        </Link>
+                    ))}
+                </nav>
             </div>
         </div>
     );

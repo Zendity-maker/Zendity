@@ -68,6 +68,15 @@ model Headquarters {
   integrations HqIntegration?
   crmLeads     CRMLead[]
 
+  // White-label theming — paleta de marca por sede para la superficie familiar.
+  // Si null, el portal familiar usa la paleta default Zéndity (teal).
+  // Vivid usa navy/lima; otros tenants futuros configuran su propia paleta.
+  brandName       String? // Nombre comercial visible en el portal familiar (ej. "Vivid")
+  brandPrimary    String? // Color primario hex (botones, headings) — ej. "#1C3170"
+  brandSecondary  String? // Color secundario hex (acentos suaves) — ej. "#8CBBE8"
+  brandAccent     String? // Color de señal positiva ("Bien", ✓) — ej. "#C5E69A"
+  brandBg         String? // Fondo de página hex (crema/off-white) — ej. "#FAF6EE"
+
   // FASE 29 Calendario y Horarios
   events             HeadquartersEvent[]
   shiftSchedules     ShiftSchedule[]
