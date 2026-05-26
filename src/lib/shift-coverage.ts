@@ -66,6 +66,77 @@ export interface ShiftCoverage {
     shiftStartUtc: Date;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Fail-safe del censo (Rama B) — helpers puros + derivePopulatedColors
+// ────────────────────────────────────────────────────────────────────────────
+// Antes: expectedColors se derivaba SOLO de scheduledShifts no-absent. Si la
+// pauta del color X estaba marcada como absent, X desaparecía de expectedColors
+// → absentColors no lo veía → uncoveredPatients=[] → residentes huérfanos.
+//
+// Ahora: expectedColors = UNION(scheduledColors, populatedColors), donde
+// populatedColors viene de `Patient.colorGroup DISTINCT WHERE status='ACTIVE'`.
+// Cualquier color con residentes activos entra en expectedColors aun si no
+// hay pauta no-absent — la pregunta correcta es "¿hay residentes con este
+// color?", no "¿hay pauta para este color?".
+//
+// Adicionalmente: activeOverrides retornado al consumer se filtra para incluir
+// SOLO overrides cuyo caregiver tiene session activa (no huérfanos de cuidadores
+// clocked-out). El supervisor ve solo cobertura real.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Devuelve los colores distintos con residentes ACTIVE en una sede. Útil
+ * como fuente del fail-safe del censo — no depende de pautas.
+ */
+export async function derivePopulatedColors(hqId: string): Promise<Set<string>> {
+    const rows = await prisma.patient.findMany({
+        where: { headquartersId: hqId, status: 'ACTIVE' },
+        select: { colorGroup: true },
+        distinct: ['colorGroup'],
+    });
+    const out = new Set<string>();
+    for (const r of rows) {
+        if (r.colorGroup && r.colorGroup !== 'UNASSIGNED') out.add(r.colorGroup);
+    }
+    return out;
+}
+
+/**
+ * Une los colores derivados de pautas con los colores poblados (residentes
+ * con `Patient.colorGroup=X`). Helper puro.
+ *
+ * `scheduledColors`: derivados de scheduledShifts NO marcados absent.
+ * `populatedColors`: derivados de `Patient.colorGroup DISTINCT` (status ACTIVE).
+ *
+ * Retorna la unión: cualquier color en cualquiera de los dos cuenta como
+ * "esperado". Esto cierra el silent-drop cuando una pauta queda absent.
+ */
+export function augmentExpectedColors(
+    scheduledColors: Set<string>,
+    populatedColors: Set<string>,
+): Set<string> {
+    return new Set([...scheduledColors, ...populatedColors]);
+}
+
+/**
+ * Filtra una lista de overrides para retornar solo aquellos cuyo caregiver
+ * tiene session activa. Helper puro.
+ *
+ * Los overrides huérfanos (caregiver clocked-out pero `isActive=true` por
+ * falta del cleanup en shift/end — rama C) NO cuentan como cobertura real.
+ * Quitarlos del retorno evita el falso positivo "Mariangelie cubre BLUE"
+ * en el wall del supervisor cuando Mariangelie ya se fue.
+ *
+ * Tipo genérico: cualquier objeto con `caregiverId: string`.
+ */
+export function filterRealOverrides<T extends { caregiverId: string }>(
+    overrides: T[],
+    activeUserIds: Set<string> | string[],
+): T[] {
+    const active = activeUserIds instanceof Set ? activeUserIds : new Set(activeUserIds);
+    return overrides.filter((o) => active.has(o.caregiverId));
+}
+
 /**
  * Computa la cobertura de color de un turno en una sede dada.
  *
@@ -98,7 +169,7 @@ export async function computeShiftCoverage(params: {
     // de la conexión Neon); luego scheduledShift usa los IDs en memoria, sin JOIN.
     const oneWeekAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [recentSchedules, activeSessions, activeOverrides] = await Promise.all([
+    const [recentSchedules, activeSessions, activeOverridesRaw, populatedColors] = await Promise.all([
         prisma.schedule.findMany({
             where: { headquartersId: hqId, weekStartDate: { gte: oneWeekAgo } },
             select: { id: true },
@@ -123,7 +194,16 @@ export async function computeShiftCoverage(params: {
                 caregiver: { select: { id: true, name: true } },
             },
         }),
+        // Fail-safe del censo — fuente de verdad: colores con residentes
+        // ACTIVE en la sede, no las pautas. Garantiza que si una pauta queda
+        // marcada absent, el color con residentes igual entra en expectedColors.
+        derivePopulatedColors(hqId),
     ]);
+
+    // Filtrar overrides huérfanos (caregiver clocked-out). El supervisor solo
+    // ve cobertura real — los huérfanos no engañan al wall hasta que C los limpie.
+    const activeUserIdsSet = new Set(activeSessions.map(s => s.caregiverId));
+    const activeOverrides = filterRealOverrides(activeOverridesRaw, activeUserIdsSet);
 
     const scheduleIds = recentSchedules.map(s => s.id);
     const scheduledShifts = scheduleIds.length === 0 ? [] : await prisma.scheduledShift.findMany({
@@ -137,19 +217,22 @@ export async function computeShiftCoverage(params: {
         select: { id: true, userId: true, colorGroup: true },
     });
 
-    const expectedColorsSet = new Set<string>();
+    const scheduledColorsSet = new Set<string>();
     for (const s of scheduledShifts) {
-        if (s.colorGroup && s.colorGroup !== 'UNASSIGNED') expectedColorsSet.add(s.colorGroup);
+        if (s.colorGroup && s.colorGroup !== 'UNASSIGNED') scheduledColorsSet.add(s.colorGroup);
     }
+    // Fail-safe: expectedColors = UNION(pautas no-absent, colores con residentes
+    // activos). Si EmpX BLUE está absent, BLUE no entra por scheduledColorsSet
+    // pero sí entra vía populatedColors → absentColors lo detecta como uncovered.
+    const expectedColorsSet = augmentExpectedColors(scheduledColorsSet, populatedColors);
     const expectedColors = Array.from(expectedColorsSet).sort();
-
-    const activeUserIds = activeSessions.map(s => s.caregiverId);
 
     // FIX: usar scheduledShiftId explícito en lugar del nested relation filter
     // `scheduledShift: { shiftType, date }` que generaba JOINs ineficientes y
     // 500s intermitentes en producción. Los IDs ya están en memoria del query anterior.
+    // activeUserIdsSet ya está computado arriba (B usa Set para filtrar overrides).
     const activeUserShiftIds = scheduledShifts
-        .filter(s => activeUserIds.includes(s.userId))
+        .filter(s => activeUserIdsSet.has(s.userId))
         .map(s => s.id);
 
     let colorAssignments: Array<{ userId: string; color: string }> = [];
@@ -171,7 +254,7 @@ export async function computeShiftCoverage(params: {
         coveredByUser.get(a.userId)!.add(a.color);
     }
     for (const s of scheduledShifts) {
-        if (!activeUserIds.includes(s.userId)) continue;
+        if (!activeUserIdsSet.has(s.userId)) continue;
         if (coveredByUser.has(s.userId)) continue;
         if (!s.colorGroup || s.colorGroup === 'UNASSIGNED') continue;
         coveredByUser.set(s.userId, new Set([s.colorGroup]));
@@ -253,4 +336,114 @@ export async function computeShiftCoverage(params: {
         minutesSinceShiftStart,
         shiftStartUtc,
     };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// resolveCaregiverCurrentColors — qué colores cubre un caregiver AHORA
+// ────────────────────────────────────────────────────────────────────────────
+// Devuelve los colores efectivos del caregiver para el shiftType actual.
+// Anclar al turno ACTUAL es la diferencia crítica: una caregiver pautada NIGHT
+// (10pm-6am) que hace clock-in a las 6pm (4h antes) NO es dueña de NIGHT-BLUE
+// hasta que efectivamente comience NIGHT. Antes de las 10pm, esta función
+// devuelve [] para ella — su pauta no aplica todavía.
+//
+// Esto bloquea el bug "Brendalis clock-in 6pm → Mariangelie pierde cobertura
+// del AZUL prematuramente". Ver shift/start Sprint N.3 Parte C.
+//
+// Fuentes consultadas, en orden de precedencia:
+//   1. ShiftColorAssignment del día (coberturas explícitas — SUMAN al base).
+//   2. ScheduledShift CON shiftType === inferShiftTypeFromAST(at) (color base).
+//   3. Fallback overtime: si el caregiver tiene session activa y su pauta del
+//      día NO coincide con el shiftType actual, NO cae a "tomar cualquier
+//      pauta del día" — devuelve []. La lógica de turnos largos (FULL_DAY,
+//      FULL_NIGHT) sí matchea porque esos shiftTypes representan ventanas
+//      completas que sí abarcan el reloj actual.
+//
+// La función es PURA respecto a entradas (caregiverId, hqId, at) y queries
+// Prisma — no lee session ni headers. Testeable en aislamiento.
+//
+// Devuelve los colores como string[] (ej. ['BLUE'], [], ['BLUE','YELLOW']).
+// ════════════════════════════════════════════════════════════════════════════
+export async function resolveCaregiverCurrentColors(params: {
+    caregiverId: string;
+    hqId: string;
+    /** Hora a evaluar. Por defecto: now. Pasar `shiftSession.startTime` si
+     *  quieres anclar al momento del clock-in en vez del momento actual. */
+    at?: Date;
+}): Promise<string[]> {
+    const { caregiverId, hqId, at } = params;
+    const dayStart = todayStartAST();
+
+    // 1. ShiftColorAssignments del día — coberturas adicionales explícitas
+    const colorAssignments = await prisma.shiftColorAssignment.findMany({
+        where: {
+            headquartersId: hqId,
+            userId: caregiverId,
+            assignedAt: { gte: dayStart },
+        },
+        select: { color: true },
+    });
+    const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
+
+    // 2. ScheduledShift del caregiver cuya ventana CONTIENE la hora `at`.
+    //    Una pauta NIGHT (22–06) no aplica a las 6pm. Una pauta FULL_NIGHT
+    //    (18–06) sí aplica a las 6pm porque su ventana incluye esa hora.
+    //    Evaluación por hora exacta (no por bucket) para no incluir turnos
+    //    futuros — el bug Brendalis era exactamente esto.
+    const compatibleShiftTypes = compatibleShiftTypesAt(at);
+
+    const scheduledNow = await prisma.scheduledShift.findFirst({
+        where: {
+            userId: caregiverId,
+            date: { gte: dayStart },
+            isAbsent: false,
+            shiftType: { in: compatibleShiftTypes as any[] },
+            colorGroup: { not: null },
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+        },
+        select: { colorGroup: true },
+    });
+    const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
+        ? [scheduledNow.colorGroup]
+        : [];
+
+    // Unión deduplicada
+    return Array.from(new Set([...baseColor, ...overrideColors]));
+}
+
+/**
+ * Devuelve los `ScheduledShift.shiftType` cuya ventana AST contiene la hora
+ * `at`. La diferencia con `inferShiftTypeFromAST` es que aquella devuelve
+ * UN bucket (MORNING/EVENING/NIGHT), mientras que esta devuelve TODOS los
+ * shiftTypes activos en ese minuto — incluyendo turnos largos (FULL_DAY,
+ * FULL_NIGHT) que coexisten con los regulares.
+ *
+ * Ventanas AST:
+ *   MORNING:    06–14
+ *   EVENING:    14–22
+ *   NIGHT:      22–06
+ *   FULL_DAY:   06–18
+ *   FULL_NIGHT: 18–06
+ *
+ * Edge cases:
+ *   - A las 14:30 (early EVENING): EVENING + FULL_DAY (no FULL_NIGHT, no MORNING).
+ *   - A las 18:30 (late EVENING):  EVENING + FULL_NIGHT (FULL_DAY ya terminó).
+ *   - A las 22:00 (NIGHT start):   NIGHT + FULL_NIGHT.
+ *
+ * Esta precisión por hora evita que una caregiver pautada FULL_NIGHT (18–06)
+ * aparezca como "cubriendo EVENING" a las 14:30 — su turno no inicia hasta
+ * las 18:00.
+ */
+export function compatibleShiftTypesAt(at?: Date): ShiftT[] {
+    const astFmt = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico',
+    });
+    const hAst = parseInt(astFmt.format(at ?? new Date()), 10) % 24;
+    const out: ShiftT[] = [];
+    if (hAst >= 6 && hAst < 14)  out.push('MORNING');
+    if (hAst >= 14 && hAst < 22) out.push('EVENING');
+    if (hAst >= 22 || hAst < 6)  out.push('NIGHT');
+    if (hAst >= 6 && hAst < 18)  out.push('FULL_DAY');
+    if (hAst >= 18 || hAst < 6)  out.push('FULL_NIGHT');
+    return out;
 }

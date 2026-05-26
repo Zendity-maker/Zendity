@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
-import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { inferShiftTypeFromAST, resolveCaregiverCurrentColors } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
@@ -179,23 +179,21 @@ export async function POST(req: Request) {
         try {
             const dayStart = todayStartAST();
 
-            // Colores del cuidador entrante (ShiftColorAssignment del día → fallback
-            // ScheduledShift.colorGroup reciente).
-            const colorAssignments = await prisma.shiftColorAssignment.findMany({
-                where: { headquartersId, userId: caregiverId, assignedAt: { gte: dayStart } },
-                select: { color: true },
+            // Colores del cuidador entrante PARA EL TURNO ACTUAL.
+            // Usa el helper puro resolveCaregiverCurrentColors que filtra por
+            // shiftType compatible con la hora del clock-in. Esto bloquea el
+            // bug "entrante 4h antes resuelve overrides prematuramente":
+            // una caregiver pautada NIGHT (22–06) que hace clock-in a las 18:00
+            // NO es dueña de su NIGHT-color hasta las 22:00; este helper
+            // devuelve [] para ella entre 18:00 y 22:00.
+            const myColors = await resolveCaregiverCurrentColors({
+                caregiverId,
+                hqId: headquartersId,
+                // Usar startTime de la nueva sesión (acabamos de hacer new Date())
+                // garantiza que el shift type se evalúe al momento del clock-in,
+                // no al momento de procesar (que puede haber drift de ms).
+                at: newSession.startTime,
             });
-            let myColors = colorAssignments.map(a => a.color).filter(Boolean);
-            if (myColors.length === 0) {
-                const now = new Date();
-                const window14h = new Date(now.getTime() - 14 * 60 * 60 * 1000);
-                const sched = await prisma.scheduledShift.findFirst({
-                    where: { userId: caregiverId, date: { gte: window14h, lte: now }, isAbsent: false, colorGroup: { not: null } },
-                    orderBy: { date: 'desc' },
-                    select: { colorGroup: true },
-                });
-                if (sched?.colorGroup && sched.colorGroup !== 'UNASSIGNED') myColors = [sched.colorGroup];
-            }
 
             if (myColors.length > 0) {
                 const overrides = await prisma.shiftPatientOverride.findMany({
