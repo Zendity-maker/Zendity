@@ -138,3 +138,93 @@ export function parseTimeOfDay(raw: string): { hour: number; minute: number } {
     }
     return { hour, minute };
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// FORMATEO ANCLADO A AST — para el portal familiar (diáspora fuera de PR)
+// ═════════════════════════════════════════════════════════════════════════════
+// Toda hora visible para la familia debe mostrarse en hora de Vivid (AST),
+// no en la TZ del browser. Estos helpers usan Intl.DateTimeFormat con
+// timeZone: 'America/Puerto_Rico' para garantizar consistencia diáspora-Vivid.
+
+const AST_TZ = 'America/Puerto_Rico';
+
+/**
+ * Día calendar AST como "27 MAY" (etiquetas en es-PR). Usar en card badges,
+ * date headers, listas de citas. Reemplaza `new Date(iso).getDate()`/`getMonth()`
+ * que leen TZ del browser y causan day-slip.
+ */
+export function formatASTDate(date: Date | string): { day: string; monthAbbr: string } {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const parts = new Intl.DateTimeFormat('es-PR', {
+        timeZone: AST_TZ,
+        day: 'numeric',
+        month: 'short',
+    }).formatToParts(d);
+    const day = parts.find((p) => p.type === 'day')?.value ?? '';
+    // Normalizar mes a 3 letras UPPER y sin punto (es-PR devuelve "may.", queremos "MAY").
+    const monthRaw = parts.find((p) => p.type === 'month')?.value ?? '';
+    const monthAbbr = monthRaw.replace(/\./g, '').slice(0, 3).toUpperCase();
+    return { day, monthAbbr };
+}
+
+/**
+ * Día calendar AST completo como "miércoles, 27 de mayo de 2026" — formal,
+ * para emails de notificación y headers grandes.
+ */
+export function formatASTDateLong(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return new Intl.DateTimeFormat('es-PR', {
+        timeZone: AST_TZ,
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+    }).format(d);
+}
+
+/**
+ * Hora de pared AST como "1:00 PM". Usar cuando solo hay un Date (ej.
+ * HeadquartersEvent.startTime). NO usar sobre FamilyAppointment.requestedTime
+ * que ya es string AST verbatim — para ese caso usar formatASTTimeLabel(raw).
+ */
+export function formatASTTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return new Intl.DateTimeFormat('es-PR', {
+        timeZone: AST_TZ,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    }).format(d);
+}
+
+/**
+ * Etiqueta canónica de zona para acompañar TODA hora visible a la familia.
+ * Texto único — cambiar solo aquí si se reformula el copy.
+ */
+export const AST_TZ_LABEL = 'hora de Vivid · AST';
+
+/**
+ * Empaqueta una hora ya formateada (string como "1:00 PM" o el output de
+ * formatASTTime) con la etiqueta canónica AST. Resultado: "1:00 PM (hora de Vivid · AST)".
+ */
+export function withASTLabel(timeStr: string): string {
+    return `${timeStr} (${AST_TZ_LABEL})`;
+}
+
+/**
+ * Compone la medianoche AST del día calendar (y, m, d) como instante UTC.
+ * Usar al guardar fechas seleccionadas en pickers de cliente: en vez de
+ * `new Date(y, m, d).toISOString()` (que ancla a medianoche local del browser y
+ * cae en el día equivocado para diáspora europea/asiática), usar este helper
+ * para forzar que "28-may" sea siempre 28-may AST sin importar dónde clickee.
+ *
+ * y, m (0-indexed), d son los enteros del día calendar AST que el usuario eligió.
+ *
+ * Ejemplo:
+ *   astMidnightUTC(2026, 4, 28).toISOString()
+ *   → "2026-05-28T04:00:00.000Z"   (siempre, sin importar process.env.TZ)
+ */
+export function astMidnightUTC(year: number, month: number, day: number): Date {
+    // 00:00 AST = 04:00 UTC. Date.UTC ignora la TZ local del runtime.
+    return new Date(Date.UTC(year, month, day, AST_OFFSET_MIN / 60, 0, 0, 0));
+}

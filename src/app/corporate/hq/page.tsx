@@ -34,9 +34,11 @@ export default function ZendityHQPage() {
 
     // Branding states
     const [logoUrl, setLogoUrl] = useState("");
+    const [familyWhatsAppNumber, setFamilyWhatsAppNumber] = useState("");
     const [savingBranding, setSavingBranding] = useState(false);
     const [processingLogo, setProcessingLogo] = useState(false);
     const [logoError, setLogoError] = useState<string | null>(null);
+    const [brandingError, setBrandingError] = useState<string | null>(null);
 
     useEffect(() => {
         fetchDocs();
@@ -66,7 +68,10 @@ export default function ZendityHQPage() {
         try {
             const res = await fetch("/api/corporate/hq/branding");
             const data = await res.json();
-            if (data.success && data.hq?.logoUrl) setLogoUrl(data.hq.logoUrl);
+            if (data.success) {
+                if (data.hq?.logoUrl) setLogoUrl(data.hq.logoUrl);
+                if (data.hq?.familyWhatsAppNumber) setFamilyWhatsAppNumber(data.hq.familyWhatsAppNumber);
+            }
         } catch (error) {
             console.error(error);
         }
@@ -167,18 +172,22 @@ export default function ZendityHQPage() {
 
     const handleSaveBranding = async () => {
         setSavingBranding(true);
+        setBrandingError(null);
         try {
             const res = await fetch("/api/corporate/hq/branding", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ logoUrl })
+                body: JSON.stringify({ logoUrl, familyWhatsAppNumber })
             });
             const data = await res.json();
             if (data.success) {
                 alert("Branding actualizado exitosamente.");
+            } else {
+                setBrandingError(data.error || "Error guardando la marca.");
             }
         } catch (error) {
             console.error(error);
+            setBrandingError("Error de red guardando la marca.");
         } finally {
             setSavingBranding(false);
         }
@@ -399,6 +408,28 @@ export default function ZendityHQPage() {
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={logoUrl} alt="Preview Logo" className="max-h-full object-contain" />
                                 </div>
+                            )}
+
+                            {/* WhatsApp de la sede — visible en citas familiares aprobadas para
+                                que la familia sepa qué número les llamará. Opcional; si está vacío
+                                se omite la línea en email/ICS/notificación. */}
+                            <div className="pt-2 border-t border-slate-100">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">WhatsApp de la sede</label>
+                                <input
+                                    type="tel"
+                                    placeholder="+1 787-414-6858"
+                                    className="w-full border-slate-200 rounded-xl focus:ring-teal-500 focus:border-teal-500 bg-slate-50 text-sm"
+                                    value={familyWhatsAppNumber}
+                                    onChange={(e) => setFamilyWhatsAppNumber(e.target.value)}
+                                />
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                    Aparecerá en citas aprobadas de Videollamada y Llamada Telefónica:
+                                    &quot;Guarda este número para reconocer la llamada&quot;.
+                                </p>
+                            </div>
+
+                            {brandingError && (
+                                <p className="text-xs text-red-600 font-medium">{brandingError}</p>
                             )}
 
                             <button

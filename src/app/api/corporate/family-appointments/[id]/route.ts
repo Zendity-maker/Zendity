@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { astDateTime, parseTimeOfDay } from '@/lib/dates';
+import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/lib/dates';
+import { buildAppointmentICS, googleCalendarLink } from '@/lib/ics';
+import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
 import { EventType } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
 
@@ -101,14 +103,17 @@ export async function PATCH(
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: hqId },
-            select: { name: true },
+            select: { name: true, billingAddress: true, familyWhatsAppNumber: true },
         });
         const hqName = hq?.name || 'Vivid Senior Living';
+        const hqAddress = hq?.billingAddress ?? null;
+        const hqWhatsApp = hq?.familyWhatsAppNumber ?? null;
 
         const typeLabel    = TYPE_LABELS[appt.type] || appt.type;
-        const formattedDate = new Date(appt.requestedDate).toLocaleDateString('es-PR', {
-            weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-        });
+        // Fecha formateada anclada a AST — la familia vive fuera de PR; con
+        // toLocaleDateString sin timeZone, el servidor (UTC) o el cliente del email
+        // podrían interpretar la fecha en otra zona.
+        const formattedDate = formatASTDateLong(appt.requestedDate);
 
         // ── APROBAR ────────────────────────────────────────────────────────────
         if (action === 'APPROVE') {
@@ -142,7 +147,7 @@ export async function PATCH(
                 prisma.headquartersEvent.create({
                     data: {
                         headquartersId:   hqId,
-                        title:            `${typeLabel} — ${appt.familyMember.name} con ${appt.patient.name}`,
+                        title:            `${typeLabel} — ${appt.familyMember.name.trim()} con ${appt.patient.name.trim()}`,
                         description:      appt.description || undefined,
                         type:             eventType,
                         status:           'PENDING',
@@ -155,7 +160,19 @@ export async function PATCH(
                 }),
             ]);
 
-            // Notificación in-app al familiar (best-effort)
+            // Copia ramificada por tipo (WhatsApp vs presencial). Misma fuente para
+            // notificación, email y descripción del ICS — la familia ve siempre lo
+            // mismo en los tres canales.
+            const copy = buildAppointmentCopy({
+                apptType: appt.type,
+                hqName,
+                hqAddress,
+                whatsAppNumber: hqWhatsApp,
+                description: appt.description,
+            });
+
+            // Notificación in-app al familiar (best-effort) — hora con etiqueta AST
+            // + instrucción de cómo conectar (WhatsApp / dirección).
             try {
                 const famUser = await prisma.user.findFirst({
                     where: { email: appt.familyMember.email },
@@ -167,7 +184,7 @@ export async function PATCH(
                             userId:  famUser.id,
                             type:    'FAMILY_VISIT',
                             title:   '✅ Cita aprobada',
-                            message: `Tu ${typeLabel} del ${formattedDate} a las ${appt.requestedTime} fue aprobada. Te esperamos en ${hqName}.`,
+                            message: `Tu ${typeLabel} del ${formattedDate} a las ${appt.requestedTime} (${AST_TZ_LABEL}) fue aprobada. ${copy.connectionInstructions}`,
                             isRead:  false,
                             link:    '/family/calendar',
                         },
@@ -175,10 +192,34 @@ export async function PATCH(
                 }
             } catch { /* no-fatal */ }
 
-            // Email al familiar — gate explícito y NO silencioso:
+            // ICS + Google Calendar — co-primarios: la familia vive fuera de PR.
+            // El .ics adjunto al email permite añadir la cita al calendario nativo
+            // sin sesión; el calendario del familiar hace la conversión a su hora
+            // local automática (DTSTART va como instante UTC absoluto).
+            const icsContent = buildAppointmentICS({
+                id: updated.id,
+                title: `${typeLabel} con ${appt.patient.name.trim()}`,
+                description: copy.icsDescription,
+                startUtc: startTime,
+                endUtc: endTime,
+                location: copy.location,
+                organizerName: hqName,
+                organizerEmail: process.env.SENDGRID_FROM_EMAIL || undefined,
+            });
+            const gcalUrl = googleCalendarLink({
+                id: updated.id,
+                title: `${typeLabel} con ${appt.patient.name.trim()}`,
+                description: copy.icsDescription,
+                startUtc: startTime,
+                endUtc: endTime,
+                location: copy.location,
+            });
+
+            // Email al familiar — gate explícito y NO silencioso (cierre del bug del
+            // FROM undefined que estuvo escondido 6 rondas):
             //   - si falta el email del familiar (datos sucios) → console.warn explícito
             //   - si falta la API key (config) → console.warn explícito
-            //   - si se intenta y falla → console.error enriquecido con response.body
+            //   - si se intenta y falla → logEmailError con response.body de SendGrid
             if (!appt.familyMember.email) {
                 console.warn(
                     '[family-appointments PATCH APPROVE] email skip:',
@@ -195,6 +236,14 @@ export async function PATCH(
                         to:      appt.familyMember.email,
                         from:    senderFrom(hqName),
                         subject: `✅ Cita aprobada — ${typeLabel} el ${formattedDate}`,
+                        attachments: [
+                            {
+                                content: Buffer.from(icsContent, 'utf8').toString('base64'),
+                                filename: `cita-${updated.id}.ics`,
+                                type: 'text/calendar; charset=utf-8; method=PUBLISH',
+                                disposition: 'attachment',
+                            },
+                        ],
                         html: `
 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
   <div style="background:#0d9488;padding:28px 24px;text-align:center;">
@@ -207,14 +256,33 @@ export async function PATCH(
     <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:20px;margin:20px 0;">
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Tipo</span><br/><strong>${typeLabel}</strong></div>
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Fecha</span><br/><strong>${formattedDate}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Hora</span><br/><strong>${appt.requestedTime}</strong></div>
+      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Hora</span><br/><strong>${appt.requestedTime}</strong> <span style="color:#64748b;font-weight:500;font-size:13px;">(${AST_TZ_LABEL})</span></div>
       <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Duración</span><br/><strong>${appt.durationMins} minutos</strong></div>
-      <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name}</strong></div>
+      <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name.trim()}</strong></div>
     </div>
     ${appt.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${appt.description}</em></p>` : ''}
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 18px;margin:20px 0;">
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;">
+        Cómo conectar
+      </p>
+      <p style="margin:0;font-size:14px;color:#0c4a6e;line-height:1.55;">
+        ${copy.connectionInstructions}
+      </p>
+    </div>
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 18px;margin:20px 0;">
+      <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.5;">
+        ⏰ <strong>La hora arriba es hora de Vivid (Puerto Rico, AST).</strong>
+        Si vives en otra zona, abre el archivo <code>cita.ics</code> adjunto o usa el botón de Google Calendar abajo —
+        tu calendario convertirá automáticamente a tu hora local.
+      </p>
+    </div>
     <div style="margin-top:24px;text-align:center;">
+      <a href="${gcalUrl}"
+         style="display:inline-block;background:#1a73e8;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin:0 4px 8px 0;">
+        📅 Añadir a Google Calendar
+      </a>
       <a href="${process.env.NEXTAUTH_URL || 'https://app.zendity.com'}/family/calendar"
-         style="display:inline-block;background:#0d9488;color:#ffffff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;">
+         style="display:inline-block;background:#0d9488;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin:0 4px 8px 0;">
         Ver en el portal →
       </a>
     </div>

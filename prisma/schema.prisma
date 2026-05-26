@@ -77,6 +77,12 @@ model Headquarters {
   brandAccent     String? // Color de señal positiva ("Bien", ✓) — ej. "#C5E69A"
   brandBg         String? // Fondo de página hex (crema/off-white) — ej. "#FAF6EE"
 
+  // Número de WhatsApp del hogar para coordinar videollamadas y llamadas familiares.
+  // Si está seteado, se incluye en la copia de aprobación (ICS, email, notificación,
+  // card) para que el familiar lo guarde y reconozca la llamada entrante. Multi-tenant:
+  // cada sede tiene el suyo (Cupey, Mayagüez futuros).
+  familyWhatsAppNumber String? // ej. "+1 787-414-6858"
+
   // FASE 29 Calendario y Horarios
   events             HeadquartersEvent[]
   shiftSchedules     ShiftSchedule[]

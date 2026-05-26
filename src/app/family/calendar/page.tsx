@@ -20,8 +20,10 @@ import {
     Briefcase,
     PartyPopper,
     Plus,
+    CalendarPlus,
 } from "lucide-react";
 import { IconCitas } from "@/components/icons/ZendityIcons";
+import { formatASTDate, AST_TZ_LABEL, astMidnightUTC } from "@/lib/dates";
 
 type AppointmentType = 'VISIT' | 'VIDEO_CALL' | 'PHONE_CALL' | 'DIRECTOR_MEETING' | 'SPECIAL_OCCASION';
 type AppStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -39,6 +41,7 @@ interface Appointment {
     approvedAt?: string;
     patient: { name: string; roomNumber?: string };
     approvedBy?: { name: string };
+    headquarters?: { familyWhatsAppNumber?: string | null };
 }
 
 const TYPE_OPTIONS: { value: AppointmentType; label: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
@@ -120,8 +123,6 @@ function generateTimeSlots(): string[] {
 
 const TIME_SLOTS = generateTimeSlots();
 
-const MONTHS_ABBR = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-
 export default function FamilyCalendarPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -176,6 +177,14 @@ export default function FamilyCalendarPage() {
         setSending(true);
         try {
             const typeOption = TYPE_OPTIONS.find(t => t.value === type)!;
+            // Anclar la fecha elegida a medianoche AST (no medianoche local del browser).
+            // Sin esto, un familiar en Madrid clickeando "28 may" enviaría 2026-05-27T22:00Z
+            // y el server lo guardaría como 27-may AST → cita en el día equivocado.
+            const astAnchoredDate = astMidnightUTC(
+                selectedDate.getFullYear(),
+                selectedDate.getMonth(),
+                selectedDate.getDate(),
+            );
             const res = await fetch('/api/family/appointments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -183,7 +192,7 @@ export default function FamilyCalendarPage() {
                     type,
                     title:         typeOption.label,
                     description:   description.trim() || null,
-                    requestedDate: selectedDate.toISOString(),
+                    requestedDate: astAnchoredDate.toISOString(),
                     requestedTime: selectedTime,
                     durationMins:  duration,
                 }),
@@ -247,12 +256,23 @@ export default function FamilyCalendarPage() {
 
             {/* Header de página */}
             <header className="bg-white border-b border-stone-100 px-4 py-5">
-                <div className="flex items-center gap-3 max-w-2xl mx-auto">
-                    <IconCitas size={24} />
-                    <div>
-                        <h1 className="font-bold text-slate-800 text-xl leading-tight">Citas y Visitas</h1>
-                        <p className="text-xs text-slate-400 mt-0.5">Solicita y gestiona tus visitas</p>
+                <div className="max-w-2xl mx-auto">
+                    <div className="flex items-center gap-3">
+                        <IconCitas size={24} />
+                        <div>
+                            <h1 className="font-bold text-slate-800 text-xl leading-tight">Citas y Visitas</h1>
+                            <p className="text-xs text-slate-400 mt-0.5">Solicita y gestiona tus visitas</p>
+                        </div>
                     </div>
+                    {/* Microcopy de zona — la familia vive fuera de PR; aclaramos que las horas
+                        mostradas son la hora del lugar físico (Vivid en Puerto Rico), no la del
+                        browser. Cada cita además incluye etiqueta inline + botón "Añadir al
+                        calendario" que descarga un .ics con instante UTC para que el calendario
+                        nativo del familiar haga la conversión a su hora local automática. */}
+                    <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                        Las horas mostradas son <span className="font-semibold">hora de Vivid (Puerto Rico · AST, UTC-4)</span>.
+                        Usa <span className="font-semibold">Añadir al calendario</span> para que la cita aparezca en tu hora local.
+                    </p>
                 </div>
             </header>
 
@@ -562,9 +582,9 @@ export default function FamilyCalendarPage() {
 
 // Card de cita — Humanista Suave
 function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: boolean }) {
-    const d = new Date(appt.requestedDate);
-    const day = d.getDate();
-    const monthAbbr = MONTHS_ABBR[d.getMonth()];
+    // Día/mes anclados a AST — antes `d.getDate()` leía la TZ del browser y la
+    // diáspora veía un día menos. Ahora siempre se muestra el día de Vivid.
+    const { day, monthAbbr } = formatASTDate(appt.requestedDate);
     const typeOption = TYPE_OPTIONS.find(t => t.value === appt.type);
     const label = typeOption?.label || appt.title;
 
@@ -573,10 +593,23 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
         appt.status === 'APPROVED' ? 'bg-brand/10 text-brand' :
                                      'bg-red-50 text-red-600';
 
+    // Hint de canal por tipo de cita — para citas APROBADAS. Paridad con la copia
+    // ramificada del email/ICS (src/lib/family/appointment-copy.ts).
+    const waNumber = appt.headquarters?.familyWhatsAppNumber?.trim() || null;
+    let connectionHint: string | null = null;
+    if (appt.type === 'VIDEO_CALL') {
+        connectionHint = '📹 Te llamarán por videollamada de WhatsApp. Mantente disponible.';
+        if (waNumber) connectionHint += ` Guarda este número para reconocer la llamada: ${waNumber}.`;
+    } else if (appt.type === 'PHONE_CALL') {
+        connectionHint = '📞 Te llamarán por WhatsApp. Mantente disponible.';
+        if (waNumber) connectionHint += ` Guarda este número para reconocer la llamada: ${waNumber}.`;
+    }
+    // visitas presenciales no necesitan hint adicional
+
     return (
         <article className={`bg-white rounded-2xl border border-slate-100 p-4 mb-3 ${muted ? 'opacity-75' : ''}`}>
             <div className="flex items-start gap-4">
-                {/* Fecha vertical */}
+                {/* Fecha vertical (anclada AST) */}
                 <div className="flex-shrink-0 w-12 text-center">
                     <p className="text-2xl font-bold text-brand leading-none tabular-nums">{day}</p>
                     <p className="text-xs text-slate-400 uppercase mt-1 font-semibold tracking-wide">{monthAbbr}</p>
@@ -590,8 +623,11 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
                             {STATUS_LABELS[appt.status]}
                         </span>
                     </div>
+                    {/* Hora con etiqueta de zona AST — appt.requestedTime ya viene como
+                        string AST de la DB; solo añadimos la etiqueta canónica. */}
                     <p className="text-xs text-slate-400">
                         <span className="tabular-nums">{appt.requestedTime}</span>
+                        <span className="ml-1 text-slate-400/80">({AST_TZ_LABEL})</span>
                         <span className="mx-1.5">·</span>
                         <span className="tabular-nums">{appt.durationMins} min</span>
                     </p>
@@ -606,11 +642,31 @@ function AppointmentCard({ appt, muted = false }: { appt: Appointment; muted?: b
                         </p>
                     )}
 
-                    {appt.status === 'APPROVED' && appt.approvedBy && (
-                        <p className="text-xs text-slate-400 mt-2">
-                            Confirmada por {appt.approvedBy.name}
-                            {appt.approvedAt && <> · {humanTime(appt.approvedAt)}</>}
-                        </p>
+                    {appt.status === 'APPROVED' && (
+                        <>
+                            {connectionHint && (
+                                <p className="text-xs mt-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-100 text-sky-900 leading-relaxed">
+                                    {connectionHint}
+                                </p>
+                            )}
+                            {appt.approvedBy && (
+                                <p className="text-xs text-slate-400 mt-2">
+                                    Confirmada por {appt.approvedBy.name}
+                                    {appt.approvedAt && <> · {humanTime(appt.approvedAt)}</>}
+                                </p>
+                            )}
+                            {/* "Añadir al calendario" — solo aparece en citas APROBADAS.
+                                Descarga un .ics con instante UTC absoluto; el calendario
+                                nativo del familiar lo convierte a SU hora local. */}
+                            <a
+                                href={`/api/family/appointments/${appt.id}/ics`}
+                                className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold text-brand hover:underline"
+                                aria-label="Añadir esta cita al calendario nativo de tu dispositivo"
+                            >
+                                <CalendarPlus className="w-3.5 h-3.5" strokeWidth={2} />
+                                Añadir al calendario
+                            </a>
+                        </>
                     )}
                 </div>
             </div>
