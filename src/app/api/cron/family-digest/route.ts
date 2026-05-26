@@ -95,9 +95,16 @@ export async function GET(req: Request) {
                 name: true,
                 headquartersId: true,
                 familyShareLevel: true,
-                // Capa de congruencia: incluye SIEMPRE estos 5 campos para que
-                // los helpers decidan qué se le puede contar a la familia.
+                // Capa de congruencia: campos propios de Patient + relaciones
+                // (IntakeData.mobilityLevel y LifePlan.mobility más reciente).
+                // Los helpers derivan feeding/mobility de fuentes existentes.
                 ...PATIENT_CONGRUENCE_SELECT,
+                intakeData: { select: { mobilityLevel: true } },
+                lifePlans: {
+                    orderBy: { updatedAt: 'desc' as const },
+                    take: 1,
+                    select: { mobility: true, updatedAt: true, status: true },
+                },
                 dailyLogs: {
                     where: { createdAt: { gte: digestDate } },
                     orderBy: { createdAt: 'desc' },
