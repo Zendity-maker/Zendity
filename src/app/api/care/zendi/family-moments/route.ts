@@ -3,6 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import {
+    PATIENT_CONGRUENCE_SELECT,
+    getFamilyContentPolicy,
+    filterCongruentNotes,
+    buildCongruentPromptRules,
+    verifyCongruentOutput,
+} from '@/lib/family/congruence';
 
 
 
@@ -54,12 +61,20 @@ export async function GET(req: Request) {
         // Determinístico y justo: rota entre todos los residentes activos de la
         // sede sin repetir hasta cubrir a todos. Reemplaza el picker aleatorio
         // que podía notificar al mismo paciente varias veces y omitir a otros.
+        // Incluimos PATIENT_CONGRUENCE_SELECT — más abajo filtramos los que la
+        // política no autoriza (HOSPICE, HOSPITAL aunque el status base no
+        // refleje, etc.) para no proponer al staff momentos inadecuados.
         const candidates = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
                 status: 'ACTIVE'
             },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                roomNumber: true,
+                headquartersId: true,
+                ...PATIENT_CONGRUENCE_SELECT,
                 zendiFamilyMoments: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
@@ -72,10 +87,17 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, moments: [] });
         }
 
+        // Filtrado por política familiar — descarta residentes a los que NO
+        // se les debe sugerir momento auto (HOSPITAL, HOSPICE, etc.).
+        const eligible = candidates.filter((c) => getFamilyContentPolicy(c).allowAutoMoments);
+        if (eligible.length === 0) {
+            return NextResponse.json({ success: true, moments: [] });
+        }
+
         // Ordenar: primero los que nunca han tenido un momento (null);
         // luego por createdAt ascendente (el más antiguo primero).
         // Desempate por id para determinismo total.
-        const sorted = [...candidates].sort((a, b) => {
+        const sorted = [...eligible].sort((a, b) => {
             const aLast = a.zendiFamilyMoments[0]?.createdAt ?? null;
             const bLast = b.zendiFamilyMoments[0]?.createdAt ?? null;
             if (!aLast && !bLast) return a.id.localeCompare(b.id);
@@ -94,31 +116,45 @@ export async function GET(req: Request) {
             take: 3
         });
 
-        let contextText = "Sin novedades recientes significativas.";
-        if (recentLogs.length > 0) {
-            contextText = recentLogs.map(l => l.notes).join(". ");
+        // Filtrado de notas por congruencia — PEG → quita las que mencionan comida;
+        // BEDRIDDEN → quita las que mencionan actividad.
+        const rawNotes: string[] = recentLogs.map((l) => l.notes).filter((n): n is string => !!n);
+        const congruentNotes = filterCongruentNotes(randomPatient, rawNotes);
+
+        // Regla "o nada": si tras filtrar no hay contexto concreto, NO ofrezcas
+        // sugerencias al staff. Mejor cero opciones que opciones falsas.
+        if (congruentNotes.length === 0) {
+            return NextResponse.json({ success: true, moments: [], skipped: 'no-congruent-context' });
         }
 
-        // 3. Prompt Gemini to generate 2 positive message options
+        const contextText = congruentNotes.join('. ');
+
+        // 3. Prompt Gemini con reglas duras de congruencia
+        const congruenceRules = buildCongruentPromptRules(randomPatient);
+
         const prompt = `
-        Eres Zendi, la IA asistenta de la residencia clínica de adultos mayores. 
-        Tu objetivo es redactar 2 opciones de mensajes cortos, positivos y amigables para enviar al familiar del residente llamado: "${randomPatient.name}".
+Eres Zendi, la voz cálida del equipo de cuidado de una residencia de adultos mayores.
+Tu objetivo es redactar 2 opciones de mensajes cortos, en español, para que un(a) ${role}
+las pueda enviar al familiar del residente "${randomPatient.name}".
 
-        El empleado que enviará este mensaje es un(a) ${role}. 
-        Contexto clínico reciente del paciente (si aplica): "${contextText}"
+Contexto reciente del residente (lo único que conoces):
+"${contextText}"
 
-        Reglas:
-        - Las opciones deben ser optimistas.
-        - Saludo inicial cálido.
-        - Mantenlo bajo 3 oraciones por opción.
-        - NO inventes diagnósticos médicos graves, enfócate en el bienestar general, el buen ánimo, que comió bien, o que amaneció estable.
-        
-        Devuelve tu respuesta ESTRICTAMENTE en este formato JSON (sin markdown, sin backticks):
-        {
-          "option1": "texto de la opcion 1",
-          "option2": "texto de la opcion 2"
-        }
-        `;
+${congruenceRules}
+
+Reglas de forma:
+- Saludo inicial cálido. 2 a 3 oraciones máx por opción.
+- Solo menciona hechos del contexto recibido. NO inventes diagnósticos, comidas, actividades,
+  estados de ánimo, ni nada que no esté arriba.
+- Si las dos opciones que se te ocurren son iguales o si no hay nada congruente que decir,
+  devuelve ambas como cadena vacía. Es mejor el silencio que un mensaje falso.
+
+Devuelve ESTRICTAMENTE este JSON (sin markdown, sin backticks):
+{
+  "option1": "texto de la opción 1",
+  "option2": "texto de la opción 2"
+}
+        `.trim();
 
         const { GoogleGenerativeAI } = require('@google/generative-ai');
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -133,7 +169,29 @@ export async function GET(req: Request) {
         // Limpiar backticks de markdown si la IA insiste en añadirlos a pesar de la instrucción "responseMimeType"
         textResponse = textResponse.replace(/```json/g, "").replace(/```/g, "").trim();
 
-        const aiOptions = JSON.parse(textResponse);
+        const aiOptionsRaw = JSON.parse(textResponse);
+
+        // 4. Red final: verifica que NINGUNA opción viole los constraints.
+        //    Si una viola, se descarta. Si las dos violan, no se crea el momento.
+        const verified1 = verifyCongruentOutput(randomPatient, aiOptionsRaw.option1);
+        const verified2 = verifyCongruentOutput(randomPatient, aiOptionsRaw.option2);
+
+        if (!verified1 && !verified2) {
+            console.warn('[family-moments] ambas opciones descartadas por congruencia', {
+                patientId: randomPatient.id,
+                profile: { feedingMethod: randomPatient.feedingMethod, mobilityStatus: randomPatient.mobilityStatus, careModality: randomPatient.careModality },
+                option1Raw: aiOptionsRaw.option1, option2Raw: aiOptionsRaw.option2,
+            });
+            return NextResponse.json({ success: true, moments: [], skipped: 'incongruent-output' });
+        }
+
+        // Si solo una pasa, duplicamos para que el UI mantenga 2 opciones consistentes
+        // — el staff verá la misma sugerencia repetida, señal de que el contexto era débil.
+        // Mejor que ofrecer una segunda opción inventada.
+        const aiOptions = {
+            option1: verified1 || verified2,
+            option2: verified2 || verified1,
+        };
 
         if (!aiOptions.option1 || !aiOptions.option2) {
             throw new Error("Gemini did not return valid options.");
