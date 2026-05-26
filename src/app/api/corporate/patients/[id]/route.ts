@@ -56,9 +56,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             idNumber, medicareNumber, medicaidNumber, primaryFamilyMemberId,
             // Diálisis
             needsDialysis,
-            // Capa de congruencia (Fase A) — perfil funcional que constriñe
-            // qué se le puede contar a la familia. Ver src/lib/family/congruence.ts
-            feedingMethod, mobilityStatus, careModality,
         } = body;
 
         const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -91,30 +88,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         // FASE 84 — dirección previa
         if (address !== undefined) updateData.address = address || null;
         if (needsDialysis !== undefined) updateData.needsDialysis = Boolean(needsDialysis);
-
-        // Capa de congruencia — validamos contra los enums permitidos para no
-        // dejar pasar valores arbitrarios (ej. typo "PEG " con espacio).
-        const VALID_FEEDING = ['ORAL', 'PEG', 'NPO'];
-        const VALID_MOBILITY = ['AMBULATORY', 'ASSISTED', 'WHEELCHAIR', 'BEDRIDDEN'];
-        const VALID_MODALITY = ['NONE', 'PALLIATIVE', 'HOSPICE'];
-        if (feedingMethod !== undefined) {
-            if (!VALID_FEEDING.includes(feedingMethod)) {
-                return NextResponse.json({ success: false, error: `feedingMethod inválido: ${feedingMethod}` }, { status: 400 });
-            }
-            updateData.feedingMethod = feedingMethod;
-        }
-        if (mobilityStatus !== undefined) {
-            if (!VALID_MOBILITY.includes(mobilityStatus)) {
-                return NextResponse.json({ success: false, error: `mobilityStatus inválido: ${mobilityStatus}` }, { status: 400 });
-            }
-            updateData.mobilityStatus = mobilityStatus;
-        }
-        if (careModality !== undefined) {
-            if (!VALID_MODALITY.includes(careModality)) {
-                return NextResponse.json({ success: false, error: `careModality inválido: ${careModality}` }, { status: 400 });
-            }
-            updateData.careModality = careModality;
-        }
 
         // Sprint P — Admisión Unificada
         if (idNumber !== undefined) updateData.idNumber = idNumber || null;
