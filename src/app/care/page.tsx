@@ -192,8 +192,13 @@ export default function ZendityCareTabletPage() {
     // Fetch cobertura antes de mostrar el selector de color.
     // Degradación elegante: si falla, los chips no aparecen pero los
     // botones siguen funcionando como antes.
+    // Rama D: ahora también fetcheamos coverage CUANDO la caregiver ya tiene
+    // selectedColor (patient list view) para que el nudge banner pueda detectar
+    // uncovered y ofrecer claim AUNQUE su tablet esté mostrando "ver todos"
+    // por isSolo. El "ver todos" se mantiene de fondo como red de seguridad
+    // pero el modal/banner nudge la lleva a hacer claim explícito.
     useEffect(() => {
-        if (selectedColor || briefingMode || verifyingCensus || activeSession) return;
+        if (briefingMode || verifyingCensus) return;
         if (coverage || coverageLoading) return;
         const fetchCov = async () => {
             setCoverageLoading(true);
@@ -208,7 +213,22 @@ export default function ZendityCareTabletPage() {
             }
         };
         fetchCov();
-    }, [selectedColor, briefingMode, verifyingCensus, activeSession, coverage, coverageLoading]);
+    }, [briefingMode, verifyingCensus, coverage, coverageLoading]);
+
+    // Rama D — Nudge a claim cuando hay uncovered en patient list view.
+    // Auto-abre el modal una vez (después la caregiver puede cerrar y reabrir
+    // vía banner). No spam de re-open en cada poll.
+    const [coverageNudgeShown, setCoverageNudgeShown] = useState(false);
+    useEffect(() => {
+        if (coverageNudgeShown) return;
+        if (!selectedColor || briefingMode || verifyingCensus) return;
+        const absent: string[] = coverage?.absentColors || [];
+        if (absent.length === 0) return;
+        // Hay uncovered Y la caregiver ya entró a su tablet (selectedColor set,
+        // posiblemente 'ALL' por isSolo) → ofrece claim explícito.
+        setCoveragePickerOpen(true);
+        setCoverageNudgeShown(true);
+    }, [coverage, selectedColor, briefingMode, verifyingCensus, coverageNudgeShown]);
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
@@ -2764,6 +2784,28 @@ export default function ZendityCareTabletPage() {
                                 </div>
                             )}
 
+                            {/* Rama D — Nudge banner cuando hay colores uncovered.
+                                Funciona EN COMBINACIÓN con isSolo: el "ver todos"
+                                es la red de seguridad, este banner ofrece tomar
+                                explícitamente el color huérfano. */}
+                            {(coverage?.absentColors?.length ?? 0) > 0 && (
+                                <button
+                                    onClick={() => setCoveragePickerOpen(true)}
+                                    className="mb-4 w-full bg-gradient-to-r from-rose-50 to-rose-100 border-2 border-rose-300 rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow text-left"
+                                >
+                                    <div className="w-10 h-10 rounded-xl bg-rose-200 flex items-center justify-center text-rose-700 shrink-0 text-xl">🟦</div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-black text-rose-900 leading-tight">
+                                            {coverage?.absentColors?.length} grupo{coverage?.absentColors?.length === 1 ? '' : 's'} sin cobertura
+                                        </p>
+                                        <p className="text-xs text-rose-800 font-medium mt-0.5">
+                                            Toca para hacerte cargo explícitamente de {coverage?.absentColors?.join(', ')}.
+                                        </p>
+                                    </div>
+                                    <span className="text-rose-600 font-bold text-sm">→</span>
+                                </button>
+                            )}
+
                             {/* Grid View Toggle Header (Nivel 3 — desglose propios vs cobertura) */}
                             {(() => {
                                 const coverageCount = patients.filter((p: any) => p.overrideInfo).length;
@@ -4236,6 +4278,42 @@ export default function ZendityCareTabletPage() {
                 onClose={() => setStaffChatOpen(false)}
                 onUnreadChange={setStaffChatUnread}
             />
+
+            {/* Rama D — CoveragePickerModal disponible también en patient list.
+                Renderizado aquí para que el nudge banner del isSolo pueda
+                abrirlo. El "ver todos" del isSolo se mantiene como safety net
+                de fondo pero el modal ofrece claim explícito a los uncovered. */}
+            {(() => {
+                const absent: string[] = coverage?.absentColors || [];
+                const alreadyRedist: string[] = coverage?.alreadyRedistributed || [];
+                const activeOverrides: Array<{ originalColor: string; caregiverName: string }> =
+                    coverage?.activeOverrides || [];
+                const uncoveredPatients: any[] = coverage?.uncoveredPatients || [];
+                const options: CoverageColorOption[] = [...absent, ...alreadyRedist]
+                    .filter((c, i, arr) => arr.indexOf(c) === i)
+                    .map((color) => {
+                        const redistTo = activeOverrides
+                            .filter((o) => o.originalColor === color)
+                            .map((o) => o.caregiverName);
+                        return {
+                            color,
+                            patientsCount: uncoveredPatients.filter((p: any) => p.colorGroup === color).length
+                                || redistTo.length,
+                            status: redistTo.length > 0 ? 'already_redistributed' as const : 'absent' as const,
+                            redistributedTo: redistTo.length > 0 ? redistTo : undefined,
+                        };
+                    });
+                if (options.length === 0) return null;
+                return (
+                    <CoveragePickerModal
+                        isOpen={coveragePickerOpen}
+                        options={options}
+                        submitting={coverageSubmitting}
+                        onClose={() => setCoveragePickerOpen(false)}
+                        onSelect={handleCoveragePickerSelect}
+                    />
+                );
+            })()}
             </div>{/* end flex-1 main content */}
         </div>
     );
