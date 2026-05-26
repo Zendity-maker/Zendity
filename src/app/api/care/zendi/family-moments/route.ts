@@ -75,12 +75,6 @@ export async function GET(req: Request) {
                 roomNumber: true,
                 headquartersId: true,
                 ...PATIENT_CONGRUENCE_SELECT,
-                intakeData: { select: { mobilityLevel: true } },
-                lifePlans: {
-                    orderBy: { updatedAt: 'desc' as const },
-                    take: 1,
-                    select: { mobility: true, updatedAt: true, status: true },
-                },
                 zendiFamilyMoments: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
@@ -183,13 +177,9 @@ Devuelve ESTRICTAMENTE este JSON (sin markdown, sin backticks):
         const verified2 = verifyCongruentOutput(randomPatient, aiOptionsRaw.option2);
 
         if (!verified1 && !verified2) {
-            // Diagnóstico: imprime las razones que disparó el chokepoint
-            // (PEG/NPO/BEDRIDDEN derivados, HOSPICE, etc.) sin depender de
-            // columnas en Patient que ya no existen.
-            const policy = getFamilyContentPolicy(randomPatient);
             console.warn('[family-moments] ambas opciones descartadas por congruencia', {
                 patientId: randomPatient.id,
-                reasons: policy.constraints.reasons,
+                profile: { feedingMethod: randomPatient.feedingMethod, mobilityStatus: randomPatient.mobilityStatus, careModality: randomPatient.careModality },
                 option1Raw: aiOptionsRaw.option1, option2Raw: aiOptionsRaw.option2,
             });
             return NextResponse.json({ success: true, moments: [], skipped: 'incongruent-output' });

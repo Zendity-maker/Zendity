@@ -14,9 +14,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             include: {
                 headquarters: true,
                 lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
-                // intakeData para que la UI compute la movilidad derivada
-                // (vía src/lib/family/congruence.ts → resolveEffectiveMobility).
-                intakeData: { select: { mobilityLevel: true } },
                 medications: {
                     include: {
                         medication: true,
@@ -59,10 +56,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             idNumber, medicareNumber, medicaidNumber, primaryFamilyMemberId,
             // Diálisis
             needsDialysis,
-            // Capa de congruencia — modalidad + datos de hospicio (única fuente
-            // nueva, alimentación y movilidad se derivan de campos existentes).
-            // Ver src/lib/family/congruence.ts
-            careModality, hospiceProvider, hospiceStartDate,
+            // Capa de congruencia (Fase A) — perfil funcional que constriñe
+            // qué se le puede contar a la familia. Ver src/lib/family/congruence.ts
+            feedingMethod, mobilityStatus, careModality,
         } = body;
 
         const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
@@ -96,46 +92,28 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (address !== undefined) updateData.address = address || null;
         if (needsDialysis !== undefined) updateData.needsDialysis = Boolean(needsDialysis);
 
-        // Capa de congruencia — modalidad de cuidado.
-        // Si tocamos modalidad o hospice, exigimos rol ADMIN/DIRECTOR/NURSE
-        // (decisión clínica con impacto familiar).
-        const touchesModality = careModality !== undefined || hospiceProvider !== undefined || hospiceStartDate !== undefined;
-        if (touchesModality) {
-            const session = await getServerSession(authOptions);
-            const role = (session?.user as any)?.role;
-            if (!session || !['DIRECTOR', 'ADMIN', 'NURSE'].includes(role)) {
-                return NextResponse.json({ success: false, error: 'Solo enfermería, dirección o admin pueden cambiar la modalidad de cuidado.' }, { status: 403 });
-            }
-        }
-
+        // Capa de congruencia — validamos contra los enums permitidos para no
+        // dejar pasar valores arbitrarios (ej. typo "PEG " con espacio).
+        const VALID_FEEDING = ['ORAL', 'PEG', 'NPO'];
+        const VALID_MOBILITY = ['AMBULATORY', 'ASSISTED', 'WHEELCHAIR', 'BEDRIDDEN'];
         const VALID_MODALITY = ['NONE', 'PALLIATIVE', 'HOSPICE'];
+        if (feedingMethod !== undefined) {
+            if (!VALID_FEEDING.includes(feedingMethod)) {
+                return NextResponse.json({ success: false, error: `feedingMethod inválido: ${feedingMethod}` }, { status: 400 });
+            }
+            updateData.feedingMethod = feedingMethod;
+        }
+        if (mobilityStatus !== undefined) {
+            if (!VALID_MOBILITY.includes(mobilityStatus)) {
+                return NextResponse.json({ success: false, error: `mobilityStatus inválido: ${mobilityStatus}` }, { status: 400 });
+            }
+            updateData.mobilityStatus = mobilityStatus;
+        }
         if (careModality !== undefined) {
             if (!VALID_MODALITY.includes(careModality)) {
                 return NextResponse.json({ success: false, error: `careModality inválido: ${careModality}` }, { status: 400 });
             }
             updateData.careModality = careModality;
-            // Si se quita HOSPICE, limpiamos los datos asociados para no dejar
-            // un nombre de hospicio fantasma cuando ya no aplica.
-            if (careModality !== 'HOSPICE') {
-                updateData.hospiceProvider = null;
-                updateData.hospiceStartDate = null;
-            }
-        }
-        if (hospiceProvider !== undefined) {
-            // string libre del nombre de la agencia; null limpia.
-            const trimmed = typeof hospiceProvider === 'string' ? hospiceProvider.trim() : '';
-            updateData.hospiceProvider = trimmed || null;
-        }
-        if (hospiceStartDate !== undefined) {
-            if (hospiceStartDate === null || hospiceStartDate === '') {
-                updateData.hospiceStartDate = null;
-            } else {
-                const d = new Date(hospiceStartDate);
-                if (isNaN(d.getTime())) {
-                    return NextResponse.json({ success: false, error: `hospiceStartDate inválida` }, { status: 400 });
-                }
-                updateData.hospiceStartDate = d;
-            }
         }
 
         // Sprint P — Admisión Unificada

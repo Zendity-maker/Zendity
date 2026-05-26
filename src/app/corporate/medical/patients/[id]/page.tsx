@@ -10,7 +10,6 @@ import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
 import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTab";
 import PatientEMARTab from "@/components/medical/emar/PatientEMARTab";
 import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClinicalSummaryTab";
-import { derivedFeedingMethod, resolveEffectiveMobility } from "@/lib/family/congruence";
 import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
@@ -407,18 +406,72 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                     </>
                                 )}
                             </div>
-                            {/* ─── Panel de congruencia familiar ─────────────────────────
-                                Read-only para alimentación/movilidad (se derivan de
-                                Patient.diet, IntakeData.mobilityLevel y LifePlan.mobility
-                                — sus fuentes reales). Solo modalidad es editable + datos
-                                de hospicio. Ver src/lib/family/congruence.ts.        */}
+                            {/* ─── Perfil de congruencia familiar (Fase A) ─────────────────
+                                Estos 3 selects determinan qué se le puede contar a la familia.
+                                Default conservador (ORAL/AMBULATORY/NONE). Enfermería marca
+                                la realidad de cada residente para que el digest y los momentos
+                                auto jamás generen contenido falso (ej: PEG → cero menciones de
+                                comida). Ver src/lib/family/congruence.ts                    */}
                             {patientData?.status !== 'DISCHARGED' && patientData?.status !== 'DECEASED' && (
-                                <FamilyCongruencePanel
-                                    patientData={patientData}
-                                    role={user?.role ?? undefined}
-                                    onUpdate={fetchPatientData}
-                                    patientId={params.id as string}
-                                />
+                                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                                    <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mr-1">
+                                        Perfil familiar:
+                                    </span>
+                                    {[
+                                        {
+                                            field: 'feedingMethod',
+                                            label: 'Alimentación',
+                                            value: patientData?.feedingMethod || 'ORAL',
+                                            options: [
+                                                { value: 'ORAL', label: 'Oral' },
+                                                { value: 'PEG', label: 'PEG (sonda)' },
+                                                { value: 'NPO', label: 'NPO (nada por boca)' },
+                                            ],
+                                        },
+                                        {
+                                            field: 'mobilityStatus',
+                                            label: 'Movilidad',
+                                            value: patientData?.mobilityStatus || 'AMBULATORY',
+                                            options: [
+                                                { value: 'AMBULATORY', label: 'Ambulatorio' },
+                                                { value: 'ASSISTED', label: 'Asistido' },
+                                                { value: 'WHEELCHAIR', label: 'Silla de ruedas' },
+                                                { value: 'BEDRIDDEN', label: 'Encamado' },
+                                            ],
+                                        },
+                                        {
+                                            field: 'careModality',
+                                            label: 'Modalidad',
+                                            value: patientData?.careModality || 'NONE',
+                                            options: [
+                                                { value: 'NONE', label: 'Regular' },
+                                                { value: 'PALLIATIVE', label: 'Paliativo' },
+                                                { value: 'HOSPICE', label: 'Hospicio' },
+                                            ],
+                                        },
+                                    ].map(({ field, label, value, options }) => (
+                                        <label key={field} className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                                            <span className="text-slate-400">{label}:</span>
+                                            <select
+                                                value={value}
+                                                onChange={async (e) => {
+                                                    const newVal = e.target.value;
+                                                    const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                                                        method: 'PUT',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ [field]: newVal }),
+                                                    });
+                                                    if ((await res.json()).success !== false) fetchPatientData();
+                                                }}
+                                                className="bg-transparent font-bold text-slate-800 outline-none focus:ring-0 cursor-pointer"
+                                            >
+                                                {options.map((o) => (
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -923,212 +976,6 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                     titleOverride="Resumen de Traslado Hospitalario"
                     onClose={closeTransferModal}
                 />
-            )}
-        </div>
-    );
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// Panel de congruencia familiar
-// ────────────────────────────────────────────────────────────────────────────
-// Alimentación y movilidad: read-only — derivadas de Patient.diet (single
-// source) y IntakeData.mobilityLevel / LifePlan.mobility (lo más reciente).
-// Para corregirlas el usuario edita la fuente real (Dieta / Intake / PAI).
-// Modalidad: editable. HOSPICE abre formulario con nombre del hospicio
-// (provider) + fecha de ingreso. PALLIATIVE solo cambia el select.
-// Permission gate: solo ADMIN, DIRECTOR, NURSE pueden cambiar modalidad.
-// ════════════════════════════════════════════════════════════════════════════
-
-const FEEDING_LABEL: Record<string, string> = { ORAL: 'Oral', PEG: 'PEG (sonda)', NPO: 'NPO (nada por boca)' };
-const MOBILITY_LABEL: Record<string, string> = {
-    AMBULATORY: 'Ambulatorio', ASSISTED: 'Asistido', WHEELCHAIR: 'Silla de ruedas', BEDRIDDEN: 'Encamado',
-};
-
-function FamilyCongruencePanel({
-    patientData, role, onUpdate, patientId,
-}: {
-    patientData: any; role?: string; onUpdate: () => void; patientId: string;
-}) {
-    const canEdit = !!role && ['ADMIN', 'DIRECTOR', 'NURSE'].includes(role);
-
-    // Derivados — misma lógica que el chokepoint en el server. Esto solo es DISPLAY.
-    const derivedFeeding = derivedFeedingMethod(patientData?.diet);
-    const derivedMobility = resolveEffectiveMobility({
-        intakeData: patientData?.intakeData ?? null,
-        lifePlans: patientData?.lifePlans ?? null,
-    });
-
-    const careModality = patientData?.careModality || 'NONE';
-    const hospiceProvider = patientData?.hospiceProvider || '';
-    const hospiceStartDate = patientData?.hospiceStartDate
-        ? new Date(patientData.hospiceStartDate).toISOString().slice(0, 10)
-        : '';
-
-    const [showHospiceForm, setShowHospiceForm] = useState(false);
-    const [draftProvider, setDraftProvider] = useState(hospiceProvider);
-    const [draftDate, setDraftDate] = useState(hospiceStartDate || new Date().toISOString().slice(0, 10));
-    const [saving, setSaving] = useState(false);
-    const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-    async function patch(body: any) {
-        setSaving(true); setErrorMsg(null);
-        try {
-            const res = await fetch(`/api/corporate/patients/${patientId}`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json();
-            if (data.success === false) {
-                setErrorMsg(data.error || 'Error guardando');
-            } else {
-                onUpdate();
-                setShowHospiceForm(false);
-            }
-        } catch {
-            setErrorMsg('Error de red guardando');
-        } finally { setSaving(false); }
-    }
-
-    async function setModality(newVal: string) {
-        if (!canEdit) return;
-        if (newVal === 'HOSPICE') {
-            // Abrir formulario en vez de guardar inmediato
-            setDraftProvider(hospiceProvider);
-            setDraftDate(hospiceStartDate || new Date().toISOString().slice(0, 10));
-            setShowHospiceForm(true);
-            return;
-        }
-        await patch({ careModality: newVal });
-    }
-
-    async function saveHospice() {
-        if (!draftProvider.trim()) {
-            setErrorMsg('El nombre del hospicio es requerido.');
-            return;
-        }
-        await patch({
-            careModality: 'HOSPICE',
-            hospiceProvider: draftProvider.trim(),
-            hospiceStartDate: draftDate || new Date().toISOString().slice(0, 10),
-        });
-    }
-
-    return (
-        <div className="mt-3 pt-3 border-t border-slate-100">
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mr-1">
-                    Perfil familiar (lo que la familia podría escuchar):
-                </span>
-
-                {/* Read-only: alimentación derivada de Patient.diet */}
-                <span
-                    className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1"
-                    title={`Derivado de Dieta: "${patientData?.diet || '(sin definir)'}". Para corregir, edita la Dieta.`}
-                >
-                    <span className="text-slate-400">Alimentación:</span>
-                    <span className="font-bold">{FEEDING_LABEL[derivedFeeding] || derivedFeeding}</span>
-                </span>
-
-                {/* Read-only: movilidad derivada de LifePlan.mobility ?? IntakeData.mobilityLevel */}
-                <span
-                    className="flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1"
-                    title="Derivado de PAI / Intake. Para corregir, actualiza el PAI o el Intake del residente."
-                >
-                    <span className="text-slate-400">Movilidad:</span>
-                    <span className="font-bold">{MOBILITY_LABEL[derivedMobility] || derivedMobility}</span>
-                </span>
-
-                {/* Editable: modalidad */}
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
-                    <span className="text-slate-400">Modalidad:</span>
-                    <select
-                        value={careModality}
-                        onChange={(e) => setModality(e.target.value)}
-                        disabled={!canEdit || saving}
-                        className="bg-transparent font-bold text-slate-800 outline-none focus:ring-0 cursor-pointer disabled:cursor-not-allowed disabled:text-slate-400"
-                        title={canEdit ? '' : 'Solo enfermería, dirección o admin pueden cambiar modalidad'}
-                    >
-                        <option value="NONE">Regular</option>
-                        <option value="PALLIATIVE">Paliativo</option>
-                        <option value="HOSPICE">Hospicio</option>
-                    </select>
-                </label>
-
-                {/* Display de hospicio cuando está activo */}
-                {careModality === 'HOSPICE' && hospiceProvider && (
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-purple-800 bg-purple-50 border border-purple-200 rounded-lg px-2 py-1">
-                        🕊 {hospiceProvider}
-                        {hospiceStartDate && <span className="text-purple-500"> · desde {hospiceStartDate}</span>}
-                        {canEdit && (
-                            <button
-                                onClick={() => {
-                                    setDraftProvider(hospiceProvider);
-                                    setDraftDate(hospiceStartDate);
-                                    setShowHospiceForm(true);
-                                }}
-                                className="text-[10px] underline text-purple-700 hover:text-purple-900 ml-1"
-                                title="Editar datos de hospicio"
-                            >
-                                editar
-                            </button>
-                        )}
-                    </span>
-                )}
-            </div>
-
-            {errorMsg && (
-                <p className="text-xs text-red-600 font-medium mt-2">{errorMsg}</p>
-            )}
-
-            {/* Formulario inline para hospicio — provider + fecha */}
-            {showHospiceForm && (
-                <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-4">
-                    <p className="text-xs font-bold text-purple-900 mb-2 uppercase tracking-wide">
-                        🕊 Marcar hospicio
-                    </p>
-                    <p className="text-[11px] text-purple-700 mb-3 leading-relaxed">
-                        Esto suspende digest y momentos automáticos. La familia verá un mensaje
-                        reservado en el portal. Solo el equipo humano enviará comunicaciones,
-                        en tono acompañante.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <label className="flex-1">
-                            <span className="block text-[11px] font-bold text-purple-900 mb-1">Nombre del hospicio (agencia)</span>
-                            <input
-                                type="text"
-                                value={draftProvider}
-                                onChange={(e) => setDraftProvider(e.target.value)}
-                                placeholder="Ej: VITAS Healthcare"
-                                className="w-full text-sm border border-purple-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-purple-300 outline-none"
-                            />
-                        </label>
-                        <label className="sm:w-40">
-                            <span className="block text-[11px] font-bold text-purple-900 mb-1">Fecha de ingreso</span>
-                            <input
-                                type="date"
-                                value={draftDate}
-                                onChange={(e) => setDraftDate(e.target.value)}
-                                className="w-full text-sm border border-purple-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-purple-300 outline-none"
-                            />
-                        </label>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                        <button
-                            onClick={saveHospice}
-                            disabled={saving}
-                            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg disabled:opacity-50"
-                        >
-                            {saving ? 'Guardando…' : 'Guardar hospicio'}
-                        </button>
-                        <button
-                            onClick={() => { setShowHospiceForm(false); setErrorMsg(null); }}
-                            disabled={saving}
-                            className="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50"
-                        >
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
             )}
         </div>
     );
