@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 import { isCleanNote, computeFoodBand } from '@/lib/family/disclosure';
+import {
+    PATIENT_CONGRUENCE_SELECT,
+    getFamilyContentPolicy,
+    filterCongruentNotes,
+    buildCongruentPromptRules,
+    verifyCongruentOutput,
+} from '@/lib/family/congruence';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,27 +51,29 @@ export async function GET(req: Request) {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // PAUSA INMEDIATA — capa de congruencia en construcción.
+    // PAUSA AÚN ACTIVA — Fase A live, re-habilitación es paso aparte.
     //
-    // Suspendido a propósito hasta que esté en su lugar la capa de congruencia
-    // (feedingMethod / mobilityStatus / careModality + chokepoint de política
-    // familiar + regla "o nada"). Sin esos guardarraíles el digest puede generar
-    // contenido incongruente con la realidad clínica del residente — ej.
-    // mencionar comida a un paciente PEG, actividades a un encamado, "su día"
-    // alegre a un residente en hospicio.
+    // El código de abajo YA tiene la capa de congruencia (chokepoint, filter,
+    // reglas duras, verify, regla "o nada"). La pausa se mantiene hasta que
+    // enfermería marque los perfiles reales (PEG, encamados, hospicio) en
+    // /corporate/medical/patients/[id]. Sin esos datos, los defaults
+    // conservadores (ORAL/AMBULATORY/NONE) NO protegen a quien no tiene
+    // perfil real.
     //
-    // El schedule fue quitado de vercel.json. Este gate es defensa en
-    // profundidad por si alguien hace ping manual al endpoint.
+    // Para re-habilitar:
+    //   1. Verificar distribución en DB: que los PEG, BEDRIDDEN, HOSPICE
+    //      conocidos aparezcan marcados.
+    //   2. Setear FAMILY_DIGEST_ENABLED=true en Vercel env Production.
+    //   3. Restaurar la entrada cron en vercel.json (schedule "0 23 * * *").
     //
-    // Para re-habilitar (SOLO cuando los constraints duros estén verificados):
-    // setear env FAMILY_DIGEST_ENABLED=true en Vercel. Ver src/lib/family/
-    // congruence.ts (Fase A en construcción).
+    // Defensa en profundidad: aún si alguien restaura el schedule sin setear
+    // la env, este gate devuelve 503.
     // ──────────────────────────────────────────────────────────────────────────
     if (process.env.FAMILY_DIGEST_ENABLED !== 'true') {
         return NextResponse.json({
             success: false,
             paused: true,
-            reason: 'family-digest paused: building congruence layer (feedingMethod / mobilityStatus / careModality gating). Set FAMILY_DIGEST_ENABLED=true to re-enable.',
+            reason: 'family-digest paused: congruence layer in place, awaiting nursing to mark patient profiles (feedingMethod/mobilityStatus/careModality) before re-enable. Set FAMILY_DIGEST_ENABLED=true and restore cron schedule to resume.',
         }, { status: 503 });
     }
 
@@ -73,6 +82,9 @@ export async function GET(req: Request) {
 
         // Residentes activos con al menos un familiar REGISTRADO (isRegistered:true).
         // Sin esto, gastamos Gemini en residentes cuya familia nunca lo va a ver.
+        // Nota: el chokepoint de congruencia (getFamilyContentPolicy) re-evalúa
+        // estado/modalidad por residente — HOSPITAL/HOSPICE/AWAY se saltan abajo
+        // aun cuando el status base sea ACTIVE (ej. HOSPICE) o llegue a este loop.
         const patients = await prisma.patient.findMany({
             where: {
                 status: 'ACTIVE',
@@ -83,6 +95,9 @@ export async function GET(req: Request) {
                 name: true,
                 headquartersId: true,
                 familyShareLevel: true,
+                // Capa de congruencia: incluye SIEMPRE estos 5 campos para que
+                // los helpers decidan qué se le puede contar a la familia.
+                ...PATIENT_CONGRUENCE_SELECT,
                 dailyLogs: {
                     where: { createdAt: { gte: digestDate } },
                     orderBy: { createdAt: 'desc' },
@@ -108,27 +123,47 @@ export async function GET(req: Request) {
         // Procesa UN residente — usado dentro del lote paralelo.
         async function processOne(p: typeof patients[0]): Promise<{ ok: boolean; patientId: string; error?: string }> {
             try {
-                const log = p.dailyLogs[0];
-                const foodPct = log?.foodIntake ?? null;
-                const foodBand = computeFoodBand(foodPct);
+                // ─── Capa de congruencia ─────────────────────────────────
+                // 1. Política: ¿este residente recibe digest hoy?
+                const policy = getFamilyContentPolicy(p);
+                if (!policy.allowAutoDigest) {
+                    return { ok: true, patientId: p.id, error: `skipped:${policy.state}` };
+                }
 
-                // Solo notas de estilo de vida — descarta las de alerta clínica via helper centralizado
-                const notasLimpias: string[] = [
+                const log = p.dailyLogs[0];
+                const foodPctRaw = log?.foodIntake ?? null;
+                const foodBandRaw = computeFoodBand(foodPctRaw);
+
+                // 2. Filtrado de inputs antes del prompt — PEG/NPO → cero foodBand;
+                //    BEDRIDDEN → cero activityNote; notas wellness filtradas por keyword.
+                const foodBand = policy.constraints.allowOralFood ? foodBandRaw : null;
+
+                const notasLimpiasRaw: string[] = [
                     log?.notes && !log.isClinicalAlert && isCleanNote(log.notes) ? log.notes : null,
                     ...p.wellnessNotes.map((n) => n.note).filter((n) => isCleanNote(n)),
                 ]
                     .filter((n): n is string => !!n)
                     .slice(0, 3);
 
-                const activityNote = notasLimpias[0]?.replace(/^\[Zendi Update\]\s*/i, '').trim() || null;
+                const notasLimpias = filterCongruentNotes(p, notasLimpiasRaw);
+                const activityNote = policy.constraints.allowActivityMention
+                    ? notasLimpias[0]?.replace(/^\[Zendi Update\]\s*/i, '').trim() || null
+                    : null;
 
-                const contexto =
-                    [
-                        foodBand ? `Ingesta del día: ${foodBand}.` : null,
-                        notasLimpias.length ? `Notas del equipo: ${notasLimpias.join('. ')}.` : null,
-                    ]
-                        .filter(Boolean)
-                        .join(' ') || 'Día tranquilo, sin novedades significativas.';
+                // 3. Regla "o nada": si tras filtrar no queda contexto concreto, NO generes.
+                const tieneFood = !!foodBand;
+                const tieneNotas = notasLimpias.length > 0;
+                if (!tieneFood && !tieneNotas) {
+                    return { ok: true, patientId: p.id, error: 'skipped:no-congruent-context' };
+                }
+
+                const contexto = [
+                    tieneFood ? `Ingesta del día: ${foodBand}.` : null,
+                    tieneNotas ? `Notas del equipo: ${notasLimpias.join('. ')}.` : null,
+                ].filter(Boolean).join(' ');
+
+                // 4. Prompt con reglas duras de congruencia inyectadas
+                const congruenceRules = buildCongruentPromptRules(p);
 
                 const prompt = `
 Eres Zendi, la voz cálida del equipo de cuidado de una residencia de adultos mayores.
@@ -136,11 +171,13 @@ Escribe un resumen del día para la familia del residente "${p.name}", en españ
 
 Contexto de estilo de vida del día (lo único que conoces): "${contexto}"
 
-Reglas estrictas:
+${congruenceRules}
+
+Reglas de forma:
 - 2 a 3 oraciones, en primera persona del equipo ("Hoy ${p.name}...").
 - Enfócate en bienestar, ánimo y vida diaria. NO menciones signos vitales, medicamentos, diagnósticos ni números clínicos.
-- Si no hubo novedades, transmite calma y normalidad — un buen día tranquilo también es una buena noticia. Nunca insinúes que falta información.
 - Nada de promesas médicas. Nada alarmante.
+- Solo menciona hechos del contexto recibido. NO inventes ni uses plantillas alegres genéricas.
 
 Devuelve SOLO este JSON (sin markdown, sin backticks):
 { "narrative": "el resumen del día" }
@@ -153,8 +190,19 @@ Devuelve SOLO este JSON (sin markdown, sin backticks):
                     .trim();
 
                 const parsed = JSON.parse(textResponse);
-                const narrative = (parsed.narrative || '').trim();
-                if (!narrative) throw new Error('Gemini no devolvió narrativa.');
+                const narrativeRaw = (parsed.narrative || '').trim();
+                if (!narrativeRaw) {
+                    // El modelo respetó "devuelve vacío" — regla "o nada" satisfecha.
+                    return { ok: true, patientId: p.id, error: 'skipped:gemini-empty' };
+                }
+
+                // 5. Red final post-generación: si el modelo igual mencionó algo prohibido,
+                //    descartamos. NO persistimos contenido incongruente.
+                const narrative = verifyCongruentOutput(p, narrativeRaw);
+                if (!narrative) {
+                    console.warn('[family-digest] descartado por verifyCongruentOutput', { patientId: p.id, reasons: policy.constraints.reasons, narrativeRaw });
+                    return { ok: true, patientId: p.id, error: 'skipped:incongruent-output' };
+                }
 
                 // medsOnTrack derivado de MedicationAdministration del día clínico actual.
                 // null si no hubo administraciones registradas; true si todas en regla;
