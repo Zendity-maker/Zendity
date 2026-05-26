@@ -254,3 +254,113 @@ export async function computeShiftCoverage(params: {
         shiftStartUtc,
     };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// resolveCaregiverCurrentColors — qué colores cubre un caregiver AHORA
+// ────────────────────────────────────────────────────────────────────────────
+// Devuelve los colores efectivos del caregiver para el shiftType actual.
+// Anclar al turno ACTUAL es la diferencia crítica: una caregiver pautada NIGHT
+// (10pm-6am) que hace clock-in a las 6pm (4h antes) NO es dueña de NIGHT-BLUE
+// hasta que efectivamente comience NIGHT. Antes de las 10pm, esta función
+// devuelve [] para ella — su pauta no aplica todavía.
+//
+// Esto bloquea el bug "Brendalis clock-in 6pm → Mariangelie pierde cobertura
+// del AZUL prematuramente". Ver shift/start Sprint N.3 Parte C.
+//
+// Fuentes consultadas, en orden de precedencia:
+//   1. ShiftColorAssignment del día (coberturas explícitas — SUMAN al base).
+//   2. ScheduledShift CON shiftType === inferShiftTypeFromAST(at) (color base).
+//   3. Fallback overtime: si el caregiver tiene session activa y su pauta del
+//      día NO coincide con el shiftType actual, NO cae a "tomar cualquier
+//      pauta del día" — devuelve []. La lógica de turnos largos (FULL_DAY,
+//      FULL_NIGHT) sí matchea porque esos shiftTypes representan ventanas
+//      completas que sí abarcan el reloj actual.
+//
+// La función es PURA respecto a entradas (caregiverId, hqId, at) y queries
+// Prisma — no lee session ni headers. Testeable en aislamiento.
+//
+// Devuelve los colores como string[] (ej. ['BLUE'], [], ['BLUE','YELLOW']).
+// ════════════════════════════════════════════════════════════════════════════
+export async function resolveCaregiverCurrentColors(params: {
+    caregiverId: string;
+    hqId: string;
+    /** Hora a evaluar. Por defecto: now. Pasar `shiftSession.startTime` si
+     *  quieres anclar al momento del clock-in en vez del momento actual. */
+    at?: Date;
+}): Promise<string[]> {
+    const { caregiverId, hqId, at } = params;
+    const dayStart = todayStartAST();
+
+    // 1. ShiftColorAssignments del día — coberturas adicionales explícitas
+    const colorAssignments = await prisma.shiftColorAssignment.findMany({
+        where: {
+            headquartersId: hqId,
+            userId: caregiverId,
+            assignedAt: { gte: dayStart },
+        },
+        select: { color: true },
+    });
+    const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
+
+    // 2. ScheduledShift del caregiver cuya ventana CONTIENE la hora `at`.
+    //    Una pauta NIGHT (22–06) no aplica a las 6pm. Una pauta FULL_NIGHT
+    //    (18–06) sí aplica a las 6pm porque su ventana incluye esa hora.
+    //    Evaluación por hora exacta (no por bucket) para no incluir turnos
+    //    futuros — el bug Brendalis era exactamente esto.
+    const compatibleShiftTypes = compatibleShiftTypesAt(at);
+
+    const scheduledNow = await prisma.scheduledShift.findFirst({
+        where: {
+            userId: caregiverId,
+            date: { gte: dayStart },
+            isAbsent: false,
+            shiftType: { in: compatibleShiftTypes as any[] },
+            colorGroup: { not: null },
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+        },
+        select: { colorGroup: true },
+    });
+    const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
+        ? [scheduledNow.colorGroup]
+        : [];
+
+    // Unión deduplicada
+    return Array.from(new Set([...baseColor, ...overrideColors]));
+}
+
+/**
+ * Devuelve los `ScheduledShift.shiftType` cuya ventana AST contiene la hora
+ * `at`. La diferencia con `inferShiftTypeFromAST` es que aquella devuelve
+ * UN bucket (MORNING/EVENING/NIGHT), mientras que esta devuelve TODOS los
+ * shiftTypes activos en ese minuto — incluyendo turnos largos (FULL_DAY,
+ * FULL_NIGHT) que coexisten con los regulares.
+ *
+ * Ventanas AST:
+ *   MORNING:    06–14
+ *   EVENING:    14–22
+ *   NIGHT:      22–06
+ *   FULL_DAY:   06–18
+ *   FULL_NIGHT: 18–06
+ *
+ * Edge cases:
+ *   - A las 14:30 (early EVENING): EVENING + FULL_DAY (no FULL_NIGHT, no MORNING).
+ *   - A las 18:30 (late EVENING):  EVENING + FULL_NIGHT (FULL_DAY ya terminó).
+ *   - A las 22:00 (NIGHT start):   NIGHT + FULL_NIGHT.
+ *
+ * Esta precisión por hora evita que una caregiver pautada FULL_NIGHT (18–06)
+ * aparezca como "cubriendo EVENING" a las 14:30 — su turno no inicia hasta
+ * las 18:00.
+ */
+export function compatibleShiftTypesAt(at?: Date): ShiftT[] {
+    const astFmt = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', hour12: false, timeZone: 'America/Puerto_Rico',
+    });
+    const hAst = parseInt(astFmt.format(at ?? new Date()), 10) % 24;
+    const out: ShiftT[] = [];
+    if (hAst >= 6 && hAst < 14)  out.push('MORNING');
+    if (hAst >= 14 && hAst < 22) out.push('EVENING');
+    if (hAst >= 22 || hAst < 6)  out.push('NIGHT');
+    if (hAst >= 6 && hAst < 18)  out.push('FULL_DAY');
+    if (hAst >= 18 || hAst < 6)  out.push('FULL_NIGHT');
+    return out;
+}
