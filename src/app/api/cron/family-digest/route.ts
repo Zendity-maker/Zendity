@@ -43,6 +43,31 @@ export async function GET(req: Request) {
         return new Response('Unauthorized', { status: 401 });
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // PAUSA INMEDIATA — capa de congruencia en construcción.
+    //
+    // Suspendido a propósito hasta que esté en su lugar la capa de congruencia
+    // (feedingMethod / mobilityStatus / careModality + chokepoint de política
+    // familiar + regla "o nada"). Sin esos guardarraíles el digest puede generar
+    // contenido incongruente con la realidad clínica del residente — ej.
+    // mencionar comida a un paciente PEG, actividades a un encamado, "su día"
+    // alegre a un residente en hospicio.
+    //
+    // El schedule fue quitado de vercel.json. Este gate es defensa en
+    // profundidad por si alguien hace ping manual al endpoint.
+    //
+    // Para re-habilitar (SOLO cuando los constraints duros estén verificados):
+    // setear env FAMILY_DIGEST_ENABLED=true en Vercel. Ver src/lib/family/
+    // congruence.ts (Fase A en construcción).
+    // ──────────────────────────────────────────────────────────────────────────
+    if (process.env.FAMILY_DIGEST_ENABLED !== 'true') {
+        return NextResponse.json({
+            success: false,
+            paused: true,
+            reason: 'family-digest paused: building congruence layer (feedingMethod / mobilityStatus / careModality gating). Set FAMILY_DIGEST_ENABLED=true to re-enable.',
+        }, { status: 503 });
+    }
+
     try {
         const digestDate = todayStartAST();
 
