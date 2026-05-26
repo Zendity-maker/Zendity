@@ -572,14 +572,15 @@ model Patient {
   // FULL: vista clínica completa (vitales + meds), solo con consentimiento explícito del residente.
   familyShareLevel String @default("LIFESTYLE") // "LIFESTYLE" | "FULL"
 
-  // ─── CAPA DE CONGRUENCIA (Fase A) ─────────────────────────────────────────
-  // Perfil clínico/funcional que constriñe DURO la generación de contenido
-  // familiar. Cualquier generador (digest, momentos, etc.) consulta estos
-  // campos vía src/lib/family/congruence.ts y NUNCA produce contenido que
-  // contradiga la realidad. Ej: PEG → cero menciones de comida.
-  feedingMethod  FeedingMethod  @default(ORAL)        // Cómo come
-  mobilityStatus MobilityStatus @default(AMBULATORY)  // Cómo se mueve
-  careModality   CareModality   @default(NONE)        // Modalidad de cuidado (NONE/PALLIATIVE/HOSPICE)
+  // ─── CAPA DE CONGRUENCIA — modalidad de cuidado ──────────────────────────
+  // Determina el tono de la comunicación familiar (HOSPICE → cero highlights
+  // alegres, PALLIATIVE → tono reservado). Vive en Patient (no en LifePlan)
+  // para evitar ambigüedad de draft/approved al consultarlo el chokepoint.
+  // Alimentación y movilidad se DERIVAN de Patient.diet + IntakeData/LifePlan
+  // existentes — ver src/lib/family/congruence.ts.
+  careModality      CareModality @default(NONE)
+  hospiceProvider   String?      // Nombre de la agencia (solo si careModality=HOSPICE)
+  hospiceStartDate  DateTime?    // Fecha de ingreso a hospicio
 
   // FASE 52: Documentos Críticos del Residente (Fotografías)
   idCardUrl       String?
@@ -1881,23 +1882,11 @@ enum LeaveType {
   OTHER
 }
 
-// ─── CAPA DE CONGRUENCIA (Fase A) ─────────────────────────────────────────
-// Estos enums constriñen el contenido generado para la familia. Cualquier
-// generador (digest, momentos) consulta src/lib/family/congruence.ts y nunca
-// produce mensajes que contradigan estos hechos del perfil del residente.
-
-enum FeedingMethod {
-  ORAL  // Come por boca — única vía donde mencionar comida es congruente
-  PEG   // Sonda gástrica — nunca mencionar comida/apetito/sabores
-  NPO   // Nada por boca (Nil Per Os) — idem
-}
-
-enum MobilityStatus {
-  AMBULATORY   // Camina por sí mismo
-  ASSISTED     // Camina con asistencia (andador, bastón, personal)
-  WHEELCHAIR   // Silla de ruedas
-  BEDRIDDEN    // Encamado — nunca mencionar actividades/salidas/"participó"
-}
+// ─── CAPA DE CONGRUENCIA — modalidad de cuidado ────────────────────────────
+// Único enum persistido. Alimentación se DERIVA de Patient.diet (string libre,
+// ya poblado al 100% en prod). Movilidad se DERIVA de IntakeData.mobilityLevel
+// y LifePlan.mobility (ya poblados al 100%). Ver src/lib/family/congruence.ts
+// para los tipos TS y las funciones derivadas.
 
 enum CareModality {
   NONE        // Cuidado regular

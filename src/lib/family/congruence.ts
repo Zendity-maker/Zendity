@@ -8,148 +8,206 @@
  * contenido que contradiga la realidad clínica/funcional del residente. Si no
  * hay nada congruente y cierto que decir, no se dice nada.
  *
- * Patrón espejo de src/lib/family/disclosure.ts (LIFESTYLE/FULL gating) — un
- * solo módulo, todas las superficies lo consultan. Cuando añadas una nueva
- * ruta familiar mañana, importa estos helpers y olvídate del resto.
+ * FUENTES DE LA VERDAD (no duplicamos campos):
+ *   - Alimentación: Patient.diet (string libre) — heurística conservadora.
+ *     Solo Patient.careModality es columna nueva.
+ *   - Movilidad: LifePlan.mobility (más reciente) → IntakeData.mobilityLevel
+ *     como fallback. Vocabulario existente: INDEPENDENT|ASSISTED|WHEELCHAIR|BEDRIDDEN.
+ *   - Modalidad: Patient.careModality (NONE|PALLIATIVE|HOSPICE) — único campo nuevo.
  *
- * Estructura:
- *   - resolveFamilyCareState(p)       → estado de comunicación (6 valores)
- *   - getCongruenceConstraints(p)     → constraints DUROS del perfil
- *   - getFamilyContentPolicy(p)       → combina ambos en decisiones de alto nivel
- *   - filterCongruentInputs(p, raw)   → quita data de entrada que violaría constraints
- *   - buildCongruentPromptRules(p)    → reglas duras como string para prompts IA
- *   - PATIENT_CONGRUENCE_SELECT       → fragment Prisma para no olvidar campos
+ * Patrón espejo de src/lib/family/disclosure.ts (LIFESTYLE/FULL gating).
  */
 
-// ─── Tipos públicos ────────────────────────────────────────────────────────
+// ─── Tipos públicos (string-literal unions, no Prisma enums) ───────────────
+// FeedingMethod y MobilityStatus son TIPOS del chokepoint — derivados de
+// strings existentes, no persistidos como columnas. Esto evita duplicación.
 
-/**
- * Estado de comunicación con la familia, derivado de status + leaveType + careModality.
- * No siempre es el "estado clínico" — es el estado relevante para decidir qué se le
- * dice (o no) a la familia.
- */
+export type FeedingMethod = 'ORAL' | 'PEG' | 'NPO';
+export type MobilityStatus = 'AMBULATORY' | 'ASSISTED' | 'WHEELCHAIR' | 'BEDRIDDEN';
+export type CareModality = 'NONE' | 'PALLIATIVE' | 'HOSPICE';
+
 export type FamilyCareState =
     | 'ACTIVE'      // En el hogar, cuidado regular
     | 'HOSPITAL'    // status=TEMPORARY_LEAVE + leaveType=HOSPITAL
     | 'AWAY'        // status=TEMPORARY_LEAVE + leaveType ∈ {FAMILY_VISIT, OTHER, DIALYSIS}
-    | 'PALLIATIVE'  // status=ACTIVE pero careModality=PALLIATIVE (tono reservado)
-    | 'HOSPICE'     // status=ACTIVE pero careModality=HOSPICE (cero highlights)
+    | 'PALLIATIVE'  // status=ACTIVE + careModality=PALLIATIVE (tono reservado)
+    | 'HOSPICE'     // status=ACTIVE + careModality=HOSPICE (cero highlights)
     | 'DISCHARGED'  // Egresado permanentemente
     | 'DECEASED';   // Falleció — lockdown total
 
-/**
- * Constraints DUROS derivados del perfil funcional del residente. Estos NO dependen
- * del estado — son verdades permanentes sobre el residente que ningún generador
- * puede ignorar.
- */
 export interface CongruenceConstraints {
-    /** ¿Se le puede mencionar comida/alimentación oral? Falso si PEG o NPO. */
     allowOralFood: boolean;
-    /** ¿Se le puede mencionar actividad/movilidad/salidas? Falso si BEDRIDDEN. */
     allowActivityMention: boolean;
-    /** Etiqueta funcional para prompts: "está encamado", "se alimenta por PEG", etc. */
     profileTags: string[];
-    /** Razón corta de por qué cada constraint aplica (para logs/diagnóstico). */
     reasons: string[];
+    /** Valores derivados para diagnóstico (no se usan en lógica). */
+    derivedFeedingMethod: FeedingMethod;
+    derivedMobilityStatus: MobilityStatus;
 }
 
-/**
- * Política de alto nivel para una superficie familiar. Combina estado +
- * constraints en flags listos para usar.
- */
 export interface FamilyContentPolicy {
     state: FamilyCareState;
     constraints: CongruenceConstraints;
-
-    // Generación automatizada
-    allowAutoDigest:      boolean;  // Cron family-digest
-    allowAutoMoments:     boolean;  // Sugerencias IA de momentos
+    allowAutoDigest:      boolean;
+    allowAutoMoments:     boolean;
     allowFeedAggregation: 'full' | 'historical' | 'none';
-
-    // Acciones del staff
-    allowStaffMoment:     boolean;  // Aprobar/enviar momento al familiar
+    allowStaffMoment:     boolean;
     allowStaffBroadcast:  boolean;
-
-    // Acciones del familiar
     allowAppointment:     'full' | 'visit_only' | 'none';
-
-    // UI del dashboard familiar
     dashboardMode:        'normal' | 'paused' | 'gentle' | 'farewell' | 'memorial';
-
-    /** Banner empático para mostrar al familiar. Null si el modo no usa banner. */
     bannerCopy: string | null;
 }
 
-// ─── Tipo del input que estos helpers esperan ──────────────────────────────
+// ─── Input del chokepoint: el GRAFO, no solo Patient ───────────────────────
 
 /**
- * Forma mínima del paciente que estos helpers necesitan. Cualquier fetch
- * Prisma debe incluir PATIENT_CONGRUENCE_SELECT (más abajo) para garantizar
- * que estos campos estén presentes.
+ * Forma mínima del paciente + relaciones que el chokepoint necesita. Cualquier
+ * fetch Prisma debe usar PATIENT_CONGRUENCE_INCLUDE (más abajo) para que la
+ * data llegue completa. La precedencia es:
+ *   - feeding: derivado de patient.diet (única fuente, ya poblada al 100%)
+ *   - mobility: lifePlan.mobility (más reciente) → intakeData.mobilityLevel
+ *   - modality: patient.careModality (campo persistido en Patient)
  */
 export interface CongruencePatientInput {
     name?: string | null;
     status?: 'ACTIVE' | 'DISCHARGED' | 'DECEASED' | 'TEMPORARY_LEAVE' | null;
     leaveType?: 'HOSPITAL' | 'FAMILY_VISIT' | 'DIALYSIS' | 'OTHER' | null;
-    feedingMethod?: 'ORAL' | 'PEG' | 'NPO' | null;
-    mobilityStatus?: 'AMBULATORY' | 'ASSISTED' | 'WHEELCHAIR' | 'BEDRIDDEN' | null;
+    diet?: string | null;
     careModality?: 'NONE' | 'PALLIATIVE' | 'HOSPICE' | null;
+    intakeData?: { mobilityLevel?: string | null } | null;
+    /** Pasar el LifePlan más reciente del paciente (cualquier status). El que
+     *  exista. Si hay APPROVED y DRAFT, mandar el más reciente — la lógica
+     *  arriba ya decide el ordenamiento. */
+    lifePlans?: Array<{ mobility?: string | null; updatedAt?: Date | null; status?: string | null }>;
 }
 
 /**
- * Fragment de select Prisma — cualquier query que vaya a pasar el paciente
- * a estos helpers debe incluir esto en su `select`. Es la forma de no olvidar
- * un campo al añadir una superficie nueva.
+ * Include fragment para fetches Prisma. Patient + intakeData + 1 LifePlan
+ * más reciente. Cualquier ruta que vaya a pasar al chokepoint debe usar esto.
  *
+ * Ejemplo:
  *   const patient = await prisma.patient.findUnique({
  *     where: { id },
- *     select: { ...PATIENT_CONGRUENCE_SELECT, name: true, photoUrl: true, ... },
+ *     include: PATIENT_CONGRUENCE_INCLUDE,
  *   });
+ *   const policy = getFamilyContentPolicy(patient);
+ */
+export const PATIENT_CONGRUENCE_INCLUDE = {
+    intakeData: { select: { mobilityLevel: true } },
+    lifePlans: {
+        orderBy: { updatedAt: 'desc' as const },
+        take: 1,
+        select: { mobility: true, updatedAt: true, status: true },
+    },
+} as const;
+
+/**
+ * Para queries que ya hacen `select` explícito (no include), añade estos campos
+ * del propio Patient además del bloque de relaciones de arriba.
  */
 export const PATIENT_CONGRUENCE_SELECT = {
     status: true,
     leaveType: true,
-    feedingMethod: true,
-    mobilityStatus: true,
+    diet: true,
     careModality: true,
 } as const;
 
-// ─── Resolutores ───────────────────────────────────────────────────────────
+// ─── Derivadores: alimentación desde diet, movilidad desde LP/Intake ───────
 
 /**
- * Deriva el estado de comunicación familiar.
- *
- * Precedencia (de más severo a menos):
- *   DECEASED > DISCHARGED > HOSPITAL > AWAY > HOSPICE > PALLIATIVE > ACTIVE
- *
- * HOSPICE/PALLIATIVE sólo aplican si el paciente sigue ACTIVE en el hogar —
- * un hospitalizado en hospicio se reporta como HOSPITAL (la familia ya sabe
- * que está afuera; ese es el dato dominante).
+ * Heurística para derivar feeding method de Patient.diet (texto libre).
+ * CONSERVADORA: ante CUALQUIER ambigüedad → no-oral.
+ * Asimetría: falso "no menciona comida" es inofensivo; falso "comió bien" es el daño.
  */
+const PEG_KEYWORDS = [
+    'peg', 'p.e.g.', 'p e g',
+    'sonda', 'tubo', 'g-tube', 'g tube', 'gtube',
+    'gastrostomía', 'gastrostomia', 'gastrostomy',
+    'enteral', 'enteric',
+    'nasogastr', 'ng tube',  // sonda nasogástrica
+    'jejunostom', 'j-tube',
+    // Marcas de fórmula enteral — si el residente recibe una de estas como
+    // dieta, es señal fuerte de alimentación por sonda. El panel de
+    // verificación del perfil es el backstop humano para marcas exóticas.
+    'jevity', 'glucerna', 'osmolite', 'nepro',
+    'isosource', 'pulmocare', 'fibersource', 'vital',
+];
+
+const NPO_KEYWORDS = [
+    'npo', 'n.p.o.', 'n p o',
+    'nada por boca',
+    'nil per os',
+    'nothing by mouth',
+];
+
+export function derivedFeedingMethod(diet: string | null | undefined): FeedingMethod {
+    if (!diet || !diet.trim()) {
+        // Sin dato → conservador. Tratamos como NO oral para no asumir nada.
+        return 'NPO';
+    }
+    const lower = diet.toLowerCase();
+    if (NPO_KEYWORDS.some((kw) => lower.includes(kw))) return 'NPO';
+    if (PEG_KEYWORDS.some((kw) => lower.includes(kw))) return 'PEG';
+    return 'ORAL';
+}
+
+/**
+ * Mapeo del vocabulario string (Intake/LifePlan usan INDEPENDENT, ASSISTED,
+ * WHEELCHAIR, BEDRIDDEN) al enum TS del chokepoint.
+ *
+ * INDEPENDENT y AMBULATORY son el mismo concepto — usamos AMBULATORY como
+ * label canónico del chokepoint (más legible para copy familiar).
+ *
+ * Conservador: cualquier string que no reconozcamos → no permitir mención de
+ * actividad (mapeamos a BEDRIDDEN para apagar el flag, no para etiquetar).
+ * Bueno saber que es desconocido — pero en duda, no mentir.
+ */
+export function derivedMobilityStatus(raw: string | null | undefined): MobilityStatus {
+    if (!raw || !raw.trim()) {
+        // Sin dato → asumimos lo más restrictivo (no permitir actividad).
+        return 'BEDRIDDEN';
+    }
+    const v = raw.trim().toUpperCase();
+    if (v === 'INDEPENDENT' || v === 'AMBULATORY') return 'AMBULATORY';
+    if (v === 'ASSISTED' || v === 'WALKING_WITH_AID' || v === 'WITH_AID') return 'ASSISTED';
+    if (v === 'WHEELCHAIR' || v === 'SILLA' || v === 'SILLA_DE_RUEDAS') return 'WHEELCHAIR';
+    if (v === 'BEDRIDDEN' || v === 'ENCAMADO' || v === 'BED-BOUND' || v === 'BEDBOUND') return 'BEDRIDDEN';
+    // Valor desconocido → conservador.
+    return 'BEDRIDDEN';
+}
+
+/**
+ * Resolver de movilidad efectiva del paciente con precedencia
+ * `LifePlan.mobility (más reciente) > IntakeData.mobilityLevel`.
+ * El caller pasa `lifePlans` ya ordenado desc por updatedAt (take:1).
+ */
+export function resolveEffectiveMobility(input: CongruencePatientInput): MobilityStatus {
+    const latestLp = input.lifePlans?.[0];
+    if (latestLp?.mobility && latestLp.mobility.trim()) {
+        return derivedMobilityStatus(latestLp.mobility);
+    }
+    return derivedMobilityStatus(input.intakeData?.mobilityLevel);
+}
+
+// ─── Resolutores ───────────────────────────────────────────────────────────
+
 export function resolveFamilyCareState(p: CongruencePatientInput | null | undefined): FamilyCareState {
     if (!p) return 'ACTIVE';
-
     if (p.status === 'DECEASED') return 'DECEASED';
     if (p.status === 'DISCHARGED') return 'DISCHARGED';
-
     if (p.status === 'TEMPORARY_LEAVE') {
         if (p.leaveType === 'HOSPITAL') return 'HOSPITAL';
         return 'AWAY';
     }
-
-    // status === 'ACTIVE' (o null por seguridad)
     if (p.careModality === 'HOSPICE') return 'HOSPICE';
     if (p.careModality === 'PALLIATIVE') return 'PALLIATIVE';
     return 'ACTIVE';
 }
 
-/**
- * Deriva los constraints duros del perfil funcional. Estos aplican siempre,
- * sin importar el estado — son hechos sobre cómo es el residente HOY.
- */
 export function getCongruenceConstraints(p: CongruencePatientInput | null | undefined): CongruenceConstraints {
-    const feeding = p?.feedingMethod ?? 'ORAL';
-    const mobility = p?.mobilityStatus ?? 'AMBULATORY';
+    const safe = p ?? {};
+    const feeding = derivedFeedingMethod(safe.diet);
+    const mobility = resolveEffectiveMobility(safe);
 
     const allowOralFood = feeding === 'ORAL';
     const allowActivityMention = mobility !== 'BEDRIDDEN';
@@ -159,149 +217,104 @@ export function getCongruenceConstraints(p: CongruencePatientInput | null | unde
 
     if (feeding === 'PEG') {
         profileTags.push('se alimenta por sonda PEG');
-        reasons.push('feedingMethod=PEG');
+        reasons.push(`derivedFeedingMethod=PEG (diet="${safe.diet}")`);
     } else if (feeding === 'NPO') {
         profileTags.push('está en NPO (nada por boca)');
-        reasons.push('feedingMethod=NPO');
+        reasons.push(`derivedFeedingMethod=NPO (diet="${safe.diet ?? '(vacío)'}")`);
     }
 
     if (mobility === 'BEDRIDDEN') {
         profileTags.push('está encamado');
-        reasons.push('mobilityStatus=BEDRIDDEN');
+        reasons.push(`mobility=BEDRIDDEN`);
     } else if (mobility === 'WHEELCHAIR') {
         profileTags.push('usa silla de ruedas');
-        reasons.push('mobilityStatus=WHEELCHAIR');
+        reasons.push(`mobility=WHEELCHAIR`);
     } else if (mobility === 'ASSISTED') {
         profileTags.push('camina con asistencia');
-        reasons.push('mobilityStatus=ASSISTED');
+        reasons.push(`mobility=ASSISTED`);
     }
 
-    if (p?.careModality === 'HOSPICE') {
+    if (safe.careModality === 'HOSPICE') {
         profileTags.push('está en hospicio');
         reasons.push('careModality=HOSPICE');
-    } else if (p?.careModality === 'PALLIATIVE') {
+    } else if (safe.careModality === 'PALLIATIVE') {
         profileTags.push('está en cuidado paliativo');
         reasons.push('careModality=PALLIATIVE');
     }
 
-    return { allowOralFood, allowActivityMention, profileTags, reasons };
+    return {
+        allowOralFood,
+        allowActivityMention,
+        profileTags,
+        reasons,
+        derivedFeedingMethod: feeding,
+        derivedMobilityStatus: mobility,
+    };
 }
 
-/**
- * Política de alto nivel para una superficie familiar. Lo que llaman las rutas.
- */
 export function getFamilyContentPolicy(p: CongruencePatientInput | null | undefined): FamilyContentPolicy {
     const state = resolveFamilyCareState(p);
     const constraints = getCongruenceConstraints(p);
     const name = p?.name?.trim() || 'su familiar';
 
-    // Política por estado. Las reglas vienen de la spec del dueño.
     switch (state) {
         case 'ACTIVE':
-            return {
-                state, constraints,
-                allowAutoDigest:      true,
-                allowAutoMoments:     true,
+            return { state, constraints,
+                allowAutoDigest: true, allowAutoMoments: true,
                 allowFeedAggregation: 'full',
-                allowStaffMoment:     true,
-                allowStaffBroadcast:  true,
-                allowAppointment:     'full',
-                dashboardMode:        'normal',
-                bannerCopy:           null,
-            };
-
+                allowStaffMoment: true, allowStaffBroadcast: true,
+                allowAppointment: 'full',
+                dashboardMode: 'normal', bannerCopy: null };
         case 'HOSPITAL':
-            return {
-                state, constraints,
-                allowAutoDigest:      false,
-                allowAutoMoments:     false,
+            return { state, constraints,
+                allowAutoDigest: false, allowAutoMoments: false,
                 allowFeedAggregation: 'none',
-                allowStaffMoment:     false,  // el equipo de Vivid no narra mientras está en el hospital
-                allowStaffBroadcast:  false,
-                allowAppointment:     'none',
-                dashboardMode:        'paused',
-                bannerCopy:           `Estamos al pendiente de ${name}, esperamos que todo esté bien. Recuerde mantenernos informados.`,
-            };
-
+                allowStaffMoment: false, allowStaffBroadcast: false,
+                allowAppointment: 'none',
+                dashboardMode: 'paused',
+                bannerCopy: `Estamos al pendiente de ${name}, esperamos que todo esté bien. Recuerde mantenernos informados.` };
         case 'AWAY':
-            return {
-                state, constraints,
-                allowAutoDigest:      false,
-                allowAutoMoments:     false,
+            return { state, constraints,
+                allowAutoDigest: false, allowAutoMoments: false,
                 allowFeedAggregation: 'historical',
-                allowStaffMoment:     true,
-                allowStaffBroadcast:  true,
-                allowAppointment:     'full',
-                dashboardMode:        'paused',
-                bannerCopy:           `${name} está fuera de la residencia por unas horas. Te avisaremos cuando regrese.`,
-            };
-
+                allowStaffMoment: true, allowStaffBroadcast: true,
+                allowAppointment: 'full',
+                dashboardMode: 'paused',
+                bannerCopy: `${name} está fuera de la residencia por unas horas. Te avisaremos cuando regrese.` };
         case 'HOSPICE':
-            return {
-                state, constraints,
-                allowAutoDigest:      false,  // cero highlights alegres
-                allowAutoMoments:     false,
+            return { state, constraints,
+                allowAutoDigest: false, allowAutoMoments: false,
                 allowFeedAggregation: 'historical',
-                allowStaffMoment:     true,   // mensajes humanos del equipo SÍ, tono reservado
-                allowStaffBroadcast:  false,
-                allowAppointment:     'visit_only',
-                dashboardMode:        'gentle',
-                bannerCopy:           `${name} está cómoda y bien acompañada. El equipo está atento. Llámanos cuando nos necesites.`,
-            };
-
+                allowStaffMoment: true, allowStaffBroadcast: false,
+                allowAppointment: 'visit_only',
+                dashboardMode: 'gentle',
+                bannerCopy: `${name} está cómoda y bien acompañada. El equipo está atento. Llámanos cuando nos necesites.` };
         case 'PALLIATIVE':
-            return {
-                state, constraints,
-                allowAutoDigest:      true,   // permitido pero los constraints recortan tono
-                allowAutoMoments:     false,  // momentos auto pueden ser inadecuados; staff sí
+            return { state, constraints,
+                allowAutoDigest: true, allowAutoMoments: false,
                 allowFeedAggregation: 'full',
-                allowStaffMoment:     true,
-                allowStaffBroadcast:  true,
-                allowAppointment:     'full',
-                dashboardMode:        'gentle',
-                bannerCopy:           null,
-            };
-
+                allowStaffMoment: true, allowStaffBroadcast: true,
+                allowAppointment: 'full',
+                dashboardMode: 'gentle', bannerCopy: null };
         case 'DISCHARGED':
-            return {
-                state, constraints,
-                allowAutoDigest:      false,
-                allowAutoMoments:     false,
+            return { state, constraints,
+                allowAutoDigest: false, allowAutoMoments: false,
                 allowFeedAggregation: 'none',
-                allowStaffMoment:     false,
-                allowStaffBroadcast:  false,
-                allowAppointment:     'none',
-                dashboardMode:        'farewell',
-                bannerCopy:           null,  // sin auto-mensaje, sólo silencio
-            };
-
+                allowStaffMoment: false, allowStaffBroadcast: false,
+                allowAppointment: 'none',
+                dashboardMode: 'farewell', bannerCopy: null };
         case 'DECEASED':
-            // Lockdown total. La experiencia de duelo se diseña aparte
-            // (Fase D) y SIEMPRE la inicia un humano, nunca auto.
-            return {
-                state, constraints,
-                allowAutoDigest:      false,
-                allowAutoMoments:     false,
+            return { state, constraints,
+                allowAutoDigest: false, allowAutoMoments: false,
                 allowFeedAggregation: 'none',
-                allowStaffMoment:     false,
-                allowStaffBroadcast:  false,
-                allowAppointment:     'none',
-                dashboardMode:        'memorial',
-                bannerCopy:           null,  // banner real lo configura un humano
-            };
+                allowStaffMoment: false, allowStaffBroadcast: false,
+                allowAppointment: 'none',
+                dashboardMode: 'memorial', bannerCopy: null };
     }
 }
 
-// ─── Filtrado de inputs (la 1ra mitad de "congruente o nada") ──────────────
+// ─── Filtrado de inputs ────────────────────────────────────────────────────
 
-/**
- * Filtra data de entrada antes de pasarla a un generador. Cualquier campo que
- * violaría un constraint duro se borra. El generador nunca ve data
- * incongruente, por lo tanto no puede regurgitarla.
- *
- * Genérico: opera sobre un dict de campos. Quita keys conocidas problemáticas
- * según constraints. No transforma valores válidos.
- */
 export interface FamilyGenerationInput {
     foodIntake?: number | null;
     foodBand?: 'bien' | 'parcial' | 'poco' | null;
@@ -316,25 +329,11 @@ export function filterCongruentInputs<T extends FamilyGenerationInput>(
 ): T {
     const c = getCongruenceConstraints(p);
     const out: T = { ...raw };
-
-    if (!c.allowOralFood) {
-        out.foodIntake = null;
-        out.foodBand = null;
-    }
-    if (!c.allowActivityMention) {
-        out.activityNote = null;
-        // wellnessNotes pueden contener actividades — filtrado en consumer (heurística por keyword opcional)
-    }
-
+    if (!c.allowOralFood) { out.foodIntake = null; out.foodBand = null; }
+    if (!c.allowActivityMention) { out.activityNote = null; }
     return out;
 }
 
-/**
- * Heurística simple para detectar si un texto menciona actividad/movilidad.
- * Sirve para filtrar notas wellness cuando el paciente es BEDRIDDEN.
- * Conservadora — falsos positivos son aceptables (suprimir nota es seguro;
- * pasar nota incongruente es el bug).
- */
 const ACTIVITY_KEYWORDS = [
     'caminó', 'caminando', 'caminar',
     'salió', 'salida', 'paseo', 'paseó',
@@ -342,7 +341,7 @@ const ACTIVITY_KEYWORDS = [
     'actividad', 'actividades',
     'jugó', 'jugando',
     'bailó', 'bailando',
-    'levantó', 'sentó', 'sentada en silla', 'silla', // referencias a movilidad
+    'levantó', 'sentó', 'sentada en silla',
 ];
 
 export function noteMentionsActivity(note: string): boolean {
@@ -361,6 +360,7 @@ const FOOD_KEYWORDS = [
     'plato',
     'masticó', 'masticando',
     'tragó', 'tragando',
+    'saboreó', 'saboreaba',
 ];
 
 export function noteMentionsFood(note: string): boolean {
@@ -368,10 +368,6 @@ export function noteMentionsFood(note: string): boolean {
     return FOOD_KEYWORDS.some((kw) => n.includes(kw));
 }
 
-/**
- * Filtra una lista de notas (wellness/staff) según los constraints del paciente.
- * Quita las que mencionan comida/actividad cuando esos constraints están off.
- */
 export function filterCongruentNotes(
     p: CongruencePatientInput,
     notes: string[],
@@ -384,17 +380,8 @@ export function filterCongruentNotes(
     });
 }
 
-// ─── Reglas duras para prompts de IA (2da mitad de "congruente o nada") ────
+// ─── Reglas duras para prompts de IA ───────────────────────────────────────
 
-/**
- * Bloque de reglas para inyectar en cualquier prompt Gemini que genere
- * contenido para la familia. Defensa en profundidad sobre el filtrado de
- * inputs — si el filtrado falló o la nota libre menciona algo dudoso, el
- * prompt mismo le dice al modelo qué NO mencionar.
- *
- * Devuelve string listo para concatenar. Ejemplo:
- *   prompt = `... ${buildCongruentPromptRules(patient)} ... contexto: ${ctx}`;
- */
 export function buildCongruentPromptRules(p: CongruencePatientInput): string {
     const c = getCongruenceConstraints(p);
     const state = resolveFamilyCareState(p);
@@ -403,7 +390,9 @@ export function buildCongruentPromptRules(p: CongruencePatientInput): string {
     lines.push('REGLAS DURAS DE CONGRUENCIA — son inquebrantables:');
 
     if (!c.allowOralFood) {
-        const reason = p.feedingMethod === 'PEG' ? 'se alimenta por sonda gástrica (PEG)' : 'está en NPO (nada por boca)';
+        const reason = c.derivedFeedingMethod === 'PEG'
+            ? 'se alimenta por sonda gástrica (PEG)'
+            : 'está en NPO (nada por boca)';
         lines.push(`- Este residente ${reason}. NUNCA menciones comida, comidas, desayuno, almuerzo, cena, apetito, sabores, "comió", "disfrutó" relacionado a alimentos, ni nada similar. Sería falso y cruel.`);
     }
     if (!c.allowActivityMention) {
@@ -421,24 +410,15 @@ export function buildCongruentPromptRules(p: CongruencePatientInput): string {
     return lines.join('\n');
 }
 
-// ─── Verificación final post-generación (cinturón + tirantes) ──────────────
+// ─── Verificación final post-generación ────────────────────────────────────
 
-/**
- * Verifica que un texto generado no viole los constraints. Si los viola,
- * retorna null (que el caller interprete como "no enviar"). Es la última
- * red de seguridad antes de persistir/enviar.
- *
- * Devuelve el texto original si pasa, null si falla.
- */
 export function verifyCongruentOutput(
     p: CongruencePatientInput,
     text: string | null | undefined,
 ): string | null {
     if (!text || !text.trim()) return null;
     const c = getCongruenceConstraints(p);
-
     if (!c.allowOralFood && noteMentionsFood(text)) return null;
     if (!c.allowActivityMention && noteMentionsActivity(text)) return null;
-
     return text;
 }
