@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
-import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
 
 export async function GET(req: Request) {
     try {
@@ -13,13 +13,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, color: null });
         }
 
-        const today = new Date();
-
         // FIX — turno cruce de límite: si la cuidadora tiene una ShiftSession activa,
-        // inferir el shiftType desde el INICIO de esa sesión, no desde la hora actual.
-        // Ejemplo: inició a las 6 AM (MORNING). Si ahora son las 3 PM el reloj dice
-        // EVENING → my-color no encontraba su ScheduledShift MORNING → retornaba null
-        // → tablet vacío. Con el fix, se usa la hora de inicio (MORNING) para buscar.
+        // anclamos el filtro de shiftType al INICIO de esa sesión, no a la hora actual.
+        // Ejemplo: inició a las 6 AM (MORNING). Si ahora son las 3 PM (EVENING),
+        // necesitamos buscar su ScheduledShift MORNING — sin esto, my-color
+        // retornaría null y el tablet quedaría vacío durante el cruce.
         const activeSession = await prisma.shiftSession.findFirst({
             where: {
                 caregiverId: userId,
@@ -31,11 +29,10 @@ export async function GET(req: Request) {
             select: { id: true, startTime: true },
         });
 
-        // Si hay sesión activa → usar el shiftType del momento de inicio.
-        // Si no hay sesión → usar la hora actual (comportamiento legacy).
-        const shiftTypeToUse = activeSession
-            ? inferShiftTypeFromAST(activeSession.startTime)
-            : inferShiftTypeFromAST();
+        // Si hay sesión activa, anclamos a su startTime; si no, a la hora actual.
+        // compatibleShiftTypesAt usa esto para devolver los turnos cuya ventana
+        // CONTIENE ese momento (con tolerancia a FULL_DAY/FULL_NIGHT).
+        const evaluatedAt = activeSession?.startTime ?? undefined;
 
         // Resolver color del día (prioridad: asignación manual → roster publicado del turno)
         let resolvedColor: string | null = null;
@@ -63,29 +60,24 @@ export async function GET(req: Request) {
             resolvedColor = colorAssignment.color;
             source = 'assignment';
         } else {
-            // Buscar ScheduledShift del turno actual.
-            // Los turnos de 12h (FULL_DAY 6AM–6PM, FULL_NIGHT 6PM–6AM) se solapan con
-            // los turnos base de 8h → incluirlos siempre en el filtro para que un
-            // cuidador con turno FULL_DAY sea encontrado en cualquier momento del día.
-            const shiftTypesToCheck: string[] = [shiftTypeToUse];
-            if (shiftTypeToUse === 'MORNING' || shiftTypeToUse === 'EVENING') {
-                shiftTypesToCheck.push('FULL_DAY');
-            }
-            if (shiftTypeToUse === 'EVENING' || shiftTypeToUse === 'NIGHT') {
-                shiftTypesToCheck.push('FULL_NIGHT');
-            }
-            // Ajuste operacional: si la cuidadora entró temprano (ej. NIGHT shift
-            // pero inició durante EVENING), incluir todos los turnos del día para
-            // no quedar sin color asignado.
-            if (!shiftTypesToCheck.includes('NIGHT')) shiftTypesToCheck.push('NIGHT');
-            if (!shiftTypesToCheck.includes('MORNING')) shiftTypesToCheck.push('MORNING');
-            if (!shiftTypesToCheck.includes('EVENING')) shiftTypesToCheck.push('EVENING');
+            // Buscar ScheduledShift del turno actual. Usamos compatibleShiftTypesAt
+            // para limitar el filtro a turnos cuya ventana CONTIENE la hora actual
+            // (o la hora de inicio de sesión si está activa). Esto cierra el bug
+            // de "entrante temprano se le asigna color futuro": a las 18:00, una
+            // pauta NIGHT (22-06) NO es compatible — devolvemos null para que el
+            // CoveragePickerModal del tablet ofrezca claim explícito.
+            //
+            // Antes (eliminado): un "ajuste operacional" expandía el filtro a
+            // TODOS los turnos del día para "no quedar sin color asignado", lo
+            // cual difuminaba responsabilidad y antagonizaba el fix de
+            // shift/start (rama A).
+            const compatibleShiftTypes = compatibleShiftTypesAt(evaluatedAt);
 
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
                     date: { gte: todayUTCStart, lte: todayUTCEnd },
-                    shiftType: { in: shiftTypesToCheck as any[] },
+                    shiftType: { in: compatibleShiftTypes as any[] },
                     isAbsent: false,
                     schedule: {
                         headquartersId: hqId,
