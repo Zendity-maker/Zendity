@@ -48,6 +48,7 @@ export default function CorporateCalendarPage() {
 
     // Advanced Audience Targeting States
     const [patientsList, setPatientsList] = useState<any[]>([]);
+    const [patientsLoaded, setPatientsLoaded] = useState(false);
     const [targetPopulation, setTargetPopulation] = useState("ALL"); // ALL, GROUP, SPECIFIC
     const [targetGroups, setTargetGroups] = useState<string[]>([]);
     const [targetPatients, setTargetPatients] = useState<string[]>([]);
@@ -66,13 +67,22 @@ export default function CorporateCalendarPage() {
 
     const fetchPatients = async () => {
         try {
-            const res = await fetch("/api/corporate/medical/patients");
+            // FIX: antes apuntaba a /api/corporate/medical/patients que NO EXISTE.
+            // El 404 silencioso dejaba patientsList vacío y el modal de "Específico"
+            // mostraba "Cargando residentes..." indefinidamente. El endpoint correcto
+            // es /api/corporate/patients — devuelve el mismo shape { success, patients }.
+            const res = await fetch("/api/corporate/patients");
             if (res.ok) {
                 const data = await res.json();
                 setPatientsList(data.patients || []);
             }
         } catch (error) {
             console.error(error);
+        } finally {
+            // Marca el intento como completo aunque haya fallado — el UI debe
+            // pasar de "Cargando..." a "Sin residentes registrados" en vez de
+            // quedarse en loading eterno si el endpoint cae en el futuro.
+            setPatientsLoaded(true);
         }
     };
 
@@ -347,7 +357,9 @@ export default function CorporateCalendarPage() {
                                                 </div>
                                             </label>
                                         )) : (
-                                            <p className="text-xs text-center text-slate-500 py-4 font-medium">Cargando residentes...</p>
+                                            <p className="text-xs text-center text-slate-500 py-4 font-medium">
+                                                {patientsLoaded ? 'Sin residentes registrados en esta sede.' : 'Cargando residentes...'}
+                                            </p>
                                         )}
                                     </div>
                                 )}
