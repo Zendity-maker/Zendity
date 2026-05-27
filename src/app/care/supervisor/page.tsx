@@ -170,6 +170,12 @@ export default function SupervisorMissionControlPage() {
     const [uncoveredShiftType, setUncoveredShiftType] = useState<string>('');
     const [redistributingColor, setRedistributingColor] = useState<string | null>(null);
 
+    // Marcar ausente desde el panel "Personal No Presentado".
+    // confirmingAbsent guarda el scheduledShiftId que está en estado "confirma?".
+    // markingAbsent guarda el scheduledShiftId del POST en vuelo.
+    const [confirmingAbsent, setConfirmingAbsent] = useState<string | null>(null);
+    const [markingAbsent, setMarkingAbsent] = useState<string | null>(null);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -284,6 +290,49 @@ export default function SupervisorMissionControlPage() {
             alert('Error de conexión al redistribuir. Verifica tu red.');
         }
         finally { setRedistributingColor(null); }
+    };
+
+    // Marcar ausente desde el wall — reusa POST /api/hr/schedule/absent (mismo
+    // endpoint del Schedule Builder). Persiste isAbsent + absentMarkedAt +
+    // absentMarkedById en ScheduledShift, así la ausencia se cuenta en
+    // /api/hr/audit-report (KPI "Ausencias" del perfil del empleado en
+    // /hr/audit/[id]). Adicionalmente dispara redistribución equitativa de los
+    // residentes del color del ausente entre cuidadoras activas.
+    const handleMarkAbsent = async (scheduledShiftId: string, employeeName: string) => {
+        setMarkingAbsent(scheduledShiftId);
+        setConfirmingAbsent(null);
+        try {
+            const hqId = (user as any)?.headquartersId || '';
+            const res = await fetch('/api/hr/schedule/absent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledShiftId, hqId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({
+                    msg: data.message || `${employeeName} marcada ausente.`,
+                    type: 'ok',
+                });
+                // Refresh en cadena — el empleado sale de progMissing,
+                // las tarjetas reflejan los overrides nuevos, la cobertura
+                // recomputa.
+                fetchSupervisorData();
+                fetchCaregiverRounds();
+                fetchUncoveredColors();
+                fetchLiveData();
+            } else {
+                setToast({
+                    msg: data.error || 'No se pudo marcar ausente',
+                    type: 'err',
+                });
+            }
+        } catch (e) {
+            console.error('markAbsent error', e);
+            setToast({ msg: 'Error de conexión al marcar ausente', type: 'err' });
+        } finally {
+            setMarkingAbsent(null);
+        }
     };
 
     const fetchSupervisorData = async () => {
@@ -969,11 +1018,57 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <div className="space-y-2">
                             {progMissing.map((emp: any) => {
-                                const empName = emp.employee?.name || emp.name || 'Empleado';
+                                const empName = emp.user?.name || emp.employee?.name || emp.name || 'Empleado';
+                                const shiftId: string = emp.id;
+                                const isConfirming = confirmingAbsent === shiftId;
+                                const isMarking = markingAbsent === shiftId;
                                 return (
-                                    <div key={emp.id} className="flex items-center justify-between bg-slate-900/60 rounded-xl px-4 py-3 border border-red-500/20">
-                                        <span className="text-white font-bold text-sm">{empName}</span>
-                                        <span className="text-red-400 text-xs font-medium">Turno activo sin sesión</span>
+                                    <div key={shiftId} className="bg-slate-900/60 rounded-xl px-4 py-3 border border-red-500/20">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-white font-bold text-sm">{empName}</span>
+                                                {emp.colorGroup && emp.colorGroup !== 'ALL' && (
+                                                    <span className="text-[10px] font-bold text-slate-300 bg-slate-700/60 px-2 py-0.5 rounded-full uppercase">
+                                                        Grupo {emp.colorGroup}
+                                                    </span>
+                                                )}
+                                                <span className="text-red-400 text-xs font-medium">Turno activo sin sesión</span>
+                                            </div>
+                                            {!isConfirming && !isMarking && (
+                                                <button
+                                                    onClick={() => setConfirmingAbsent(shiftId)}
+                                                    className="text-[11px] font-black uppercase tracking-wide text-red-200 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 px-3 py-1.5 rounded-full transition-colors"
+                                                    aria-label={`Marcar ${empName} como ausente`}
+                                                >
+                                                    Marcar Ausente
+                                                </button>
+                                            )}
+                                            {isMarking && (
+                                                <span className="text-[11px] font-bold text-slate-300 italic">Procesando…</span>
+                                            )}
+                                        </div>
+                                        {isConfirming && (
+                                            <div className="mt-3 pt-3 border-t border-red-500/20">
+                                                <p className="text-xs text-red-100 mb-2 leading-relaxed">
+                                                    Esto registra la ausencia en el perfil de <b>{empName}</b> y redistribuye sus residentes
+                                                    {emp.colorGroup && emp.colorGroup !== 'ALL' ? ` del Grupo ${emp.colorGroup}` : ''} entre el equipo en piso.
+                                                </p>
+                                                <div className="flex gap-2 justify-end">
+                                                    <button
+                                                        onClick={() => setConfirmingAbsent(null)}
+                                                        className="text-[11px] font-bold text-slate-300 hover:text-white px-3 py-1.5 rounded-full transition-colors"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleMarkAbsent(shiftId, empName)}
+                                                        className="text-[11px] font-black uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-full transition-colors"
+                                                    >
+                                                        Confirmar Ausencia
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
