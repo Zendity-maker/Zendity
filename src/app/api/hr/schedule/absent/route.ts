@@ -201,7 +201,14 @@ export async function POST(req: Request) {
                         }
                     })
                     : 0;
-                return { shift: s, currentLoad: resCount, assigned: [] as typeof residents };
+                // `assigned`: residentes que el round-robin le tocó (intención).
+                // `created`:  residentes que efectivamente recibieron un override
+                //             NUEVO (no saltado por idempotencia). Las
+                //             notificaciones, summary y contador deben usar
+                //             `created`, no `assigned`, para no decir "se te
+                //             asignaron 9 residentes" cuando 8 ya estaban
+                //             cubiertos vía override previo.
+                return { shift: s, currentLoad: resCount, assigned: [] as typeof residents, created: [] as typeof residents };
             })
         );
 
@@ -251,37 +258,53 @@ export async function POST(req: Request) {
                                 isActive: true,
                             },
                         });
+                        // Sólo aquí (override real creado) lo registramos
+                        // para notificaciones y summary.
+                        c.created.push(p);
                     }
                 })
         );
 
+        const totalCreated = caregiverLoads.reduce((sum, c) => sum + c.created.length, 0);
+
         // ── 7. Notificaciones individuales con lista de residentes ─────
+        // Sólo notificamos a cuidadoras que recibieron overrides NUEVOS.
+        // Si idempotencia saltó todos los del round-robin, totalCreated === 0
+        // y nadie recibe spam de "se te asignaron N" que no se le asignaron.
         const absentName = shift.user?.name || 'Un cuidador';
-        await Promise.all([
-            // Notificar a cada cuidador con SUS residentes específicos
-            ...caregiverLoads
-                .filter(c => c.assigned.length > 0)
-                .map(c => {
-                    const names = c.assigned.map(p => p.name).join(', ');
+        const recipientsWithCreated = caregiverLoads.filter(c => c.created.length > 0);
+        if (totalCreated > 0) {
+            await Promise.all([
+                // Notificar a cada cuidador con SUS residentes NUEVOS
+                ...recipientsWithCreated.map(c => {
+                    const names = c.created.map(p => p.name).join(', ');
                     return notifyUser(c.shift.userId, {
                         type: 'SHIFT_ALERT',
                         title: `Cobertura — Grupo ${absentColorGroup} (ausencia)`,
-                        message: `${absentName} no se presentó. Se te asignaron ${c.assigned.length} residente${c.assigned.length === 1 ? '' : 's'} del Grupo ${absentColorGroup}: ${names}.`,
+                        message: `${absentName} no se presentó. Se te asignaron ${c.created.length} residente${c.created.length === 1 ? '' : 's'} del Grupo ${absentColorGroup}: ${names}.`,
                         link: '/care'
                     });
                 }),
-            // Notificar a supervisores con el resumen completo
-            notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
-                type: 'SHIFT_ALERT',
-                title: `Ausencia — ${absentName} · Grupo ${absentColorGroup}`,
-                message: `${residents.length} residente${residents.length === 1 ? '' : 's'} distribuidos equitativamente entre ${caregiverLoads.filter(c => c.assigned.length > 0).length} cuidador${caregiverLoads.filter(c => c.assigned.length > 0).length === 1 ? '' : 'es'}: ${caregiverLoads.filter(c => c.assigned.length > 0).map(c => `${c.shift.user?.name || '?'} (${c.assigned.length})`).join(', ')}.`,
-                link: '/care/supervisor'
-            })
-        ]);
+                // Notificar a supervisores con el resumen real
+                notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                    type: 'SHIFT_ALERT',
+                    title: `Ausencia — ${absentName} · Grupo ${absentColorGroup}`,
+                    message: `${totalCreated} residente${totalCreated === 1 ? '' : 's'} distribuido${totalCreated === 1 ? '' : 's'} entre ${recipientsWithCreated.length} cuidador${recipientsWithCreated.length === 1 ? '' : 'es'}: ${recipientsWithCreated.map(c => `${c.shift.user?.name || '?'} (${c.created.length})`).join(', ')}.`,
+                    link: '/care/supervisor'
+                })
+            ]);
+        }
 
-        const distributionSummary = caregiverLoads
-            .filter(c => c.assigned.length > 0)
-            .map(c => ({ caregiver: c.shift.user?.name, count: c.assigned.length, patients: c.assigned.map(p => p.name) }));
+        const distributionSummary = recipientsWithCreated
+            .map(c => ({ caregiver: c.shift.user?.name, count: c.created.length, patients: c.created.map(p => p.name) }));
+
+        // Mensaje resumen — distingue "nada nuevo (idempotencia)" de
+        // "distribución real". Cuando idempotencia saltó todos los del
+        // round-robin, totalCreated === 0 → indicamos que la cobertura ya
+        // existía sin sugerir trabajo que no se hizo.
+        const summaryMessage = totalCreated === 0
+            ? `Grupo ${absentColorGroup} ya tenía cobertura activa (${residents.length} residente${residents.length === 1 ? '' : 's'} con override previo).`
+            : `${totalCreated} residente${totalCreated === 1 ? '' : 's'} del Grupo ${absentColorGroup} distribuido${totalCreated === 1 ? '' : 's'} equitativamente entre ${distributionSummary.length} cuidador${distributionSummary.length === 1 ? '' : 'es'}.`;
 
         return NextResponse.json({
             success: true,
@@ -291,9 +314,9 @@ export async function POST(req: Request) {
             redistributionPending: false,
             redistributionCompleted: true,
             distribution: distributionSummary,
-            residentsRedistributed: residents.length,
+            residentsRedistributed: totalCreated,
             patternIncident,
-            message: `${residents.length} residente${residents.length === 1 ? '' : 's'} del Grupo ${absentColorGroup} distribuidos equitativamente entre ${distributionSummary.length} cuidador${distributionSummary.length === 1 ? '' : 'es'}.`
+            message: summaryMessage,
         });
 
     } catch (error: any) {
