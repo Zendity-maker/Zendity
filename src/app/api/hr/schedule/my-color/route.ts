@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
 
 export async function GET(req: Request) {
@@ -47,19 +47,29 @@ export async function GET(req: Request) {
         //   'none'               → no hay shift HOY ni asignación (caregiver fuera de pauta).
         let source: 'assignment' | 'roster' | 'none' | 'no_color_assigned' | 'shift_not_current' = 'none';
 
-        // Los shifts se guardan como medianoche UTC (ej. 2026-05-11T00:00:00.000Z).
-        // startOfDay(date-fns) usa la TZ local del servidor (UTC-4 en Vercel PR)
-        // y produce 04:00 UTC, que excluye esos shifts. Usar UTC midnight puro.
-        const todayUTCStart = new Date();
-        todayUTCStart.setUTCHours(0, 0, 0, 0);
-        const todayUTCEnd = new Date();
-        todayUTCEnd.setUTCHours(23, 59, 59, 999);
+        // ANCLAJE AL DÍA CLÍNICO AST. Antes este endpoint usaba
+        //   const todayUTCStart = new Date(); todayUTCStart.setUTCHours(0,0,0,0);
+        // que es "medianoche UTC del día calendario UTC actual". Esto rompe
+        // después de las 8pm AST: `new Date()` ya cruzó midnight UTC, así que
+        // el "día UTC" salta al SIGUIENTE calendar day. Las ScheduledShifts
+        // guardadas como medianoche UTC del día calendar AST quedan fuera del
+        // rango y my-color trae la pauta de MAÑANA en lugar de HOY.
+        //
+        // Caso real (26-may EVENING ~9pm AST): Herminia pautada YELLOW hoy y
+        // BLUE mañana. La query con setUTCHours saltó al 27-may UTC y trajo
+        // BLUE. Tablet mostraba azul cuando debía mostrar amarillo.
+        //
+        // Fix: reusar `clinicalDayCalendarUTCRange()` — el helper probado que
+        // usa `computeShiftCoverage`. Devuelve `{ start, end }` con start =
+        // medianoche UTC del día calendar AST actual (transición a las 6am
+        // AST), end = +24h. Esto coincide con el formato de ScheduledShift.date.
+        const { start: todayUTCStart, end: todayUTCEnd } = clinicalDayCalendarUTCRange();
 
         const colorAssignment = await prisma.shiftColorAssignment.findFirst({
             where: {
                 userId,
                 headquartersId: hqId,
-                assignedAt: { gte: todayUTCStart, lte: todayUTCEnd }
+                assignedAt: { gte: todayUTCStart, lt: todayUTCEnd }
             },
             orderBy: { assignedAt: 'desc' }
         });
@@ -84,7 +94,7 @@ export async function GET(req: Request) {
             const todayShift = await prisma.scheduledShift.findFirst({
                 where: {
                     userId,
-                    date: { gte: todayUTCStart, lte: todayUTCEnd },
+                    date: { gte: todayUTCStart, lt: todayUTCEnd },
                     shiftType: { in: compatibleShiftTypes as any[] },
                     isAbsent: false,
                     schedule: {
@@ -116,7 +126,7 @@ export async function GET(req: Request) {
                 const anyShiftToday = await prisma.scheduledShift.findFirst({
                     where: {
                         userId,
-                        date: { gte: todayUTCStart, lte: todayUTCEnd },
+                        date: { gte: todayUTCStart, lt: todayUTCEnd },
                         isAbsent: false,
                         colorGroup: { not: null },
                         schedule: { headquartersId: hqId, status: 'PUBLISHED' },
