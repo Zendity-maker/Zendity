@@ -310,8 +310,15 @@ export default function SupervisorMissionControlPage() {
             });
             const data = await res.json();
             if (data.success) {
+                // Si la detección automática generó un IncidentReport por
+                // patrón, lo señalamos en el toast — visibilidad de que el
+                // sistema penalizó (vía 72h flow) y no quedó solo en conteo.
+                const baseMsg = data.message || `${employeeName} marcada ausente.`;
+                const patternMsg = data.patternIncident
+                    ? ` ⚠️ Patrón de ausencias: ${data.patternIncident.absenceCount} en 30d → observación WARNING generada (72h para explicación).`
+                    : '';
                 setToast({
-                    msg: data.message || `${employeeName} marcada ausente.`,
+                    msg: baseMsg + patternMsg,
                     type: 'ok',
                 });
                 // Refresh en cadena — el empleado sale de progMissing,

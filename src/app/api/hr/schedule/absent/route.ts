@@ -47,6 +47,82 @@ export async function POST(req: Request) {
 
         const absentColorGroup = shift.colorGroup;
 
+        // ── 1b. PATRÓN DE AUSENCIAS — detección automática ──────────────
+        // Si el empleado acumula ABSENCE_THRESHOLD ausencias en los últimos
+        // ABSENCE_WINDOW_DAYS días, generamos un IncidentReport severidad
+        // WARNING que dispara el flujo estándar de explicación de 72h
+        // (cron apply-pending-observations). Si no responde → APPLIED con
+        // -5 puntos sobre complianceScore. Esto cierra el gap "marqué
+        // ausente pero el score no cambia": una ausencia esporádica no
+        // penaliza, pero el patrón crónico sí — proporcional y justo.
+        //
+        // Idempotente: marca [AUSENCIA_PATRON] en description + lookup
+        // dedup. No se crean incidentes duplicados en la misma ventana.
+        const ABSENCE_WINDOW_DAYS = 30;
+        const ABSENCE_THRESHOLD = 3;
+        const ABSENCE_MARKER = '[AUSENCIA_PATRON]';
+        let patternIncident: { id: string; absenceCount: number } | null = null;
+        try {
+            const windowStart = new Date(Date.now() - ABSENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+            const employeeId = shift.userId;
+            const absenceCount = await prisma.scheduledShift.count({
+                where: {
+                    userId: employeeId,
+                    isAbsent: true,
+                    date: { gte: windowStart },
+                },
+            });
+            if (absenceCount >= ABSENCE_THRESHOLD) {
+                const existing = await prisma.incidentReport.findFirst({
+                    where: {
+                        employeeId,
+                        headquartersId: hqId,
+                        description: { contains: ABSENCE_MARKER },
+                        status: { in: ['DRAFT', 'NOTIFIED', 'PENDING_EXPLANATION', 'EXPLANATION_RECEIVED', 'APPLIED'] as any[] },
+                        createdAt: { gte: windowStart },
+                    },
+                    select: { id: true },
+                });
+                if (!existing) {
+                    const empName = shift.user?.name || 'empleado';
+                    const created = await prisma.incidentReport.create({
+                        data: {
+                            employeeId,
+                            supervisorId: markedById,
+                            headquartersId: hqId,
+                            type: 'WARNING', // legacy field, mantenido por compatibilidad
+                            severity: 'WARNING' as any,
+                            category: 'PUNCTUALITY' as any,
+                            status: 'PENDING_EXPLANATION' as any,
+                            description: `${ABSENCE_MARKER} Patrón de ausencias detectado automáticamente por el sistema: ${absenceCount} ausencias en los últimos ${ABSENCE_WINDOW_DAYS} días. Se generó esta observación al cruzar el umbral de ${ABSENCE_THRESHOLD} ausencias en la ventana. Por favor explique las circunstancias en las próximas 72 horas; de lo contrario se aplicará automáticamente con -5 puntos al compliance score.`,
+                            visibleToEmployee: true,
+                        },
+                        select: { id: true },
+                    });
+                    patternIncident = { id: created.id, absenceCount };
+                    // Notificar al empleado y a los supervisores
+                    await Promise.all([
+                        notifyUser(employeeId, {
+                            type: 'EMAR_ALERT',
+                            title: 'Observación: patrón de ausencias',
+                            message: `Se detectó un patrón de ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS} días. Tienes 72h para explicar las circunstancias antes de que se aplique automáticamente.`,
+                            link: `/my-observations/${created.id}`,
+                        }),
+                        notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                            type: 'EMAR_ALERT',
+                            title: `Patrón de ausencias — ${empName}`,
+                            message: `${empName} acumula ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS}d. Sistema generó observación WARNING (PENDING_EXPLANATION).`,
+                            link: `/hr/audit/${employeeId}`,
+                        }),
+                    ]);
+                }
+            }
+        } catch (e) {
+            // La detección no debe bloquear el marcado de ausencia ni la
+            // redistribución. Log + seguimos.
+            logError('hr.schedule.absent.pattern_detection', e);
+        }
+
         // ── Caso especial: ALL / sin color (ej. turnos nocturnos) ─────
         if (!absentColorGroup || absentColorGroup === 'ALL' || absentColorGroup === 'UNASSIGNED') {
             const activeShifts = await prisma.scheduledShift.findMany({
@@ -66,6 +142,7 @@ export async function POST(req: Request) {
                 activeShifts,
                 redistributionPending: true,
                 redistributionCompleted: false,
+                patternIncident,
                 message: `Turno ${absentColorGroup || 'sin color'} — redistribución manual requerida`
             });
         }
@@ -101,6 +178,7 @@ export async function POST(req: Request) {
                 activeShifts: [],
                 redistributionPending: false,
                 redistributionCompleted: false,
+                patternIncident,
                 message: residents.length === 0
                     ? 'Sin residentes que redistribuir en este grupo'
                     : 'Sin cuidadores activos para redistribuir'
@@ -214,6 +292,7 @@ export async function POST(req: Request) {
             redistributionCompleted: true,
             distribution: distributionSummary,
             residentsRedistributed: residents.length,
+            patternIncident,
             message: `${residents.length} residente${residents.length === 1 ? '' : 's'} del Grupo ${absentColorGroup} distribuidos equitativamente entre ${distributionSummary.length} cuidador${distributionSummary.length === 1 ? '' : 'es'}.`
         });
 
