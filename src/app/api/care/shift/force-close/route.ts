@@ -68,6 +68,24 @@ export async function POST(req: Request) {
             },
         });
 
+        // Cleanup overrides activos del cuidador (best-effort, fuera de
+        // transacción para no tumbar el cierre principal si falla). Mismo
+        // razonamiento que shift/end: el chokepoint los ignora en runtime
+        // vía filterRealOverrides, pero la DB acumulaba data sucia.
+        let cleanedOverridesCount = 0;
+        try {
+            const result = await prisma.shiftPatientOverride.updateMany({
+                where: {
+                    caregiverId: shiftSession.caregiverId,
+                    isActive: true,
+                },
+                data: { isActive: false, resolvedAt: now },
+            });
+            cleanedOverridesCount = result.count;
+        } catch (e) {
+            console.error('[force-close override cleanup]', e);
+        }
+
         // Audit log con el invocador real
         await prisma.systemAuditLog.create({
             data: {
@@ -84,6 +102,7 @@ export async function POST(req: Request) {
                     ownerCaregiverName: shiftSession.caregiver?.name || null,
                     reason: reasonText,
                     hoursOpen: ((now.getTime() - new Date(shiftSession.startTime).getTime()) / 3600000).toFixed(2),
+                    overridesCleaned: cleanedOverridesCount,
                 },
             },
         });

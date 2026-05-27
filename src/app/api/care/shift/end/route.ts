@@ -173,6 +173,21 @@ export async function POST(req: Request) {
                     data: { status: 'EXPIRED' },
                 });
 
+                // Cleanup: cerrar ShiftPatientOverride activos donde esta
+                // cuidadora era la RECEPTORA. Antes quedaban isActive=true
+                // indefinidamente al cerrar turno — el chokepoint los filtra
+                // en runtime vía filterRealOverrides(... activeUserIdsSet)
+                // así que no afectaban el wall, pero la DB acumulaba data
+                // sucia y queries históricas que no aplicaran ese filtro
+                // veían overrides "activos" de hace semanas.
+                const cleanedOverrides = await tx.shiftPatientOverride.updateMany({
+                    where: {
+                        caregiverId: session.caregiverId,
+                        isActive: true,
+                    },
+                    data: { isActive: false, resolvedAt: now },
+                });
+
                 await tx.systemAuditLog.create({
                     data: {
                         headquartersId: session.headquartersId,
@@ -189,6 +204,7 @@ export async function POST(req: Request) {
                             ownerCaregiverId: session.caregiverId,
                             colorGroups,
                             patientCount: patients.length,
+                            overridesCleaned: cleanedOverrides.count,
                         },
                     },
                 });
@@ -265,6 +281,17 @@ export async function POST(req: Request) {
                 data: { status: 'EXPIRED' },
             });
 
+            // Cleanup overrides activos del cuidador — mismo razonamiento
+            // que Flujo 1. Aplica también en cierre forzado para no dejar
+            // data sucia.
+            const cleanedOverrides = await tx.shiftPatientOverride.updateMany({
+                where: {
+                    caregiverId: session.caregiverId,
+                    isActive: true,
+                },
+                data: { isActive: false, resolvedAt: now },
+            });
+
             await tx.systemAuditLog.create({
                 data: {
                     headquartersId: session.headquartersId,
@@ -278,6 +305,7 @@ export async function POST(req: Request) {
                         ownerCaregiverId: session.caregiverId,
                         supervisorId: invokerId,
                         supervisorName: invokerName,
+                        overridesCleaned: cleanedOverrides.count,
                     },
                 },
             });
