@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
-import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
-import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
+import { clinicalDayCalendarUTCRange } from '@/lib/dates';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -23,98 +23,65 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const hqId = searchParams.get('hqId') || auth.headquartersId;
-
-        // todayStart = 10am UTC (6am AST) → para filtros sobre timestamps reales
-        //   (assignedAt de ColorAssignment).
-        // scheduledDayRange.start = 00:00 UTC del día calendar correspondiente
-        //   al día clínico → para ScheduledShift.date (que se guarda como UTC midnight).
-        const todayStart = todayStartAST();
-        const scheduledDayRange = clinicalDayCalendarUTCRange();
-        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
-
         const activeShiftType = inferShiftTypeFromAST();
 
-        // Turnos programados para el turno activo de hoy (publicados, no ausentes)
-        const scheduledShifts = await prisma.scheduledShift.findMany({
-            where: {
-                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
-                shiftType: activeShiftType,
-                isAbsent: false,
-                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
-                colorGroup: { not: null },
-            },
-            select: { userId: true, colorGroup: true, user: { select: { name: true } } }
-        });
+        // Refactor: usa computeShiftCoverage (el chokepoint) en lugar de la
+        // lógica propia. Antes este endpoint hacía dedup por color iterando
+        // scheduledShifts, lo cual marcaba BLUE como uncovered cuando Neylianne
+        // (con pauta duplicada BLUE) era la primera vista — aunque Herminia
+        // (también pautada BLUE) estuviera activa cubriéndolo. El chokepoint
+        // arma `coveredColors` desde TODAS las pautas de cuidadoras activas,
+        // sin la dedup-por-color que ignoraba la segunda.
+        // Además aplica automáticamente:
+        //   - augmentExpectedColors (B): considera populated colors aun si la
+        //     pauta de un color fue marcada absent.
+        //   - filterRealOverrides (B): descarta huérfanos de cuidadoras
+        //     clocked-out, evitando "Mariangelie cubre BLUE" falso positivo.
+        const coverage = await computeShiftCoverage({ hqId, shiftType: activeShiftType });
 
-        // Cuidadoras con sesión activa ahora
-        const activeSessions = await prisma.shiftSession.findMany({
-            where: {
-                actualEndTime: null,
-                startTime: { gte: fourteenHrsAgo },
-                caregiver: { headquartersId: hqId, role: 'CAREGIVER' }
-            },
-            select: { caregiverId: true, startTime: true, caregiver: { select: { name: true } } }
-        });
-        const activeIds = new Set(activeSessions.map(s => s.caregiverId));
-
-        // Colores que YA están siendo cubiertos por:
-        //   (a) ColorAssignment activa de hoy (cobertura manual del supervisor)
-        //   (b) ShiftPatientOverride activo de hoy (redistribución por ausencia)
-        // Si cualquiera de las dos existe para una cuidadora con sesión activa,
-        // el color YA NO es "uncovered" aunque la cuidadora originalmente
-        // programada para ese color no tenga sesión.
-        const todayAssignments = activeSessions.length > 0
-            ? await prisma.shiftColorAssignment.findMany({
+        // El UI del supervisor muestra "Grupo X — {caregiverName} no está en piso".
+        // Necesitamos asociar cada color uncovered con el nombre de la cuidadora
+        // pautada original (una de ellas, si hay varias). Query solo para los
+        // colores que efectivamente quedaron uncovered — barato.
+        const scheduledDayRange = clinicalDayCalendarUTCRange();
+        const namesByColor = new Map<string, { id: string; name: string }>();
+        if (coverage.absentColors.length > 0) {
+            const scheduledForAbsent = await prisma.scheduledShift.findMany({
                 where: {
-                    userId: { in: Array.from(activeIds) },
-                    assignedAt: { gte: todayStart },
-                },
-                select: { color: true },
-            })
-            : [];
-        const coveredByAssignment = new Set(todayAssignments.map(a => a.color).filter(Boolean));
-
-        const todayOverrides = activeSessions.length > 0
-            ? await prisma.shiftPatientOverride.findMany({
-                where: {
-                    headquartersId: hqId,
-                    isActive: true,
-                    shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
+                    date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                     shiftType: activeShiftType,
-                    caregiverId: { in: Array.from(activeIds) },
+                    isAbsent: false,
+                    schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+                    colorGroup: { in: coverage.absentColors as any[] },
                 },
-                select: { originalColor: true },
-            })
-            : [];
-        const coveredByOverride = new Set(todayOverrides.map(o => o.originalColor).filter(Boolean));
-
-        // Detectar colores sin cobertura efectiva
-        const uncoveredColors: { color: string; assignedCaregiverName: string; assignedCaregiver: string }[] = [];
-        const seenColors = new Set<string>();
-
-        for (const shift of scheduledShifts) {
-            if (!shift.colorGroup || shift.colorGroup === 'ALL' || shift.colorGroup === 'UNASSIGNED') continue;
-            if (seenColors.has(shift.colorGroup)) continue;
-            seenColors.add(shift.colorGroup);
-
-            // Cubierto si: el cuidador asignado tiene sesión activa, O
-            //              alguien activo tiene ColorAssignment de este color hoy.
-            const isCoveredByScheduled = activeIds.has(shift.userId);
-            const isCoveredByAssignment = coveredByAssignment.has(shift.colorGroup);
-            const isCoveredByOverride = coveredByOverride.has(shift.colorGroup);
-            if (isCoveredByScheduled || isCoveredByAssignment || isCoveredByOverride) continue;
-
-            uncoveredColors.push({
-                color: shift.colorGroup,
-                assignedCaregiver: shift.userId,
-                assignedCaregiverName: shift.user?.name || 'Desconocida',
+                select: { userId: true, colorGroup: true, user: { select: { name: true } } },
+                orderBy: { date: 'asc' },
             });
+            for (const s of scheduledForAbsent) {
+                if (!s.colorGroup) continue;
+                // Primer match por color (los pautados se muestran como referencia).
+                if (!namesByColor.has(s.colorGroup)) {
+                    namesByColor.set(s.colorGroup, {
+                        id: s.userId,
+                        name: s.user?.name || 'Desconocida',
+                    });
+                }
+            }
         }
 
-        // Cuidadoras activas con su color asignado (para mostrar quiénes pueden recibir)
-        const activeCaregivers = activeSessions.map(s => ({
-            id: s.caregiverId,
-            name: s.caregiver?.name || 'Cuidadora',
+        const uncoveredColors = coverage.absentColors.map((color) => {
+            const ref = namesByColor.get(color);
+            return {
+                color,
+                assignedCaregiver: ref?.id || '',
+                assignedCaregiverName: ref?.name || 'Sin pauta no-absent',
+            };
+        });
+
+        // Cuidadoras activas (mismo shape que antes)
+        const activeCaregivers = coverage.activeCaregivers.map((c) => ({
+            id: c.userId,
+            name: c.name,
         }));
 
         return NextResponse.json({ success: true, activeShiftType, uncoveredColors, activeCaregivers });

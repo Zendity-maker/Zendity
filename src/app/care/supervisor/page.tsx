@@ -190,25 +190,35 @@ export default function SupervisorMissionControlPage() {
         }
     };
 
+    // Role guard — solo SUPERVISOR/DIRECTOR/ADMIN ven este dashboard.
+    // Antes esta ruta no verificaba rol: cualquier caregiver logueada podía
+    // entrar (los API endpoints sí filtran rol, pero el shell del UI cargaba
+    // igual). Incidente: Brenda CAREGIVER llegó aquí navegando manualmente.
+    const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
     useEffect(() => {
-        if (user) {
-            sessionExpiredRef.current = false;
-            fetchSupervisorData();
+        if (!user) return;
+        if (!SUPERVISOR_ROLES.includes(user.role as string)) {
+            // Caregivers vuelven a su tablet. No dejamos UI vacío + 401s en consola.
+            router.replace('/care');
+            return;
+        }
+        sessionExpiredRef.current = false;
+        fetchSupervisorData();
+        fetchLiveData();
+        fetchCaregiverRounds();
+        fetchUncoveredColors();
+        // Polling 30s (antes 15s). El dashboard del supervisor no necesita
+        // refresco sub-30s; ahorra ~50% de requests al backend sin afectar
+        // la UX. Las acciones del supervisor (despachar, redistribuir, etc.)
+        // hacen fetch inmediato vía sus propios handlers.
+        const interval = setInterval(() => {
+            if (sessionExpiredRef.current) return;
             fetchLiveData();
             fetchCaregiverRounds();
             fetchUncoveredColors();
-            // Polling 30s (antes 15s). El dashboard del supervisor no necesita
-            // refresco sub-30s; ahorra ~50% de requests al backend sin afectar
-            // la UX. Las acciones del supervisor (despachar, redistribuir, etc.)
-            // hacen fetch inmediato vía sus propios handlers.
-            const interval = setInterval(() => {
-                if (sessionExpiredRef.current) return;
-                fetchLiveData();
-                fetchCaregiverRounds();
-                fetchUncoveredColors();
-            }, 30000);
-            return () => clearInterval(interval);
-        }
+        }, 30000);
+        return () => clearInterval(interval);
     }, [user]);
 
     const fetchLiveData = async () => {
