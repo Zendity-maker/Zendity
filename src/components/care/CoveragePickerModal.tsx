@@ -133,7 +133,7 @@ export default function CoveragePickerModal({
                                     </p>
                                     {wasRedistributed && opt.redistributedTo && opt.redistributedTo.length > 0 && (
                                         <p className="text-xs text-slate-500 mt-1 font-medium">
-                                            Redistribuido entre: <span className="text-slate-700">{opt.redistributedTo.join(', ')}</span>
+                                            Redistribuido entre: <span className="text-slate-700">{Array.from(new Set(opt.redistributedTo)).join(', ')}</span>
                                             <span className="text-amber-700"> — al seleccionar los tomas de vuelta</span>
                                         </p>
                                     )}
