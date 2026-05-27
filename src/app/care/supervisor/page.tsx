@@ -176,6 +176,14 @@ export default function SupervisorMissionControlPage() {
     const [confirmingAbsent, setConfirmingAbsent] = useState<string | null>(null);
     const [markingAbsent, setMarkingAbsent] = useState<string | null>(null);
 
+    // Asignación top-down de grupo a una cuidadora específica.
+    // assigningColorModal = color abierto (null = cerrado).
+    // assignTargetId = caregiver seleccionado en el dropdown.
+    // assignSubmitting = POST en vuelo.
+    const [assigningColorModal, setAssigningColorModal] = useState<string | null>(null);
+    const [assignTargetId, setAssignTargetId] = useState<string>('');
+    const [assignSubmitting, setAssignSubmitting] = useState(false);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -339,6 +347,41 @@ export default function SupervisorMissionControlPage() {
             setToast({ msg: 'Error de conexión al marcar ausente', type: 'err' });
         } finally {
             setMarkingAbsent(null);
+        }
+    };
+
+    // Asignar grupo top-down: el supervisor elige UN caregiver activo y le
+    // asigna TODOS los residentes del color vía ShiftPatientOverride. POST a
+    // /api/care/supervisor/assign-color (idempotente: si ya tiene, no
+    // duplica; si están con otra, los reasigna y cierra el override viejo).
+    const handleAssignColor = async () => {
+        if (!assigningColorModal || !assignTargetId) return;
+        setAssignSubmitting(true);
+        try {
+            const res = await fetch('/api/care/supervisor/assign-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    color: assigningColorModal,
+                    shiftType: uncoveredShiftType,
+                    targetCaregiverId: assignTargetId,
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: data.message || 'Asignación completada.', type: 'ok' });
+                setAssigningColorModal(null);
+                setAssignTargetId('');
+                fetchUncoveredColors();
+                fetchCaregiverRounds();
+            } else {
+                setToast({ msg: data.error || 'No se pudo asignar', type: 'err' });
+            }
+        } catch (e) {
+            console.error('assignColor error', e);
+            setToast({ msg: 'Error de conexión al asignar', type: 'err' });
+        } finally {
+            setAssignSubmitting(false);
         }
     };
 
@@ -752,6 +795,7 @@ export default function SupervisorMissionControlPage() {
                                             <p className="text-sm font-black text-slate-800">Grupo {colorLabel[u.color] || u.color}</p>
                                             <p className="text-[11px] text-slate-500 font-medium">{u.assignedCaregiverName} no está en piso</p>
                                         </div>
+                                        {/* Auto: round-robin entre TODAS las activas */}
                                         <button
                                             onClick={() => handleRedistributeColor(u.color)}
                                             disabled={redistributingColor === u.color}
@@ -762,6 +806,15 @@ export default function SupervisorMissionControlPage() {
                                             ) : (
                                                 <>⚡ Redistribuir</>
                                             )}
+                                        </button>
+                                        {/* Top-down: supervisor elige UNA cuidadora */}
+                                        <button
+                                            onClick={() => { setAssigningColorModal(u.color); setAssignTargetId(''); }}
+                                            disabled={redistributingColor === u.color}
+                                            className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-black px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                            title="Asignar todos los residentes del grupo a UNA cuidadora específica"
+                                        >
+                                            → Asignar a…
                                         </button>
                                     </div>
                                 ))}
@@ -2080,6 +2133,94 @@ export default function SupervisorMissionControlPage() {
                     fetchLiveData();
                 }}
             />
+
+            {/* ASIGNAR GRUPO MODAL — top-down assignment del wall */}
+            {assigningColorModal && (() => {
+                const color = assigningColorModal;
+                const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
+                const colorBgs: Record<string, string> = {
+                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500', GREEN: 'bg-emerald-500',
+                };
+                const colorLabel = colorLabels[color] || color;
+                // Solo cuidadoras con sesión activa son candidatas (vienen
+                // de caregiverRounds, que ya filtra por sesión).
+                const candidates = caregiverRounds || [];
+                return (
+                    <div
+                        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+                        onClick={() => { if (!assignSubmitting) { setAssigningColorModal(null); setAssignTargetId(''); } }}
+                    >
+                        <div
+                            className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-xl ${colorBgs[color] || 'bg-slate-400'} shadow-sm`} />
+                                    <div>
+                                        <h2 className="text-lg font-black text-slate-800 leading-tight">
+                                            Asignar Grupo {colorLabel}
+                                        </h2>
+                                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                            Todos los residentes del grupo a UNA sola cuidadora
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-5">
+                                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wide mb-2">
+                                    Cuidadora receptora
+                                </label>
+                                {candidates.length === 0 ? (
+                                    <p className="text-sm text-slate-500 italic py-3">
+                                        No hay cuidadoras con sesión activa para asignar.
+                                    </p>
+                                ) : (
+                                    <select
+                                        value={assignTargetId}
+                                        onChange={(e) => setAssignTargetId(e.target.value)}
+                                        disabled={assignSubmitting}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                                    >
+                                        <option value="">— Selecciona —</option>
+                                        {candidates.map((c: any) => (
+                                            <option key={c.caregiverId} value={c.caregiverId}>
+                                                {c.name}
+                                                {c.colorGroup ? ` · Grupo ${colorLabels[c.colorGroup] || c.colorGroup}` : ''}
+                                                {c.coverageCount > 0 ? ` · +${c.coverageCount} cobertura` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                                <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                                    Esto crea overrides para todos los residentes del Grupo {colorLabel}.
+                                    Si ya estaban con otra cuidadora vía cobertura, se reasignan a esta.
+                                </p>
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                                <button
+                                    onClick={() => { setAssigningColorModal(null); setAssignTargetId(''); }}
+                                    disabled={assignSubmitting}
+                                    className="text-sm font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleAssignColor}
+                                    disabled={!assignTargetId || assignSubmitting || candidates.length === 0}
+                                    className="text-sm font-black uppercase tracking-wide text-white bg-teal-600 hover:bg-teal-700 px-4 py-2 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {assignSubmitting ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Asignando…</>
+                                    ) : (
+                                        <>Confirmar Asignación</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* DRILL-DOWN MODAL — detalle de cuidadora */}
             {drillCaregiver && (() => {
