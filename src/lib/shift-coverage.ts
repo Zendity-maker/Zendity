@@ -264,27 +264,80 @@ export async function computeShiftCoverage(params: {
     for (const colors of coveredByUser.values()) {
         for (const c of colors) coveredColorsSet.add(c);
     }
-    const coveredColors = Array.from(coveredColorsSet).sort();
 
-    const absentColors = expectedColors.filter(c => !coveredColorsSet.has(c));
+    // Punto de partida — colores que NINGÚN caregiver activo lleva por pauta
+    // ni por ShiftColorAssignment. Esto NO es la respuesta final: aún falta
+    // ver si la cobertura existe a nivel paciente (vía overrides).
+    const absentColorsRaw = expectedColors.filter(c => !coveredColorsSet.has(c));
+
+    const overriddenPatientIds = new Set(activeOverrides.map(o => o.patientId));
+
+    // PROMOCIÓN POR OVERRIDES — un color "absent" en pauta/asignación se
+    // considera covered si TODOS sus pacientes ACTIVE tienen override activo
+    // a una caregiver también activa. `activeOverrides` ya está filtrado por
+    // `filterRealOverrides(... activeUserIdsSet)` arriba (línea 206), así que
+    // los overrides huérfanos (caregiver clocked-out) NO cuentan aquí.
+    //
+    // Por qué: tras `redistributeUncoveredColors`, los pacientes BLUE quedan
+    // con override activo a, p.ej., Brenda (pautada YELLOW). Nadie "es" de
+    // BLUE a nivel pauta — pero los pacientes BLUE sí tienen cuidadora. El
+    // override ES el mecanismo de cobertura por paciente; la cobertura por
+    // color se deriva de él. Sin esta promoción, `absentColors` reportaba
+    // BLUE eternamente y el wall mostraba el banner aunque no quedara nadie
+    // descubierto.
+    let absentColorPatients: Array<{
+        id: string;
+        name: string;
+        colorGroup: string | null;
+        roomNumber: string | null;
+    }> = [];
+    if (absentColorsRaw.length > 0) {
+        absentColorPatients = await prisma.patient.findMany({
+            where: {
+                headquartersId: hqId,
+                status: 'ACTIVE',
+                colorGroup: { in: absentColorsRaw as any[] },
+            },
+            select: { id: true, name: true, colorGroup: true, roomNumber: true },
+            orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
+        });
+    }
+
+    const patientsByAbsentColor = new Map<string, typeof absentColorPatients>();
+    for (const p of absentColorPatients) {
+        if (!p.colorGroup) continue;
+        if (!patientsByAbsentColor.has(p.colorGroup)) patientsByAbsentColor.set(p.colorGroup, []);
+        patientsByAbsentColor.get(p.colorGroup)!.push(p);
+    }
+    const derivedCoveredSet = new Set<string>();
+    for (const color of absentColorsRaw) {
+        const ps = patientsByAbsentColor.get(color) || [];
+        // Sin pacientes ACTIVE de ese color → no se "deriva" cobertura.
+        // (Caso raro: color en expectedColors por populatedColors, todos en
+        // HOSPITAL. Mantener el comportamiento previo — sigue en absent.)
+        if (ps.length === 0) continue;
+        const allCovered = ps.every(p => overriddenPatientIds.has(p.id));
+        if (allCovered) derivedCoveredSet.add(color);
+    }
+    for (const c of derivedCoveredSet) coveredColorsSet.add(c);
+
+    const coveredColors = Array.from(coveredColorsSet).sort();
+    const absentColors = absentColorsRaw.filter(c => !derivedCoveredSet.has(c));
 
     const redistributedSet = new Set<string>();
     for (const ov of activeOverrides) redistributedSet.add(ov.originalColor);
     const alreadyRedistributed = absentColors.filter(c => redistributedSet.has(c)).sort();
 
-    const overriddenPatientIds = new Set(activeOverrides.map(o => o.patientId));
+    // uncoveredPatients reutiliza la query ya hecha — filtra a los colores que
+    // siguen en absentColors después de la promoción (los derivados covered ya
+    // no aportan pacientes "uncovered").
     let uncoveredPatients: ShiftCoverage['uncoveredPatients'] = [];
     if (absentColors.length > 0) {
-        const patients = await prisma.patient.findMany({
-            where: {
-                headquartersId: hqId,
-                status: 'ACTIVE',
-                colorGroup: { in: absentColors as any[] },
-            },
-            select: { id: true, name: true, colorGroup: true, roomNumber: true },
-            orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
-        });
-        uncoveredPatients = patients
+        const absentSet = new Set(absentColors);
+        uncoveredPatients = absentColorPatients
+            .filter((p): p is typeof p & { colorGroup: string } =>
+                !!p.colorGroup && absentSet.has(p.colorGroup),
+            )
             .filter(p => !overriddenPatientIds.has(p.id))
             .map(p => ({
                 patientId: p.id,
