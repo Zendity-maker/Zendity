@@ -52,13 +52,24 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: e.message }, { status: 400 });
         }
 
-        // Sesiones activas de cuidadores (ventana 14h para incluir NIGHT vivos)
+        // Sesiones activas de cuidadores (ventana 14h para incluir NIGHT vivos).
+        // FASE 51 — alineación con shift/start, shift/coverage, claim-coverage:
+        // aceptar primary OR secondaryRoles. Antes el filtro `role: 'CAREGIVER'`
+        // estricto dejaba fuera a dual-rol (ej. Mariangelie SUPERVISOR + secondary
+        // CAREGIVER) — su sesión activa contaba en /supervisor/live pero NO se
+        // renderizaba tarjeta, causando asimetría visible ("3 activas" vs 2 cards).
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
         const activeSessions = await prisma.shiftSession.findMany({
             where: {
                 actualEndTime: null,
                 startTime: { gte: fourteenHrsAgo },
-                caregiver: { headquartersId: hqId, role: 'CAREGIVER' }
+                caregiver: {
+                    headquartersId: hqId,
+                    OR: [
+                        { role: 'CAREGIVER' },
+                        { secondaryRoles: { has: 'CAREGIVER' } },
+                    ],
+                },
             },
             select: {
                 id: true,

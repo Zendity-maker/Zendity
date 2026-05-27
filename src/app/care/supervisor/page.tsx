@@ -781,11 +781,23 @@ export default function SupervisorMissionControlPage() {
                                 const isLate = cg.minutesSinceLastRound !== null && cg.minutesSinceLastRound > 120;
                                 const hasNoRounds = cg.roundsCompleted === 0 && cg.attendedThisRound === 0;
 
-                                const borderClass = cg.colorGroup
-                                    ? (colorBorder[cg.colorGroup] || 'border-slate-200 bg-slate-50')
+                                // Caregiver SIN pauta base PERO con overrides activos (caso típico:
+                                // SUPERVISOR + CAREGIVER cubriendo redistribución de un ausente).
+                                // Si su cobertura es de UN solo color → pinta dot/border con ese
+                                // color + label "Grupo {Color} (cobertura)". Si es multi-color o
+                                // sin cobertura → neutral.
+                                const coverageColors = cg.coverageByColor
+                                    ? Object.keys(cg.coverageByColor).filter((c) => (cg.coverageByColor[c] || 0) > 0)
+                                    : [];
+                                const singleCoverageColor = coverageColors.length === 1 ? coverageColors[0] : null;
+                                const isCoverageOnly = !cg.colorGroup && cg.coverageCount > 0;
+                                const effectiveColor = cg.colorGroup || (isCoverageOnly ? singleCoverageColor : null);
+
+                                const borderClass = effectiveColor
+                                    ? (colorBorder[effectiveColor] || 'border-slate-200 bg-slate-50')
                                     : 'border-slate-200 bg-slate-50';
-                                const dotClass = cg.colorGroup ? (colorDot[cg.colorGroup] || 'bg-slate-400') : 'bg-slate-400';
-                                const labelClass = cg.colorGroup ? (colorLabel[cg.colorGroup] || 'text-slate-600') : 'text-slate-600';
+                                const dotClass = effectiveColor ? (colorDot[effectiveColor] || 'bg-slate-400') : 'bg-slate-400';
+                                const labelClass = effectiveColor ? (colorLabel[effectiveColor] || 'text-slate-600') : 'text-slate-600';
 
                                 return (
                                     <button
@@ -804,7 +816,13 @@ export default function SupervisorMissionControlPage() {
                                                         {cg.name.split(' ').slice(0, 2).join(' ')}
                                                     </p>
                                                     <p className={`text-[10px] font-bold uppercase tracking-wide ${labelClass}`}>
-                                                        Grupo {cg.colorGroup ? (colorText[cg.colorGroup] || cg.colorGroup) : 'Sin grupo'}
+                                                        {cg.colorGroup
+                                                            ? `Grupo ${colorText[cg.colorGroup] || cg.colorGroup}`
+                                                            : isCoverageOnly && singleCoverageColor
+                                                                ? `Grupo ${colorText[singleCoverageColor] || singleCoverageColor} (cobertura)`
+                                                                : isCoverageOnly
+                                                                    ? 'Cobertura redistribuida'
+                                                                    : 'Sin grupo'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -817,9 +835,15 @@ export default function SupervisorMissionControlPage() {
                                             </div>
                                         </div>
 
-                                        {/* Sin grupo asignado */}
+                                        {/* Sin grupo asignado (puede haber cobertura redistribuida) */}
                                         {cg.noColorGroup ? (
-                                            <p className="text-xs text-slate-500 italic">Sin grupo de color asignado</p>
+                                            <p className="text-xs text-slate-500 italic">
+                                                {isCoverageOnly && singleCoverageColor
+                                                    ? `Cubriendo Grupo ${colorText[singleCoverageColor] || singleCoverageColor} por redistribución`
+                                                    : isCoverageOnly
+                                                        ? 'Cubriendo varios grupos por redistribución'
+                                                        : 'Sin grupo de color asignado'}
+                                            </p>
                                         ) : cg.emptyGroup ? (
                                             <p className="text-xs text-slate-500 italic">Grupo sin residentes activos</p>
                                         ) : (
@@ -1966,8 +1990,20 @@ export default function SupervisorMissionControlPage() {
                 const pct = cg.residentsInGroup > 0
                     ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
                     : 0;
-                const colorName = cg.colorGroup ? (colorLabels[cg.colorGroup] || cg.colorGroup) : null;
-                const colorBg = cg.colorGroup ? (colorBgs[cg.colorGroup] || 'bg-slate-400') : 'bg-slate-400';
+                // Mismo patrón híbrido que la card compacta: si no tiene grupo base pero
+                // sí cobertura redistribuida, usar el color de la cobertura cuando es único.
+                const drillCoverageColors = cg.coverageByColor
+                    ? Object.keys(cg.coverageByColor).filter((c) => (cg.coverageByColor[c] || 0) > 0)
+                    : [];
+                const drillSingleCoverageColor = drillCoverageColors.length === 1 ? drillCoverageColors[0] : null;
+                const drillIsCoverageOnly = !cg.colorGroup && cg.coverageCount > 0;
+                const drillEffectiveColor = cg.colorGroup || (drillIsCoverageOnly ? drillSingleCoverageColor : null);
+                const colorName = cg.colorGroup
+                    ? (colorLabels[cg.colorGroup] || cg.colorGroup)
+                    : (drillIsCoverageOnly && drillSingleCoverageColor
+                        ? `${colorLabels[drillSingleCoverageColor] || drillSingleCoverageColor} (cobertura)`
+                        : null);
+                const colorBg = drillEffectiveColor ? (colorBgs[drillEffectiveColor] || 'bg-slate-400') : 'bg-slate-400';
                 return (
                     <div
                         className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
@@ -1986,7 +2022,11 @@ export default function SupervisorMissionControlPage() {
                                     <div>
                                         <h2 className="text-xl font-black text-slate-800 leading-tight">{cg.name}</h2>
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mt-0.5">
-                                            {colorName ? `Grupo ${colorName}` : 'Sin grupo asignado'}
+                                            {colorName
+                                                ? `Grupo ${colorName}`
+                                                : drillIsCoverageOnly
+                                                    ? 'Cobertura redistribuida'
+                                                    : 'Sin grupo asignado'}
                                         </p>
                                     </div>
                                 </div>
@@ -2051,7 +2091,11 @@ export default function SupervisorMissionControlPage() {
                             <div className="px-6 py-4 overflow-y-auto flex-1">
                                 {cg.noColorGroup ? (
                                     <p className="text-sm text-slate-500 italic text-center py-6">
-                                        Sin grupo de color asignado para este turno.
+                                        {drillIsCoverageOnly && drillSingleCoverageColor
+                                            ? `Cubriendo Grupo ${colorLabels[drillSingleCoverageColor] || drillSingleCoverageColor} por redistribución — sus residentes están listados abajo.`
+                                            : drillIsCoverageOnly
+                                                ? 'Cubriendo varios grupos por redistribución — residentes listados abajo.'
+                                                : 'Sin grupo de color asignado para este turno.'}
                                     </p>
                                 ) : cg.emptyGroup ? (
                                     <p className="text-sm text-slate-500 italic text-center py-6">
