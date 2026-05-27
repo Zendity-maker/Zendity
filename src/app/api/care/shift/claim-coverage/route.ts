@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { todayStartAST } from '@/lib/dates';
 import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
 import { notifyRoles } from '@/lib/notifications';
@@ -32,17 +31,16 @@ const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
+        // FASE 51 — alineación con shift/start: requireRole acepta primary OR
+        // secondaryRoles. Antes el check legacy bloqueaba a cuidadoras dual-rol
+        // (SUPERVISOR + CAREGIVER) cuando tocaban el CoveragePickerModal: la
+        // tablet mostraba `alert('Rol no autorizado')`.
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        const invokerId = (session.user as any).id;
-        const invokerName = (session.user as any).name || 'Cuidador';
-        const hqId = (session.user as any).headquartersId;
+        const invokerId = auth.id;
+        const invokerName = auth.name || 'Cuidador';
+        const hqId = auth.headquartersId;
 
         const body = await req.json();
         const { colors, shiftSessionId, shiftType: shiftTypeParam } = body as {

@@ -197,23 +197,33 @@ export default function ZendityCareTabletPage() {
     // uncovered y ofrecer claim AUNQUE su tablet esté mostrando "ver todos"
     // por isSolo. El "ver todos" se mantiene de fondo como red de seguridad
     // pero el modal/banner nudge la lleva a hacer claim explícito.
+    //
+    // POLLING 30s: antes este efecto solo fetcheaba UNA vez (guarda `if (coverage)
+    // return`) y nunca refrescaba — el wall del supervisor pollea cada 30s, el
+    // tablet quedaba con estado stale. Cuando otra cuidadora hacía clock-in/out o
+    // se redistribuía un grupo, el tablet seguía mostrando absentColors de la
+    // foto inicial. Misma cadencia que /care/supervisor/page.tsx — patrón
+    // consumidor unificado.
     useEffect(() => {
         if (briefingMode || verifyingCensus) return;
-        if (coverage || coverageLoading) return;
+        let cancelled = false;
         const fetchCov = async () => {
+            if (cancelled) return;
             setCoverageLoading(true);
             try {
                 const res = await fetch('/api/care/shift/coverage');
                 const data = await res.json();
-                if (data.success) setCoverage(data);
+                if (!cancelled && data.success) setCoverage(data);
             } catch (e) {
                 console.error('[coverage fetch]', e);
             } finally {
-                setCoverageLoading(false);
+                if (!cancelled) setCoverageLoading(false);
             }
         };
         fetchCov();
-    }, [briefingMode, verifyingCensus, coverage, coverageLoading]);
+        const interval = setInterval(fetchCov, 30000);
+        return () => { cancelled = true; clearInterval(interval); };
+    }, [briefingMode, verifyingCensus]);
 
     // Rama D — Nudge a claim cuando hay uncovered en patient list view.
     // Auto-abre el modal una vez (después la caregiver puede cerrar y reabrir

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
 
@@ -38,13 +39,17 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
  */
 export async function GET(req: Request) {
     try {
+        // FASE 51 — alineación con shift/start: requireRole acepta primary OR
+        // secondaryRoles. El check legacy (`ALLOWED_ROLES.includes(session.user.role)`)
+        // rechazaba con 403 'Rol no autorizado' a cuidadoras dual-rol (ej.
+        // SUPERVISOR + CAREGIVER) cuyo primary no estaba en la lista; el toast
+        // aparecía como side-effect en el poll de cobertura del tablet.
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
+        // resolveEffectiveHqId todavía pide Session (no SessionUser); getServerSession
+        // está cacheado por request en NextAuth, así que esta llamada extra es barata.
         const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes(session.user.role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
 
         const { searchParams } = new URL(req.url);
         const requestedHqId = searchParams.get('hqId');
@@ -52,7 +57,7 @@ export async function GET(req: Request) {
 
         let hqId: string;
         try {
-            hqId = await resolveEffectiveHqId(session, requestedHqId);
+            hqId = await resolveEffectiveHqId(session!, requestedHqId);
         } catch (e: any) {
             return NextResponse.json(
                 { success: false, error: e.message || 'Sede inválida' },
