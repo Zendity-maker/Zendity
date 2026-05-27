@@ -1,21 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { ComplaintStatus } from '@prisma/client';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
-        const invokerHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const invokerHqId = auth.headquartersId;
 
         const { complaintId, action, supervisorId } = await req.json();
 

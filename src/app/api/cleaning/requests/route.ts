@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
 import { z } from 'zod';
@@ -32,12 +31,10 @@ const PatchSchema = z.object({
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES_READ.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES_READ);
+        if (auth instanceof NextResponse) return auth;
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
 
         if (!hqId) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
@@ -67,10 +64,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES_CREATE.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES_CREATE);
+        if (auth instanceof NextResponse) return auth;
 
         const parsed = CreateSchema.safeParse(await req.json());
         if (!parsed.success) {
@@ -82,13 +77,13 @@ export async function POST(req: Request) {
         const { areaName, description, photoUrl, priority, areaId } = parsed.data;
 
         const expiresAt = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes SLA
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
         const isUrgent = priority === 'URGENT';
 
         const request = await prisma.cleaningRequest.create({
             data: {
                 headquartersId: hqId,
-                requestedById: session.user.id,
+                requestedById: auth.id,
                 areaId: areaId || null,
                 areaName,
                 description,
@@ -170,10 +165,8 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES_UPDATE.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES_UPDATE);
+        if (auth instanceof NextResponse) return auth;
 
         const parsed = PatchSchema.safeParse(await req.json());
         if (!parsed.success) {
@@ -184,7 +177,7 @@ export async function PATCH(req: Request) {
         }
         const { requestId, status } = parsed.data;
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
         const existing = await prisma.cleaningRequest.findUnique({ where: { id: requestId } });
         if (!existing || existing.headquartersId !== hqId) {
             return NextResponse.json({ success: false, error: 'Solicitud no encontrada' }, { status: 404 });
@@ -193,12 +186,12 @@ export async function PATCH(req: Request) {
         const updateData: any = { status };
 
         if (status === 'IN_PROGRESS') {
-            updateData.assignedToId = session.user.id;
+            updateData.assignedToId = auth.id;
         }
 
         if (status === 'COMPLETED') {
             updateData.completedAt = new Date();
-            updateData.assignedToId = existing.assignedToId || session.user.id;
+            updateData.assignedToId = existing.assignedToId || auth.id;
         }
 
         const updated = await prisma.cleaningRequest.update({

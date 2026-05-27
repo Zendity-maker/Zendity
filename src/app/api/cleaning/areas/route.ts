@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 
 const ALLOWED_ROLES = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
 
         if (!hqId) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });

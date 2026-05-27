@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
 import sgMail from '@sendgrid/mail';
 
@@ -22,10 +21,9 @@ async function assertTenantAccess(patientId: string, hqId: string) {
 // GET — Devuelve el PAI más reciente del residente
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        const hqId = (session.user as any).headquartersId;
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         const resolvedParams = await params;
         const patientId = resolvedParams.id;
@@ -55,12 +53,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 // PUT — Crea o actualiza PAI. Si status → APPROVED: flujo completo de aprobación
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        const invokerRole = (session.user as any).role;
-        const invokerUserId = (session.user as any).id;
-        const hqId = (session.user as any).headquartersId;
-        if (!ALLOWED_ROLES.includes(invokerRole)) return NextResponse.json({ error: 'Rol no autorizado' }, { status: 403 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const invokerUserId = auth.id;
+        const hqId = auth.headquartersId;
 
         const resolvedParams = await params;
         const patientId = resolvedParams.id;

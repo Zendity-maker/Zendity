@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 
@@ -10,16 +9,20 @@ const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
+        const auth = await getSessionUser();
+        if (!auth) return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
 
-        const role = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(role)) {
+        // Nota: aquí NO usamos requireRole() porque el contrato de este endpoint
+        // es retornar { update: null } (200) si el usuario no aplica, no 403.
+        // Igualmente respetamos el patrón doble-rol: primary OR secondary.
+        const hasPrimary = ALLOWED_ROLES.includes(auth.role);
+        const hasSecondary = auth.secondaryRoles.some(r => ALLOWED_ROLES.includes(r));
+        if (!hasPrimary && !hasSecondary) {
             return NextResponse.json({ success: true, update: null });
         }
 
-        const hqId = (session.user as any).headquartersId;
-        const authorId = (session.user as any).id;
+        const hqId = auth.headquartersId;
+        const authorId = auth.id;
         const today = todayStartAST();
 
         // ── 1. Devolver update PENDING de hoy si ya existe ─────────────────

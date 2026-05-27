@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSessionUser, requireRole, requireSession } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { notifyRoles, notifyUser } from '@/lib/notifications';
 
@@ -15,13 +14,15 @@ const BROADCAST_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
  */
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const auth = await getSessionUser();
+        if (!auth) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
-        const userId = (session.user as any).id;
-        const hqId = (session.user as any).headquartersId;
-        const role = (session.user as any).role;
-        if (role === 'FAMILY') return NextResponse.json({ success: false, error: 'Prohibido' }, { status: 403 });
+        const userId = auth.id;
+        const hqId = auth.headquartersId;
+        // FAMILY no tiene acceso al inbox staff; el chequeo respeta secondaryRoles:
+        // si alguien tiene primary FAMILY pero secondary staff (caso teórico), se permite.
+        const isFamily = auth.role === 'FAMILY' && !auth.secondaryRoles.some(r => r !== 'FAMILY');
+        if (isFamily) return NextResponse.json({ success: false, error: 'Prohibido' }, { status: 403 });
 
         const messages = await prisma.staffMessage.findMany({
             where: {
@@ -66,16 +67,12 @@ export async function GET() {
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        const userId = (session.user as any).id;
-        const senderName = (session.user as any).name || 'Staff';
-        const hqId = (session.user as any).headquartersId;
-        const role = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: 'No autorizado para enviar mensajes' }, { status: 403 });
-        }
+        const userId = auth.id;
+        const senderName = auth.name || 'Staff';
+        const hqId = auth.headquartersId;
 
         const { content, recipientId } = await req.json();
         if (!content || typeof content !== 'string' || !content.trim()) {
@@ -84,8 +81,10 @@ export async function POST(req: Request) {
 
         const type = recipientId ? 'DIRECT' : 'BROADCAST';
 
-        // Solo DIRECTOR/ADMIN/SUPERVISOR pueden hacer broadcast
-        if (type === 'BROADCAST' && !BROADCAST_ROLES.includes(role)) {
+        // Solo DIRECTOR/ADMIN/SUPERVISOR pueden hacer broadcast — chequeo doble rol
+        const canBroadcast = BROADCAST_ROLES.includes(auth.role)
+            || auth.secondaryRoles.some(r => BROADCAST_ROLES.includes(r));
+        if (type === 'BROADCAST' && !canBroadcast) {
             return NextResponse.json({ success: false, error: 'Solo supervisores pueden enviar anuncios' }, { status: 403 });
         }
 
@@ -146,11 +145,11 @@ export async function POST(req: Request) {
  */
 export async function PATCH(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
 
-        const userId = (session.user as any).id;
-        const hqId = (session.user as any).headquartersId;
+        const userId = auth.id;
+        const hqId = auth.headquartersId;
 
         const { messageIds } = await req.json();
         if (!Array.isArray(messageIds) || messageIds.length === 0) {

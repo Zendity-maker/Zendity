@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { applyScoreEvent } from '@/lib/score-event';
@@ -17,15 +16,10 @@ const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        const role = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
-        }
-
-        const authorId = (session.user as any).id;
+        const authorId = auth.id;
         const { action, selectedOption } = await req.json();
 
         if (!['ACCEPT', 'DECLINE'].includes(action)) {

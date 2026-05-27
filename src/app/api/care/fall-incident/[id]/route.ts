@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -17,15 +16,10 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        const role = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        }
-
-        const invokerHqId = (session.user as any).headquartersId;
+        const invokerHqId = auth.headquartersId;
         const { id } = await params;
 
         const incident = await prisma.fallIncident.findUnique({

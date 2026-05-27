@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 import { z } from 'zod';
@@ -24,10 +23,8 @@ const LogSchema = z.object({
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES_WRITE.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES_WRITE);
+        if (auth instanceof NextResponse) return auth;
 
         const parsed = LogSchema.safeParse(await req.json());
         if (!parsed.success) {
@@ -37,7 +34,7 @@ export async function POST(req: Request) {
             );
         }
         const { areaId, status, photoUrl, notes, photoRequested, productsUsed } = parsed.data;
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
 
         if (!hqId) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
@@ -57,7 +54,7 @@ export async function POST(req: Request) {
         const log = await prisma.cleaningLog.create({
             data: {
                 areaId,
-                cleanedById: session.user.id,
+                cleanedById: auth.id,
                 headquartersId: hqId,
                 status: status || 'COMPLETED',
                 photoUrl: photoUrl || null,
@@ -80,13 +77,11 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES_READ.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES_READ);
+        if (auth instanceof NextResponse) return auth;
 
         const { searchParams } = new URL(req.url);
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
         const dateParam = searchParams.get('date');
 
         if (!hqId) {

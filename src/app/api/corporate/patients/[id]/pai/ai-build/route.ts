@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { generateObject, generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 
 /**
  * HIPAA — Zendi AI PAI Builder v2
@@ -16,10 +15,9 @@ export const maxDuration = 60;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        if (!ALLOWED_ROLES.includes((session.user as any).role)) return NextResponse.json({ success: false, error: 'Rol no autorizado' }, { status: 403 });
-        const invokerHqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const invokerHqId = auth.headquartersId;
 
         const resolvedParams = await params;
         const patientId = resolvedParams.id;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { todayStartAST } from '@/lib/dates';
 import { SystemAuditAction } from '@prisma/client';
@@ -17,14 +18,15 @@ export const revalidate = 0;
  */
 export async function GET(req: Request) {
     try {
+        const ALLOWED = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
+        const auth = await requireRole(ALLOWED);
+        if (auth instanceof NextResponse) return auth;
+
+        // `resolveEffectiveHqId` requiere el objeto Session de NextAuth; lo
+        // leemos por separado tras pasar el gate de auth.
         const session = await getServerSession(authOptions);
         if (!session?.user) {
             return NextResponse.json({ success: false, count: 0 }, { status: 401 });
-        }
-
-        const ALLOWED = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
-        if (!ALLOWED.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, count: 0 }, { status: 403 });
         }
 
         const { searchParams } = new URL(req.url);
