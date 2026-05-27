@@ -16,10 +16,25 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Debe ingresar un Email y PIN validos.");
                 }
 
+                // Normalización del email — Prisma `findUnique({ email })` es
+                // case- y whitespace-sensitive. Sin esto, "MaDelVelez@Gmail.com"
+                // o " madelvelez@gmail.com" (autocapitalización de teclado iOS,
+                // espacios pegados al copiar) no encuentran el record aunque
+                // la cuenta exista, y el usuario ve "Credenciales no
+                // encontradas" sin causa aparente. Caso documentado: María
+                // del Pilar Vélez no podía entrar a /family por esto.
+                //
+                // Audit previo confirma: 0 emails actuales en User/FamilyMember
+                // tienen mayúsculas o espacios — la normalización en lookup
+                // no rompe ninguna cuenta existente. Endpoints que crean
+                // User/FamilyMember idealmente también deberían normalizar
+                // en write para mantener la invariante; ese es follow-up.
+                const normalizedEmail = credentials.email.trim().toLowerCase();
+
                 // select explícito — evitar descargar todo el row (relaciones,
                 // arrays grandes, campos binarios) en cada intento de login.
                 const user = await prisma.user.findUnique({
-                    where: { email: credentials.email },
+                    where: { email: normalizedEmail },
                     select: {
                         id: true,
                         name: true,
@@ -58,7 +73,7 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 const family = await prisma.familyMember.findUnique({
-                    where: { email: credentials.email },
+                    where: { email: normalizedEmail },
                 });
 
                 if (family) {
