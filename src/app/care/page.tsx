@@ -595,14 +595,22 @@ export default function ZendityCareTabletPage() {
                             }
                             return; // No necesita elegir manualmente
                         }
-                        // Shift existe pero sin colorGroup (ej. KITCHEN/MAINTENANCE):
-                        // NO caer a localStorage — ese valor sería de otro turno y
-                        // mostraría residentes que no corresponden. Dejar selector
-                        // manual / sin residentes hasta que alguien asigne color.
-                        if (colorData.source === 'no_color_assigned') {
+                        // No caer a localStorage en dos casos:
+                        //  - 'no_color_assigned': shift HOY sin colorGroup (KITCHEN/MAINTENANCE)
+                        //  - 'shift_not_current': shift HOY con colorGroup pero NO compatible
+                        //    con el shiftType actual (ej. Brendali NIGHT entrando 4h antes
+                        //    en EVENING — su pauta NIGHT no aplica ahora; un localStorage
+                        //    cacheado ('ALL' de un turno previo) sería falso).
+                        // En ambos casos: cae al no-color screen para que el modal
+                        // CoveragePicker ofrezca claim explícito sobre los uncovered.
+                        if (colorData.source === 'no_color_assigned' || colorData.source === 'shift_not_current') {
                             if (colorData.shiftNotes) setShiftNotes(colorData.shiftNotes);
                             setSelectedColor(null);
                             setPatients([]);
+                            // Limpiar cache para que futuros refresh tampoco caigan a un
+                            // color stale. La caregiver tomará un color vía claim o esperará
+                            // a que su shiftType se active.
+                            localStorage.removeItem('zendityCareShiftColor');
                             return;
                         }
                     }
