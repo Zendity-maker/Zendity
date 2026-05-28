@@ -97,6 +97,7 @@ export async function POST(req: Request) {
                     patients,
                     activity,
                     justifications,
+                    shiftDate: shiftStart,
                 });
                 zendiSummary = built.summary;
             }

@@ -183,8 +183,18 @@ export async function buildZendiSummary(params: {
     patients: { name: string; colorGroup: string; roomNumber: string | null }[];
     activity: ShiftActivity;
     justifications: Record<string, string>;
+    /** Fecha del turno. Sin esto, GPT inventaba un encabezado "Fecha:" con un
+     *  placeholder literal "[Fecha del turno]" que aparecía sin rellenar en el
+     *  briefing del relevo. Pasarla explícita cierra ese bug. */
+    shiftDate?: Date;
 }): Promise<{ summary: string; source: 'gpt' | 'fallback' }> {
-    const { caregiverName, shiftType, patients, activity, justifications } = params;
+    const { caregiverName, shiftType, patients, activity, justifications, shiftDate } = params;
+
+    // Fecha formateada en AST (es-PR). Si no se pasa, usamos hoy.
+    const fechaStr = (shiftDate ?? new Date()).toLocaleDateString('es-PR', {
+        timeZone: 'America/Puerto_Rico',
+        day: '2-digit', month: 'long', year: 'numeric',
+    });
 
     const shiftLabel =
         shiftType === 'MORNING'    ? 'Mañana (6am–2pm)'
@@ -213,8 +223,9 @@ export async function buildZendiSummary(params: {
         ? Object.entries(justifications).map(([id, r]) => `  · ${id}: ${r}`).join('\n')
         : '  · ninguna';
 
-    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español profesional y claro. REGLAS ESTRICTAS: (1) Usa SOLO los datos que te doy — NO inventes nada. (2) Menciona a cada residente por su nombre completo y qué se hizo específicamente con él/ella. (3) NO uses frases genéricas como "se atendió a los residentes" — sé concreto/a. (4) Si no hubo actividad registrada para un residente, no lo menciones. (5) Máximo 4 párrafos. (6) Si hay situaciones que requieren atención del supervisor, resáltalas al final en un párrafo separado.
+    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español profesional y claro. REGLAS ESTRICTAS: (1) Usa SOLO los datos que te doy — NO inventes nada. (2) Menciona a cada residente por su nombre completo y qué se hizo específicamente con él/ella. (3) NO uses frases genéricas como "se atendió a los residentes" — sé concreto/a. (4) Si no hubo actividad registrada para un residente, no lo menciones. (5) Máximo 4 párrafos. (6) Si hay situaciones que requieren atención del supervisor, resáltalas al final en un párrafo separado. (7) NUNCA uses placeholders ni corchetes como [Fecha], [Nombre], etc. — usa los datos exactos que te doy abajo. Si encabezas el reporte con fecha/turno/cuidador, usa los valores literales provistos; nunca dejes un campo sin rellenar.
 
+Fecha del turno: ${fechaStr}
 Turno: ${shiftLabel}
 Cuidador(a): ${caregiverName}
 
