@@ -131,7 +131,14 @@ export async function calculateDynamicScore(userId: string) {
             where: { nurseId: userId, isComplianceAlert: true, performedAt: { gte: sevenDaysAgo } }
         }),
         prisma.fastActionAssignment.count({
-            where: { caregiverId: userId, status: 'FAILED', createdAt: { gte: sevenDaysAgo } }
+            // Excluir NOTAS ([NOTA]) — son instrucciones sin penalización, no
+            // tareas SLA. Doble defensa con el cron que ya no las marca FAILED.
+            where: {
+                caregiverId: userId,
+                status: 'FAILED',
+                createdAt: { gte: sevenDaysAgo },
+                NOT: { description: { startsWith: '[NOTA]' } },
+            }
         }),
     ]);
 

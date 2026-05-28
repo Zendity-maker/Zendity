@@ -75,7 +75,14 @@ export async function GET(req: Request) {
                 let fastActionsFixed = 0;
                 try {
                     const result = await prisma.fastActionAssignment.updateMany({
-                        where: { headquartersId: hq.id, status: 'PENDING', expiresAt: { lt: h1ago } },
+                        // Las NOTAS ([NOTA]) son instrucciones sin penalización —
+                        // nunca se marcan FAILED ni restan score, aunque venzan.
+                        where: {
+                            headquartersId: hq.id,
+                            status: 'PENDING',
+                            expiresAt: { lt: h1ago },
+                            NOT: { description: { startsWith: '[NOTA]' } },
+                        },
                         data: { status: 'FAILED' },
                     });
                     fastActionsFixed = result.count;

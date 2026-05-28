@@ -356,6 +356,7 @@ export default function ZendityCareTabletPage() {
     const [lateReasonOpen, setLateReasonOpen] = useState(false);
     const [lateReasonDraft, setLateReasonDraft] = useState("");
     const [fastActions, setFastActions] = useState<any[]>([]);
+    const [inboxOpen, setInboxOpen] = useState(false);
     // Chat interno staff + notificaciones (ambos separados del HUB de acciones)
     const [staffChatOpen, setStaffChatOpen] = useState(false);
     const [staffChatUnread, setStaffChatUnread] = useState(0);
@@ -1734,6 +1735,18 @@ export default function ZendityCareTabletPage() {
 
     const colorStyles: Record<string, string> = { RED: "bg-red-600", YELLOW: "bg-amber-500", GREEN: "bg-emerald-500", BLUE: "bg-blue-600" };
 
+    // Parsea los marcadores de una nota/tarea para mostrarla limpia:
+    // "[NOTA][Residente: Fulano] dale Tylenol" → { isNote, patientName, text }
+    const parseTaskDescription = (raw: string): { isNote: boolean; patientName: string | null; text: string } => {
+        let text = raw || '';
+        let isNote = false;
+        let patientName: string | null = null;
+        if (text.startsWith('[NOTA]')) { isNote = true; text = text.slice('[NOTA]'.length); }
+        const resMatch = text.match(/^\s*\[Residente:\s*([^\]]+)\]\s*/);
+        if (resMatch) { patientName = resMatch[1].trim(); text = text.slice(resMatch[0].length); }
+        return { isNote, patientName, text: text.trim() };
+    };
+
     // =========================================================
     // VIEW 1: SELECCIÓN DE TURNO Y COLOR ZONING
     // =========================================================
@@ -2620,22 +2633,70 @@ export default function ZendityCareTabletPage() {
                 )}
             </div>
 
-            {/* SPRINT 1 UX: Contextual SLA Banner (Estable, Pendiente, Advertencia, Crítico) */}
-            {fastActions.length > 0 && (
-                <div className={`text-white px-8 py-4 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4 transition-all ${fastActions.length > 2 ? 'bg-rose-600' : (fastActions.length > 1 ? 'bg-amber-600' : 'bg-emerald-600')}`}>
-                    <div className="flex items-center gap-4 w-full md:w-auto">
-                        <span className={`text-3xl drop-shadow-md ${fastActions.length > 2 ? 'animate-pulse' : ''}`}>{fastActions.length > 2 ? '🚨' : (fastActions.length > 1 ? '⚠️' : '✅')}</span>
-                        <div className="flex-1">
-                            <p className="text-sm uppercase tracking-wider text-white/80 font-black">
-                                {fastActions.length > 2 ? 'ESTADO CRÍTICO (SLA)' : (fastActions.length > 1 ? 'ADVERTENCIA: ACUMULACIÓN SLA' : 'ESTADO PENDIENTE (SLA NORMAL)')}
-                                 ({fastActions.length} Pendiente{fastActions.length !== 1 && 's'})
-                            </p>
-                            <p className="text-base font-bold text-white mt-0.5">{fastActions[0].description}</p>
+            {/* SPRINT 1 UX: Banner de notas/tareas — tap para leer completas */}
+            {fastActions.length > 0 && (() => {
+                const first = parseTaskDescription(fastActions[0].description || '');
+                return (
+                    <div className={`text-white px-8 py-4 w-full font-bold flex flex-col md:flex-row justify-between items-center z-30 shadow-md gap-4 transition-all ${fastActions.length > 2 ? 'bg-rose-600' : (fastActions.length > 1 ? 'bg-amber-600' : 'bg-emerald-600')}`}>
+                        <button onClick={() => setInboxOpen(true)} className="flex items-center gap-4 w-full md:flex-1 text-left active:scale-[0.99] transition-transform">
+                            <span className={`text-3xl drop-shadow-md ${fastActions.length > 2 ? 'animate-pulse' : ''}`}>{fastActions.length > 2 ? '🚨' : (fastActions.length > 1 ? '⚠️' : '📝')}</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm uppercase tracking-wider text-white/80 font-black">
+                                    {fastActions.length} {fastActions.length === 1 ? 'nota/tarea' : 'notas/tareas'} · toca para leer completas
+                                </p>
+                                <p className="text-base font-bold text-white mt-0.5 line-clamp-2">
+                                    {first.patientName ? <span className="underline">{first.patientName}: </span> : null}{first.text}
+                                </p>
+                            </div>
+                        </button>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => setInboxOpen(true)} className="flex-1 md:flex-none bg-white/20 hover:bg-white/30 px-5 py-3.5 rounded-xl font-black active:scale-95 transition text-base min-h-[56px] flex items-center justify-center">
+                                Ver todas
+                            </button>
+                            <button onClick={() => completeFastAction(fastActions[0].id)} className={`flex-1 md:flex-none bg-white px-6 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transition text-base min-h-[56px] flex items-center justify-center ${fastActions.length > 2 ? 'text-rose-700' : (fastActions.length > 1 ? 'text-amber-700' : 'text-emerald-700')}`}>
+                                ✓ Atendí esta
+                            </button>
                         </div>
                     </div>
-                    <button onClick={() => completeFastAction(fastActions[0].id)} className={`bg-white px-8 py-3.5 rounded-xl font-black active:scale-95 shadow-sm transform hover:-translate-y-0.5 transition w-full md:w-auto text-base min-h-[56px] flex items-center justify-center ${fastActions.length > 2 ? 'text-rose-700' : (fastActions.length > 1 ? 'text-amber-700' : 'text-emerald-700')}`}>
-                         Confirmar Realización
-                    </button>
+                );
+            })()}
+
+            {/* INBOX COMPLETO — lista todas las notas/tareas con texto completo */}
+            {inboxOpen && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setInboxOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                            <h2 className="text-lg font-black text-slate-800">Notas y tareas pendientes ({fastActions.length})</h2>
+                            <button onClick={() => setInboxOpen(false)} className="text-slate-400 hover:text-slate-700 p-2 hover:bg-slate-100 rounded-xl transition-colors text-xl">✕</button>
+                        </div>
+                        <div className="px-5 py-4 overflow-y-auto flex-1 space-y-3">
+                            {fastActions.map((fa: any) => {
+                                const parsed = parseTaskDescription(fa.description || '');
+                                return (
+                                    <div key={fa.id} className={`rounded-2xl border-2 p-4 ${parsed.isNote ? 'border-teal-200 bg-teal-50/40' : 'border-amber-300 bg-amber-50/40'}`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${parsed.isNote ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {parsed.isNote ? '📝 Nota' : '⚡ Tarea SLA'}
+                                            </span>
+                                            {parsed.patientName && (
+                                                <span className="text-[11px] font-bold text-slate-600">Residente: {parsed.patientName}</span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">{parsed.text}</p>
+                                        <button
+                                            onClick={async () => { await completeFastAction(fa.id); }}
+                                            className="mt-3 w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black text-sm rounded-xl active:scale-95 transition"
+                                        >
+                                            ✓ Marcar como atendida
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                            {fastActions.length === 0 && (
+                                <p className="text-center text-slate-400 font-medium py-8">No hay notas ni tareas pendientes.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 

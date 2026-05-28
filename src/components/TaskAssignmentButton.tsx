@@ -21,6 +21,10 @@ export default function TaskAssignmentButton({
   const [hubCaregiversOffShift, setHubCaregiversOffShift] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingStaff, setLoadingStaff] = useState(false);
+  // kind: NOTE (instrucción de cuidado, sin penalización) | SLA (tarea 15 min
+  // con penalización). Default NOTE — el uso típico es una instrucción clínica.
+  const [kind, setKind] = useState<'NOTE' | 'SLA'>('NOTE');
+  const [patientName, setPatientName] = useState("");
 
   const fetchCaregiversTarget = async () => {
     setLoadingStaff(true);
@@ -50,6 +54,8 @@ export default function TaskAssignmentButton({
   const handleOpen = () => {
     setHubCaregiverId("");
     setHubDescription("");
+    setPatientName("");
+    setKind('NOTE');
     setHubCaregiversOnShift([]);
     setHubCaregiversOffShift([]);
     fetchCaregiversTarget();
@@ -64,10 +70,12 @@ export default function TaskAssignmentButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: null,
+          patientName: patientName.trim() || undefined,
           assignedToId: hubCaregiverId,
           assignedById: user?.id,
           headquartersId: user?.hqId || user?.headquartersId || "hq-demo-1",
           description: hubDescription,
+          kind,
           type: "FAST_ACTION",
           priority: "HIGH",
           slaMinutes: 15,
@@ -75,10 +83,12 @@ export default function TaskAssignmentButton({
       });
       const data = await res.json();
       if (data.success) {
-        alert("Tarea asignada exitosamente con SLA de 15 minutos.");
+        alert(kind === 'NOTE'
+          ? "Nota enviada al cuidador. No afecta su score; la verá en su tablet."
+          : "Tarea SLA asignada (15 minutos). Cuenta para el score de cumplimiento.");
         setIsOpen(false);
       } else {
-        alert("Error al asignar tarea: " + data.error);
+        alert("Error al asignar: " + data.error);
       }
     } catch (e) {
       console.error(e);
@@ -136,10 +146,33 @@ export default function TaskAssignmentButton({
 
             <div className="space-y-4 pr-2 pb-4 overflow-y-auto custom-scrollbar flex-1">
               <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-100 pb-2 flex items-center gap-2">
-                <span>⚡</span> Asignación de Tarea SLA (15-Min)
+                <span>{kind === 'NOTE' ? '📝' : '⚡'}</span> {kind === 'NOTE' ? 'Enviar Nota al Cuidador' : 'Tarea SLA (15-Min)'}
               </p>
+
+              {/* Selector de tipo: Nota (sin penalización) vs Tarea SLA */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setKind('NOTE')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${kind === 'NOTE' ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20' : 'border-slate-200 bg-white hover:border-teal-300'}`}
+                >
+                  <p className="font-black text-slate-800 text-sm">📝 Nota / Instrucción</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Sin penalización. Ej. "dale Tylenol".</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKind('SLA')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${kind === 'SLA' ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20' : 'border-slate-200 bg-white hover:border-amber-300'}`}
+                >
+                  <p className="font-black text-slate-800 text-sm">⚡ Tarea SLA</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">15 min, cuenta para el score.</p>
+                </button>
+              </div>
+
               <p className="text-slate-500 font-medium text-sm">
-                El cuidador seleccionado recibirá la alerta In-App y tendrá 15 minutos exactos para cumplirla o se penalizará su Score de Cumplimiento.
+                {kind === 'NOTE'
+                  ? 'El cuidador verá la nota en su tablet. No afecta su Score de Cumplimiento — es una instrucción de cuidado.'
+                  : 'El cuidador tendrá 15 minutos exactos para cumplirla o se penalizará su Score de Cumplimiento.'}
               </p>
 
               <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-right-4">
@@ -186,22 +219,34 @@ export default function TaskAssignmentButton({
                   )}
                 </div>
 
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                  <label className="text-sm font-bold text-slate-500 block mb-2">Mandato u Orden (Obligatorio)</label>
-                  <textarea
-                    className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
-                    placeholder="Ej. Realizar reporte del residente Artemia por cambio de salud..."
-                    value={hubDescription}
-                    onChange={(e) => setHubDescription(e.target.value)}
-                  />
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+                  <div>
+                    <label className="text-sm font-bold text-slate-500 block mb-2">Residente (opcional)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm focus:border-indigo-500 outline-none"
+                      placeholder="Ej. Fulano de Tal — para dar contexto a la nota"
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-bold text-slate-500 block mb-2">{kind === 'NOTE' ? 'Nota / Instrucción (Obligatorio)' : 'Mandato u Orden (Obligatorio)'}</label>
+                    <textarea
+                      className="w-full bg-white border border-slate-200 p-3 rounded-xl font-bold text-slate-800 text-sm h-32 resize-none focus:border-indigo-500 outline-none"
+                      placeholder={kind === 'NOTE' ? 'Ej. Tiene dolor de cabeza, adminístrale Tylenol 500mg y observa.' : 'Ej. Realizar reporte del residente Artemia por cambio de salud...'}
+                      value={hubDescription}
+                      onChange={(e) => setHubDescription(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <button
                   onClick={submitSupervisorFastAction}
                   disabled={submitting || !hubCaregiverId || !hubDescription}
-                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 transition-all flex justify-center items-center gap-2"
+                  className={`w-full py-5 text-white font-black rounded-2xl shadow-lg disabled:opacity-50 transition-all flex justify-center items-center gap-2 ${kind === 'NOTE' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-amber-600 hover:bg-amber-700'}`}
                 >
-                  {submitting ? "Despachando..." : "Despachar Asignación (15 minutos reloj)"}
+                  {submitting ? "Enviando..." : (kind === 'NOTE' ? "📝 Enviar Nota" : "⚡ Despachar Tarea SLA (15 min)")}
                 </button>
               </div>
             </div>
