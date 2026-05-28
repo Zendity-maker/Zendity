@@ -719,6 +719,25 @@ export default function ZendityCareTabletPage() {
             setVerifyingCensus(true);
             return;
         }
+        // Sesión activa + esta pantalla de "elige color" = la cuidadora NO tiene
+        // color base hoy (su pauta no aplica al turno actual, ej. Yedaira NIGHT
+        // entrando temprano a cubrir EVENING). Tocar un color aquí significa "voy
+        // a cubrir este grupo" — debemos PERSISTIRLO vía claim-coverage para que
+        // my-color lo resuelva y el tablet no recicle al refrescar. El backend
+        // crea el ShiftColorAssignment solo si no tiene color base (idempotente),
+        // así que es seguro aunque se llame de más. 'ALL' (solo-mode) se exceptúa.
+        if (color !== 'ALL' && activeSession?.id) {
+            try {
+                await fetch('/api/care/shift/claim-coverage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ colors: [color], shiftSessionId: activeSession.id }),
+                });
+            } catch (e) {
+                console.error('[startTurnAndBriefing] claim-coverage persist falló', e);
+                // No bloquea — la briefing continúa; en el peor caso recicla como antes.
+            }
+        }
         continueToBriefing(color);
     };
 
