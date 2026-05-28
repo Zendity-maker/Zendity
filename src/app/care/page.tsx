@@ -177,6 +177,11 @@ export default function ZendityCareTabletPage() {
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
     const [sessionLoading, setSessionLoading] = useState(true);
 
+    // Pantalla post-cierre: tras entregar turno, mostrar confirmación clara
+    // ANTES de cerrar sesión, para que la cuidadora no dude si funcionó y
+    // vuelva a entrar a re-cerrar (causaba relevos duplicados).
+    const [shiftDeliveredScreen, setShiftDeliveredScreen] = useState(false);
+
     // Zendi Welcome Briefing (Fase 10)
     const [briefingMode, setBriefingMode] = useState(false);
     const [briefingData, setBriefingData] = useState<any>(null);
@@ -1734,6 +1739,32 @@ export default function ZendityCareTabletPage() {
     // =========================================================
     if (sessionLoading) {
         return <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-black text-2xl text-slate-500 animate-pulse">Sincronizando Sistema Zendity...</div>;
+    }
+
+    // Pantalla post-cierre — confirmación clara antes de cerrar sesión.
+    // Evita el alert abrupto y deja sin duda que el turno SÍ se entregó, para
+    // que la cuidadora no vuelva a entrar a re-cerrar (relevos duplicados).
+    if (shiftDeliveredScreen) {
+        return (
+            <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-[60]">
+                <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 mb-5 text-5xl">✓</div>
+                    <h1 className="text-3xl font-black text-slate-800 mb-3">Turno Entregado</h1>
+                    <p className="text-slate-500 font-medium mb-2 leading-relaxed">
+                        Tu reporte de cierre fue guardado y firmado. Zendi protegió tus registros para auditoría.
+                    </p>
+                    <p className="text-slate-400 text-sm font-medium mb-8">
+                        Ya no necesitas hacer nada más. Tu turno está completo.
+                    </p>
+                    <button
+                        onClick={() => { setShiftDeliveredScreen(false); logout(); }}
+                        className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black text-lg rounded-2xl transition-colors"
+                    >
+                        Cerrar sesión
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (!selectedColor && !briefingMode && !verifyingCensus) {
@@ -4133,8 +4164,12 @@ export default function ZendityCareTabletPage() {
                             alert(errData.error || "Error finalizando turno. Intenta nuevamente.");
                             return false;
                         }
-                        alert("Turno Entregado. Has protegido tus registros para auditoría mediante Zendi.");
-                        await logout();
+                        // Cerrar el wizard y mostrar pantalla de confirmación
+                        // clara (en vez de un alert abrupto + logout inmediato).
+                        // Reduce el "¿funcionó? voy a intentar de nuevo" que
+                        // generaba re-cierres y relevos duplicados.
+                        setModalType(null);
+                        setShiftDeliveredScreen(true);
                         return true;
                     } catch (e) {
                         alert("Error finalizando turno localmente.");

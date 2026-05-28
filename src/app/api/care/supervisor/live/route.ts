@@ -608,7 +608,22 @@ export async function GET(req: Request) {
         // — Handovers feed (individuales por cuidador, sin el prólogo del cron) —
         // Cada fila es el reporte de una cuidadora con los colores que cubrió.
         // Estado derivado: PENDING_SUPERVISOR → SUPERVISOR_SIGNED.
-        const handoversFeed = handoversTodayFull.map(h => {
+        //
+        // DEDUP: si una cuidadora cierra y reabre turno varias veces en el día
+        // (mismo shiftType), genera múltiples ShiftHandover — el supervisor veía
+        // "3 entregas del mismo turno". Colapsamos a la MÁS RECIENTE por
+        // (outgoingNurseId + shiftType). La query ya viene orderBy createdAt desc,
+        // así que el primero por clave es el último cierre. Los registros previos
+        // NO se borran (auditoría/nómina intactas) — solo no se muestran como
+        // relevos duplicados. dupCount expone cuántos cierres hubo.
+        const seenHandoverKey = new Map<string, number>();
+        const dedupedHandovers = handoversTodayFull.filter(h => {
+            const key = `${h.outgoingNurseId}|${h.shiftType}`;
+            const count = (seenHandoverKey.get(key) ?? 0) + 1;
+            seenHandoverKey.set(key, count);
+            return count === 1; // solo el primero (más reciente) por clave
+        });
+        const handoversFeed = dedupedHandovers.map(h => {
             const derivedStatus: 'PENDING_SUPERVISOR' | 'SUPERVISOR_SIGNED' =
                 h.supervisorSignedAt ? 'SUPERVISOR_SIGNED' : 'PENDING_SUPERVISOR';
             return {
@@ -627,6 +642,9 @@ export async function GET(req: Request) {
                 colorGroups: h.colorGroups || [],
                 patientCount: h._count?.notes ?? 0,
                 aiSummaryReport: h.aiSummaryReport || null,
+                // Cuántos cierres hubo de este cuidador+turno hoy (1 = normal).
+                // >1 indica re-cierres (cuidadora cerró y reabrió turno).
+                dupCount: seenHandoverKey.get(`${h.outgoingNurseId}|${h.shiftType}`) ?? 1,
             };
         });
 
