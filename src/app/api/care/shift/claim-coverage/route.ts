@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
-import { todayStartAST } from '@/lib/dates';
-import { inferShiftTypeFromAST, type ShiftT } from '@/lib/shift-coverage';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { inferShiftTypeFromAST, resolveCaregiverCurrentColors, type ShiftT } from '@/lib/shift-coverage';
 import { notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 
@@ -106,8 +106,35 @@ export async function POST(req: Request) {
         const vitalsExpiresAt = new Date(shiftSession.startTime.getTime() + VITALS_WINDOW_MS);
         const vitalsWindowOpen = vitalsExpiresAt > now;
 
+        // ¿La cuidadora tiene un color base efectivo AHORA? Si no (caso típico:
+        // pauta NIGHT entrando 4h antes en EVENING — su pauta no aplica todavía),
+        // el claim debe crear también un ShiftColorAssignment para que my-color
+        // resuelva el color y el tablet se ESTABILICE. Sin esto, el claim solo
+        // creaba overrides — my-color seguía devolviendo null y la cuidadora
+        // quedaba en el loop no-color → picker → briefing (caso Yedaira).
+        const currentColors = await resolveCaregiverCurrentColors({ caregiverId: invokerId, hqId });
+        const needsColorAssignment = currentColors.length === 0;
+        // FK requerido: cualquier ScheduledShift de la cuidadora HOY sirve de ancla
+        // (my-color lee ColorAssignment por userId+assignedAt, no por scheduledShiftId).
+        let anchorShiftId: string | null = null;
+        if (needsColorAssignment) {
+            const dayRange = clinicalDayCalendarUTCRange();
+            const anchorShift = await prisma.scheduledShift.findFirst({
+                where: {
+                    userId: invokerId,
+                    date: { gte: dayRange.start, lt: dayRange.end },
+                    schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+                },
+                select: { id: true },
+            });
+            anchorShiftId = anchorShift?.id ?? null;
+        }
+        // Color primario que se vuelve "su color" del turno (el primero reclamado).
+        const primaryColor = colors[0];
+
         let claimed = 0;
         let vitalsCreated = 0;
+        let colorAssignmentCreated = false;
 
         await prisma.$transaction(async (tx) => {
             // Desactivar overrides previos de otros cuidadores
@@ -174,6 +201,31 @@ export async function POST(req: Request) {
                 }
             }
 
+            // Estabilizar color de la cuidadora sin pauta efectiva: crear
+            // ShiftColorAssignment para el color primario reclamado. Idempotente:
+            // solo si no tiene asignación de hoy todavía. Requiere un shift ancla
+            // hoy (FK). Si no hay shift hoy (off-pattern total), se omite y la
+            // cobertura queda solo por overrides (comportamiento previo).
+            if (needsColorAssignment && anchorShiftId && primaryColor && primaryColor !== 'ALL') {
+                const existingCA = await tx.shiftColorAssignment.findFirst({
+                    where: { userId: invokerId, headquartersId: hqId, assignedAt: { gte: shiftDate } },
+                    select: { id: true },
+                });
+                if (!existingCA) {
+                    await tx.shiftColorAssignment.create({
+                        data: {
+                            headquartersId: hqId,
+                            scheduledShiftId: anchorShiftId,
+                            color: primaryColor,
+                            userId: invokerId,
+                            assignedBy: invokerId, // auto-claim desde el tablet
+                            isAutoAssigned: true,
+                        },
+                    });
+                    colorAssignmentCreated = true;
+                }
+            }
+
             await tx.systemAuditLog.create({
                 data: {
                     headquartersId: hqId,
@@ -188,6 +240,8 @@ export async function POST(req: Request) {
                         claimed,
                         vitalsCreated,
                         priorOverridesReleased: priorOverrides.length,
+                        colorAssignmentCreated,
+                        primaryColor: colorAssignmentCreated ? primaryColor : undefined,
                     } as any,
                 },
             });
@@ -208,6 +262,8 @@ export async function POST(req: Request) {
             vitalsCreated,
             priorOverridesReleased: priorOverrides.length,
             colors,
+            colorAssignmentCreated,
+            assignedColor: colorAssignmentCreated ? primaryColor : undefined,
         });
     } catch (error: any) {
         console.error('claim-coverage error:', error);
