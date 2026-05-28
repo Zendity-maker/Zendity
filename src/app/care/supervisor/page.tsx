@@ -310,7 +310,7 @@ export default function SupervisorMissionControlPage() {
         setMarkingAbsent(scheduledShiftId);
         setConfirmingAbsent(null);
         try {
-            const hqId = (user as any)?.headquartersId || '';
+            const hqId = (user as any)?.hqId || (user as any)?.headquartersId || '';
             const res = await fetch('/api/hr/schedule/absent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
