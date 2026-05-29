@@ -293,6 +293,34 @@ export default function InsightsDashboard() {
     window.print();
   };
 
+  // Genera y descarga el censo de residentes en PDF (1-clic). jsPDF se importa
+  // dinámico para no inflar el bundle del dashboard.
+  const [generatingCensus, setGeneratingCensus] = useState(false);
+  const handleGenerateCensus = async () => {
+    setGeneratingCensus(true);
+    try {
+      const res = await fetch('/api/corporate/census');
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'No se pudo generar el censo.');
+        return;
+      }
+      const { generateCensusPDF } = await import('@/lib/census-pdf');
+      generateCensusPDF({
+        hqName: data.hqName,
+        total: data.total,
+        activeCount: data.activeCount,
+        leaveCount: data.leaveCount,
+        census: data.census,
+      });
+    } catch (e) {
+      console.error('[generar censo]', e);
+      alert('Error de conexión al generar el censo.');
+    } finally {
+      setGeneratingCensus(false);
+    }
+  };
+
   const renderTrendIcon = (trend: string) => {
     if (trend === "UP") return <TrendingUp className="text-emerald-500 w-5 h-5 mx-auto" />;
     if (trend === "DOWN") return <TrendingDown className="text-rose-500 w-5 h-5 mx-auto" />;
@@ -364,6 +392,15 @@ export default function InsightsDashboard() {
                 {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={handleGenerateCensus}
+            disabled={generatingCensus}
+            className={`bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm px-5 py-2.5 shadow-md shadow-teal-600/10 transition-all flex items-center gap-2 ${generatingCensus ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            <Users className="w-4 h-4" />
+            <span>{generatingCensus ? "Generando..." : "Generar Censo"}</span>
           </button>
 
           <button
