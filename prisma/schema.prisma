@@ -567,6 +567,12 @@ model Patient {
   photoUrl        String? // FASE 48: URL de foto de perfil
   needsDialysis   Boolean @default(false) // Marca residentes con tratamiento de diálisis periódica
 
+  // Modalidad de cuidado — preexistente en DB (sesión anterior, hospicio plan).
+  // Sincronizado aquí para evitar drift. Aditivo: ningún consumidor activo lo usa todavía.
+  careModality     CareModality @default(NONE)
+  hospiceStartDate DateTime?
+  hospiceProvider  String?
+
   // Portal Familiar — Nivel de divulgación de data hacia la familia.
   // LIFESTYLE (default): banda cualitativa siempre presente, cero números clínicos.
   // FULL: vista clínica completa (vitales + meds), solo con consentimiento explícito del residente.
@@ -1498,6 +1504,13 @@ enum ShiftType {
   FULL_DAY      // 6AM–6PM   (12h)
   FULL_NIGHT    // 6PM–6AM   (12h)
   SUPERVISOR_DAY
+  OFF           // Día libre planificado — no laborable. Filtros operativos lo ignoran (compatibleShiftTypesAt nunca lo retorna).
+}
+
+enum CareModality {
+  NONE
+  PALLIATIVE
+  HOSPICE
 }
 
 enum HandoverStatus {

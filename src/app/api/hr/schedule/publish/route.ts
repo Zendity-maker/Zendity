@@ -41,8 +41,12 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
     const errors: ValidationIssue[]   = [];
     const warnings: ValidationIssue[] = [];
 
+    // OFF (día libre planificado) salta TODAS las validaciones operativas — no es
+    // un turno de trabajo, así que no aplica color/duplicados/etc.
+    const workShifts = shifts.filter(s => s.shiftType !== 'OFF');
+
     // REGLA 1 — ALL en turno no nocturno (advertencia)
-    for (const s of shifts) {
+    for (const s of workShifts) {
         if (s.colorGroup === 'ALL' && !NIGHT_SHIFTS.includes(s.shiftType)) {
             warnings.push({
                 type: 'ALL_NON_NIGHT',
@@ -56,7 +60,7 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
     //   ERROR CRÍTICO  → CAREGIVER / NURSE: deben tener color siempre
     //   ADVERTENCIA    → SUPERVISOR: puede iniciar sin color (lo selecciona en tablet)
     //   SIN VALIDACIÓN → CLEANING, ADMIN, DIRECTOR, INVESTOR
-    for (const s of shifts) {
+    for (const s of workShifts) {
         const role = s.user?.role ?? '';
         if (s.colorGroup) continue;                         // tiene color → ok
         if (NO_COLOR_ROLES.includes(role)) continue;        // roles exentos → ignorar
@@ -78,7 +82,7 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
 
     // REGLA 3 — Mismo empleado, mismo día, colores distintos (advertencia)
     const byUserDate = new Map<string, any[]>();
-    for (const s of shifts) {
+    for (const s of workShifts) {
         const key = `${s.userId}|${new Date(s.date).toDateString()}`;
         if (!byUserDate.has(key)) byUserDate.set(key, []);
         byUserDate.get(key)!.push(s);
