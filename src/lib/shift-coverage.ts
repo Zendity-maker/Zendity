@@ -219,7 +219,13 @@ export async function computeShiftCoverage(params: {
 
     const scheduledColorsSet = new Set<string>();
     for (const s of scheduledShifts) {
-        if (s.colorGroup && s.colorGroup !== 'UNASSIGNED') scheduledColorsSet.add(s.colorGroup);
+        // 'ALL' NO es un color literal — significa "cubre todos los colores"
+        // (cuidadora solitaria / guardia que ve todo el piso). Si entra a
+        // expectedColors, luego cae en absentColors y la query
+        // `patient.findMany({ colorGroup: { in: [...,'ALL'] } })` CRASHEA
+        // porque 'ALL' no es un valor del enum ColorGroup. Se excluye como
+        // UNASSIGNED; su efecto de cobertura se maneja abajo (cubre todo).
+        if (s.colorGroup && s.colorGroup !== 'UNASSIGNED' && s.colorGroup !== 'ALL') scheduledColorsSet.add(s.colorGroup);
     }
     // Fail-safe: expectedColors = UNION(pautas no-absent, colores con residentes
     // activos). Si EmpX BLUE está absent, BLUE no entra por scheduledColorsSet
@@ -262,7 +268,18 @@ export async function computeShiftCoverage(params: {
 
     const coveredColorsSet = new Set<string>();
     for (const colors of coveredByUser.values()) {
-        for (const c of colors) coveredColorsSet.add(c);
+        for (const c of colors) {
+            if (c === 'ALL') {
+                // Una cuidadora pautada/asignada 'ALL' cubre TODOS los colores
+                // esperados (ve todo el piso). Marcamos cada expectedColor como
+                // cubierto — así una sola en guardia con ALL no genera huérfanos
+                // falsos. Con varias en colores específicos, ALL no aplica y los
+                // huérfanos se detectan normal.
+                for (const ec of expectedColors) coveredColorsSet.add(ec);
+            } else {
+                coveredColorsSet.add(c);
+            }
+        }
     }
 
     // Punto de partida — colores que NINGÚN caregiver activo lleva por pauta
