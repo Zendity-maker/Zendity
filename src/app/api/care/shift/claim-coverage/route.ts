@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { inferShiftTypeFromAST, resolveCaregiverCurrentColors, type ShiftT } from '@/lib/shift-coverage';
+import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 
@@ -43,13 +44,12 @@ export async function POST(req: Request) {
         const hqId = auth.headquartersId;
 
         const body = await req.json();
-        const { colors, shiftSessionId, shiftType: shiftTypeParam } = body as {
-            colors?: string[];
-            shiftSessionId?: string;
-            shiftType?: ShiftT;
-        };
+        // `colors` mutable: tras repartir huérfanos quedan solo los colores propios.
+        let colors: string[] = Array.isArray(body.colors) ? body.colors : [];
+        const shiftSessionId: string | undefined = body.shiftSessionId;
+        const shiftTypeParam: ShiftT | undefined = body.shiftType;
 
-        if (!Array.isArray(colors) || colors.length === 0) {
+        if (colors.length === 0) {
             return NextResponse.json({ success: false, error: 'colors requerido (array no vacío)' }, { status: 400 });
         }
         if (!shiftSessionId) {
@@ -68,6 +68,45 @@ export async function POST(req: Request) {
         const shiftType: ShiftT = shiftTypeParam && ['MORNING', 'EVENING', 'NIGHT'].includes(shiftTypeParam)
             ? shiftTypeParam
             : inferShiftTypeFromAST();
+
+        // ── OPCIÓN (i) — repartir huérfanos en vez de acaparar ──────────────
+        // Si la cuidadora YA tiene color base, los colores que reclama que NO
+        // son los suyos son HUÉRFANOS → se reparten round-robin entre TODAS las
+        // activas con color (misma lógica probada del botón "Redistribuir"), no
+        // se los lleva todos. Caso: Mariane (RED) reclamó BLUE y se llevó los 11;
+        // ahora BLUE se reparte entre ella y Yedaira.
+        // Los colores que SÍ son suyos (o si no tiene base = sustituta/entrante)
+        // se procesan abajo con el flujo normal — esos sí los toma completos.
+        const claimerBaseColors = await resolveCaregiverCurrentColors({ caregiverId: invokerId, hqId });
+        let redistributedOrphanCount = 0;
+        const orphanDistribution: Array<{ caregiver: string; count: number }> = [];
+        if (claimerBaseColors.length > 0) {
+            const orphanColors = colors.filter(c => c !== 'ALL' && !claimerBaseColors.includes(c));
+            for (const oc of orphanColors) {
+                const r = await redistributeUncoveredColors({ hqId, shiftType, color: oc, trigger: 'MANUAL' });
+                redistributedOrphanCount += r.overridesCreated.length;
+                for (const ov of r.overridesCreated) {
+                    const e = orphanDistribution.find(d => d.caregiver === ov.caregiverName);
+                    if (e) e.count++; else orphanDistribution.push({ caregiver: ov.caregiverName, count: 1 });
+                }
+            }
+            // Quitar los huérfanos repartidos; quedan solo los colores propios.
+            colors = colors.filter(c => claimerBaseColors.includes(c));
+        }
+
+        // Si tras repartir huérfanos no quedan colores propios que tomar,
+        // devolver el resumen del reparto (no hay nada más que hacer).
+        if (colors.length === 0) {
+            return NextResponse.json({
+                success: true,
+                claimed: 0,
+                redistributedOrphanCount,
+                orphanDistribution,
+                message: redistributedOrphanCount > 0
+                    ? `${redistributedOrphanCount} residente${redistributedOrphanCount === 1 ? '' : 's'} del color huérfano repartido${redistributedOrphanCount === 1 ? '' : 's'} entre el equipo en piso.`
+                    : 'Sin residentes para cubrir.',
+            });
+        }
 
         const shiftDate = todayStartAST();
         const nextDay = new Date(shiftDate.getTime() + 24 * 60 * 60 * 1000);
@@ -112,8 +151,8 @@ export async function POST(req: Request) {
         // resuelva el color y el tablet se ESTABILICE. Sin esto, el claim solo
         // creaba overrides — my-color seguía devolviendo null y la cuidadora
         // quedaba en el loop no-color → picker → briefing (caso Yedaira).
-        const currentColors = await resolveCaregiverCurrentColors({ caregiverId: invokerId, hqId });
-        const needsColorAssignment = currentColors.length === 0;
+        // Reusa claimerBaseColors calculado arriba (no recomputar).
+        const needsColorAssignment = claimerBaseColors.length === 0;
         // FK requerido: cualquier ScheduledShift de la cuidadora HOY sirve de ancla
         // (my-color lee ColorAssignment por userId+assignedAt, no por scheduledShiftId).
         let anchorShiftId: string | null = null;
