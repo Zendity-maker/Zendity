@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, Printer, Loader2, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Send, Clock, User, Printer, Loader2, X, Copy, StickyNote } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import SchedulePrintView from "@/components/hr/SchedulePrintView";
@@ -12,7 +12,8 @@ const SHIFT_LABELS: Record<string, string> = {
     NIGHT:          "Nocturno 10PM–6AM",
     FULL_DAY:       "Turno Largo 6AM–6PM (12h)",
     FULL_NIGHT:     "Turno Largo 6PM–6AM (12h)",
-    SUPERVISOR_DAY: "Supervisor 9AM–6PM"
+    SUPERVISOR_DAY: "Supervisor 9AM–6PM",
+    OFF:            "Día libre"
 };
 
 const SHIFT_STYLES: Record<string, string> = {
@@ -21,7 +22,8 @@ const SHIFT_STYLES: Record<string, string> = {
     NIGHT:          "bg-slate-100 text-slate-700 border-slate-200",
     FULL_DAY:       "bg-emerald-50 text-emerald-700 border-emerald-200",
     FULL_NIGHT:     "bg-violet-50 text-violet-700 border-violet-200",
-    SUPERVISOR_DAY: "bg-purple-100 text-purple-700 border-purple-300"
+    SUPERVISOR_DAY: "bg-purple-100 text-purple-700 border-purple-300",
+    OFF:            "bg-slate-100 text-slate-500 border-slate-300"
 };
 
 const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "NONE"];
@@ -139,6 +141,11 @@ export default function ScheduleBuilderPage() {
     // Errores de validación del inline manual (por tempId)
     const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
+    // UI: notas colapsables + copia semana anterior + vista alterna
+    const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
+    const [copyingWeek, setCopyingWeek] = useState(false);
+    const [viewMode, setViewMode] = useState<'day' | 'employee'>('day');
+
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
     useEffect(() => {
@@ -192,12 +199,14 @@ export default function ScheduleBuilderPage() {
         } catch (e) { console.error(e); } finally { setLoading(false); }
     };
 
-    const addShift = (date: Date) => {
+    const addShift = (date: Date, userId?: string) => {
         if (!staff.length) return;
+        const target = userId ? staff.find(s => s.id === userId) : null;
+        const chosen = target || staff[0];
         const newShift: ShiftEntry = {
-            tempId: `temp-${Date.now()}`,
-            userId: staff[0].id,
-            userName: staff[0].name,
+            tempId: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            userId: chosen.id,
+            userName: chosen.name,
             date: date.toISOString().split('T')[0],
             shiftType: 'MORNING',
             colorGroup: 'GREEN'
@@ -262,6 +271,18 @@ export default function ScheduleBuilderPage() {
             if (field === 'userId') {
                 const found = staff.find(st => st.id === value);
                 return { ...s, userId: value, userName: found?.name || '' };
+            }
+            // Si cambia a OFF, limpiar campos clínicos/horarios
+            if (field === 'shiftType' && value === 'OFF') {
+                return {
+                    ...s,
+                    shiftType: 'OFF',
+                    colorGroup: null,
+                    isManual: false,
+                    customStartTime: null,
+                    customEndTime: null,
+                    customDescription: null,
+                };
             }
             return { ...s, [field]: value };
         }));
@@ -540,6 +561,71 @@ export default function ScheduleBuilderPage() {
         }
     };
 
+    const handleCopyPreviousWeek = async () => {
+        if (!hqId) {
+            alert('Error: no se detectó la sede activa. Recarga la página.');
+            return;
+        }
+        setCopyingWeek(true);
+        try {
+            const prevWeekStart = addDays(weekStart, -7);
+            const iso = prevWeekStart.toISOString();
+            const res = await fetch(`/api/hr/schedule?hqId=${hqId}&weekStart=${iso}`);
+            const data = await res.json();
+            const prevShifts: any[] = data?.success && data.schedules?.[0]?.shifts ? data.schedules[0].shifts : [];
+
+            if (prevShifts.length === 0) {
+                alert('La semana anterior no tiene turnos guardados.');
+                return;
+            }
+
+            if (shifts.length > 0) {
+                const ok = confirm(`La semana actual tiene ${shifts.length} turnos. ¿Reemplazar con la copia? Esto sobrescribe sin guardar.`);
+                if (!ok) return;
+            }
+
+            // Generador de id seguro (crypto.randomUUID puede no existir en algunos entornos)
+            const genId = () => {
+                if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+                    return (crypto as any).randomUUID();
+                }
+                return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            };
+
+            const copied: ShiftEntry[] = prevShifts.map((sh: any) => {
+                const origDate = new Date(sh.date);
+                const newDate = addDays(origDate, 7);
+                const dateStr = newDate.toISOString().split('T')[0];
+                return {
+                    tempId: `temp-${genId()}`,
+                    userId: sh.userId,
+                    userName: sh.user?.name || '',
+                    date: dateStr,
+                    shiftType: sh.shiftType,
+                    colorGroup: sh.colorGroup,
+                    notes: sh.notes || '',
+                    isAbsent: false,
+                    isManual: sh.isManual || false,
+                    customStartTime: sh.customStartTime
+                        ? combineDateAndTime(dateStr, extractHHMM(sh.customStartTime))
+                        : null,
+                    customEndTime: sh.customEndTime
+                        ? combineDateAndTime(dateStr, extractHHMM(sh.customEndTime))
+                        : null,
+                    customDescription: sh.customDescription || null,
+                };
+            });
+
+            setShifts(copied);
+            // Si había draftId de esta semana, mantenerlo (se sobreescribirá al guardar)
+        } catch (e) {
+            console.error(e);
+            alert('Error copiando la semana anterior.');
+        } finally {
+            setCopyingWeek(false);
+        }
+    };
+
     const weekLabel = `${weekStart.toLocaleDateString('es-PR', { month: 'long', day: 'numeric' })} — ${addDays(weekStart, 6).toLocaleDateString('es-PR', { month: 'long', day: 'numeric', year: 'numeric' })}`;
 
     return (
@@ -558,7 +644,31 @@ export default function ScheduleBuilderPage() {
                         </div>
                         <p className="text-slate-500 text-sm">Asigna turnos, grupos de color y personal para la semana</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* Toggle vista */}
+                        <div className="inline-flex rounded-xl overflow-hidden border border-white/10">
+                            <button
+                                onClick={() => setViewMode('day')}
+                                className={`px-3 py-2 text-xs font-bold transition-all ${viewMode === 'day' ? 'bg-teal-600 text-white' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                            >
+                                Por día
+                            </button>
+                            <button
+                                onClick={() => setViewMode('employee')}
+                                className={`px-3 py-2 text-xs font-bold transition-all ${viewMode === 'employee' ? 'bg-teal-600 text-white' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                            >
+                                Por empleado
+                            </button>
+                        </div>
+                        <button
+                            onClick={handleCopyPreviousWeek}
+                            disabled={copyingWeek}
+                            title="Copiar semana anterior"
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-xs font-bold"
+                        >
+                            {copyingWeek ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                            <span className="hidden sm:inline">Copiar semana anterior</span>
+                        </button>
                         <button onClick={() => setWeekStart(prev => addDays(prev, -7))} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -570,7 +680,8 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
 
-            {/* Grid semanal */}
+            {/* Grid semanal — vista por día */}
+            {viewMode === 'day' && (
             <div className="grid grid-cols-7 gap-3">
                 {weekDays.map(day => {
                     const dateStr = day.toISOString().split('T')[0];
@@ -586,27 +697,38 @@ export default function ScheduleBuilderPage() {
                                 {dayShifts.map(shift => {
                                     const assignedStaff = staff.find(s => s.id === shift.userId);
                                     const isCleaning = assignedStaff?.role === 'CLEANING';
+                                    const isOff = shift.shiftType === 'OFF';
+                                    const hasNotes = !!(shift.notes && shift.notes.trim().length > 0);
+                                    const notesExpanded = expandedNotesId === shift.tempId;
                                     return (
-                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${isCleaning ? 'bg-orange-50 border-orange-200' : shift.isManual ? 'bg-teal-50 border-teal-200' : shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
+                                    <div key={shift.tempId} className={`rounded-xl p-2 border space-y-1.5 ${isOff ? 'bg-slate-50 border-slate-200' : isCleaning ? 'bg-orange-50 border-orange-200' : shift.isManual ? 'bg-teal-50 border-teal-200' : shift.shiftType === 'SUPERVISOR_DAY' ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-100'}`}>
                                         <div className="flex items-center justify-between gap-1">
-                                            {isCleaning && (
-                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-orange-100 text-orange-700 border-orange-300">
-                                                    Limpieza
+                                            {isOff ? (
+                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-300">
+                                                    🛌 Día libre
                                                 </span>
-                                            )}
-                                            {!isCleaning && shift.isManual && (
-                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-teal-100 text-teal-700 border-teal-300">
-                                                    {formatTimeLabel(shift.customStartTime)}–{formatTimeLabel(shift.customEndTime)}
-                                                </span>
-                                            )}
-                                            {!isCleaning && !shift.isManual && (
+                                            ) : (
                                                 <>
-                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
-                                                        {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
-                                                    </span>
-                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
-                                                        {shift.colorGroup || 'Sin color'}
-                                                    </span>
+                                                    {isCleaning && (
+                                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-orange-100 text-orange-700 border-orange-300">
+                                                            Limpieza
+                                                        </span>
+                                                    )}
+                                                    {!isCleaning && shift.isManual && (
+                                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-teal-100 text-teal-700 border-teal-300">
+                                                            {formatTimeLabel(shift.customStartTime)}–{formatTimeLabel(shift.customEndTime)}
+                                                        </span>
+                                                    )}
+                                                    {!isCleaning && !shift.isManual && (
+                                                        <>
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                                {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
+                                                            </span>
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
+                                                                {shift.colorGroup || 'Sin color'}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
                                             <button onClick={() => removeShift(shift.tempId)} className="text-slate-500 hover:text-red-500 transition-colors">
@@ -625,7 +747,22 @@ export default function ScheduleBuilderPage() {
                                                 </option>
                                             ))}
                                         </select>
-                                        {!shift.isManual && (
+                                        {/* Si es OFF: tarjeta compacta — solo empleado + chip + eliminar.
+                                            Permitimos cambiar el tipo a través de un select pequeño para salir de OFF si fue accidental. */}
+                                        {isOff && (
+                                            <select
+                                                value={shift.shiftType}
+                                                onChange={e => updateShift(shift.tempId, 'shiftType', e.target.value)}
+                                                className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
+                                            >
+                                                {Object.entries(SHIFT_LABELS).map(([k, v]) => {
+                                                    if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
+                                                    if (k === 'OFF' && assignedStaff?.role === 'CLEANING') return null;
+                                                    return <option key={k} value={k}>{k === 'OFF' ? '🛌 Día libre' : v}</option>;
+                                                })}
+                                            </select>
+                                        )}
+                                        {!isOff && !shift.isManual && (
                                             <>
                                                 <select
                                                     value={shift.shiftType}
@@ -639,9 +776,9 @@ export default function ScheduleBuilderPage() {
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
                                                     {Object.entries(SHIFT_LABELS).map(([k, v]) => {
-                                                        const assignedStaff = staff.find(s => s.id === shift.userId);
                                                         if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
-                                                        return <option key={k} value={k}>{v}</option>;
+                                                        if (k === 'OFF' && assignedStaff?.role === 'CLEANING') return null;
+                                                        return <option key={k} value={k}>{k === 'OFF' ? '🛌 Día libre' : v}</option>;
                                                     })}
                                                     <option disabled>──────────</option>
                                                     <option value="__MANUAL__">✏️ Horario manual...</option>
@@ -663,7 +800,7 @@ export default function ScheduleBuilderPage() {
                                                 </select>
                                             </>
                                         )}
-                                        {shift.isManual && (
+                                        {!isOff && shift.isManual && (
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-1">
                                                     <input
@@ -710,26 +847,44 @@ export default function ScheduleBuilderPage() {
                                                 </select>
                                             </div>
                                         )}
-                                        <input
-                                            type="text"
-                                            value={shift.notes || ''}
-                                            onChange={e => updateShift(shift.tempId, 'notes', e.target.value)}
-                                            placeholder="Notas del turno (opcional)"
-                                            className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-500 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
-                                        />
-                                        {!shift.isAbsent ? (
-                                            <button
-                                                onClick={() => markAbsent(shift)}
-                                                disabled={processingAbsent === shift.tempId}
-                                                className="w-full text-[10px] font-bold text-red-600 hover:bg-red-50 hover:text-red-700 border border-red-200 rounded-lg py-1 transition-all mt-1 disabled:opacity-50"
-                                            >
-                                                {processingAbsent === shift.tempId
-                                                    ? 'Procesando...'
-                                                    : shift.tempId.startsWith('temp-')
-                                                        ? 'Guarda primero'
-                                                        : 'Marcar Ausente'}
-                                            </button>
-                                        ) : (
+                                        {/* Notas colapsables — ocultas detrás de un ícono salvo que existan o se expandan */}
+                                        {!isOff && (
+                                            <>
+                                                {notesExpanded ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="text"
+                                                            value={shift.notes || ''}
+                                                            onChange={e => updateShift(shift.tempId, 'notes', e.target.value)}
+                                                            placeholder="Notas del turno (opcional)"
+                                                            autoFocus
+                                                            className="flex-1 text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-500 placeholder:text-slate-400 focus:outline-none focus:border-teal-400"
+                                                        />
+                                                        <button
+                                                            onClick={() => setExpandedNotesId(null)}
+                                                            className="text-slate-400 hover:text-slate-700 transition-colors shrink-0"
+                                                            title="Ocultar notas"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setExpandedNotesId(shift.tempId)}
+                                                        className={`w-full flex items-center gap-1 text-[10px] font-medium rounded-lg px-2 py-1 transition-colors border ${hasNotes ? 'text-teal-700 bg-teal-50 border-teal-200 hover:bg-teal-100' : 'text-slate-400 bg-white border-slate-200 hover:bg-slate-50'}`}
+                                                        title={hasNotes ? shift.notes : 'Agregar nota'}
+                                                    >
+                                                        <StickyNote className="w-3 h-3 shrink-0" />
+                                                        {hasNotes ? (
+                                                            <span className="truncate text-left flex-1">{shift.notes}</span>
+                                                        ) : (
+                                                            <span className="text-left flex-1">Agregar nota</span>
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                        {shift.isAbsent && (
                                             <div className="w-full text-center text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-lg py-1 mt-1">
                                                 AUSENTE
                                             </div>
@@ -748,6 +903,97 @@ export default function ScheduleBuilderPage() {
                     );
                 })}
             </div>
+            )}
+
+            {/* Vista por empleado */}
+            {viewMode === 'employee' && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                                <th className="text-left px-3 py-2 font-black text-slate-600 uppercase tracking-widest text-[10px] sticky left-0 bg-slate-50 z-10">Empleado</th>
+                                {weekDays.map(d => (
+                                    <th key={d.toISOString()} className="text-left px-3 py-2 font-black text-slate-600 uppercase tracking-widest text-[10px]">
+                                        {formatDate(d)}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {staff
+                                .filter(s => s.role !== 'CLEANING')
+                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                .map(emp => (
+                                <tr key={emp.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                                    <td className="px-3 py-2 font-bold text-slate-700 text-xs sticky left-0 bg-white z-10">
+                                        <div>{emp.name}</div>
+                                        <div className="text-[10px] text-slate-500 font-medium">
+                                            {emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : 'Cuidador/a'}
+                                        </div>
+                                    </td>
+                                    {weekDays.map(d => {
+                                        const dateStr = d.toISOString().split('T')[0];
+                                        const cellShifts = shifts.filter(s => s.userId === emp.id && s.date === dateStr);
+                                        return (
+                                            <td key={dateStr} className="px-2 py-2 align-top">
+                                                {cellShifts.length === 0 ? (
+                                                    <button
+                                                        onClick={() => addShift(d, emp.id)}
+                                                        className="w-full text-[10px] font-bold text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg py-1.5 px-2 transition-all border border-dashed border-slate-200 hover:border-teal-300"
+                                                    >
+                                                        + Agregar
+                                                    </button>
+                                                ) : (
+                                                    <div className="space-y-1">
+                                                        {cellShifts.map(sh => {
+                                                            const isOff = sh.shiftType === 'OFF';
+                                                            return (
+                                                                <button
+                                                                    key={sh.tempId}
+                                                                    onClick={() => {
+                                                                        setViewMode('day');
+                                                                        setExpandedNotesId(null);
+                                                                    }}
+                                                                    title="Click para editar en vista por día"
+                                                                    className="w-full flex flex-wrap items-center gap-1"
+                                                                >
+                                                                    {isOff ? (
+                                                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-300">
+                                                                            🛌 OFF
+                                                                        </span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                                                {SHIFT_LABELS[sh.shiftType]?.split(' ')[0] || sh.shiftType}
+                                                                            </span>
+                                                                            {sh.colorGroup && (
+                                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[sh.colorGroup || 'NONE']}`}>
+                                                                                    {sh.colorGroup}
+                                                                                </span>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                            {staff.filter(s => s.role !== 'CLEANING').length === 0 && (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
+                                        No hay empleados clínicos cargados para esta sede.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {/* Resumen por día */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -770,53 +1016,55 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
 
-            {/* Acciones */}
-            <div className="flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-6">
-                <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-slate-500" />
-                    <div>
-                        <p className="text-sm font-bold text-slate-700">{shifts.length} turnos en este borrador</p>
-                        <p className="text-xs text-slate-500">{publishedSchedule ? 'Horario publicado — el equipo puede verlo' : 'Borrador — aún no visible para el equipo'}</p>
+            {/* Acciones — footer sticky */}
+            <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-white border-t border-slate-200 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.15)]">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                        <User className="w-5 h-5 text-slate-500" />
+                        <div>
+                            <p className="text-sm font-bold text-slate-700">{shifts.length} turnos en este borrador</p>
+                            <p className="text-xs text-slate-500">{publishedSchedule ? 'Horario publicado — el equipo puede verlo' : 'Borrador — aún no visible para el equipo'}</p>
+                        </div>
                     </div>
-                </div>
-                <div className="flex gap-3 flex-wrap">
-                    {/* Botón imprimir — solo DIRECTOR, ADMIN, HR */}
-                    {user && ['DIRECTOR', 'ADMIN'].includes((user as any).role) && shifts.length > 0 && (
+                    <div className="flex gap-3 flex-wrap">
+                        {/* Botón imprimir — solo DIRECTOR, ADMIN, HR */}
+                        {user && ['DIRECTOR', 'ADMIN'].includes((user as any).role) && shifts.length > 0 && (
+                            <button
+                                onClick={handlePrintSchedule}
+                                disabled={exporting}
+                                className="px-5 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
+                            >
+                                {exporting ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                                ) : (
+                                    <><Printer className="w-4 h-4" /> Imprimir horario</>
+                                )}
+                            </button>
+                        )}
                         <button
-                            onClick={handlePrintSchedule}
-                            disabled={exporting}
-                            className="px-5 py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-all flex items-center gap-2 text-sm shadow-sm"
+                            onClick={saveSchedule}
+                            disabled={saving || shifts.length === 0}
+                            className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
                         >
-                            {exporting ? (
-                                <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
-                            ) : (
-                                <><Printer className="w-4 h-4" /> Imprimir horario</>
-                            )}
+                            {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
                         </button>
-                    )}
-                    <button
-                        onClick={saveSchedule}
-                        disabled={saving || shifts.length === 0}
-                        className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
-                    >
-                        {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
-                    </button>
-                    {publishedSchedule && (
+                        {publishedSchedule && (
+                            <button
+                                onClick={unpublishSchedule}
+                                className="px-6 py-3 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-xl transition-all text-sm border border-amber-300"
+                            >
+                                Editar horario publicado
+                            </button>
+                        )}
                         <button
-                            onClick={unpublishSchedule}
-                            className="px-6 py-3 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-xl transition-all text-sm border border-amber-300"
+                            onClick={() => publishSchedule(false)}
+                            disabled={!draftId || !!publishedSchedule || publishing}
+                            className="px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm shadow-lg shadow-teal-500/20"
                         >
-                            Editar horario publicado
+                            <Send className="w-4 h-4" />
+                            {publishing ? 'Verificando...' : 'Publicar horario'}
                         </button>
-                    )}
-                    <button
-                        onClick={() => publishSchedule(false)}
-                        disabled={!draftId || !!publishedSchedule || publishing}
-                        className="px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center gap-2 text-sm shadow-lg shadow-teal-500/20"
-                    >
-                        <Send className="w-4 h-4" />
-                        {publishing ? 'Verificando...' : 'Publicar horario'}
-                    </button>
+                    </div>
                 </div>
             </div>
         </div>
