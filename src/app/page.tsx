@@ -289,8 +289,23 @@ export default function InsightsDashboard() {
     }
   };
 
-  const exportPdf = () => {
-    window.print();
+  // Resumen Ejecutivo (Día/Semana/Mes) — reemplaza al viejo window.print().
+  const [execMenuOpen, setExecMenuOpen] = useState(false);
+  const [generatingExecPeriod, setGeneratingExecPeriod] = useState<null | 'day' | 'week' | 'month'>(null);
+  const handleGenerateExecReport = async (period: 'day' | 'week' | 'month') => {
+    setGeneratingExecPeriod(period);
+    try {
+      const res = await fetch(`/api/corporate/exec-report?period=${period}`);
+      const data = await res.json();
+      if (!data.success) { alert(data.error || 'No se pudo generar el reporte.'); return; }
+      const { generateExecReportPDF } = await import('@/lib/exec-report-pdf');
+      generateExecReportPDF(data);
+    } catch (e) {
+      console.error('[exec-report]', e);
+      alert('Error de conexión al generar el reporte.');
+    } finally {
+      setGeneratingExecPeriod(null);
+    }
   };
 
   // Genera y descarga el censo de residentes en PDF (1-clic). jsPDF se importa
@@ -403,14 +418,42 @@ export default function InsightsDashboard() {
             <span>{generatingCensus ? "Generando..." : "Generar Censo"}</span>
           </button>
 
-          <button
-            onClick={exportPdf}
-            disabled={generatingPdf}
-            className={`bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-sm px-5 py-2.5 shadow-md shadow-slate-900/10 transition-all flex items-center gap-2 ${generatingPdf ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <Download className="w-4 h-4" />
-            <span>{generatingPdf ? "Generando..." : "Exportar Evidencia"}</span>
-          </button>
+          {/* Resumen Ejecutivo — dropdown con Día/Semana/Mes (reemplaza el window.print) */}
+          <div className="relative">
+            <button
+              onClick={() => setExecMenuOpen(v => !v)}
+              disabled={!!generatingExecPeriod}
+              className={`bg-slate-900 hover:bg-black text-white font-bold rounded-xl text-sm px-5 py-2.5 shadow-md shadow-slate-900/10 transition-all flex items-center gap-2 ${generatingExecPeriod ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <Download className="w-4 h-4" />
+              <span>
+                {generatingExecPeriod
+                  ? `Generando ${generatingExecPeriod === 'day' ? 'día' : generatingExecPeriod === 'week' ? 'semana' : 'mes'}…`
+                  : 'Resumen Ejecutivo ▾'}
+              </span>
+            </button>
+            {execMenuOpen && !generatingExecPeriod && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setExecMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  {([
+                    { p: 'day' as const, label: 'Día (hoy)', sub: 'Desde 6:00 AM AST' },
+                    { p: 'week' as const, label: 'Última semana', sub: 'Últimos 7 días' },
+                    { p: 'month' as const, label: 'Último mes', sub: 'Últimos 30 días' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.p}
+                      onClick={() => { setExecMenuOpen(false); handleGenerateExecReport(opt.p); }}
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                    >
+                      <p className="text-sm font-bold text-slate-800">{opt.label}</p>
+                      <p className="text-[11px] text-slate-500 font-medium">{opt.sub}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
