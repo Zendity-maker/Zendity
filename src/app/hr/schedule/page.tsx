@@ -1115,17 +1115,53 @@ export default function ScheduleBuilderPage() {
                             <div>
                                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Tipo de turno</label>
                                 <select
-                                    value={sh.shiftType}
-                                    onChange={e => updateShift(sh.tempId, 'shiftType', e.target.value)}
+                                    value={sh.isManual ? '__MANUAL__' : sh.shiftType}
+                                    onChange={e => {
+                                        if (e.target.value === '__MANUAL__') enterManualMode(sh.tempId);
+                                        else updateShift(sh.tempId, 'shiftType', e.target.value);
+                                    }}
                                     className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
                                 >
                                     {Object.entries(SHIFT_LABELS).map(([k, v]) => {
+                                        // OFF/día libre: disponible para todos los empleados (incl. CLEANING).
+                                        // SUPERVISOR_DAY: solo para empleados con rol primary SUPERVISOR.
                                         if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
-                                        if (k === 'OFF' && isCleaning) return null;
                                         return <option key={k} value={k}>{v}</option>;
                                     })}
+                                    <option disabled>──────────</option>
+                                    <option value="__MANUAL__">✏️ Horario manual...</option>
                                 </select>
                             </div>
+                            {sh.isManual && (
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Horario manual</label>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="time"
+                                            value={extractHHMM(sh.customStartTime)}
+                                            onChange={e => updateManualTime(sh.tempId, 'start', e.target.value)}
+                                            className={`flex-1 text-sm bg-white border rounded-lg px-2 py-2 font-bold text-teal-700 focus:outline-none focus:border-teal-500 ${manualErrors[sh.tempId] ? 'border-red-400' : 'border-teal-300'}`}
+                                        />
+                                        <span className="text-xs text-teal-600 font-bold">→</span>
+                                        <input
+                                            type="time"
+                                            value={extractHHMM(sh.customEndTime)}
+                                            onChange={e => updateManualTime(sh.tempId, 'end', e.target.value)}
+                                            className={`flex-1 text-sm bg-white border rounded-lg px-2 py-2 font-bold text-teal-700 focus:outline-none focus:border-teal-500 ${manualErrors[sh.tempId] ? 'border-red-400' : 'border-teal-300'}`}
+                                        />
+                                        <button
+                                            onClick={() => exitManualMode(sh.tempId)}
+                                            className="text-slate-400 hover:text-slate-700 transition-colors shrink-0 p-1"
+                                            title="Volver a turnos estándar"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    {manualErrors[sh.tempId] && (
+                                        <p className="text-[11px] text-red-600 font-bold mt-1">{manualErrors[sh.tempId]}</p>
+                                    )}
+                                </div>
+                            )}
                             {!isOff && !isCleaning && (
                                 <div>
                                     <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Grupo de color</label>
