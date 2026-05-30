@@ -925,7 +925,15 @@ export default function ScheduleBuilderPage() {
                         </thead>
                         <tbody>
                             {staff
-                                .filter(s => s.role !== 'CLEANING')
+                                // FASE 51: incluir empleados CLEANING que tengan rol clínico
+                                // SECUNDARIO (caso Yaileen: CLEANING + secondary CAREGIVER —
+                                // trabaja como cuidadora en piso aunque su rol primary sea
+                                // limpieza). Patrón coherente con los endpoints clínicos.
+                                .filter(s => {
+                                    if (s.role !== 'CLEANING') return true;
+                                    const sec: string[] = s.secondaryRoles || [];
+                                    return sec.some(r => ['CAREGIVER', 'NURSE', 'SUPERVISOR'].includes(r));
+                                })
                                 .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                                 .map(emp => (
                                 <tr key={emp.id} className="border-b border-slate-100 hover:bg-slate-50/50">
