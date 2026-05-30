@@ -184,6 +184,12 @@ export default function SupervisorMissionControlPage() {
     const [assignTargetId, setAssignTargetId] = useState<string>('');
     const [assignSubmitting, setAssignSubmitting] = useState(false);
 
+    // Cambiar color base de una cuidadora (botón en cada tarjeta del wall).
+    // Reemplaza el patrón de "ir a la DB" para asignaciones ad-hoc cuando
+    // una sustituta entra fuera de pauta.
+    const [colorPickerCg, setColorPickerCg] = useState<{ id: string; name: string; currentColor: string | null } | null>(null);
+    const [settingColor, setSettingColor] = useState(false);
+
     // Fast Actions: countdown + update
     const [tickNow, setTickNow] = useState(Date.now());
     const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -382,6 +388,34 @@ export default function SupervisorMissionControlPage() {
             setToast({ msg: 'Error de conexión al asignar', type: 'err' });
         } finally {
             setAssignSubmitting(false);
+        }
+    };
+
+    // Cambiar el color base de una cuidadora (1-clic desde la tarjeta del wall).
+    // Crea/actualiza ShiftColorAssignment vía /api/care/supervisor/set-caregiver-color.
+    const handleSetCaregiverColor = async (color: string) => {
+        if (!colorPickerCg) return;
+        setSettingColor(true);
+        try {
+            const res = await fetch('/api/care/supervisor/set-caregiver-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caregiverId: colorPickerCg.id, color }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: data.message || 'Color asignado.', type: 'ok' });
+                setColorPickerCg(null);
+                fetchCaregiverRounds();
+                fetchUncoveredColors();
+            } else {
+                setToast({ msg: data.error || 'No se pudo asignar', type: 'err' });
+            }
+        } catch (e) {
+            console.error('setCaregiverColor error', e);
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setSettingColor(false);
         }
     };
 
@@ -924,15 +958,28 @@ export default function SupervisorMissionControlPage() {
                                                     <p className="font-black text-slate-800 text-sm leading-tight">
                                                         {cg.name.split(' ').slice(0, 2).join(' ')}
                                                     </p>
-                                                    <p className={`text-[10px] font-bold uppercase tracking-wide ${labelClass}`}>
-                                                        {cg.colorGroup
-                                                            ? `Grupo ${colorText[cg.colorGroup] || cg.colorGroup}`
-                                                            : isCoverageOnly && singleCoverageColor
-                                                                ? `Grupo ${colorText[singleCoverageColor] || singleCoverageColor} (cobertura)`
-                                                                : isCoverageOnly
-                                                                    ? 'Cobertura redistribuida'
-                                                                    : 'Sin grupo'}
-                                                    </p>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <p className={`text-[10px] font-bold uppercase tracking-wide ${labelClass}`}>
+                                                            {cg.colorGroup
+                                                                ? `Grupo ${colorText[cg.colorGroup] || cg.colorGroup}`
+                                                                : isCoverageOnly && singleCoverageColor
+                                                                    ? `Grupo ${colorText[singleCoverageColor] || singleCoverageColor} (cobertura)`
+                                                                    : isCoverageOnly
+                                                                        ? 'Cobertura redistribuida'
+                                                                        : 'Sin grupo'}
+                                                        </p>
+                                                        {/* Botón "cambiar color base" — 1-clic, sin tener que abrir el Schedule Builder */}
+                                                        <span
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            onClick={(e) => { e.stopPropagation(); setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup }); }}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup }); } }}
+                                                            className="text-[9px] font-bold text-slate-400 hover:text-teal-600 underline decoration-dotted cursor-pointer"
+                                                            title="Cambiar grupo base de esta cuidadora"
+                                                        >
+                                                            cambiar
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             {/* Rondas completadas */}
@@ -2215,6 +2262,95 @@ export default function SupervisorMissionControlPage() {
                                     ) : (
                                         <>Confirmar Asignación</>
                                     )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* CAMBIAR COLOR BASE DE UNA CUIDADORA — botón "cambiar" en tile */}
+            {colorPickerCg && (() => {
+                const colorLabels: Record<string, string> = {
+                    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
+                };
+                const colorBgs: Record<string, string> = {
+                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500',
+                    GREEN: 'bg-emerald-500', ALL: 'bg-slate-700',
+                };
+                const options = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'ALL'];
+                const current = colorPickerCg.currentColor;
+                return (
+                    <div
+                        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+                        onClick={() => { if (!settingColor) setColorPickerCg(null); }}
+                    >
+                        <div
+                            className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50">
+                                <h2 className="text-lg font-black text-slate-800 leading-tight">
+                                    Cambiar grupo base
+                                </h2>
+                                <p className="text-[13px] text-slate-600 font-semibold mt-1">
+                                    {colorPickerCg.name}
+                                </p>
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    {current
+                                        ? <>Actualmente en <span className="font-bold">Grupo {colorLabels[current] || current}</span></>
+                                        : 'Sin grupo asignado'}
+                                </p>
+                            </div>
+                            <div className="px-6 py-5">
+                                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wide mb-3">
+                                    Nuevo grupo
+                                </label>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {options.map((c) => {
+                                        const isCurrent = c === current;
+                                        return (
+                                            <button
+                                                key={c}
+                                                onClick={() => handleSetCaregiverColor(c)}
+                                                disabled={settingColor || isCurrent}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                                                    isCurrent
+                                                        ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                                                        : 'border-slate-200 hover:border-teal-500 hover:bg-teal-50 active:scale-[0.98]'
+                                                } disabled:opacity-50`}
+                                            >
+                                                <div className={`w-8 h-8 rounded-lg ${colorBgs[c]} shadow-sm flex-shrink-0`} />
+                                                <div className="flex-1">
+                                                    <div className="text-sm font-black text-slate-800">
+                                                        Grupo {colorLabels[c]}
+                                                    </div>
+                                                    {isCurrent && (
+                                                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">
+                                                            Actual
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {settingColor && (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-4 leading-relaxed">
+                                    Esto fija el color base de la cuidadora para HOY. Si entró fuera
+                                    de pauta o cubre un grupo distinto, úsalo. La cuidadora recibirá
+                                    una notificación.
+                                </p>
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                                <button
+                                    onClick={() => setColorPickerCg(null)}
+                                    disabled={settingColor}
+                                    className="text-sm font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                                >
+                                    Cancelar
                                 </button>
                             </div>
                         </div>
