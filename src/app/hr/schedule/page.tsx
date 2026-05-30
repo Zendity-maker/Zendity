@@ -145,6 +145,10 @@ export default function ScheduleBuilderPage() {
     const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
     const [copyingWeek, setCopyingWeek] = useState(false);
     const [viewMode, setViewMode] = useState<'day' | 'employee'>('day');
+    // Modal de edición rápida — funciona en cualquier vista. Click en chip
+    // (especialmente en vista-empleado) abre este modal en vez de rebotar
+    // a vista-día.
+    const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -950,12 +954,9 @@ export default function ScheduleBuilderPage() {
                                                             return (
                                                                 <button
                                                                     key={sh.tempId}
-                                                                    onClick={() => {
-                                                                        setViewMode('day');
-                                                                        setExpandedNotesId(null);
-                                                                    }}
-                                                                    title="Click para editar en vista por día"
-                                                                    className="w-full flex flex-wrap items-center gap-1"
+                                                                    onClick={() => setEditingShiftId(sh.tempId)}
+                                                                    title="Click para editar"
+                                                                    className="w-full flex flex-wrap items-center gap-1 hover:bg-slate-50 rounded-md p-0.5 transition-colors"
                                                                 >
                                                                     {isOff ? (
                                                                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-300">
@@ -1068,6 +1069,106 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         </div>
+
+        {/* Modal de edición rápida — abierto desde vista-empleado sin rebotar a vista-día */}
+        {editingShiftId && (() => {
+            const sh = shifts.find(s => s.tempId === editingShiftId);
+            if (!sh) return null;
+            const isOff = sh.shiftType === 'OFF';
+            const assignedStaff = staff.find(s => s.id === sh.userId);
+            const isCleaning = assignedStaff?.role === 'CLEANING';
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" onClick={() => setEditingShiftId(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-black text-slate-800 text-lg">Editar turno</h3>
+                            <button onClick={() => setEditingShiftId(null)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium mb-4">
+                            {new Date(sh.date + 'T00:00:00').toLocaleDateString('es-PR', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Empleado</label>
+                                <select
+                                    value={sh.userId}
+                                    onChange={e => updateShift(sh.tempId, 'userId', e.target.value)}
+                                    className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+                                >
+                                    {staff.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.name}{s.role === 'CLEANING' ? ' · Limpieza' : s.role === 'SUPERVISOR' ? ' · Supervisor' : s.role === 'NURSE' ? ' · Enfermero/a' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Tipo de turno</label>
+                                <select
+                                    value={sh.shiftType}
+                                    onChange={e => updateShift(sh.tempId, 'shiftType', e.target.value)}
+                                    className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+                                >
+                                    {Object.entries(SHIFT_LABELS).map(([k, v]) => {
+                                        if (k === 'SUPERVISOR_DAY' && assignedStaff?.role !== 'SUPERVISOR') return null;
+                                        if (k === 'OFF' && isCleaning) return null;
+                                        return <option key={k} value={k}>{v}</option>;
+                                    })}
+                                </select>
+                            </div>
+                            {!isOff && !isCleaning && (
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Grupo de color</label>
+                                    <select
+                                        value={sh.colorGroup || 'NONE'}
+                                        onChange={e => updateShift(sh.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                        className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
+                                    >
+                                        {COLOR_OPTIONS.map(c => {
+                                            const isNight = ['NIGHT', 'FULL_NIGHT'].includes(sh.shiftType);
+                                            const disabledAll = c === 'ALL' && !isNight;
+                                            return (
+                                                <option key={c} value={c} disabled={disabledAll}>
+                                                    {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                </div>
+                            )}
+                            {!isOff && (
+                                <div>
+                                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Notas (opcional)</label>
+                                    <input
+                                        type="text"
+                                        value={sh.notes || ''}
+                                        onChange={e => updateShift(sh.tempId, 'notes', e.target.value)}
+                                        placeholder="Notas del turno"
+                                        className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-teal-500"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex justify-between mt-6 pt-4 border-t border-slate-200">
+                            <button
+                                onClick={() => { removeShift(sh.tempId); setEditingShiftId(null); }}
+                                className="text-sm font-bold text-red-600 hover:bg-red-50 px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5"
+                            >
+                                <Trash2 className="w-4 h-4" /> Eliminar turno
+                            </button>
+                            <button
+                                onClick={() => setEditingShiftId(null)}
+                                className="text-sm font-black uppercase tracking-wide text-white bg-teal-600 hover:bg-teal-700 px-5 py-2 rounded-xl transition-colors"
+                            >
+                                Listo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        })()}
 
         {absentModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
