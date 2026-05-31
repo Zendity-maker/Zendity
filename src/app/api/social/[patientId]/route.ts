@@ -14,7 +14,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ patientI
         }
         const hqId = (session.user as any).headquartersId;
 
-        const [notes, tasks, benefits, specialistVisits, patient] = await Promise.all([
+        // FIX 2026-05-31: específicamente quitado el bloque de SpecialistVisit
+        // (modelo legacy con 0 datos en prod, reemplazado por
+        // ExternalServiceVisit vía kiosko de pisos). El frontend de
+        // PatientExternalServicesTab consulta directamente
+        // /api/corporate/external-services/visits?patientId=...
+        const [notes, tasks, benefits, patient] = await Promise.all([
             prisma.socialWorkNote.findMany({
                 where: { patientId, headquartersId: hqId },
                 include: { createdBy: { select: { id: true, name: true, role: true } } },
@@ -32,11 +37,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ patientI
                 where: { patientId, headquartersId: hqId },
                 orderBy: { type: 'asc' },
             }),
-            prisma.specialistVisit.findMany({
-                where: { patientId, headquartersId: hqId },
-                include: { createdBy: { select: { id: true, name: true } } },
-                orderBy: { visitDate: 'desc' },
-            }),
             prisma.patient.findUnique({
                 where: { id: patientId },
                 select: {
@@ -53,7 +53,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ patientI
             }),
         ]);
 
-        return NextResponse.json({ success: true, notes, tasks, benefits, specialistVisits, patient });
+        return NextResponse.json({ success: true, notes, tasks, benefits, patient });
     } catch (error) {
         console.error('Social Work GET Error:', error);
         return NextResponse.json({ success: false, error: 'Error cargando datos sociales' }, { status: 500 });

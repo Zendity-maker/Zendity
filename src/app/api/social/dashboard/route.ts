@@ -34,8 +34,6 @@ export async function GET(req: Request) {
             tasksCompletedThisWeek,
             totalPendingTasks,
             benefitsExpiringSoonCount,
-            activeResidents,
-            allVisits,
         ] = await Promise.all([
             // Pending tasks with patient info
             prisma.socialWorkTask.findMany({
@@ -72,37 +70,14 @@ export async function GET(req: Request) {
             prisma.socialWorkTask.count({ where: { headquartersId: hqId, status: 'COMPLETED', completedAt: { gte: sevenDaysAgo } } }),
             prisma.socialWorkTask.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
             prisma.socialWorkBenefit.count({ where: { headquartersId: hqId, status: 'ACTIVE', expirationDate: { gte: now, lte: sixtyDaysFromNow } } }),
-            // For overdue specialists calculation
-            prisma.patient.findMany({ where: { headquartersId: hqId, status: 'ACTIVE' }, select: { id: true, name: true } }),
-            prisma.specialistVisit.findMany({ where: { headquartersId: hqId }, orderBy: { visitDate: 'desc' } }),
         ]);
 
-        // Calculate overdue specialists: for each active resident, find specialist types
-        // where the last visit was more than 90 days ago
-        const SPECIALIST_TYPES = ['DOCTOR', 'PODIATRIST', 'PSYCHOLOGIST', 'DENTIST', 'PSYCHIATRIST'];
-        const overdueSpecialists: { patient: { id: string; name: string }; specialistType: string; lastVisit: Date | null; daysSince: number }[] = [];
-
-        for (const patient of activeResidents) {
-            const patientVisits = allVisits.filter(v => v.patientId === patient.id);
-            for (const specType of SPECIALIST_TYPES) {
-                const lastVisit = patientVisits.find(v => v.specialistType === specType);
-                if (!lastVisit) {
-                    // Never visited — flag as overdue
-                    overdueSpecialists.push({ patient, specialistType: specType, lastVisit: null, daysSince: 999 });
-                } else {
-                    const daysSince = Math.floor((now.getTime() - new Date(lastVisit.visitDate).getTime()) / 86400000);
-                    if (daysSince > 90) {
-                        overdueSpecialists.push({ patient, specialistType: specType, lastVisit: lastVisit.visitDate, daysSince });
-                    }
-                }
-            }
-        }
-
-        // Sort overdue: most overdue first, skip "never visited" unless we want them
-        const sortedOverdue = overdueSpecialists
-            .filter(o => o.daysSince < 999) // Only show those that had at least one visit
-            .sort((a, b) => b.daysSince - a.daysSince)
-            .slice(0, 20);
+        // FIX 2026-05-31: SpecialistVisit removido. El cálculo de "especialistas
+        // vencidos" basado en aquel modelo se reconstruirá con
+        // ExternalServiceVisit en sprint futuro si Celia lo pide. Por ahora,
+        // overdueSpecialists devuelve vacío. El frontend del dashboard social
+        // tolera array vacío (sección colapsa sola).
+        const sortedOverdue: { patient: { id: string; name: string }; specialistType: string; lastVisit: Date | null; daysSince: number }[] = [];
 
         return NextResponse.json({
             success: true,

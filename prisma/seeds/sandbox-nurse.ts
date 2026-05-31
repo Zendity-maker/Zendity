@@ -245,47 +245,10 @@ RECOMENDACIÓN: Mantener estimulación cognitiva grupal. Reevaluar en 3 meses o 
     }
 
     // ── 5. Visita médica externa — María Test ─────────────────────────────
-    const existingVisit = await prisma.specialistVisit.findFirst({
-        where: { patientId: MARIA_TEST_ID, specialistName: 'Dr. Demo Sandbox' },
-    });
-    if (!existingVisit) {
-        await prisma.specialistVisit.create({
-            data: {
-                patientId: MARIA_TEST_ID,
-                headquartersId: HQ,
-                specialistType: 'DOCTOR',
-                specialistName: 'Dr. Demo Sandbox',
-                visitDate: daysAgo(3),
-                nextVisitDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-                notes: `CONSULTA CARDIOLOGÍA — ${daysAgo(3).toLocaleDateString('es-PR')}
-Médico: Dr. Demo Sandbox · Cardiología
-
-MOTIVO: Control trimestral ICC compensada + revisión de Losartán.
-
-HALLAZGOS:
-- TA: 132/84 mmHg (controlada con tratamiento actual)
-- FC: 74 lpm, ritmo sinusal
-- Edemas: Tobillos (+1) — leve, sin signos de descompensación
-- Peso: 58 kg (ganancia de 0.5 kg respecto a visita anterior — dentro del rango aceptable)
-- Auscultación cardíaca: soplo sistólico grado II/VI en foco aórtico (conocido, sin cambios)
-
-IMPRESIÓN DIAGNÓSTICA: ICC compensada clase funcional NYHA II. Hipertensión controlada.
-
-CAMBIO DE MEDICACIÓN RECOMENDADO:
-- Mantener Losartán 50mg VO cada 12 horas
-- AGREGAR: Furosemida 20mg VO en ayunas — iniciar si peso aumenta >1.5 kg en 3 días consecutivos
-- Continuar Metformina sin cambios
-
-PRÓXIMA CITA: En 60 días o antes si hay signos de descompensación (edema ++, disnea en reposo, tos nocturna).
-
-EDUCACIÓN AL PACIENTE: Se orientó a María sobre la importancia del peso diario y de avisar al equipo ante cualquier cambio.`,
-                createdById: nurse.id,
-            },
-        });
-        console.log(`✅ Visita médica externa creada para María Test (Dr. Demo Sandbox, Cardiología)`);
-    } else {
-        console.log(`♻️  Visita médica ya existe para María Test`);
-    }
+    // FIX 2026-05-31: SpecialistVisit eliminado del schema. La demo de visita
+    // externa se reconstruirá con ExternalServiceVisit cuando se necesite —
+    // requiere también ExternalProvider + ExternalServiceCategory de demo
+    // en el HQ sandbox. Por ahora skipped, el resto del seed funciona OK.
 
     // ── 6. Ticket de Triage clínico abierto ──────────────────────────────
     const existingTriage = await prisma.triageTicket.findFirst({

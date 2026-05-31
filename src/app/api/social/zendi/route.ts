@@ -26,7 +26,10 @@ export async function POST(req: Request) {
 
         const hqId = (session.user as any).headquartersId;
 
-        // Fetch all resident data in parallel
+        // Fetch all resident data in parallel.
+        // FIX 2026-05-31: SpecialistVisit reemplazado por ExternalServiceVisit
+        // (kiosko de pisos). El nuevo modelo es la fuente canónica de visitas
+        // de proveedores externos al residente — incluye facilityWide.
         const [patient, notes, tasks, benefits, visits, familyVisits] = await Promise.all([
             prisma.patient.findUnique({
                 where: { id: patientId },
@@ -50,9 +53,16 @@ export async function POST(req: Request) {
             prisma.socialWorkBenefit.findMany({
                 where: { patientId, headquartersId: hqId },
             }),
-            prisma.specialistVisit.findMany({
-                where: { patientId, headquartersId: hqId },
-                orderBy: { visitDate: 'desc' },
+            prisma.externalServiceVisit.findMany({
+                where: {
+                    status: 'PUBLISHED',
+                    OR: [
+                        { patientVisits: { some: { patientId } } },
+                        { isFacilityWide: true, headquartersId: hqId },
+                    ],
+                },
+                include: { provider: { include: { category: { select: { name: true } } } } },
+                orderBy: { registeredAt: 'desc' },
                 take: 5,
             }),
             prisma.familyVisit.findMany({
@@ -84,7 +94,13 @@ export async function POST(req: Request) {
             pendingTasks: tasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS'),
             completedTasks: tasks.filter(t => t.status === 'COMPLETED').length,
             benefits: benefits.map(b => ({ type: b.type, status: b.status, expiration: b.expirationDate })),
-            specialistVisits: visits.map(v => ({ type: v.specialistType, date: v.visitDate, nextDate: v.nextVisitDate })),
+            externalVisits: visits.map(v => ({
+                category: v.provider.category.name,
+                provider: v.provider.name,
+                serviceType: v.serviceType,
+                date: v.registeredAt,
+                comment: v.comment,
+            })),
             familyVisits: familyVisits.map(v => ({ date: v.visitedAt })),
         });
 

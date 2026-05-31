@@ -144,7 +144,6 @@ model Headquarters {
   socialWorkNotes    SocialWorkNote[]
   socialWorkTasks    SocialWorkTask[]
   socialWorkBenefits SocialWorkBenefit[]
-  specialistVisits   SpecialistVisit[]
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
@@ -285,7 +284,6 @@ model User {
   socialWorkNotes         SocialWorkNote[]
   socialWorkTasks         SocialWorkTask[]
   socialWorkTasksAssigned SocialWorkTask[]  @relation("SocialWorkTasksAssigned")
-  specialistVisits        SpecialistVisit[]
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
@@ -670,7 +668,6 @@ model Patient {
   socialWorkNotes    SocialWorkNote[]
   socialWorkTasks    SocialWorkTask[]
   socialWorkBenefits SocialWorkBenefit[]
-  specialistVisits   SpecialistVisit[]
 
   // Órdenes de toma de vitales
   vitalsOrders VitalsOrder[]
@@ -2504,23 +2501,6 @@ model SocialWorkBenefit {
   updatedAt      DateTime  @updatedAt
 
   patient      Patient      @relation(fields: [patientId], references: [id])
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-}
-
-model SpecialistVisit {
-  id             String    @id @default(uuid())
-  patientId      String
-  headquartersId String
-  specialistType String // DOCTOR | PODIATRIST | PSYCHOLOGIST | DENTIST | PSYCHIATRIST | OTHER
-  specialistName String?
-  visitDate      DateTime
-  nextVisitDate  DateTime?
-  notes          String?
-  createdById    String
-  createdAt      DateTime  @default(now())
-
-  patient      Patient      @relation(fields: [patientId], references: [id])
-  createdBy    User         @relation(fields: [createdById], references: [id])
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
