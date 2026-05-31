@@ -22,9 +22,15 @@ export async function GET(req: Request) {
         const now = new Date();
         const limitTime = new Date(now.getTime() - TWO_HOURS_MS);
 
-        // Pacientes en riesgo: nortonRisk=true O tienen UPP activa
+        // Pacientes en riesgo: nortonRisk=true O tienen UPP activa.
+        // FIX 2026-05-31: filtrar status ACTIVE/TEMPORARY_LEAVE — antes el cron
+        // disparaba notificaciones de rotación postural a cuidadores por
+        // residentes DISCHARGED/DECEASED con UPPs históricas no marcadas como
+        // RESOLVED. Falsa alerta = ruido operativo y erosiona la confianza
+        // en las alertas reales.
         const atRiskPatients = await prisma.patient.findMany({
             where: {
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
                 OR: [
                     { nortonRisk: true },
                     { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } }

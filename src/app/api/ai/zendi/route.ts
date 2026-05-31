@@ -32,10 +32,15 @@ export async function POST(req: Request) {
         // 2. OBTENER MÉTRICAS CLÍNICAS REALES (RAG Básico)
         let clinicalContext = "Sin métricas recientes disponibles.";
         if (hqId) {
-            // Contabilizar salud general del piso
-            const redPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'RED' } });
-            const yellowPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'YELLOW' } });
-            const greenPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'GREEN' } });
+            // Contabilizar salud general del piso (solo residentes activos).
+            // FIX 2026-05-31: el contexto que se pasa al LLM debe reflejar el
+            // censo REAL del piso, no incluir DISCHARGED/DECEASED que distorsionan
+            // los conteos por color y llevan a Zendi a recomendaciones basadas
+            // en realidad operacional incorrecta.
+            const activeStatusFilter = { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] as any } };
+            const redPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'RED', ...activeStatusFilter } });
+            const yellowPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'YELLOW', ...activeStatusFilter } });
+            const greenPatients = await prisma.patient.count({ where: { headquartersId: hqId, colorGroup: 'GREEN', ...activeStatusFilter } });
 
             // Incidentes críticos recien reportados (últimas 24h)
             const recentIncidents = await prisma.incident.count({

@@ -16,8 +16,19 @@ export async function GET(request: Request) {
 
         const hqId = session.user.headquartersId;
 
+        // FIX 2026-05-31: excluir eventos ligados a un paciente DISCHARGED o
+        // DECEASED. Antes el calendario seguía mostrando recordatorios futuros
+        // (citas médicas, cumpleaños, visitas) de residentes que ya no están
+        // en la sede — confunde a Celia y al equipo. Eventos sin paciente
+        // específico (sede entera o grupos de color) se conservan.
         const events = await prisma.headquartersEvent.findMany({
-            where: { headquartersId: hqId },
+            where: {
+                headquartersId: hqId,
+                OR: [
+                    { patientId: null },
+                    { patient: { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } } },
+                ],
+            },
             include: {
                 patient: { select: { id: true, name: true } }
             },
