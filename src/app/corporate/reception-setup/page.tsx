@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Monitor, Copy, Check, ExternalLink, QrCode, RefreshCw, Smartphone, Globe } from "lucide-react";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
-import QRCodeDisplay from "./QRCodeDisplay";
+import QRCodeDisplay from "@/components/ui/QRCodeDisplay";
 
 export default function ReceptionSetupPage() {
     const { activeHqId, activeHqName } = useActiveHq();

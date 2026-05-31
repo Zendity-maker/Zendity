@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Settings, Plus, Edit2, Trash2, ChevronLeft, Loader2, Copy, Check, X, Tablet, MapPin, Clock } from "lucide-react";
+import { Settings, Plus, Edit2, Trash2, ChevronLeft, Loader2, Copy, Check, X, Tablet, MapPin, Clock, ExternalLink } from "lucide-react";
+import QRCodeDisplay from "@/components/ui/QRCodeDisplay";
 
 type Tab = 'categories' | 'providers' | 'devices';
 
@@ -373,24 +374,41 @@ export default function AdminExternalServicesPage() {
                 <NewDeviceModal onClose={() => setNewDeviceModal(false)} onSubmit={createDevice} submitting={submitting} />
             )}
 
-            {/* MODAL: device created success */}
+            {/* MODAL: device created success — QR + URL + abrir + copiar */}
             {newDeviceResult && (
-                <Modal title="Tablet configurada — abre esta URL en la tablet" onClose={() => setNewDeviceResult(null)}>
-                    <p className="text-sm text-slate-600 mb-3">
-                        Abre la URL siguiente en la tablet del piso <strong>{newDeviceResult.label}</strong> una sola vez. Después de configurada, no podrás ver este token de nuevo.
+                <Modal title={`Configurar tablet: ${newDeviceResult.label}`} onClose={() => setNewDeviceResult(null)}>
+                    <p className="text-sm text-slate-600 mb-4">
+                        Escanea el QR con la cámara de la tablet (sin app). También puedes copiar la URL o abrirla directamente. <strong className="text-amber-700">Este token se muestra una sola vez.</strong>
                     </p>
-                    <div className="bg-slate-100 rounded-xl p-3 mb-3 break-all font-mono text-xs text-slate-700">
+                    <div className="flex justify-center mb-4">
+                        <QRCodeDisplay
+                            url={newDeviceResult.setupUrl}
+                            caption="Escanea con la cámara de la tablet"
+                            size={200}
+                        />
+                    </div>
+                    <div className="bg-slate-100 rounded-xl p-3 mb-3 break-all font-mono text-[11px] text-slate-700 max-h-20 overflow-y-auto">
                         {newDeviceResult.setupUrl}
                     </div>
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(newDeviceResult.setupUrl);
-                            setToast({ msg: 'URL copiada al portapapeles', type: 'ok' });
-                        }}
-                        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
-                    >
-                        <Copy className="w-4 h-4" /> Copiar URL
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(newDeviceResult.setupUrl);
+                                setToast({ msg: 'URL copiada al portapapeles', type: 'ok' });
+                            }}
+                            className="bg-white border-2 border-slate-200 hover:border-teal-500 hover:text-teal-700 text-slate-700 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
+                        >
+                            <Copy className="w-4 h-4" /> Copiar URL
+                        </button>
+                        <a
+                            href={newDeviceResult.setupUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
+                        >
+                            <ExternalLink className="w-4 h-4" /> Abrir en pestaña
+                        </a>
+                    </div>
                 </Modal>
             )}
 
