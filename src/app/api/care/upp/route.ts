@@ -157,6 +157,7 @@ export async function POST(req: Request) {
                 type: 'TRIAGE',
                 title: 'Nueva UPP registrada',
                 message: `${patient.name} — Estadio ${stageInt} en ${bodyLocation}`,
+                link: '/corporate/triage',
             });
         } catch (e) { console.error('[UPP notify]', e); }
 

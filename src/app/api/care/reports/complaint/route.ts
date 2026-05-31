@@ -52,6 +52,7 @@ export async function POST(req: Request) {
                 type: 'TRIAGE',
                 title: 'Nuevo ticket de Triage',
                 message: `${patient.name} — Queja familiar: ${(description || 'sin descripción').substring(0, 120)}`,
+                link: '/corporate/triage',
             });
         } catch (e) { console.error('[notify TRIAGE complaint]', e); }
 

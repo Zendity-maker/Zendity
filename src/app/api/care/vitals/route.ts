@@ -298,6 +298,7 @@ export async function POST(req: Request) {
                             type: 'TRIAGE',
                             title: 'Nuevo ticket de Triage',
                             message: `${patient.name} — Alerta clínica: ${(data.notes || 'sin descripción').substring(0, 120)}`,
+                            link: '/corporate/triage',
                         });
                     } catch (e) { logWarn('care.vitals.notify_triage', e, { patientId }); }
                 }

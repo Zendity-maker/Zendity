@@ -155,6 +155,7 @@ export async function POST(req: Request) {
                     type: 'TRIAGE',
                     title: `Caída reportada — ${derivedSeverity}`,
                     message: `${fallPatient.name} — ${interventions.substring(0, 120)}`,
+                    link: '/corporate/triage',
                 });
             } catch (e) { logWarn('care.incidents.notify_fall', e, { patientId }); }
 
@@ -208,6 +209,7 @@ export async function POST(req: Request) {
                     type: 'TRIAGE',
                     title: 'Nuevo ticket de Triage',
                     message: `${patientName} — Mantenimiento: ${(description || 'sin descripción').substring(0, 120)}`,
+                    link: '/corporate/triage',
                 });
             } catch (e) { logWarn('care.incidents.notify_other', e, { patientId }); }
 
@@ -249,6 +251,7 @@ export async function POST(req: Request) {
                     type: 'TRIAGE',
                     title: '⚠️ Error de Medicación',
                     message: `${medPatient.name}: ${(d.description || '').substring(0, 120)}`,
+                    link: '/corporate/triage',
                 });
             } catch (e) { logWarn('care.incidents.notify_med_error', e, {}); }
 
