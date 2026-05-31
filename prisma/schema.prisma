@@ -71,11 +71,11 @@ model Headquarters {
   // White-label theming — paleta de marca por sede para la superficie familiar.
   // Si null, el portal familiar usa la paleta default Zéndity (teal).
   // Vivid usa navy/lima; otros tenants futuros configuran su propia paleta.
-  brandName       String? // Nombre comercial visible en el portal familiar (ej. "Vivid")
-  brandPrimary    String? // Color primario hex (botones, headings) — ej. "#1C3170"
-  brandSecondary  String? // Color secundario hex (acentos suaves) — ej. "#8CBBE8"
-  brandAccent     String? // Color de señal positiva ("Bien", ✓) — ej. "#C5E69A"
-  brandBg         String? // Fondo de página hex (crema/off-white) — ej. "#FAF6EE"
+  brandName      String? // Nombre comercial visible en el portal familiar (ej. "Vivid")
+  brandPrimary   String? // Color primario hex (botones, headings) — ej. "#1C3170"
+  brandSecondary String? // Color secundario hex (acentos suaves) — ej. "#8CBBE8"
+  brandAccent    String? // Color de señal positiva ("Bien", ✓) — ej. "#C5E69A"
+  brandBg        String? // Fondo de página hex (crema/off-white) — ej. "#FAF6EE"
 
   // Número de WhatsApp del hogar para coordinar videollamadas y llamadas familiares.
   // Si está seteado, se incluye en la copia de aprobación (ICS, email, notificación,
@@ -87,7 +87,7 @@ model Headquarters {
   events             HeadquartersEvent[]
   shiftSchedules     ShiftSchedule[]
   familyAppointments FamilyAppointment[] // Sprint C
-  scoreEvents        ScoreEvent[]         // Sprint Z-Score
+  scoreEvents        ScoreEvent[] // Sprint Z-Score
 
   // FASE 30: Zendity Care Core
   shiftSessions ShiftSession[]
@@ -127,11 +127,11 @@ model Headquarters {
   CalendarEvent         CalendarEvent[]
 
   // FASE 66
-  performanceScores     PerformanceScore[]
-  academyAssignments    AcademyAssignment[]
+  performanceScores  PerformanceScore[]
+  academyAssignments AcademyAssignment[]
 
   // FASE 67: Schedule Builder
-  schedules            Schedule[]
+  schedules             Schedule[]
   shiftColorAssignments ShiftColorAssignment[]
 
   // Cleaning & Sanitization Module
@@ -160,6 +160,12 @@ model Headquarters {
 
   // Sprint P — Documentos de residentes analizados por Zendi
   patientDocuments PatientDocument[]
+
+  // Módulo Servicios Externos
+  externalServiceCategories ExternalServiceCategory[]
+  externalProviders         ExternalProvider[]
+  externalServiceVisits     ExternalServiceVisit[]
+  externalKioskDevices      ExternalKioskDevice[]
 }
 
 // =======================
@@ -181,8 +187,8 @@ model User {
   preferredShift String? // nullable string "MORNING", "EVENING", "NIGHT"
   offDays        String[] // String Array of weekdays e.g. ["Wednesday", "Sunday"]
 
-  complianceScore Int      @default(75) // Sprint Z-Align: base 75 (alineado con fórmula dinámica en /api/care/compliance-score). 100 se gana con rondas + Academy + eval alta.
-  createdAt       DateTime @default(now())
+  complianceScore Int       @default(75) // Sprint Z-Align: base 75 (alineado con fórmula dinámica en /api/care/compliance-score). 100 se gana con rondas + Academy + eval alta.
+  createdAt       DateTime  @default(now())
   hiredAt         DateTime? // Sprint D: fecha real de ingreso (para detectar cuidador senior del turno)
 
   headquarters     Headquarters               @relation(fields: [headquartersId], references: [id])
@@ -254,32 +260,32 @@ model User {
   ClinicalNote        ClinicalNote[]
 
   // FASE 66: MVP Operacional
-  triageTicketsAssigned TriageTicket[]    @relation("TicketAssignee")
-  triageTicketsResolved TriageTicket[]    @relation("TicketResolver")
+  triageTicketsAssigned TriageTicket[]  @relation("TicketAssignee")
+  triageTicketsResolved TriageTicket[]  @relation("TicketResolver")
   CalendarEvent         CalendarEvent[]
 
   // FASE 66
-  performanceScores     PerformanceScore[]
-  academyAssignments    AcademyAssignment[]
+  performanceScores  PerformanceScore[]
+  academyAssignments AcademyAssignment[]
 
   scheduledShifts       ScheduledShift[]
   shiftColorAssignments ShiftColorAssignment[]
   notifications         Notification[]
-  approvedAppointments  FamilyAppointment[] @relation("AppointmentApprover") // Sprint C
-  scoreEvents           ScoreEvent[]        // Sprint Z-Score
+  approvedAppointments  FamilyAppointment[]    @relation("AppointmentApprover") // Sprint C
+  scoreEvents           ScoreEvent[] // Sprint Z-Score
   accounts              Account[]
   sessions              Session[]
 
   // Cleaning & Sanitization Module
-  cleaningLogs CleaningLog[]
+  cleaningLogs             CleaningLog[]
   cleaningRequestsCreated  CleaningRequest[] @relation("CleaningRequestsCreated")
   cleaningRequestsAssigned CleaningRequest[] @relation("CleaningRequestsAssigned")
 
   // Social Work Module
-  socialWorkNotes        SocialWorkNote[]
-  socialWorkTasks        SocialWorkTask[]
-  socialWorkTasksAssigned SocialWorkTask[] @relation("SocialWorkTasksAssigned")
-  specialistVisits       SpecialistVisit[]
+  socialWorkNotes         SocialWorkNote[]
+  socialWorkTasks         SocialWorkTask[]
+  socialWorkTasksAssigned SocialWorkTask[]  @relation("SocialWorkTasksAssigned")
+  specialistVisits        SpecialistVisit[]
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
@@ -314,6 +320,9 @@ model User {
 
   // Punto 8 — Soporte técnico
   supportTickets SupportTicket[]
+
+  // Módulo Servicios Externos — visitas que este director aprobó/rechazó
+  externalVisitsReviewed ExternalServiceVisit[] @relation("ExternalVisitReviewer")
 }
 
 model Account {
@@ -361,33 +370,33 @@ model Schedule {
   createdByUserId String
   createdAt       DateTime       @default(now())
 
-  headquarters    Headquarters    @relation(fields: [headquartersId], references: [id])
-  shifts          ScheduledShift[]
+  headquarters Headquarters     @relation(fields: [headquartersId], references: [id])
+  shifts       ScheduledShift[]
 
   @@index([headquartersId, weekStartDate])
 }
 
 model ScheduledShift {
-  id               String     @id @default(uuid())
+  id               String    @id @default(uuid())
   scheduleId       String
   userId           String
   date             DateTime
   shiftType        ShiftType
   colorGroup       String?
   notes            String?
-  isAbsent         Boolean    @default(false)
+  isAbsent         Boolean   @default(false)
   absentMarkedAt   DateTime?
   absentMarkedById String?
-  createdAt        DateTime   @default(now())
+  createdAt        DateTime  @default(now())
 
   // FASE 80: Turnos manuales con hora personalizada
-  isManual         Boolean    @default(false)
-  customStartTime  DateTime?
-  customEndTime    DateTime?
+  isManual          Boolean   @default(false)
+  customStartTime   DateTime?
+  customEndTime     DateTime?
   customDescription String?
 
-  schedule         Schedule   @relation(fields: [scheduleId], references: [id])
-  user             User       @relation(fields: [userId], references: [id])
+  schedule         Schedule               @relation(fields: [scheduleId], references: [id])
+  user             User                   @relation(fields: [userId], references: [id])
   colorAssignments ShiftColorAssignment[]
 
   @@index([scheduleId, date, shiftType])
@@ -404,9 +413,9 @@ model ShiftColorAssignment {
   isAutoAssigned   Boolean  @default(false)
   assignedAt       DateTime @default(now())
 
-  headquarters     Headquarters    @relation(fields: [headquartersId], references: [id])
-  scheduledShift   ScheduledShift  @relation(fields: [scheduledShiftId], references: [id])
-  user             User            @relation(fields: [userId], references: [id])
+  headquarters   Headquarters   @relation(fields: [headquartersId], references: [id])
+  scheduledShift ScheduledShift @relation(fields: [scheduledShiftId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
 }
 
 model Notification {
@@ -415,11 +424,11 @@ model Notification {
   type      String
   title     String
   message   String
-  link      String?  // Sprint S — ruta opcional para navegación al tocar la notif
+  link      String? // Sprint S — ruta opcional para navegación al tocar la notif
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId, isRead])
 }
@@ -429,22 +438,22 @@ model Notification {
 // =======================
 
 model VitalsOrder {
-  id              String            @id @default(uuid())
-  headquartersId  String
-  patientId       String
-  orderedById     String
-  caregiverId     String?
-  reason          String?
-  orderedAt       DateTime          @default(now())
-  expiresAt       DateTime
-  completedAt     DateTime?
-  lateReason      String?
-  reminderSentAt  DateTime?
-  status          VitalsOrderStatus @default(PENDING)
+  id             String            @id @default(uuid())
+  headquartersId String
+  patientId      String
+  orderedById    String
+  caregiverId    String?
+  reason         String?
+  orderedAt      DateTime          @default(now())
+  expiresAt      DateTime
+  completedAt    DateTime?
+  lateReason     String?
+  reminderSentAt DateTime?
+  status         VitalsOrderStatus @default(PENDING)
   // Sprint J: ventana automática al inicio de turno
-  autoCreated     Boolean           @default(false)
-  shiftSessionId  String?
-  penaltyApplied  Boolean           @default(false)
+  autoCreated    Boolean           @default(false)
+  shiftSessionId String?
+  penaltyApplied Boolean           @default(false)
 
   headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
   patient      Patient       @relation(fields: [patientId], references: [id])
@@ -481,8 +490,8 @@ model FamilyVisit {
   visitedAt       DateTime @default(now())
   notified        Boolean  @default(false)
 
-  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
-  patient      Patient?      @relation(fields: [patientId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
 
   @@index([headquartersId, visitedAt])
 }
@@ -565,7 +574,7 @@ model Patient {
   dischargeDate   DateTime?
   dischargeReason String?
   photoUrl        String? // FASE 48: URL de foto de perfil
-  needsDialysis   Boolean @default(false) // Marca residentes con tratamiento de diálisis periódica
+  needsDialysis   Boolean       @default(false) // Marca residentes con tratamiento de diálisis periódica
 
   // Modalidad de cuidado — preexistente en DB (sesión anterior, hospicio plan).
   // Sincronizado aquí para evitar drift. Aditivo: ningún consumidor activo lo usa todavía.
@@ -591,24 +600,24 @@ model Patient {
   address               String? // FASE 84: Dirección previa del residente
 
   // Sprint P — Admisión Unificada: identificadores separados
-  medicareNumber        String? // Número Medicare (separado de insurance privado)
-  medicaidNumber        String? // Número Medicaid
-  idNumber              String? // Licencia/ID oficial del residente
+  medicareNumber String? // Número Medicare (separado de insurance privado)
+  medicaidNumber String? // Número Medicaid
+  idNumber       String? // Licencia/ID oficial del residente
 
   // Sprint P — Encargado primario (reemplaza convención familyMembers[0])
   primaryFamilyMemberId String? @unique
 
   createdAt DateTime @default(now())
 
-  headquarters   Headquarters        @relation(fields: [headquartersId], references: [id])
-  medications    PatientMedication[]
-  incidents      Incident[]
-  familyMembers  FamilyMember[]      @relation("PatientFamily")
-  primaryFamilyMember FamilyMember?  @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
-  familyVisits   FamilyVisit[]
-  familyMessages     FamilyMessage[] // FASE 13 Integrations
-  wellnessNotes      WellnessDiary[]
-  familyAppointments FamilyAppointment[] // Sprint C
+  headquarters        Headquarters        @relation(fields: [headquartersId], references: [id])
+  medications         PatientMedication[]
+  incidents           Incident[]
+  familyMembers       FamilyMember[]      @relation("PatientFamily")
+  primaryFamilyMember FamilyMember?       @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
+  familyVisits        FamilyVisit[]
+  familyMessages      FamilyMessage[] // FASE 13 Integrations
+  wellnessNotes       WellnessDiary[]
+  familyAppointments  FamilyAppointment[] // Sprint C
 
   // FASE 6 Integrations
   intakeData IntakeData?
@@ -652,10 +661,10 @@ model Patient {
   complaints    Complaint[]
 
   // FASE 43 Integrations
-  legalDocs           LegalDocument[]
-  ClinicalNote        ClinicalNote[]
-  TriageTicket        TriageTicket[]
-  CalendarEvent       CalendarEvent[]
+  legalDocs     LegalDocument[]
+  ClinicalNote  ClinicalNote[]
+  TriageTicket  TriageTicket[]
+  CalendarEvent CalendarEvent[]
 
   // Social Work Module
   socialWorkNotes    SocialWorkNote[]
@@ -671,6 +680,9 @@ model Patient {
 
   // Sprint P — Documentos analizados por Zendi (solo metadata + análisis)
   documents PatientDocument[]
+
+  // Módulo Servicios Externos (kiosko de visitas de proveedores externos)
+  externalServiceVisits ExternalServiceVisitPatient[]
 }
 
 // =======================
@@ -738,7 +750,7 @@ model MedicationAdministration {
 
   scheduledFor   String?
   scheduledTime  DateTime? // FASE eMAR Integral: Timestamp estricto de agenda
-  scheduleTime   String?   // Slot del pack ("8:00 AM", "12:00 PM") usado por el flujo de pack del tablet cuidador
+  scheduleTime   String? // Slot del pack ("8:00 AM", "12:00 PM") usado por el flujo de pack del tablet cuidador
   administeredAt DateTime? // Modificado a opcional porque PENDING no tiene adminAt
   createdAt      DateTime  @default(now())
 
@@ -819,15 +831,15 @@ model FamilyMember {
   isRegistered Boolean   @default(false)
 
   // Sprint P — Admisión Unificada: datos del encargado
-  address    String?
-  idCardUrl  String?  @db.Text // base64 foto del ID del familiar
-  isPrimary  Boolean  @default(false)
+  address   String?
+  idCardUrl String? @db.Text // base64 foto del ID del familiar
+  isPrimary Boolean @default(false)
 
-  headquarters Headquarters   @relation(fields: [headquartersId], references: [id])
-  patient      Patient        @relation("PatientFamily", fields: [patientId], references: [id])
-  primaryForPatient Patient?  @relation("PrimaryFamilyMember")
-  surveys      FamilySurvey[]
-  complaints   Complaint[]
+  headquarters      Headquarters   @relation(fields: [headquartersId], references: [id])
+  patient           Patient        @relation("PatientFamily", fields: [patientId], references: [id])
+  primaryForPatient Patient?       @relation("PrimaryFamilyMember")
+  surveys           FamilySurvey[]
+  complaints        Complaint[]
 
   // FASE 43 Integrations
   legalDocs LegalDocument[]
@@ -968,7 +980,7 @@ model Course {
   order           Int      @default(0) // Orden de aparicion en la Academy
   isActive        Boolean  @default(true)
   isGlobal        Boolean  @default(false)
-  targetRole      String?  // Si tiene valor, solo ese rol puede verlo. Ej: "DIRECTOR", "SUPERVISOR"
+  targetRole      String? // Si tiene valor, solo ese rol puede verlo. Ej: "DIRECTOR", "SUPERVISOR"
   createdAt       DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
@@ -1116,13 +1128,13 @@ model LifePlan {
   startDate  DateTime?
   nextReview DateTime?
 
-  signedById String?
-  signedAt   DateTime?
+  signedById         String?
+  signedAt           DateTime?
   // Sprint P — Firma gráfica del LifePlan (igual que LegalDocument)
   signatureBase64    String?   @db.Text
   signatureIpAddress String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   patient    Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
   signedBy   User?   @relation("LifePlanSigner", fields: [signedById], references: [id])
@@ -1239,16 +1251,16 @@ model ZendiInteractionLog {
 }
 
 model ZendiNursingUpdate {
-  id              String   @id @default(uuid())
-  patientId       String
-  authorId        String   // enfermera que acepta/declina
-  headquartersId  String
-  status          String   @default("PENDING") // PENDING | SENT | DECLINED
-  optionGen1      String   @db.Text
-  optionGen2      String   @db.Text
-  selectedOption  String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  patientId      String
+  authorId       String // enfermera que acepta/declina
+  headquartersId String
+  status         String   @default("PENDING") // PENDING | SENT | DECLINED
+  optionGen1     String   @db.Text
+  optionGen2     String   @db.Text
+  selectedOption String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   patient      Patient      @relation(fields: [patientId], references: [id])
   author       User         @relation(fields: [authorId], references: [id])
@@ -1266,7 +1278,7 @@ model InsightDismissal {
   id             String   @id @default(uuid())
   headquartersId String
   employeeId     String
-  insightType    String   // e.g. "low_compliance", "missing_vitals", "late_meds"
+  insightType    String // e.g. "low_compliance", "missing_vitals", "late_meds"
   dismissedById  String
   dismissedAt    DateTime @default(now())
   expiresAt      DateTime
@@ -1385,9 +1397,9 @@ model Invoice {
   notes  String? // Notas para la familia
 
   // FASE 12: Trazabilidad de cobro
-  paymentMethod   String?   // 'ACH' | 'CHECK' | 'WIRE' | 'CASH'
+  paymentMethod   String? // 'ACH' | 'CHECK' | 'WIRE' | 'CASH'
   paidAt          DateTime? // Fecha real de cobro confirmado
-  referenceNumber String?   // Número de cheque, referencia ACH, etc.
+  referenceNumber String? // Número de cheque, referencia ACH, etc.
   receiptSentAt   DateTime? // Cuándo se envió el recibo al familiar
 
   createdAt DateTime @default(now())
@@ -1463,14 +1475,14 @@ model ShiftHandover {
   audioUrl        String?
 
   // Sprint B: Firma + justificaciones recolectadas por ShiftClosureWizard
-  signature          String?   @db.Text // Firma electrónica del outgoing (base64 o token)
-  signedOutAt        DateTime?
-  justifications     Json?     // { warningId: "REFUSED" | "ASLEEP" | "TRANSFERRED" | ... }
-  handoverCompleted  Boolean   @default(false)
+  signature         String?   @db.Text // Firma electrónica del outgoing (base64 o token)
+  signedOutAt       DateTime?
+  justifications    Json? // { warningId: "REFUSED" | "ASLEEP" | "TRANSFERRED" | ... }
+  handoverCompleted Boolean   @default(false)
 
   // Sprint L — Reporte individual por cuidador (colores que cubrió) + discriminar prólogo del cron
-  colorGroups     String[]  @default([]) // ["RED","YELLOW"] — colores que manejó en el turno. Vacío = prólogo o handover global.
-  isDailyPrologue Boolean   @default(false) // true = prólogo diario generado por cron 6 AM; false = handover individual de cuidador
+  colorGroups     String[] @default([]) // ["RED","YELLOW"] — colores que manejó en el turno. Vacío = prólogo o handover global.
+  isDailyPrologue Boolean  @default(false) // true = prólogo diario generado por cron 6 AM; false = handover individual de cuidador
 
   // Firma Supervisor + Tracking Director (rol senior eliminado mayo 2026)
   supervisorSignedById String?
@@ -1479,7 +1491,7 @@ model ShiftHandover {
   supervisorNote       String?   @db.Text
   directorViewedAt     DateTime?
 
-  supervisorSigned User? @relation("SupervisorSigned",  fields: [supervisorSignedById], references: [id])
+  supervisorSigned User? @relation("SupervisorSigned", fields: [supervisorSignedById], references: [id])
 
   // Enlace a la Sesión de Turno (Fase 44)
   shiftSession ShiftSession?
@@ -1498,13 +1510,13 @@ model HandoverNote {
 }
 
 enum ShiftType {
-  MORNING       // 6AM–2PM   (8h)
-  EVENING       // 2PM–10PM  (8h)
-  NIGHT         // 10PM–6AM  (8h)
-  FULL_DAY      // 6AM–6PM   (12h)
-  FULL_NIGHT    // 6PM–6AM   (12h)
+  MORNING // 6AM–2PM   (8h)
+  EVENING // 2PM–10PM  (8h)
+  NIGHT // 10PM–6AM  (8h)
+  FULL_DAY // 6AM–6PM   (12h)
+  FULL_NIGHT // 6PM–6AM   (12h)
   SUPERVISOR_DAY
-  OFF           // Día libre planificado — no laborable. Filtros operativos lo ignoran (compatibleShiftTypesAt nunca lo retorna).
+  OFF // Día libre planificado — no laborable. Filtros operativos lo ignoran (compatibleShiftTypesAt nunca lo retorna).
 }
 
 enum CareModality {
@@ -1963,8 +1975,8 @@ model KitchenObservation {
   satisfactionScore Int // 1 to 5 stars
   comments          String  @db.Text
   photoUrl          String?
-  mealType          String  @default("GENERAL")   // GENERAL | BREAKFAST | LUNCH | DINNER
-  feedbackType      String  @default("NEUTRAL")   // NEUTRAL | POSITIVE | COMPLAINT
+  mealType          String  @default("GENERAL") // GENERAL | BREAKFAST | LUNCH | DINNER
+  feedbackType      String  @default("NEUTRAL") // NEUTRAL | POSITIVE | COMPLAINT
   portionsAdequate  Boolean @default(true)
   isRead            Boolean @default(false)
 
@@ -2028,19 +2040,19 @@ model IncidentReport {
 
   // Sprint C — Módulo Observaciones de Personal
   severity              HrIncidentSeverity @default(OBSERVATION)
-  category              IncidentCategory @default(OTHER)
-  status                IncidentStatus   @default(DRAFT)
+  category              IncidentCategory   @default(OTHER)
+  status                IncidentStatus     @default(DRAFT)
   pointsDeducted        Int?
   acknowledgedAt        DateTime?
-  acknowledgedSignature String?          @db.Text
-  employeeResponse      String?          @db.Text
+  acknowledgedSignature String?            @db.Text
+  employeeResponse      String?            @db.Text
   respondedAt           DateTime?
-  appealText            String?          @db.Text
+  appealText            String?            @db.Text
   appealedAt            DateTime?
   appliedAt             DateTime?
   dismissedAt           DateTime?
-  directorNote          String?          @db.Text
-  visibleToEmployee     Boolean          @default(false)
+  directorNote          String?            @db.Text
+  visibleToEmployee     Boolean            @default(false)
   relatedPatientId      String?
 
   employee   User         @relation("EmployeeIncidents", fields: [employeeId], references: [id])
@@ -2224,7 +2236,7 @@ model TriageTicket {
 
   description    String  @db.Text
   resolutionNote String? @db.Text
-  followUpNotes  Json?   // Array de { authorId, authorName, note, createdAt }
+  followUpNotes  Json? // Array de { authorId, authorName, note, createdAt }
 
   assignedToId String?
   resolvedById String?
@@ -2310,26 +2322,26 @@ model CalendarEvent {
 // =======================
 
 model PerformanceScore {
-  id             String @id @default(uuid())
+  id             String   @id @default(uuid())
   headquartersId String // Tenant
   userId         String // Cuidador evaluado
   periodStart    DateTime
   periodEnd      DateTime
 
-  systemScore    Float  // Base calculada eMAR/Cierres
-  humanScore     Float? // Evaluación del supervisor (opcional)
-  finalScore     Float? // Sprint M: nullable — se llena al cerrar auditoría formal
+  systemScore Float // Base calculada eMAR/Cierres
+  humanScore  Float? // Evaluación del supervisor (opcional)
+  finalScore  Float? // Sprint M: nullable — se llena al cerrar auditoría formal
 
-  systemFindings Json?  // Metadatos { missedPRN: 2 }
+  systemFindings Json? // Metadatos { missedPRN: 2 }
 
   // Sprint M — Informe Pre-Auditoría generado por Zendi
-  aiReport       String?  @db.Text
-  feedback       String?  @db.Text
+  aiReport String? @db.Text
+  feedback String? @db.Text
 
-  createdAt      DateTime @default(now())
-  
-  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
 
   @@index([headquartersId, userId])
 }
@@ -2342,21 +2354,21 @@ enum AcademyAssignmentStatus {
 
 model AcademyAssignment {
   id             String @id @default(uuid())
-  headquartersId String 
+  headquartersId String
   userId         String
-  
-  moduleCode     String // ID del curso formativo
-  reason         String // Justificación del trigger
-  status         AcademyAssignmentStatus @default(PENDING)
-  
-  assignedBySystem  Boolean @default(true) // Automático vs Manual
-  assignedByUserId  String? // Si fue manual, el supervisor
 
-  createdAt      DateTime @default(now())
-  completedAt    DateTime?
-  
-  headquarters   Headquarters @relation(fields: [headquartersId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  moduleCode String // ID del curso formativo
+  reason     String // Justificación del trigger
+  status     AcademyAssignmentStatus @default(PENDING)
+
+  assignedBySystem Boolean @default(true) // Automático vs Manual
+  assignedByUserId String? // Si fue manual, el supervisor
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
 
   @@index([headquartersId, userId, moduleCode])
 }
@@ -2366,57 +2378,57 @@ model AcademyAssignment {
 // =======================
 
 model CleaningArea {
-  id              String   @id @default(uuid())
-  headquartersId  String
-  name            String
-  floor           String   // "FIRST_FLOOR" | "SECOND_FLOOR"
-  category        String   // "BATHROOM" | "ROOM" | "COMMON" | "TRASH"
-  roomNumber      String?
-  requiresPhoto   Boolean  @default(false)
-  isActive        Boolean  @default(true)
-  order           Int      @default(0)
+  id             String  @id @default(uuid())
+  headquartersId String
+  name           String
+  floor          String // "FIRST_FLOOR" | "SECOND_FLOOR"
+  category       String // "BATHROOM" | "ROOM" | "COMMON" | "TRASH"
+  roomNumber     String?
+  requiresPhoto  Boolean @default(false)
+  isActive       Boolean @default(true)
+  order          Int     @default(0)
 
-  headquarters    Headquarters @relation(fields: [headquartersId], references: [id])
-  logs            CleaningLog[]
-  requests        CleaningRequest[]
+  headquarters Headquarters      @relation(fields: [headquartersId], references: [id])
+  logs         CleaningLog[]
+  requests     CleaningRequest[]
 }
 
 model CleaningLog {
-  id              String   @id @default(uuid())
-  areaId          String
-  cleanedById     String
-  headquartersId  String
-  status          String   @default("COMPLETED") // COMPLETED | SKIPPED
-  photoUrl        String?
-  photoRequested  Boolean  @default(false)
-  notes           String?
-  productsUsed    String[] // Productos/desinfectantes usados (regulatorio Senior Living)
-  cleanedAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  areaId         String
+  cleanedById    String
+  headquartersId String
+  status         String   @default("COMPLETED") // COMPLETED | SKIPPED
+  photoUrl       String?
+  photoRequested Boolean  @default(false)
+  notes          String?
+  productsUsed   String[] // Productos/desinfectantes usados (regulatorio Senior Living)
+  cleanedAt      DateTime @default(now())
 
-  area            CleaningArea   @relation(fields: [areaId], references: [id])
-  cleanedBy       User           @relation(fields: [cleanedById], references: [id])
-  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+  area         CleaningArea @relation(fields: [areaId], references: [id])
+  cleanedBy    User         @relation(fields: [cleanedById], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 model CleaningRequest {
-  id              String    @id @default(uuid())
-  headquartersId  String
-  requestedById   String
-  areaId          String?
-  areaName        String
-  description     String
-  photoUrl        String?
-  status          String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | EXPIRED
-  priority        String    @default("NORMAL")  // NORMAL | URGENT
-  expiresAt       DateTime
-  assignedToId    String?
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  id             String    @id @default(uuid())
+  headquartersId String
+  requestedById  String
+  areaId         String?
+  areaName       String
+  description    String
+  photoUrl       String?
+  status         String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | EXPIRED
+  priority       String    @default("NORMAL") // NORMAL | URGENT
+  expiresAt      DateTime
+  assignedToId   String?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
 
-  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
-  requestedBy     User           @relation("CleaningRequestsCreated", fields: [requestedById], references: [id])
-  assignedTo      User?          @relation("CleaningRequestsAssigned", fields: [assignedToId], references: [id])
-  area            CleaningArea?  @relation(fields: [areaId], references: [id])
+  headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
+  requestedBy  User          @relation("CleaningRequestsCreated", fields: [requestedById], references: [id])
+  assignedTo   User?         @relation("CleaningRequestsAssigned", fields: [assignedToId], references: [id])
+  area         CleaningArea? @relation(fields: [areaId], references: [id])
 }
 
 // Snapshot diario de stats de limpieza por sede.
@@ -2427,10 +2439,10 @@ model CleaningDailyStats {
   id                String   @id @default(uuid())
   headquartersId    String
   date              DateTime // 00:00 del día snapshot, UTC
-  totalAreas        Int      // áreas activas al momento del snapshot
-  completedCount    Int      // logs COMPLETED ese día
-  skippedCount      Int      // logs SKIPPED ese día
-  uniqueAreasLogged Int      // áreas distintas con cualquier log ese día
+  totalAreas        Int // áreas activas al momento del snapshot
+  completedCount    Int // logs COMPLETED ese día
+  skippedCount      Int // logs SKIPPED ese día
+  uniqueAreasLogged Int // áreas distintas con cualquier log ese día
   createdAt         DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
@@ -2444,18 +2456,18 @@ model CleaningDailyStats {
 // =======================
 
 model SocialWorkNote {
-  id              String   @id @default(uuid())
-  patientId       String
-  headquartersId  String
-  createdById     String
-  content         String   @db.Text
-  category        String   @default("GENERAL") // GENERAL | FAMILY | BENEFITS | LEGAL | INCIDENT
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  patientId      String
+  headquartersId String
+  createdById    String
+  content        String   @db.Text
+  category       String   @default("GENERAL") // GENERAL | FAMILY | BENEFITS | LEGAL | INCIDENT
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  patient         Patient        @relation(fields: [patientId], references: [id])
-  createdBy       User           @relation(fields: [createdById], references: [id])
-  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 model SocialWorkTask {
@@ -2467,49 +2479,49 @@ model SocialWorkTask {
   title            String
   description      String?
   category         String    @default("FOLLOW_UP") // FOLLOW_UP | DOCUMENT | FAMILY | APPOINTMENT | BENEFIT
-  status           String    @default("PENDING")   // PENDING | IN_PROGRESS | COMPLETED | CANCELLED
-  priority         String    @default("NORMAL")    // LOW | NORMAL | HIGH | URGENT
+  status           String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | CANCELLED
+  priority         String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
   dueDate          DateTime?
   completedAt      DateTime?
   isZendiSuggested Boolean   @default(false)
   createdAt        DateTime  @default(now())
 
-  patient          Patient        @relation(fields: [patientId], references: [id])
-  createdBy        User           @relation(fields: [createdById], references: [id])
-  assignedTo       User?          @relation("SocialWorkTasksAssigned", fields: [assignedToId], references: [id])
-  headquarters     Headquarters   @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  assignedTo   User?        @relation("SocialWorkTasksAssigned", fields: [assignedToId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 model SocialWorkBenefit {
-  id              String    @id @default(uuid())
-  patientId       String
-  headquartersId  String
-  type            String    // MEDICARE | MEDICAID | SNAP | PENSION | OTHER
-  status          String    @default("ACTIVE") // ACTIVE | EXPIRED | PENDING | UNKNOWN
-  details         String?
-  expirationDate  DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  patientId      String
+  headquartersId String
+  type           String // MEDICARE | MEDICAID | SNAP | PENSION | OTHER
+  status         String    @default("ACTIVE") // ACTIVE | EXPIRED | PENDING | UNKNOWN
+  details        String?
+  expirationDate DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  patient         Patient        @relation(fields: [patientId], references: [id])
-  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 model SpecialistVisit {
-  id              String   @id @default(uuid())
-  patientId       String
-  headquartersId  String
-  specialistType  String   // DOCTOR | PODIATRIST | PSYCHOLOGIST | DENTIST | PSYCHIATRIST | OTHER
-  specialistName  String?
-  visitDate       DateTime
-  nextVisitDate   DateTime?
-  notes           String?
-  createdById     String
-  createdAt       DateTime @default(now())
+  id             String    @id @default(uuid())
+  patientId      String
+  headquartersId String
+  specialistType String // DOCTOR | PODIATRIST | PSYCHOLOGIST | DENTIST | PSYCHIATRIST | OTHER
+  specialistName String?
+  visitDate      DateTime
+  nextVisitDate  DateTime?
+  notes          String?
+  createdById    String
+  createdAt      DateTime  @default(now())
 
-  patient         Patient        @relation(fields: [patientId], references: [id])
-  createdBy       User           @relation(fields: [createdById], references: [id])
-  headquarters    Headquarters   @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 }
 
 // =======================
@@ -2520,10 +2532,10 @@ model ZoneInspection {
   id             String    @id @default(uuid())
   headquartersId String
   supervisorId   String
-  roundType      String    // INICIO | MEDIO | CIERRE
-  floor          Int       // 1 | 2
+  roundType      String // INICIO | MEDIO | CIERRE
+  floor          Int // 1 | 2
   zoneName       String
-  checklistData  Json      // { limpieza: bool, seguridad: bool, residentes: bool, equipo: bool }
+  checklistData  Json // { limpieza: bool, seguridad: bool, residentes: bool, equipo: bool }
   observations   String?   @db.Text
   completedAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -2558,19 +2570,19 @@ model StaffMessage {
 // Cacheado por día clínico; scope = hqId o 'ALL'.
 // =======================
 model DirectorBriefing {
-    id             String   @id @default(uuid())
-    scope          String   // 'ALL' para consolidado, o un headquartersId
-    generatedAt    DateTime @default(now())
-    clinicalDay    DateTime // Inicio del día clínico (6 AM AST) al que corresponde el briefing
-    summary        String   @db.Text // Texto plano breve (fallback / encabezado)
-    bullets        Json     // [{ priority: 'CRITICAL'|'HIGH'|'MEDIUM'|'LOW', title, description, action }]
-    generatedById  String?
-    model          String   @default("gpt-4o")
+  id            String   @id @default(uuid())
+  scope         String // 'ALL' para consolidado, o un headquartersId
+  generatedAt   DateTime @default(now())
+  clinicalDay   DateTime // Inicio del día clínico (6 AM AST) al que corresponde el briefing
+  summary       String   @db.Text // Texto plano breve (fallback / encabezado)
+  bullets       Json // [{ priority: 'CRITICAL'|'HIGH'|'MEDIUM'|'LOW', title, description, action }]
+  generatedById String?
+  model         String   @default("gpt-4o")
 
-    generatedBy User? @relation(fields: [generatedById], references: [id])
+  generatedBy User? @relation(fields: [generatedById], references: [id])
 
-    @@unique([scope, clinicalDay])
-    @@index([scope, generatedAt])
+  @@unique([scope, clinicalDay])
+  @@index([scope, generatedAt])
 }
 
 // =======================
@@ -2583,12 +2595,12 @@ model ShiftPatientOverride {
   id             String    @id @default(uuid())
   headquartersId String
   patientId      String
-  originalColor  String    // color original del residente (RED/YELLOW/GREEN/BLUE)
-  assignedColor  String    // color del cuidador que lo recibe
-  caregiverId    String    // cuidador que lo recibe
-  shiftDate      DateTime  // fecha del turno (día clínico)
-  shiftType      String    // MORNING | EVENING | NIGHT
-  reason         String    // ABSENCE_REDISTRIB | LATE_COVER | MANUAL
+  originalColor  String // color original del residente (RED/YELLOW/GREEN/BLUE)
+  assignedColor  String // color del cuidador que lo recibe
+  caregiverId    String // cuidador que lo recibe
+  shiftDate      DateTime // fecha del turno (día clínico)
+  shiftType      String // MORNING | EVENING | NIGHT
+  reason         String // ABSENCE_REDISTRIB | LATE_COVER | MANUAL
   autoAssigned   Boolean   @default(true)
   createdAt      DateTime  @default(now())
   resolvedAt     DateTime? // cuando el cuidador original llega o el supervisor revierte
@@ -2625,18 +2637,18 @@ enum DocumentCategory {
 }
 
 model PatientDocument {
-  id             String           @id @default(uuid())
+  id             String @id @default(uuid())
   headquartersId String
   patientId      String
   uploadedById   String
 
-  category       DocumentCategory
-  title          String
-  fileType       String  // "image/jpeg" | "image/png" | "application/pdf"
-  ocrText        String?  @db.Text
-  zendiAnalysis  Json?
-  analyzedAt     DateTime?
-  uploadedAt     DateTime @default(now())
+  category      DocumentCategory
+  title         String
+  fileType      String // "image/jpeg" | "image/png" | "application/pdf"
+  ocrText       String?          @db.Text
+  zendiAnalysis Json?
+  analyzedAt    DateTime?
+  uploadedAt    DateTime         @default(now())
 
   patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
@@ -2651,19 +2663,19 @@ model PatientDocument {
 // =======================
 
 model FamilyAppointment {
-  id             String   @id @default(uuid())
+  id             String @id @default(uuid())
   patientId      String
   familyMemberId String
   headquartersId String
 
-  type           String   // VISIT | VIDEO_CALL | PHONE_CALL | DIRECTOR_MEETING | SPECIAL_OCCASION
-  title          String
-  description    String?
-  requestedDate  DateTime
-  requestedTime  String   // "10:00 AM"
-  durationMins   Int      @default(60)
+  type          String // VISIT | VIDEO_CALL | PHONE_CALL | DIRECTOR_MEETING | SPECIAL_OCCASION
+  title         String
+  description   String?
+  requestedDate DateTime
+  requestedTime String // "10:00 AM"
+  durationMins  Int      @default(60)
 
-  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  status String @default("PENDING") // PENDING | APPROVED | REJECTED
 
   approvedById   String?
   approvedAt     DateTime?
@@ -2689,9 +2701,9 @@ model ScoreEvent {
   id             String   @id @default(uuid())
   userId         String
   headquartersId String
-  delta          Int      // +3, -5, etc.
-  reason         String   // texto legible en español
-  category       String   // VITALS | MEDS | ROTATION | MISSION | ACADEMY | INCIDENT | SHIFT | PREVENTIVE | PHOTO | EVALUATION
+  delta          Int // +3, -5, etc.
+  reason         String // texto legible en español
+  category       String // VITALS | MEDS | ROTATION | MISSION | ACADEMY | INCIDENT | SHIFT | PREVENTIVE | PHOTO | EVALUATION
   scoreBefore    Int
   scoreAfter     Int
   createdAt      DateTime @default(now())
@@ -2708,15 +2720,15 @@ model ScoreEvent {
 // =======================
 
 model ZendityMessage {
-  id             String    @id @default(uuid())
-  targetHqId     String?   // null = broadcast a todas las sedes activas
-  authorId       String
-  title          String
-  body           String    @db.Text
-  category       String    @default("ANNOUNCEMENT") // ANNOUNCEMENT | BILLING | SUPPORT | MAINTENANCE
-  isRead         Boolean   @default(false)
-  readAt         DateTime?
-  createdAt      DateTime  @default(now())
+  id         String    @id @default(uuid())
+  targetHqId String? // null = broadcast a todas las sedes activas
+  authorId   String
+  title      String
+  body       String    @db.Text
+  category   String    @default("ANNOUNCEMENT") // ANNOUNCEMENT | BILLING | SUPPORT | MAINTENANCE
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
 
   author   User          @relation("ZendityMessageAuthor", fields: [authorId], references: [id])
   targetHq Headquarters? @relation("ZendityMessagesReceived", fields: [targetHqId], references: [id])
@@ -2735,7 +2747,7 @@ model SupportTicket {
   submittedById  String
   category       String   @default("QUESTION") // BUG | QUESTION | FEATURE | URGENT
   description    String   @db.Text
-  status         String   @default("OPEN")     // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  status         String   @default("OPEN") // OPEN | IN_PROGRESS | RESOLVED | CLOSED
   adminNote      String?  @db.Text
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -2770,4 +2782,114 @@ model DailyDigest {
 
   @@unique([patientId, digestDate])
   @@index([patientId, digestDate])
+}
+
+// =======================
+// MÓDULO SERVICIOS EXTERNOS — Sprint 2026-05-31
+// =======================
+// Kiosko de auto-registro para proveedores externos (hospicios, home cares,
+// terapias, médicos especialistas, capellanía, estética, etc). El visitante
+// llega, toca su entidad en una tablet del piso, selecciona residente(s) y
+// servicio, deja comentario. Visita queda PENDING_REVIEW; el director aprueba
+// (un click) o rechaza (un click). Aprobadas se publican al portal familiar
+// como card EXTERNAL_SERVICE en el feed. SLA: 24h sin revisar = auto-publish.
+
+enum ExternalVisitStatus {
+  PENDING_REVIEW // recién registrada por kiosko, esperando aprobación
+  PUBLISHED // aprobada (o auto-aprobada por SLA) → visible a familia
+  REJECTED // director rechazó, no se publica
+}
+
+model ExternalServiceCategory {
+  id             String   @id @default(uuid())
+  headquartersId String
+  name           String // "Hospicios", "Médicos Especialistas", "Terapias", etc.
+  icon           String? // emoji visible en el grid del kiosko (🏥, 👨‍⚕️, 💪, etc.)
+  displayOrder   Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  headquarters Headquarters       @relation(fields: [headquartersId], references: [id])
+  providers    ExternalProvider[]
+
+  @@unique([headquartersId, name])
+  @@index([headquartersId, displayOrder])
+}
+
+model ExternalProvider {
+  id             String   @id @default(uuid())
+  headquartersId String
+  categoryId     String
+  name           String // "Hospicio San Lucas", "Best Option Home Care", "Geriatra"
+  contactPhone   String?
+  contactEmail   String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  headquarters Headquarters            @relation(fields: [headquartersId], references: [id])
+  category     ExternalServiceCategory @relation(fields: [categoryId], references: [id])
+  visits       ExternalServiceVisit[]
+
+  @@unique([headquartersId, name])
+  @@index([headquartersId, isActive])
+  @@index([categoryId])
+}
+
+model ExternalServiceVisit {
+  id                  String   @id @default(uuid())
+  headquartersId      String
+  providerId          String
+  serviceType         String? // texto libre del visitante o catálogo de la categoría (ej. "Visita de enfermería", "Sesión de terapia")
+  comment             String?  @db.Text // opcional, con aviso HIPAA en el kiosko
+  isFacilityWide      Boolean  @default(false) // true = aplica a todos los activos
+  notifyFamilies      Boolean  @default(true) // toggle del visitante (default ON)
+  registeredAt        DateTime @default(now())
+  registeredFromFloor Int? // piso de la tablet que registró (1 o 2)
+  deviceTokenId       String? // id del ExternalKioskDevice que registró (audit)
+
+  // Flujo de aprobación del director
+  status        ExternalVisitStatus @default(PENDING_REVIEW)
+  reviewedById  String? // User.id del director que aprobó/rechazó
+  reviewedAt    DateTime?
+  autoPublished Boolean             @default(false) // true si fue auto-publish por SLA 24h
+
+  provider      ExternalProvider              @relation(fields: [providerId], references: [id])
+  headquarters  Headquarters                  @relation(fields: [headquartersId], references: [id])
+  reviewedBy    User?                         @relation("ExternalVisitReviewer", fields: [reviewedById], references: [id])
+  patientVisits ExternalServiceVisitPatient[]
+
+  @@index([headquartersId, registeredAt])
+  @@index([headquartersId, status])
+  @@index([providerId, registeredAt])
+}
+
+model ExternalServiceVisitPatient {
+  id        String @id @default(uuid())
+  visitId   String
+  patientId String
+
+  visit   ExternalServiceVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient              @relation(fields: [patientId], references: [id])
+
+  @@unique([visitId, patientId])
+  @@index([patientId])
+}
+
+model ExternalKioskDevice {
+  id             String    @id @default(uuid())
+  headquartersId String
+  floorNumber    Int // 1 o 2 — qué piso opera esta tablet
+  label          String // "Tablet Piso 1", "Tablet Lobby" — texto humano para el admin
+  deviceToken    String    @unique // secreto único que la tablet guarda en localStorage
+  isActive       Boolean   @default(true)
+  lastSeenAt     DateTime?
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([headquartersId, isActive])
 }
