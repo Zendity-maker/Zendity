@@ -28,6 +28,8 @@ import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
+import { RondaCard, type StatusPill, type CoverageChip, type PendingItem } from "@/components/ui/RondaCard";
+import type { GrupoColor } from "@/components/ui/GrupoBadge";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
@@ -903,210 +905,130 @@ export default function SupervisorMissionControlPage() {
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             {caregiverRounds.map((cg) => {
-                                const colorDot: Record<string, string> = {
-                                    RED: 'bg-red-500', YELLOW: 'bg-amber-400', BLUE: 'bg-blue-500', GREEN: 'bg-emerald-500'
+                                // ── Mapeo enum DB → español (carácter del componente RondaCard) ──
+                                const dbToGrupo: Record<string, GrupoColor> = {
+                                    RED: 'ROJO', YELLOW: 'AMARILLO', BLUE: 'AZUL', GREEN: 'VERDE',
                                 };
-                                const colorBorder: Record<string, string> = {
-                                    RED: 'border-red-200 bg-red-50', YELLOW: 'border-amber-200 bg-amber-50',
-                                    BLUE: 'border-blue-200 bg-blue-50', GREEN: 'border-emerald-200 bg-emerald-50'
-                                };
-                                const colorLabel: Record<string, string> = {
-                                    RED: 'text-red-700', YELLOW: 'text-amber-700', BLUE: 'text-blue-700', GREEN: 'text-emerald-700'
-                                };
-                                const colorText: Record<string, string> = {
-                                    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde'
+                                const grupoSuffix: Record<GrupoColor, string> = {
+                                    ROJO: 'rojos', AMARILLO: 'amarillos', AZUL: 'azules', VERDE: 'verdes',
                                 };
 
                                 const pct = cg.residentsInGroup > 0
                                     ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
                                     : 0;
-
                                 const isLate = cg.minutesSinceLastRound !== null && cg.minutesSinceLastRound > 120;
                                 const hasNoRounds = cg.roundsCompleted === 0 && cg.attendedThisRound === 0;
 
-                                // Caregiver SIN pauta base PERO con overrides activos (caso típico:
-                                // SUPERVISOR + CAREGIVER cubriendo redistribución de un ausente).
-                                // Si su cobertura es de UN solo color → pinta dot/border con ese
-                                // color + label "Grupo {Color} (cobertura)". Si es multi-color o
-                                // sin cobertura → neutral.
+                                // Caregiver sin pauta base pero con overrides activos (caso típico:
+                                // SUPERVISOR/CAREGIVER cubriendo redistribución de ausente).
                                 const coverageColors = cg.coverageByColor
                                     ? Object.keys(cg.coverageByColor).filter((c) => (cg.coverageByColor[c] || 0) > 0)
                                     : [];
                                 const singleCoverageColor = coverageColors.length === 1 ? coverageColors[0] : null;
                                 const isCoverageOnly = !cg.colorGroup && cg.coverageCount > 0;
-                                const effectiveColor = cg.colorGroup || (isCoverageOnly ? singleCoverageColor : null);
+                                const effectiveDbColor = cg.colorGroup || (isCoverageOnly ? singleCoverageColor : null);
+                                const effectiveGrupo: GrupoColor | null = effectiveDbColor
+                                    ? (dbToGrupo[effectiveDbColor] || null)
+                                    : null;
 
-                                const borderClass = effectiveColor
-                                    ? (colorBorder[effectiveColor] || 'border-slate-200 bg-slate-50')
-                                    : 'border-slate-200 bg-slate-50';
-                                const dotClass = effectiveColor ? (colorDot[effectiveColor] || 'bg-slate-400') : 'bg-slate-400';
-                                const labelClass = effectiveColor ? (colorLabel[effectiveColor] || 'text-slate-600') : 'text-slate-600';
+                                // Label del grupo: por defecto la primitiva pone "Grupo {GRUPO}".
+                                // Sobreescribimos para los matices de cobertura/sin-grupo.
+                                let grupoLabel: string | undefined;
+                                if (cg.colorGroup && dbToGrupo[cg.colorGroup]) {
+                                    grupoLabel = undefined; // dejar el default de la primitiva
+                                } else if (isCoverageOnly && singleCoverageColor && dbToGrupo[singleCoverageColor]) {
+                                    grupoLabel = `Grupo ${dbToGrupo[singleCoverageColor]} (cobertura)`;
+                                } else if (isCoverageOnly) {
+                                    grupoLabel = 'Cobertura redistribuida';
+                                } else if (!cg.colorGroup) {
+                                    grupoLabel = 'Sin grupo';
+                                }
+
+                                // Stat header (rondas completadas)
+                                const statTone: 'success' | 'warning' | 'neutral' =
+                                    cg.roundsCompleted >= 2 ? 'success'
+                                    : cg.roundsCompleted === 1 ? 'warning'
+                                    : 'neutral';
+
+                                // Estado vacío (sin grupo o grupo vacío) → renderiza solo mensaje
+                                let emptyMessage: string | null = null;
+                                if (cg.noColorGroup) {
+                                    emptyMessage = isCoverageOnly && singleCoverageColor && dbToGrupo[singleCoverageColor]
+                                        ? `Cubriendo Grupo ${dbToGrupo[singleCoverageColor]} por redistribución`
+                                        : isCoverageOnly
+                                            ? 'Cubriendo varios grupos por redistribución'
+                                            : 'Sin grupo de color asignado';
+                                } else if (cg.emptyGroup) {
+                                    emptyMessage = 'Grupo sin residentes activos';
+                                }
+
+                                // Status badges (solo si hay grupo + residentes activos)
+                                const statusBadges: StatusPill[] = [];
+                                if (!emptyMessage) {
+                                    if (pct === 100) {
+                                        statusBadges.push({ variant: 'success', icon: <CheckCheck className="w-3 h-3" />, label: 'Ronda completa' });
+                                    } else if (cg.remainingThisRound > 0) {
+                                        statusBadges.push({
+                                            variant: 'neutral',
+                                            icon: <Clock className="w-3 h-3" />,
+                                            label: `${cg.remainingThisRound} pendiente${cg.remainingThisRound > 1 ? 's' : ''}`,
+                                        });
+                                    }
+                                    if (isLate) {
+                                        statusBadges.push({
+                                            variant: 'warning',
+                                            icon: <Timer className="w-3 h-3" />,
+                                            label: `+${Math.round(cg.minutesSinceLastRound / 60)}h sin ronda`,
+                                        });
+                                    }
+                                    if (hasNoRounds && !cg.noColorGroup && !cg.emptyGroup) {
+                                        statusBadges.push({ variant: 'neutral', icon: <Activity className="w-3 h-3" />, label: 'Sin actividad aún' });
+                                    }
+                                }
+
+                                // Coverage chips
+                                const coverageChips: CoverageChip[] = [];
+                                if (cg.coverageCount > 0 && cg.coverageByColor) {
+                                    for (const [dbColor, count] of Object.entries(cg.coverageByColor) as [string, number][]) {
+                                        if (count <= 0) continue;
+                                        const g = dbToGrupo[dbColor];
+                                        if (!g) continue;
+                                        coverageChips.push({ grupo: g, count, suffix: grupoSuffix[g] });
+                                    }
+                                }
+
+                                // Pending residents (max 5 visibles, lo demás overflow)
+                                const pendingItems: PendingItem[] = (cg.pendingResidents || [])
+                                    .slice(0, 5)
+                                    .map((r: any) => ({ label: r.name, sub: `Hab ${r.room}` }));
+
+                                // Footer (última ronda hace X min — solo si no es late)
+                                const footerNode =
+                                    !emptyMessage && cg.minutesSinceLastRound !== null && !isLate
+                                        ? `Última ronda completada hace ${cg.minutesSinceLastRound}m`
+                                        : null;
 
                                 return (
-                                    <button
+                                    <RondaCard
                                         key={cg.caregiverId}
-                                        type="button"
+                                        grupo={effectiveGrupo}
+                                        name={cg.name.split(' ').slice(0, 2).join(' ')}
+                                        grupoLabel={grupoLabel}
+                                        onChangeGroup={() => setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup })}
+                                        stat={{ value: cg.roundsCompleted, label: 'Rondas', tone: statTone }}
+                                        progress={!emptyMessage ? { current: cg.attendedThisRound, total: cg.residentsInGroup } : undefined}
+                                        statusBadges={statusBadges.length > 0 ? statusBadges : undefined}
+                                        coverage={coverageChips.length > 0 ? { chips: coverageChips } : undefined}
+                                        pending={(cg.pendingResidents && cg.pendingResidents.length > 0) ? {
+                                            items: pendingItems,
+                                            overflowAt: 5,
+                                            totalCount: cg.pendingResidents.length,
+                                        } : undefined}
+                                        footer={footerNode}
+                                        emptyMessage={emptyMessage}
+                                        alert={isLate}
                                         onClick={() => setDrillCaregiver(cg)}
-                                        className={`text-left w-full rounded-[1.5rem] border p-5 ${borderClass} ${isLate ? 'ring-2 ring-amber-400/40' : ''} hover:shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer`}
-                                        aria-label={`Ver detalles de ${cg.name}`}
-                                    >
-                                        {/* Header */}
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-2.5">
-                                                <div className={`w-3 h-3 rounded-full ${dotClass} shadow-sm`} />
-                                                <div>
-                                                    <p className="font-black text-slate-800 text-sm leading-tight">
-                                                        {cg.name.split(' ').slice(0, 2).join(' ')}
-                                                    </p>
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <p className={`text-[10px] font-bold uppercase tracking-wide ${labelClass}`}>
-                                                            {cg.colorGroup
-                                                                ? `Grupo ${colorText[cg.colorGroup] || cg.colorGroup}`
-                                                                : isCoverageOnly && singleCoverageColor
-                                                                    ? `Grupo ${colorText[singleCoverageColor] || singleCoverageColor} (cobertura)`
-                                                                    : isCoverageOnly
-                                                                        ? 'Cobertura redistribuida'
-                                                                        : 'Sin grupo'}
-                                                        </p>
-                                                        {/* Botón "cambiar color base" — 1-clic, sin tener que abrir el Schedule Builder */}
-                                                        <span
-                                                            role="button"
-                                                            tabIndex={0}
-                                                            onClick={(e) => { e.stopPropagation(); setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup }); }}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup }); } }}
-                                                            className="text-[9px] font-bold text-slate-400 hover:text-teal-600 underline decoration-dotted cursor-pointer"
-                                                            title="Cambiar grupo base de esta cuidadora"
-                                                        >
-                                                            cambiar
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {/* Rondas completadas */}
-                                            <div className="text-right">
-                                                <span className={`text-2xl font-black ${cg.roundsCompleted >= 2 ? 'text-emerald-600' : cg.roundsCompleted === 1 ? 'text-amber-600' : 'text-slate-400'}`}>
-                                                    {cg.roundsCompleted}
-                                                </span>
-                                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Rondas</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Sin grupo asignado (puede haber cobertura redistribuida) */}
-                                        {cg.noColorGroup ? (
-                                            <p className="text-xs text-slate-500 italic">
-                                                {isCoverageOnly && singleCoverageColor
-                                                    ? `Cubriendo Grupo ${colorText[singleCoverageColor] || singleCoverageColor} por redistribución`
-                                                    : isCoverageOnly
-                                                        ? 'Cubriendo varios grupos por redistribución'
-                                                        : 'Sin grupo de color asignado'}
-                                            </p>
-                                        ) : cg.emptyGroup ? (
-                                            <p className="text-xs text-slate-500 italic">Grupo sin residentes activos</p>
-                                        ) : (
-                                            <>
-                                                {/* Barra de progreso ronda actual */}
-                                                <div className="mb-3">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[11px] font-bold text-slate-600">
-                                                            Ronda actual: {cg.attendedThisRound}/{cg.residentsInGroup}
-                                                        </span>
-                                                        <span className={`text-[11px] font-black ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-slate-500'}`}>
-                                                            {pct}%
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-white rounded-full h-2 border border-slate-200 overflow-hidden">
-                                                        <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-slate-300'}`}
-                                                            style={{ width: `${pct}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* Estado */}
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    {pct === 100 ? (
-                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
-                                                            <CheckCheck className="w-3 h-3" /> Ronda completa
-                                                        </span>
-                                                    ) : cg.remainingThisRound > 0 ? (
-                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-white px-2 py-1 rounded-full border border-slate-200">
-                                                            <Clock className="w-3 h-3" /> {cg.remainingThisRound} pendiente{cg.remainingThisRound > 1 ? 's' : ''}
-                                                        </span>
-                                                    ) : null}
-
-                                                    {isLate && (
-                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
-                                                            <Timer className="w-3 h-3" /> +{Math.round(cg.minutesSinceLastRound / 60)}h sin ronda
-                                                        </span>
-                                                    )}
-
-                                                    {hasNoRounds && !cg.noColorGroup && !cg.emptyGroup && (
-                                                        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                                                            <Activity className="w-3 h-3" /> Sin actividad aún
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Cobertura adicional (overrides activos) */}
-                                                {cg.coverageCount > 0 && (
-                                                    <div className="mt-3 pt-3 border-t border-white/60">
-                                                        <div className="flex flex-wrap gap-1.5 items-center">
-                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                                                + cobertura:
-                                                            </span>
-                                                            {Object.entries(cg.coverageByColor || {}).map(([color, count]) => {
-                                                                const pillColor =
-                                                                    color === 'RED' ? 'bg-red-100 text-red-700 border-red-200'
-                                                                    : color === 'YELLOW' ? 'bg-amber-100 text-amber-700 border-amber-200'
-                                                                    : color === 'BLUE' ? 'bg-blue-100 text-blue-700 border-blue-200'
-                                                                    : color === 'GREEN' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                                                    : 'bg-slate-100 text-slate-700 border-slate-200';
-                                                                const colorName =
-                                                                    color === 'RED' ? 'rojos'
-                                                                    : color === 'YELLOW' ? 'amarillos'
-                                                                    : color === 'BLUE' ? 'azules'
-                                                                    : color === 'GREEN' ? 'verdes' : String(color).toLowerCase();
-                                                                return (
-                                                                    <span key={color} className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${pillColor}`}>
-                                                                        +{count as number} {colorName}
-                                                                    </span>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Residentes pendientes */}
-                                                {cg.pendingResidents && cg.pendingResidents.length > 0 && cg.pendingResidents.length <= 5 && (
-                                                    <div className="mt-3 pt-3 border-t border-white/60">
-                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Pendientes:</p>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {cg.pendingResidents.map((r: any, i: number) => (
-                                                                <span key={i} className="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
-                                                                    {r.name} · Hab {r.room}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {cg.pendingResidents && cg.pendingResidents.length > 5 && (
-                                                    <div className="mt-3 pt-3 border-t border-white/60">
-                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                                            {cg.pendingResidents.length} residentes pendientes
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {/* Tiempo desde última ronda */}
-                                                {cg.minutesSinceLastRound !== null && !isLate && (
-                                                    <p className="text-[10px] text-slate-400 font-medium mt-2">
-                                                        Última ronda completada hace {cg.minutesSinceLastRound}m
-                                                    </p>
-                                                )}
-                                            </>
-                                        )}
-                                    </button>
+                                    />
                                 );
                             })}
                         </div>
