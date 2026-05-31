@@ -292,6 +292,7 @@ export async function POST(req: Request) {
                 type: 'EMAR_ALERT',
                 title: `${invokerName} cubre ${colors.join(', ')}`,
                 message: `${invokerName} tomó cobertura de ${claimed} residentes de ${colors.join(', ')}${priorOverrides.length > 0 ? ` (reemplazando ${priorOverrides.length} overrides previos)` : ''}.`,
+                link: '/care/supervisor',
             });
         } catch (e) { console.error('[claim-coverage notify]', e); }
 

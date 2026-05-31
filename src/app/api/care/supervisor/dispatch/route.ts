@@ -71,6 +71,7 @@ export async function POST(req: Request) {
             type: 'SHIFT_ALERT',
             title: '⚡ Nueva tarea asignada',
             message: `${description} — Tienes 1 hora para completarla.`,
+            link: '/care',
         });
 
         // 2. Mark the source as handled if possible — con tenant check

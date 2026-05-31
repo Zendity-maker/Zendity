@@ -121,6 +121,7 @@ export async function POST(req: Request) {
                     type: 'STAFF_MESSAGE',
                     title: `Mensaje de ${senderName}`,
                     message: preview,
+                    link: '/care',
                 });
             } else {
                 // excludeUserId: el emisor no se notifica de su propio anuncio
@@ -128,6 +129,7 @@ export async function POST(req: Request) {
                     type: 'STAFF_MESSAGE',
                     title: `Anuncio de ${senderName}`,
                     message: preview,
+                    link: '/care',
                 }, userId);
             }
         } catch (e) { console.error('[notify STAFF_MESSAGE]', e); }

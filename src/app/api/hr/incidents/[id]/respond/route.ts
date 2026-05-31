@@ -58,7 +58,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 {
                     type: 'EMAR_ALERT',
                     title: 'Respuesta a observación recibida',
-                    message: `Empleado ${incident.employee?.name ?? ''} respondió a la observación. Pendiente tu decisión.`
+                    message: `Empleado ${incident.employee?.name ?? ''} respondió a la observación. Pendiente tu decisión.`,
+                    link: '/hr/incidents',
                 }
             );
 
@@ -84,7 +85,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             {
                 type: 'EMAR_ALERT',
                 title: 'Apelación recibida',
-                message: `Empleado ${incident.employee?.name ?? ''} apeló la observación.`
+                message: `Empleado ${incident.employee?.name ?? ''} apeló la observación.`,
+                link: '/hr/incidents',
             }
         );
 

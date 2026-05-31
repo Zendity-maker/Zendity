@@ -113,6 +113,7 @@ export async function POST(req: Request) {
                 type: 'SHIFT_ALERT',
                 title: 'Tu turno fue cerrado por el supervisor',
                 message: `${invokerName} cerró tu sesión. Razón: ${reasonText}`,
+                link: '/care',
             });
         } catch (e) {
             console.error('[force-close notify]', e);

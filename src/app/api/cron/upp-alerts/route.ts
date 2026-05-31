@@ -90,6 +90,7 @@ export async function GET(req: Request) {
                         type: 'SHIFT_ALERT',
                         title: 'Alerta UPP — Rotación vencida',
                         message: `${patient.name} lleva más de ${hoursOverdue}h sin rotación postural.${ulcerDetail} Requiere cambio de posición inmediato.`,
+                        link: '/care',
                     }
                 )
             );

@@ -89,6 +89,7 @@ export async function POST(req: Request) {
                     type: 'EMAR_ALERT',
                     title: 'Medicamento no administrado',
                     message: `${patientMed.patient.name} — ${medName} (${schedule}) ${statusLabel}`,
+                    link: '/care/supervisor',
                 });
             } catch (e) { console.error('[notify EMAR_ALERT]', e); }
         }

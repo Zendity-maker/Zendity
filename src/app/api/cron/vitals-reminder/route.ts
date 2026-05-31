@@ -47,9 +47,9 @@ export async function GET(req: Request) {
             const msg = `La ventana de vitales de ${order.patient.name} vence a las ${order.expiresAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico' })}. Tómalos cuanto antes.`;
 
             if (order.caregiverId) {
-                await notifyUser(order.caregiverId, { type: 'EMAR_ALERT', title, message: msg });
+                await notifyUser(order.caregiverId, { type: 'EMAR_ALERT', title, message: msg, link: '/care/vitals' });
             } else {
-                await notifyRoles(order.headquartersId, ['CAREGIVER'], { type: 'EMAR_ALERT', title, message: msg });
+                await notifyRoles(order.headquartersId, ['CAREGIVER'], { type: 'EMAR_ALERT', title, message: msg, link: '/care/vitals' });
             }
 
             await prisma.vitalsOrder.update({
@@ -142,12 +142,14 @@ export async function GET(req: Request) {
                     type: 'EMAR_ALERT',
                     title: 'Vitales no tomados — Penalidad',
                     message: `${orders.length} residentes sin vitales: ${residentNames}. −${pointsDeducted} pts aplicados${capSuffix}.`,
+                    link: '/care',
                 });
 
                 await notifyRoles(hqId, ['SUPERVISOR'], {
                     type: 'EMAR_ALERT',
                     title: `Vitales vencidos — ${caregiver.name}`,
                     message: `${orders.length} residentes sin vitales en turno de ${caregiver.name}. −${pointsDeducted} pts aplicados${capSuffix}.`,
+                    link: '/care/supervisor',
                 });
 
                 penalized += toActuallyPenalize.length;

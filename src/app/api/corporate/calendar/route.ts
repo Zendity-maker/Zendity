@@ -87,6 +87,7 @@ export async function POST(request: Request) {
                 type: 'SHIFT_ALERT' as const,
                 title: `Nuevo evento: ${newEvent.title}`,
                 message: `${dateStr} — ${newEvent.description || 'Sin descripción adicional.'}`,
+                link: '/corporate/calendar',
             };
 
             if (newEvent.targetPopulation === 'ALL') {
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
                             type: payload.type,
                             title: payload.title,
                             message: payload.message,
+                            link: payload.link,
                             isRead: false,
                         })),
                     });
@@ -171,6 +173,7 @@ export async function POST(request: Request) {
                             type: payload.type,
                             title: payload.title,
                             message: payload.message,
+                            link: payload.link,
                             isRead: false,
                         })),
                     });

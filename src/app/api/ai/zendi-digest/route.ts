@@ -95,6 +95,7 @@ export async function POST(req: Request) {
                     type: 'HANDOVER',
                     title: 'Resumen de turno disponible',
                     message: 'Zendi generó el resumen del turno. Toca para leer.',
+                    link: '/care',
                 });
             } catch (e) { console.error('[notify HANDOVER]', e); }
         }

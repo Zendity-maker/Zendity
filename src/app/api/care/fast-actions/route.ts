@@ -118,6 +118,7 @@ export async function PATCH(req: Request) {
             type: 'SHIFT_ALERT',
             title: '✅ Tarea completada',
             message: `${task.caregiver?.name || 'El cuidador'} completó: ${task.description}`,
+            link: '/care/supervisor',
         });
 
         return NextResponse.json({ success: true, task: updatedTask });

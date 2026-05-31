@@ -269,6 +269,7 @@ export async function POST(req: Request) {
                                 type: 'EMAR_ALERT',
                                 title: 'Residentes devueltos a su grupo',
                                 message: `El cuidador de ${colorList} llegó. Los residentes ${data.patientNames.slice(0, 5).join(', ')}${data.patientNames.length > 5 ? '…' : ''} vuelven a su grupo original.`,
+                                link: '/care',
                             });
                         } catch (e) { logWarn('care.shift.start.resolve_override_notify', e, { receiverId }); }
                     }
@@ -327,7 +328,8 @@ export async function POST(req: Request) {
                     await notifyUser(caregiverId, {
                         type: 'EMAR_ALERT',
                         title: 'Vitales de entrada al turno',
-                        message: `Tienes 4 horas para tomar vitales a tus ${toCreate.length} residentes. Vencen a las ${horaLimite}.`
+                        message: `Tienes 4 horas para tomar vitales a tus ${toCreate.length} residentes. Vencen a las ${horaLimite}.`,
+                        link: '/care/vitals',
                     });
                     console.log(`[shift/start] Abiertas ${toCreate.length} ventanas de vitales 4h para ${caregiverId}`);
                 }

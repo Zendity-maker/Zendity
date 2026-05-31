@@ -74,6 +74,7 @@ export async function POST(req: Request) {
             type: 'SHIFT_ALERT',
             title: status === 'COMPLETED' ? '✅ Tarea cerrada por supervisor' : '❌ Tarea cerrada por supervisor',
             message: `${supervisorName} cerró la tarea "${task.description}" como ${status === 'COMPLETED' ? 'completada' : 'fallida'}.`,
+            link: '/care',
         });
 
         return NextResponse.json({ success: true, task: updated });

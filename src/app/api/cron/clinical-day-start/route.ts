@@ -226,7 +226,8 @@ ${dataBlock}
                 {
                     type: 'HANDOVER',
                     title: 'Nuevo día clínico — Prólogo Zendi',
-                    message: 'El resumen del día está listo. Toca para leer el briefing de hoy.'
+                    message: 'El resumen del día está listo. Toca para leer el briefing de hoy.',
+                    link: '/care',
                 }
             );
 

@@ -123,7 +123,8 @@ export async function POST(req: Request) {
                     await notifyRoles(hqId, ['NURSE', 'SUPERVISOR'], {
                         type: 'EMAR_ALERT',
                         title: 'Medicamento omitido',
-                        message: `${patientName} — ${medList} omitido${scheduleTime ? ` (${scheduleTime})` : ''}. Razón: ${reason.trim()}. Por: ${invokerName}`
+                        message: `${patientName} — ${medList} omitido${scheduleTime ? ` (${scheduleTime})` : ''}. Razón: ${reason.trim()}. Por: ${invokerName}`,
+                        link: '/care/supervisor',
                     });
                 }
             } catch (e) {

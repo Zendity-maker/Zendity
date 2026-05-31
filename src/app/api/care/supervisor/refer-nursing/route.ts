@@ -75,6 +75,7 @@ export async function POST(req: Request) {
             type: 'EMAR_ALERT',
             title: 'Referido a Enfermería',
             message: `${description.slice(0, 200)} — Referido por ${invokerName}`,
+            link: '/care/supervisor',
         });
 
         // Audit log — usamos ESCALATED del enum existente + kind en payload

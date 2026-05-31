@@ -51,12 +51,14 @@ export async function POST(req: Request) {
             type: 'SHIFT_ALERT',
             title: 'Tarea de Mantenimiento',
             message: description.slice(0, 500),
+            link: '/care',
         });
 
         const notifiedDirector = await notifyRoles(hqId, ['DIRECTOR'], {
             type: 'SHIFT_ALERT',
             title: 'Mantenimiento notificado',
             message: `Ticket de mantenimiento enviado al área: ${description.slice(0, 300)}`,
+            link: '/care/supervisor',
         });
 
         // Si corresponde a una Complaint → marcar ROUTED_MAINTENANCE
