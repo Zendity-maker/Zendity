@@ -12,13 +12,14 @@ export const dynamic = 'force-dynamic';
  * DELETE /api/admin/external-services/categories/[id]
  * Bloquea si hay providers activos vinculados (sugiere desactivar primero).
  */
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
 
         const existing = await prisma.externalServiceCategory.findFirst({
-            where: { id: params.id, headquartersId: auth.headquartersId },
+            where: { id, headquartersId: auth.headquartersId },
         });
         if (!existing) return NextResponse.json({ success: false, error: 'No encontrada' }, { status: 404 });
 
@@ -29,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         if (typeof body.displayOrder === 'number') data.displayOrder = body.displayOrder;
         if (typeof body.isActive === 'boolean') data.isActive = body.isActive;
 
-        const updated = await prisma.externalServiceCategory.update({ where: { id: params.id }, data });
+        const updated = await prisma.externalServiceCategory.update({ where: { id }, data });
         return NextResponse.json({ success: true, category: updated });
     } catch (err: any) {
         if (err?.code === 'P2002') {
@@ -40,13 +41,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
 
         const existing = await prisma.externalServiceCategory.findFirst({
-            where: { id: params.id, headquartersId: auth.headquartersId },
+            where: { id, headquartersId: auth.headquartersId },
             include: { _count: { select: { providers: true } } },
         });
         if (!existing) return NextResponse.json({ success: false, error: 'No encontrada' }, { status: 404 });
@@ -57,7 +59,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
             );
         }
 
-        await prisma.externalServiceCategory.delete({ where: { id: params.id } });
+        await prisma.externalServiceCategory.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (err: any) {
         logError('admin.external-services.categories.delete', err);

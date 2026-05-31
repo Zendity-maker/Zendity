@@ -12,13 +12,14 @@ export const dynamic = 'force-dynamic';
  * DELETE /api/admin/external-services/providers/[id]
  * Bloquea si tiene visitas registradas — sugiere desactivar en su lugar.
  */
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
 
         const existing = await prisma.externalProvider.findFirst({
-            where: { id: params.id, headquartersId: auth.headquartersId },
+            where: { id, headquartersId: auth.headquartersId },
         });
         if (!existing) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 });
 
@@ -38,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
             data.categoryId = body.categoryId;
         }
 
-        const updated = await prisma.externalProvider.update({ where: { id: params.id }, data });
+        const updated = await prisma.externalProvider.update({ where: { id }, data });
         return NextResponse.json({ success: true, provider: updated });
     } catch (err: any) {
         if (err?.code === 'P2002') {
@@ -49,13 +50,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
 
         const existing = await prisma.externalProvider.findFirst({
-            where: { id: params.id, headquartersId: auth.headquartersId },
+            where: { id, headquartersId: auth.headquartersId },
             include: { _count: { select: { visits: true } } },
         });
         if (!existing) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 });
@@ -66,7 +68,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
             );
         }
 
-        await prisma.externalProvider.delete({ where: { id: params.id } });
+        await prisma.externalProvider.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (err: any) {
         logError('admin.external-services.providers.delete', err);

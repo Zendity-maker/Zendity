@@ -20,12 +20,12 @@ export const dynamic = 'force-dynamic';
  * La visita queda en el historial para que el director pueda revisar
  * decisiones pasadas si necesita.
  */
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id: visitId } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
         const hqId = auth.headquartersId;
-        const visitId = params.id;
 
         const visit = await prisma.externalServiceVisit.findFirst({
             where: { id: visitId, headquartersId: hqId },

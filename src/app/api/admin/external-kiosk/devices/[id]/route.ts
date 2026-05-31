@@ -13,18 +13,19 @@ export const dynamic = 'force-dynamic';
  * en la tablet devuelve 401 al siguiente request y el visitante verá el
  * mensaje "Tablet revocada".
  */
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const auth = await requireRole(['DIRECTOR', 'ADMIN']);
         if (auth instanceof NextResponse) return auth;
 
         const existing = await prisma.externalKioskDevice.findFirst({
-            where: { id: params.id, headquartersId: auth.headquartersId },
+            where: { id, headquartersId: auth.headquartersId },
         });
         if (!existing) return NextResponse.json({ success: false, error: 'Tablet no encontrada' }, { status: 404 });
 
         await prisma.externalKioskDevice.update({
-            where: { id: params.id },
+            where: { id },
             data: { isActive: false, revokedAt: new Date() },
         });
         return NextResponse.json({ success: true, message: 'Tablet revocada' });
