@@ -98,7 +98,7 @@ const corporateNavigationSections = [
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },
-            { name: "Configurar Kiosco", href: "/corporate/reception-setup", icon: QrCode, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            { name: "Configurar Kioskos", href: "/corporate/kiosks", icon: QrCode, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Guía de Onboarding", href: "/corporate/onboarding", icon: CheckCircle2, requiredRoles: ["DIRECTOR", "ADMIN"] },
         ]
     },
