@@ -175,7 +175,7 @@ export function SupervisorRondaTile({ cg, onOpenDrill, onOpenColorPicker }: Supe
                     <ProgressBar
                         value={cg.attendedThisRound}
                         max={cg.residentsInGroup}
-                        dynamic
+                        tone={(p) => (p >= 90 ? "success" : p >= 50 ? "warning" : "neutral")}
                         label={`Ronda actual: ${cg.attendedThisRound}/${cg.residentsInGroup}`}
                     />
 

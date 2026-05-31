@@ -28,6 +28,9 @@ import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
@@ -1313,7 +1316,7 @@ export default function SupervisorMissionControlPage() {
                     </div>
 
                     {/* Score de Cumplimiento */}
-                    <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
+                    <Card variant="flat" padding="default" className="rounded-[2.5rem] p-7">
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
                                 <ShieldAlert className="w-6 h-6 text-indigo-600" /> Score Cumplimiento
@@ -1329,6 +1332,8 @@ export default function SupervisorMissionControlPage() {
                             ) : (
                                 teamScores.map((ts: TeamScore) => {
                                     const score = ts.complianceScore;
+                                    // El item conserva fondo tintado por umbral del score (helper scoreBg).
+                                    // Esto NO va en la primitiva Card — es decisión del call site.
                                     return (
                                         <div key={ts.caregiverId} className={`border rounded-[1.25rem] p-4 ${scoreBg(score)}`}>
                                             <div className="flex items-center justify-between gap-3">
@@ -1341,10 +1346,11 @@ export default function SupervisorMissionControlPage() {
                                                 </div>
                                             </div>
                                             {score !== null && score !== undefined && (
-                                                <div className="mt-2 w-full h-1.5 bg-white/60 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                                                        style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
+                                                <div className="mt-2">
+                                                    <ProgressBar
+                                                        percent={score}
+                                                        tone={(p) => (p >= 80 ? "success" : p >= 60 ? "warning" : "danger")}
+                                                        trackTone="white"
                                                     />
                                                 </div>
                                             )}
@@ -1353,7 +1359,7 @@ export default function SupervisorMissionControlPage() {
                                 })
                             )}
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
                 {/* ============================================== */}
@@ -1361,30 +1367,33 @@ export default function SupervisorMissionControlPage() {
                 {/* ============================================== */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Vitales de Entrada 4h */}
-                    <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
+                    <Card variant="flat" padding="default" className="rounded-[2.5rem] p-7">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
                                 <Heart className="w-6 h-6 text-rose-500" /> Vitales de Entrada (4h)
                                 <InfoTooltip text="Ventana automática de 4 horas al inicio del turno. Cada cuidador debe tomar vitales a sus residentes asignados. Penalidad -2 pts por ventana expirada sin vitales." />
                             </h3>
                         </div>
+                        {/* Mini-stats: 4 cuadritos. Compuestos inline con Card compact + tono semántico.
+                            NO se introduce un StatTile en este sprint — si aparece un tercer consumidor de este patrón,
+                            entonces sí vale la pena la primitiva. */}
                         <div className="grid grid-cols-4 gap-2 mb-4">
-                            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
+                            <Card variant="flat" padding="compact" className="rounded-xl border-slate-100 bg-slate-50 text-center">
                                 <p className="text-xl font-black text-slate-800 leading-none">{vitalsTotals.total}</p>
                                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Total</p>
-                            </div>
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                            </Card>
+                            <Card variant="flat" padding="compact" className="rounded-xl border-amber-200 bg-amber-50 text-center">
                                 <p className="text-xl font-black text-amber-700 leading-none">{vitalsTotals.pending}</p>
                                 <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mt-1">Pendientes</p>
-                            </div>
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                            </Card>
+                            <Card variant="flat" padding="compact" className="rounded-xl border-emerald-200 bg-emerald-50 text-center">
                                 <p className="text-xl font-black text-emerald-700 leading-none">{vitalsTotals.completed}</p>
                                 <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Tomados</p>
-                            </div>
-                            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+                            </Card>
+                            <Card variant="flat" padding="compact" className="rounded-xl border-rose-200 bg-rose-50 text-center">
                                 <p className="text-xl font-black text-rose-700 leading-none">{vitalsTotals.expired}</p>
                                 <p className="text-[9px] font-bold text-rose-600 uppercase tracking-widest mt-1">Vencidos</p>
-                            </div>
+                            </Card>
                         </div>
                         {vitalsByCaregiver.length === 0 ? (
                             <div className="p-6 text-center bg-slate-50 border border-slate-100 rounded-[1.5rem]">
@@ -1395,28 +1404,34 @@ export default function SupervisorMissionControlPage() {
                                 {vitalsByCaregiver.map((vb: VitalsByCaregiver) => {
                                     const totalCg = vb.pending + vb.completedOnTime + vb.completedLate + vb.expired;
                                     const doneCg = vb.completedOnTime + vb.completedLate;
+                                    // Edge case: totalCg === 0 → pct=0, ProgressBar renderiza barra vacía (correcto).
                                     const pct = totalCg > 0 ? Math.round((doneCg / totalCg) * 100) : 0;
                                     return (
                                         <div key={vb.caregiverId || 'unassigned'} className="bg-slate-50 border border-slate-100 rounded-xl p-3">
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="font-bold text-slate-800 text-sm truncate">{vb.caregiverName}</span>
-                                                <span className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md">{doneCg}/{totalCg}</span>
+                                                <Badge variant="neutral" className="bg-white border border-slate-200 text-slate-600">
+                                                    {doneCg}/{totalCg}
+                                                </Badge>
                                             </div>
-                                            <div className="flex items-center gap-2 text-[10px] font-bold">
-                                                {vb.pending > 0 && <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">{vb.pending} pend</span>}
-                                                {vb.completedOnTime > 0 && <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{vb.completedOnTime} ok</span>}
-                                                {vb.completedLate > 0 && <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">{vb.completedLate} tarde</span>}
-                                                {vb.expired > 0 && <span className="text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">{vb.expired} venc</span>}
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {vb.pending > 0 && <Badge variant="warning">{vb.pending} pend</Badge>}
+                                                {vb.completedOnTime > 0 && <Badge variant="success">{vb.completedOnTime} ok</Badge>}
+                                                {vb.completedLate > 0 && <Badge variant="warning">{vb.completedLate} tarde</Badge>}
+                                                {vb.expired > 0 && <Badge variant="danger">{vb.expired} venc</Badge>}
                                             </div>
-                                            <div className="mt-2 w-full h-1 bg-white rounded-full overflow-hidden">
-                                                <div className={`h-full rounded-full ${pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${pct}%` }} />
+                                            <div className="mt-2">
+                                                <ProgressBar
+                                                    percent={pct}
+                                                    tone={(p) => (p >= 80 ? "success" : p >= 50 ? "warning" : "danger")}
+                                                />
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
-                    </div>
+                    </Card>
 
                     {/* Meds del Turno */}
                     <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">

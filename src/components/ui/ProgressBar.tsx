@@ -4,22 +4,31 @@ import { cn } from "./cn";
 /**
  * ProgressBar — primitiva de barra de progreso.
  *
- * Track slate-100, fill 6px (h-1.5) con esquinas redondeadas, transición de
- * ancho 500ms. Color por defecto: teal de Zéndity. Se puede pasar otro tono.
+ * Diseñada para ser el consumidor común de cualquier barra del producto:
+ * Score Cumplimiento, Vitales de Entrada 4h, ronda actual del wall, etc.
  *
- * Acepta dos modos de input — eliges el que sea más natural en el call site:
- *   - percent: número 0-100 ya calculado
- *   - value + max: la primitiva calcula y clampa
+ * Acento por defecto: teal de Zéndity. NO usa --brand-primary
+ * (re-tematizable por inquilino). El chrome del producto es estable.
  *
- * Casos de uso conocidos:
- *   - Tile del wall del supervisor: ronda actual X/Y
- *   - Score Cumplimiento: barra 0-100 del compliance score
- *   - Vitales de Entrada: ventana 4h restante
+ * Inputs:
+ *   - percent  (0-100 ya calculado)  o
+ *   - value + max  (la primitiva calcula y clampa)
  *
- * Si `label` o `valueLabel` se pasan, renderiza una fila superior con el label
- * a la izquierda y el valor a la derecha. Si no, solo la barra.
+ * Color por umbral — el call site decide su política sin contaminar la
+ * primitiva. Dos formas:
+ *   - tone: ProgressTone        → color fijo
+ *   - tone: (pct) => ProgressTone → función que mapea el porcentaje a tono
+ *
+ * Track:
+ *   - "slate" (default)  → fondo slate-100. Para barras sobre superficie blanca.
+ *   - "white"            → fondo white/60. Para barras DENTRO de cards
+ *                          tintadas (Score: la card cambia a emerald-50/
+ *                          amber-50/rose-50 según umbral, y el track gris
+ *                          se vería sucio sobre ese tinte).
  */
 export type ProgressTone = "teal" | "success" | "warning" | "danger" | "neutral" | "navy";
+export type ToneSpec = ProgressTone | ((pct: number) => ProgressTone);
+export type TrackTone = "slate" | "white";
 
 const fillByTone: Record<ProgressTone, string> = {
     teal: "bg-[var(--color-zendity-teal)]",
@@ -39,19 +48,23 @@ const textByTone: Record<ProgressTone, string> = {
     navy: "text-slate-800",
 };
 
+const trackClasses: Record<TrackTone, string> = {
+    slate: "bg-slate-100",
+    white: "bg-white/60",
+};
+
 export interface ProgressBarProps {
     /** Porcentaje ya calculado (0-100). Tiene precedencia sobre value/max. */
     percent?: number;
-    /** Valor numerador. Se usa con `max`. */
+    /** Valor numerador. Usado con `max`. */
     value?: number;
-    /** Denominador. Default 100. */
+    /** Denominador. Default 100. Si max ≤ 0, la barra es 0. */
     max?: number;
-    /** Color de la barra. Default 'teal'. */
-    tone?: ProgressTone;
-    /** Si dynamic=true, la primitiva escoge tone automáticamente por umbrales:
-     *  >=90 success, >=50 warning, <50 neutral. Override de `tone`. */
-    dynamic?: boolean;
-    /** Label a la izquierda de la fila superior (si se omite ambos labels, no hay fila). */
+    /** Color de la barra. Fijo o función pct → tono. Default 'teal'. */
+    tone?: ToneSpec;
+    /** Color del track. Default 'slate'. */
+    trackTone?: TrackTone;
+    /** Label a la izquierda de la fila superior. Si se omite ambos labels, no hay fila. */
     label?: React.ReactNode;
     /** Valor mostrado a la derecha. Default: el porcentaje. */
     valueLabel?: React.ReactNode;
@@ -65,18 +78,17 @@ function clamp(n: number, min = 0, max = 100): number {
     return Math.max(min, Math.min(max, n));
 }
 
-function dynamicTone(pct: number): ProgressTone {
-    if (pct >= 90) return "success";
-    if (pct >= 50) return "warning";
-    return "neutral";
+function resolveTone(spec: ToneSpec | undefined, pct: number): ProgressTone {
+    if (!spec) return "teal";
+    return typeof spec === "function" ? spec(pct) : spec;
 }
 
 export function ProgressBar({
     percent,
     value,
     max = 100,
-    tone = "teal",
-    dynamic,
+    tone,
+    trackTone = "slate",
     label,
     valueLabel,
     hideLabelRow,
@@ -92,7 +104,7 @@ export function ProgressBar({
         pct = 0;
     }
 
-    const resolvedTone: ProgressTone = dynamic ? dynamicTone(pct) : tone;
+    const resolvedTone = resolveTone(tone, pct);
     const showLabelRow = !hideLabelRow && (label !== undefined || valueLabel !== undefined);
 
     return (
@@ -105,7 +117,13 @@ export function ProgressBar({
                     </span>
                 </div>
             )}
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+            <div
+                className={cn("w-full h-1.5 rounded-full overflow-hidden", trackClasses[trackTone])}
+                role="progressbar"
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+            >
                 <div
                     className={cn("h-full rounded-full transition-all duration-500", fillByTone[resolvedTone])}
                     style={{ width: `${pct}%` }}
