@@ -74,6 +74,7 @@ export const authOptions: NextAuthOptions = {
 
                 const family = await prisma.familyMember.findUnique({
                     where: { email: normalizedEmail },
+                    include: { patient: { select: { status: true, name: true } } },
                 });
 
                 if (family) {
@@ -87,6 +88,19 @@ export const authOptions: NextAuthOptions = {
                     if (!passValid) {
                         throw new Error("Acceso Denegado. PIN Familiar Invalido.");
                     }
+
+                    // FIX 2026-05-31: Política de duelo / egreso.
+                    // Si el residente está DECEASED o DISCHARGED, el portal
+                    // familiar cierra. El acceso ya no tiene sentido operativo
+                    // (no hay nuevas notas, vitales, ni mensajes que mostrar)
+                    // y mantener el portal abierto puede ser confuso o doloroso
+                    // (UX congelada en el último día). Decisión de política:
+                    // cierre inmediato. Recuperación de registros se hace por
+                    // canal administrativo (no auto-servicio).
+                    if (family.patient && !['ACTIVE', 'TEMPORARY_LEAVE'].includes(family.patient.status)) {
+                        throw new Error('Acceso cerrado. Para consultas sobre el expediente, comuníquese con la administración de la sede.');
+                    }
+
                     return {
                         id: family.id,
                         name: family.name,
@@ -128,9 +142,18 @@ export const authOptions: NextAuthOptions = {
                 // Intentar como familia
                 const family = await prisma.familyMember.findUnique({
                     where: { id: token.uid as string },
-                    select: { id: true, name: true, email: true, patientId: true, headquartersId: true }
+                    select: {
+                        id: true, name: true, email: true, patientId: true, headquartersId: true,
+                        patient: { select: { status: true } },
+                    }
                 });
-                if (family) {
+                // Defensa runtime: si Victor (familiar) tiene JWT vigente en
+                // su navegador pero su residente acaba de pasar a DECEASED/
+                // DISCHARGED, el siguiente render de página debe devolver
+                // sesión vacía → middleware/UI lo manda al login con el
+                // mensaje de cierre. Sin esto, una sesión activa sobreviviría
+                // hasta que expirara naturalmente (8h).
+                if (family && family.patient && ['ACTIVE', 'TEMPORARY_LEAVE'].includes(family.patient.status)) {
                     session.user.id = family.patientId;
                     session.user.name = family.name;
                     session.user.email = family.email;
@@ -138,6 +161,9 @@ export const authOptions: NextAuthOptions = {
                     session.user.headquartersId = family.headquartersId;
                     session.user.photoUrl = null;
                 }
+                // Si family existe pero patient NO está activo, deliberadamente
+                // NO populamos session.user.* — se retorna sesión sin role,
+                // los endpoints /api/family/* devolverán 401.
             }
             return session;
         },
