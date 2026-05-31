@@ -28,8 +28,7 @@ import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
 import ZendiAssist from "@/components/ZendiAssist";
 import InfoTooltip from "@/components/ui/InfoTooltip";
-import { RondaCard, type StatusPill, type CoverageChip, type PendingItem } from "@/components/ui/RondaCard";
-import type { GrupoColor } from "@/components/ui/GrupoBadge";
+import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
@@ -904,133 +903,14 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {caregiverRounds.map((cg) => {
-                                // ── Mapeo enum DB → español (carácter del componente RondaCard) ──
-                                const dbToGrupo: Record<string, GrupoColor> = {
-                                    RED: 'ROJO', YELLOW: 'AMARILLO', BLUE: 'AZUL', GREEN: 'VERDE',
-                                };
-                                const grupoSuffix: Record<GrupoColor, string> = {
-                                    ROJO: 'rojos', AMARILLO: 'amarillos', AZUL: 'azules', VERDE: 'verdes',
-                                };
-
-                                const pct = cg.residentsInGroup > 0
-                                    ? Math.round((cg.attendedThisRound / cg.residentsInGroup) * 100)
-                                    : 0;
-                                const isLate = cg.minutesSinceLastRound !== null && cg.minutesSinceLastRound > 120;
-                                const hasNoRounds = cg.roundsCompleted === 0 && cg.attendedThisRound === 0;
-
-                                // Caregiver sin pauta base pero con overrides activos (caso típico:
-                                // SUPERVISOR/CAREGIVER cubriendo redistribución de ausente).
-                                const coverageColors = cg.coverageByColor
-                                    ? Object.keys(cg.coverageByColor).filter((c) => (cg.coverageByColor[c] || 0) > 0)
-                                    : [];
-                                const singleCoverageColor = coverageColors.length === 1 ? coverageColors[0] : null;
-                                const isCoverageOnly = !cg.colorGroup && cg.coverageCount > 0;
-                                const effectiveDbColor = cg.colorGroup || (isCoverageOnly ? singleCoverageColor : null);
-                                const effectiveGrupo: GrupoColor | null = effectiveDbColor
-                                    ? (dbToGrupo[effectiveDbColor] || null)
-                                    : null;
-
-                                // Label del grupo: por defecto la primitiva pone "Grupo {GRUPO}".
-                                // Sobreescribimos para los matices de cobertura/sin-grupo.
-                                let grupoLabel: string | undefined;
-                                if (cg.colorGroup && dbToGrupo[cg.colorGroup]) {
-                                    grupoLabel = undefined; // dejar el default de la primitiva
-                                } else if (isCoverageOnly && singleCoverageColor && dbToGrupo[singleCoverageColor]) {
-                                    grupoLabel = `Grupo ${dbToGrupo[singleCoverageColor]} (cobertura)`;
-                                } else if (isCoverageOnly) {
-                                    grupoLabel = 'Cobertura redistribuida';
-                                } else if (!cg.colorGroup) {
-                                    grupoLabel = 'Sin grupo';
-                                }
-
-                                // Stat header (rondas completadas)
-                                const statTone: 'success' | 'warning' | 'neutral' =
-                                    cg.roundsCompleted >= 2 ? 'success'
-                                    : cg.roundsCompleted === 1 ? 'warning'
-                                    : 'neutral';
-
-                                // Estado vacío (sin grupo o grupo vacío) → renderiza solo mensaje
-                                let emptyMessage: string | null = null;
-                                if (cg.noColorGroup) {
-                                    emptyMessage = isCoverageOnly && singleCoverageColor && dbToGrupo[singleCoverageColor]
-                                        ? `Cubriendo Grupo ${dbToGrupo[singleCoverageColor]} por redistribución`
-                                        : isCoverageOnly
-                                            ? 'Cubriendo varios grupos por redistribución'
-                                            : 'Sin grupo de color asignado';
-                                } else if (cg.emptyGroup) {
-                                    emptyMessage = 'Grupo sin residentes activos';
-                                }
-
-                                // Status badges (solo si hay grupo + residentes activos)
-                                const statusBadges: StatusPill[] = [];
-                                if (!emptyMessage) {
-                                    if (pct === 100) {
-                                        statusBadges.push({ variant: 'success', icon: <CheckCheck className="w-3 h-3" />, label: 'Ronda completa' });
-                                    } else if (cg.remainingThisRound > 0) {
-                                        statusBadges.push({
-                                            variant: 'neutral',
-                                            icon: <Clock className="w-3 h-3" />,
-                                            label: `${cg.remainingThisRound} pendiente${cg.remainingThisRound > 1 ? 's' : ''}`,
-                                        });
-                                    }
-                                    if (isLate) {
-                                        statusBadges.push({
-                                            variant: 'warning',
-                                            icon: <Timer className="w-3 h-3" />,
-                                            label: `+${Math.round(cg.minutesSinceLastRound / 60)}h sin ronda`,
-                                        });
-                                    }
-                                    if (hasNoRounds && !cg.noColorGroup && !cg.emptyGroup) {
-                                        statusBadges.push({ variant: 'neutral', icon: <Activity className="w-3 h-3" />, label: 'Sin actividad aún' });
-                                    }
-                                }
-
-                                // Coverage chips
-                                const coverageChips: CoverageChip[] = [];
-                                if (cg.coverageCount > 0 && cg.coverageByColor) {
-                                    for (const [dbColor, count] of Object.entries(cg.coverageByColor) as [string, number][]) {
-                                        if (count <= 0) continue;
-                                        const g = dbToGrupo[dbColor];
-                                        if (!g) continue;
-                                        coverageChips.push({ grupo: g, count, suffix: grupoSuffix[g] });
-                                    }
-                                }
-
-                                // Pending residents (max 5 visibles, lo demás overflow)
-                                const pendingItems: PendingItem[] = (cg.pendingResidents || [])
-                                    .slice(0, 5)
-                                    .map((r: any) => ({ label: r.name, sub: `Hab ${r.room}` }));
-
-                                // Footer (última ronda hace X min — solo si no es late)
-                                const footerNode =
-                                    !emptyMessage && cg.minutesSinceLastRound !== null && !isLate
-                                        ? `Última ronda completada hace ${cg.minutesSinceLastRound}m`
-                                        : null;
-
-                                return (
-                                    <RondaCard
-                                        key={cg.caregiverId}
-                                        grupo={effectiveGrupo}
-                                        name={cg.name.split(' ').slice(0, 2).join(' ')}
-                                        grupoLabel={grupoLabel}
-                                        onChangeGroup={() => setColorPickerCg({ id: cg.caregiverId, name: cg.name, currentColor: cg.colorGroup })}
-                                        stat={{ value: cg.roundsCompleted, label: 'Rondas', tone: statTone }}
-                                        progress={!emptyMessage ? { current: cg.attendedThisRound, total: cg.residentsInGroup } : undefined}
-                                        statusBadges={statusBadges.length > 0 ? statusBadges : undefined}
-                                        coverage={coverageChips.length > 0 ? { chips: coverageChips } : undefined}
-                                        pending={(cg.pendingResidents && cg.pendingResidents.length > 0) ? {
-                                            items: pendingItems,
-                                            overflowAt: 5,
-                                            totalCount: cg.pendingResidents.length,
-                                        } : undefined}
-                                        footer={footerNode}
-                                        emptyMessage={emptyMessage}
-                                        alert={isLate}
-                                        onClick={() => setDrillCaregiver(cg)}
-                                    />
-                                );
-                            })}
+                            {caregiverRounds.map((cg) => (
+                                <SupervisorRondaTile
+                                    key={cg.caregiverId}
+                                    cg={cg}
+                                    onOpenDrill={setDrillCaregiver}
+                                    onOpenColorPicker={setColorPickerCg}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>
