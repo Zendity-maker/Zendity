@@ -6,11 +6,19 @@ import { isCleanNote } from '@/lib/family/disclosure';
 
 interface FeedItem {
   id: string;
-  type: 'NOTE' | 'MOMENT' | 'PHOTO';
+  type: 'NOTE' | 'MOMENT' | 'PHOTO' | 'EXTERNAL_SERVICE';
   content: string;
   mediaUrl: string | null;
   authorName: string;
   createdAt: string;
+  // Solo para items EXTERNAL_SERVICE — datos extra del proveedor para el render
+  externalService?: {
+    providerName: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    serviceType: string | null;
+    isFacilityWide: boolean;
+  };
 }
 
 export async function GET() {
@@ -39,7 +47,7 @@ export async function GET() {
     const since = new Date();
     since.setDate(since.getDate() - 60);
 
-    const [diaryEntries, moments] = await Promise.all([
+    const [diaryEntries, moments, externalVisits] = await Promise.all([
       prisma.wellnessDiary.findMany({
         where: {
           patientId,
@@ -61,6 +69,27 @@ export async function GET() {
           author: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
+      }),
+      // Servicios externos PUBLISHED que afectaron a este residente.
+      // Incluye:
+      //   1) visitas con el residente en el pivot (patientVisits)
+      //   2) visitas isFacilityWide (aplican a todos los activos del momento)
+      // Filtro notifyFamilies: si el visitante marcó "no notificar familia",
+      // tampoco se muestra en el feed.
+      prisma.externalServiceVisit.findMany({
+        where: {
+          status: 'PUBLISHED',
+          notifyFamilies: true,
+          registeredAt: { gte: since },
+          OR: [
+            { patientVisits: { some: { patientId } } },
+            { isFacilityWide: true },
+          ],
+        },
+        include: {
+          provider: { include: { category: true } },
+        },
+        orderBy: { registeredAt: 'desc' },
       }),
     ]);
 
@@ -98,9 +127,30 @@ export async function GET() {
       createdAt: moment.createdAt.toISOString(),
     }));
 
-    const feed = [...diaryFeed, ...momentsFeed]
+    const externalFeed: FeedItem[] = externalVisits.map((v) => {
+      const serviceLabel = v.serviceType ? ` · ${v.serviceType}` : '';
+      // Content fallback: si no hay comentario, mostrar línea descriptiva genérica.
+      const content = v.comment || `Visita registrada por ${v.provider.name}${serviceLabel}.`;
+      return {
+        id: `ext-${v.id}`, // prefijo para evitar colisión de id con diary/moment
+        type: 'EXTERNAL_SERVICE',
+        content,
+        mediaUrl: null,
+        authorName: v.provider.name,
+        createdAt: v.registeredAt.toISOString(),
+        externalService: {
+          providerName: v.provider.name,
+          categoryName: v.provider.category.name,
+          categoryIcon: v.provider.category.icon,
+          serviceType: v.serviceType,
+          isFacilityWide: v.isFacilityWide,
+        },
+      };
+    });
+
+    const feed = [...diaryFeed, ...momentsFeed, ...externalFeed]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 50);
+      .slice(0, 80);
 
     return NextResponse.json({ success: true, feed });
   } catch (error: any) {

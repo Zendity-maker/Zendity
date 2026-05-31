@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/cleaning-overdue-alerts",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/external-services-sla",
+      "schedule": "15 * * * *"
     }
   ]
 }

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { BookOpen, StickyNote, Sparkles, Camera } from "lucide-react";
+import { BookOpen, StickyNote, Sparkles, Camera, UserPlus } from "lucide-react";
 
 // ── Tiempo humano ──────────────────────────────────────────────────────
 function humanTime(date: string | Date): string {
@@ -45,11 +45,19 @@ function humanTime(date: string | Date): string {
 
 interface FeedItem {
     id: string;
-    type: "NOTE" | "MOMENT" | "PHOTO";
+    type: "NOTE" | "MOMENT" | "PHOTO" | "EXTERNAL_SERVICE";
     content: string;
     mediaUrl?: string | null;
     author?: { name?: string | null } | null;
+    authorName?: string | null;
     createdAt: string;
+    externalService?: {
+        providerName: string;
+        categoryName: string;
+        categoryIcon: string | null;
+        serviceType: string | null;
+        isFacilityWide: boolean;
+    };
 }
 
 export default function FamilyFeedPage() {
@@ -116,7 +124,53 @@ export default function FamilyFeedPage() {
                     feed.map((item) => {
                         const isMoment = item.type === "MOMENT";
                         const isPhoto = item.type === "PHOTO" || !!item.mediaUrl;
-                        const TypeIcon = isMoment ? Sparkles : isPhoto ? Camera : StickyNote;
+                        const isExternal = item.type === "EXTERNAL_SERVICE";
+                        const TypeIcon = isExternal ? UserPlus : isMoment ? Sparkles : isPhoto ? Camera : StickyNote;
+                        const authorLabel = item.authorName || item.author?.name || "Equipo de cuidado";
+
+                        // Card distintiva para servicios externos: borde teal sutil + badge
+                        // con icono UserPlus + descripción del proveedor.
+                        if (isExternal && item.externalService) {
+                            const es = item.externalService;
+                            return (
+                                <article
+                                    key={item.id}
+                                    className="bg-white rounded-2xl border-2 border-brand/20 p-4"
+                                >
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="w-7 h-7 rounded-lg bg-brand/10 flex items-center justify-center">
+                                            <UserPlus className="w-4 h-4 text-brand" strokeWidth={1.75} />
+                                        </div>
+                                        <span className="bg-brand/10 text-brand text-xs font-bold rounded-full px-2.5 py-0.5">
+                                            Visita externa
+                                        </span>
+                                        {es.isFacilityWide && (
+                                            <span className="bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full px-2 py-0.5">
+                                                a toda la sede
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mb-2">
+                                        <p className="text-sm font-bold text-slate-800">
+                                            {es.categoryIcon || ""} {es.providerName}
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                            {es.categoryName}
+                                            {es.serviceType ? ` · ${es.serviceType}` : ""}
+                                        </p>
+                                    </div>
+                                    {item.content && (
+                                        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl px-3 py-2 mt-2 border border-slate-100">
+                                            {item.content}
+                                        </p>
+                                    )}
+                                    <div className="flex items-center gap-1.5 mt-3">
+                                        <div className="w-1 h-1 rounded-full bg-brand-secondary" />
+                                        <p className="text-xs text-slate-400">{humanTime(item.createdAt)}</p>
+                                    </div>
+                                </article>
+                            );
+                        }
 
                         return (
                             <article
@@ -157,9 +211,7 @@ export default function FamilyFeedPage() {
                                 <div className="flex items-center gap-1.5 mt-3">
                                     <div className="w-1 h-1 rounded-full bg-brand-secondary" />
                                     <p className="text-xs">
-                                        <span className="text-brand font-medium">
-                                            {item.author?.name || "Equipo de cuidado"}
-                                        </span>
+                                        <span className="text-brand font-medium">{authorLabel}</span>
                                         <span className="text-slate-400"> · {humanTime(item.createdAt)}</span>
                                     </p>
                                 </div>

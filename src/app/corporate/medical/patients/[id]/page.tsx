@@ -13,7 +13,7 @@ import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClini
 import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
-import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWorkTab";
+import PatientExternalServicesTab from "@/components/medical/patient/PatientExternalServicesTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
@@ -492,7 +492,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             onClick={() => setActiveTab("social")}
                             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'social' ? 'border-violet-500 text-violet-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
                         >
-                            Trabajo Social
+                            Servicios Externos
                         </button>
                         <button
                             onClick={() => setActiveTab("falls")}
@@ -523,7 +523,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         {activeTab === "upps" && <PatientUlcersTab patientId={params.id as string} />}
                         {activeTab === "falls" && <PatientFallRiskTab patientId={params.id as string} />}
                         {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
-                        {activeTab === "social" && <PatientSocialWorkTab patientId={params.id as string} />}
+                        {activeTab === "social" && <PatientExternalServicesTab patientId={params.id as string} />}
                         {activeTab === "billing" && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}
                     </div>
                     {/* Hacemos que la pantalla de reportes siempre sea visible si vamos a imprimir, asumiendo que el usuario está en la pestaña reportes */}
