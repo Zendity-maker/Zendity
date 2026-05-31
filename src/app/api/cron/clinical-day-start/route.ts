@@ -47,10 +47,19 @@ export async function GET(req: Request) {
         const results: Array<{ hq: string; handoverId: string; notified: number }> = [];
 
         for (const hq of hqs) {
-            // 1. Residentes de la sede
+            // 1. Residentes ACTIVOS de la sede.
+            // FIX 2026-05-31: Excluir DISCHARGED y DECEASED. Antes el query
+            // traía TODOS los pacientes históricos. El bug: la nota del prólogo
+            // se cuelga arbitrariamente de patientIds[0] (hack para satisfacer
+            // FK), y si ese primer paciente estaba dado de alta, le inventaba
+            // un handover crítico diario por meses. Caso real: Doña Rosa
+            // García (DISCHARGED 21-may) acumuló 11 handovers críticos del
+            // prólogo después de su egreso. La limpieza histórica se hace
+            // aparte; este filtro previene recurrencia.
             const patients = await prisma.patient.findMany({
-                where: { headquartersId: hq.id },
-                select: { id: true, name: true, roomNumber: true, status: true, leaveType: true, leaveDate: true }
+                where: { headquartersId: hq.id, status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } },
+                select: { id: true, name: true, roomNumber: true, status: true, leaveType: true, leaveDate: true },
+                orderBy: { name: 'asc' },
             });
             const patientIds = patients.map(p => p.id);
 
