@@ -239,24 +239,33 @@ export async function calculateDynamicScore(userId: string) {
         evaluationDelta += delta * weight;
     });
 
-    // ── ScoreEvents extra (Academy, Photo, Mission, Vitals — excluye EVALUATION) ──
+    // ── ScoreEvents extra (Academy, Photo, Mission, Vitals — excluye EVALUATION y SHIFT) ──
+    //
+    // FIX 2026-05-31: SHIFT excluido del array. Los ScoreEvents categoría SHIFT
+    // los CREA este mismo cron (sync-compliance) como artefacto del recálculo
+    // diario — son el EFECTO del cómputo, no una CAUSA independiente. Incluirlos
+    // creaba un loop de doble penalización: el cron calcula raw=62 vs prev=75,
+    // crea ScoreEvent SHIFT delta=-13; al día siguiente ese -13 entra otra vez
+    // en extraScoreEvents y se vuelve a restar → score se hunde hasta 0. Kishany
+    // Burgos cayó de 75 → 0 en ~8 días por esta razón sin que se justifique
+    // operacionalmente. Excluirlos rompe el loop y deja la gráfica intacta
+    // (los SHIFT events siguen existiendo, solo no contaminan el cálculo).
+    //
+    // Cap +15: educación + extras operacionales premian compromiso pero
+    // no deben compensar penalizaciones clínicas (handovers, observaciones).
     const extraScoreEvents = await prisma.scoreEvent.findMany({
         where: {
             userId,
             createdAt: { gte: ninetyDaysAgo },
-            category: { in: ['ACADEMY', 'PHOTO', 'MISSION', 'SHIFT', 'VITALS'] },
+            category: { in: ['ACADEMY', 'PHOTO', 'MISSION', 'VITALS'] },
         },
         select: { delta: true },
     });
     const rawExtraDelta = extraScoreEvents.reduce((sum, e) => sum + e.delta, 0);
-    // Cap +15: educación + extras operacionales premian compromiso pero
-    // no deben compensar penalizaciones clínicas (handovers, observaciones).
-    // Subido de +10 a +15 cuando rebalanceamos bonusCompliance de cursos
-    // a escala 3/5/8 — antes con cursos de +125/+100/+75 el cap +10 era
-    // efectivamente meaningless; ahora con escala razonable, +15 deja
-    // espacio real para reconocer educación + misiones + fotos sin
-    // diluir la señal clínica.
-    const extraDelta = Math.min(rawExtraDelta, 15);
+    // Cap a [-15, +15]: educación/misiones suman, pero los VITALS negativos
+    // también están topados para no eclipsar las penalizaciones clínicas
+    // estructurales (handovers, blank shifts) que son la señal real.
+    const extraDelta = Math.max(-15, Math.min(rawExtraDelta, 15));
 
     // ── Cálculo final ──
     const rawPositives = (rotationsOnTime * 1.5) + (medsAdministered * 0.5) + (preventiveAlerts * 5);
