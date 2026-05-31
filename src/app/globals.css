@@ -15,16 +15,26 @@
 
   /* Zendity Core Colors */
   --color-zendity-teal: #0F6B78;
+  --color-teal-hover: #0B545F;
   --color-deep-slate: #1F2D3A;
   --color-soft-mist: #EAF4F5;
   --color-digital-aqua: #3CC6C4;
   --color-cloud-gray: #C9D4D8;
+
+  /* Zendity Navy — superficies oscuras del producto (HeroCard, etc.) */
+  --color-navy: #0F1B2E;
+  --color-navy-2: #16243B;
+  --color-navy-line: #26354F;
+  --color-teal-on-dark: #2FB3A6;
 
   /* Zendity Functional Colors */
   --color-success-green: #22A06B;
   --color-alert-amber: #E5A93D;
   --color-critical-red: #D9534F;
   --color-info-blue: #3B82F6;
+
+  /* Zendity Elevation */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px rgba(15, 23, 42, 0.06);
 
   /* Family Portal Theme — driven by Headquarters.brand* fields.
    * Default values (Zéndity teal) for non-Vivid tenants.
