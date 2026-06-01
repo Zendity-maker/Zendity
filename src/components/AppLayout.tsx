@@ -404,7 +404,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         pathname.startsWith("/care") ||
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
-        pathname.startsWith("/wall");
+        pathname.startsWith("/wall") ||
+        // El kiosko de Servicios Externos opera con device-token, NO con sesión
+        // NextAuth. No debe mostrar el chrome de Zendity (sidebar/topbar) — el
+        // visitante externo no debe poder navegar a otras partes de la app.
+        pathname.startsWith("/external-kiosk");
 
     if (isFullScreenRoute) {
         const showBackButton = pathname.startsWith('/care') && pathname !== '/care';

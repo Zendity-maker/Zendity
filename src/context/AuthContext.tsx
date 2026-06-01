@@ -51,10 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (loading) return;
 
         const isLoginRoute = pathname === "/login";
+        // El kiosko de Servicios Externos es PÚBLICO — autentica por device-token
+        // en el localStorage de la tablet, no por NextAuth. Si bloqueáramos
+        // anónimos aquí, la tablet del piso (que no tiene sesión NextAuth)
+        // rebotaría a /login y nunca funcionaría. También el setup acepta el
+        // token via URL antes de tener sesión alguna.
+        const isPublicKioskRoute = pathname.startsWith("/external-kiosk");
 
         if (!user) {
-            // Bloqueo Anónimo Global
-            if (!isLoginRoute) {
+            // Bloqueo Anónimo Global (excepto login y kiosko público)
+            if (!isLoginRoute && !isPublicKioskRoute) {
                 router.replace("/login");
             }
         } else {
