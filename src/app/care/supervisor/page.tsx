@@ -149,6 +149,14 @@ export default function SupervisorMissionControlPage() {
     const [isDispatching, setIsDispatching] = useState(false);
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);
 
+    // Filtro por TIPO del Inbox Operativo. El backend ya etiqueta cada ticket
+    // con una `category` (CLINICO_CRITICO / UPP_PIEL / FAMILY / MANTENIMIENTO /
+    // INCIDENTE). Antes la lista era plana y Celia tenía que escanear todo
+    // el feed para encontrar lo clínico crítico cuando había ruido de
+    // mantenimiento o quejas. Estos tabs filtran sin tocar el sort por urgencia.
+    type TriageTab = 'TODOS' | 'CLINICO' | 'UPP' | 'FAMILIA' | 'MANTENIMIENTO';
+    const [activeTriageTab, setActiveTriageTab] = useState<TriageTab>('TODOS');
+
     // Sprint R — acciones adicionales del Inbox Operativo
     const [voidingTicket, setVoidingTicket] = useState<any>(null);
     const [voidReason, setVoidReason] = useState("");
@@ -1063,11 +1071,96 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     </div>
 
+                    {/* Tabs por tipo de reporte — filtra sin tocar el sort por urgencia.
+                        Mapea cada tab a las categories del backend:
+                          CLINICO        → CLINICO_CRITICO + INCIDENTE
+                          UPP            → UPP_PIEL
+                          FAMILIA        → FAMILY
+                          MANTENIMIENTO  → MANTENIMIENTO
+                          TODOS          → sin filtro
+                        Los conteos se calculan sobre el feed completo, no sobre el filtrado. */}
+                    {(() => {
+                        const tabMatchesCategory = (tab: TriageTab, cat: string): boolean => {
+                            if (tab === 'TODOS') return true;
+                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE';
+                            if (tab === 'UPP') return cat === 'UPP_PIEL';
+                            if (tab === 'FAMILIA') return cat === 'FAMILY';
+                            if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';
+                            return false;
+                        };
+                        const feed = liveData?.triageFeed || [];
+                        const countByTab = (tab: TriageTab) =>
+                            tab === 'TODOS' ? feed.length : feed.filter((t: TriageTicket) => tabMatchesCategory(tab, t.category)).length;
+                        const tabs: { id: TriageTab; label: string }[] = [
+                            { id: 'TODOS', label: 'Todos' },
+                            { id: 'CLINICO', label: 'Clínico' },
+                            { id: 'UPP', label: 'UPP' },
+                            { id: 'FAMILIA', label: 'Familia' },
+                            { id: 'MANTENIMIENTO', label: 'Mantenimiento' },
+                        ];
+                        return (
+                            <div className="flex flex-wrap gap-1 mb-4 border-b border-slate-100 pb-2">
+                                {tabs.map(t => {
+                                    const active = activeTriageTab === t.id;
+                                    const count = countByTab(t.id);
+                                    return (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => setActiveTriageTab(t.id)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                                                active
+                                                    ? 'bg-[var(--color-zendity-teal)] text-white shadow-sm'
+                                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            {t.label}
+                                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                                active ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+
                     {!liveData ? (
                         <div className="flex-1 flex justify-center items-center"><Loader2 className="w-10 h-10 animate-spin text-slate-500" /></div>
-                    ) : liveData.triageFeed?.length > 0 ? (
+                    ) : (() => {
+                        const tabMatchesCategory = (tab: TriageTab, cat: string): boolean => {
+                            if (tab === 'TODOS') return true;
+                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE';
+                            if (tab === 'UPP') return cat === 'UPP_PIEL';
+                            if (tab === 'FAMILIA') return cat === 'FAMILY';
+                            if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';
+                            return false;
+                        };
+                        const filteredFeed = activeTriageTab === 'TODOS'
+                            ? liveData.triageFeed || []
+                            : (liveData.triageFeed || []).filter((t: TriageTicket) => tabMatchesCategory(activeTriageTab, t.category));
+                        if (filteredFeed.length === 0) {
+                            return (
+                                <div className="flex-1 flex flex-col justify-center items-center text-center py-12">
+                                    <Activity className="w-10 h-10 text-slate-300 mb-3" />
+                                    <p className="text-sm font-bold text-slate-500">
+                                        {activeTriageTab === 'TODOS' ? 'Sin tickets en el inbox' : `Sin tickets en "${activeTriageTab.toLowerCase()}"`}
+                                    </p>
+                                    {activeTriageTab !== 'TODOS' && (
+                                        <button
+                                            onClick={() => setActiveTriageTab('TODOS')}
+                                            className="text-xs text-[var(--color-zendity-teal)] font-bold mt-2 hover:underline"
+                                        >
+                                            Ver todos
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        }
+                        return (
                         <div className="space-y-3">
-                            {[...liveData.triageFeed].sort((a, b) => {
+                            {[...filteredFeed].sort((a, b) => {
                                 const rank = { INMINENTE: 3, ATENCION: 2, RUTINA: 1 };
                                 return (rank[b.urgency as keyof typeof rank] || 0) - (rank[a.urgency as keyof typeof rank] || 0);
                             }).slice(0, 8).map((ticket: TriageTicket) => {
@@ -1195,21 +1288,14 @@ export default function SupervisorMissionControlPage() {
                                     </div>
                                 );
                             })}
-                            {liveData.triageFeed.length > 8 && (
+                            {filteredFeed.length > 8 && (
                                 <p className="text-xs text-slate-400 font-bold text-center pt-2">
-                                    + {liveData.triageFeed.length - 8} tickets adicionales
+                                    + {filteredFeed.length - 8} tickets adicionales
                                 </p>
                             )}
                         </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-12 bg-slate-50 rounded-[2rem] border-2 border-slate-100 border-dashed">
-                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                                <CheckCircle2 className="w-8 h-8 text-teal-400" />
-                            </div>
-                            <h3 className="font-black text-slate-800 text-xl">Bandeja Cero</h3>
-                            <p className="text-slate-500 font-medium mt-1 text-sm">No existen métricas de crisis ni quejas pendientes.</p>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
 
                 {/* ============================================== */}

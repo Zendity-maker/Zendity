@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle, MessageCircle, Filter, Zap } from "lucide-react";
+import { Card } from "@/components/ui/Card";
 
 interface FollowUpNote {
     authorId: string;
@@ -66,6 +67,10 @@ export default function TriageCenterPage() {
     const [staff, setStaff] = useState<any[]>([]);
     const [showResolved, setShowResolved] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    // Filtro por originType — viaja al endpoint. 'ALL' = sin filtro.
+    const [originTypeFilter, setOriginTypeFilter] = useState<string>('ALL');
+    // Counters POR originType (alimentado por /pending). Para KPI strip + counts en el dropdown.
+    const [counts, setCounts] = useState<Record<string, number>>({});
 
     // Resolución
     const [resolutionNote, setResolutionNote] = useState("");
@@ -80,10 +85,15 @@ export default function TriageCenterPage() {
     const fetchTickets = async () => {
         if (!hqId) return;
         try {
-            const url = `/api/corporate/triage/pending?hqId=${hqId}${showResolved ? '&includeResolved=true' : ''}`;
-            const res = await fetch(url);
+            const params = new URLSearchParams({ hqId });
+            if (showResolved) params.set('includeResolved', 'true');
+            if (originTypeFilter && originTypeFilter !== 'ALL') params.set('originType', originTypeFilter);
+            const res = await fetch(`/api/corporate/triage/pending?${params.toString()}`);
             const data = await res.json();
-            if (data.success) setTickets(data.tickets);
+            if (data.success) {
+                setTickets(data.tickets);
+                if (data.counts) setCounts(data.counts);
+            }
         } catch (e) {
             console.error("Error fetching triage tickets:", e);
         } finally {
@@ -105,13 +115,13 @@ export default function TriageCenterPage() {
         if (!user) return;
         fetchTickets();
         fetchStaff();
-    }, [user, showResolved]);
+    }, [user, showResolved, originTypeFilter]);
 
     useEffect(() => {
         if (!hqId) return;
         const interval = setInterval(fetchTickets, 30000);
         return () => clearInterval(interval);
-    }, [hqId, showResolved]);
+    }, [hqId, showResolved, originTypeFilter]);
 
     const updateTicket = async (ticketId: string, payload: any) => {
         setUpdatingId(ticketId);
@@ -218,15 +228,78 @@ export default function TriageCenterPage() {
                 </div>
             </div>
 
+            {/* KPI strip — vista de altura del backlog operativo.
+                Counters vienen del endpoint (groupBy del universo total, respeta hqId + includeResolved).
+                ESCALATED es el counter que más importa: si >0, hay tickets que el cron SLA marcó
+                pero que el director nunca vio (ahora ya notifica, pero el KPI sigue siendo útil). */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                <Card variant="flat" padding="compact" className="rounded-xl border-slate-200">
+                    <p className="text-xl font-black text-slate-800 leading-none">{counts.ALL ?? 0}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Total</p>
+                </Card>
+                <Card variant="flat" padding="compact" className={`rounded-xl ${(counts.ESCALATED ?? 0) > 0 ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}>
+                    <div className="flex items-center gap-1.5">
+                        <Zap className={`w-3 h-3 ${(counts.ESCALATED ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
+                        <p className={`text-xl font-black leading-none ${(counts.ESCALATED ?? 0) > 0 ? 'text-rose-700' : 'text-slate-800'}`}>{counts.ESCALATED ?? 0}</p>
+                    </div>
+                    <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${(counts.ESCALATED ?? 0) > 0 ? 'text-rose-600' : 'text-slate-500'}`}>Escalados SLA</p>
+                </Card>
+                <Card variant="flat" padding="compact" className="rounded-xl border-rose-200 bg-rose-50">
+                    <p className="text-xl font-black text-rose-700 leading-none">{(counts.FALL ?? 0) + (counts.INCIDENT ?? 0)}</p>
+                    <p className="text-[9px] font-bold text-rose-600 uppercase tracking-widest mt-1">Clínico</p>
+                </Card>
+                <Card variant="flat" padding="compact" className="rounded-xl border-amber-200 bg-amber-50">
+                    <p className="text-xl font-black text-amber-700 leading-none">{counts.DAILY_LOG ?? 0}</p>
+                    <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mt-1">UPP / Alerta</p>
+                </Card>
+                <Card variant="flat" padding="compact" className="rounded-xl border-indigo-200 bg-indigo-50">
+                    <p className="text-xl font-black text-indigo-700 leading-none">{counts.COMPLAINT ?? 0}</p>
+                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mt-1">Quejas</p>
+                </Card>
+                <Card variant="flat" padding="compact" className="rounded-xl border-slate-200 bg-slate-50">
+                    <p className="text-xl font-black text-slate-700 leading-none">{counts.MEDICATION_ERROR ?? 0}</p>
+                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Med Errors</p>
+                </Card>
+            </div>
+
             {/* Filtros */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
                 <button
                     onClick={() => setShowResolved(!showResolved)}
                     className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${showResolved ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}
                 >
                     {showResolved ? 'Ocultando Resueltos ✕' : 'Mostrar Historial Resuelto'}
                 </button>
-                <span className="text-xs text-slate-400 font-medium">Auto-refresh: 30s</span>
+
+                {/* Dropdown por tipo de origen */}
+                <div className="relative inline-flex items-center">
+                    <Filter className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+                    <select
+                        value={originTypeFilter}
+                        onChange={(e) => setOriginTypeFilter(e.target.value)}
+                        className="appearance-none pl-9 pr-9 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-700 hover:border-slate-400 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-zendity-teal)]"
+                    >
+                        <option value="ALL">Todos los tipos ({counts.ALL ?? 0})</option>
+                        <option value="FALL">Caídas ({counts.FALL ?? 0})</option>
+                        <option value="INCIDENT">Incidentes ({counts.INCIDENT ?? 0})</option>
+                        <option value="DAILY_LOG">UPP / Alertas clínicas ({counts.DAILY_LOG ?? 0})</option>
+                        <option value="COMPLAINT">Quejas familiares ({counts.COMPLAINT ?? 0})</option>
+                        <option value="MEDICATION_ERROR">Errores de medicación ({counts.MEDICATION_ERROR ?? 0})</option>
+                        <option value="MANUAL">Manuales ({counts.MANUAL ?? 0})</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
+                </div>
+
+                {originTypeFilter !== 'ALL' && (
+                    <button
+                        onClick={() => setOriginTypeFilter('ALL')}
+                        className="text-xs text-[var(--color-zendity-teal)] font-bold hover:underline"
+                    >
+                        Limpiar filtro
+                    </button>
+                )}
+
+                <span className="text-xs text-slate-400 font-medium ml-auto">Auto-refresh: 30s</span>
             </div>
 
             {/* Tickets */}

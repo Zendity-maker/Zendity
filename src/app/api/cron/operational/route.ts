@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { TicketStatus, SystemAuditAction, TicketPriority } from '@prisma/client';
+import { notifyRoles } from '@/lib/notifications';
+import { logWarn } from '@/lib/logger';
 
 
 
@@ -22,7 +24,8 @@ export async function GET(request: Request) {
                 status: { not: TicketStatus.RESOLVED },
                 isEscalated: false,
                 createdAt: { lt: threshold120m }
-            }
+            },
+            include: { patient: { select: { name: true } } }
         });
 
         for (const ticket of overdueTickets) {
@@ -43,7 +46,25 @@ export async function GET(request: Request) {
                     payloadChanges: { reason: 'SLA_BREACH_120M' }
                 }
             });
-            // TODO: Enviar Push notification a Director
+
+            // FIX 2026-05-31: el TODO histórico ahora sí dispara notificación.
+            // Antes la escalación era pasiva (solo flag isEscalated en BD); el
+            // director/supervisor solo veía el badge "Escalado" si abría
+            // /corporate/triage y refrescaba. Ahora notifica activamente para
+            // que el ticket no muera por silencio.
+            try {
+                const ageMin = Math.floor((now.getTime() - new Date(ticket.createdAt).getTime()) / 60000);
+                const patientLabel = ticket.patient?.name ? `${ticket.patient.name} — ` : '';
+                const descShort = (ticket.description || '').slice(0, 100);
+                await notifyRoles(ticket.headquartersId, ['DIRECTOR', 'SUPERVISOR'], {
+                    type: 'TRIAGE',
+                    title: '🚨 Ticket escalado por SLA',
+                    message: `${patientLabel}Sin resolver hace ${ageMin}min. ${descShort}`,
+                    link: '/corporate/triage',
+                });
+            } catch (e) {
+                logWarn('cron.operational.escalation_notify', e, { ticketId: ticket.id });
+            }
         }
 
         // (Sprint A) Bloque de auto-cierre de ShiftClosure eliminado — el modelo
