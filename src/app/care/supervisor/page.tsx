@@ -22,7 +22,7 @@ import {
     Brain, Users, Loader2, Sparkles, Send, CheckCircle2, Activity, Droplets, Coffee,
     Siren, Play, Square, AlertTriangle, ShieldAlert, FileText, Clock, XCircle, ChevronDown,
     Heart, Pill, ClipboardSignature, MessageSquareWarning, MessageSquare, Utensils, CalendarClock, ArrowRight,
-    Gavel, AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck,
+    Gavel, AlertCircle, FileWarning, RefreshCw, CheckCheck, Timer, UserCheck, PenTool,
 } from "lucide-react";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
 import ReactMarkdown from 'react-markdown';
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
+import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
@@ -149,6 +150,14 @@ export default function SupervisorMissionControlPage() {
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);
+
+    // Handover sign drawer — firma rápida inline sin navegar a /care/reports/[id].
+    // Reduce la fricción para Celia/director que debe firmar 5-12 handovers diarios.
+    const [handoverToSign, setHandoverToSign] = useState<HandoverSummary | null>(null);
+    // Sección "Handovers Hoy" → "Completados" arranca colapsado para que el ojo
+    // se vaya directo a "Esperando tu firma". El director expande si quiere ver
+    // el historial del día.
+    const [showSignedHandovers, setShowSignedHandovers] = useState(false);
 
     // Filtro por TIPO del Inbox Operativo. El backend ya etiqueta cada ticket
     // con una `category` (CLINICO_CRITICO / UPP_PIEL / FAMILY / MANTENIMIENTO /
@@ -1569,125 +1578,205 @@ export default function SupervisorMissionControlPage() {
                 </div>
 
                 {/* ============================================== */}
-                {/* SECCIÓN 5 — HANDOVERS HOY (Firmados + Brechas)   */}
+                {/* SECCIÓN 5 — HANDOVERS HOY                        */}
+                {/* Reorganizada: brechas → esperando tu firma →     */}
+                {/* completados (colapsable). Drawer inline para     */}
+                {/* firmar sin navegar a /care/reports/[id].         */}
                 {/* ============================================== */}
-                <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-200">
-                    <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
-                        <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
-                            <ClipboardSignature className="w-6 h-6 text-teal-600" /> Handovers Hoy
-                            <InfoTooltip text="Traspasos de turno firmados en el día + brechas (turnos cerrados sin handover). Cada handover tiene firma del saliente, confirmación senior y firma del supervisor." />
-                        </h3>
-                        <div className="flex gap-2">
-                            {missingHandovers.length > 0 && (
-                                <span className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                                    <AlertTriangle className="w-3.5 h-3.5" /> {missingHandovers.length} brecha{missingHandovers.length > 1 ? 's' : ''}
-                                </span>
-                            )}
-                            <span className="bg-teal-50 border border-teal-200 text-teal-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                                {handoversFeed.length} firmado{handoversFeed.length !== 1 ? 's' : ''}
-                            </span>
-                        </div>
-                    </div>
+                {(() => {
+                    const pendingMyFirma = handoversFeed.filter((h: HandoverFeedItem) => h.derivedStatus !== 'SUPERVISOR_SIGNED');
+                    const signedToday = handoversFeed.filter((h: HandoverFeedItem) => h.derivedStatus === 'SUPERVISOR_SIGNED');
+                    const totalNothing = pendingMyFirma.length === 0 && signedToday.length === 0 && missingHandovers.length === 0;
+                    const allCleared = pendingMyFirma.length === 0 && missingHandovers.length === 0 && signedToday.length > 0;
 
-                    {/* Brechas */}
-                    {missingHandovers.length > 0 && (
-                        <div className="mb-5 space-y-2">
-                            {missingHandovers.map((mh: MissingHandover, i: number) => {
-                                const diffHrs = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
-                                const isCritical = diffHrs > 2;
-                                return (
-                                    <div key={i} className={`p-4 rounded-[1.25rem] border-l-[6px] flex flex-wrap items-center justify-between gap-3 ${isCritical ? 'bg-rose-50 border-l-rose-500 border-y border-r border-rose-200' : 'bg-amber-50 border-l-amber-400 border-y border-r border-amber-200'}`}>
-                                        <div>
-                                            <span className={`font-black text-[10px] uppercase tracking-widest ${isCritical ? 'text-rose-600' : 'text-amber-600'}`}>Falta firma legal</span>
-                                            <p className="font-bold text-slate-800 text-base">{mh.employeeName}</p>
-                                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">{mh.shiftType}</p>
-                                        </div>
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-md text-white ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`}>hace {diffHrs.toFixed(1)}h</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                    const COLOR_BADGES: Record<string, string> = {
+                        RED: 'bg-rose-500 text-white',
+                        YELLOW: 'bg-amber-400 text-slate-900',
+                        GREEN: 'bg-emerald-500 text-white',
+                        BLUE: 'bg-sky-500 text-white',
+                    };
+                    const shiftIcon = (s: string) => s === 'MORNING' ? '☀️' : s === 'EVENING' ? '🌆' : '🌙';
 
-                    {/* Reportes individuales del día (Sprint L) */}
-                    {handoversFeed.length === 0 && missingHandovers.length === 0 ? (
-                        <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-[1.5rem] flex items-center gap-4">
-                            <CheckCircle2 className="w-8 h-8 text-emerald-500 shrink-0" />
-                            <div>
-                                <p className="font-bold text-emerald-800">Sin reportes de turno todavía</p>
-                                <p className="text-xs text-emerald-600 mt-0.5">Cada cuidadora firma su reporte individual al cerrar turno.</p>
+                    return (
+                        <div className={`rounded-[2.5rem] p-7 shadow-sm border ${allCleared ? 'bg-emerald-50/40 border-emerald-200' : 'bg-white border-slate-200'}`}>
+                            <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
+                                <h3 className="font-black text-slate-800 text-xl flex items-center gap-3">
+                                    <ClipboardSignature className={`w-6 h-6 ${allCleared ? 'text-emerald-600' : 'text-teal-600'}`} /> Handovers Hoy
+                                    <InfoTooltip text="Traspasos de turno firmados en el día + brechas. Cada handover requiere firma de la cuidadora saliente + tu firma como supervisor." />
+                                </h3>
+                                <div className="flex gap-2 flex-wrap">
+                                    {missingHandovers.length > 0 && (
+                                        <span className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                            <AlertTriangle className="w-3.5 h-3.5" /> {missingHandovers.length} brecha{missingHandovers.length > 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                    {pendingMyFirma.length > 0 && (
+                                        <span className="bg-amber-50 border border-amber-300 text-amber-800 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-pulse">
+                                            <PenTool className="w-3.5 h-3.5" /> {pendingMyFirma.length} esperando tu firma
+                                        </span>
+                                    )}
+                                    {signedToday.length > 0 && (
+                                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                            ✓ {signedToday.length} firmado{signedToday.length !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ) : handoversFeed.length > 0 ? (
-                        <div className="space-y-3">
-                            {handoversFeed.map((h: HandoverFeedItem) => {
-                                const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
-                                const statusConfig = h.derivedStatus === 'SUPERVISOR_SIGNED'
-                                    ? { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-emerald-200 text-emerald-800', label: 'Revisado por supervisor' }
-                                    : { bg: 'bg-emerald-50', border: 'border-emerald-200', pill: 'bg-teal-100 text-teal-800', label: 'Turno cerrado por cuidador' };
 
-                                const COLOR_BADGES: Record<string, string> = {
-                                    RED: 'bg-rose-500 text-white',
-                                    YELLOW: 'bg-amber-400 text-slate-900',
-                                    GREEN: 'bg-emerald-500 text-white',
-                                    BLUE: 'bg-sky-500 text-white',
-                                };
-
-                                return (
-                                    <div key={h.id} className={`p-4 rounded-[1.5rem] border ${statusConfig.bg} ${statusConfig.border}`}>
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-black text-sm bg-white border border-slate-200">
-                                                {h.shiftType === 'MORNING' ? '☀️' : h.shiftType === 'EVENING' ? '🌆' : '🌙'}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                    <span className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md uppercase tracking-widest">{h.shiftType}</span>
-                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${statusConfig.pill}`}>
-                                                        {statusConfig.label}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-500 font-bold">{time}</span>
-                                                </div>
-
-                                                <p className="text-sm text-slate-800 font-bold mb-1">
-                                                    {h.outgoingName || <em className="text-slate-400">Zendi AI</em>}
-                                                </p>
-
-                                                <div className="flex items-center gap-3 flex-wrap mb-2">
-                                                    <div className="flex items-center gap-1">
-                                                        {h.colorGroups.length > 0 ? h.colorGroups.map(c => (
-                                                            <span key={c} className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${COLOR_BADGES[c] || 'bg-slate-300 text-slate-800'}`}>
-                                                                {c}
-                                                            </span>
-                                                        )) : (
-                                                            <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider bg-slate-200 text-slate-600">sin color</span>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[11px] text-slate-600 font-bold">
-                                                        {h.patientCount} residente{h.patientCount !== 1 ? 's' : ''}
-                                                    </span>
-                                                </div>
-
-                                                <p className="text-[11px] text-slate-500 font-medium">
-                                                    {h.signedOutAt && <span>✓ Firmó · </span>}
-                                                    {h.supervisorSignedAt && <span className="font-bold text-emerald-700">✓ Supervisor</span>}
-                                                </p>
-                                            </div>
-
-                                            {h.derivedStatus !== 'SUPERVISOR_SIGNED' && (
-                                                <button
-                                                    onClick={() => router.push(`/care/reports/${h.id}`)}
-                                                    className="shrink-0 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 self-start"
-                                                >
-                                                    Revisar Reporte
-                                                </button>
-                                            )}
-                                        </div>
+                            {/* Vista "Día completo" cuando no hay pendientes ni brechas */}
+                            {allCleared && (
+                                <div className="bg-emerald-100 border border-emerald-200 p-5 rounded-[1.5rem] flex items-center gap-4 mb-5">
+                                    <CheckCircle2 className="w-10 h-10 text-emerald-600 shrink-0" />
+                                    <div>
+                                        <p className="font-black text-emerald-900 text-lg">Día completo ✓</p>
+                                        <p className="text-sm text-emerald-700 font-medium">Todos los handovers del día están firmados por ti.</p>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            )}
+
+                            {/* (1) BRECHAS — siempre arriba si hay */}
+                            {missingHandovers.length > 0 && (
+                                <div className="mb-5">
+                                    <h4 className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <AlertTriangle className="w-3.5 h-3.5" /> Brechas — turnos cerrados sin handover
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {missingHandovers.map((mh: MissingHandover, i: number) => {
+                                            const diffHrs = (nowTime - new Date(mh.endTime).getTime()) / 3600000;
+                                            const isCritical = diffHrs > 2;
+                                            return (
+                                                <div key={i} className={`p-4 rounded-[1.25rem] border-l-[6px] flex flex-wrap items-center justify-between gap-3 ${isCritical ? 'bg-rose-50 border-l-rose-500 border-y border-r border-rose-200' : 'bg-amber-50 border-l-amber-400 border-y border-r border-amber-200'}`}>
+                                                    <div>
+                                                        <span className={`font-black text-[10px] uppercase tracking-widest ${isCritical ? 'text-rose-600' : 'text-amber-600'}`}>Falta firma legal</span>
+                                                        <p className="font-bold text-slate-800 text-base">{mh.employeeName}</p>
+                                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">{mh.shiftType}</p>
+                                                    </div>
+                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md text-white ${isCritical ? 'bg-rose-600' : 'bg-amber-500'}`}>hace {diffHrs.toFixed(1)}h</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* (2) PENDIENTES TU FIRMA — call-to-action prominente con firma inline */}
+                            {pendingMyFirma.length > 0 && (
+                                <div className="mb-5">
+                                    <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <PenTool className="w-3.5 h-3.5" /> Esperando tu firma — {pendingMyFirma.length} reporte{pendingMyFirma.length !== 1 ? 's' : ''}
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {pendingMyFirma.map((h: HandoverFeedItem) => {
+                                            const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+                                            return (
+                                                <div key={h.id} className="p-4 rounded-[1.5rem] border-2 border-amber-200 bg-amber-50/40">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-black text-sm bg-white border border-amber-200">
+                                                            {shiftIcon(h.shiftType)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                                <span className="text-[10px] font-black text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md uppercase tracking-widest">{h.shiftType}</span>
+                                                                <span className="text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest bg-teal-100 text-teal-800">
+                                                                    Cuidadora firmó · falta tu firma
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-500 font-bold">{time}</span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-900 font-bold mb-1">
+                                                                {h.outgoingName || <em className="text-slate-400">Zendi AI</em>}
+                                                            </p>
+                                                            <div className="flex items-center gap-3 flex-wrap">
+                                                                <div className="flex items-center gap-1">
+                                                                    {h.colorGroups.length > 0 ? h.colorGroups.map(c => (
+                                                                        <span key={c} className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${COLOR_BADGES[c] || 'bg-slate-300 text-slate-800'}`}>
+                                                                            {c}
+                                                                        </span>
+                                                                    )) : (
+                                                                        <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider bg-slate-200 text-slate-600">sin color</span>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-[11px] text-slate-600 font-bold">
+                                                                    {h.patientCount} residente{h.patientCount !== 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setHandoverToSign({
+                                                                id: h.id,
+                                                                outgoingName: h.outgoingName,
+                                                                shiftType: h.shiftType,
+                                                                colorGroups: h.colorGroups,
+                                                                patientCount: h.patientCount,
+                                                                createdAt: h.createdAt as any,
+                                                                aiSummaryReport: h.aiSummaryReport,
+                                                            })}
+                                                            className="shrink-0 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95 self-start flex items-center gap-1.5"
+                                                        >
+                                                            <PenTool className="w-3.5 h-3.5" /> Firmar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* (3) COMPLETADOS — colapsable, compactos */}
+                            {signedToday.length > 0 && (
+                                <div>
+                                    <button
+                                        onClick={() => setShowSignedHandovers(v => !v)}
+                                        className="w-full flex items-center justify-between py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-700 transition"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                            Completados hoy ({signedToday.length})
+                                        </span>
+                                        <span>{showSignedHandovers ? '−' : '+'} {showSignedHandovers ? 'ocultar' : 'ver'}</span>
+                                    </button>
+                                    {showSignedHandovers && (
+                                        <div className="space-y-2 mt-2">
+                                            {signedToday.map((h: HandoverFeedItem) => {
+                                                const time = new Date(h.createdAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
+                                                return (
+                                                    <div key={h.id} className="p-3 rounded-xl bg-white border border-slate-200 flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs bg-emerald-50 border border-emerald-200">
+                                                            {shiftIcon(h.shiftType)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                                            <span className="text-sm font-bold text-slate-700 truncate">{h.outgoingName || 'Zendi AI'}</span>
+                                                            <span className="text-[10px] text-slate-500 font-bold">{h.shiftType} · {time}</span>
+                                                            <div className="flex items-center gap-1">
+                                                                {h.colorGroups.map(c => (
+                                                                    <span key={c} className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${COLOR_BADGES[c] || 'bg-slate-300 text-slate-800'}`}>
+                                                                        {c}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider shrink-0">✓ Firmado</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Empty state — sin handovers ni brechas todavía */}
+                            {totalNothing && (
+                                <div className="bg-slate-50 border border-slate-100 p-6 rounded-[1.5rem] flex items-center gap-4">
+                                    <Clock className="w-8 h-8 text-slate-400 shrink-0" />
+                                    <div>
+                                        <p className="font-bold text-slate-700">Sin reportes de turno todavía</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Cada cuidadora firma su reporte al cerrar turno.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    ) : null}
-                </div>
+                    );
+                })()}
 
                 {/* ============================================== */}
                 {/* SECCIÓN 6 — OBSERVACIONES + APELACIONES          */}
@@ -2184,6 +2273,13 @@ export default function SupervisorMissionControlPage() {
                     </div>
                 );
             })()}
+
+            {/* DRAWER — firma rápida de handover sin navegar */}
+            <HandoverSignDrawer
+                handover={handoverToSign}
+                onClose={() => setHandoverToSign(null)}
+                onSigned={() => fetchLiveData()}
+            />
 
             {/* CAMBIAR COLOR BASE DE UNA CUIDADORA — botón "cambiar" en tile */}
             {colorPickerCg && (() => {
