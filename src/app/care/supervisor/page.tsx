@@ -31,6 +31,7 @@ import InfoTooltip from "@/components/ui/InfoTooltip";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
@@ -1186,7 +1187,11 @@ export default function SupervisorMissionControlPage() {
                                             <p className="text-xs font-semibold text-slate-500 mb-2">
                                                 Sujeto: <span className="text-slate-800 ml-1">{ticket.patientName}</span>
                                             </p>
-                                            <p className="text-sm font-medium text-slate-600 line-clamp-2">{ticket.description}</p>
+                                            <ExpandableText
+                                                text={ticket.description}
+                                                previewLines={2}
+                                                className="text-sm font-medium text-slate-600"
+                                            />
                                         </div>
                                         <div className="w-full lg:w-56 shrink-0">
                                             {(() => {
@@ -1334,7 +1339,11 @@ export default function SupervisorMissionControlPage() {
                                                         </span>
                                                     )}
                                                 </p>
-                                                <p className="text-xs text-slate-500 truncate">{entry.description}</p>
+                                                <ExpandableText
+                                                    text={entry.description}
+                                                    previewLines={2}
+                                                    className="text-xs text-slate-500"
+                                                />
                                                 {entry.reason && (
                                                     <p className="text-[10px] text-slate-400 italic">Motivo: {entry.reason}</p>
                                                 )}
@@ -1707,7 +1716,11 @@ export default function SupervisorMissionControlPage() {
                                                 <span className="font-bold text-slate-800 text-sm truncate">{ob.employeeName}</span>
                                                 <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-md uppercase">{ob.category}</span>
                                             </div>
-                                            <p className="text-xs text-slate-600 font-medium line-clamp-2 mb-1">{ob.description}</p>
+                                            <ExpandableText
+                                                text={ob.description}
+                                                previewLines={2}
+                                                className="text-xs text-slate-600 font-medium mb-1"
+                                            />
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] text-slate-400 font-bold">{ob.supervisorName} · {date}</span>
                                                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase ${ob.status === 'EXPLANATION_RECEIVED' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>

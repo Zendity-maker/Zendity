@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { ArrowLeft, ShieldAlert, AlertOctagon, Activity, Loader2, CheckCircle2, Clock, User, ChevronDown, Send, MessageSquarePlus, Stethoscope, Wrench, ClipboardList, AlertTriangle, MessageCircle, Filter, Zap } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { ExpandableText } from "@/components/ui/ExpandableText";
 
 interface FollowUpNote {
     authorId: string;
@@ -357,10 +358,12 @@ export default function TriageCenterPage() {
                                             </div>
                                         )}
 
-                                        {/* Description */}
-                                        <p className="text-base font-bold text-slate-800 leading-relaxed">
-                                            {ticket.description.length > 200 ? ticket.description.substring(0, 200) + '...' : ticket.description}
-                                        </p>
+                                        {/* Description — colapsada a 3 líneas con toggle "Ver más" */}
+                                        <ExpandableText
+                                            text={ticket.description}
+                                            previewLines={3}
+                                            className="text-base font-bold text-slate-800 leading-relaxed"
+                                        />
 
                                         {/* Meta */}
                                         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium flex-wrap">
