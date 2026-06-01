@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Settings, Plus, Edit2, Trash2, ChevronLeft, Loader2, Copy, Check, X, Tablet, MapPin, Clock, ExternalLink } from "lucide-react";
+import { Settings, Plus, Edit2, Trash2, ChevronLeft, Loader2, Copy, Check, X, Tablet, MapPin, Clock, ExternalLink, QrCode } from "lucide-react";
 import QRCodeDisplay from "@/components/ui/QRCodeDisplay";
 
 type Tab = 'categories' | 'providers' | 'devices';
@@ -170,6 +170,28 @@ export default function AdminExternalServicesPage() {
         else setToast({ msg: data.error || 'Error', type: 'err' });
     };
 
+    // Re-expone el QR/URL de una tablet PRE-USO (lastSeenAt === null).
+    // El endpoint rechaza 410 si ya se conectó alguna vez — abrimos toast
+    // de error en ese caso. Reusa el modal `newDeviceResult` con los datos
+    // que devuelva el servidor (sin re-fetch del listado).
+    const revealToken = async (id: string) => {
+        try {
+            const res = await fetch(`/api/admin/external-kiosk/devices/${id}/token`);
+            const data = await res.json();
+            if (data.success) {
+                setNewDeviceResult({
+                    setupUrl: data.setupUrl,
+                    deviceToken: data.deviceToken,
+                    label: data.label,
+                });
+            } else {
+                setToast({ msg: data.error || 'No se pudo obtener el QR', type: 'err' });
+            }
+        } catch {
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        }
+    };
+
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-teal-600" /></div>;
     }
@@ -307,9 +329,22 @@ export default function AdminExternalServicesPage() {
                                             {d.revokedAt && <p>Revocada: {new Date(d.revokedAt).toLocaleDateString('es-PR')}</p>}
                                         </div>
                                         {d.isActive && (
-                                            <button onClick={() => revokeDevice(d.id, d.label)} className="w-full text-sm font-bold text-rose-700 hover:bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl transition">
-                                                Revocar tablet
-                                            </button>
+                                            <div className="space-y-2">
+                                                {/* Solo se puede re-ver el QR de tablets PRE-USO (nunca conectadas).
+                                                    Una vez que la tablet pinguea, el endpoint /token responde 410
+                                                    y este botón desaparece — el token queda enterrado por seguridad. */}
+                                                {lastSeen === null && (
+                                                    <button
+                                                        onClick={() => revealToken(d.id)}
+                                                        className="w-full text-sm font-bold text-[var(--color-zendity-teal)] hover:bg-teal-50 border border-teal-200 px-3 py-2 rounded-xl transition flex items-center justify-center gap-2"
+                                                    >
+                                                        <QrCode className="w-4 h-4" /> Mostrar QR para configurar
+                                                    </button>
+                                                )}
+                                                <button onClick={() => revokeDevice(d.id, d.label)} className="w-full text-sm font-bold text-rose-700 hover:bg-rose-50 border border-rose-200 px-3 py-2 rounded-xl transition">
+                                                    Revocar tablet
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 );
