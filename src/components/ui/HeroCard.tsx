@@ -21,6 +21,9 @@ import { cn } from "./cn";
 export interface HeroCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
     /** Etiqueta corta arriba del título, con punto teal-on-dark. Ej: "PRÓLOGO". */
     eyebrow?: string;
+    /** Icono opcional a la izquierda del bloque title/subtitle. Acento de identidad
+     *  (ej. ShieldAlert en Mission Control). Si lo omites, el bloque ocupa todo el ancho. */
+    icon?: React.ReactNode;
     /** Título principal (font-display, 24-32px). */
     title: React.ReactNode;
     /** Subtítulo opcional debajo del título. */
@@ -29,7 +32,7 @@ export interface HeroCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>
     actions?: React.ReactNode;
 }
 
-export function HeroCard({ eyebrow, title, subtitle, actions, className, children, ...rest }: HeroCardProps) {
+export function HeroCard({ eyebrow, icon, title, subtitle, actions, className, children, ...rest }: HeroCardProps) {
     return (
         <div
             className={cn(
@@ -42,6 +45,7 @@ export function HeroCard({ eyebrow, title, subtitle, actions, className, childre
             {...rest}
         >
             <div className="flex items-start gap-4 flex-wrap">
+                {icon && <div className="flex-shrink-0 mt-1">{icon}</div>}
                 <div className="flex-1 min-w-0">
                     {eyebrow && (
                         <div className="inline-flex items-center gap-2 mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-teal-on-dark)]">

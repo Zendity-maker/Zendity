@@ -31,6 +31,7 @@ import InfoTooltip from "@/components/ui/InfoTooltip";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { HeroCard } from "@/components/ui/HeroCard";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
@@ -91,26 +92,26 @@ const ZendiMorningBriefing = ({ text }: { text: string }) => {
     };
 
     return (
-        <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-slate-800 relative overflow-hidden">
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <div className="flex items-center gap-2 text-teal-400 font-bold text-xs uppercase tracking-widest mb-1">
-                            <Sparkles className="w-4 h-4" /> Zendi AI Engine
-                        </div>
-                        <h2 className="text-2xl font-black text-white">Prólogo del Turno (05:45 AM)</h2>
-                        <p className="text-slate-500 text-sm mt-1">Resumen ejecutivo del turno precedente y focos del día.</p>
-                    </div>
-                    <button onClick={handlePlayPause}
-                        className={`flex items-center justify-center w-14 h-14 rounded-[1.25rem] shadow-lg transition-all active:scale-95 ${isPlaying ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' : 'bg-slate-800 border-2 border-slate-700 hover:border-teal-500 text-white'}`}>
-                        {isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
-                    </button>
-                </div>
-                <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-li:marker:text-teal-400 font-medium">
-                    <ReactMarkdown>{text}</ReactMarkdown>
-                </div>
+        <HeroCard
+            eyebrow="Zendi AI Engine"
+            title={<>Prólogo del Turno <span className="text-[#AEBCD0] text-xl font-normal">(05:45 AM)</span></>}
+            subtitle="Resumen ejecutivo del turno precedente y focos del día."
+            className="rounded-[2.5rem] p-8 md:p-10 shadow-xl"
+            actions={
+                <button onClick={handlePlayPause}
+                    className={`flex items-center justify-center w-14 h-14 rounded-[1.25rem] shadow-lg transition-all active:scale-95 ${isPlaying ? 'bg-rose-500 hover:bg-rose-600 text-white animate-pulse' : 'bg-white/10 border-2 border-white/15 hover:border-[var(--color-teal-on-dark)] text-white'}`}
+                    aria-label={isPlaying ? 'Detener resumen' : 'Reproducir resumen'}>
+                    {isPlaying ? <Square className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-1" />}
+                </button>
+            }
+        >
+            {/* Cuerpo del resumen — hereda text-[#D2DBEA] del HeroCard (contraste ~10:1).
+                prose-invert da estructura tipográfica al markdown; el color del cuerpo
+                lo pone el wrapper, no prose. Marker teal preservado. */}
+            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-li:marker:text-teal-400 prose-p:text-[#D2DBEA] prose-li:text-[#D2DBEA] prose-strong:text-white">
+                <ReactMarkdown>{text}</ReactMarkdown>
             </div>
-        </div>
+        </HeroCard>
     );
 };
 
@@ -740,42 +741,37 @@ export default function SupervisorMissionControlPage() {
                 {/* ============================================== */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Header Mission Control */}
-                    <div className="lg:col-span-5 bg-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-xl flex flex-col justify-between relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
-                        <div className="relative z-10">
-                            <h1 className="text-3xl lg:text-4xl font-black text-white mb-2 flex items-center gap-3">
-                                <ShieldAlert className="w-8 h-8 text-teal-400" />
-                                Mission Control
-                            </h1>
-                            <p className="text-slate-500 font-medium text-sm md:text-base mb-4">
-                                Despacho clínico, cumplimiento y continuidad en tiempo real.
-                            </p>
-                            <div className="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 mb-5">
-                                <div className="flex items-center gap-2 text-teal-400 font-bold text-[10px] uppercase tracking-widest mb-1">
-                                    <Clock className="w-3.5 h-3.5" /> Turno Activo
-                                </div>
-                                <p className="text-white font-black text-lg">{shiftMeta.icon} {shiftMeta.es}</p>
-                                <p className="text-slate-500 text-xs font-bold mt-0.5">{shiftMeta.window} · Hora de Puerto Rico</p>
+                    <HeroCard
+                        icon={<ShieldAlert className="w-8 h-8 text-[var(--color-teal-on-dark)]" />}
+                        title="Mission Control"
+                        subtitle="Despacho clínico, cumplimiento y continuidad en tiempo real."
+                        className="lg:col-span-5 rounded-[2.5rem] p-8 md:p-10 shadow-xl"
+                    >
+                        <div className="rounded-2xl bg-white/5 border border-white/10 p-4 mb-5">
+                            <div className="flex items-center gap-2 text-[var(--color-teal-on-dark)] font-bold text-[10px] uppercase tracking-widest mb-1">
+                                <Clock className="w-3.5 h-3.5" /> Turno Activo
                             </div>
-                            <div className="flex items-center gap-3 flex-wrap mt-2">
-                                <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-5 py-3 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm" />
-                                {/* Botón Chat Staff — visible en esta vista full-screen */}
-                                <button
-                                    onClick={() => setStaffChatOpen(v => !v)}
-                                    className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm px-4 py-3 rounded-[1.5rem] shadow-sm transition-all"
-                                    title="Chat interno del equipo"
-                                >
-                                    <MessageSquare className="w-4 h-4" />
-                                    Chat Staff
-                                    {staffChatUnread > 0 && (
-                                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-teal-400 rounded-full text-[9px] font-black text-slate-900 flex items-center justify-center leading-none">
-                                            {staffChatUnread > 9 ? '9+' : staffChatUnread}
-                                        </span>
-                                    )}
-                                </button>
-                            </div>
+                            <p className="text-white font-black text-lg">{shiftMeta.icon} {shiftMeta.es}</p>
+                            <p className="text-[#AEBCD0] text-xs font-bold mt-0.5">{shiftMeta.window} · Hora de Puerto Rico</p>
                         </div>
-                    </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-5 py-3 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm" />
+                            {/* Botón Chat Staff — visible en esta vista full-screen */}
+                            <button
+                                onClick={() => setStaffChatOpen(v => !v)}
+                                className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm px-4 py-3 rounded-[1.5rem] shadow-sm transition-all"
+                                title="Chat interno del equipo"
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                Chat Staff
+                                {staffChatUnread > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-teal-400 rounded-full text-[9px] font-black text-slate-900 flex items-center justify-center leading-none">
+                                        {staffChatUnread > 9 ? '9+' : staffChatUnread}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+                    </HeroCard>
 
                     {/* KPIs */}
                     <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-4">
