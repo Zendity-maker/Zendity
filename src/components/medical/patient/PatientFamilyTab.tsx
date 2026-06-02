@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { UserPlus, Mail, Trash2, Send, X, Loader2, UserCircle, Pencil, Phone } from "lucide-react";
+import Link from "next/link";
+import { UserPlus, Mail, Trash2, Send, X, Loader2, UserCircle, Pencil, Phone, ExternalLink } from "lucide-react";
 
 interface FamilyMember {
     id: string;
@@ -33,6 +34,20 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const [form, setForm] = useState({ name: "", email: "", accessLevel: "Full" });
     const [sending, setSending] = useState(false);
     const [modalError, setModalError] = useState<string | null>(null);
+    // Conflicto: cuando el endpoint devuelve 409 porque el email ya existe.
+    // El backend ahora enriquece la respuesta con datos del registro existente
+    // para que mostremos acciones específicas en vez de obligar a leer texto.
+    //   - mismo paciente (canResend=true) → botón [📤 Reenviar PIN a {name}]
+    //   - otro paciente del mismo HQ      → botón [→ Ir al perfil de {patientName}]
+    //   - otro HQ                         → solo texto (sin acción)
+    const [modalConflict, setModalConflict] = useState<null | {
+        canResend: boolean;
+        existingFamilyMemberId?: string;
+        existingFamilyMemberName?: string;
+        existingPatientId?: string;
+        existingPatientName?: string | null;
+    }>(null);
+    const [resendingFromModal, setResendingFromModal] = useState(false);
 
     // Per-row actions
     const [resendingId, setResendingId] = useState<string | null>(null);
@@ -74,12 +89,14 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const openModal = () => {
         setForm({ name: "", email: "", accessLevel: "Full" });
         setModalError(null);
+        setModalConflict(null);
         setModalOpen(true);
     };
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
         setModalError(null);
+        setModalConflict(null);
         setSending(true);
         try {
             const res = await fetch("/api/corporate/family/invite", {
@@ -99,11 +116,48 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                 fetchMembers();
             } else {
                 setModalError(data.error || "Error enviando invitación");
+                // Si el backend nos pasó info del registro existente, guardamos
+                // todo para renderizar acciones contextuales en el modal.
+                if (data.existingFamilyMemberId || data.existingPatientId) {
+                    setModalConflict({
+                        canResend: !!data.canResend,
+                        existingFamilyMemberId: data.existingFamilyMemberId,
+                        existingFamilyMemberName: data.existingFamilyMemberName,
+                        existingPatientId: data.existingPatientId,
+                        existingPatientName: data.existingPatientName,
+                    });
+                }
             }
         } catch (err) {
             setModalError("Error de conexión");
         } finally {
             setSending(false);
+        }
+    };
+
+    // Reenviar PIN desde el modal de error (caso: email duplicado en MISMO paciente).
+    // Reusa POST /family/invite en modo A (con familyMemberId).
+    const handleResendFromConflict = async () => {
+        if (!modalConflict?.existingFamilyMemberId) return;
+        setResendingFromModal(true);
+        try {
+            const res = await fetch("/api/corporate/family/invite", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ familyMemberId: modalConflict.existingFamilyMemberId }),
+            });
+            const data = await res.json();
+            if (res.ok && (data.success || data.message)) {
+                setToast({ msg: `PIN reenviado a ${form.email.trim()}`, type: "ok" });
+                setModalOpen(false);
+                fetchMembers();
+            } else {
+                setModalError(data.error || "Error reenviando PIN");
+            }
+        } catch {
+            setModalError("Error de conexión");
+        } finally {
+            setResendingFromModal(false);
         }
     };
 
@@ -397,8 +451,36 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                             </div>
 
                             {modalError && (
-                                <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-xs font-bold text-rose-700">
-                                    {modalError}
+                                <div className="bg-rose-50 border border-rose-200 rounded-lg px-3 py-2.5 text-xs font-bold text-rose-700 space-y-2">
+                                    <p className="leading-relaxed">{modalError}</p>
+
+                                    {/* Caso "mismo paciente, ya existe familiar con ese email" → reenviar PIN inline */}
+                                    {modalConflict?.canResend && modalConflict.existingFamilyMemberId && (
+                                        <button
+                                            type="button"
+                                            onClick={handleResendFromConflict}
+                                            disabled={resendingFromModal}
+                                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold transition-colors disabled:opacity-50"
+                                        >
+                                            {resendingFromModal ? (
+                                                <><Loader2 className="w-3 h-3 animate-spin" /> Reenviando…</>
+                                            ) : (
+                                                <><Send className="w-3 h-3" /> Reenviar PIN a {modalConflict.existingFamilyMemberName || 'este familiar'}</>
+                                            )}
+                                        </button>
+                                    )}
+
+                                    {/* Caso "el email pertenece a otro residente de esta sede" → link al perfil */}
+                                    {modalConflict && !modalConflict.canResend && modalConflict.existingPatientId && (
+                                        <Link
+                                            href={`/corporate/medical/patients/${modalConflict.existingPatientId}`}
+                                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-bold transition-colors no-underline"
+                                            onClick={() => setModalOpen(false)}
+                                        >
+                                            <ExternalLink className="w-3 h-3" />
+                                            Ir al perfil de {modalConflict.existingPatientName || 'ese residente'}
+                                        </Link>
+                                    )}
                                 </div>
                             )}
 

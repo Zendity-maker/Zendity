@@ -117,7 +117,10 @@ export async function POST(req: Request) {
                 include: { patient: { select: { name: true, headquartersId: true } } },
             });
             if (existing) {
-                // Caso A: pertenece a OTRO residente (mismo hogar o no)
+                // Caso A: pertenece a OTRO residente (mismo hogar o no).
+                // Enriquecemos la respuesta con existingPatientId/Name para que
+                // el frontend pueda renderizar un link "Ir al perfil de {nombre}"
+                // en lugar de solo texto que obligue al director a navegar a mano.
                 if (existing.patientId !== patientId) {
                     const sameHq = existing.patient?.headquartersId === hqId;
                     return NextResponse.json({
@@ -125,15 +128,21 @@ export async function POST(req: Request) {
                             ? `Este email ya está asociado al familiar "${existing.name}" del residente ${existing.patient?.name || 'otro'}. Usa otro email o gestiona desde la ficha de ese residente.`
                             : `Este email ya está usado por otro hogar. Usa un email distinto.`,
                         existingFamilyMemberId: sameHq ? existing.id : undefined,
+                        existingPatientId: sameHq ? existing.patientId : undefined,
+                        existingPatientName: sameHq ? (existing.patient?.name ?? null) : undefined,
+                        existingFamilyMemberName: sameHq ? existing.name : undefined,
                     }, { status: 409 });
                 }
 
-                // Caso B: es el MISMO residente, ya hay familiar con ese email
+                // Caso B: es el MISMO residente, ya hay familiar con ese email.
+                // canResend=true → el frontend ofrece botón "Reenviar PIN" que
+                // dispara POST con { familyMemberId } al mismo endpoint (modo A).
                 return NextResponse.json({
                     error: existing.isRegistered
                         ? `Ya hay un familiar registrado con ese email ("${existing.name}"). Si olvidó su PIN, usa "Reenviar invitación".`
                         : `Hay una invitación pendiente para ese email ("${existing.name}"). Usa "Reenviar invitación" para enviarle un PIN nuevo.`,
                     existingFamilyMemberId: existing.id,
+                    existingFamilyMemberName: existing.name,
                     canResend: true,
                 }, { status: 409 });
             }
