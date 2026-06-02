@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { UserPlus, Check, X, Loader2, FileDown, AlertCircle, Clock, BarChart3, History, Settings } from "lucide-react";
 import Link from "next/link";
+import { StatTile } from "@/components/ui/StatTile";
 
 interface PendingVisit {
     id: string;
@@ -156,14 +157,31 @@ export default function ExternalServicesPage() {
                     </div>
                 </div>
 
-                {/* KPI strip */}
+                {/* KPI strip — StatTile (cross-screen #2). Pendientes y Auto-publicadas
+                    pasan a warning cuando hay backlog, igual que Vencido total en billing. */}
                 {stats && (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                        <Kpi label="Pendientes" value={stats.totalPending} accent={stats.totalPending > 0 ? 'amber' : 'slate'} />
-                        <Kpi label="Publicadas mes" value={stats.totalPublished} accent="teal" />
-                        <Kpi label="Rechazadas" value={stats.totalRejected} accent="slate" />
-                        <Kpi label="Auto-publicadas" value={stats.autoPublishedCount} accent={stats.autoPublishedCount > 0 ? 'amber' : 'slate'} hint="por SLA 24h" />
-                        <Kpi label="Tasa aprob." value={stats.approvalRate !== null ? `${stats.approvalRate}%` : '—'} accent="teal" />
+                        <StatTile
+                            tone={stats.totalPending > 0 ? "warning" : "neutral"}
+                            value={stats.totalPending}
+                            label="Pendientes"
+                            className="rounded-2xl"
+                        />
+                        <StatTile tone="teal" value={stats.totalPublished} label="Publicadas mes" className="rounded-2xl" />
+                        <StatTile value={stats.totalRejected} label="Rechazadas" className="rounded-2xl" />
+                        <StatTile
+                            tone={stats.autoPublishedCount > 0 ? "warning" : "neutral"}
+                            value={stats.autoPublishedCount}
+                            label="Auto-publicadas"
+                            caption="por SLA 24h"
+                            className="rounded-2xl"
+                        />
+                        <StatTile
+                            tone="teal"
+                            value={stats.approvalRate !== null ? `${stats.approvalRate}%` : '—'}
+                            label="Tasa aprob."
+                            className="rounded-2xl"
+                        />
                     </div>
                 )}
 
@@ -310,21 +328,6 @@ export default function ExternalServicesPage() {
                     {toast.msg}
                 </div>
             )}
-        </div>
-    );
-}
-
-function Kpi({ label, value, accent, hint }: { label: string; value: number | string; accent: 'teal' | 'amber' | 'slate'; hint?: string }) {
-    const accents = {
-        teal:  'bg-teal-50 border-teal-200 text-teal-900',
-        amber: 'bg-amber-50 border-amber-200 text-amber-900',
-        slate: 'bg-white border-slate-200 text-slate-900',
-    };
-    return (
-        <div className={`rounded-2xl border p-4 ${accents[accent]}`}>
-            <p className="text-xs font-black uppercase tracking-wider opacity-70">{label}</p>
-            <p className="text-3xl font-black leading-tight mt-1">{value}</p>
-            {hint && <p className="text-[10px] opacity-60 mt-0.5">{hint}</p>}
         </div>
     );
 }
