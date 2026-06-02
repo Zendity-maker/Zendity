@@ -133,6 +133,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [intakePendingCount, setIntakePendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
     const [inboxPendingCount, setInboxPendingCount] = useState(0);
+    // Estado de alerta cuando el Schedule de la semana actual está en DRAFT.
+    // Solo se consulta para roles DIRECTOR/ADMIN/SUPERVISOR (los únicos que
+    // pueden ver/publicar). Polling cada 5 min.
+    const [scheduleDraftAlert, setScheduleDraftAlert] = useState(false);
     const workspaceSwitcherRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -268,6 +272,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchIntakePending, 60000);
         return () => clearInterval(interval);
     }, [isIntakeRole]);
+
+    // Polling alerta "Schedule semana actual en DRAFT" (DIRECTOR, ADMIN, SUPERVISOR).
+    // Defensa para evitar la trampa histórica: armar el horario, creer que
+    // se publicó, y operar toda la semana sin pauta oficial. El badge en el
+    // item de sidebar grita silenciosamente "te falta dar Publicar".
+    const isScheduleRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR'].includes(user.role);
+    useEffect(() => {
+        if (!isScheduleRole) return;
+        const fetchDraftStatus = async () => {
+            try {
+                const res = await fetch('/api/hr/schedule/draft-status');
+                const data = await res.json();
+                if (data.success) setScheduleDraftAlert(!!data.hasDraftCurrentWeek);
+            } catch {}
+        };
+        fetchDraftStatus();
+        const interval = setInterval(fetchDraftStatus, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [isScheduleRole]);
 
     // SUPER_ADMIN siempre va a /admin — no tiene contexto de sede cliente
     useEffect(() => {
@@ -560,11 +583,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                                 {intakePendingCount > 9 ? '9+' : intakePendingCount}
                                                             </span>
                                                         )}
+                                                        {/* Alerta DRAFT: el horario de la semana en curso aún no se publicó. */}
+                                                        {isSidebarCollapsed && link.href === '/hr/schedule' && scheduleDraftAlert && (
+                                                            <span className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] bg-rose-500 rounded-full border-[1.5px] border-white" title="Horario en BORRADOR" />
+                                                        )}
                                                     </span>
                                                     {!isSidebarCollapsed && <span className="truncate">{link.name}</span>}
                                                     {!isSidebarCollapsed && link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
                                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                             {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                        </span>
+                                                    )}
+                                                    {!isSidebarCollapsed && link.href === '/hr/schedule' && scheduleDraftAlert && (
+                                                        <span className="ml-auto text-[9px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md">
+                                                            BORRADOR
                                                         </span>
                                                     )}
                                                 </Link>

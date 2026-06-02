@@ -55,6 +55,10 @@
     {
       "path": "/api/cron/external-services-sla",
       "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/schedule-publish-check",
+      "schedule": "0 10 * * 1"
     }
   ]
 }

@@ -151,6 +151,29 @@ export default function SupervisorMissionControlPage() {
     const [isDispatching, setIsDispatching] = useState(false);
     const [incidentModalOpen, setIncidentModalOpen] = useState(false);
 
+    // Alerta visible si el Schedule de la semana actual está en DRAFT.
+    // Causa raíz histórica: el director arma el horario, ve advertencias menores
+    // en el modal de publicación, cancela creyendo que es un error, y el equipo
+    // opera toda la semana sin pauta oficial. El banner grita en el wall donde
+    // más duele el problema.
+    const [scheduleDraftAlert, setScheduleDraftAlert] = useState<null | { scheduleId: string; shiftCount: number; weekStartDate: string }>(null);
+    useEffect(() => {
+        const fetchDraftStatus = async () => {
+            try {
+                const res = await fetch('/api/hr/schedule/draft-status');
+                const data = await res.json();
+                if (data.success && data.hasDraftCurrentWeek) {
+                    setScheduleDraftAlert({ scheduleId: data.scheduleId, shiftCount: data.shiftCount, weekStartDate: data.weekStartDate });
+                } else {
+                    setScheduleDraftAlert(null);
+                }
+            } catch {}
+        };
+        fetchDraftStatus();
+        const interval = setInterval(fetchDraftStatus, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Handover sign drawer — firma rápida inline sin navegar a /care/reports/[id].
     // Reduce la fricción para Celia/director que debe firmar 5-12 handovers diarios.
     const [handoverToSign, setHandoverToSign] = useState<HandoverSummary | null>(null);
@@ -1032,6 +1055,32 @@ export default function SupervisorMissionControlPage() {
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+
+                {/* Alerta DRAFT: el Schedule de la semana actual no está publicado.
+                    El equipo opera sin pauta oficial — wall no asocia cuidadoras a su
+                    color, cobertura no se distribuye, ausencias no penalizan, etc.
+                    Banner prominente con CTA directo al builder. */}
+                {scheduleDraftAlert && (
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-[2rem] p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <AlertTriangle className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-black text-amber-900 text-base leading-tight">
+                                Horario de esta semana en BORRADOR — {scheduleDraftAlert.shiftCount} turnos sin publicar
+                            </p>
+                            <p className="text-xs text-amber-800 font-medium mt-0.5">
+                                El equipo está operando sin pauta oficial. El wall no asocia cuidadoras a su color, la cobertura por ausencia no se distribuye, y el motor de penalidades está pausado. Publicar toma 5 segundos.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => router.push('/hr/schedule')}
+                            className="shrink-0 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm uppercase tracking-widest rounded-xl transition-all active:scale-95 shadow-sm"
+                        >
+                            Ir a publicar →
+                        </button>
                     </div>
                 )}
 

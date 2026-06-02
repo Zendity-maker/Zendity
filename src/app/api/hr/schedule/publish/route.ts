@@ -58,23 +58,24 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
 
     // REGLA 2 — colorGroup null según rol
     //   ERROR CRÍTICO  → CAREGIVER / NURSE: deben tener color siempre
-    //   ADVERTENCIA    → SUPERVISOR: puede iniciar sin color (lo selecciona en tablet)
+    //   SIN VALIDACIÓN → SUPERVISOR: por DISEÑO operacional no tienen color
+    //                    asignado en el horario. Cuando cubren un grupo
+    //                    (cuidadora ausente), eligen el color en la tablet
+    //                    con "cambiar grupo". El aviso histórico se removió
+    //                    el 2-jun-2026: aparecía cada semana, hacía que el
+    //                    director cancelara el publish creyendo que era un
+    //                    error, y dejaba el schedule en DRAFT.
     //   SIN VALIDACIÓN → CLEANING, ADMIN, DIRECTOR, INVESTOR
     for (const s of workShifts) {
         const role = s.user?.role ?? '';
-        if (s.colorGroup) continue;                         // tiene color → ok
-        if (NO_COLOR_ROLES.includes(role)) continue;        // roles exentos → ignorar
+        if (s.colorGroup) continue;                          // tiene color → ok
+        if (NO_COLOR_ROLES.includes(role)) continue;         // roles exentos → ignorar
+        if (SUPERVISOR_ROLES.includes(role)) continue;       // supervisor sin color → normal
 
         if (CARE_ROLES.includes(role)) {
             errors.push({
                 type: 'NULL_COLOR_CAREGIVER',
                 message: `${s.user?.name ?? 'Empleado'} no tiene color de grupo asignado el ${new Date(s.date).toLocaleDateString('es-PR')}. Los cuidadores y enfermeras deben tener un color.`,
-                shift: { id: s.id, name: s.user?.name, date: s.date, role },
-            });
-        } else if (SUPERVISOR_ROLES.includes(role)) {
-            warnings.push({
-                type: 'NULL_COLOR_SUPERVISOR',
-                message: `${s.user?.name ?? 'Supervisor'} (Supervisor) no tiene color asignado el ${new Date(s.date).toLocaleDateString('es-PR')}. Si cubre a un cuidador deberá seleccionar su color al iniciar turno en el tablet.`,
                 shift: { id: s.id, name: s.user?.name, date: s.date, role },
             });
         }
