@@ -204,13 +204,15 @@ export default function FamilyBillingPage() {
                                                     {inv.invoiceNumber} · Pagada {inv.paidAt ? humanTime(inv.paidAt) : "previamente"}
                                                 </p>
                                             </div>
-                                            <span
-                                                title="Disponible próximamente"
-                                                className="text-slate-300 p-2 cursor-not-allowed"
-                                                aria-disabled="true"
+                                            <a
+                                                href={`/api/family/billing/${inv.id}/receipt-pdf`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title="Descargar recibo PDF"
+                                                className="text-brand hover:text-brand/80 hover:bg-brand/5 p-2 rounded-lg transition-colors"
                                             >
                                                 <Download className="w-4 h-4" strokeWidth={1.5} />
-                                            </span>
+                                            </a>
                                         </div>
                                     ))}
                                 </div>

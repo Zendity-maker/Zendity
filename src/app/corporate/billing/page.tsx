@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil } from "lucide-react";
+import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil, Calendar, Download, Sparkles } from "lucide-react";
 
 type Patient = {
     id: string;
@@ -68,6 +68,14 @@ export default function BillingDashboard() {
     const [payAmount, setPayAmount] = useState("");
     const [isPaySubmitting, setIsPaySubmitting] = useState(false);
 
+    // Stats del mes (alimentan el KPI strip) + acción "Generar mes" + Export PDF
+    const [stats, setStats] = useState<{
+        totalFacturadoMes: number; cobradoMes: number; pendienteMes: number;
+        vencidoTotal: number; countPending: number; countPaid: number; countOverdue: number;
+        tasaCobranza: number | null;
+    } | null>(null);
+    const [generatingMonth, setGeneratingMonth] = useState(false);
+
     // New Invoice Form State
     const [selectedPatientId, setSelectedPatientId] = useState("");
     const [dueDate, setDueDate] = useState("");
@@ -87,19 +95,56 @@ export default function BillingDashboard() {
     const fetchData = async () => {
         try {
             const timestamp = new Date().getTime();
-            const res = await fetch(`/api/corporate/billing?t=${timestamp}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } });
-            if (res.ok) {
-                const data = await res.json();
+            const [resBill, resStats] = await Promise.all([
+                fetch(`/api/corporate/billing?t=${timestamp}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } }),
+                fetch('/api/corporate/billing/stats', { cache: 'no-store' }),
+            ]);
+            if (resBill.ok) {
+                const data = await resBill.json();
                 setInvoices(data.invoices || []);
                 setPatients(data.patients || []);
                 setTotalPending(data.totalPending || 0);
                 setTotalPaid(data.totalPaid || 0);
+            }
+            if (resStats.ok) {
+                const s = await resStats.json();
+                if (s.success) setStats(s);
             }
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
         }
+    };
+
+    // Botón "Generar facturas del mes": dispara /api/corporate/billing/generate-month.
+    // Idempotente — los residentes que ya tienen factura del mes se skipean.
+    // Útil si el cron del día 1 falló o hay residentes nuevos del mes en curso.
+    const handleGenerateMonth = async () => {
+        if (!confirm('¿Generar facturas del mes en curso? Los residentes que ya tengan factura del mes se saltarán automáticamente.')) return;
+        setGeneratingMonth(true);
+        try {
+            const res = await fetch('/api/corporate/billing/generate-month', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`✓ ${data.message}`);
+                fetchData();
+            } else {
+                alert('Error: ' + (data.error || 'desconocido'));
+            }
+        } catch (e) {
+            alert('Error de conexión');
+        } finally {
+            setGeneratingMonth(false);
+        }
+    };
+
+    const handleExportMonth = () => {
+        window.open('/api/corporate/billing/export-pdf', '_blank');
     };
 
     const handleAddItem = () => {
@@ -253,38 +298,59 @@ export default function BillingDashboard() {
                     </h1>
                     <p className="text-slate-500 mt-2">Control de ingresos, emisión de recibos y conciliación.</p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
-                >
-                    <Plus className="w-5 h-5" />
-                    Emitir Recibo
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={handleGenerateMonth}
+                        disabled={generatingMonth}
+                        className="bg-white hover:bg-slate-50 border-2 border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                        title="Genera facturas para todos los residentes activos del mes en curso. Idempotente."
+                    >
+                        {generatingMonth ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        Generar mes
+                    </button>
+                    <button
+                        onClick={handleExportMonth}
+                        className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95"
+                    >
+                        <Download className="w-4 h-4" />
+                        Exportar PDF mes
+                    </button>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all active:scale-95"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Emitir factura
+                    </button>
+                </div>
             </div>
 
-            {/* Widgets Financieros */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Pagos Pendientes</p>
-                        <h2 className="text-4xl font-black text-rose-600">
-                            ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </h2>
-                    </div>
-                    <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500">
-                        <Clock className="w-8 h-8" />
-                    </div>
+            {/* KPI strip — mes en curso + balance vencido global */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-white rounded-xl p-4 border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Facturado mes</p>
+                    <p className="text-2xl font-black text-slate-900 mt-1">${(stats?.totalFacturadoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{(stats?.countPending ?? 0) + (stats?.countPaid ?? 0) + (stats?.countOverdue ?? 0)} facturas</p>
                 </div>
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Ingresos Cobrados</p>
-                        <h2 className="text-4xl font-black text-emerald-600">
-                            ${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </h2>
-                    </div>
-                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500">
-                        <CheckCircle className="w-8 h-8" />
-                    </div>
+                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Cobrado</p>
+                    <p className="text-2xl font-black text-emerald-700 mt-1">${(stats?.cobradoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-[10px] text-emerald-600 mt-0.5">{stats?.countPaid ?? 0} pagadas</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Pendiente</p>
+                    <p className="text-2xl font-black text-amber-700 mt-1">${(stats?.pendienteMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-[10px] text-amber-600 mt-0.5">{stats?.countPending ?? 0} por cobrar</p>
+                </div>
+                <div className={`rounded-xl p-4 border ${(stats?.vencidoTotal ?? 0) > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-700' : 'text-slate-500'}`}>Vencido total</p>
+                    <p className={`text-2xl font-black mt-1 ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-700' : 'text-slate-700'}`}>${(stats?.vencidoTotal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <p className={`text-[10px] mt-0.5 ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400'}`}>{stats?.countOverdue ?? 0} vencidas</p>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cobranza</p>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{stats?.tasaCobranza !== null && stats?.tasaCobranza !== undefined ? `${stats.tasaCobranza}%` : '—'}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">cobrado / facturado</p>
                 </div>
             </div>
 
