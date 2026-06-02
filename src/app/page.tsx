@@ -12,6 +12,7 @@ import {
   ArrowRight, Activity, Users, Building, X, AlertOctagon, BarChart3, MapPin,
   Droplets, Utensils, Pill, UserCheck, HeartPulse, AlertTriangle, ShieldAlert, Sparkles, Clock
 } from 'lucide-react';
+import { MetricCard } from "@/components/ui/MetricCard";
 
 interface LeaderboardItem {
   name: string;
@@ -507,38 +508,26 @@ export default function InsightsDashboard() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><UserCheck className="w-3.5 h-3.5" /></div>
-                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Cuidadores</p>
-              </div>
-              <p className="text-3xl font-black text-slate-800">{liveStats.activeCaregivers}</p>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">En piso ahora</p>
-            </div>
-            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Droplets className="w-3.5 h-3.5" /></div>
-                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Baños</p>
-              </div>
-              <p className="text-3xl font-black text-slate-800">{liveStats.baths}</p>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Completados hoy</p>
-            </div>
-            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Utensils className="w-3.5 h-3.5" /></div>
-                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Comidas</p>
-              </div>
-              <p className="text-3xl font-black text-slate-800">{liveStats.mealsServed}</p>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Servidas hoy</p>
-            </div>
-            <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="p-1.5 bg-teal-100 text-teal-700 rounded-md"><Pill className="w-3.5 h-3.5" /></div>
-                <p className="text-[10px] font-black text-teal-700 uppercase tracking-widest">Meds</p>
-              </div>
-              <p className="text-3xl font-black text-slate-800">{liveStats.pendingMeds}</p>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Activos en eMAR</p>
-            </div>
+            <MetricCard
+              surface="soft" tone="teal" valueTone="neutral"
+              icon={<UserCheck className="w-3.5 h-3.5" />}
+              value={liveStats.activeCaregivers} label="Cuidadores" caption="En piso ahora"
+            />
+            <MetricCard
+              surface="soft" tone="teal" valueTone="neutral"
+              icon={<Droplets className="w-3.5 h-3.5" />}
+              value={liveStats.baths} label="Baños" caption="Completados hoy"
+            />
+            <MetricCard
+              surface="soft" tone="teal" valueTone="neutral"
+              icon={<Utensils className="w-3.5 h-3.5" />}
+              value={liveStats.mealsServed} label="Comidas" caption="Servidas hoy"
+            />
+            <MetricCard
+              surface="soft" tone="teal" valueTone="neutral"
+              icon={<Pill className="w-3.5 h-3.5" />}
+              value={liveStats.pendingMeds} label="Meds" caption="Activos en eMAR"
+            />
           </div>
         </div>
 
@@ -561,23 +550,16 @@ export default function InsightsDashboard() {
             ].map((a, i) => {
               const isAlert = a.count > 0;
               return (
-                <Link
+                <MetricCard
                   key={i}
+                  surface="soft"
+                  tone={isAlert ? "danger" : "success"}
+                  icon={a.icon}
+                  value={a.count}
+                  label={a.label}
+                  caption={isAlert ? "Requiere revisión" : "Sin alertas"}
                   href={a.href}
-                  className={`group rounded-xl p-4 border transition-all hover:shadow-sm ${isAlert ? 'bg-rose-50/60 border-rose-200 hover:border-rose-300' : 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-300'}`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`p-1.5 rounded-md ${isAlert ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                      {a.icon}
-                    </div>
-                    <p className={`text-[10px] font-black uppercase tracking-widest ${isAlert ? 'text-rose-700' : 'text-emerald-700'}`}>{a.label}</p>
-                  </div>
-                  <p className={`text-3xl font-black ${isAlert ? 'text-rose-700' : 'text-emerald-700'}`}>{a.count}</p>
-                  <p className={`text-[10px] font-semibold mt-0.5 flex items-center gap-1 ${isAlert ? 'text-rose-500' : 'text-emerald-600'}`}>
-                    {isAlert ? 'Requiere revisión' : 'Sin alertas'}
-                    <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </p>
-                </Link>
+                />
               );
             })}
           </div>
@@ -595,26 +577,10 @@ export default function InsightsDashboard() {
               <p className="text-xs text-slate-500 font-medium mt-0.5">Censo actual de la sede</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4">
-                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest mb-1">Activos</p>
-                <p className="text-3xl font-black text-indigo-700">{residentStats.active}</p>
-                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">En residencia</p>
-              </div>
-              <div className="bg-amber-50/60 border border-amber-100 rounded-xl p-4">
-                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Hospital</p>
-                <p className="text-3xl font-black text-amber-700">{residentStats.hospital}</p>
-                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Traslado temporal</p>
-              </div>
-              <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-4">
-                <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1">Licencia</p>
-                <p className="text-3xl font-black text-blue-700">{residentStats.leave}</p>
-                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Permiso familiar</p>
-              </div>
-              <div className="bg-rose-50/60 border border-rose-100 rounded-xl p-4">
-                <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest mb-1">Downton Risk</p>
-                <p className="text-3xl font-black text-rose-700">{residentStats.downtonRisk}</p>
-                <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Alto riesgo caída</p>
-              </div>
+              <MetricCard surface="soft" tone="indigo"  value={residentStats.active}      label="Activos"       caption="En residencia" />
+              <MetricCard surface="soft" tone="warning" value={residentStats.hospital}    label="Hospital"      caption="Traslado temporal" />
+              <MetricCard surface="soft" tone="info"    value={residentStats.leave}       label="Licencia"      caption="Permiso familiar" />
+              <MetricCard surface="soft" tone="danger"  value={residentStats.downtonRisk} label="Downton Risk"  caption="Alto riesgo caída" />
             </div>
           </div>
 

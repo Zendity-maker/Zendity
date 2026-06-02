@@ -7,6 +7,7 @@ import {
     Loader2, Users, CheckCircle2, AlertTriangle, Clock,
     Sparkles, Heart, Stethoscope, FileText, ArrowRight
 } from "lucide-react";
+import { MetricCard } from "@/components/ui/MetricCard";
 
 const PRIORITY_STYLES: Record<string, string> = {
     LOW: "bg-slate-100 text-slate-600", NORMAL: "bg-blue-100 text-blue-700",
@@ -87,25 +88,37 @@ export default function CorporateSocialDashboard() {
                 </div>
             </div>
 
-            {/* KPIs */}
+            {/* KPIs — MetricCard idioma overview (surface neutral, icon inline, value tintado).
+                Tareas Pendientes y Beneficios por Vencer son condicionales (al call site). */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2"><Users className="w-4 h-4 text-slate-500" /><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Residentes Activos</p></div>
-                    <p className="text-3xl font-black text-slate-800">{stats.totalActiveResidents}</p>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2"><AlertTriangle className="w-4 h-4 text-rose-500" /><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Tareas Pendientes</p></div>
-                    <p className={`text-3xl font-black ${stats.totalPendingTasks > 0 ? "text-rose-600" : "text-slate-800"}`}>{stats.totalPendingTasks}</p>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2"><Clock className="w-4 h-4 text-amber-500" /><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Beneficios por Vencer</p></div>
-                    <p className={`text-3xl font-black ${stats.benefitsExpiringSoon > 0 ? "text-amber-600" : "text-slate-800"}`}>{stats.benefitsExpiringSoon}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">proximos 60 dias</p>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" /><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Completadas (7d)</p></div>
-                    <p className="text-3xl font-black text-emerald-600">{stats.tasksCompletedThisWeek}</p>
-                </div>
+                <MetricCard
+                    icon={<Users className="w-4 h-4" />}
+                    value={stats.totalActiveResidents}
+                    label="Residentes Activos"
+                    className="rounded-2xl p-5 shadow-sm"
+                />
+                <MetricCard
+                    tone={stats.totalPendingTasks > 0 ? "danger" : "neutral"}
+                    icon={<AlertTriangle className="w-4 h-4" />}
+                    value={stats.totalPendingTasks}
+                    label="Tareas Pendientes"
+                    className="rounded-2xl p-5 shadow-sm"
+                />
+                <MetricCard
+                    tone={stats.benefitsExpiringSoon > 0 ? "warning" : "neutral"}
+                    icon={<Clock className="w-4 h-4" />}
+                    value={stats.benefitsExpiringSoon}
+                    label="Beneficios por Vencer"
+                    caption="proximos 60 dias"
+                    className="rounded-2xl p-5 shadow-sm"
+                />
+                <MetricCard
+                    tone="success"
+                    icon={<CheckCircle2 className="w-4 h-4" />}
+                    value={stats.tasksCompletedThisWeek}
+                    label="Completadas (7d)"
+                    className="rounded-2xl p-5 shadow-sm"
+                />
             </div>
 
             {/* Pending Tasks */}
