@@ -54,7 +54,7 @@ ESTILO:
         const categoryMap: Record<string, string> = {
             PUNCTUALITY: 'Puntualidad',
             PATIENT_CARE: 'Cuidado del residente',
-            HYGIENE: 'Higiene',
+            HYGIENE: 'Desempeño',
             BEHAVIOR: 'Conducta',
             DOCUMENTATION: 'Documentación',
             UNIFORM: 'Uniforme',

@@ -26,7 +26,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 const CATEGORY_LABELS: Record<string, string> = {
     PUNCTUALITY: 'Puntualidad',
     PATIENT_CARE: 'Cuidado del Residente',
-    HYGIENE: 'Higiene',
+    HYGIENE: 'Desempeño',
     BEHAVIOR: 'Conducta',
     DOCUMENTATION: 'Documentación',
     UNIFORM: 'Uniforme',

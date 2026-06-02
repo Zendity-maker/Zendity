@@ -36,7 +36,7 @@ function categoryLabel(cat: string): string {
     const map: Record<string, string> = {
         PUNCTUALITY: 'Puntualidad',
         PATIENT_CARE: 'Cuidado del Residente',
-        HYGIENE: 'Higiene',
+        HYGIENE: 'Desempeño',
         BEHAVIOR: 'Conducta',
         DOCUMENTATION: 'Documentación',
         UNIFORM: 'Uniforme',

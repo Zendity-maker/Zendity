@@ -27,7 +27,7 @@ const SEVERITY_STYLES: Record<Severity, { label: string; bg: string; text: strin
 const CATEGORY_LABELS: Record<string, string> = {
     PUNCTUALITY: 'Puntualidad',
     PATIENT_CARE: 'Cuidado del Residente',
-    HYGIENE: 'Higiene',
+    HYGIENE: 'Desempeño',
     BEHAVIOR: 'Conducta',
     DOCUMENTATION: 'Documentación',
     UNIFORM: 'Uniforme',
