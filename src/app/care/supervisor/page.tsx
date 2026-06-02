@@ -32,6 +32,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HeroCard } from "@/components/ui/HeroCard";
+import { StatTile } from "@/components/ui/StatTile";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
@@ -773,36 +774,36 @@ export default function SupervisorMissionControlPage() {
                         </div>
                     </HeroCard>
 
-                    {/* KPIs */}
+                    {/* KPIs — 4 StatTiles. Incidentes pasa a tone="danger" cuando hay > 0,
+                        manteniendo el comportamiento original (pulse + tinte rose). */}
                     <div className="lg:col-span-7 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                            <Users className="w-8 h-8 text-teal-600 mb-3" />
-                            <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.activeCaregivers : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-1">
-                                En Piso <InfoTooltip text="Cuidadores con sesión activa en este momento." />
-                            </p>
-                        </div>
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                            <Droplets className="w-8 h-8 text-slate-500 mb-3" />
-                            <p className="text-4xl font-black text-slate-800 leading-none">{liveData ? liveData.liveStats.baths : "-"}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Baños</p>
-                        </div>
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                            <Coffee className="w-8 h-8 text-slate-500 mb-3" />
-                            <p className="text-4xl font-black text-slate-800 leading-none">
-                                {liveData ? Object.values(liveData.liveStats.meals).reduce((a: any, b: any) => a + b, 0) : "-"}
-                            </p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Dietas</p>
-                        </div>
-                        <div className={`rounded-[2rem] p-6 shadow-sm border flex flex-col items-center justify-center text-center ${liveData && liveData.liveStats.incidents > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
-                            <Siren className={`w-8 h-8 mb-3 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-500'}`} />
-                            <p className={`text-4xl font-black leading-none ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-700' : 'text-slate-800'}`}>
-                                {liveData ? liveData.liveStats.incidents : "-"}
-                            </p>
-                            <p className={`text-[10px] font-bold uppercase tracking-widest mt-2 ${liveData && liveData.liveStats.incidents > 0 ? 'text-rose-600' : 'text-slate-500'}`}>
-                                Incidentes
-                            </p>
-                        </div>
+                        <StatTile
+                            tone="teal"
+                            icon={<Users className="w-8 h-8" />}
+                            value={liveData ? liveData.activeCaregivers : "—"}
+                            label="En Piso"
+                            helper={<InfoTooltip text="Cuidadores con sesión activa en este momento." />}
+                            className="rounded-[2rem] p-6"
+                        />
+                        <StatTile
+                            icon={<Droplets className="w-8 h-8" />}
+                            value={liveData ? liveData.liveStats.baths : "—"}
+                            label="Baños"
+                            className="rounded-[2rem] p-6"
+                        />
+                        <StatTile
+                            icon={<Coffee className="w-8 h-8" />}
+                            value={liveData ? Object.values(liveData.liveStats.meals).reduce((a: any, b: any) => a + b, 0) : "—"}
+                            label="Dietas"
+                            className="rounded-[2rem] p-6"
+                        />
+                        <StatTile
+                            tone={liveData && liveData.liveStats.incidents > 0 ? "danger" : "neutral"}
+                            icon={<Siren className="w-8 h-8" />}
+                            value={liveData ? liveData.liveStats.incidents : "—"}
+                            label="Incidentes"
+                            className="rounded-[2rem] p-6"
+                        />
                     </div>
                 </div>
 
@@ -1523,26 +1524,13 @@ export default function SupervisorMissionControlPage() {
                                 <InfoTooltip text="Ventana automática de 4 horas al inicio del turno. Cada cuidador debe tomar vitales a sus residentes asignados. Penalidad -2 pts por ventana expirada sin vitales." />
                             </h3>
                         </div>
-                        {/* Mini-stats: 4 cuadritos. Compuestos inline con Card compact + tono semántico.
-                            NO se introduce un StatTile en este sprint — si aparece un tercer consumidor de este patrón,
-                            entonces sí vale la pena la primitiva. */}
+                        {/* Mini-stats: 4 StatTiles compactos. El patrón "valor + label tematizado"
+                            ahora consume la primitiva — antes era Card compact + texto inline. */}
                         <div className="grid grid-cols-4 gap-2 mb-4">
-                            <Card variant="flat" padding="compact" className="rounded-xl border-slate-100 bg-slate-50 text-center">
-                                <p className="text-xl font-black text-slate-800 leading-none">{vitalsTotals.total}</p>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Total</p>
-                            </Card>
-                            <Card variant="flat" padding="compact" className="rounded-xl border-amber-200 bg-amber-50 text-center">
-                                <p className="text-xl font-black text-amber-700 leading-none">{vitalsTotals.pending}</p>
-                                <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mt-1">Pendientes</p>
-                            </Card>
-                            <Card variant="flat" padding="compact" className="rounded-xl border-emerald-200 bg-emerald-50 text-center">
-                                <p className="text-xl font-black text-emerald-700 leading-none">{vitalsTotals.completed}</p>
-                                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Tomados</p>
-                            </Card>
-                            <Card variant="flat" padding="compact" className="rounded-xl border-rose-200 bg-rose-50 text-center">
-                                <p className="text-xl font-black text-rose-700 leading-none">{vitalsTotals.expired}</p>
-                                <p className="text-[9px] font-bold text-rose-600 uppercase tracking-widest mt-1">Vencidos</p>
-                            </Card>
+                            <StatTile value={vitalsTotals.total} label="Total" className="rounded-xl" />
+                            <StatTile tone="warning" value={vitalsTotals.pending} label="Pendientes" className="rounded-xl" />
+                            <StatTile tone="success" value={vitalsTotals.completed} label="Tomados" className="rounded-xl" />
+                            <StatTile tone="danger" value={vitalsTotals.expired} label="Vencidos" className="rounded-xl" />
                         </div>
                         {vitalsByCaregiver.length === 0 ? (
                             <div className="p-6 text-center bg-slate-50 border border-slate-100 rounded-[1.5rem]">
