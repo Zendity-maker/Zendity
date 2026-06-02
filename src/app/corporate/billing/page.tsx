@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil, Calendar, Download, Sparkles } from "lucide-react";
+import { StatTile } from "@/components/ui/StatTile";
 
 type Patient = {
     id: string;
@@ -325,33 +326,43 @@ export default function BillingDashboard() {
                 </div>
             </div>
 
-            {/* KPI strip — mes en curso + balance vencido global */}
+            {/* KPI strip — mes en curso + balance vencido global. Primera migración cross-screen
+                de StatTile (antes vivía solo en supervisor). Vencido total pasa a tone='danger'
+                cuando hay deuda viva — preserva el comportamiento original. */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="bg-white rounded-xl p-4 border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Facturado mes</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">${(stats?.totalFacturadoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{(stats?.countPending ?? 0) + (stats?.countPaid ?? 0) + (stats?.countOverdue ?? 0)} facturas</p>
-                </div>
-                <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
-                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Cobrado</p>
-                    <p className="text-2xl font-black text-emerald-700 mt-1">${(stats?.cobradoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-[10px] text-emerald-600 mt-0.5">{stats?.countPaid ?? 0} pagadas</p>
-                </div>
-                <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Pendiente</p>
-                    <p className="text-2xl font-black text-amber-700 mt-1">${(stats?.pendienteMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    <p className="text-[10px] text-amber-600 mt-0.5">{stats?.countPending ?? 0} por cobrar</p>
-                </div>
-                <div className={`rounded-xl p-4 border ${(stats?.vencidoTotal ?? 0) > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-slate-200'}`}>
-                    <p className={`text-[10px] font-black uppercase tracking-widest ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-700' : 'text-slate-500'}`}>Vencido total</p>
-                    <p className={`text-2xl font-black mt-1 ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-700' : 'text-slate-700'}`}>${(stats?.vencidoTotal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    <p className={`text-[10px] mt-0.5 ${(stats?.vencidoTotal ?? 0) > 0 ? 'text-rose-600' : 'text-slate-400'}`}>{stats?.countOverdue ?? 0} vencidas</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cobranza</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">{stats?.tasaCobranza !== null && stats?.tasaCobranza !== undefined ? `${stats.tasaCobranza}%` : '—'}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">cobrado / facturado</p>
-                </div>
+                <StatTile
+                    value={`$${(stats?.totalFacturadoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    label="Facturado mes"
+                    caption={`${(stats?.countPending ?? 0) + (stats?.countPaid ?? 0) + (stats?.countOverdue ?? 0)} facturas`}
+                    className="rounded-xl"
+                />
+                <StatTile
+                    tone="success"
+                    value={`$${(stats?.cobradoMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    label="Cobrado"
+                    caption={`${stats?.countPaid ?? 0} pagadas`}
+                    className="rounded-xl"
+                />
+                <StatTile
+                    tone="warning"
+                    value={`$${(stats?.pendienteMes ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    label="Pendiente"
+                    caption={`${stats?.countPending ?? 0} por cobrar`}
+                    className="rounded-xl"
+                />
+                <StatTile
+                    tone={(stats?.vencidoTotal ?? 0) > 0 ? "danger" : "neutral"}
+                    value={`$${(stats?.vencidoTotal ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                    label="Vencido total"
+                    caption={`${stats?.countOverdue ?? 0} vencidas`}
+                    className="rounded-xl"
+                />
+                <StatTile
+                    value={stats?.tasaCobranza !== null && stats?.tasaCobranza !== undefined ? `${stats.tasaCobranza}%` : '—'}
+                    label="Cobranza"
+                    caption="cobrado / facturado"
+                    className="rounded-xl"
+                />
             </div>
 
             {/* Tabla de Facturas */}

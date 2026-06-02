@@ -30,6 +30,8 @@ export interface StatTileProps {
     icon?: React.ReactNode;
     /** Slot opcional a la derecha del label (ej. InfoTooltip). */
     helper?: React.ReactNode;
+    /** Texto auxiliar debajo del label. Tinte por tono. Ej: "8 facturas", "cobrado / facturado". */
+    caption?: React.ReactNode;
     className?: string;
 }
 
@@ -38,6 +40,7 @@ interface ToneSpec {
     icon: string;
     value: string;
     label: string;
+    caption: string;
     pulse?: boolean;
 }
 
@@ -47,35 +50,40 @@ const tones: Record<StatTileTone, ToneSpec> = {
         icon: "text-slate-500",
         value: "text-slate-800",
         label: "text-slate-500",
+        caption: "text-slate-400",
     },
     teal: {
         surface: "bg-teal-50 border-teal-200",
         icon: "text-teal-600",
         value: "text-teal-700",
         label: "text-teal-600",
+        caption: "text-teal-600",
     },
     success: {
         surface: "bg-emerald-50 border-emerald-200",
         icon: "text-emerald-600",
         value: "text-emerald-700",
         label: "text-emerald-600",
+        caption: "text-emerald-600",
     },
     warning: {
         surface: "bg-amber-50 border-amber-200",
         icon: "text-amber-600",
         value: "text-amber-700",
         label: "text-amber-600",
+        caption: "text-amber-600",
     },
     danger: {
         surface: "bg-rose-50 border-rose-300",
         icon: "text-rose-600",
         value: "text-rose-700",
         label: "text-rose-600",
+        caption: "text-rose-600",
         pulse: true,
     },
 };
 
-export function StatTile({ value, label, tone = "neutral", icon, helper, className }: StatTileProps) {
+export function StatTile({ value, label, tone = "neutral", icon, helper, caption, className }: StatTileProps) {
     const t = tones[tone];
     return (
         <Card
@@ -101,6 +109,9 @@ export function StatTile({ value, label, tone = "neutral", icon, helper, classNa
                 </span>
                 {helper}
             </div>
+            {caption && (
+                <p className={cn("text-[10px] mt-1 leading-tight", t.caption)}>{caption}</p>
+            )}
         </Card>
     );
 }
