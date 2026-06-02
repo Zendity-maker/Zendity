@@ -145,12 +145,18 @@ export async function GET(req: Request) {
         // FIX solitario: si el color resuelto NO es null y NO es 'ALL',
         // contar cuántos ShiftSessions abiertos hay hoy en la sede.
         // Si hay ≤ 1 sesión activa, el cuidador es único → ve todos los residentes.
+        //
+        // 2-jun-2026: añadido filtro por rol clínico (CAREGIVER/NURSE) para
+        // consistencia con `/api/care/route.ts` (mismo cálculo de isSolo). Antes
+        // contaba KITCHEN/MAINTENANCE/SUPERVISOR como "cuidadores activos" — eso
+        // podría haber falseado el conteo en cualquier dirección.
         if (resolvedColor && resolvedColor !== 'ALL') {
             const activeSessions = await prisma.shiftSession.count({
                 where: {
                     headquartersId: hqId,
                     actualEndTime: null,
-                    startTime: { gte: todayStartAST() }
+                    startTime: { gte: todayStartAST() },
+                    caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
                 }
             });
 

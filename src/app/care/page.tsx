@@ -601,7 +601,16 @@ export default function ZendityCareTabletPage() {
                             const effective = colorData.color;
                             if (colorData.shiftNotes) setShiftNotes(colorData.shiftNotes);
                             setSelectedColor(effective);
-                            localStorage.setItem('zendityCareShiftColor', effective);
+                            // 2-jun-2026: NO persistir 'ALL' a localStorage. El 'ALL' es un
+                            // estado transitorio (cuidadora sola temporalmente). Si se
+                            // cachea, sobrevive entre sesiones y termina mostrando todos
+                            // los residentes a cuidadoras que ya tienen color asignado.
+                            // Solo cacheamos colores reales (RED/YELLOW/BLUE/GREEN).
+                            if (effective && effective !== 'ALL') {
+                                localStorage.setItem('zendityCareShiftColor', effective);
+                            } else {
+                                localStorage.removeItem('zendityCareShiftColor');
+                            }
                             const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
                             const patientData = await patientRes.json();
                             if (patientData.success) {
@@ -898,6 +907,43 @@ export default function ZendityCareTabletPage() {
             setAiSuggestion(null);
         }
     }, [vitals.temp, vitals.sys, vitals.spo2, modalType]);
+
+    // 2-jun-2026 — Re-poll de my-color para corregir 'ALL' stale.
+    //
+    // Bug observado: la cuidadora que clockea-in PRIMERO entra como única
+    // activa (count=1) → my-color devuelve 'ALL' → tablet muestra los 31
+    // residentes. Cuando la segunda cuidadora clockea-in unos minutos después,
+    // my-color YA devolvería su color real, pero la tablet de la primera
+    // nunca re-pollea: queda en 'ALL' el resto del día.
+    //
+    // Fix: cada 2 min re-llamar my-color. Si el color real difiere del
+    // selectedColor actual, actualizar estado + cache + recargar pacientes.
+    useEffect(() => {
+        if (!activeSession || !user) return;
+        const hq = user?.hqId || user?.headquartersId || "";
+        if (!hq) return;
+        const interval = setInterval(async () => {
+            try {
+                const colorRes = await fetch(`/api/hr/schedule/my-color?userId=${user.id}&hqId=${hq}`);
+                const colorData = await colorRes.json();
+                if (!colorData.success || !colorData.color) return;
+                const fresh = colorData.color;
+                // Solo actualizar si cambió Y es un downgrade real (de ALL a color
+                // específico) o un cambio entre colores reales. NO sobrescribir
+                // si la cuidadora eligió manualmente un color via CoveragePicker.
+                if (fresh !== selectedColor) {
+                    setSelectedColor(fresh);
+                    if (fresh !== 'ALL') {
+                        localStorage.setItem('zendityCareShiftColor', fresh);
+                    } else {
+                        localStorage.removeItem('zendityCareShiftColor');
+                    }
+                    refreshPatientsSilently(fresh);
+                }
+            } catch (_e) { /* re-poll best-effort */ }
+        }, 2 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [activeSession, user, selectedColor]);
 
     // FASE 30: Zendi Time-Based Operational Notifier
     useEffect(() => {
