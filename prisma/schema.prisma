@@ -2272,6 +2272,60 @@ model SystemAuditLog {
 }
 
 // =======================
+// HIPAA — PHI ACCESS LOG (Fase A · Pilar 1)
+// =======================
+// Trail tamper-evident de TODO acceso a PHI: lecturas (requisito 2026),
+// escrituras, exports, eventos de auth y disclosures a vendors.
+// Diseño append-only: columnas planas indexadas, SIN relaciones FK a
+// propósito — el log debe sobrevivir 6 años aunque el User/Patient/HQ
+// referenciado se borre. La inmutabilidad se refuerza a nivel DB
+// (revoke UPDATE/DELETE al rol de aplicación) en un paso aparte.
+
+enum PhiAccessAction {
+  READ
+  WRITE
+  DELETE
+  EXPORT
+  LOGIN
+  LOGOUT
+  FAILED_AUTH
+  MFA_CHALLENGE
+  PERMISSION_CHANGE
+  DISCLOSURE
+}
+
+model PhiAccessLog {
+  id        String          @id @default(uuid())
+  timestamp DateTime        @default(now())
+  action    PhiAccessAction
+
+  // Actor (nullable: FAILED_AUTH puede no resolver usuario)
+  userId   String?
+  userRole String? // snapshot del rol al momento — el rol puede cambiar después
+
+  // Recurso accedido
+  resourceType String // 'Patient', 'eMAR', 'Vital', 'Note', 'CarePlan', etc.
+  resourceId   String? // generalmente el id de la entidad
+  patientId    String? // para queries "todo lo del paciente X"
+
+  hqId    String? // frontera multi-tenant (nullable: LOGIN antes de resolver HQ)
+  success Boolean @default(true)
+
+  // Contexto de la request
+  ipAddress String?
+  userAgent String?
+  sessionId String?
+  routePath String? // endpoint invocado
+  context   Json? // detalles: campos modificados, scope del export, vendor destino, etc.
+
+  @@index([patientId, timestamp])
+  @@index([userId, timestamp])
+  @@index([action, timestamp])
+  @@index([hqId, timestamp])
+  @@index([resourceType, timestamp])
+}
+
+// =======================
 // 5. ZENDITY CALENDAR ENGINE
 // =======================
 
