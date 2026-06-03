@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Mail, Send, X, AlertCircle, CheckCircle2, Megaphone } from "lucide-react";
 import ZendiAssist from "@/components/ZendiAssist";
+import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 type FamilyMemberBase = {
     id: string;
@@ -178,33 +181,33 @@ export default function SendFamilyEmailModal({ familyMembers, defaultMode = 'BRO
                             <form onSubmit={handleSubmit} className="space-y-5">
 
                                 {sendMode === 'INDIVIDUAL' && familyMembers && (
-                                    <div>
-                                        <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Destinatario Autorizado</label>
-                                        <select
+                                    <Field label="Destinatario Autorizado" htmlFor="targetFamilyId" required>
+                                        <Select
+                                            id="targetFamilyId"
                                             value={targetFamilyId}
                                             onChange={(e) => setTargetFamilyId(e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all font-bold text-slate-800"
                                             required
+                                            inputSize="lg"
                                         >
                                             <option value="">-- Seleccionar Familiar --</option>
                                             {familyMembers.filter(f => f.email).map((fam) => (
                                                 <option key={fam.id} value={fam.id}>{fam.name} ({fam.email})</option>
                                             ))}
-                                        </select>
-                                    </div>
+                                        </Select>
+                                    </Field>
                                 )}
 
-                                <div>
-                                    <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">Asunto del Correo (Subject)</label>
-                                    <input
+                                <Field label="Asunto del Correo (Subject)" htmlFor="subject" required>
+                                    <Input
+                                        id="subject"
                                         type="text"
                                         placeholder={sendMode === 'BROADCAST' ? 'Ej: Invitación a evento Día de las Madres' : 'Ej: Actualización Administrativa y Cobros'}
                                         value={subject}
                                         onChange={(e) => setSubject(e.target.value)}
-                                        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-bold text-slate-900 shadow-sm"
                                         required
+                                        inputSize="lg"
                                     />
-                                </div>
+                                </Field>
 
                                 <div className={`border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-teal-500 focus-within:border-teal-500 transition-all shadow-sm ${isPolishing ? 'border-teal-400 bg-teal-50/30' : 'border-slate-300'}`}>
                                     <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between gap-2">

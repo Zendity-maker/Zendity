@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "@/context/AuthContext";
 import { SparklesIcon } from '@heroicons/react/24/solid';
+import { Field } from "@/components/ui/Field";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 
 interface WriteIncidentModalProps {
     isOpen: boolean;
@@ -171,32 +174,32 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
 
                     <div className="p-6 overflow-y-auto flex-1 space-y-5">
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Emisor</label>
-                                <select
+                            <Field label="Supervisor Emisor" htmlFor="supervisorEmisor">
+                                <Select
+                                    id="supervisorEmisor"
                                     value={selectedSupervisorId}
                                     onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                                    className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                    className="uppercase text-sm bg-gray-50"
                                 >
                                     <option value="">Seleccione el emisor...</option>
                                     {administrativeStaff.map(sup => (
                                         <option key={sup.id} value={sup.id}>{sup.name} ({sup.role})</option>
                                     ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Empleado Involucrado</label>
-                                <select
+                                </Select>
+                            </Field>
+                            <Field label="Empleado Involucrado" htmlFor="empleadoInvolucrado">
+                                <Select
+                                    id="empleadoInvolucrado"
                                     value={employeeId}
                                     onChange={(e) => setEmployeeId(e.target.value)}
-                                    className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 uppercase text-sm"
+                                    className="uppercase text-sm bg-gray-50"
                                 >
                                     <option value="">Seleccione al empleado...</option>
                                     {availableEmployees.map(emp => (
                                         <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
                                     ))}
-                                </select>
-                            </div>
+                                </Select>
+                            </Field>
                         </div>
 
                         {/* Severity picker */}
@@ -250,26 +253,26 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                                     {generatingAI ? 'Generando con Zendi...' : 'Generar con Zendi'}
                                 </button>
                             </div>
-                            <textarea
+                            <Textarea
                                 rows={6}
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Describe los hechos, o escribe un borrador breve y presiona 'Generar con Zendi'..."
-                                className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
+                                className="bg-gray-50 resize-none"
                             />
                         </div>
 
                         {/* Director note (optional) */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Nota del Director (opcional)</label>
-                            <textarea
+                        <Field label="Nota del Director (opcional)" htmlFor="directorNote">
+                            <Textarea
+                                id="directorNote"
                                 rows={2}
                                 value={directorNote}
                                 onChange={(e) => setDirectorNote(e.target.value)}
                                 placeholder="Contexto adicional para el director que revisará esta observación..."
-                                className="w-full border border-gray-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"
+                                className="bg-gray-50 resize-none"
                             />
-                        </div>
+                        </Field>
                     </div>
 
                     <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
