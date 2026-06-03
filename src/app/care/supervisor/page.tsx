@@ -36,6 +36,7 @@ import { StatTile } from "@/components/ui/StatTile";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
+import { QuickActionsHub } from "@/components/care/QuickActionsHub";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
@@ -148,6 +149,10 @@ export default function SupervisorMissionControlPage() {
     // Staff Chat — disponible también en esta vista full-screen
     const [staffChatOpen, setStaffChatOpen] = useState(false);
     const [staffChatUnread, setStaffChatUnread] = useState(0);
+
+    // Quick Actions Hub — los mismos 4 chips del /care (CLINICAL/COMPLAINT/MAINTENANCE/UPP_ALERT),
+    // accesibles desde el wall del supervisor sin tener que ir a la tablet del cuidador.
+    const [quickActionsOpen, setQuickActionsOpen] = useState(false);
 
     const [dispatchingTicket, setDispatchingTicket] = useState<any>(null);
     const [isDispatching, setIsDispatching] = useState(false);
@@ -757,6 +762,17 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                             <TaskAssignmentButton user={user} buttonLabel="Asignar Meta Libre (15m)" buttonStyle="bg-teal-500 hover:bg-teal-400 text-slate-900 font-black px-5 py-3 rounded-[1.5rem] shadow-lg active:scale-95 transition-all text-sm" />
+                            {/* Acciones Rápidas — réplica del HUB del /care para que el supervisor
+                                pueda disparar los 4 reportes operacionales (Clínico, Familiar,
+                                Mantenimiento, UPP/Piel) sin tener que ir a una tablet de cuidador. */}
+                            <button
+                                onClick={() => setQuickActionsOpen(true)}
+                                className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm px-4 py-3 rounded-[1.5rem] shadow-lg active:scale-95 transition-all"
+                                title="Reportar Clínico / Familiar / Mantenimiento / UPP"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Acciones Rápidas
+                            </button>
                             {/* Botón Chat Staff — visible en esta vista full-screen */}
                             <button
                                 onClick={() => setStaffChatOpen(v => !v)}
@@ -2628,6 +2644,15 @@ export default function SupervisorMissionControlPage() {
             onClose={() => setStaffChatOpen(false)}
             onUnreadChange={setStaffChatUnread}
         />
+
+        {/* Quick Actions Hub — los 4 chips del /care, montados como modal aquí. */}
+        {user?.id && (
+            <QuickActionsHub
+                open={quickActionsOpen}
+                onClose={() => setQuickActionsOpen(false)}
+                currentUserId={user.id as string}
+            />
+        )}
         </>
     );
 }

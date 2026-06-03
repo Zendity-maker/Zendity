@@ -22,12 +22,26 @@ export async function POST(req: Request) {
         // Buscamos un familiar para anclar la queja (o null si el residente no tiene)
         const familyMemberId = patient.familyMembers.length > 0 ? patient.familyMembers[0].id : null;
 
+        // Saneo de prefijo: antes hardcoded "Cuidador ID" — ahora resolvemos
+        // nombre+rol del autor para que SUPERVISOR/DIRECTOR/NURSE quede correcto.
+        const author = await prisma.user.findUnique({
+            where: { id: authorId },
+            select: { name: true, role: true },
+        });
+        const roleLabel: Record<string, string> = {
+            CAREGIVER: 'Cuidador', NURSE: 'Enfermera', SUPERVISOR: 'Supervisor',
+            DIRECTOR: 'Director', ADMIN: 'Admin',
+        };
+        const prefix = author
+            ? `[Reportado por ${roleLabel[author.role as string] || author.role}: ${author.name}]`
+            : `[Reportado por usuario ${authorId}]`;
+
         const complaint = await prisma.complaint.create({
             data: {
                 headquartersId: patient.headquartersId,
                 patientId: patient.id,
                 familyMemberId: familyMemberId,
-                description: `[Reportado por Cuidador ID: ${authorId}] - ${description}`,
+                description: `${prefix} - ${description}`,
                 status: "PENDING",
                 photoUrl: photoUrl || null // FASE 37
             }
