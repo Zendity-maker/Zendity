@@ -1,15 +1,37 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/api-auth";
+
+/**
+ * HIPAA — Devuelve el historial clínico COMPLETO del residente (meds,
+ * administraciones, incidentes, caídas, bath/meal logs, intake, life plan,
+ * triage). Antes estaba SIN auth: cualquiera con un patientId bajaba todo.
+ * Ahora restringido a personal clínico/administrativo + tenant check.
+ */
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const invokerHqId = auth.headquartersId;
+
         const { id: patientId } = await params;
 
         if (!patientId) {
             return NextResponse.json({ success: false, error: "Missing patient ID" }, { status: 400 });
+        }
+
+        // Tenant check HIPAA — el invoker solo puede ver residentes de su sede
+        const patientCheck = await prisma.patient.findUnique({
+            where: { id: patientId },
+            select: { headquartersId: true },
+        });
+        if (!patientCheck || patientCheck.headquartersId !== invokerHqId) {
+            return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
         }
 
         const patientHistory = await prisma.patient.findUnique({
