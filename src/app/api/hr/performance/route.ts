@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireSession } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        // Tenant fix — hqId SIEMPRE de la sesión; el ?hqId del query se ignora
+        // (cierra la fuga cross-hq). SIN role guard a propósito: el dashboard de
+        // /hr/academy consume este endpoint también para CAREGIVER
+        // (PerformanceAcademyDashboard role='CAREGIVER'); restringir por rol
+        // rompería su vista. requireSession + scope por sede es suficiente.
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
 
-        const { searchParams } = new URL(request.url);
-        const hqId = searchParams.get('hqId') || session.user.headquartersId;
+        const hqId = auth.headquartersId;
 
         const scores = await prisma.performanceScore.findMany({
             where: { headquartersId: hqId },

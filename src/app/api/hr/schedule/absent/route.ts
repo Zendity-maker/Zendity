@@ -32,10 +32,21 @@ export async function POST(req: Request) {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
         const markedById = auth.id;
-        const { scheduledShiftId, hqId } = await req.json();
+        // HIPAA/multi-tenant — la sede sale de la sesión; ignoramos hqId del body.
+        const hqId = auth.headquartersId;
+        const { scheduledShiftId } = await req.json();
 
-        if (!scheduledShiftId || !hqId) {
-            return NextResponse.json({ success: false, error: 'scheduledShiftId y hqId son requeridos' }, { status: 400 });
+        if (!scheduledShiftId) {
+            return NextResponse.json({ success: false, error: 'scheduledShiftId es requerido' }, { status: 400 });
+        }
+
+        // Tenant check — el turno debe pertenecer a un horario de tu sede
+        const shiftOwner = await prisma.scheduledShift.findUnique({
+            where: { id: scheduledShiftId },
+            select: { schedule: { select: { headquartersId: true } } },
+        });
+        if (!shiftOwner || shiftOwner.schedule.headquartersId !== hqId) {
+            return NextResponse.json({ success: false, error: 'Turno fuera de tu sede' }, { status: 403 });
         }
 
         // ── 1. Marcar ausente ─────────────────────────────────────────

@@ -1,20 +1,27 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { applyScoreEvent } from '@/lib/score-event';
+
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'NURSE', 'SUPERVISOR', 'CAREGIVER'].includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
+        const { patientId, symptom, aiNote } = await req.json();
+        // HIPAA — el actor sale de la sesión (antes caregiverId del body → impersonación + puntos a cualquiera).
+        const caregiverId = auth.id;
+
+        if (!patientId || !symptom) {
+            return NextResponse.json({ success: false, error: "Faltan parámetros obligatorios." }, { status: 400 });
         }
 
-        const { patientId, caregiverId, symptom, aiNote } = await req.json();
-
-        if (!patientId || !caregiverId || !symptom) {
-            return NextResponse.json({ success: false, error: "Faltan parámetros obligatorios." }, { status: 400 });
+        // Tenant check — el paciente debe ser de tu sede
+        const patient = await prisma.patient.findUnique({ where: { id: patientId }, select: { headquartersId: true } });
+        if (!patient || patient.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
         }
 
         // 1. Guardar o inyectar reporte clínico en el Handover (DailyLog con isClinicalAlert = true)
@@ -32,9 +39,8 @@ export async function POST(req: Request) {
             }
         });
 
-        // 2. Sistema de Recompensa de Empleado (+5 Puntos)
-        const cgUser = await prisma.user.findUnique({ where: { id: caregiverId }, select: { headquartersId: true } });
-        await applyScoreEvent(caregiverId, cgUser?.headquartersId ?? '', 5,
+        // 2. Sistema de Recompensa de Empleado (+5 Puntos) — actor = sesión
+        await applyScoreEvent(caregiverId, auth.headquartersId, 5,
             'Acción preventiva clínica registrada', 'PREVENTIVE');
 
         return NextResponse.json({ success: true, log: diagnosticLog, pointsDelta: 5 });
