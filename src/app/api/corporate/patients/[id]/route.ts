@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
 
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function getPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
 
@@ -39,6 +40,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         return NextResponse.json({ success: false, error: "Error detallando paciente." }, { status: 500 });
     }
 }
+
+// PHI access logging (HIPAA Pilar 1). El handler conserva su lógica intacta;
+// el wrapper solo audita la lectura del expediente del residente.
+export const GET = withPhiAccessLog(getPatientHandler, {
+    resourceType: 'Patient',
+    getPatientId: async ({ params }) => (await params).id,
+});
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
