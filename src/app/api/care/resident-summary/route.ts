@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,13 @@ const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'CAREGIVER'];
  * Retorna TODOS los datos necesarios para el "Resumen de Residente"
  * — el documento oficial que se imprime al hospitalizar.
  */
-export async function GET(req: Request) {
+// PHI audit (Pilar 1) — lectura del resumen del residente.
+export const GET = withPhiAccessLog(getResidentSummaryHandler, {
+    resourceType: 'Patient',
+    getPatientId: async ({ req }) => new URL(req.url).searchParams.get('patientId') ?? undefined,
+});
+
+async function getResidentSummaryHandler(req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;

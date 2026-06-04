@@ -4,13 +4,17 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logAudit } from '@/lib/audit';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
 // Cualquier rol staff — FAMILY no.
 const STAFF_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER', 'KITCHEN', 'MAINTENANCE'];
 const POST_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 // GET: Fetch all pending medications para la sede del invocador
-export async function GET(request: Request) {
+// PHI audit (Pilar 1) — lista de meds de la sede.
+export const GET = withPhiAccessLog(getMedListHandler, { resourceType: 'eMAR' });
+
+async function getMedListHandler(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {

@@ -3,11 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
 // Roles permitidos: cualquier staff que necesite la lista de residentes
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'];
 
-export async function GET(request: Request) {
+// PHI audit (Pilar 1) — directorio de residentes: PatientList, sin patientId único.
+export const GET = withPhiAccessLog(getPatientsDirectoryHandler, { resourceType: 'PatientList' });
+
+async function getPatientsDirectoryHandler(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {

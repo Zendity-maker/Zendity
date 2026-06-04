@@ -1,11 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 import { startOfWeek, endOfWeek } from 'date-fns';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// PHI audit (Pilar 1) — lectura del eMAR del residente.
+export const GET = withPhiAccessLog(getEmarPatientHandler, {
+    resourceType: 'eMAR',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function getEmarPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;

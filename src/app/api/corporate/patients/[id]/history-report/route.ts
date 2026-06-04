@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/api-auth";
+import { withPhiAccessLog } from "@/lib/phi-audit";
 
 /**
  * HIPAA — Devuelve el historial clínico COMPLETO del residente (meds,
@@ -10,7 +11,13 @@ import { requireRole } from "@/lib/api-auth";
  */
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
-export async function GET(
+// PHI audit (Pilar 1) — lectura del expediente completo.
+export const GET = withPhiAccessLog(getHistoryReportHandler, {
+    resourceType: 'Patient',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function getHistoryReportHandler(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {

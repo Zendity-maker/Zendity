@@ -64,7 +64,13 @@ export const GET = withPhiAccessLog(getPatientHandler, {
     getPatientId: async ({ params }) => (await params).id,
 });
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// PHI audit (Pilar 1) — escritura del expediente.
+export const PUT = withPhiAccessLog(putPatientHandler, {
+    resourceType: 'Patient',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function putPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
@@ -172,7 +178,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// PHI audit (Pilar 1) — escritura del colorGroup.
+export const PATCH = withPhiAccessLog(patchPatientHandler, {
+    resourceType: 'Patient',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function patchPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await getServerSession(authOptions);
         if (!session || !['DIRECTOR', 'ADMIN', 'NURSE'].includes((session.user as any).role)) {

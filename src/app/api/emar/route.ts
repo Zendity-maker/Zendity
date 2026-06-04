@@ -4,8 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { format } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
-export async function GET(req: Request) {
+// PHI audit (Pilar 1) — roster eMAR de la sede (lista).
+export const GET = withPhiAccessLog(getEmarRosterHandler, { resourceType: 'eMAR' });
+
+async function getEmarRosterHandler(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {

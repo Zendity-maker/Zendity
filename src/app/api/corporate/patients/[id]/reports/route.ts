@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
 /**
  * HIPAA — Este endpoint devuelve notas clínicas del residente.
@@ -8,7 +9,13 @@ import { requireRole } from '@/lib/api-auth';
  */
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// PHI audit (Pilar 1) — lectura de notas clínicas.
+export const GET = withPhiAccessLog(getPatientReportsHandler, {
+    resourceType: 'Note',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function getPatientReportsHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;

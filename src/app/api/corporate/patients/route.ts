@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
+// PHI audit (Pilar 1) — lista de residentes: PatientList, sin patientId único.
+export const GET = withPhiAccessLog(getPatientsListHandler, { resourceType: 'PatientList' });
 
-
-export async function GET(req: Request) {
+async function getPatientsListHandler(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) {
