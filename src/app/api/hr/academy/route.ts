@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,8 +11,10 @@ export async function GET(request: Request) {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+        // hqId de la sesión (resolver) — SIN role guard a propósito: el academy
+        // lo consumen TODOS los roles, incluido CAREGIVER.
         const { searchParams } = new URL(request.url);
-        const hqId = searchParams.get('hqId') || session.user.headquartersId;
+        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
 
         const assignments = await prisma.academyAssignment.findMany({
             where: { headquartersId: hqId },

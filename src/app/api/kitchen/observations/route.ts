@@ -11,9 +11,12 @@ export async function POST(request: Request) {
         if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
-        const { headquartersId, supervisorId, satisfactionScore, comments, photoUrl, mealType, feedbackType, portionsAdequate } = body;
+        const { satisfactionScore, comments, photoUrl, mealType, feedbackType, portionsAdequate } = body;
+        // hqId y autor de la sesión (antes: headquartersId/supervisorId del body → cross-tenant).
+        const headquartersId = (session.user as any).headquartersId;
+        const supervisorId = (session.user as any).id;
 
-        if (!headquartersId || !supervisorId || !satisfactionScore || !comments) {
+        if (!satisfactionScore || !comments) {
             return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
         }
 
@@ -46,6 +49,12 @@ export async function PATCH(request: Request) {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
+
+        // Tenant check — la observación debe ser de tu sede
+        const existing = await prisma.kitchenObservation.findUnique({ where: { id }, select: { headquartersId: true } });
+        if (!existing || existing.headquartersId !== (session.user as any).headquartersId) {
+            return NextResponse.json({ error: 'Observación fuera de tu sede' }, { status: 403 });
+        }
 
         const updated = await prisma.kitchenObservation.update({
             where: { id },

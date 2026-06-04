@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
@@ -21,8 +24,11 @@ export async function GET(req: Request) {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
 
+        // hqId de la sesión (resolver): SUPERVISOR → su sede (ignora ?hqId);
+        // DIRECTOR/ADMIN validados. Antes: ?hqId del cliente sin validar.
         const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || auth.headquartersId;
+        const session = await getServerSession(authOptions);
+        const hqId = await resolveEffectiveHqId(session!, searchParams.get('hqId'));
         const activeShiftType = inferShiftTypeFromAST();
 
         // Refactor: usa computeShiftCoverage (el chokepoint) en lugar de la

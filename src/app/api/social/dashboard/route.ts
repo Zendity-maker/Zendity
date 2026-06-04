@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, subDays } from 'date-fns';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 const ALLOWED_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
@@ -13,12 +14,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
+        // hqId de la sesión (resolver): rol limitado → su sede (ignora ?hqId).
         const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
-
-        if (!hqId) {
-            return NextResponse.json({ success: false, error: 'hqId requerido' }, { status: 400 });
-        }
+        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
 
         const now = new Date();
         const sixtyDaysFromNow = new Date(Date.now() + 60 * 86400000);

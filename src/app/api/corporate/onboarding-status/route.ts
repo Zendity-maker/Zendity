@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqIdOrAll } from '@/lib/hq-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,10 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
+    // hqId de la sesión (resolver con ALL): rol limitado → su sede (ignora ?hqId);
+    // DIRECTOR/ADMIN → 'ALL' o sede validada. Antes: ?hqId del cliente sin validar.
     const { searchParams } = new URL(req.url);
-    const hqId = searchParams.get('hqId') || (session.user as any).headquartersId;
+    const hqId = await resolveEffectiveHqIdOrAll(session, searchParams.get('hqId'));
 
     // Vista consolidada "ALL" → no aplica checklist de onboarding
     if (!hqId || hqId === 'ALL') {

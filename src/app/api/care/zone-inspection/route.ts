@@ -3,14 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 // GET — Obtener rondas de inspección del día actual
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // hqId de la sesión (resolver): rol limitado → su sede (ignora ?hqId).
     const { searchParams } = new URL(req.url);
-    const hqId = searchParams.get('hqId') || session.user.headquartersId;
+    const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
 
     const todayStart = todayStartAST();
 
@@ -41,16 +43,17 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const {
-            headquartersId,
-            supervisorId,
             roundType,
             floor,
             zoneName,
             checklistData,
             observations,
         } = body;
+        // hqId y supervisor de la sesión (antes: del body → cross-tenant + impersonación).
+        const headquartersId = (session.user as any).headquartersId;
+        const supervisorId = (session.user as any).id;
 
-        if (!headquartersId || !supervisorId || !roundType || !floor || !zoneName || !checklistData) {
+        if (!roundType || !floor || !zoneName || !checklistData) {
             return NextResponse.json(
                 { success: false, error: 'Faltan campos requeridos.' },
                 { status: 400 }
