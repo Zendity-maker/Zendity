@@ -39,6 +39,19 @@ interface VisitData {
     patientId: string | null;
 }
 
+// ─── Kiosk device-token (Fase 1) ─────────────────────────────────────────────
+// Espejo de /external-kiosk: si la tablet está provisionada, su token vive en
+// localStorage bajo "zendity_kiosk_token". Lo enviamos como x-device-token en
+// los fetches del kiosko. Si no hay token (tablet sin provisionar), el header
+// va AUSENTE y reception sigue funcionando igual (backend tolerante en Fase 1).
+const KIOSK_TOKEN_KEY = "zendity_kiosk_token";
+
+function kioskDeviceHeaders(): Record<string, string> {
+    if (typeof window === "undefined") return {};
+    const token = window.localStorage.getItem(KIOSK_TOKEN_KEY);
+    return token ? { "x-device-token": token } : {};
+}
+
 // ─── Componente Principal ────────────────────────────────────────────────────
 export default function ReceptionKiosk() {
     const searchParams = useSearchParams();
@@ -196,7 +209,9 @@ export default function ReceptionKiosk() {
 
         try {
             const hqParam = hqId ? `&hqId=${encodeURIComponent(hqId)}` : '';
-            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}${hqParam}`);
+            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}${hqParam}`, {
+                headers: kioskDeviceHeaders(),
+            });
             const data = await res.json();
 
             if (data.patients?.length === 1) {
@@ -253,7 +268,7 @@ export default function ReceptionKiosk() {
     // ── Cargar nombre de la sede al montar ───────────────────────────────────
     useEffect(() => {
         if (!hqId) return;
-        fetch(`/api/reception/hq-info?hqId=${encodeURIComponent(hqId)}`)
+        fetch(`/api/reception/hq-info?hqId=${encodeURIComponent(hqId)}`, { headers: kioskDeviceHeaders() })
             .then(r => r.json())
             .then(d => { if (d.name) setHqName(d.name); })
             .catch(() => {});
@@ -441,7 +456,7 @@ export default function ReceptionKiosk() {
             const timestamp = new Date().toISOString();
             const res = await fetch("/api/reception/visit", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...kioskDeviceHeaders() },
                 body: JSON.stringify({
                     residentName: visitData.residentName || residentName,
                     visitorName: visitData.visitorName || visitorName,
