@@ -3,12 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const hqId = new URL(req.url).searchParams.get('hqId') || session.user.headquartersId;
+    // hqId resuelto desde la sesión: roles limitados → su sede (ignora ?hqId);
+    // DIRECTOR/ADMIN validados contra DB. Antes: ?hqId del cliente sin validar.
+    const hqId = await resolveEffectiveHqId(session, new URL(req.url).searchParams.get('hqId'));
 
     const todayStart = todayStartAST();
 

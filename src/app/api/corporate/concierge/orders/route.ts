@@ -53,6 +53,10 @@ export async function PATCH(request: Request) {
         });
 
         if (!order) return NextResponse.json({ success: false, error: 'Orden no encontrada' }, { status: 404 });
+        // Tenant check — la orden debe ser de un residente de tu sede
+        if (order.patient.headquartersId !== (session.user as any).headquartersId) {
+            return NextResponse.json({ success: false, error: 'Orden fuera de tu sede' }, { status: 403 });
+        }
 
         await prisma.$transaction(async (tx) => {
             // 1. Actualizar estado

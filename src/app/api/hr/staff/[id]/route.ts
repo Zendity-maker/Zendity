@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
 
 // Formateador de mes abreviado en español (Ej: "Ene 26")
 const MONTH_ABBR_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -18,6 +22,14 @@ export async function GET(
     try {
         const { id: employeeId } = await params;
 
+        // Auth — antes CERO check. El propio empleado o roles de gestión + tenant.
+        const session = await getServerSession(authOptions);
+        if (!session) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
+        const isSelf = (session.user as any).id === employeeId;
+        if (!isSelf && !ALLOWED_ROLES.includes((session.user as any).role)) {
+            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 403 });
+        }
+
         const employee = await prisma.user.findUnique({
             where: { id: employeeId },
             include: {
@@ -33,6 +45,10 @@ export async function GET(
 
         if (!employee) {
             return NextResponse.json({ success: false, error: "Empleado no encontrado" }, { status: 404 });
+        }
+        // Tenant check — salvo el propio empleado, debe ser de tu sede
+        if (!isSelf && employee.headquartersId !== (session.user as any).headquartersId) {
+            return NextResponse.json({ success: false, error: "Empleado fuera de tu sede" }, { status: 403 });
         }
 
         // Historial de desempeño REAL desde EmployeeEvaluation

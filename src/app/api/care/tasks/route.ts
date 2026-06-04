@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+
+const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
 
         // Validate required fields
@@ -18,7 +19,13 @@ export async function POST(req: Request) {
             );
         }
 
-        const headquartersId = body.headquartersId || session.user.headquartersId;
+        // HIPAA/multi-tenant — sede de la sesión (no del body) + el cuidador
+        // receptor debe pertenecer a tu sede.
+        const headquartersId = auth.headquartersId;
+        const recipient = await prisma.user.findUnique({ where: { id: body.assignedToId }, select: { headquartersId: true } });
+        if (!recipient || recipient.headquartersId !== headquartersId) {
+            return NextResponse.json({ success: false, error: 'Cuidador fuera de tu sede' }, { status: 403 });
+        }
 
         // kind: 'NOTE' (instrucción de cuidado, SIN penalización) | 'SLA' (tarea
         // con reloj de 15 min y penalización al score). Default NOTE — el uso
@@ -48,7 +55,7 @@ export async function POST(req: Request) {
         const task = await prisma.fastActionAssignment.create({
             data: {
                 headquartersId,
-                supervisorId: body.assignedById || session.user.id,
+                supervisorId: auth.id,
                 caregiverId: body.assignedToId,
                 description: finalDescription,
                 status: 'PENDING',

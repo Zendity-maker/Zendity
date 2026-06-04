@@ -13,7 +13,9 @@ export async function GET() {
         const lifePlans = await prisma.lifePlan.findMany({
             where: {
                 patient: {
-                    status: { notIn: ['DISCHARGED', 'DECEASED'] }
+                    status: { notIn: ['DISCHARGED', 'DECEASED'] },
+                    // Tenant — solo PAIs de residentes de tu sede (antes: todas las sedes).
+                    headquartersId: (session.user as any).headquartersId,
                 }
             },
             include: {
