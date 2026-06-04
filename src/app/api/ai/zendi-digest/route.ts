@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { notifyRoles } from '@/lib/notifications';
+import { requireRole } from '@/lib/api-auth';
 
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "dummy"
@@ -12,11 +14,13 @@ export const maxDuration = 60; // Parche Staging Integral E2E
 
 export async function POST(req: Request) {
     try {
-        const { headquartersId } = await req.json();
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!headquartersId) {
-            return NextResponse.json({ error: "headquartersId es requerido." }, { status: 400 });
-        }
+        // HIPAA — la sede sale de la sesión; ignoramos cualquier headquartersId
+        // del body (antes cualquiera leía vitales de otra sede y los mandaba a OpenAI).
+        const headquartersId = auth.headquartersId;
+        await req.json().catch(() => ({})); // drenar el body (compat frontend), ignorado
 
         if (!process.env.OPENAI_API_KEY) {
             console.warn("OpenAI API Key no encontrada (Digest).");

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI from "openai";
+import { requireRole } from '@/lib/api-auth';
 
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "dummy"
@@ -11,13 +13,18 @@ export const maxDuration = 60; // Parche Staging Integral E2E
 
 export async function POST(req: Request) {
     try {
-        const { transcript, authorId, contextPath } = await req.json();
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
+        const { transcript, contextPath } = await req.json();
+        // HIPAA — la identidad sale de la sesión (antes authorId del body → impersonación).
+        const authorId = auth.id;
 
         // 1. OBTENER IDENTIDAD DEL USUARIO (Contexto)
         let userContext = "Usuario no identificado.";
         let hqId = "";
 
-        // El frontend puede enviar un autor, o nada si no resolvió el estado
+        // El autor siempre existe (sesión)
         if (authorId) {
             const author = await prisma.user.findUnique({
                 where: { id: authorId },
