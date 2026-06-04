@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { compatibleShiftTypesAt } from '@/lib/shift-coverage';
+import { requireSession } from '@/lib/api-auth';
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const userId = searchParams.get('userId');
-        const hqId = searchParams.get('hqId');
-
-        if (!userId || !hqId) {
-            return NextResponse.json({ success: false, color: null });
-        }
+        // HIPAA — el usuario solo ve SU propio color. userId y hqId salen de la
+        // SESIÓN (antes venían del query → cualquiera consultaba el color de otro).
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
+        const userId = auth.id;
+        const hqId = auth.headquartersId;
 
         // FIX — turno cruce de límite: si la cuidadora tiene una ShiftSession activa,
         // anclamos el filtro de shiftType al INICIO de esa sesión, no a la hora actual.
