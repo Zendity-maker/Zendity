@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
-
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { colorGroup, authorId, hqId } = body;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!colorGroup || !authorId || !hqId) {
-            return NextResponse.json({ success: false, error: "Datos insuficientes (Color, Autor, Sede)" }, { status: 400 });
+        const body = await req.json();
+        const { colorGroup } = body;
+        // HIPAA — firmante y sede salen de la sesión (antes hqId/authorId del body).
+        const authorId = auth.id;
+        const hqId = auth.headquartersId;
+
+        if (!colorGroup) {
+            return NextResponse.json({ success: false, error: "Datos insuficientes (Color)" }, { status: 400 });
         }
 
         // Buscar todos los residentes de este grupo

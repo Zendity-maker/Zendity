@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { calculateDynamicScore } from '@/app/api/care/compliance-score/route';
 import { notifyUser } from '@/lib/notifications';
 import { applyScoreEvent } from '@/lib/score-event';
+import { requireRole } from '@/lib/api-auth';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -13,13 +14,24 @@ export const maxDuration = 60; // Parche Staging Integral E2E
 
 export async function POST(request: NextRequest) {
     try {
+        // HIPAA/RRHH — solo gerencia evalúa (bloquea turnos). Evaluador = sesión.
+        const auth = await requireRole(['DIRECTOR', 'ADMIN']);
+        if (auth instanceof NextResponse) return auth;
+
         const data = await request.json();
-        const { employeeId, evaluatorId, role, scores } = data;
+        const { employeeId, role, scores } = data;
+        const evaluatorId = auth.id;
 
         // 1. Obtener HQ Data y Verificar Evaluador
         const evaluator = await prisma.user.findUnique({ where: { id: evaluatorId } });
         if (!evaluator || !evaluator.headquartersId) {
             return NextResponse.json({ error: "Evaluador no autorizado o sin HQ" }, { status: 403 });
+        }
+
+        // Tenant check — el empleado evaluado debe ser de la misma sede
+        const employee = await prisma.user.findUnique({ where: { id: employeeId }, select: { headquartersId: true } });
+        if (!employee || employee.headquartersId !== evaluator.headquartersId) {
+            return NextResponse.json({ error: "Empleado fuera de tu sede" }, { status: 403 });
         }
 
         // 2. Calcular Promedio Global basado en el JSON dinámico de respuestas (scores)

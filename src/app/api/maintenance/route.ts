@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
-
+const ALLOWED_ROLES = ['MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const hqId = searchParams.get('hqId');
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!hqId) {
-            return NextResponse.json({ success: false, error: "headquartersId is required" }, { status: 400 });
-        }
+        // HIPAA/multi-tenant — sede de la sesión, no del query.
+        const hqId = auth.headquartersId;
 
         const events = await prisma.headquartersEvent.findMany({
             where: {
@@ -45,6 +45,9 @@ export async function GET(req: Request) {
 
 export async function PATCH(req: Request) {
     try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
         const { eventId, status, mechanicId } = body;
 
@@ -54,6 +57,10 @@ export async function PATCH(req: Request) {
 
         const existingEvent = await prisma.headquartersEvent.findUnique({ where: { id: eventId } });
         if (!existingEvent) return NextResponse.json({ success: false, error: "Event not found" }, { status: 404 });
+        // Tenant check HIPAA/multi-tenant — no editar tickets de otra sede
+        if (existingEvent.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Ticket fuera de tu sede" }, { status: 403 });
+        }
 
         let resolutionMinutes = existingEvent.resolutionTimeMinutes;
 

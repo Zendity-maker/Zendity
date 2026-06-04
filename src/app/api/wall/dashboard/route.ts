@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import { requireRole } from '@/lib/api-auth';
+
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const headquartersId = searchParams.get('hqId');
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!headquartersId) {
-            return NextResponse.json({ success: false, error: "Headquarters ID Required" }, { status: 400 });
-        }
+        // HIPAA/multi-tenant — la sede sale de la sesión, no del query.
+        const headquartersId = auth.headquartersId;
 
         const todayStart = todayStartAST();
 

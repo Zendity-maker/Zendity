@@ -1,14 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
 import { notifyRoles } from '@/lib/notifications';
+import { requireRole } from '@/lib/api-auth';
 
-
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function POST(req: Request) {
     try {
-        const { patientId, authorId, description, type, photoUrl } = await req.json();
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!patientId || !authorId || !description || !type) {
+        const { patientId, description, type, photoUrl } = await req.json();
+        // HIPAA — el autor sale de la sesión (antes authorId del body).
+        const authorId = auth.id;
+
+        if (!patientId || !description || !type) {
             return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
         }
 
@@ -18,6 +24,10 @@ export async function POST(req: Request) {
         });
 
         if (!patient) return NextResponse.json({ success: false, error: "Patient not found" }, { status: 404 });
+        // Tenant check HIPAA — no crear quejas sobre residentes de otra sede
+        if (patient.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
+        }
 
         // Buscamos un familiar para anclar la queja (o null si el residente no tiene)
         const familyMemberId = patient.familyMembers.length > 0 ? patient.familyMembers[0].id : null;

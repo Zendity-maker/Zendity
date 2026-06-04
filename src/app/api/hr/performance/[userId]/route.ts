@@ -1,9 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { Role } from '@prisma/client';
+import { requireRole } from '@/lib/api-auth';
 
 export async function GET(req: Request, { params }: any) {
     try {
+        // RRHH — KPIs de staff: supervisión/gerencia + tenant check.
+        const auth = await requireRole(['SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+        if (auth instanceof NextResponse) return auth;
+
         const { userId } = await params;
         const user = await prisma.user.findUnique({
             where: { id: userId }
@@ -11,6 +16,9 @@ export async function GET(req: Request, { params }: any) {
 
         if (!user) {
             return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
+        }
+        if (user.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ success: false, error: "Empleado fuera de tu sede" }, { status: 403 });
         }
 
         // Ventana rodante de 7 días (FIX: antes era 30 días, acumulativo)

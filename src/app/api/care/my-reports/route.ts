@@ -1,20 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
 // GET: Retorna los reportes enviados por el cuidador hoy (Action Hub)
 export async function GET(req: Request) {
     try {
-        const { searchParams } = new URL(req.url);
-        const authorId = searchParams.get('authorId');
-        const hqId = searchParams.get('hqId');
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
 
-        if (!authorId || !hqId) {
-            return NextResponse.json({ success: false, error: "authorId y hqId requeridos" }, { status: 400 });
-        }
+        // HIPAA — "mis reportes": el autor y la sede salen de la sesión, no del
+        // query (antes cualquiera leía reportes de otro pasando authorId+hqId).
+        const authorId = auth.id;
+        const hqId = auth.headquartersId;
 
         const todayStart = todayStartAST();
         const todayEnd = new Date();
