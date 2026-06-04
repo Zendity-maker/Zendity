@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { startOfDay, endOfDay } from 'date-fns';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 // Cron: snapshot diario de stats de limpieza por sede.
 // Resuelve el bug de "% completado" donde el denominador era el conteo
@@ -8,10 +9,8 @@ import { startOfDay, endOfDay } from 'date-fns';
 // totalAreas real al cierre del día.
 // Schedule: 23:55 cada día (ver vercel.json).
 export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const today = new Date();

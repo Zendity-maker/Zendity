@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 import { isCleanNote, computeFoodBand } from '@/lib/family/disclosure';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,11 +38,8 @@ export const maxDuration = 300;
 const BATCH_SIZE = 6;
 
 export async function GET(req: Request) {
-    // Protección CRON_SECRET (mismo patrón que el resto de los crons)
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return new Response('Unauthorized', { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     // ──────────────────────────────────────────────────────────────────────────
     // PAUSA INMEDIATA — capa de congruencia en construcción.

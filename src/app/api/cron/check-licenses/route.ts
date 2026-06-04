@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { format } from 'date-fns';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 
 
 // This endpoint is meant to be hit by a Cron Service (like Vercel Cron or GitHub Actions) daily at midnight.
 export async function GET(request: Request) {
-    // Basic Security (Optional but recommended: Check a Bearer Token or Cron Secret from env)
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized Cron Request' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const today = new Date();

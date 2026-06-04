@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateMonthlyInvoicesForHq } from '@/lib/monthly-invoicing';
 import { logError } from '@/lib/logger';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,8 @@ export const dynamic = 'force-dynamic';
  * Auth: Bearer CRON_SECRET.
  */
 export async function GET(req: Request) {
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     try {
         // Mes del cobro = el mes en curso al momento del cron (PR timezone).

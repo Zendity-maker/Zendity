@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 // Cron: nullifica las fotos base64 inline de CleaningLog y CleaningRequest
 // con más de 90 días de antigüedad. Mantiene el log/request (auditoría) pero
@@ -9,10 +10,8 @@ import { NextResponse } from 'next/server';
 // El módulo Cleaning genera ~50 fotos/día → sin purga, ~75MB/mes en una sola tabla.
 // Schedule: 03:00 diario (ver vercel.json).
 export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // hace 90 días

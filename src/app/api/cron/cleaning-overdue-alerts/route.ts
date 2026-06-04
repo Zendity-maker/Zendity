@@ -1,15 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 // Cron: notifica a SUPERVISOR/DIRECTOR cuando alguna área activa lleva
 // más de 24h sin ningún log (ni COMPLETED ni SKIPPED).
 // Una sola notificación agregada por sede por corrida (no spam por área).
 // Schedule: 09:00 cada día (ver vercel.json) — antes del comienzo del turno.
 export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);

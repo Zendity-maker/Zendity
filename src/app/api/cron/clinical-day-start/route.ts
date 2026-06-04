@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,11 +24,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
  * se eliminó en Sprint A (era duplicado).
  */
 export async function GET(req: Request) {
-    // Protección CRON_SECRET
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return new Response('Unauthorized', { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     try {
         // Ventana = día clínico que ACABA de terminar

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const maxDuration = 10;
 
@@ -13,11 +14,8 @@ export const maxDuration = 10;
  * Vercel Cron lo inyecta automáticamente.
  */
 export async function GET(req: Request) {
-    const secret = req.headers.get('authorization')?.replace('Bearer ', '');
-
-    if (secret !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     const start = Date.now();
     await prisma.$queryRaw`SELECT 1`;

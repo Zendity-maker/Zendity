@@ -3,15 +3,13 @@ import { NextResponse } from 'next/server';
 import { TicketStatus, SystemAuditAction, TicketPriority } from '@prisma/client';
 import { notifyRoles } from '@/lib/notifications';
 import { logWarn } from '@/lib/logger';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 
 
 export async function GET(request: Request) {
-    // Simple sec check for cron if needed
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const now = new Date();

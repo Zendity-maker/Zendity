@@ -4,6 +4,7 @@ import { notifyRoles } from '@/lib/notifications';
 import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +30,8 @@ if (process.env.SENDGRID_API_KEY) {
  * Schedule: vercel.json — sugerido every hour.
  */
 export async function GET(req: Request) {
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     const now = new Date();
     const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);

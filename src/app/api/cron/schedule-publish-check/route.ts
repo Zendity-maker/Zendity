@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyRoles } from '@/lib/notifications';
 import { logError, logWarn } from '@/lib/logger';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,8 @@ export const dynamic = 'force-dynamic';
  * Schedule: lunes 6 AM AST → 10 AM UTC.
  */
 export async function GET(req: Request) {
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(req);
+    if (denied) return denied;
 
     try {
         // Lunes 00:00 hora PR (UTC-4) → 04:00 UTC. El cron corre a las 10 UTC

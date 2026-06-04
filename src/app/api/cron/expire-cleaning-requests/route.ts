@@ -1,15 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
+import { requireCronSecret } from '@/lib/cron-auth';
 
 // Cron: marca como EXPIRED las cleaningRequest cuyo SLA (45 min) venció.
 // Antes esto vivía como side-effect dentro del GET de /api/cleaning/requests
 // — lo movimos aquí para que el GET sea idempotente y no genere writes.
 // Schedule: cada 5 minutos (ver vercel.json).
 export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = requireCronSecret(request);
+    if (denied) return denied;
 
     try {
         const now = new Date();
