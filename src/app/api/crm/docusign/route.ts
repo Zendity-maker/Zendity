@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
 // Mock/Envs for DocuSign (En Producción B2B se usan Integration Keys reales)
 const DOCUSIGN_CLIENT_ID = process.env.DOCUSIGN_CLIENT_ID || 'mock_client';
 const DOCUSIGN_USER_ID = process.env.DOCUSIGN_USER_ID || 'mock_uid';
 const DOCUSIGN_PRIVATE_KEY = process.env.DOCUSIGN_PRIVATE_KEY || 'mock_key';
 
+// Comercial — enviar contratos es acción de negocio. Antes: sin auth, cualquiera
+// con un leadId disparaba/spameaba contratos. Ahora rol comercial + ownership.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
+
 export async function POST(req: Request) {
     try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
-        const { leadId, hqId } = body;
+        const { leadId } = body;
 
         if (!leadId) {
             return NextResponse.json({ error: 'Missing CRMLead ID' }, { status: 400 });
@@ -19,6 +27,11 @@ export async function POST(req: Request) {
 
         if (!lead) {
             return NextResponse.json({ error: 'Prospecto no encontrado' }, { status: 404 });
+        }
+
+        // Ownership / tenant — el lead debe pertenecer a tu sede
+        if (lead.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ error: 'Prospecto fuera de tu sede' }, { status: 403 });
         }
 
         // Si tenemos llaves Reales de DocuSign
