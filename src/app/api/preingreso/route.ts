@@ -11,7 +11,10 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, dateOfBirth, diagnostics, avdScore, diet, hqId } = body;
+        const { name, dateOfBirth, diagnostics, avdScore, diet } = body;
+        // HIPAA/multi-tenant — la sede sale de la sesión, NUNCA del body
+        // (antes: hqId del body permitía crear un residente en sede ajena).
+        const hqId = (session.user as any).headquartersId;
 
         // Simulate Norton/Downton logic based on diagnostics or AVD
         const isHighRisk = avdScore >= 2 || (diagnostics || '').toLowerCase().includes('caida');

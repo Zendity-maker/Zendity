@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { startOfWeek, endOfWeek } from 'date-fns';
+
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const { id } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+        // Tenant check HIPAA — el eMAR del residente solo si es de tu sede
+        // (antes: solo if(!session) → cualquiera leía el eMAR por patientId).
+        const patient = await prisma.patient.findUnique({ where: { id }, select: { headquartersId: true } });
+        if (!patient || patient.headquartersId !== auth.headquartersId) {
+            return NextResponse.json({ error: 'Residente fuera de tu sede' }, { status: 403 });
         }
 
         // 1. Obtener los medicamentos activos del residente

@@ -48,6 +48,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         if (!invoice) {
             return NextResponse.json({ success: false, error: 'Factura no encontrada' }, { status: 404 });
         }
+        // Tenant check HIPAA — la factura debe ser de tu sede (antes: pago + recibo
+        // por email se podía disparar sobre una factura de otra sede por id).
+        if (invoice.headquartersId !== (session.user as any).headquartersId) {
+            return NextResponse.json({ success: false, error: 'Factura fuera de tu sede' }, { status: 403 });
+        }
 
         const paidDate = paidAt ? new Date(paidAt) : new Date();
         const paidAmount = amount ? parseFloat(amount) : invoice.totalAmount;

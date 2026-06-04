@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 // GET: Fetch all incidents (pending signatures & history)
 export async function GET(request: Request) {
@@ -11,12 +12,11 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
         }
 
+        // hqId resuelto desde la sesión: DIRECTOR/ADMIN pueden cambiar de sede
+        // (validado contra DB); roles limitados quedan en su propia sede.
+        // Antes: hqId del query sin validar → NURSE/SUP leía incidents de otra sede.
         const { searchParams } = new URL(request.url);
-        const hqId = searchParams.get('hqId');
-
-        if (!hqId) {
-            return NextResponse.json({ error: 'hqId is required' }, { status: 400 });
-        }
+        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
 
         const incidents = await prisma.incident.findMany({
             where: {
@@ -46,7 +46,16 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { hqId, patientId, type, severity, description, biometricSignature } = body;
+        const { patientId, type, severity, description, biometricSignature } = body;
+        // hqId de la sesión (no del body) + verificar que el paciente sea de esa sede.
+        const hqId = await resolveEffectiveHqId(session, body.hqId ?? null);
+        const patientCheck = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId: hqId },
+            select: { id: true },
+        });
+        if (!patientCheck) {
+            return NextResponse.json({ success: false, error: 'Residente fuera de tu sede' }, { status: 403 });
+        }
 
         const incident = await prisma.incident.create({
             data: {
