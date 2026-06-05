@@ -57,10 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // rebotaría a /login y nunca funcionaría. También el setup acepta el
         // token via URL antes de tener sesión alguna.
         const isPublicKioskRoute = pathname.startsWith("/external-kiosk");
+        // Activación de Portal Familiar — el familiar abre el link del email
+        // sin tener cuenta aún. El token de invitación es el gate server-side
+        // (verify-token + activate validan inviteToken + inviteExpiry +
+        // isRegistered=false antes de hashear el PIN). Si bloqueáramos anónimos
+        // aquí, el link de invitación caería en /login y el onboarding
+        // familiar autoservicio queda muerto (incidente mar-2026).
+        const isPublicFamilyRegister = pathname === "/family/register";
 
         if (!user) {
-            // Bloqueo Anónimo Global (excepto login y kiosko público)
-            if (!isLoginRoute && !isPublicKioskRoute) {
+            // Bloqueo Anónimo Global (excepto login, kiosko público y register familiar)
+            if (!isLoginRoute && !isPublicKioskRoute && !isPublicFamilyRegister) {
                 router.replace("/login");
             }
         } else {
