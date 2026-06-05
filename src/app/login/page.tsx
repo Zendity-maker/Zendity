@@ -62,6 +62,12 @@ export default function LoginPage() {
 
 
 
+    // NOTA DS — esta pantalla NO consume Input/Field del design system. El login
+    // es superficie de marca de inquilino (glassmorphism + glow + digital-aqua),
+    // distinta al patrón dark estándar. Aplanarla con la primitiva borraría
+    // identidad. En este sprint solo se ajustó el contraste del placeholder
+    // (slate-600 → slate-400) y borde de inputs (slate-700/50 → slate-600).
+    // Si se reusa este tratamiento, considerar variant="brand" en la primitiva.
     return (
         <div className="w-full flex items-center justify-center min-h-screen bg-gradient-to-br from-deep-slate via-slate-900 to-black p-4 fixed inset-0 z-50">
             {/* Decorative Blur */}
@@ -99,7 +105,7 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="ej. admin@vividcupey.com o hija@vividcupey.com"
-                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-600"
+                            className="w-full bg-slate-900/50 border-2 border-slate-600 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-400"
                             required
                         />
                     </div>
@@ -111,7 +117,7 @@ export default function LoginPage() {
                             value={pinCode}
                             onChange={(e) => setPinCode(e.target.value)}
                             placeholder="****"
-                            className="w-full bg-slate-900/50 border-2 border-slate-700/50 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-600 tracking-[0.5em] text-center font-black text-xl"
+                            className="w-full bg-slate-900/50 border-2 border-slate-600 text-white rounded-xl p-4 focus:ring-2 focus:ring-digital-aqua focus:border-digital-aqua outline-none transition-all placeholder:text-slate-400 tracking-[0.5em] text-center font-black text-xl"
                             maxLength={6}
                             required
                         />

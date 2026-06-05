@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { Field } from '@/components/ui/Field';
+import { Input } from '@/components/ui/Input';
 
 export default function FamilyRegisterPage() {
     const searchParams = useSearchParams();
@@ -35,6 +37,12 @@ export default function FamilyRegisterPage() {
             })
             .catch(() => setStatus('invalid'));
     }, [token]);
+
+    // Validación per-field — el primer consumidor real del path
+    // `error` del Field (explícito, no automático). pinError + confirmError
+    // se derivan del estado actual; el call site los pasa al Field.
+    const pinError = pin.length > 0 && pin.length < 4 ? 'El PIN debe tener al menos 4 dígitos.' : '';
+    const confirmError = confirmPin.length > 0 && confirmPin !== pin ? 'Los PINs no coinciden.' : '';
 
     const handleSubmit = async () => {
         setError('');
@@ -108,35 +116,43 @@ export default function FamilyRegisterPage() {
                     Crea un PIN de acceso para entrar al portal y mantenerte al tanto del cuidado de tu familiar.
                 </p>
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-slate-500 text-sm font-medium block mb-2">Crea tu PIN</label>
-                        <input
+                    <Field label="Crea tu PIN" htmlFor="pin" variant="dark" error={pinError}>
+                        <Input
+                            id="pin"
                             type="password"
+                            variant="dark"
+                            inputSize="lg"
+                            invalid={!!pinError}
                             inputMode="numeric"
                             maxLength={6}
                             value={pin}
                             onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
                             placeholder="Mínimo 4 dígitos"
-                            className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest focus:outline-none focus:border-teal-500"
+                            className="text-center text-2xl tracking-widest"
                         />
-                    </div>
-                    <div>
-                        <label className="text-slate-500 text-sm font-medium block mb-2">Confirma tu PIN</label>
-                        <input
+                    </Field>
+                    <Field label="Confirma tu PIN" htmlFor="confirmPin" variant="dark" error={confirmError}>
+                        <Input
+                            id="confirmPin"
                             type="password"
+                            variant="dark"
+                            inputSize="lg"
+                            invalid={!!confirmError}
                             inputMode="numeric"
                             maxLength={6}
                             value={confirmPin}
                             onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
                             placeholder="Repite el PIN"
-                            className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest focus:outline-none focus:border-teal-500"
+                            className="text-center text-2xl tracking-widest"
                         />
-                    </div>
-                    {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                    </Field>
+                    {error && !pinError && !confirmError && (
+                        <p className="text-rose-400 text-sm text-center" role="alert">{error}</p>
+                    )}
                     <button
                         onClick={handleSubmit}
-                        disabled={submitting}
-                        className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
+                        disabled={submitting || !!pinError || !!confirmError || pin.length < 4 || pin !== confirmPin}
+                        className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {submitting ? 'Activando...' : 'Activar mi acceso'}
                     </button>

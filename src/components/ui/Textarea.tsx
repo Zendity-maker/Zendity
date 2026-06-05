@@ -6,9 +6,11 @@ import { cn } from "./cn";
  * estados (idle/invalid/disabled) y mismo set de sizes.
  */
 export type TextareaSize = "sm" | "md" | "lg";
+export type TextareaVariant = "light" | "dark";
 
 export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "size"> {
     inputSize?: TextareaSize;
+    variant?: TextareaVariant;
     invalid?: boolean;
 }
 
@@ -19,11 +21,26 @@ const sizeClasses: Record<TextareaSize, string> = {
 };
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-    function Textarea({ inputSize = "md", invalid, className, disabled, rows = 3, ...rest }, ref) {
+    function Textarea({ inputSize = "md", variant = "light", invalid, className, disabled, rows = 3, ...rest }, ref) {
+        const isDark = variant === "dark";
+
+        const surface = isDark
+            ? "bg-slate-700 text-white placeholder:text-slate-400"
+            : "bg-white text-slate-800 placeholder:text-slate-400";
+
+        const border = invalid
+            ? (isDark ? "border-rose-400" : "border-rose-300")
+            : (isDark ? "border-slate-600" : "border-slate-200");
+
         const ring = invalid
             ? "focus:ring-[var(--color-critical-red)]/30 focus:border-[var(--color-critical-red)]"
-            : "focus:ring-[var(--color-zendity-teal)]/25 focus:border-[var(--color-zendity-teal)]";
-        const border = invalid ? "border-rose-300" : "border-slate-200";
+            : isDark
+                ? "focus:ring-[var(--color-teal-on-dark)]/40 focus:border-[var(--color-teal-on-dark)]"
+                : "focus:ring-[var(--color-zendity-teal)]/25 focus:border-[var(--color-zendity-teal)]";
+
+        const disabledClass = isDark
+            ? "opacity-60 cursor-not-allowed bg-slate-800"
+            : "opacity-60 cursor-not-allowed bg-slate-50";
 
         return (
             <textarea
@@ -32,13 +49,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 disabled={disabled}
                 aria-invalid={invalid || undefined}
                 className={cn(
-                    "w-full rounded-lg border bg-white text-slate-800",
-                    "placeholder:text-slate-400",
+                    "w-full rounded-lg border",
                     "outline-none transition-colors focus:ring-2 resize-y",
                     sizeClasses[inputSize],
+                    surface,
                     border,
                     ring,
-                    disabled && "opacity-60 cursor-not-allowed bg-slate-50",
+                    disabled && disabledClass,
                     className,
                 )}
                 {...rest}
