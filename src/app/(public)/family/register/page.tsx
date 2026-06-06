@@ -11,6 +11,7 @@ export default function FamilyRegisterPage() {
 
     const [status, setStatus] = useState<'loading' | 'valid' | 'invalid' | 'success'>('loading');
     const [familyMember, setFamilyMember] = useState<any>(null);
+    const [isReset, setIsReset] = useState(false);
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -32,8 +33,11 @@ export default function FamilyRegisterPage() {
         fetch(`/api/family/verify-token?token=${token}`)
             .then(r => r.json())
             .then(d => {
-                if (d.valid) { setFamilyMember(d.familyMember); setStatus('valid'); }
-                else setStatus('invalid');
+                if (d.valid) {
+                    setFamilyMember(d.familyMember);
+                    setIsReset(!!d.isReset);
+                    setStatus('valid');
+                } else setStatus('invalid');
             })
             .catch(() => setStatus('invalid'));
     }, [token]);
@@ -111,10 +115,23 @@ export default function FamilyRegisterPage() {
                     <h1 className="text-teal-400 font-black text-2xl tracking-widest mb-1">ZÉNDITY</h1>
                     <p className="text-slate-500 text-sm">Portal Familiar</p>
                 </div>
-                <h2 className="text-white font-bold text-xl mb-2">Bienvenido, {familyMember?.name}</h2>
-                <p className="text-slate-500 text-sm mb-8">
-                    Crea un PIN de acceso para entrar al portal y mantenerte al tanto del cuidado de tu familiar.
-                </p>
+                <h2 className="text-white font-bold text-xl mb-2">
+                    {isReset ? `Hola de nuevo, ${familyMember?.name}` : `Bienvenido, ${familyMember?.name}`}
+                </h2>
+                {isReset ? (
+                    <>
+                        <p className="text-slate-400 text-sm mb-2">
+                            Crea un PIN nuevo para tu acceso al portal familiar.
+                        </p>
+                        <p className="text-emerald-400 text-xs mb-8 leading-relaxed">
+                            ✓ Tu PIN anterior sigue funcionando hasta que confirmes el nuevo. Si recibiste este enlace por error, cierra esta página y todo seguirá igual.
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-slate-500 text-sm mb-8">
+                        Crea un PIN de acceso para entrar al portal y mantenerte al tanto del cuidado de tu familiar.
+                    </p>
+                )}
                 <div className="space-y-4">
                     <Field label="Crea tu PIN" htmlFor="pin" variant="dark" error={pinError}>
                         <Input

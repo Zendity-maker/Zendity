@@ -3,25 +3,63 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import sgMail from '@sendgrid/mail';
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-function generatePin(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+const INVITE_TTL_DAYS = 7;
+const PORTAL_BASE = process.env.NEXTAUTH_URL || 'https://app.zendity.com';
+
+/**
+ * Token criptográficamente seguro (64 chars hex). Mismo diseño que bf7d58a
+ * (7-abr-2026), antes del giro a PIN-plaintext de 102f09f.
+ */
+function generateInviteToken(): string {
+    return crypto.randomBytes(32).toString('hex');
 }
 
-function buildCredentialsEmail(params: {
+interface InviteEmailParams {
+    variant: 'nuevo' | 'reset';
     familyMemberName: string;
     patientName: string;
-    email: string;
-    pin: string;
     hqName: string;
-}): string {
-    const { familyMemberName, patientName, email, pin, hqName } = params;
-    return `<!DOCTYPE html>
+    inviteUrl: string;
+    expiryDate: Date;
+}
+
+/**
+ * Email único con dos variantes:
+ *  - 'nuevo' : primera invitación al portal.
+ *  - 'reset' : restablecer PIN. ⚠️ Aclara explícitamente que el PIN VIEJO
+ *              SIGUE FUNCIONANDO hasta que el familiar cree uno nuevo —
+ *              el login no usa `isRegistered` ni borramos `passcode` al
+ *              emitir el reset, así que es zero-downtime real.
+ *
+ * Sin PIN en el body. La credencial se construye via /family/register?token=...
+ */
+function buildInviteLinkEmail(params: InviteEmailParams): { subject: string; html: string } {
+    const { variant, familyMemberName, patientName, hqName, inviteUrl, expiryDate } = params;
+    const isReset = variant === 'reset';
+    const expiryStr = expiryDate.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Puerto_Rico' });
+
+    const subject = isReset
+        ? `Restablece tu PIN — ${hqName}`
+        : `Bienvenido al portal familiar — ${hqName}`;
+
+    const intro = isReset
+        ? `<p style="color:#64748B;font-size:14px;margin:0 0 16px;line-height:1.6;">Hola <strong>${familyMemberName}</strong>,<br><br>Recibimos una solicitud para restablecer tu PIN del portal familiar de <strong>${patientName}</strong> en <strong>${hqName}</strong>.</p>
+           <div style="background:#ECFDF5;border:1px solid #6EE7B7;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+               <p style="margin:0;color:#065F46;font-size:13px;line-height:1.5;">
+                   ✓ <strong>Tu PIN actual sigue funcionando</strong> hasta que crees uno nuevo. Si recibiste este correo por error, ignóralo y todo seguirá igual.
+               </p>
+           </div>`
+        : `<p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6;">Hola <strong>${familyMemberName}</strong>,<br><br><strong>${hqName}</strong> te invita al portal familiar de Zéndity, donde podrás mantenerte al tanto del cuidado de <strong>${patientName}</strong>.</p>`;
+
+    const ctaLabel = isReset ? 'Crear PIN nuevo' : 'Crear mi PIN';
+
+    const html = `<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
@@ -30,46 +68,23 @@ function buildCredentialsEmail(params: {
       <div style="color:#94A3B8;font-size:12px;margin-top:4px;">${hqName} — Portal Familiar</div>
     </div>
     <div style="padding:32px;">
-      <h2 style="margin:0 0 8px;color:#1E293B;font-size:18px;">Acceso al Portal Familiar</h2>
-      <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6;">
-        Hola <strong>${familyMemberName}</strong>,<br><br>
-        <strong>${hqName}</strong> le ha habilitado acceso inmediato al portal familiar de Zéndity,
-        donde podrá mantenerse al tanto del cuidado de <strong>${patientName}</strong>.
-      </p>
-      <div style="background:#F1F5F9;border-left:4px solid #1D9E75;border-radius:0 8px 8px 0;padding:20px 24px;margin-bottom:24px;">
-        <h3 style="margin:0 0 12px;color:#0F172A;font-size:15px;">Sus credenciales de acceso:</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;width:100px;"><strong>Portal:</strong></td>
-            <td style="font-size:13px;padding:6px 0;">
-              <a href="https://app.zendity.com/family" style="color:#0284C7;text-decoration:none;font-weight:700;">app.zendity.com/family</a>
-            </td>
-          </tr>
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>Email:</strong></td>
-            <td style="font-size:13px;padding:6px 0;color:#0F172A;">${email}</td>
-          </tr>
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>PIN:</strong></td>
-            <td style="padding:6px 0;">
-              <span style="background:#1E293B;color:#1D9E75;padding:4px 14px;border-radius:6px;font-family:monospace;font-size:20px;font-weight:900;letter-spacing:4px;">${pin}</span>
-            </td>
-          </tr>
-        </table>
-      </div>
-      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-        <p style="margin:0;color:#92400E;font-size:13px;">
-          ⚠️ <strong>Recomendamos cambiar tu PIN después del primer acceso</strong> desde la configuración del portal.
-        </p>
-      </div>
+      <h2 style="margin:0 0 8px;color:#1E293B;font-size:18px;">${isReset ? 'Restablecer tu PIN' : 'Acceso al Portal Familiar'}</h2>
+      ${intro}
       <div style="text-align:center;margin:24px 0;">
-        <a href="https://app.zendity.com/family"
+        <a href="${inviteUrl}"
            style="background:#1D9E75;color:#FFFFFF;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">
-          Entrar al portal familiar
+          ${ctaLabel}
         </a>
       </div>
-      <p style="color:#94A3B8;font-size:12px;text-align:center;margin:0;">
-        Si tiene problemas para acceder, comuníquese con ${hqName} directamente.
+      <p style="color:#64748B;font-size:13px;margin:8px 0 0;line-height:1.6;">
+        Este enlace es personal y expira el <strong>${expiryStr}</strong>. Solo es válido un uso — al crear tu PIN, el enlace se desactiva.
+      </p>
+      <p style="color:#94A3B8;font-size:12px;margin:18px 0 0;line-height:1.5;">
+        ¿El botón no funciona? Copia este enlace en tu navegador:<br>
+        <span style="word-break:break-all;color:#64748B;">${inviteUrl}</span>
+      </p>
+      <p style="color:#94A3B8;font-size:12px;text-align:center;margin:24px 0 0;">
+        Si tienes problemas para acceder, comunícate con ${hqName} directamente.
       </p>
     </div>
     <div style="background:#F8FAFC;padding:16px 32px;text-align:center;border-top:1px solid #E2E8F0;">
@@ -78,6 +93,8 @@ function buildCredentialsEmail(params: {
   </div>
 </body>
 </html>`;
+
+    return { subject, html };
 }
 
 export async function POST(req: Request) {
@@ -91,8 +108,10 @@ export async function POST(req: Request) {
         const hqId = (session.user as any).headquartersId;
 
         let familyMember: any = null;
+        let variant: 'nuevo' | 'reset' = 'nuevo';
 
-        // Modo A — Resend: { familyMemberId }
+        // Modo A — Resend / Reset: { familyMemberId }
+        // Usamos isRegistered del familyMember como discriminador del copy del email.
         if (body.familyMemberId) {
             familyMember = await prisma.familyMember.findFirst({
                 where: { id: body.familyMemberId, headquartersId: hqId },
@@ -101,6 +120,7 @@ export async function POST(req: Request) {
             if (!familyMember) {
                 return NextResponse.json({ error: 'Familiar no encontrado' }, { status: 404 });
             }
+            variant = familyMember.isRegistered ? 'reset' : 'nuevo';
         }
         // Modo B — Crear + invitar: { patientId, name, email, accessLevel }
         else if (body.patientId && body.name && body.email) {
@@ -117,10 +137,6 @@ export async function POST(req: Request) {
                 include: { patient: { select: { name: true, headquartersId: true } } },
             });
             if (existing) {
-                // Caso A: pertenece a OTRO residente (mismo hogar o no).
-                // Enriquecemos la respuesta con existingPatientId/Name para que
-                // el frontend pueda renderizar un link "Ir al perfil de {nombre}"
-                // en lugar de solo texto que obligue al director a navegar a mano.
                 if (existing.patientId !== patientId) {
                     const sameHq = existing.patient?.headquartersId === hqId;
                     return NextResponse.json({
@@ -133,14 +149,10 @@ export async function POST(req: Request) {
                         existingFamilyMemberName: sameHq ? existing.name : undefined,
                     }, { status: 409 });
                 }
-
-                // Caso B: es el MISMO residente, ya hay familiar con ese email.
-                // canResend=true → el frontend ofrece botón "Reenviar PIN" que
-                // dispara POST con { familyMemberId } al mismo endpoint (modo A).
                 return NextResponse.json({
                     error: existing.isRegistered
-                        ? `Ya hay un familiar registrado con ese email ("${existing.name}"). Si olvidó su PIN, usa "Reenviar invitación".`
-                        : `Hay una invitación pendiente para ese email ("${existing.name}"). Usa "Reenviar invitación" para enviarle un PIN nuevo.`,
+                        ? `Ya hay un familiar registrado con ese email ("${existing.name}"). Si olvidó su PIN, usa "Reenviar invitación" para enviar un enlace de reset.`
+                        : `Hay una invitación pendiente para ese email ("${existing.name}"). Usa "Reenviar invitación" para mandar un enlace nuevo.`,
                     existingFamilyMemberId: existing.id,
                     existingFamilyMemberName: existing.name,
                     canResend: true,
@@ -149,6 +161,8 @@ export async function POST(req: Request) {
 
             const level = accessLevel === 'Read-Only' ? 'Read-Only' : 'Full';
 
+            // Modo B: INSERT con isRegistered=false + passcode null.
+            // El token+expiry se setean en el UPDATE de abajo (común a ambos modos).
             familyMember = await prisma.familyMember.create({
                 data: {
                     headquartersId: hqId,
@@ -160,6 +174,7 @@ export async function POST(req: Request) {
                 },
                 include: { patient: { select: { name: true } } },
             });
+            variant = 'nuevo';
         } else {
             return NextResponse.json({ error: 'familyMemberId o (patientId, name, email) requerido' }, { status: 400 });
         }
@@ -170,45 +185,50 @@ export async function POST(req: Request) {
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: hqId },
-            select: { name: true, logoUrl: true }
+            select: { name: true },
         });
         const hqName = hq?.name || 'Zéndity';
 
-        // Generar PIN automático de 6 dígitos y activar la cuenta
-        // pin en texto plano → enviar en email; hashed → guardar en DB
-        const pin = generatePin();
-        const hashedPin = await bcrypt.hash(pin, 10);
+        // INVARIANTE crítica: NO se toca passcode ni isRegistered.
+        // Si era reset (familyMember.isRegistered=true), el familiar sigue entrando
+        // con su PIN viejo en otra ventana hasta que abra el link y complete el
+        // activate. Zero-downtime real.
+        const token = generateInviteToken();
+        const expiry = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
         await prisma.familyMember.update({
             where: { id: familyMember.id },
-            data: {
-                passcode: hashedPin,
-                isRegistered: true,
-                inviteToken: null,
-                inviteExpiry: null,
-            }
+            data: { inviteToken: token, inviteExpiry: expiry },
         });
 
-        const html = buildCredentialsEmail({
+        const inviteUrl = `${PORTAL_BASE}/family/register?token=${token}`;
+
+        const { subject, html } = buildInviteLinkEmail({
+            variant,
             familyMemberName: familyMember.name,
-            patientName: familyMember.patient?.name || 'su ser querido',
-            email: familyMember.email,
-            pin,
+            patientName: familyMember.patient?.name?.trim() || 'su ser querido',
             hqName,
+            inviteUrl,
+            expiryDate: expiry,
         });
 
         if (process.env.SENDGRID_API_KEY) {
             await sgMail.send({
                 to: familyMember.email,
                 from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: `${hqName} via Zéndity` },
-                subject: `Sus credenciales del portal familiar — ${hqName}`,
-                html
+                subject,
+                html,
             });
         }
 
-        return NextResponse.json({ success: true, message: 'Credenciales enviadas al familiar' });
-
+        return NextResponse.json({
+            success: true,
+            message: variant === 'reset'
+                ? 'Enlace de reset enviado al email del familiar'
+                : 'Enlace de invitación enviado al email del familiar',
+            variant,
+        });
     } catch (error) {
-        console.error('Invite error:', error);
+        console.error('Family invite error:', error);
         return NextResponse.json({ error: 'Error enviando invitación' }, { status: 500 });
     }
 }
