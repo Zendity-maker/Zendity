@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil, Calendar, Download, Sparkles } from "lucide-react";
 import { StatTile } from "@/components/ui/StatTile";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Patient = {
     id: string;
@@ -76,6 +77,8 @@ export default function BillingDashboard() {
         tasaCobranza: number | null;
     } | null>(null);
     const [generatingMonth, setGeneratingMonth] = useState(false);
+    // Sprint B — ConfirmDialog: generar facturas del mes (primary, async).
+    const [confirmGenerateMonth, setConfirmGenerateMonth] = useState(false);
 
     // New Invoice Form State
     const [selectedPatientId, setSelectedPatientId] = useState("");
@@ -121,26 +124,21 @@ export default function BillingDashboard() {
     // Botón "Generar facturas del mes": dispara /api/corporate/billing/generate-month.
     // Idempotente — los residentes que ya tienen factura del mes se skipean.
     // Útil si el cron del día 1 falló o hay residentes nuevos del mes en curso.
-    const handleGenerateMonth = async () => {
-        if (!confirm('¿Generar facturas del mes en curso? Los residentes que ya tengan factura del mes se saltarán automáticamente.')) return;
-        setGeneratingMonth(true);
-        try {
-            const res = await fetch('/api/corporate/billing/generate-month', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert(`✓ ${data.message}`);
-                fetchData();
-            } else {
-                alert('Error: ' + (data.error || 'desconocido'));
-            }
-        } catch (e) {
-            alert('Error de conexión');
-        } finally {
-            setGeneratingMonth(false);
+    const performGenerateMonth = async () => {
+        const res = await fetch('/api/corporate/billing/generate-month', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`✓ ${data.message}`);
+            setConfirmGenerateMonth(false);
+            fetchData();
+        } else {
+            alert('Error: ' + (data.error || 'desconocido'));
+            // ConfirmDialog deja el dialog abierto; el usuario puede cerrar manualmente.
+            throw new Error(data.error || 'Error generando mes');
         }
     };
 
@@ -301,7 +299,7 @@ export default function BillingDashboard() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button
-                        onClick={handleGenerateMonth}
+                        onClick={() => setConfirmGenerateMonth(true)}
                         disabled={generatingMonth}
                         className="bg-white hover:bg-slate-50 border-2 border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                         title="Genera facturas para todos los residentes activos del mes en curso. Idempotente."
@@ -857,6 +855,24 @@ export default function BillingDashboard() {
                     </div>
                 </div>
             )}
+
+            {/* ConfirmDialog "Generar facturas del mes" — Sprint B */}
+            <ConfirmDialog
+                open={confirmGenerateMonth}
+                onClose={() => setConfirmGenerateMonth(false)}
+                onConfirm={performGenerateMonth}
+                title="Generar facturas del mes"
+                message={
+                    <>
+                        Se crearán facturas mensuales para todos los residentes activos del mes en curso.
+                        Los residentes que <strong>ya tengan factura</strong> del mes se saltan automáticamente
+                        (operación idempotente).
+                    </>
+                }
+                tone="primary"
+                confirmLabel="Generar mes"
+                cancelLabel="Cancelar"
+            />
         </div>
     );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Settings, Plus, Edit2, Trash2, ChevronLeft, Loader2, Copy, Check, X, Tablet, MapPin, Clock, ExternalLink, QrCode } from "lucide-react";
 import QRCodeDisplay from "@/components/ui/QRCodeDisplay";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Tab = 'categories' | 'providers' | 'devices';
 
@@ -49,6 +50,9 @@ export default function AdminExternalServicesPage() {
     const [newDeviceModal, setNewDeviceModal] = useState(false);
     const [newDeviceResult, setNewDeviceResult] = useState<{ setupUrl: string; deviceToken: string; label: string } | null>(null);
     const [submitting, setSubmitting] = useState(false);
+
+    // Sprint B — ConfirmDialog: eliminar proveedor (destructivo, async).
+    const [confirmDeleteProv, setConfirmDeleteProv] = useState<{ id: string; name: string } | null>(null);
 
     const fetchAll = useCallback(async () => {
         const [c, p, d] = await Promise.all([
@@ -136,12 +140,20 @@ export default function AdminExternalServicesPage() {
         } finally { setSubmitting(false); }
     };
 
-    const deleteProv = async (id: string) => {
-        if (!confirm('¿Eliminar este proveedor? Si tiene visitas, no podrás (desactívalo en su lugar).')) return;
+    const performDeleteProv = async () => {
+        if (!confirmDeleteProv) return;
+        const id = confirmDeleteProv.id;
         const res = await fetch(`/api/admin/external-services/providers/${id}`, { method: 'DELETE' });
         const data = await res.json();
-        if (data.success) { setToast({ msg: 'Proveedor eliminado', type: 'ok' }); fetchAll(); }
-        else setToast({ msg: data.error || 'Error', type: 'err' });
+        if (data.success) {
+            setToast({ msg: 'Proveedor eliminado', type: 'ok' });
+            setConfirmDeleteProv(null);
+            fetchAll();
+        } else {
+            // ConfirmDialog deja el modal abierto en error; el toast comunica el motivo.
+            setToast({ msg: data.error || 'Error eliminando proveedor', type: 'err' });
+            throw new Error(data.error || 'Error eliminando proveedor');
+        }
     };
 
     // ──────── Devices
@@ -274,7 +286,7 @@ export default function AdminExternalServicesPage() {
                                             <Td>
                                                 <div className="flex gap-2">
                                                     <button onClick={() => setEditProv({ ...p, mode: 'edit' })} className="p-2 rounded-lg hover:bg-slate-200 transition"><Edit2 className="w-4 h-4 text-slate-600" /></button>
-                                                    <button onClick={() => deleteProv(p.id)} className="p-2 rounded-lg hover:bg-rose-100 transition"><Trash2 className="w-4 h-4 text-rose-600" /></button>
+                                                    <button onClick={() => setConfirmDeleteProv({ id: p.id, name: p.name })} className="p-2 rounded-lg hover:bg-rose-100 transition"><Trash2 className="w-4 h-4 text-rose-600" /></button>
                                                 </div>
                                             </Td>
                                         </tr>
@@ -456,6 +468,23 @@ export default function AdminExternalServicesPage() {
 
             <style jsx>{`.input { width: 100%; border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; font-size: 14px; outline: none; }
                 .input:focus { border-color: #0F6E56; }`}</style>
+
+            {/* ConfirmDialog destructivo — Sprint B */}
+            <ConfirmDialog
+                open={!!confirmDeleteProv}
+                onClose={() => setConfirmDeleteProv(null)}
+                onConfirm={performDeleteProv}
+                title="Eliminar proveedor"
+                message={
+                    <>
+                        ¿Eliminar a <strong>{confirmDeleteProv?.name}</strong>?<br />
+                        Si el proveedor tiene visitas registradas, no podrás eliminarlo — desactívalo en su lugar.
+                    </>
+                }
+                tone="danger"
+                confirmLabel="Sí, eliminar"
+                cancelLabel="Cancelar"
+            />
         </div>
     );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Pill, AlertCircle, Save, Loader2, X } from "lucide-react";
+import { Pill, AlertCircle, Save, Loader2 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 
 type Medication = {
     id: string;
@@ -53,21 +54,15 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-
-                {/* Header (Zendity Teal Gradient Accent) */}
-                <div className="bg-gradient-to-r from-zendity-teal to-teal-500 p-6 flex items-center justify-between text-white">
-                    <div className="flex items-center gap-3">
-                        <Pill className="w-6 h-6" />
-                        <h2 className="text-xl font-bold font-display">Editar Medicamento</h2>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <Modal
+            open={isOpen}
+            onClose={onClose}
+            title="Editar Medicamento"
+            icon={<Pill className="w-6 h-6 text-teal-600" />}
+            size="md"
+            variant="light"
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
                     {error && (
                         <div className="p-3 bg-red-50 text-red-700 text-sm font-medium rounded-xl flex items-center gap-2 border border-red-100">
                             <AlertCircle className="w-4 h-4" />
@@ -198,8 +193,7 @@ export default function EditMedicationModal({ medication, isOpen, onClose, onSav
                             {isSaving ? "Guardando..." : "Guardar Cambios"}
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
+            </form>
+        </Modal>
     );
 }
