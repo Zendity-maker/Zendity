@@ -10,7 +10,9 @@ if (process.env.SENDGRID_API_KEY) {
 }
 
 const INVITE_TTL_DAYS = 7;
-const PORTAL_BASE = process.env.NEXTAUTH_URL || 'https://app.zendity.com';
+// Strip trailing slash para evitar "//family/register" si alguien setea
+// NEXTAUTH_URL con "/" al final. Fallback se mantiene como defensa.
+const PORTAL_BASE = (process.env.NEXTAUTH_URL || 'https://app.zendity.com').replace(/\/+$/, '');
 
 /**
  * Token criptográficamente seguro (64 chars hex). Mismo diseño que bf7d58a
