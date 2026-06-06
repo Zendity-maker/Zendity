@@ -7,8 +7,11 @@ export async function POST(req: Request) {
         const { token, pin } = await req.json();
         if (!token || !pin) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
 
+        // Token válido + no expirado = gate suficiente. Sin condición isRegistered
+        // para soportar reset (activate sobrescribe el passcode previo). El
+        // token es uno-y-usado: el UPDATE de abajo lo anula al completar.
         const fm = await prisma.familyMember.findFirst({
-            where: { inviteToken: token, inviteExpiry: { gt: new Date() }, isRegistered: false }
+            where: { inviteToken: token, inviteExpiry: { gt: new Date() } }
         });
 
         if (!fm) return NextResponse.json({ error: 'Token inválido o expirado' }, { status: 400 });

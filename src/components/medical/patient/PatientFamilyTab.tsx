@@ -111,7 +111,7 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
             });
             const data = await res.json();
             if (res.ok && (data.success || data.message)) {
-                setToast({ msg: `Invitación enviada a ${form.email.trim()}`, type: "ok" });
+                setToast({ msg: `Enlace de invitación enviado a ${form.email.trim()}`, type: "ok" });
                 setModalOpen(false);
                 fetchMembers();
             } else {
@@ -148,11 +148,12 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
             });
             const data = await res.json();
             if (res.ok && (data.success || data.message)) {
-                setToast({ msg: `PIN reenviado a ${form.email.trim()}`, type: "ok" });
+                const verbo = data.variant === 'reset' ? 'Enlace de reset' : 'Enlace de invitación';
+                setToast({ msg: `${verbo} enviado a ${form.email.trim()}`, type: "ok" });
                 setModalOpen(false);
                 fetchMembers();
             } else {
-                setModalError(data.error || "Error reenviando PIN");
+                setModalError(data.error || "Error reenviando invitación");
             }
         } catch {
             setModalError("Error de conexión");
@@ -171,7 +172,8 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
             });
             const data = await res.json();
             if (res.ok && (data.success || data.message)) {
-                setToast({ msg: `Invitación reenviada a ${m.email}`, type: "ok" });
+                const verbo = data.variant === 'reset' ? 'Enlace de reset' : 'Enlace de invitación';
+                setToast({ msg: `${verbo} enviado a ${m.email}`, type: "ok" });
                 fetchMembers();
             } else {
                 setToast({ msg: data.error || "Error reenviando", type: "err" });
@@ -358,7 +360,7 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                         onClick={() => handleResend(m)}
                                         disabled={resendingId === m.id}
                                         className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                                        title={m.isRegistered ? 'Generar PIN nuevo y enviarlo por email' : 'Enviar credenciales por primera vez'}
+                                        title={m.isRegistered ? 'Enviar enlace por email para crear PIN nuevo (el PIN actual sigue funcionando hasta que cree uno nuevo)' : 'Enviar enlace de invitación por email para crear PIN'}
                                     >
                                         {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                         {m.isRegistered ? 'Resetear PIN' : 'Reenviar'}
