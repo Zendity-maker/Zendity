@@ -2,18 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
-import sgMail from '@sendgrid/mail';
-import bcrypt from 'bcryptjs';
-
-function generatePin(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-
-
-if (process.env.SENDGRID_API_KEY) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
+import { issueFamilyInviteLink } from '@/lib/family-invite-link';
 
 // GET: Obtain the list of family members for a patient
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -99,11 +88,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ success: true, familyMember: updated, updated: true });
         }
 
-        // Generar PIN automático de 6 dígitos para acceso inmediato
-        // pin texto plano → email; hashed → DB
-        const pin = generatePin();
-        const hashedPin = await bcrypt.hash(pin, 10);
-
+        // INSERT pending — el familiar elige su PIN via /family/register?token=X.
+        // isRegistered=false, passcode=null hasta que el familiar complete activate.
         const newFamilyMember = await prisma.familyMember.create({
             data: {
                 patientId: patientId,
@@ -111,8 +97,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 name,
                 email,
                 phone: phone || null,
-                passcode: hashedPin,
-                isRegistered: true,
+                passcode: null,
+                isRegistered: false,
                 accessLevel: accessLevel || "Full",
                 relationship: relationship || null,
                 address: address || null,
@@ -121,7 +107,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             }
         });
 
-        // Si es el primario, desmarcar otros + setear en Patient
+        // Si es el primario, desmarcar otros + setear en Patient.
+        // Esto es ortogonal al onboarding del PIN — el FM puede ser primary
+        // aunque aún no haya activado su acceso.
         if (isPrimary === true) {
             await prisma.familyMember.updateMany({
                 where: { patientId, id: { not: newFamilyMember.id }, isPrimary: true },
@@ -133,94 +121,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             });
         }
 
-        // Email de bienvenida con credenciales — siempre se envía al crear familiar nuevo
-        try {
-            const [hq, patient] = await Promise.all([
-                prisma.headquarters.findUnique({ where: { id: hqId }, select: { name: true, logoUrl: true } }),
-                prisma.patient.findUnique({ where: { id: patientId }, select: { name: true } }),
-            ]);
-            const hqName = hq?.name || 'Zéndity';
-            const patientName = patient?.name || 'su familiar';
-
-            const html = `<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
-  <div style="max-width:560px;margin:32px auto;background:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
-    <div style="background:#1E293B;padding:24px 32px;">
-      <div style="color:#1D9E75;font-size:22px;font-weight:900;letter-spacing:2px;">ZÉNDITY</div>
-      <div style="color:#94A3B8;font-size:12px;margin-top:4px;">${hqName} — Portal Familiar</div>
-    </div>
-    <div style="padding:32px;">
-      <h2 style="margin:0 0 8px;color:#1E293B;font-size:18px;">Bienvenido/a al Portal Familiar</h2>
-      <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6;">
-        Hola <strong>${name}</strong>,<br><br>
-        <strong>${hqName}</strong> le ha habilitado acceso al portal familiar de Zéndity,
-        donde podrá mantenerse al tanto del cuidado de <strong>${patientName}</strong>.
-      </p>
-      <div style="background:#F1F5F9;border-left:4px solid #1D9E75;border-radius:0 8px 8px 0;padding:20px 24px;margin-bottom:24px;">
-        <h3 style="margin:0 0 12px;color:#0F172A;font-size:15px;">Sus credenciales de acceso:</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;width:100px;"><strong>Portal:</strong></td>
-            <td style="font-size:13px;padding:6px 0;">
-              <a href="https://app.zendity.com/family" style="color:#0284C7;text-decoration:none;font-weight:700;">app.zendity.com/family</a>
-            </td>
-          </tr>
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>Email:</strong></td>
-            <td style="font-size:13px;padding:6px 0;color:#0F172A;">${email}</td>
-          </tr>
-          <tr>
-            <td style="color:#64748B;font-size:13px;padding:6px 0;"><strong>PIN:</strong></td>
-            <td style="padding:6px 0;">
-              <span style="background:#1E293B;color:#1D9E75;padding:4px 14px;border-radius:6px;font-family:monospace;font-size:20px;font-weight:900;letter-spacing:4px;">${pin}</span>
-            </td>
-          </tr>
-        </table>
-      </div>
-      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-        <p style="margin:0;color:#92400E;font-size:13px;">
-          ⚠️ <strong>Recomendamos cambiar tu PIN después del primer acceso</strong> desde la configuración del portal.
-        </p>
-      </div>
-      <div style="text-align:center;margin:24px 0;">
-        <a href="https://app.zendity.com/family"
-           style="background:#1D9E75;color:#FFFFFF;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">
-          Entrar al portal familiar
-        </a>
-      </div>
-    </div>
-    <div style="background:#F8FAFC;padding:16px 32px;text-align:center;border-top:1px solid #E2E8F0;">
-      <p style="margin:0;color:#94A3B8;font-size:12px;">${hqName} — Zéndity Healthcare Management Platform</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-            if (process.env.SENDGRID_API_KEY) {
-                await sgMail.send({
-                    to: email,
-                    from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
-                    subject: `Bienvenido/a a ${hqName} — Acceso al Portal Familiar`,
-                    html,
-                });
-                console.log(`[ONBOARDING] Credenciales enviadas a: ${email}`);
-            } else {
-                console.warn(`[ONBOARDING] SENDGRID_API_KEY no configurado. Email no enviado a ${email}`);
-                return NextResponse.json({ success: true, familyMember: newFamilyMember, emailFailed: true, emailError: "SENDGRID_API_KEY no configurado." });
-            }
-        } catch (emailError: any) {
-            console.error("[ONBOARDING] Error enviando email de bienvenida:", emailError);
-            const attemptedSender = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
-            return NextResponse.json({
-                success: true,
-                familyMember: newFamilyMember,
-                emailFailed: true,
-                emailError: `[Remitente: "${attemptedSender}"] ` + (emailError.response ? JSON.stringify(emailError.response.body) : emailError.message)
-            });
+        // Emitir token + enviar email de invitación vía lib compartida.
+        // El UPDATE del token persiste aunque sgMail falle — el director puede
+        // reenviar desde /corporate/family/invite (Modo A) sin regenerar el FM.
+        const result = await issueFamilyInviteLink(newFamilyMember.id, 'nuevo');
+        if (result.emailSent) {
+            console.log(`[ONBOARDING] Enlace de invitación enviado a: ${email}`);
+        } else {
+            console.warn(`[ONBOARDING] Email no enviado a ${email}:`, result.emailError);
         }
 
-        return NextResponse.json({ success: true, familyMember: newFamilyMember });
+        // Conserva la forma { emailFailed, emailError } que la UI del wizard
+        // ya consume — sin sorpresas para Tab5 del intake.
+        return NextResponse.json({
+            success: true,
+            familyMember: newFamilyMember,
+            emailFailed: !result.emailSent,
+            emailError: result.emailError,
+        });
     } catch (error) {
         console.error("Error creating family member:", error);
         return NextResponse.json({ success: false, error: "Error al crear el perfil del familiar." }, { status: 500 });
