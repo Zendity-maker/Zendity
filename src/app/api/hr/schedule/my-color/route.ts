@@ -76,12 +76,18 @@ export async function GET(_req: Request) {
         const shiftNotes = resolved.shiftNotes;
 
         // Solo-mode: si hay color real (no 'ALL', no vacío) y la cuidadora
-        // es la única en piso → escalar a 'ALL' (ve todos los residentes).
+        // es la única en piso AHORA → escalar a 'ALL' (ve todos los residentes).
         // Mantiene `originalColor` para que la UI sepa que es escalación.
+        //
+        // Importante: `at: undefined` (= now), NO `evaluatedAt`. La pregunta
+        // "¿está sola?" es del momento ACTUAL, no del inicio de su sesión.
+        // Anclar a session.startTime puede contar zombies recientes como
+        // sesiones activas (cap = startTime - 16h captura sesiones que el cap
+        // = now - 16h ya excluiría). Confirmado por análisis de caso de borde.
         let auto: true | undefined;
         let originalColor: string | undefined;
         if (primaryColor && !colors.includes('ALL')) {
-            const solo = await isSoloCaregiver({ hqId, at: evaluatedAt });
+            const solo = await isSoloCaregiver({ hqId });
             if (solo) {
                 auto = true;
                 originalColor = primaryColor;

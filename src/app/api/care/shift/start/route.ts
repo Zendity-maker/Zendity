@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
-import { inferShiftTypeFromAST, resolveCaregiverCurrentColors } from '@/lib/shift-coverage';
+import { resolveCaregiverCurrentColors, resolveCaregiverColors, isSoloCaregiver } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
@@ -19,91 +19,64 @@ const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
 // Sprint J: ventana automática de 4h al inicio de turno
 const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
 
-// Resuelve los residentes asignados al cuidador para la ventana de vitales.
+// Resuelve los residentes asignados al cuidador para la ventana de vitales
+// que se crea al hacer clock-in.
 //
-// Modelo:
-//   - El COLOR BASE viene de ScheduledShift del Builder (semana publicada),
-//     filtrado por el shiftType actual.
-//   - ShiftColorAssignment NO reemplaza el color base — lo SUMA. Sirve para
-//     coberturas adicionales (ej. cuidadora cubre EVENING/YELLOW además de
-//     su EVENING/BLUE programado) o para reasignaciones explícitas cuando un
-//     cuidador hace overtime en un shiftType distinto del programado.
-//   - Si no hay match con el shiftType actual y no hay ColorAssignment, se
-//     hace fallback a la ScheduledShift más reciente del día (caso overtime).
-//   - Si después de todo no hay colores o aparece 'ALL', se traen todos los
-//     residentes ACTIVE de la sede (caso cuidadora solitaria).
+// Migrado al resolver consolidado (`resolveCaregiverColors`) en PASO 2(b)
+// del spec feat/color-resolver-consolidation.
 //
-// Reformulado tras descubrir que el endpoint legacy /api/hr/schedule/absent
-// creaba ShiftColorAssignment con el color del AUSENTE para los receptores,
-// sobreescribiendo el color base de cuidadoras como Yeray (BLUE → YELLOW).
+// Diferencias funcionales vs. legacy (TODAS deseadas, ver decisiones D1-D4):
+//
+//   FIX TZ (D3) — legacy filtraba `ScheduledShift.date >= todayStartAST()`
+//                 (= 10:00 UTC del calendar day AST). Pero `date` se persiste
+//                 como 00:00 UTC del calendar day → 00:00 < 10:00 EXCLUYE los
+//                 shifts del día. Bug raíz de "imposible redistribuir"
+//                 reportado en producción. El resolver usa
+//                 `clinicalDay().{calendarStartUtc, calendarEndUtc}` →
+//                 rango [00:00, 24:00) UTC que SÍ captura los shifts.
+//
+//   FIX VENTANA (D2) — legacy usaba `inferShiftTypeFromAST()` (bucket
+//                      MORNING/EVENING/NIGHT exacto). Una pauta FULL_NIGHT
+//                      (18-06) NO entraba a las 19:00 y se caía al
+//                      fallback overtime. Ahora el resolver usa
+//                      `compatibleShiftTypesAt(at)` (ventanas) — FULL_DAY
+//                      y FULL_NIGHT entran cuando su rango horario
+//                      contiene `at`.
+//
+//   UNIÓN (D1) — base ∪ assignments en lugar de búsqueda en cascada. Ya
+//                era el comportamiento del legacy de este archivo (`base
+//                + overrides`), confirmado idéntico.
+//
+//   OVERTIME FALLBACK (D4) — preserva el comportamiento legacy: si no hay
+//                            shift compatible, el resolver con
+//                            `overtimeFallback: true` usa el ScheduledShift
+//                            más reciente del día como base. ON aquí porque
+//                            shift/start FILTRA pacientes — sin fallback,
+//                            una cuidadora en overtime ve la sede entera.
+//
+//   SOLO-MODE — extraído a `isSoloCaregiver` helper (cap sliding 16h, no
+//                anclado al día clínico, preserva caregiver NIGHT que cruza
+//                las 6am AST). Pasamos `at: undefined` para anclar a `now`
+//                (es la pregunta "¿está sola AHORA?", no "al iniciar turno?").
 async function resolveAssignedPatients(caregiverId: string, hqId: string) {
-    const dayStart = todayStartAST();
-    const currentShiftType = inferShiftTypeFromAST();
-
-    // 1. Color base del Builder para el shiftType actual
-    const scheduledNow = await prisma.scheduledShift.findFirst({
-        where: {
-            userId: caregiverId,
-            date: { gte: dayStart },
-            shiftType: currentShiftType as any,
-            isAbsent: false,
-            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
-        },
-        select: { colorGroup: true },
+    // El resolver usa `at: undefined` (= now) porque shift/start se invoca
+    // EN el momento del clock-in — `now` ES `at`. Si en el futuro se llamara
+    // desde otro contexto (audit retro), habría que recibir `at` por param.
+    const colors = await resolveCaregiverColors({
+        mode: 'single',
+        caregiverId,
+        hqId,
+        overtimeFallback: true,
     });
-    const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
-        ? [scheduledNow.colorGroup]
-        : [];
 
-    // 2. ShiftColorAssignments del día — coberturas adicionales que SUMAN al base
-    const colorAssignments = await prisma.shiftColorAssignment.findMany({
-        where: {
-            headquartersId: hqId,
-            userId: caregiverId,
-            assignedAt: { gte: dayStart },
-        },
-        select: { color: true },
-    });
-    const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
+    const isSolo = await isSoloCaregiver({ hqId });
 
-    // Unión deduplicada: base + coberturas
-    let colors = Array.from(new Set([...baseColor, ...overrideColors]));
-
-    // 3. Fallback overtime: sin match del shiftType actual ni cobertura → usar
-    //    la ScheduledShift más reciente del día (cuidadora extendió su turno).
-    if (colors.length === 0) {
-        const fallback = await prisma.scheduledShift.findFirst({
-            where: {
-                userId: caregiverId,
-                date: { gte: dayStart },
-                isAbsent: false,
-                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
-            },
-            orderBy: { date: 'desc' },
-            select: { colorGroup: true },
-        });
-        if (fallback?.colorGroup && fallback.colorGroup !== 'UNASSIGNED') {
-            colors = [fallback.colorGroup];
-        }
-    }
-
-    // 4. Nivel 2 — Auto-escalación a ALL si esta cuidadora es la única en piso.
-    //    Auto-corrige: si entra otra cuidadora luego, el siguiente poll de
-    //    /api/care recalcula y aplica el filtro normal.
-    const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
-    const activeCount = await prisma.shiftSession.count({
-        where: {
-            headquartersId: hqId,
-            actualEndTime: null,
-            startTime: { gte: fourteenHrsAgo },
-            caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
-        },
-    });
-    const isSolo = activeCount <= 1;
-
-    // 5. Sin color, 'ALL' o cuidadora solitaria → trae todos los ACTIVE
+    // Sin color, 'ALL' o cuidadora solitaria → trae todos los ACTIVE
     const unrestricted = colors.length === 0 || colors.includes('ALL') || isSolo;
 
+    // `colorGroup` del enum Prisma es cerrado a RED/YELLOW/GREEN/BLUE/UNASSIGNED.
+    // El resolver puede devolver 'ALL' (cobertura amplia) — se filtra acá
+    // antes del `in` de Prisma para no romper el query.
     const validColors = colors.filter(c =>
         (['RED', 'YELLOW', 'GREEN', 'BLUE', 'UNASSIGNED'] as string[]).includes(c)
     ) as ColorGroup[];
