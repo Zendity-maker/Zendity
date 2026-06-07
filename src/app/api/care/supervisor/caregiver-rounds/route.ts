@@ -3,8 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
-import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
-import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import { clinicalDayCalendarUTCRange } from '@/lib/dates';
+import {
+    inferShiftTypeFromAST,
+    resolveCaregiverColors,
+    ACTIVE_PRESENCE_MAX_HOURS,
+} from '@/lib/shift-coverage';
 import { logError } from '@/lib/logger';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -52,17 +56,20 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: e.message }, { status: 400 });
         }
 
-        // Sesiones activas de cuidadores (ventana 14h para incluir NIGHT vivos).
-        // FASE 51 — alineación con shift/start, shift/coverage, claim-coverage:
-        // aceptar primary OR secondaryRoles. Antes el filtro `role: 'CAREGIVER'`
-        // estricto dejaba fuera a dual-rol (ej. Mariangelie SUPERVISOR + secondary
-        // CAREGIVER) — su sesión activa contaba en /supervisor/live pero NO se
-        // renderizaba tarjeta, causando asimetría visible ("3 activas" vs 2 cards).
-        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+        // Sesiones activas de cuidadores — cap UNIFICADO de presencia
+        // (ACTIVE_PRESENCE_MAX_HOURS = 16h, ver lib/shift-coverage).
+        // Antes este endpoint usaba 14h inline. Alineado al cap unificado
+        // para que la misma cuidadora que aparece en isSoloCaregiver, en
+        // /api/care (solo-mode) y aquí coincida — el supervisor ve el
+        // mismo conjunto que el resolver de la tablet.
+        //
+        // FASE 51 — aceptar primary OR secondaryRoles para dual-rol
+        // (ej. Mariangelie SUPERVISOR + secondary CAREGIVER).
+        const presenceCap = new Date(Date.now() - ACTIVE_PRESENCE_MAX_HOURS * 60 * 60 * 1000);
         const activeSessions = await prisma.shiftSession.findMany({
             where: {
                 actualEndTime: null,
-                startTime: { gte: fourteenHrsAgo },
+                startTime: { gte: presenceCap },
                 caregiver: {
                     headquartersId: hqId,
                     OR: [
@@ -85,80 +92,41 @@ export async function GET(req: Request) {
         }
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
-
-        // Para timestamps reales (assignedAt de ColorAssignments) usamos
-        // todayStartAST() (6am AST = 10am UTC).
-        // Para ScheduledShift.date (que se guarda como medianoche UTC del día
-        // calendar correspondiente) usamos clinicalDayCalendarUTCRange()
-        // — antes este endpoint usaba todayStartAST() ahí, lo cual EXCLUÍA los
-        // shifts publicados del día porque date=00:00 UTC < 10:00 UTC.
-        const todayStartUTC = todayStartAST();
         const scheduledDayRange = clinicalDayCalendarUTCRange();
-
-        // Resolver color efectivo de cada cuidadora con la misma prioridad que
-        // resolveAssignedPatients en shift/start:
-        //   1. ShiftColorAssignment más reciente de HOY (cobertura manual /
-        //      redistribución reciente — refleja qué color cubre AHORA).
-        //   2. ScheduledShift del shiftType ACTUAL (color base del Builder).
-        //   3. Fallback overtime: cualquier ScheduledShift de hoy más reciente.
-        //
-        // Caso real: si Joaneliz tiene ScheduledShift MORNING/RED (ya terminó)
-        // + ColorAssignment YELLOW de hace 1h (cubriendo EVENING), debe verse
-        // como YELLOW en el panel, no como RED.
-        const colorMap = new Map<string, string>();
-
         const currentShiftType = inferShiftTypeFromAST();
 
-        // Prioridad 1: ShiftColorAssignment más reciente de HOY
-        const todayColorAssignments = await prisma.shiftColorAssignment.findMany({
-            where: { userId: { in: caregiverIds }, assignedAt: { gte: todayStartUTC } },
-            select: { userId: true, color: true, assignedAt: true },
-            orderBy: { assignedAt: 'desc' }
+        // Resolver color de TODOS los cuidadores activos vía el chokepoint
+        // consolidado (D1 unión + D2 ventana + D3 boundaries + D4 fallback).
+        //
+        // Cambios funcionales vs. legacy de este archivo:
+        //   D1 UNIÓN: antes este endpoint tomaba EL PRIMER color encontrado
+        //             entre (assignments, roster, fallback). Si Medelyn
+        //             tenía base BLUE + ColorAssignment YELLOW, el wall la
+        //             mostraba SOLO como YELLOW. Ahora retorna ['BLUE','YELLOW']
+        //             y el wall las muestra ambos.
+        //   D2 VENTANA: antes filtraba `shiftType: currentShiftType` (bucket
+        //              único EVENING/MORNING/NIGHT). Pautas FULL_DAY/FULL_NIGHT
+        //              caían al fallback aunque su ventana cubriera la hora
+        //              actual. Ahora `compatibleShiftTypesAt(at)` las incluye.
+        //   D4 FALLBACK: explícito vía flag (ON aquí — sin él, una cuidadora
+        //                en overtime aparece sin color en el wall y rompe
+        //                el cálculo de rondas).
+        const colorsByUser = await resolveCaregiverColors({
+            mode: 'batch',
+            caregiverIds,
+            hqId,
+            overtimeFallback: true,
         });
-        for (const ca of todayColorAssignments) {
-            if (!colorMap.has(ca.userId) && ca.color) colorMap.set(ca.userId, ca.color);
-        }
 
-        // Prioridad 2: ScheduledShift del shiftType actual (color base del Builder)
-        const currentShiftScheduled = await prisma.scheduledShift.findMany({
-            where: {
-                userId: { in: caregiverIds },
-                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
-                shiftType: currentShiftType as any,
-                isAbsent: false,
-                colorGroup: { not: null },
-                schedule: { headquartersId: hqId, status: 'PUBLISHED' }
-            },
-            select: { userId: true, colorGroup: true },
-        });
-        for (const s of currentShiftScheduled) {
-            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
-                colorMap.set(s.userId, s.colorGroup);
-            }
+        // Residentes ACTIVE — pedimos TODOS los colores que aparecen en CUALQUIER
+        // cuidadora activa (unión global). Si alguna tiene 'ALL', traemos
+        // todos los residentes ACTIVE de la sede.
+        const allColorsUnion = new Set<string>();
+        for (const colors of colorsByUser.values()) {
+            for (const c of colors) allColorsUnion.add(c);
         }
-
-        // Prioridad 3 (overtime fallback): cualquier ScheduledShift de hoy
-        const fallbackShifts = await prisma.scheduledShift.findMany({
-            where: {
-                userId: { in: caregiverIds },
-                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
-                isAbsent: false,
-                colorGroup: { not: null },
-                schedule: { headquartersId: hqId, status: 'PUBLISHED' }
-            },
-            select: { userId: true, colorGroup: true },
-            orderBy: { date: 'desc' }
-        });
-        for (const s of fallbackShifts) {
-            if (!colorMap.has(s.userId) && s.colorGroup && s.colorGroup !== 'UNASSIGNED') {
-                colorMap.set(s.userId, s.colorGroup);
-            }
-        }
-
-        // Residentes ACTIVE por color group en esta HQ.
-        // Si alguna cuidadora tiene color 'ALL', traer todos los residentes.
-        const hasAll = [...colorMap.values()].some(c => c === 'ALL');
-        const distinctColors = [...new Set(colorMap.values())].filter(c => c !== 'ALL');
+        const hasAll = allColorsUnion.has('ALL');
+        const distinctColors = [...allColorsUnion].filter(c => c !== 'ALL');
         const allGroupPatients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
@@ -283,7 +251,10 @@ export async function GET(req: Request) {
             const name = sess.caregiver?.name || 'Cuidador';
             const shiftStart = sess.startTime;
             const shiftStartMs = shiftStart.getTime();
-            const colorGroup = colorMap.get(caregiverId) ?? null;
+            // D1 — `colorGroups` es la UNIÓN; `colorGroup` queda como compat
+            // (primer color, para consumidores que aún leen el campo singular).
+            const colorGroups = colorsByUser.get(caregiverId) ?? [];
+            const colorGroup = colorGroups[0] ?? null;
 
             // Cobertura adicional: residentes extra por override (otro color)
             const coverageResidents = coverageByCaregiver.get(caregiverId) || [];
@@ -293,9 +264,11 @@ export async function GET(req: Request) {
                 coverageByColor[c.originalColor] = (coverageByColor[c.originalColor] || 0) + 1;
             }
 
-            if (!colorGroup) {
+            if (colorGroups.length === 0) {
                 return {
-                    caregiverId, name, colorGroup: null,
+                    caregiverId, name,
+                    colorGroup: null,
+                    colorGroups: [] as string[],
                     noColorGroup: true,
                     roundsCompleted: 0, residentsInGroup: 0,
                     attendedThisRound: 0, remainingThisRound: 0,
@@ -305,14 +278,19 @@ export async function GET(req: Request) {
                 };
             }
 
-            const groupPatients = colorGroup === 'ALL'
+            // groupPatients — D1: residentes de TODOS los colores de la cuidadora
+            // (no solo el primero). 'ALL' barre la sede entera.
+            const colorGroupsSet = new Set(colorGroups);
+            const groupPatients = colorGroupsSet.has('ALL')
                 ? allGroupPatients
-                : allGroupPatients.filter(p => p.colorGroup === colorGroup);
+                : allGroupPatients.filter(p => p.colorGroup && colorGroupsSet.has(p.colorGroup));
             const groupSize = groupPatients.length;
 
             if (groupSize === 0) {
                 return {
-                    caregiverId, name, colorGroup,
+                    caregiverId, name,
+                    colorGroup,
+                    colorGroups,
                     emptyGroup: true,
                     roundsCompleted: 0, residentsInGroup: 0,
                     attendedThisRound: 0, remainingThisRound: 0,
@@ -347,7 +325,8 @@ export async function GET(req: Request) {
             allTouches.sort((a, b) => a.at.getTime() - b.at.getTime());
 
             return {
-                ...computeRoundStats({ caregiverId, name, colorGroup, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now }),
+                ...computeRoundStats({ caregiverId, name, colorGroup: colorGroup!, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now }),
+                colorGroups,        // NUEVO (D1): la unión completa
                 coverageCount,
                 coverageByColor,
                 coverageResidents,

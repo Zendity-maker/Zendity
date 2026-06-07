@@ -49,7 +49,13 @@ const GRUPO_CHIP: Record<GrupoColor, string> = {
 export interface RondaTileData {
     caregiverId: string;
     name: string;
+    /** Primer color de `colorGroups` — compat con consumidores que solo lean
+     *  el campo singular. Para detectar multi-color, usar `colorGroups`. */
     colorGroup: string | null;
+    /** D1 ADITIVO — la UNIÓN completa de colores base de la cuidadora
+     *  (roster ∪ ColorAssignments del día). Si length > 1, el tile muestra
+     *  un chip por cada color base además del shell del primer color. */
+    colorGroups?: string[];
     roundsCompleted: number;
     attendedThisRound: number;
     remainingThisRound: number;
@@ -117,6 +123,16 @@ export function SupervisorRondaTile({ cg, onOpenDrill, onOpenColorPicker }: Supe
         emptyMessage = "Grupo sin residentes activos";
     }
 
+    // D1 — Multi-color: si la cuidadora cubre más de UN color base (ej. base
+    // BLUE + ColorAssignment YELLOW), mostramos un chip por cada uno además
+    // del shell del primer color. Antes del PASO 2(c) el wall solo mostraba
+    // el primero — bug del "primero gana".
+    const baseColorsAll = (cg.colorGroups && cg.colorGroups.length > 0
+        ? cg.colorGroups
+        : (cg.colorGroup ? [cg.colorGroup] : [])
+    ).filter((c) => c !== 'ALL');
+    const multiColor = baseColorsAll.length > 1;
+
     // Stat header — rondas completadas (color por umbral)
     const statTone =
         cg.roundsCompleted >= 2 ? "text-emerald-600"
@@ -171,6 +187,31 @@ export function SupervisorRondaTile({ cg, onOpenDrill, onOpenColorPicker }: Supe
                 <p className="text-xs text-slate-500 italic">{emptyMessage}</p>
             ) : (
                 <>
+                    {/* D1 — Chips de TODOS los colores base cuando la cuidadora
+                        cubre más de UNO (ej. base BLUE del Builder + ColorAssignment
+                        YELLOW del supervisor). El shell del tile sigue con el
+                        primer color para no romper la grid visual, pero el
+                        supervisor ve explícito qué grupos está atendiendo. */}
+                    {multiColor && (
+                        <div className="flex flex-wrap gap-1.5 items-center mb-3">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                Grupos:
+                            </span>
+                            {baseColorsAll.map((dbColor) => {
+                                const g = DB_TO_GRUPO[dbColor];
+                                if (!g) return null;
+                                return (
+                                    <span
+                                        key={dbColor}
+                                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${GRUPO_CHIP[g]}`}
+                                    >
+                                        {g}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {/* Progreso de ronda actual */}
                     <ProgressBar
                         value={cg.attendedThisRound}

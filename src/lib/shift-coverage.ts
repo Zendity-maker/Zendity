@@ -553,19 +553,32 @@ export interface ResolverResultWithSource {
 }
 
 /**
- * Cap de antigüedad de sesión para el conteo de solo-mode.
+ * Cap de antigüedad de una sesión para que cuente como "presencia en piso".
  *
  * Justificación: el turno más largo modelado es FULL_DAY/FULL_NIGHT (12h).
  * Damos 4h de holgura por overtime razonable (caregiver cubriendo hasta
  * que llegue la siguiente). Sesiones abiertas > 16h son casi seguro
  * zombies (caregiver olvidó clock-out) — health-monitor las marca como
  * anomalía a partir de 14h pero NO auto-cierra; este cap evita que una
- * zombie engañe al solo-mode contando como "presente en piso".
+ * zombie engañe al conteo de presencia.
  *
  * NO usar boundary6amUtc del día clínico como ancla — eso rompe a una
- * caregiver NIGHT real que cruza las 6am en overtime (caso #7).
+ * caregiver NIGHT real que cruza las 6am en overtime (caso #7 del spec).
+ *
+ * **Source of truth del cap de PRESENCIA**. Usar en:
+ *   - isSoloCaregiver (lib/shift-coverage)
+ *   - GET /api/care (solo-mode count del caregiver-self)
+ *   - GET /api/care/supervisor/caregiver-rounds (presencia del wall)
+ *   - POST /api/care/supervisor/assign-color (lookup del target)
+ *
+ * NO usar para:
+ *   - health-monitor (umbral de zombie = otro propósito, queda en 14h)
+ *   - shift/start auto-cerrar zombies del mismo caregiver (defensa
+ *     anti-doble-sesión = otro propósito, queda en 14h)
+ *   - shift/start GET recovery de sesión activa del caregiver-self
+ *     (lookup individual, no presencia)
  */
-const SOLO_MODE_MAX_SESSION_HOURS = 16;
+export const ACTIVE_PRESENCE_MAX_HOURS = 16;
 
 /**
  * ¿La cuidadora es la única en piso AHORA? Determina si escalar a 'ALL'.
@@ -585,7 +598,7 @@ export async function isSoloCaregiver(params: {
 }): Promise<boolean> {
     const { hqId, at } = params;
     const baseTime = (at ?? new Date()).getTime();
-    const cap = new Date(baseTime - SOLO_MODE_MAX_SESSION_HOURS * 60 * 60 * 1000);
+    const cap = new Date(baseTime - ACTIVE_PRESENCE_MAX_HOURS * 60 * 60 * 1000);
     const count = await prisma.shiftSession.count({
         where: {
             headquartersId: hqId,

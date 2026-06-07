@@ -5,7 +5,7 @@ import { logError, logWarn } from '@/lib/logger';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
-import { type ShiftT } from '@/lib/shift-coverage';
+import { type ShiftT, ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -60,13 +60,16 @@ export async function POST(req: Request) {
         }
 
         // ── Validar caregiver target — debe tener sesión activa en HQ ──
-        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+        // Cap unificado de presencia (16h). Alineado con isSoloCaregiver,
+        // caregiver-rounds y /api/care para que el mismo conjunto de
+        // "activas en piso" sea el referente en TODO el código clínico.
+        const presenceCap = new Date(Date.now() - ACTIVE_PRESENCE_MAX_HOURS * 60 * 60 * 1000);
         const targetSession = await prisma.shiftSession.findFirst({
             where: {
                 caregiverId: targetCaregiverId,
                 headquartersId: hqId,
                 actualEndTime: null,
-                startTime: { gte: fourteenHrsAgo },
+                startTime: { gte: presenceCap },
             },
             include: { caregiver: { select: { id: true, name: true } } },
         });

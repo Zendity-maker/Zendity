@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
+import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
@@ -48,7 +49,10 @@ export async function GET(req: Request) {
 
         const todayStart = todayStartAST();
         const todayEnd = new Date();
-        const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
+        // Cap UNIFICADO de presencia (16h sliding). Alineado con
+        // isSoloCaregiver y caregiver-rounds — los 3 call-sites que cuentan
+        // "presencia" en piso usan el mismo umbral.
+        const presenceCap = new Date(Date.now() - ACTIVE_PRESENCE_MAX_HOURS * 60 * 60 * 1000);
 
         // Nivel 2 — Auto-escalación a ALL para cuidadora solitaria.
         // Si el invocador es el único cuidador clínico (CAREGIVER + NURSE) con
@@ -59,7 +63,7 @@ export async function GET(req: Request) {
             where: {
                 headquartersId: hqId,
                 actualEndTime: null,
-                startTime: { gte: fourteenHrsAgo },
+                startTime: { gte: presenceCap },
                 caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
             },
         });
