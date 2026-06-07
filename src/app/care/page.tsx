@@ -656,22 +656,31 @@ export default function ZendityCareTabletPage() {
                     if (hq) {
                         const colorRes = await fetch(`/api/hr/schedule/my-color?userId=${user.id}&hqId=${hq}`);
                         const colorData = await colorRes.json();
-                        if (colorData.success && colorData.color) {
-                            // color puede ser un grupo (RED/YELLOW/...) o 'ALL' (cuidador solitario o turno asignado "Todos")
-                            const effective = colorData.color;
+                        // D1 ADITIVO: backend ahora retorna `colors[]` (unión)
+                        // además de `color` (primario, para compat). Usamos
+                        // el array para pedir pacientes de TODOS los grupos
+                        // que cubre la cuidadora — antes solo veía el del
+                        // 'primero gana'. Si solo viene `color` (legacy
+                        // hipotético), construimos el array de uno.
+                        const colorsList: string[] = Array.isArray(colorData.colors) && colorData.colors.length > 0
+                            ? colorData.colors
+                            : (colorData.color ? [colorData.color] : []);
+                        if (colorData.success && colorsList.length > 0) {
+                            // primary: para el chip principal del header y para selectedColor.
+                            // colorParam: lista CSV — `/api/care` ya hace split(',').
+                            const primary = colorsList[0];
+                            const colorParam = colorsList.join(',');
                             if (colorData.shiftNotes) setShiftNotes(colorData.shiftNotes);
-                            setSelectedColor(effective);
-                            // 2-jun-2026: NO persistir 'ALL' a localStorage. El 'ALL' es un
-                            // estado transitorio (cuidadora sola temporalmente). Si se
-                            // cachea, sobrevive entre sesiones y termina mostrando todos
-                            // los residentes a cuidadoras que ya tienen color asignado.
-                            // Solo cacheamos colores reales (RED/YELLOW/BLUE/GREEN).
-                            if (effective && effective !== 'ALL') {
-                                localStorage.setItem('zendityCareShiftColor', effective);
+                            setSelectedColor(primary);
+                            // NO persistir 'ALL' (estado transitorio del solo-mode).
+                            // Solo cacheamos colores reales — y solo el primario,
+                            // ya que el localStorage es fallback de 1 valor.
+                            if (primary && primary !== 'ALL') {
+                                localStorage.setItem('zendityCareShiftColor', primary);
                             } else {
                                 localStorage.removeItem('zendityCareShiftColor');
                             }
-                            const patientRes = await fetch(`/api/care?color=${effective}&hqId=${hq}`);
+                            const patientRes = await fetch(`/api/care?color=${encodeURIComponent(colorParam)}&hqId=${hq}`);
                             const patientData = await patientRes.json();
                             if (patientData.success) {
                                 setPatients(patientData.patients || []);
@@ -986,11 +995,17 @@ export default function ZendityCareTabletPage() {
             try {
                 const colorRes = await fetch(`/api/hr/schedule/my-color?userId=${user.id}&hqId=${hq}`);
                 const colorData = await colorRes.json();
-                if (!colorData.success || !colorData.color) return;
-                const fresh = colorData.color;
-                // Solo actualizar si cambió Y es un downgrade real (de ALL a color
-                // específico) o un cambio entre colores reales. NO sobrescribir
-                // si la cuidadora eligió manualmente un color via CoveragePicker.
+                // Compat con `color` para no romper: si solo viene `color`, lo
+                // tratamos como un array de 1.
+                const freshColors: string[] = Array.isArray(colorData.colors) && colorData.colors.length > 0
+                    ? colorData.colors
+                    : (colorData.color ? [colorData.color] : []);
+                if (!colorData.success || freshColors.length === 0) return;
+                const fresh = freshColors[0];
+                // Solo actualizar si cambió el primario (el chip que ve la
+                // cuidadora). Si la unión cambia pero el primario es el mismo,
+                // no hace falta tocar selectedColor — el refresh silencioso
+                // de pacientes ya tomará el array nuevo.
                 if (fresh !== selectedColor) {
                     setSelectedColor(fresh);
                     if (fresh !== 'ALL') {
@@ -998,7 +1013,7 @@ export default function ZendityCareTabletPage() {
                     } else {
                         localStorage.removeItem('zendityCareShiftColor');
                     }
-                    refreshPatientsSilently(fresh);
+                    refreshPatientsSilently(freshColors.join(','));
                 }
             } catch (_e) { /* re-poll best-effort */ }
         }, 2 * 60 * 1000);
