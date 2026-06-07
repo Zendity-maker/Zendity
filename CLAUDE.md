@@ -158,3 +158,33 @@ nadie lo dice.**
 - Cron expone fórmula 75 pero schema decía default 50 (drift)
 - Planes 'BASIC'/'PROFESSIONAL' aceptados como string pero degradaban a LITE silenciosamente
 - Botón "Nueva Sede" en `/corporate/sedes` crea sede huérfana sin Director
+
+---
+
+## 🗂️ Decisiones de infraestructura — log
+
+### Neon Serverless Driver / `driverAdapters` (Fase 2 de conexiones) — **DIFERIDA**
+*Decidido 07-jun-2026.*
+
+- **Estado**: NO aplicar. `src/lib/prisma.ts` se mantiene con el cliente TCP estándar
+  de Prisma 5.22 + pooler de Neon (`-pooler` en `DATABASE_URL`).
+- **Por qué se evaluó**: cold starts en serverless + propuesta del cliente Prisma con
+  `PrismaNeon` adapter sobre WebSocket (~80-150ms ganancia en cold start).
+- **Por qué se descarta hoy**:
+  1. En Prisma 5.22, `driverAdapters` está marcado **preview**, NO GA. El API del
+     constructor de `@prisma/adapter-neon@5.22` es basado en `Pool` (no `{ connectionString }`
+     como en v6.x GA). Riesgo de comportamiento sutil en runtime sobre 285 callers,
+     en código HIPAA, no se compensa.
+  2. **21 de 24 `$transaction` del repo son interactivas** (`async (tx) => …`), patrón
+     con limitaciones conocidas en driver adapters Prisma 5.x. Específicamente: handovers
+     (`care/shift/end`, `claim-coverage`), eMAR (`actions/emar`), UPP (`care/upp`),
+     billing (`corporate/billing/*`), schedule builder (`hr/schedule/*`), kiosko externo,
+     concierge, CRM. Cualquier regresión silenciosa rompe módulos clínicos en piloto.
+  3. Fase 1 (pooling Neon, conexiones 84→32) **ya resolvió el problema operacional**.
+     La Fase 2 es optimización de latencia, no bloqueador.
+- **Condiciones para retomar**: upgrade a **Prisma 6.16+** (donde `driverAdapters` es GA,
+  el API se limpia a `new PrismaNeon({ connectionString })`, y las transacciones
+  interactivas son maduras sobre adapters). Pasos: branch dedicada, smoke test específico
+  de los 6 callsites clínicos críticos (shift/end ×2, claim-coverage, upp, emar.actions ×2),
+  comparar latencias en preview, decidir merge.
+- **No es bloqueador del piloto**.
