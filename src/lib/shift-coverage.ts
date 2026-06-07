@@ -553,29 +553,44 @@ export interface ResolverResultWithSource {
 }
 
 /**
+ * Cap de antigüedad de sesión para el conteo de solo-mode.
+ *
+ * Justificación: el turno más largo modelado es FULL_DAY/FULL_NIGHT (12h).
+ * Damos 4h de holgura por overtime razonable (caregiver cubriendo hasta
+ * que llegue la siguiente). Sesiones abiertas > 16h son casi seguro
+ * zombies (caregiver olvidó clock-out) — health-monitor las marca como
+ * anomalía a partir de 14h pero NO auto-cierra; este cap evita que una
+ * zombie engañe al solo-mode contando como "presente en piso".
+ *
+ * NO usar boundary6amUtc del día clínico como ancla — eso rompe a una
+ * caregiver NIGHT real que cruza las 6am en overtime (caso #7).
+ */
+const SOLO_MODE_MAX_SESSION_HOURS = 16;
+
+/**
  * ¿La cuidadora es la única en piso AHORA? Determina si escalar a 'ALL'.
  *
- * Cuenta sesiones activas con role `CAREGIVER` o `NURSE`. KITCHEN /
+ * Cuenta sesiones activas con role CAREGIVER o NURSE. KITCHEN /
  * MAINTENANCE / SUPERVISOR / DIRECTOR / etc. NO cuentan — son roles no
  * clínicos para el cómputo del solitario.
  *
- * Helper compartido por my-color y shift/start; previamente cada uno
- * tenía su propia versión inline con criterios sutilmente distintos
- * (my-color: gte todayStartAST; shift/start: gte 14h-ago). Esta unifica
- * a `boundary6amUtc` del día clínico calculado para `at`, consistente
- * con el resto del resolver.
+ * Helper compartido por my-color y shift/start.resolveAssignedPatients.
+ * Cap sliding desde `at ?? now`: cualquier sesión más vieja que 16h se
+ * considera zombie y se excluye del conteo, preservando a la caregiver
+ * real en overtime que cruza el rollback de las 6am AST.
  */
 export async function isSoloCaregiver(params: {
     hqId: string;
     at?: Date;
 }): Promise<boolean> {
     const { hqId, at } = params;
-    const { boundary6amUtc } = clinicalDay(at);
+    const baseTime = (at ?? new Date()).getTime();
+    const cap = new Date(baseTime - SOLO_MODE_MAX_SESSION_HOURS * 60 * 60 * 1000);
     const count = await prisma.shiftSession.count({
         where: {
             headquartersId: hqId,
             actualEndTime: null,
-            startTime: { gte: boundary6amUtc },
+            startTime: { gte: cap },
             caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
         },
     });
