@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
-import { todayStartAST } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { logError, logWarn } from '@/lib/logger';
 import { notifyUser } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
+import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,6 +115,36 @@ export async function POST(req: Request) {
             actionType = 'created';
         }
 
+        // Cerrar overrides auto del MISMO color + shift actual.
+        // Caso: una cuidadora se ausenta de YELLOW → el cron redistribuye los
+        // 11 residentes YELLOW entre las presentes (ABSENCE_REDISTRIB, auto).
+        // Después el supervisor asigna a Medelyn a YELLOW vía este endpoint.
+        // Si no cerramos los overrides automáticos, los residentes YELLOW
+        // aparecen DUPLICADOS: una vez en la card de Medelyn (color base) y
+        // otra como "extras" en las cards que los recibieron por la
+        // redistribución. Solo cerramos `autoAssigned=true` — los manuales
+        // se respetan (alguien pudo haber asignado a propósito).
+        // No aplicamos al color 'ALL' porque eso no representa un grupo
+        // específico de residentes.
+        let closedOverrides = 0;
+        if (color !== 'ALL' && actionType !== 'noop') {
+            const scheduledDayRange = clinicalDayCalendarUTCRange();
+            const currentShiftType = inferShiftTypeFromAST();
+            const closeRes = await prisma.shiftPatientOverride.updateMany({
+                where: {
+                    headquartersId: hqId,
+                    originalColor: color,
+                    isActive: true,
+                    autoAssigned: true,
+                    shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
+                    shiftType: currentShiftType as any,
+                    caregiverId: { not: caregiverId },
+                },
+                data: { isActive: false, resolvedAt: new Date() },
+            });
+            closedOverrides = closeRes.count;
+        }
+
         // Audit log
         try {
             await prisma.systemAuditLog.create({
@@ -130,6 +161,7 @@ export async function POST(req: Request) {
                         previousColor: existing?.color ?? null,
                         newColor: color,
                         actionType,
+                        closedAutoOverrides: closedOverrides,
                     },
                 },
             });
@@ -147,17 +179,23 @@ export async function POST(req: Request) {
             } catch (e) { logWarn('care.supervisor.set_caregiver_color.notify', e, { caregiverId }); }
         }
 
+        const baseMsg = actionType === 'noop'
+            ? `${caregiver.name} ya estaba en Grupo ${color}.`
+            : actionType === 'updated'
+                ? `${caregiver.name}: cambio a Grupo ${color}.`
+                : `${caregiver.name}: asignada a Grupo ${color}.`;
+        const message = closedOverrides > 0
+            ? `${baseMsg} Liberé ${closedOverrides} residente${closedOverrides === 1 ? '' : 's'} ${color} que estaba${closedOverrides === 1 ? '' : 'n'} repartido${closedOverrides === 1 ? '' : 's'} por redistribución automática.`
+            : baseMsg;
+
         return NextResponse.json({
             success: true,
             caregiverId,
             caregiverName: caregiver.name,
             color,
             actionType,
-            message: actionType === 'noop'
-                ? `${caregiver.name} ya estaba en Grupo ${color}.`
-                : actionType === 'updated'
-                    ? `${caregiver.name}: cambio a Grupo ${color}.`
-                    : `${caregiver.name}: asignada a Grupo ${color}.`,
+            closedAutoOverrides: closedOverrides,
+            message,
         });
     } catch (err: any) {
         logError('care.supervisor.set_caregiver_color.post', err);
