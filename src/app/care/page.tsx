@@ -485,9 +485,16 @@ export default function ZendityCareTabletPage() {
 
     // Pañal diurno — estado de confirmación visual por residente
     const [dayDiaperConfirm, setDayDiaperConfirm] = useState<{ patientId: string; type: string } | null>(null);
+    // Bug reportado 07-jun-2026: "aprieto y no pasa nada". Causa: el handler
+    // solo reaccionaba a `res.ok===true` y silenciaba cualquier fallo. Además
+    // compartía `isSavingFastAction` con vitals/baño/etc, así que si una
+    // request lenta concurrent estaba en vuelo, los 3 botones de pañal
+    // salían disabled sin explicación. Lo separamos en su propio estado y
+    // siempre damos feedback (éxito O error visible).
+    const [savingDiaper, setSavingDiaper] = useState(false);
 
     const logDayDiaper = async (patientId: string, type: 'SECO' | 'HUMEDO' | 'EVACUACION') => {
-        setIsSavingFastAction(true);
+        setSavingDiaper(true);
         try {
             const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
             const res = await fetch("/api/care/rounds", {
@@ -495,14 +502,18 @@ export default function ZendityCareTabletPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ patientId, authorId: user?.id, hqId, type, dayShift: true })
             });
-            if (res.ok) {
+            const data = await res.json().catch(() => ({} as any));
+            if (res.ok && data?.success) {
                 setDayDiaperConfirm({ patientId, type });
                 setTimeout(() => setDayDiaperConfirm(null), 3000);
+            } else {
+                alert(`No se pudo registrar el pañal: ${data?.error || `HTTP ${res.status}`}. Intenta otra vez.`);
             }
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error('logDayDiaper', error);
+            alert(`Error de conexión al registrar pañal: ${error?.message || 'desconocido'}. Verifica internet.`);
         } finally {
-            setIsSavingFastAction(false);
+            setSavingDiaper(false);
         }
     };
 
@@ -522,15 +533,64 @@ export default function ZendityCareTabletPage() {
     const [hubCaregiverId, setHubCaregiverId] = useState("");
     const [hubCaregiversList, setHubCaregiversList] = useState<any[]>([]);
 
-    const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Comprime una foto de tablet (3-8 MB típico) a base64 ≤ 400 KB antes de
+    // subirla. El backend valida `photoUrl: z.string().max(2_000_000)` — sin
+    // compresión, cualquier foto reciente de tablet rompe el Zod y la
+    // cuidadora ve "Datos inválidos en photoUrl: Too big" (reportado por
+    // Marian, 06-jun-2026). La foto es evidencia visual de un derrame /
+    // foco fundido — no necesita 12 MP.
+    //
+    // Estrategia: cargar la imagen, reescalar manteniendo aspect-ratio hasta
+    // maxWidth=1280px y exportar como JPEG quality 0.75. Si el File ya está
+    // por debajo de 400KB y es un formato razonable, lo pasamos sin tocar
+    // (no degradamos calidad por nada).
+    const compressImageToDataUrl = (file: File): Promise<string> => {
+        return new Promise<string>((resolve, reject) => {
+            if (file.size < 400_000 && /^image\/(jpe?g|png|webp)$/.test(file.type)) {
+                // Lo bajo a base64 sin tocar
+                const r = new FileReader();
+                r.onload = () => resolve(r.result as string);
+                r.onerror = () => reject(new Error('No se pudo leer la foto.'));
+                r.readAsDataURL(file);
+                return;
+            }
+            const img = new Image();
+            const objectUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                const maxDim = 1280;
+                const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+                const w = Math.round(img.width * ratio);
+                const h = Math.round(img.height * ratio);
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject(new Error('Canvas no soportado en este dispositivo.')); return; }
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error('Formato de imagen no soportado.'));
+            };
+            img.src = objectUrl;
+        });
+    };
+
+    const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setHubPhotoBase64(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const dataUrl = await compressImageToDataUrl(file);
+            setHubPhotoBase64(dataUrl);
+        } catch (err: any) {
+            console.error('compress photo', err);
+            alert(`No se pudo procesar la foto: ${err?.message || 'error desconocido'}. Intenta con otra.`);
+        } finally {
+            // Reset input para permitir reintentar con la misma foto
+            e.target.value = '';
+        }
     };
 
     const handleDietUpdate = async (e: React.FormEvent) => {
@@ -3521,7 +3581,7 @@ export default function ZendityCareTabletPage() {
                                             <div className="grid grid-cols-3 gap-2">
                                                 <button
                                                     onClick={() => activePatient && logDayDiaper(activePatient.id, 'SECO')}
-                                                    disabled={isSavingFastAction || !activePatient}
+                                                    disabled={savingDiaper || !activePatient}
                                                     className="py-4 bg-violet-100 hover:bg-violet-200 border border-violet-200 text-violet-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
                                                 >
                                                     <span className="text-xl">🟢</span>
@@ -3529,7 +3589,7 @@ export default function ZendityCareTabletPage() {
                                                 </button>
                                                 <button
                                                     onClick={() => activePatient && logDayDiaper(activePatient.id, 'HUMEDO')}
-                                                    disabled={isSavingFastAction || !activePatient}
+                                                    disabled={savingDiaper || !activePatient}
                                                     className="py-4 bg-sky-100 hover:bg-sky-200 border border-sky-200 text-sky-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
                                                 >
                                                     <span className="text-xl">💧</span>
@@ -3537,7 +3597,7 @@ export default function ZendityCareTabletPage() {
                                                 </button>
                                                 <button
                                                     onClick={() => activePatient && logDayDiaper(activePatient.id, 'EVACUACION')}
-                                                    disabled={isSavingFastAction || !activePatient}
+                                                    disabled={savingDiaper || !activePatient}
                                                     className="py-4 bg-amber-100 hover:bg-amber-200 border border-amber-200 text-amber-800 rounded-xl font-black text-xs flex flex-col items-center gap-1 transition-all active:scale-95 disabled:opacity-50 min-h-[64px]"
                                                 >
                                                     <span className="text-xl">🟠</span>
