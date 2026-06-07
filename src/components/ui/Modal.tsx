@@ -78,8 +78,24 @@ export function Modal({
         ? "text-slate-400 hover:text-white hover:bg-white/10"
         : "text-slate-500 hover:text-slate-800 hover:bg-slate-100";
 
-    const titleId = React.useId();
-    const descId = React.useId();
+    // Radix exige Dialog.Title como descendiente de Dialog.Content para a11y
+    // (si falta, tira console.error y no pone aria-modal). Si el call-site no
+    // pasa title, lo renderizamos sr-only con un fallback genérico.
+    const titleText = title ?? "Diálogo";
+    const hasVisibleTitle = !!title;
+
+    // Restore-focus al disparador: Radix solo lo hace si el trigger vive en
+    // <Dialog.Trigger>. Como nuestra API es controlada con `open`, capturamos
+    // el activeElement antes de abrir y se lo damos a Radix vía onCloseAutoFocus.
+    const triggerElementRef = React.useRef<HTMLElement | null>(null);
+    React.useEffect(() => {
+        if (open) {
+            const a = document.activeElement;
+            if (a && a instanceof HTMLElement && a !== document.body) {
+                triggerElementRef.current = a;
+            }
+        }
+    }, [open]);
 
     return (
         <Dialog.Root
@@ -106,14 +122,20 @@ export function Modal({
                     )}
                 />
 
-                {/* Container */}
+                {/* Container — Radix setea aria-labelledby / aria-describedby
+                    automáticamente vía contexto cuando Dialog.Title /
+                    Dialog.Description están presentes; no los pasamos a mano. */}
                 <Dialog.Content
-                    aria-labelledby={title ? titleId : undefined}
-                    aria-describedby={description ? descId : undefined}
                     onOpenAutoFocus={(e) => {
                         if (initialFocusRef?.current) {
                             e.preventDefault();
                             initialFocusRef.current.focus();
+                        }
+                    }}
+                    onCloseAutoFocus={(e) => {
+                        if (triggerElementRef.current) {
+                            e.preventDefault();
+                            triggerElementRef.current.focus();
                         }
                     }}
                     onEscapeKeyDown={(e) => { if (!dismissable) e.preventDefault(); }}
@@ -134,27 +156,30 @@ export function Modal({
                         className,
                     )}
                 >
-                    {(title || icon || showCloseButton) && (
+                    {/* Dialog.Title SIEMPRE va presente (sr-only si no se pasa title) */}
+                    {!hasVisibleTitle && (
+                        <Dialog.Title className="sr-only">{titleText}</Dialog.Title>
+                    )}
+
+                    {(hasVisibleTitle || icon || showCloseButton) && (
                         <div className={cn(
                             "flex items-start gap-3 px-6 py-5 border-b",
                             isDark ? "border-slate-700" : "border-slate-100",
                         )}>
                             {icon && <div className="flex-shrink-0 mt-0.5">{icon}</div>}
                             <div className="flex-1 min-w-0">
-                                {title && (
+                                {hasVisibleTitle && (
                                     <Dialog.Title
-                                        id={titleId}
                                         className={cn(
                                             "text-lg font-bold leading-tight",
                                             isDark ? "text-white" : "text-slate-900",
                                         )}
                                     >
-                                        {title}
+                                        {titleText}
                                     </Dialog.Title>
                                 )}
                                 {description && (
                                     <Dialog.Description
-                                        id={descId}
                                         className={cn(
                                             "mt-1 text-sm",
                                             isDark ? "text-slate-400" : "text-slate-500",
