@@ -124,8 +124,13 @@ export function Modal({
 
                 {/* Container — Radix setea aria-labelledby / aria-describedby
                     automáticamente vía contexto cuando Dialog.Title /
-                    Dialog.Description están presentes; no los pasamos a mano. */}
+                    Dialog.Description están presentes; no los pasamos a mano.
+                    `aria-modal="true"` lo añadimos manualmente porque Radix v1.1
+                    intencionalmente no lo setea (decisión por compatibilidad
+                    histórica con JAWS) — pero los AT modernos lo requieren
+                    para anunciar el contenido del diálogo como modal. */}
                 <Dialog.Content
+                    aria-modal="true"
                     onOpenAutoFocus={(e) => {
                         if (initialFocusRef?.current) {
                             e.preventDefault();
