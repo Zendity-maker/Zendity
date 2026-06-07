@@ -21,31 +21,59 @@
 const AST_OFFSET_MIN = 4 * 60; // AST = UTC-4 (sin DST en Puerto Rico)
 
 /**
- * Retorna el inicio del "día clínico actual" en hora UTC.
- * El día clínico inicia a las 6:00 AM AST (10:00 UTC).
+ * SINGLE SOURCE OF TRUTH para "qué día clínico es este momento".
+ *
+ * Computa las tres anclas que los queries del repo usan, todas para el MISMO
+ * día clínico (día anclado a 6 AM AST con rollback antes-de-6am):
+ *
+ *   - calendarStartUtc  → 00:00 UTC del calendar AST day. Usar para queries
+ *                         sobre `ScheduledShift.date` (que se persiste como
+ *                         medianoche UTC del calendar day).
+ *   - calendarEndUtc    → +24h respecto a calendarStartUtc. Usar como `lt`.
+ *   - boundary6amUtc    → 10:00 UTC del calendar day AST = 6:00 AM AST. Usar
+ *                         para filtros `gte` sobre timestamps reales como
+ *                         `ShiftColorAssignment.assignedAt`, `createdAt`,
+ *                         `performedAt`, `ShiftSession.startTime`, etc.
+ *
+ * Invariante: `boundary6amUtc === calendarStartUtc + 10h` siempre.
+ *
+ * Rollback antes-de-6am: si la hora AST de `at` es < 6, el día clínico es el
+ * del calendar day AST anterior (un NIGHT activo entre 22:00 y 06:00 sigue
+ * perteneciendo al día clínico del calendar day en que arrancó).
+ *
+ * `at` opcional para anclar a un instante distinto de `now` (ej.
+ * `session.startTime` cuando se resuelve color de una sesión específica).
  */
-export function todayStartAST(): Date {
-    const now = new Date();
-    // Convertir "ahora" a reloj de pared AST (como si AST fuera UTC)
+export function clinicalDay(at?: Date): {
+    calendarStartUtc: Date;
+    calendarEndUtc: Date;
+    boundary6amUtc: Date;
+} {
+    const now = at ?? new Date();
+    // Convertir el instante a reloj-de-pared AST representado como UTC
     const nowAST = new Date(now.getTime() - AST_OFFSET_MIN * 60 * 1000);
-
     const y = nowAST.getUTCFullYear();
     const m = nowAST.getUTCMonth();
     const d = nowAST.getUTCDate();
     const h = nowAST.getUTCHours();
+    // Rollback de 6am: antes de las 6 AM AST, día clínico = ayer
+    const calendarDay = h >= 6 ? d : d - 1;
+    const calendarStartUtc = new Date(Date.UTC(y, m, calendarDay, 0, 0, 0, 0));
+    const calendarEndUtc = new Date(calendarStartUtc.getTime() + 24 * 60 * 60 * 1000);
+    const boundary6amUtc = new Date(calendarStartUtc.getTime() + 10 * 60 * 60 * 1000);
+    return { calendarStartUtc, calendarEndUtc, boundary6amUtc };
+}
 
-    let clinicalDayStartAST: Date;
-
-    if (h >= 6) {
-        // Día clínico inicia a las 6 AM AST de hoy
-        clinicalDayStartAST = new Date(Date.UTC(y, m, d, 6, 0, 0, 0));
-    } else {
-        // Antes de las 6 AM AST → turno noche, día clínico anterior
-        clinicalDayStartAST = new Date(Date.UTC(y, m, d - 1, 6, 0, 0, 0));
-    }
-
-    // Convertir ese "6 AM AST" a instante real UTC (sumar 4h)
-    return new Date(clinicalDayStartAST.getTime() + AST_OFFSET_MIN * 60 * 1000);
+/**
+ * Retorna el inicio del "día clínico actual" en hora UTC.
+ * El día clínico inicia a las 6:00 AM AST (10:00 UTC).
+ *
+ * Wrapper de compatibilidad sobre `clinicalDay()` — preserva la firma sin
+ * parámetro para los callers existentes. Nuevos callers deberían usar
+ * `clinicalDay(at?)` directamente para soportar anclar a un instante dado.
+ */
+export function todayStartAST(): Date {
+    return clinicalDay().boundary6amUtc;
 }
 
 /**
@@ -71,14 +99,7 @@ export function todayEndAST(): Date {
  *     se queda en el día clínico anterior)
  */
 export function clinicalDayCalendarUTC(): Date {
-    const now = new Date();
-    const nowAST = new Date(now.getTime() - AST_OFFSET_MIN * 60 * 1000);
-    const y = nowAST.getUTCFullYear();
-    const m = nowAST.getUTCMonth();
-    const d = nowAST.getUTCDate();
-    const h = nowAST.getUTCHours();
-    const calendarDay = h >= 6 ? d : d - 1;
-    return new Date(Date.UTC(y, m, calendarDay, 0, 0, 0, 0));
+    return clinicalDay().calendarStartUtc;
 }
 
 /**
@@ -86,9 +107,8 @@ export function clinicalDayCalendarUTC(): Date {
  * combina `gte` y `lt`/`lte` sobre ScheduledShift.date.
  */
 export function clinicalDayCalendarUTCRange(): { start: Date; end: Date } {
-    const start = clinicalDayCalendarUTC();
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    return { start, end };
+    const { calendarStartUtc, calendarEndUtc } = clinicalDay();
+    return { start: calendarStartUtc, end: calendarEndUtc };
 }
 
 /**

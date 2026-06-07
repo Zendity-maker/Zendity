@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
+import { todayStartAST, clinicalDayCalendarUTCRange, clinicalDay } from '@/lib/dates';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
@@ -409,77 +409,61 @@ export async function computeShiftCoverage(params: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// resolveCaregiverCurrentColors — qué colores cubre un caregiver AHORA
+// resolveCaregiverCurrentColors — wrapper de compat sobre resolveCaregiverColors
 // ────────────────────────────────────────────────────────────────────────────
-// Devuelve los colores efectivos del caregiver para el shiftType actual.
-// Anclar al turno ACTUAL es la diferencia crítica: una caregiver pautada NIGHT
-// (10pm-6am) que hace clock-in a las 6pm (4h antes) NO es dueña de NIGHT-BLUE
-// hasta que efectivamente comience NIGHT. Antes de las 10pm, esta función
-// devuelve [] para ella — su pauta no aplica todavía.
+// Mantiene la firma anterior para no romper callers (claim-coverage, etc).
+// Comportamiento idéntico: unión de (ScheduledShift compatible con `at`) +
+// (ShiftColorAssignments del día), sin overtime fallback, sin source.
 //
-// Esto bloquea el bug "Brendalis clock-in 6pm → Mariangelie pierde cobertura
-// del AZUL prematuramente". Ver shift/start Sprint N.3 Parte C.
-//
-// Fuentes consultadas, en orden de precedencia:
-//   1. ShiftColorAssignment del día (coberturas explícitas — SUMAN al base).
-//   2. ScheduledShift CON shiftType === inferShiftTypeFromAST(at) (color base).
-//   3. Fallback overtime: si el caregiver tiene session activa y su pauta del
-//      día NO coincide con el shiftType actual, NO cae a "tomar cualquier
-//      pauta del día" — devuelve []. La lógica de turnos largos (FULL_DAY,
-//      FULL_NIGHT) sí matchea porque esos shiftTypes representan ventanas
-//      completas que sí abarcan el reloj actual.
-//
-// La función es PURA respecto a entradas (caregiverId, hqId, at) y queries
-// Prisma — no lee session ni headers. Testeable en aislamiento.
-//
-// Devuelve los colores como string[] (ej. ['BLUE'], [], ['BLUE','YELLOW']).
+// NUEVOS callers — usar `resolveCaregiverColors({ mode:'single', ... })` o
+// `resolveCaregiverColors({ mode:'batch', ... })` directamente.
 // ════════════════════════════════════════════════════════════════════════════
-export async function resolveCaregiverCurrentColors(params: {
+export function resolveCaregiverCurrentColors(params: {
     caregiverId: string;
     hqId: string;
     /** Hora a evaluar. Por defecto: now. Pasar `shiftSession.startTime` si
      *  quieres anclar al momento del clock-in en vez del momento actual. */
     at?: Date;
 }): Promise<string[]> {
-    const { caregiverId, hqId, at } = params;
-    const dayStart = todayStartAST();
-
-    // 1. ShiftColorAssignments del día — coberturas adicionales explícitas
-    const colorAssignments = await prisma.shiftColorAssignment.findMany({
-        where: {
-            headquartersId: hqId,
-            userId: caregiverId,
-            assignedAt: { gte: dayStart },
-        },
-        select: { color: true },
+    return resolveCaregiverColors({
+        mode: 'single',
+        caregiverId: params.caregiverId,
+        hqId: params.hqId,
+        at: params.at,
     });
-    const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
-
-    // 2. ScheduledShift del caregiver cuya ventana CONTIENE la hora `at`.
-    //    Una pauta NIGHT (22–06) no aplica a las 6pm. Una pauta FULL_NIGHT
-    //    (18–06) sí aplica a las 6pm porque su ventana incluye esa hora.
-    //    Evaluación por hora exacta (no por bucket) para no incluir turnos
-    //    futuros — el bug Brendalis era exactamente esto.
-    const compatibleShiftTypes = compatibleShiftTypesAt(at);
-
-    const scheduledNow = await prisma.scheduledShift.findFirst({
-        where: {
-            userId: caregiverId,
-            date: { gte: dayStart },
-            isAbsent: false,
-            shiftType: { in: compatibleShiftTypes as any[] },
-            colorGroup: { not: null },
-            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
-        },
-        select: { colorGroup: true },
-    });
-    const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
-        ? [scheduledNow.colorGroup]
-        : [];
-
-    // Unión deduplicada
-    return Array.from(new Set([...baseColor, ...overrideColors]));
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// (Cuerpo histórico — referencia inline, no se ejecuta. Borrar tras migración
+//  completa de callers en PASO 2.)
+// ────────────────────────────────────────────────────────────────────────────
+// async function resolveCaregiverCurrentColors_legacy(params: {
+//     caregiverId: string; hqId: string; at?: Date;
+// }): Promise<string[]> {
+//     const { caregiverId, hqId, at } = params;
+//     const dayStart = todayStartAST();
+//
+//     // 1. ShiftColorAssignments del día — coberturas adicionales explícitas
+//     const colorAssignments = await prisma.shiftColorAssignment.findMany({
+//         where: { headquartersId: hqId, userId: caregiverId, assignedAt: { gte: dayStart } },
+//         select: { color: true },
+//     });
+//     const overrideColors = colorAssignments.map(a => a.color).filter(Boolean);
+//     // 2. ScheduledShift cuya ventana CONTIENE `at`.
+//     const compatibleShiftTypes = compatibleShiftTypesAt(at);
+//     const scheduledNow = await prisma.scheduledShift.findFirst({
+//         where: {
+//             userId: caregiverId, date: { gte: dayStart }, isAbsent: false,
+//             shiftType: { in: compatibleShiftTypes as any[] },
+//             colorGroup: { not: null },
+//             schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+//         },
+//         select: { colorGroup: true },
+//     });
+//     const baseColor = scheduledNow?.colorGroup && scheduledNow.colorGroup !== 'UNASSIGNED'
+//         ? [scheduledNow.colorGroup] : [];
+//     return Array.from(new Set([...baseColor, ...overrideColors]));
+// }
 
 /**
  * Devuelve los `ScheduledShift.shiftType` cuya ventana AST contiene la hora
@@ -516,4 +500,281 @@ export function compatibleShiftTypesAt(at?: Date): ShiftT[] {
     if (hAst >= 6 && hAst < 18)  out.push('FULL_DAY');
     if (hAst >= 18 || hAst < 6)  out.push('FULL_NIGHT');
     return out;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CONSOLIDATED COLOR RESOLVER — el chokepoint canónico
+// ────────────────────────────────────────────────────────────────────────────
+// Reemplaza la lógica DUPLICADA que vivía inline en:
+//   - GET /api/hr/schedule/my-color (un cuidador, con `source` semántico)
+//   - shift/start.resolveAssignedPatients (un cuidador, con overtime fallback
+//     y solo-mode)
+//   - GET /api/care/supervisor/caregiver-rounds (batch, con overtime fallback)
+//
+// Reglas (decisiones cerradas con el dueño, ver CLAUDE.md):
+//
+//   D1 ADITIVO — el color de una cuidadora es la UNIÓN deduplicada de
+//      (base pautado del Builder) ∪ (ShiftColorAssignments del día). Nunca
+//      "el primero". El wall muestra TODOS sus colores.
+//
+//   D2 VENTANA — el matching de turno usa `compatibleShiftTypesAt(at)`
+//      (ventanas con FULL_DAY/FULL_NIGHT), nunca `inferShiftTypeFromAST(at)`
+//      (bucket único). Una pauta FULL_NIGHT (18–06) ENTRA al resolver a las
+//      19:00; con bucket único no entraba.
+//
+//   D3 BOUNDARIES — `clinicalDay(at?)` es el único source-of-truth para
+//      "qué día clínico" y devuelve ambas anclas:
+//        - `calendarStartUtc/End` (00:00–24:00 UTC del calendar AST day) para
+//          filtros sobre `ScheduledShift.date`.
+//        - `boundary6amUtc` (10:00 UTC = 6 AM AST) para `gte` sobre
+//          timestamps reales como `ShiftColorAssignment.assignedAt`.
+//      Ambas anclas comparten el rollback antes-de-6am.
+//
+//   D4 OVERTIME FALLBACK — flag opt-in. Cuando hay sesión activa pero
+//      ninguna pauta del día tiene shiftType compatible con `at`, busca la
+//      pauta MÁS RECIENTE de cualquier shiftType del día y la usa como
+//      base. Útil en paths que filtran pacientes (shift/start, caregiver-
+//      rounds). my-color no debería activarlo: ahí "no hay pauta ahora"
+//      es señal semántica (`shift_not_current`).
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Source semántico devuelto cuando `includeSource: true`. */
+export type ColorSource =
+    | 'assignment'         // hay ShiftColorAssignment hoy (con o sin roster)
+    | 'roster'             // solo color base del Builder (sin assignments)
+    | 'no_color_assigned'  // hay shift hoy compatible con `at` pero colorGroup=null (ej. KITCHEN)
+    | 'shift_not_current'  // hay shift hoy con color pero NO compatible con `at` (ej. NIGHT a las 18:00)
+    | 'none';              // no hay shift hoy ni assignments
+
+export interface ResolverResultWithSource {
+    colors: string[];
+    source: ColorSource;
+    shiftNotes: string | null;
+}
+
+/**
+ * ¿La cuidadora es la única en piso AHORA? Determina si escalar a 'ALL'.
+ *
+ * Cuenta sesiones activas con role `CAREGIVER` o `NURSE`. KITCHEN /
+ * MAINTENANCE / SUPERVISOR / DIRECTOR / etc. NO cuentan — son roles no
+ * clínicos para el cómputo del solitario.
+ *
+ * Helper compartido por my-color y shift/start; previamente cada uno
+ * tenía su propia versión inline con criterios sutilmente distintos
+ * (my-color: gte todayStartAST; shift/start: gte 14h-ago). Esta unifica
+ * a `boundary6amUtc` del día clínico calculado para `at`, consistente
+ * con el resto del resolver.
+ */
+export async function isSoloCaregiver(params: {
+    hqId: string;
+    at?: Date;
+}): Promise<boolean> {
+    const { hqId, at } = params;
+    const { boundary6amUtc } = clinicalDay(at);
+    const count = await prisma.shiftSession.count({
+        where: {
+            headquartersId: hqId,
+            actualEndTime: null,
+            startTime: { gte: boundary6amUtc },
+            caregiver: { role: { in: ['CAREGIVER', 'NURSE'] } },
+        },
+    });
+    return count <= 1;
+}
+
+/** Input común a single y batch. */
+interface ResolverParamsBase {
+    hqId: string;
+    /** Instante a evaluar. Por defecto: now. Pasar `session.startTime` para
+     *  anclar la resolución al inicio de turno (cruce de límite de turno). */
+    at?: Date;
+    /** Si true, busca un ScheduledShift de hoy (cualquier shiftType) cuando
+     *  ningún shiftType compatible con `at` matchea. Útil en paths que
+     *  filtran pacientes; en my-color queda OFF por default. */
+    overtimeFallback?: boolean;
+}
+
+interface ResolverParamsSingle extends ResolverParamsBase {
+    caregiverId: string;
+    caregiverIds?: never;
+    mode: 'single';
+    includeSource?: boolean;
+}
+
+interface ResolverParamsBatch extends ResolverParamsBase {
+    caregiverId?: never;
+    caregiverIds: string[];
+    mode: 'batch';
+    includeSource?: boolean;
+}
+
+// Overloads — el TS de los call-sites discrimina por `mode` + `includeSource`.
+export function resolveCaregiverColors(
+    p: ResolverParamsSingle & { includeSource?: false | undefined },
+): Promise<string[]>;
+export function resolveCaregiverColors(
+    p: ResolverParamsSingle & { includeSource: true },
+): Promise<ResolverResultWithSource>;
+export function resolveCaregiverColors(
+    p: ResolverParamsBatch & { includeSource?: false | undefined },
+): Promise<Map<string, string[]>>;
+export function resolveCaregiverColors(
+    p: ResolverParamsBatch & { includeSource: true },
+): Promise<Map<string, ResolverResultWithSource>>;
+export async function resolveCaregiverColors(
+    p: ResolverParamsSingle | ResolverParamsBatch,
+): Promise<string[] | ResolverResultWithSource | Map<string, string[]> | Map<string, ResolverResultWithSource>> {
+    const hqId = p.hqId;
+    const at = p.at;
+    const includeSource = !!p.includeSource;
+    const overtimeFallback = !!p.overtimeFallback;
+    const userIds: string[] = p.mode === 'single' ? [p.caregiverId] : p.caregiverIds;
+
+    if (userIds.length === 0) {
+        if (p.mode === 'batch') {
+            return new Map() as Map<string, string[]> | Map<string, ResolverResultWithSource>;
+        }
+        // single con caregiverId vacío — no debería pasar; defensivo
+        return includeSource
+            ? { colors: [], source: 'none' as const, shiftNotes: null }
+            : [];
+    }
+
+    const { calendarStartUtc, calendarEndUtc, boundary6amUtc } = clinicalDay(at);
+    const compatibleShiftTypes = compatibleShiftTypesAt(at);
+
+    // ── 1) ShiftColorAssignments del día clínico ──────────────────────────
+    // assignedAt es un timestamp real → boundary 6am AST (con rollback).
+    const assignments = await prisma.shiftColorAssignment.findMany({
+        where: {
+            userId: { in: userIds },
+            headquartersId: hqId,
+            assignedAt: { gte: boundary6amUtc },
+        },
+        select: { userId: true, color: true, assignedAt: true },
+        orderBy: { assignedAt: 'desc' },
+    });
+
+    // ── 2) ScheduledShift con ventana compatible con `at` (D2) ────────────
+    // ScheduledShift.date es medianoche calendar UTC → rango [start, end).
+    const rosterCompatible = await prisma.scheduledShift.findMany({
+        where: {
+            userId: { in: userIds },
+            date: { gte: calendarStartUtc, lt: calendarEndUtc },
+            shiftType: { in: compatibleShiftTypes as any[] },
+            isAbsent: false,
+            schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+        },
+        select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },
+    });
+
+    // ── 3) Si includeSource O overtimeFallback, también necesitamos saber
+    //      qué pautas del día hay aunque NO sean compatibles con `at`.
+    //      Esto cubre 'shift_not_current' (source) y el fallback de overtime.
+    let rosterAnyToday: Array<{
+        userId: string; colorGroup: string | null; shiftType: string; notes: string | null; date: Date;
+    }> = [];
+    if (includeSource || overtimeFallback) {
+        rosterAnyToday = await prisma.scheduledShift.findMany({
+            where: {
+                userId: { in: userIds },
+                date: { gte: calendarStartUtc, lt: calendarEndUtc },
+                isAbsent: false,
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+            },
+            select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },
+            orderBy: { date: 'desc' },
+        });
+    }
+
+    // Indexar por userId
+    const assignByUser = new Map<string, string[]>();
+    for (const a of assignments) {
+        if (!a.color) continue;
+        if (!assignByUser.has(a.userId)) assignByUser.set(a.userId, []);
+        assignByUser.get(a.userId)!.push(a.color);
+    }
+    const rosterCompatByUser = new Map<string, typeof rosterCompatible>();
+    for (const r of rosterCompatible) {
+        if (!rosterCompatByUser.has(r.userId)) rosterCompatByUser.set(r.userId, []);
+        rosterCompatByUser.get(r.userId)!.push(r);
+    }
+    const rosterAnyByUser = new Map<string, typeof rosterAnyToday>();
+    for (const r of rosterAnyToday) {
+        if (!rosterAnyByUser.has(r.userId)) rosterAnyByUser.set(r.userId, []);
+        rosterAnyByUser.get(r.userId)!.push(r);
+    }
+
+    // ── Por usuario: armar la unión + (opcional) source ───────────────────
+    const perUser = new Map<string, ResolverResultWithSource>();
+    for (const uid of userIds) {
+        const assignmentColors = (assignByUser.get(uid) ?? [])
+            .filter(c => c && c !== 'UNASSIGNED');
+
+        const compatRows = rosterCompatByUser.get(uid) ?? [];
+        const rosterColors = compatRows
+            .map(r => r.colorGroup)
+            .filter((c): c is string => !!c && c !== 'UNASSIGNED');
+
+        // Fallback overtime — solo si NO hay compat y el flag está ON.
+        let fallbackColors: string[] = [];
+        let fallbackUsed = false;
+        if (rosterColors.length === 0 && overtimeFallback) {
+            const anyRows = rosterAnyByUser.get(uid) ?? [];
+            // El más reciente con colorGroup definido
+            const first = anyRows.find(r => r.colorGroup && r.colorGroup !== 'UNASSIGNED');
+            if (first?.colorGroup) {
+                fallbackColors = [first.colorGroup];
+                fallbackUsed = true;
+            }
+        }
+
+        // D1: UNIÓN deduplicada
+        const colors = Array.from(new Set([...rosterColors, ...fallbackColors, ...assignmentColors]));
+
+        // Source semantics — solo si includeSource. Aún sin includeSource,
+        // calculamos `shiftNotes` (barato) y los descartamos al retornar.
+        let source: ColorSource = 'none';
+        let shiftNotes: string | null = null;
+        if (includeSource) {
+            // shiftNotes: prefiero la pauta compatible más reciente, sino
+            // cualquier pauta hoy (consistencia con my-color actual).
+            const noteSource = compatRows[0] ?? (rosterAnyByUser.get(uid) ?? [])[0];
+            shiftNotes = noteSource?.notes ?? null;
+
+            if (assignmentColors.length > 0) {
+                source = 'assignment';
+            } else if (rosterColors.length > 0 || fallbackUsed) {
+                source = 'roster';
+            } else {
+                // No hubo compat ni fallback útil. ¿Por qué?
+                const anyRows = rosterAnyByUser.get(uid) ?? [];
+                // ¿Había shift hoy compatible pero SIN colorGroup? (ej. KITCHEN)
+                const hadCompatNoColor = compatRows.some(r => !r.colorGroup);
+                // ¿Había shift hoy con colorGroup pero NO compatible? (ej. NIGHT a las 18:00)
+                const hadIncompatWithColor = anyRows.some(
+                    r => r.colorGroup && r.colorGroup !== 'UNASSIGNED'
+                        && !compatibleShiftTypes.includes(r.shiftType as ShiftT),
+                );
+                if (hadCompatNoColor)        source = 'no_color_assigned';
+                else if (hadIncompatWithColor) source = 'shift_not_current';
+                else                         source = 'none';
+            }
+        }
+
+        perUser.set(uid, { colors, source, shiftNotes });
+    }
+
+    // ── Retorno tipado según mode + includeSource ─────────────────────────
+    if (p.mode === 'single') {
+        const entry = perUser.get(p.caregiverId) ?? { colors: [], source: 'none' as const, shiftNotes: null };
+        return includeSource ? entry : entry.colors;
+    }
+    // batch
+    if (includeSource) {
+        return perUser;
+    }
+    const colorsOnly = new Map<string, string[]>();
+    for (const [uid, r] of perUser) colorsOnly.set(uid, r.colors);
+    return colorsOnly;
 }
