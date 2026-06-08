@@ -32,7 +32,18 @@ export async function GET() {
                 date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 shiftType: activeShiftType,
                 isAbsent: false,
-                schedule: { status: 'PUBLISHED' }
+                schedule: { status: 'PUBLISHED' },
+                // Solo shifts CLÍNICOS (con grupo de color). Antes este filtro
+                // traía TODOS los shifts del turno — incluyendo CLEANING /
+                // KITCHEN / MAINTENANCE que se persisten con colorGroup=null
+                // por design (no son de cuidado). Eso causaba que el frontend
+                // del wall calculara `progMissing` sobre esos shifts y los
+                // mostrara como "Personal No Presentado" todos los días
+                // (caso reportado: Yaileen Soto, CLEANING + secondary
+                // CAREGIVER, con shift MORNING/null — el wall la marcaba
+                // falsamente ausente sin generar observación porque
+                // progMissing es calculado en runtime, no persistido).
+                colorGroup: { not: null },
             },
             include: {
                 user: { select: { id: true, name: true, role: true } },
