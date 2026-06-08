@@ -14,12 +14,26 @@ import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 import PatientExternalServicesTab from "@/components/medical/patient/PatientExternalServicesTab";
+import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWorkTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
+
+// Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
+// Si el usuario no tiene primary ni secondaryRole en esta lista, la pestaña
+// y su botón NO se renderizan (HIPAA: no mostrar UI que va a dar 403).
+const SOCIAL_WORK_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("clinical");
+
+    // Acceso a Trabajo Social — primary role o secondaryRoles. Consistente
+    // con `requireRole()` del backend que acepta dual-rol (FASE 51).
+    const userRole = user?.role || '';
+    const userSecondary = (user as any)?.secondaryRoles ?? [];
+    const hasSocialWorkAccess =
+        SOCIAL_WORK_ROLES.includes(userRole) ||
+        (Array.isArray(userSecondary) && userSecondary.some((r: string) => SOCIAL_WORK_ROLES.includes(r)));
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -494,6 +508,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         >
                             Servicios Externos
                         </button>
+                        {hasSocialWorkAccess && (
+                            <button
+                                onClick={() => setActiveTab("social-work")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'social-work' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Trabajo Social
+                            </button>
+                        )}
                         <button
                             onClick={() => setActiveTab("falls")}
                             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'falls' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
@@ -524,6 +546,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         {activeTab === "falls" && <PatientFallRiskTab patientId={params.id as string} />}
                         {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
                         {activeTab === "social" && <PatientExternalServicesTab patientId={params.id as string} />}
+                        {activeTab === "social-work" && hasSocialWorkAccess && <PatientSocialWorkTab patientId={params.id as string} />}
                         {activeTab === "billing" && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}
                     </div>
                     {/* Hacemos que la pantalla de reportes siempre sea visible si vamos a imprimir, asumiendo que el usuario está en la pestaña reportes */}
