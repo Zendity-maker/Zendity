@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { logError } from '@/lib/logger';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -10,29 +11,30 @@ const openai = new OpenAI({
 
 export const maxDuration = 60;
 
-const ALLOWED_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+const SW_ALLOWED = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 
-export async function POST(req: Request) {
+async function postHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
 
         const { patientId } = await req.json();
         if (!patientId) {
             return NextResponse.json({ success: false, error: 'patientId requerido' }, { status: 400 });
         }
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
 
-        // Fetch all resident data in parallel.
+        // Tenant-scope: cargar patient CON filtro hqId. Si no es de la HQ
+        // del invoker, retornamos 404. Cierra el vector de cross-tenant
+        // read por enumeración de patientIds.
+        //
         // FIX 2026-05-31: SpecialistVisit reemplazado por ExternalServiceVisit
         // (kiosko de pisos). El nuevo modelo es la fuente canónica de visitas
         // de proveedores externos al residente — incluye facilityWide.
         const [patient, notes, tasks, benefits, visits, familyVisits] = await Promise.all([
-            prisma.patient.findUnique({
-                where: { id: patientId },
+            prisma.patient.findFirst({
+                where: { id: patientId, headquartersId: hqId },
                 include: {
                     familyMembers: { select: { name: true, email: true, accessLevel: true } },
                     vitalSigns: { orderBy: { createdAt: 'desc' }, take: 3 },
@@ -150,7 +152,12 @@ Considera: ultima visita familiar, beneficios por vencer, tareas pendientes, cam
             summary: parsed.summary || '',
         });
     } catch (error) {
-        console.error('Zendi Social Analysis Error:', error);
+        logError('social.zendi.post', error);
         return NextResponse.json({ success: false, error: 'Error en analisis Zendi' }, { status: 500 });
     }
 }
+
+// PHI audit (HIPAA Pilar 1) — lectura de perfil del residente para análisis AI.
+// El patientId viene del body — el wrapper no lo extrae pero el actor + ruta
+// quedan registrados.
+export const POST = withPhiAccessLog(postHandler, { resourceType: 'SocialWorkZendi' });

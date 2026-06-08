@@ -4,26 +4,29 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { startOfDay, subDays } from 'date-fns';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { logError } from '@/lib/logger';
 
-const ALLOWED_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+const SW_ALLOWED = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 
-export async function GET(req: Request) {
+async function getHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
 
-        // hqId de la sesión (resolver): rol limitado → su sede (ignora ?hqId).
+        // hqId de la sesión (resolver): rol limitado → su sede. DIRECTOR/ADMIN
+        // pueden pasar ?hqId del query y el resolver valida que tengan
+        // acceso. resolveEffectiveHqId requiere `session` raw para el chequeo
+        // de DIRECTOR/ADMIN — auth (requireRole) ya validó el rol.
+        const session = await getServerSession(authOptions);
         const { searchParams } = new URL(req.url);
-        const hqId = await resolveEffectiveHqId(session, searchParams.get('hqId'));
+        const hqId = await resolveEffectiveHqId(session!, searchParams.get('hqId'));
 
         const now = new Date();
         const sixtyDaysFromNow = new Date(Date.now() + 60 * 86400000);
         const sevenDaysAgo = startOfDay(subDays(now, 7));
-        const ninetyDaysAgo = subDays(now, 90);
 
-        // All queries in parallel
         const [
             pendingTasks,
             expiringBenefits,
@@ -33,7 +36,6 @@ export async function GET(req: Request) {
             totalPendingTasks,
             benefitsExpiringSoonCount,
         ] = await Promise.all([
-            // Pending tasks with patient info
             prisma.socialWorkTask.findMany({
                 where: { headquartersId: hqId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
                 include: {
@@ -43,7 +45,6 @@ export async function GET(req: Request) {
                 },
                 orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
             }),
-            // Benefits expiring within 60 days
             prisma.socialWorkBenefit.findMany({
                 where: {
                     headquartersId: hqId,
@@ -53,7 +54,6 @@ export async function GET(req: Request) {
                 include: { patient: { select: { id: true, name: true } } },
                 orderBy: { expirationDate: 'asc' },
             }),
-            // Recent notes
             prisma.socialWorkNote.findMany({
                 where: { headquartersId: hqId },
                 include: {
@@ -63,7 +63,6 @@ export async function GET(req: Request) {
                 orderBy: { createdAt: 'desc' },
                 take: 10,
             }),
-            // Stats
             prisma.patient.count({ where: { headquartersId: hqId, status: 'ACTIVE' } }),
             prisma.socialWorkTask.count({ where: { headquartersId: hqId, status: 'COMPLETED', completedAt: { gte: sevenDaysAgo } } }),
             prisma.socialWorkTask.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
@@ -91,7 +90,10 @@ export async function GET(req: Request) {
             },
         });
     } catch (error) {
-        console.error('Social Dashboard GET Error:', error);
+        logError('social.dashboard.get', error);
         return NextResponse.json({ success: false, error: 'Error cargando dashboard social' }, { status: 500 });
     }
 }
+
+// PHI audit (HIPAA Pilar 1). Es aggregate (no por paciente) — patientId null.
+export const GET = withPhiAccessLog(getHandler, { resourceType: 'SocialWorkDashboard' });

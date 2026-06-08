@@ -1,26 +1,24 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { logError } from '@/lib/logger';
 
-const ALLOWED_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+const SW_ALLOWED = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 
-export async function GET(req: Request) {
+async function getHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
 
         const { searchParams } = new URL(req.url);
         const patientId = searchParams.get('patientId');
-
         if (!patientId) {
             return NextResponse.json({ success: false, error: 'patientId requerido' }, { status: 400 });
         }
 
         const tasks = await prisma.socialWorkTask.findMany({
-            where: { patientId, headquartersId: (session.user as any).headquartersId },
+            where: { patientId, headquartersId: auth.headquartersId },
             include: {
                 createdBy: { select: { id: true, name: true } },
                 assignedTo: { select: { id: true, name: true } },
@@ -30,29 +28,46 @@ export async function GET(req: Request) {
 
         return NextResponse.json({ success: true, tasks });
     } catch (error) {
-        console.error('Social Tasks GET Error:', error);
+        logError('social.tasks.get', error);
         return NextResponse.json({ success: false, error: 'Error cargando tareas' }, { status: 500 });
     }
 }
 
-export async function POST(req: Request) {
+async function postHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
 
         const { patientId, title, description, category, priority, dueDate, assignedToId, isZendiSuggested } = await req.json();
-
         if (!patientId || !title) {
             return NextResponse.json({ success: false, error: 'patientId y title requeridos' }, { status: 400 });
+        }
+
+        // Tenant-scope: el patient DEBE pertenecer a la HQ del invoker.
+        const patient = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId: auth.headquartersId },
+            select: { id: true },
+        });
+        if (!patient) {
+            return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
+        }
+
+        // Tenant-scope: si assignedToId viene, debe ser un User de la misma HQ.
+        if (assignedToId) {
+            const assignee = await prisma.user.findFirst({
+                where: { id: assignedToId, headquartersId: auth.headquartersId, isDeleted: false },
+                select: { id: true },
+            });
+            if (!assignee) {
+                return NextResponse.json({ success: false, error: 'Usuario asignado no encontrado en esta sede' }, { status: 400 });
+            }
         }
 
         const task = await prisma.socialWorkTask.create({
             data: {
                 patientId,
-                headquartersId: (session.user as any).headquartersId,
-                createdById: session.user.id,
+                headquartersId: auth.headquartersId,
+                createdById: auth.id,
                 assignedToId: assignedToId || null,
                 title,
                 description: description || null,
@@ -69,28 +84,35 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, task });
     } catch (error) {
-        console.error('Social Tasks POST Error:', error);
+        logError('social.tasks.post', error);
         return NextResponse.json({ success: false, error: 'Error creando tarea' }, { status: 500 });
     }
 }
 
-export async function PATCH(req: Request) {
+async function patchHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
 
         const { taskId, status } = await req.json();
-
         if (!taskId || !status) {
             return NextResponse.json({ success: false, error: 'taskId y status requeridos' }, { status: 400 });
+        }
+
+        // Tenant-scope: validar que la task pertenezca a la HQ del invoker
+        // ANTES de actualizar. Cierra el vector cross-tenant PATCH.
+        const task = await prisma.socialWorkTask.findFirst({
+            where: { id: taskId, headquartersId: auth.headquartersId },
+            select: { id: true },
+        });
+        if (!task) {
+            return NextResponse.json({ success: false, error: 'Tarea no encontrada' }, { status: 404 });
         }
 
         const updateData: any = { status };
         if (status === 'COMPLETED') updateData.completedAt = new Date();
 
-        const task = await prisma.socialWorkTask.update({
+        const updated = await prisma.socialWorkTask.update({
             where: { id: taskId },
             data: updateData,
             include: {
@@ -99,9 +121,19 @@ export async function PATCH(req: Request) {
             },
         });
 
-        return NextResponse.json({ success: true, task });
+        return NextResponse.json({ success: true, task: updated });
     } catch (error) {
-        console.error('Social Tasks PATCH Error:', error);
+        logError('social.tasks.patch', error);
         return NextResponse.json({ success: false, error: 'Error actualizando tarea' }, { status: 500 });
     }
 }
+
+// PHI audit (HIPAA Pilar 1). El wrapper captura actor + IP + UA + path +
+// success. getPatientId del query string para GET; null en POST/PATCH
+// (vienen en body) — forensic join via resourceType + timestamp + userId.
+export const GET = withPhiAccessLog(getHandler, {
+    resourceType: 'SocialWorkTask',
+    getPatientId: ({ req }) => new URL(req.url).searchParams.get('patientId') ?? undefined,
+});
+export const POST = withPhiAccessLog(postHandler, { resourceType: 'SocialWorkTask' });
+export const PATCH = withPhiAccessLog(patchHandler, { resourceType: 'SocialWorkTask' });

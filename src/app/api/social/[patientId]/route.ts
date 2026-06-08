@@ -1,19 +1,23 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { logError } from '@/lib/logger';
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
+const SW_ALLOWED = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 
-export async function GET(req: Request, { params }: { params: Promise<{ patientId: string }> }) {
+async function getHandler(_req: Request, { params }: { params: Promise<{ patientId: string }> }) {
     try {
         const { patientId } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(SW_ALLOWED);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
+        // Tenant-scope: cargar patient CON filtro hqId. Si no es de la HQ
+        // del invoker, retornamos 404 — el caller no distingue cross-tenant
+        // vs not-found (lo cual es la respuesta correcta para evitar
+        // enumeration de IDs).
+        //
         // FIX 2026-05-31: específicamente quitado el bloque de SpecialistVisit
         // (modelo legacy con 0 datos en prod, reemplazado por
         // ExternalServiceVisit vía kiosko de pisos). El frontend de
@@ -37,8 +41,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ patientI
                 where: { patientId, headquartersId: hqId },
                 orderBy: { type: 'asc' },
             }),
-            prisma.patient.findUnique({
-                where: { id: patientId },
+            prisma.patient.findFirst({
+                where: { id: patientId, headquartersId: hqId },
                 select: {
                     id: true,
                     name: true,
@@ -53,9 +57,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ patientI
             }),
         ]);
 
+        if (!patient) {
+            return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
+        }
+
         return NextResponse.json({ success: true, notes, tasks, benefits, patient });
     } catch (error) {
-        console.error('Social Work GET Error:', error);
+        logError('social.patientId.get', error);
         return NextResponse.json({ success: false, error: 'Error cargando datos sociales' }, { status: 500 });
     }
 }
+
+// PHI audit (HIPAA Pilar 1) — patientId del URL → wrapper lo captura.
+export const GET = withPhiAccessLog(getHandler, {
+    resourceType: 'SocialWorkPatientView',
+    getPatientId: async ({ params }) => (await params).patientId,
+});
