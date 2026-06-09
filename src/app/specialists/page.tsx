@@ -33,8 +33,13 @@ export default function SpecialistsPortal() {
         loadAppointments();
     }, []);
 
-    const isDiabetic = (diet: string | null) => {
-        return diet && diet.toLowerCase().includes('diabétic');
+    // Sprint Diet System — antes parseaba Patient.diet string buscando 'diabétic'.
+    // Ahora usa la fuente canónica Patient.dietDiabetic (boolean) que se mantiene
+    // en sync con el endpoint /diet-prescription.
+    const isDiabetic = (patient: { dietDiabetic?: boolean | null; diet?: string | null }) => {
+        if (typeof patient?.dietDiabetic === 'boolean') return patient.dietDiabetic;
+        // Fallback defensive para data legacy aún no migrada
+        return !!patient?.diet && patient.diet.toLowerCase().includes('diabétic');
     };
 
     const markAsCompleted = async (appointmentId: string) => {
@@ -123,7 +128,7 @@ export default function SpecialistsPortal() {
                                     </p>
 
                                     {/* CRITICAL B2B LOGIC: Diabetics Precaution Alert */}
-                                    {isDiabetic(appt.patient.diet) && user?.role === 'BEAUTY_SPECIALIST' && (
+                                    {isDiabetic(appt.patient) && user?.role === 'BEAUTY_SPECIALIST' && (
                                         <div className="bg-rose-50 border-2 border-rose-200 p-4 rounded-2xl mb-4 shadow-sm animate-pulse">
                                             <div className="flex items-center gap-2 text-rose-600 font-black mb-1">
                                                 <FaExclamationTriangle /> PRECAUCIÓN MÉDICA

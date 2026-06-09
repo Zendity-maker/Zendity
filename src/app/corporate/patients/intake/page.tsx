@@ -773,11 +773,19 @@ export default function IntakeWizardPage() {
                              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-slate-200 shadow-sm">
                                 <label className="block text-sm font-black text-slate-500 uppercase tracking-widest mb-6">Régimen Dietético</label>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {[ 
-                                      { id: "REGULAR", label: "Regular" },
-                                      { id: "BLANDA", label: "Blanda" },
-                                      { id: "PUREE", label: "Puré" },
-                                      { id: "DIABETICA", label: "Diabética" }
+                                    {/* Sprint Diet System — los ids deben matchear DietTexture enum.
+                                       Modificadores (diabética, bajo sodio, renal, vegetariana) se configuran
+                                       después en el perfil del residente o en /care, NO aquí.
+                                       Si el residente es diabético, prescribe textura aquí y marca el modificador
+                                       en el perfil. */}
+                                    {[
+                                      { id: "REGULAR",         label: "Regular" },
+                                      { id: "BLANDA",          label: "Blanda" },
+                                      { id: "MAJADA",          label: "Majada" },
+                                      { id: "PUREE",           label: "Puré" },
+                                      { id: "LICUADO",         label: "Licuado" },
+                                      { id: "LIQUIDOS_CLAROS", label: "Líquidos Claros" },
+                                      { id: "PEG",             label: "PEG (Sonda)" }
                                     ].map(d => (
                                        <button
                                            key={d.id}

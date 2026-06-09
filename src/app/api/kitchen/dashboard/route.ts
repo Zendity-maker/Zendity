@@ -18,7 +18,15 @@ export async function GET(request: Request) {
         const [activePatients, hospitalPatients, observations, todayMenu] = await Promise.all([
             prisma.patient.findMany({
                 where: { headquartersId: hqId!, status: 'ACTIVE' },
-                select: { id: true, name: true, roomNumber: true, diet: true, colorGroup: true },
+                // Sprint Diet System — exponemos dietTexture + 4 flags como fuente
+                // de verdad. `diet` legacy queda incluido para back-compat de
+                // consumers viejos durante la transición.
+                select: {
+                    id: true, name: true, roomNumber: true, colorGroup: true,
+                    diet: true,
+                    dietTexture: true, dietDiabetic: true, dietLowSodium: true,
+                    dietRenal: true, dietVegetarian: true,
+                },
                 orderBy: { name: 'asc' }
             }),
             prisma.patient.findMany({

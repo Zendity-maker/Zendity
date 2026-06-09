@@ -537,6 +537,21 @@ enum ColorGroup {
   UNASSIGNED
 }
 
+// Sprint Diet System — textura prescrita.
+// Mutuamente excluyente. Modificadores ortogonales (diabético, bajo sodio, renal,
+// vegetariano) viven como flags booleanos en Patient. Antes del sprint, Patient.diet
+// era un string libre con vocabularios distintos por form de origen (intake / care /
+// perfil), causando que el filtro de cocina no contara dietas modificadas correctamente.
+enum DietTexture {
+  REGULAR         // sólida estándar
+  BLANDA          // sólida cocida/suave, carne molida
+  MAJADA          // machacada sin trozos (mofongo, majado de papa)
+  PUREE           // sin grumos, espesa (disfagia moderada)
+  LICUADO         // sin grumos, líquida (disfagia severa)
+  LIQUIDOS_CLAROS // caldo, té, jugo colado
+  PEG             // alimentación enteral por sonda, no oral
+}
+
 // =======================
 // 2. PACIENTES Y PREINGRESO
 // =======================
@@ -547,7 +562,15 @@ model Patient {
   name             String
   roomNumber       String?
   dateOfBirth      DateTime?
-  diet             String? // Asignación por preingreso
+  diet             String? // DEPRECATED — string libre histórico. Mantener para back-compat
+                           // durante la transición. Fuente de verdad nueva: dietTexture + flags.
+  // Sprint Diet System — fuente de verdad canónica
+  dietTexture    DietTexture? // textura prescrita (mutuamente excluyente)
+  dietDiabetic   Boolean      @default(false) // modificador: diabética / baja en azúcar
+  dietLowSodium  Boolean      @default(false) // modificador: baja en sodio / baja en sal
+  dietRenal      Boolean      @default(false) // modificador: dieta renal
+  dietVegetarian Boolean      @default(false) // modificador: vegetariana
+
   avdScore         Int? // Puntuación de Actividades Vida Diaria
   downtonRisk      Boolean    @default(false) // Escala de Caídas
   nortonRisk       Boolean    @default(false) // Escala de Úlceras

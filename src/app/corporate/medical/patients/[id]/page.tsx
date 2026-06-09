@@ -4,6 +4,8 @@ import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
+import DietPrescription from "@/components/diet/DietPrescription";
+import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
 import { HeartCrack, FileText } from "lucide-react";
 import Link from "next/link";
 import PatientUlcersTab from "@/components/medical/upps/PatientUlcersTab";
@@ -50,7 +52,12 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     // Form States
     const [actionReason, setActionReason] = useState("");
     const [leaveType, setLeaveType] = useState("HOSPITAL");
-    const [newDiet, setNewDiet] = useState("Regular (Sólida)");
+    // Sprint Diet System — prescripción canónica (textura + flags).
+    // Reemplaza el viejo `newDiet` string.
+    const [dietDraft, setDietDraft] = useState<DietPrescriptionData>({
+        dietTexture: null, dietDiabetic: false, dietLowSodium: false, dietRenal: false, dietVegetarian: false,
+    });
+    const [savingDiet, setSavingDiet] = useState(false);
     const [hospReason, setHospReason] = useState("");
     const [isHospitalizing, setIsHospitalizing] = useState(false);
 
@@ -313,11 +320,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     };
 
     const handleUpdateDiet = async () => {
+        setSavingDiet(true);
         try {
-            const res = await fetch(`/api/corporate/patients/${params.id}/diet`, {
+            // Sprint Diet System — usa el endpoint canónico /diet-prescription.
+            // Envía dietTexture + 4 flags. El endpoint también sincroniza
+            // Patient.diet legacy automáticamente para back-compat.
+            const res = await fetch(`/api/corporate/patients/${params.id}/diet-prescription`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ diet: newDiet })
+                body: JSON.stringify(dietDraft),
             });
             const data = await res.json();
             if (data.success) {
@@ -328,6 +339,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             }
         } catch (e) {
             console.error(e);
+            alert("Error de red al guardar la dieta.");
+        } finally {
+            setSavingDiet(false);
         }
     };
 
@@ -355,7 +369,10 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             <div className="max-w-6xl mx-auto space-y-6">
 
                 {/* Nav de Retorno */}
-                <Link href="/corporate/medical/upp-dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition">
+                {/* Fix: el href apuntaba a /upp-dashboard (dashboard de úlceras) pero el
+                   texto dice "Volver al Tablero Clínico". El destino natural es el listado
+                   de residentes — desde donde el usuario entró al perfil. */}
+                <Link href="/corporate/medical/patients" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition">
                     <ArrowLeftIcon className="w-4 h-4" /> Volver al Tablero Clínico
                 </Link>
 
@@ -392,11 +409,20 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <span>ID: {patientData?.id?.split('-')[0]}</span> |
                                 <span>Cuarto: {patientData?.roomNumber || 'Liberado'}</span> |
                                 <span className="flex items-center bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 text-slate-700">
-                                    Dieta: {patientData?.diet || 'Regular (Sólida)'}
+                                    Dieta: {formatDietSummary(patientData ?? {})}
                                 </span>
                                 {patientData?.status !== 'DISCHARGED' && patientData?.status !== 'DECEASED' && (
                                     <>
-                                    <button onClick={() => { setNewDiet(patientData?.diet || "Regular (Sólida)"); setShowDietModal(true); }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
+                                    <button onClick={() => {
+                                        setDietDraft({
+                                            dietTexture:    patientData?.dietTexture ?? null,
+                                            dietDiabetic:   patientData?.dietDiabetic ?? false,
+                                            dietLowSodium:  patientData?.dietLowSodium ?? false,
+                                            dietRenal:      patientData?.dietRenal ?? false,
+                                            dietVegetarian: patientData?.dietVegetarian ?? false,
+                                        });
+                                        setShowDietModal(true);
+                                    }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
                                         <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
                                     </button>
                                     <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
@@ -630,7 +656,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 </div>
             )}
 
-            {/* MODAL: CAMBIAR DIETA */}
+            {/* MODAL: CAMBIAR DIETA — usa el componente unificado <DietPrescription /> */}
             {showDietModal && (
                 <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
@@ -639,23 +665,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             Ajusta el tipo de alimentación para el expediente clínico de <strong className="text-indigo-600">{patientData?.name}</strong>. Esto impactará de inmediato en el Módulo de Cocina.
                         </p>
 
-                        <div className="space-y-4 mb-8">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Clasificación Nutricional</label>
-                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={newDiet} onChange={(e) => setNewDiet(e.target.value)}>
-                                    <option value="Regular (Sólida)">Regular (Sólida)</option>
-                                    <option value="Puré (Mojada)">Puré (Mojada)</option>
-                                    <option value="Tubo PEG (1.5 Cal)">Alimentación por Sonda PEG</option>
-                                    <option value="Diabética / Baja en Azúcar">Diabética / Baja en Azúcar (Sólida)</option>
-                                    <option value="Baja en Sal">Baja en Sal (Sólida)</option>
-                                    <option value="Líquidos Claros">Líquidos Claros</option>
-                                </select>
-                            </div>
+                        <div className="mb-8">
+                            <DietPrescription value={dietDraft} onChange={setDietDraft} disabled={savingDiet} />
                         </div>
 
                         <div className="flex gap-3">
-                            <button onClick={() => setShowDietModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={handleUpdateDiet} className="flex-1 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors">Actualizar Dieta</button>
+                            <button onClick={() => setShowDietModal(false)} disabled={savingDiet} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors disabled:opacity-50">Cancelar</button>
+                            <button onClick={handleUpdateDiet} disabled={savingDiet} className="flex-1 px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition-colors disabled:opacity-50">
+                                {savingDiet ? 'Guardando…' : 'Actualizar Dieta'}
+                            </button>
                         </div>
                     </div>
                 </div>

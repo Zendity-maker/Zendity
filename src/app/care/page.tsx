@@ -18,6 +18,8 @@ import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
 import ZendiAssist from "@/components/ZendiAssist";
 import StaffChat from "@/components/StaffChat";
+import DietPrescription from "@/components/diet/DietPrescription";
+import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
 import { Toaster, toast } from 'sonner';
 
 function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
@@ -252,7 +254,26 @@ export default function ZendityCareTabletPage() {
     const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
     const [isNightMode, setIsNightMode] = useState(() => isNightHours());
     const [hospitalReason, setHospitalReason] = useState("");
-    const [dietFormValue, setDietFormValue] = useState("Regular (Sólida)");
+    // Sprint Diet System — prescripción canónica (textura + flags ortogonales).
+    // Reemplaza al viejo `dietFormValue` string con vocabulario drift.
+    const [careDietDraft, setCareDietDraft] = useState<DietPrescriptionData>({
+        dietTexture: null, dietDiabetic: false, dietLowSodium: false, dietRenal: false, dietVegetarian: false,
+    });
+
+    // Pre-popular el draft cuando se abre el modal de DIET_CHANGE con la
+    // prescripción actual del residente — evita que el cuidador resetee a
+    // "sin prescribir" sin querer.
+    useEffect(() => {
+        if (modalType === 'DIET_CHANGE' && activePatient) {
+            setCareDietDraft({
+                dietTexture:    (activePatient as any).dietTexture ?? null,
+                dietDiabetic:   (activePatient as any).dietDiabetic ?? false,
+                dietLowSodium:  (activePatient as any).dietLowSodium ?? false,
+                dietRenal:      (activePatient as any).dietRenal ?? false,
+                dietVegetarian: (activePatient as any).dietVegetarian ?? false,
+            });
+        }
+    }, [modalType, activePatient]);
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | null>(null);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
@@ -597,17 +618,27 @@ export default function ZendityCareTabletPage() {
         e.preventDefault();
         setSubmitting(true);
         try {
-            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
-            const res = await fetch(`/api/corporate/patients/${activePatient.id}/diet`, {
+            // Sprint Diet System — endpoint canónico /diet-prescription.
+            // Envía dietTexture + 4 flags. Patient.diet legacy se sincroniza server-side.
+            const res = await fetch(`/api/corporate/patients/${activePatient.id}/diet-prescription`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ diet: dietFormValue })
+                body: JSON.stringify(careDietDraft),
             });
             const data = await res.json();
             if (data.success) {
                 setModalType(null);
-                setZendiToast(`Dieta del residente sincronizada a ${dietFormValue}.`);
-                setPatients(patients.map(p => p.id === activePatient.id ? { ...p, diet: dietFormValue } : p));
+                const summary = formatDietSummary(careDietDraft);
+                setZendiToast(`Dieta del residente sincronizada a ${summary}.`);
+                setPatients(patients.map(p => p.id === activePatient.id ? {
+                    ...p,
+                    dietTexture:    careDietDraft.dietTexture,
+                    dietDiabetic:   careDietDraft.dietDiabetic,
+                    dietLowSodium:  careDietDraft.dietLowSodium,
+                    dietRenal:      careDietDraft.dietRenal,
+                    dietVegetarian: careDietDraft.dietVegetarian,
+                    diet:           data.patient?.diet ?? null, // sync legacy desde server
+                } : p));
                 setTimeout(() => setZendiToast(""), 3500);
             } else {
                 alert("Error al actualizar la dieta.");
@@ -3375,23 +3406,7 @@ export default function ZendityCareTabletPage() {
                                         Los cambios realizados aquí se sincronizarán inmediatamente con la pantalla central del equipo de <span className="underline decoration-2 underline-offset-2">Cocina y Nutrición</span>.
                                     </div>
                                 </div>
-                                <div>
-                                    <select
-                                        value={dietFormValue}
-                                        onChange={(e) => setDietFormValue(e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-xl font-black text-slate-800 text-base focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none cursor-pointer"
-                                    >
-                                        <option value="Regular (Sólida)">Regular (Sólida)</option>
-                                        <option value="Blanda / Semisólida">Blanda / Semisólida</option>
-                                        <option value="Líquidos Claros">Líquidos Claros</option>
-                                        <option value="Puré / Mojado">Puré / Mojado (Disfagia)</option>
-                                        <option value="PEG (Sonda)">PEG (Alimentación por Sonda)</option>
-                                        <option value="Diabética">Diabética</option>
-                                        <option value="Baja en Sodio">Baja en Sodio</option>
-                                        <option value="Renal">Renal</option>
-                                        <option value="Vegetariana">Vegetariana</option>
-                                    </select>
-                                </div>
+                                <DietPrescription value={careDietDraft} onChange={setCareDietDraft} disabled={submitting} />
                                 <button type="submit" disabled={submitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black rounded-xl text-base transition-all active:scale-95 shadow-md flex items-center justify-center gap-3">
                                     {submitting ? 'Sincronizando Plataforma...' : 'Confirmar Nueva Dieta'}
                                 </button>

@@ -1,9 +1,25 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { IntakeStatus } from "@prisma/client";
+import { IntakeStatus, DietTexture } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { categorizeMedication, normalizeMedicationName } from "@/lib/medication-categorize";
+
+// Sprint Diet System — el form de intake escribe IntakeData.dietSpecifics con
+// ids que matchean DietTexture (REGULAR | BLANDA | MAJADA | PUREE | LICUADO |
+// LIQUIDOS_CLAROS | PEG). Esta función traduce el string al enum, defensivamente
+// — si llega algo viejo o desconocido, retorna null y dejamos el campo sin setear.
+const VALID_TEXTURES: ReadonlyArray<DietTexture> = [
+    'REGULAR', 'BLANDA', 'MAJADA', 'PUREE', 'LICUADO', 'LIQUIDOS_CLAROS', 'PEG',
+];
+function parseIntakeDietTexture(raw: string | null | undefined): DietTexture | null {
+    if (!raw) return null;
+    const upper = raw.toUpperCase().trim();
+    if ((VALID_TEXTURES as readonly string[]).includes(upper)) return upper as DietTexture;
+    // Heurística defensive — strings legacy que pudieran venir del form viejo
+    if (upper === 'DIABETICA') return 'REGULAR'; // Diabética sola → REGULAR (modificador se agrega después)
+    return null;
+}
 
 /**
  * 1. GUARDADO SILENCIOSO (Fase A)
@@ -92,10 +108,16 @@ export async function submitIntake(patientId: string) {
       });
 
       // 2.2 Derramamiento hacia el Perfil Vivo (Patient)
+      // Sprint Diet System — además del campo legacy `diet`, poblamos `dietTexture`
+      // para que el residente entre a cocina con la categoría correcta desde el
+      // primer día. Si el form mandó algo desconocido, dietTexture queda null y
+      // se prescribe luego desde el perfil/care.
+      const parsedTexture = parseIntakeDietTexture(intake.dietSpecifics);
       await tx.patient.update({
         where: { id: patientId },
         data: {
-          diet: intake.dietSpecifics || undefined,
+          diet: intake.dietSpecifics || undefined, // legacy back-compat
+          dietTexture: parsedTexture ?? undefined, // null no escribe nada (Prisma)
           downtonRisk: (intake.downtonScore ?? 0) > 2,  // Lógica heurística de caída
           nortonRisk: (intake.bradenScore ?? 0) < 14,   // Lógica heurística de úlcera
         },

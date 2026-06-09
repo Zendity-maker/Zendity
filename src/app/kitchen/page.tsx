@@ -7,6 +7,14 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle2, Loader2, Star } from "lucide-react";
+import {
+    DIET_TEXTURES,
+    DIET_TEXTURE_LABELS,
+    DIET_MODIFIERS,
+    DIET_MODIFIER_SHORT,
+    formatDietSummary,
+} from "@/lib/diet";
+import { DietTexture } from "@prisma/client";
 
 export default function KitchenDashboard() {
     const { user, logout } = useAuth();
@@ -83,10 +91,25 @@ export default function KitchenDashboard() {
         </div>
     );
 
-    const solidoCount = activePatients.filter(p => !p.diet || p.diet.toLowerCase().includes('solido') || p.diet.toLowerCase().includes('regular') || p.diet.toLowerCase().includes('sólido')).length;
-    const mojadoCount = activePatients.filter(p => p.diet && (p.diet.toLowerCase().includes('mojado') || p.diet.toLowerCase().includes('puré') || p.diet.toLowerCase().includes('pure'))).length;
-    const pegCount = activePatients.filter(p => p.diet && p.diet.toLowerCase().includes('peg')).length;
-    const diabeticaCount = activePatients.filter(p => p.diet && p.diet.toLowerCase().includes('diab')).length;
+    // Sprint Diet System — conteo basado en enum dietTexture + flags ortogonales.
+    // Reemplaza el viejo filtro de substrings sobre Patient.diet que dejaba
+    // categorías invisibles (Baja en Sal, Líquidos Claros) y miscontaba dietas
+    // modificadas. Ahora cada paciente cae en EXACTAMENTE una textura, y los
+    // modificadores se cuentan aparte sin doble-contar.
+    const textureCounts: Record<DietTexture | '__none__', number> = {
+        REGULAR: 0, BLANDA: 0, MAJADA: 0, PUREE: 0, LICUADO: 0, LIQUIDOS_CLAROS: 0, PEG: 0,
+        __none__: 0,
+    };
+    const modifierCounts = { diabetic: 0, lowSodium: 0, renal: 0, vegetarian: 0 };
+    for (const p of activePatients) {
+        const t: DietTexture | null = p.dietTexture ?? null;
+        if (t) textureCounts[t]++;
+        else textureCounts.__none__++;
+        if (p.dietDiabetic)   modifierCounts.diabetic++;
+        if (p.dietLowSodium)  modifierCounts.lowSodium++;
+        if (p.dietRenal)      modifierCounts.renal++;
+        if (p.dietVegetarian) modifierCounts.vegetarian++;
+    }
     const unreadObs = observations.filter(o => !o.isRead);
 
     return (
@@ -173,19 +196,55 @@ export default function KitchenDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Censo */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="grid grid-cols-4 gap-3">
-                            {[
-                                { label: 'Sólido', count: solidoCount, color: 'bg-slate-100 text-slate-700' },
-                                { label: 'Mojado/Puré', count: mojadoCount, color: 'bg-sky-100 text-sky-700' },
-                                { label: 'PEG', count: pegCount, color: 'bg-purple-100 text-purple-700' },
-                                { label: 'Diabética', count: diabeticaCount, color: 'bg-amber-100 text-amber-700' },
-                            ].map(({ label, count, color }) => (
-                                <div key={label} className={`${color} p-4 rounded-2xl text-center font-black`}>
-                                    <p className="text-2xl">{count}</p>
-                                    <p className="text-xs uppercase tracking-widest mt-1 font-bold opacity-70">{label}</p>
+                        {/* Texturas — cards por DietTexture enum. Cada residente cae en exactamente
+                            UNA card (sin doble-count). Los residentes sin prescripción se muestran
+                            en una card extra "Sin prescribir" para señalarlos al equipo. */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            {(() => {
+                                const palette: Record<DietTexture, string> = {
+                                    REGULAR:         'bg-slate-100 text-slate-700',
+                                    BLANDA:          'bg-emerald-100 text-emerald-700',
+                                    MAJADA:          'bg-orange-100 text-orange-700',
+                                    PUREE:           'bg-sky-100 text-sky-700',
+                                    LICUADO:         'bg-cyan-100 text-cyan-700',
+                                    LIQUIDOS_CLAROS: 'bg-blue-100 text-blue-700',
+                                    PEG:             'bg-purple-100 text-purple-700',
+                                };
+                                return DIET_TEXTURES.map(t => (
+                                    <div key={t} className={`${palette[t]} p-4 rounded-2xl text-center font-black`}>
+                                        <p className="text-2xl">{textureCounts[t]}</p>
+                                        <p className="text-xs uppercase tracking-widest mt-1 font-bold opacity-70">{DIET_TEXTURE_LABELS[t]}</p>
+                                    </div>
+                                ));
+                            })()}
+                            {textureCounts.__none__ > 0 && (
+                                <div className="bg-rose-50 text-rose-700 border-2 border-dashed border-rose-200 p-4 rounded-2xl text-center font-black">
+                                    <p className="text-2xl">{textureCounts.__none__}</p>
+                                    <p className="text-xs uppercase tracking-widest mt-1 font-bold opacity-70">Sin Prescribir</p>
                                 </div>
-                            ))}
+                            )}
                         </div>
+
+                        {/* Modificadores — flags ortogonales. Un residente puede aparecer en
+                            varios contadores (ej. Blanda + Diabético + Bajo Sodio). No doble-cuenta
+                            con las texturas — son ejes independientes. */}
+                        {(modifierCounts.diabetic + modifierCounts.lowSodium + modifierCounts.renal + modifierCounts.vegetarian) > 0 && (
+                            <div className="bg-amber-50/40 rounded-2xl border border-amber-100 p-4">
+                                <p className="text-xs font-black text-amber-900 uppercase tracking-widest mb-3">Modificadores activos</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {DIET_MODIFIERS.map(m => {
+                                        const c = modifierCounts[m];
+                                        if (c === 0) return null;
+                                        return (
+                                            <div key={m} className="bg-white p-3 rounded-xl border border-amber-200 text-center">
+                                                <p className="text-xl font-black text-amber-700">{c}</p>
+                                                <p className="text-[10px] uppercase tracking-wider mt-1 font-bold text-amber-900/70">{DIET_MODIFIER_SHORT[m]}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                             <div className="p-5 border-b border-slate-100 bg-slate-50/50">
@@ -204,13 +263,21 @@ export default function KitchenDashboard() {
                                                 <p className="text-xs text-slate-500">Cuarto {patient.roomNumber || 'N/A'}</p>
                                             </div>
                                         </div>
+                                        {/* Sprint Diet System — etiqueta basada en dietTexture + flags.
+                                           Color por textura (consistente con las cards de arriba).
+                                           Si dietTexture es null, mostrar "Sin Prescribir" en rosa
+                                           para que el equipo lo vea y lo corrija. */}
                                         <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                                            (patient.diet || '').toLowerCase().includes('peg') ? 'bg-purple-100 text-purple-700' :
-                                            (patient.diet || '').toLowerCase().includes('mojado') || (patient.diet || '').toLowerCase().includes('puré') ? 'bg-sky-100 text-sky-700' :
-                                            (patient.diet || '').toLowerCase().includes('diab') ? 'bg-amber-100 text-amber-700' :
+                                            !patient.dietTexture ? 'bg-rose-50 text-rose-700 border border-dashed border-rose-200' :
+                                            patient.dietTexture === 'PEG' ? 'bg-purple-100 text-purple-700' :
+                                            patient.dietTexture === 'PUREE' ? 'bg-sky-100 text-sky-700' :
+                                            patient.dietTexture === 'MAJADA' ? 'bg-orange-100 text-orange-700' :
+                                            patient.dietTexture === 'LICUADO' ? 'bg-cyan-100 text-cyan-700' :
+                                            patient.dietTexture === 'LIQUIDOS_CLAROS' ? 'bg-blue-100 text-blue-700' :
+                                            patient.dietTexture === 'BLANDA' ? 'bg-emerald-100 text-emerald-700' :
                                             'bg-slate-100 text-slate-600'
                                         }`}>
-                                            {patient.diet || 'Regular'}
+                                            {formatDietSummary(patient)}
                                         </span>
                                     </div>
                                 ))}
