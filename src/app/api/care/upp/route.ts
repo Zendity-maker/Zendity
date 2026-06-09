@@ -3,17 +3,26 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyRoles } from '@/lib/notifications';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 
 export const dynamic = 'force-dynamic';
 
 const WRITE_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPERVISOR'];
-const READ_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPERVISOR', 'CAREGIVER'];
+// SOCIAL_WORKER añadido solo a READ — lee úlceras del residente para
+// contextualizar su trabajo. NO está en WRITE.
+const READ_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPERVISOR', 'CAREGIVER', 'SOCIAL_WORKER'];
+
+// PHI audit (Pilar 1) — lectura de úlceras del residente / sede.
+export const GET = withPhiAccessLog(getUppHandler, {
+    resourceType: 'PressureUlcer',
+    getPatientId: ({ req }) => new URL(req.url).searchParams.get('patientId') ?? undefined,
+});
 
 /**
  * GET /api/care/upp?hqId=X         → todas las úlceras ACTIVE+HEALING de la sede
  * GET /api/care/upp?patientId=Y    → úlceras de un residente específico
  */
-export async function GET(req: Request) {
+async function getUppHandler(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });

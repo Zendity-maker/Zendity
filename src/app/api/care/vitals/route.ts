@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 import { logError, logWarn } from '@/lib/logger';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
@@ -9,6 +10,9 @@ import { applyScoreEvent } from '@/lib/score-event';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+
+// SOCIAL_WORKER lee vitales del residente (read-only). NO entra a POST.
+const ALLOWED_GET_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
 
 // ── Schemas Zod con rangos clínicos plausibles ──
 // Acepta ints o numeric strings y los convierte a número.
@@ -53,9 +57,15 @@ const VitalsPostBody = z.discriminatedUnion('type', [
     z.object({ patientId: z.string().min(1), type: z.literal('LOG'),    data: LogDataSchema }),
 ]);
 
-export async function GET(req: Request) {
+// PHI audit (Pilar 1) — lectura de vitales del residente.
+export const GET = withPhiAccessLog(getVitalsHandler, {
+    resourceType: 'VitalSigns',
+    getPatientId: ({ req }) => new URL(req.url).searchParams.get('patientId') ?? undefined,
+});
+
+async function getVitalsHandler(req: Request) {
     try {
-        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE']);
+        const auth = await requireRole(ALLOWED_GET_ROLES);
         if (auth instanceof NextResponse) return auth;
 
         // Respeta el switcher de sede para directores multi-HQ

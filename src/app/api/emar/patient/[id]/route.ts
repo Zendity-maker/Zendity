@@ -4,7 +4,10 @@ import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { startOfWeek, endOfWeek } from 'date-fns';
 
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// SOCIAL_WORKER lee el eMAR del residente (read-only). No tiene write —
+// el archivo solo expone GET. La administración de meds vive en
+// /api/care/meds/bulk y /api/emar/route.ts (escritura), donde SW NO está.
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'];
 
 // PHI audit (Pilar 1) — lectura del eMAR del residente.
 export const GET = withPhiAccessLog(getEmarPatientHandler, {

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
-export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | "CLEANING" | "INVESTOR" | null;
+export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | "CLEANING" | "INVESTOR" | "SOCIAL_WORKER" | null;
 
 export interface AuthUser {
     id: string;
@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "MAINTENANCE") router.replace("/maintenance");
                 else if (user.role === "KITCHEN") router.replace("/kitchen");
                 else if (user.role === "CLEANING") router.replace("/cleaning");
+                else if (user.role === "SOCIAL_WORKER") router.replace("/corporate/social");
                 else router.replace("/"); // NURSE, SUPERVISOR, DIRECTOR
             } else {
                 // Protección de Rutas (Básico)
@@ -109,6 +110,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
                 else if (user.role === "INVESTOR" && !pathname.startsWith("/corporate/investors")) {
                     router.replace("/corporate/investors");
+                }
+                // SOCIAL_WORKER — confinado a su sandbox operacional:
+                //   - /corporate/social (dashboard global)
+                //   - /corporate/medical/patients/* (perfil residente: lee clínico,
+                //     escribe solo en la pestaña Trabajo Social)
+                //   - "/" homepage redirige por el efecto post-login arriba
+                // ⚠️ ESTO ES UX / DEFENSA-EN-PROFUNDIDAD — el control de seguridad
+                // real son los role-lists de los endpoints (Parte 2 del sprint).
+                // Si esta cláusula falla, el SW NO puede leer ni escribir lo que
+                // no debe — los endpoints lo rechazan con 401. Esta solo evita
+                // que vea shells de páginas vacías o reciba 401s ruidosos.
+                else if (user.role === "SOCIAL_WORKER" &&
+                    pathname !== "/" &&
+                    !pathname.startsWith("/corporate/social") &&
+                    !pathname.startsWith("/corporate/medical/patients")) {
+                    router.replace("/corporate/social");
                 }
             }
         }

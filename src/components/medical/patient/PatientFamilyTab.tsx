@@ -23,8 +23,14 @@ interface Toast {
     type: "ok" | "err";
 }
 
+// Roles que pueden ESCRIBIR en familia (mismo set que el backend
+// /api/corporate/family). SOCIAL_WORKER queda fuera — lee la lista pero
+// no edita. Si la UI mostrara los botones a SW, recibiría 401 al click.
+const FAMILY_WRITE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+
 export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const { user } = useAuth();
+    const canWrite = FAMILY_WRITE_ROLES.includes(user?.role || '');
     const [members, setMembers] = useState<FamilyMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<Toast | null>(null);
@@ -276,12 +282,14 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                         Familiares con acceso al expediente de este residente vía portal web.
                     </p>
                 </div>
-                <button
-                    onClick={openModal}
-                    className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
-                >
-                    <UserPlus className="w-4 h-4" /> Invitar familiar
-                </button>
+                {canWrite && (
+                    <button
+                        onClick={openModal}
+                        className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
+                    >
+                        <UserPlus className="w-4 h-4" /> Invitar familiar
+                    </button>
+                )}
             </div>
 
             {/* Lista */}
@@ -356,15 +364,17 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                             <Pencil className="w-3 h-3" /> Editar
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => handleResend(m)}
-                                        disabled={resendingId === m.id}
-                                        className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                                        title={m.isRegistered ? 'Enviar enlace por email para crear PIN nuevo (el PIN actual sigue funcionando hasta que cree uno nuevo)' : 'Enviar enlace de invitación por email para crear PIN'}
-                                    >
-                                        {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                                        {m.isRegistered ? 'Resetear PIN' : 'Reenviar'}
-                                    </button>
+                                    {canWrite && (
+                                        <button
+                                            onClick={() => handleResend(m)}
+                                            disabled={resendingId === m.id}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                                            title={m.isRegistered ? 'Enviar enlace por email para crear PIN nuevo (el PIN actual sigue funcionando hasta que cree uno nuevo)' : 'Enviar enlace de invitación por email para crear PIN'}
+                                        >
+                                            {resendingId === m.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                            {m.isRegistered ? 'Resetear PIN' : 'Reenviar'}
+                                        </button>
+                                    )}
                                     {canDelete && (
                                         <button
                                             onClick={() => handleDelete(m)}

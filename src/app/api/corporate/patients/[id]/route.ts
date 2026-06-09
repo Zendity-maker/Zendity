@@ -10,12 +10,17 @@ import { withPhiAccessLog } from '@/lib/phi-audit';
  * leía o MODIFICABA el expediente médico-legal completo). Restringido a
  * personal clínico/administrativo + tenant check, replicando el patrón del
  * endpoint hermano reports/route.ts.
+ *
+ * SOCIAL_WORKER añadido SOLO a READ_ROLES — lee el expediente para
+ * contextualizar su trabajo social (notas, beneficios, familia). NO está
+ * en WRITE_ROLES — no edita data clínica del residente.
  */
-const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
+const READ_ROLES  = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SOCIAL_WORKER'];
+const WRITE_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 async function getPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const auth = await requireRole(ALLOWED_ROLES);
+        const auth = await requireRole(READ_ROLES);
         if (auth instanceof NextResponse) return auth;
         const invokerHqId = auth.headquartersId;
 
@@ -72,7 +77,7 @@ export const PUT = withPhiAccessLog(putPatientHandler, {
 
 async function putPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const auth = await requireRole(ALLOWED_ROLES);
+        const auth = await requireRole(WRITE_ROLES);
         if (auth instanceof NextResponse) return auth;
         const invokerHqId = auth.headquartersId;
 

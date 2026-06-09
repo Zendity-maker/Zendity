@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { CreditCard, Landmark, FileText, CheckCircle, Clock, AlertCircle, Save, Plus, Wallet, RefreshCw } from "lucide-react";
+
+// Roles que pueden ESCRIBIR en billing (mismo set que los endpoints
+// /api/corporate/patients/[id]/billing-specs, /invoices, /recharge-concierge,
+// /generate-monthly-invoice). SOCIAL_WORKER queda fuera — billing es
+// administrativo, no clínico ni social. El backend ya rechaza con 403; aquí
+// solo es defensa-en-profundidad UX para no mostrar botones que fallarían.
+const BILLING_WRITE_ROLES = ['DIRECTOR', 'ADMIN'];
 
 export default function PatientBillingTab({
     patientId, patientData, onRefresh
@@ -10,6 +18,8 @@ export default function PatientBillingTab({
     patientData: any;
     onRefresh: () => void;
 }) {
+    const { user } = useAuth();
+    const canWrite = BILLING_WRITE_ROLES.includes(user?.role || '');
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [savingSettings, setSavingSettings] = useState(false);
@@ -260,10 +270,12 @@ export default function PatientBillingTab({
                         </div>
                     </div>
 
-                    <button onClick={handleSaveSettings} disabled={savingSettings}
-                        className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-emerald-200 transition-colors disabled:opacity-50">
-                        <Save className="w-4 h-4" /> {savingSettings ? 'Guardando...' : 'Guardar Configuración'}
-                    </button>
+                    {canWrite && (
+                        <button onClick={handleSaveSettings} disabled={savingSettings}
+                            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold shadow-md shadow-emerald-200 transition-colors disabled:opacity-50">
+                            <Save className="w-4 h-4" /> {savingSettings ? 'Guardando...' : 'Guardar Configuración'}
+                        </button>
+                    )}
 
                     {/* ── Recarga de Saldo Concierge ── */}
                     <div>
@@ -308,14 +320,16 @@ export default function PatientBillingTab({
                                 />
                             </div>
 
-                            <button
-                                onClick={handleRechargeBalance}
-                                disabled={recharging || !rechargeAmount || parseFloat(rechargeAmount) <= 0}
-                                className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-bold shadow-md shadow-violet-200 transition-colors disabled:opacity-40"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${recharging ? 'animate-spin' : ''}`} />
-                                {recharging ? 'Recargando...' : 'Recargar Saldo'}
-                            </button>
+                            {canWrite && (
+                                <button
+                                    onClick={handleRechargeBalance}
+                                    disabled={recharging || !rechargeAmount || parseFloat(rechargeAmount) <= 0}
+                                    className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl font-bold shadow-md shadow-violet-200 transition-colors disabled:opacity-40"
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${recharging ? 'animate-spin' : ''}`} />
+                                    {recharging ? 'Recargando...' : 'Recargar Saldo'}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -326,11 +340,13 @@ export default function PatientBillingTab({
                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                             <FileText className="w-5 h-5 text-indigo-500" /> Historial de Facturas
                         </h2>
-                        <button onClick={handleGenerateMonthlyInvoice} disabled={generatingInvoice || !monthlyFee || parseFloat(monthlyFee) <= 0}
-                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-colors disabled:opacity-40">
-                            <Plus className="w-4 h-4" />
-                            {generatingInvoice ? 'Generando...' : 'Generar factura del mes'}
-                        </button>
+                        {canWrite && (
+                            <button onClick={handleGenerateMonthlyInvoice} disabled={generatingInvoice || !monthlyFee || parseFloat(monthlyFee) <= 0}
+                                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-sm transition-colors disabled:opacity-40">
+                                <Plus className="w-4 h-4" />
+                                {generatingInvoice ? 'Generando...' : 'Generar factura del mes'}
+                            </button>
+                        )}
                     </div>
 
                     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">

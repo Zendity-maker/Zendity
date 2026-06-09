@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'CAREGIVER'];
+// SOCIAL_WORKER lee el resumen del residente (read-only). El archivo solo
+// expone GET — no hay handler de escritura.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'CAREGIVER', 'SOCIAL_WORKER'];
 
 /**
  * GET /api/care/resident-summary?patientId=X
