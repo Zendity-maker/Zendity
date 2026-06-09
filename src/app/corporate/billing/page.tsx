@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { FileText, Plus, CheckCircle, Clock, AlertCircle, Loader2, Banknote, DollarSign, Pencil, Calendar, Download, Sparkles, ClipboardList } from "lucide-react";
 import { StatTile } from "@/components/ui/StatTile";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -299,19 +298,21 @@ export default function BillingDashboard() {
                     <p className="text-slate-500 mt-2">Control de ingresos, emisión de recibos y conciliación.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {/* Censo Director — visible SOLO para DIRECTOR. El endpoint también gatea
-                       estrictamente y registra cada lectura en PhiAccessLog (resourceType=
-                       DirectorFinancialCensus). El botón abre una página imprimible con la
-                       lista de residentes + tarifas para uso interno del Director. */}
+                    {/* Censo Director — descarga PDF. Visible SOLO para DIRECTOR.
+                       El endpoint gatea estrictamente y registra cada descarga en
+                       PhiAccessLog (resourceType=DirectorFinancialCensus, action=READ).
+                       Es un <a download> simple — el browser maneja la descarga
+                       (Content-Disposition: attachment del server). */}
                     {(session?.user as any)?.role === 'DIRECTOR' && (
-                        <Link
-                            href="/corporate/billing/director-census"
+                        <a
+                            href="/api/corporate/billing/director-census"
+                            download
                             className="bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95"
-                            title="Imprime el censo financiero con nombres y tarifas. Visible y registrado en audit log."
+                            title="Descarga PDF con nombres + tarifas. Visible solo a Director y registrado en audit log."
                         >
                             <ClipboardList className="w-4 h-4" />
-                            Censo Director
-                        </Link>
+                            Censo Director (PDF)
+                        </a>
                     )}
                     <button
                         onClick={() => setConfirmGenerateMonth(true)}
