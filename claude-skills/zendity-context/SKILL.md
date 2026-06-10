@@ -156,9 +156,17 @@ npm run db:push              # corre el guard que bloquea producción
 ```
 Si necesitas correr contra producción intencionalmente:
 ```bash
-ALLOW_PROD_PUSH=1 npm run db:push
+ALLOW_PROD_PUSH=YES_EXPLICIT npm run db:push
 ```
-El guard rechaza `--force-reset` siempre, sin excepción.
+Para probar el guard sin ejecutar nada:
+```bash
+npm run db:push -- --guard-dry-run
+```
+El guard:
+- Rechaza `--force-reset` siempre.
+- Detecta prod por host explícito (`ep-wispy-queen-ae20881h`); branches Neon son OK sin flag.
+- Hace ECHO del host TARGET antes de ejecutar — si ves un host inesperado, ABORTA con Ctrl-C.
+- Aísla Prisma del `.env` del repo durante el push para que la única fuente sea la env var del shell.
 
 ### Antes de cualquier operación destructiva en DB
 Pregunta al usuario primero. Sin excepciones. Sin "para acelerar".

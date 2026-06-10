@@ -68,6 +68,13 @@ model Headquarters {
   integrations HqIntegration?
   crmLeads     CRMLead[]
 
+  // Sprint SW Eval Fase 1 — identidad operacional del hogar, requerida en
+  // membretes oficiales (PAI, evaluaciones TS, etc.). Se separa de
+  // billingAddress porque la dirección física del hogar puede diferir de la
+  // dirección a la que llega correspondencia administrativa.
+  licenseNumber String?
+  address       String?
+
   // White-label theming — paleta de marca por sede para la superficie familiar.
   // Si null, el portal familiar usa la paleta default Zéndity (teal).
   // Vivid usa navy/lima; otros tenants futuros configuran su propia paleta.
@@ -165,6 +172,10 @@ model Headquarters {
   externalProviders         ExternalProvider[]
   externalServiceVisits     ExternalServiceVisit[]
   externalKioskDevices      ExternalKioskDevice[]
+
+  // Sprint SW Eval Fase 1 — motor de evaluaciones de Trabajo Social
+  swFormTemplates SWFormTemplate[]
+  swEvaluations   SWEvaluation[]
 }
 
 // =======================
@@ -181,6 +192,13 @@ model User {
   image          String? // FASE 51: Standalone Profile Image (Para NextAuth / RRHH)
   role           Role // e.g. Gerente, Enfermero, SocialWorker
   isActive       Boolean @default(true) // FASE 51: Disable Employee filtering
+
+  // Sprint SW Eval Fase 1 — # de licencia/colegio profesional. Aplica a roles
+  // que firman documentos legales (SOCIAL_WORKER #colegiado MFR, NURSE
+  // licensia DS, MD, etc.). Se autocompleta al firmar evaluaciones; se
+  // hace SNAPSHOT en SWEvaluation.signerCollegiateNumber para que un cambio
+  // futuro no afecte firmas históricas.
+  collegiateNumber String?
 
   // FASE 51: Advanced AI Shift Rules
   preferredShift String? // nullable string "MORNING", "EVENING", "NIGHT"
@@ -321,6 +339,11 @@ model User {
 
   // Módulo Servicios Externos — visitas que este director aprobó/rechazó
   externalVisitsReviewed ExternalServiceVisit[] @relation("ExternalVisitReviewer")
+
+  // Sprint SW Eval Fase 1 — relaciones con motor de evaluaciones TS
+  swEvaluationsCreated   SWEvaluation[]         @relation("SWEvalCreatedBy")
+  swEvaluationsApproved  SWEvaluation[]         @relation("SWEvalApprovedBy")
+  swEvalAddendumsCreated SWEvaluationAddendum[] @relation("SWEvalAddendumCreatedBy")
 }
 
 model Account {
@@ -562,6 +585,18 @@ model Patient {
   name             String
   roomNumber       String?
   dateOfBirth      DateTime?
+
+  // Sprint SW Eval Fase 1 — campos demográficos/operacionales para el motor de
+  // evaluaciones de Trabajo Social. Free-form porque la variabilidad real en PR
+  // (especialmente religion y birthCity) no se beneficia de enums.
+  // admissionDate es la fecha REAL de ingreso al hogar (distinta de createdAt
+  // que es la fecha del row en BD; los residentes legacy fueron creados todos
+  // el mismo día al cargar el sistema).
+  admissionDate    DateTime?
+  maritalStatus    String?
+  religion         String?
+  birthCity        String?
+
   diet             String? // DEPRECATED — string libre histórico. Mantener para back-compat
                            // durante la transición. Fuente de verdad nueva: dietTexture + flags.
   // Sprint Diet System — fuente de verdad canónica
@@ -703,6 +738,9 @@ model Patient {
 
   // Módulo Servicios Externos (kiosko de visitas de proveedores externos)
   externalServiceVisits ExternalServiceVisitPatient[]
+
+  // Sprint SW Eval Fase 1 — motor de evaluaciones de Trabajo Social
+  swEvaluations SWEvaluation[]
 }
 
 // =======================
@@ -866,6 +904,11 @@ model FamilyMember {
 
   // Sprint C: Calendario Familiar
   familyAppointments FamilyAppointment[]
+
+  // Sprint SW Eval Fase 1 — flag para distinguir al apoderado/tutor legal del
+  // residente entre los familiares registrados. Antes se inferían del
+  // relationship string ("Apoderado") — ahora flag explícito + auditable.
+  isLegalGuardian Boolean @default(false)
 }
 
 model WellnessDiary {
@@ -2949,4 +2992,113 @@ model ExternalKioskDevice {
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 
   @@index([headquartersId, isActive])
+}
+
+
+// =======================
+// MOTOR DE EVALUACIONES DE TRABAJO SOCIAL — Sprint SW Eval Fase 1
+// =======================
+//
+// Arquitectura: motor de plantillas (NO un modelo dedicado SocialWorkAssessment).
+//   - SWFormTemplate: blueprint configurable por tenant. El schema vive en JSON.
+//     Plantillas se siembran como config; en Fase 1 NO hay editor visual.
+//   - SWEvaluation: instancia llenada por la TS. Captura prefillSnapshot al crear
+//     para auditar qué fue auto-llenado vs qué escribió ella. APPROVED es inmutable.
+//   - SWEvaluationAddendum: corrección/anexo posterior a una APPROVED. La eval
+//     original NO se edita; los addendums quedan adjuntos al PDF final.
+//
+// Cada field del schema JSON declara prefillMode: READ_ONLY (factual, no editable),
+// REFERENCE (se muestra como ayuda contextual pero la TS marca su criterio),
+// o NONE (la TS llena desde cero).
+
+enum SWEvaluationStatus {
+  DRAFT     // editable por el creador
+  APPROVED  // firmada, inmutable; solo se le pueden agregar addendums
+  ARCHIVED  // sacada del flujo activo (no se borra)
+}
+
+model SWFormTemplate {
+  id             String   @id @default(uuid())
+  headquartersId String
+  name           String   // ej. "Evaluación Inicial de Trabajo Social"
+  description    String?
+  version        Int      @default(1) // se incrementa si el template se edita; las evals viejas mantienen su snapshot
+  isActive       Boolean  @default(true)
+
+  // Estructura del form: { sections: [{ key, title, fields: [{ key, label, type,
+  //   prefillMode, prefillFrom, options, validation }] }] }
+  // Type-safe en TS via interface compartida; aquí se guarda como Json para
+  // permitir evolución sin migrations.
+  schema         Json
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  headquarters   Headquarters   @relation(fields: [headquartersId], references: [id])
+  evaluations    SWEvaluation[]
+
+  @@index([headquartersId, isActive])
+}
+
+model SWEvaluation {
+  id               String              @id @default(uuid())
+  headquartersId   String
+  patientId        String
+  templateId       String
+  templateVersion  Int                 // snapshot — NO sigue a SWFormTemplate.version si el template cambia
+  status           SWEvaluationStatus  @default(DRAFT)
+
+  // Respuestas del form. Shape paralelo al template.schema.
+  data             Json
+
+  // Snapshot de lo que estaba pre-llenado al CREAR la evaluación. Permite
+  // auditar después qué fue heredado del expediente vs qué escribió la TS.
+  // Read-only desde el momento del create — NO se actualiza en cada PUT.
+  prefillSnapshot  Json
+
+  createdById      String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Firma al aprobar — snapshot inmutable
+  approvedById            String?
+  approvedAt              DateTime?
+  signatureBase64         String?  @db.Text // imagen PNG/SVG en base64 del trazo
+  signerName              String?  // snapshot del User.name al firmar
+  signerCollegiateNumber  String?  // snapshot del User.collegiateNumber al firmar
+
+  // Relations
+  headquarters   Headquarters         @relation(fields: [headquartersId], references: [id])
+  patient        Patient              @relation(fields: [patientId], references: [id])
+  template       SWFormTemplate       @relation(fields: [templateId], references: [id])
+  createdBy      User                 @relation("SWEvalCreatedBy",  fields: [createdById], references: [id])
+  approvedBy     User?                @relation("SWEvalApprovedBy", fields: [approvedById], references: [id])
+  addendums      SWEvaluationAddendum[]
+
+  @@index([patientId, status])
+  @@index([headquartersId, status])
+}
+
+model SWEvaluationAddendum {
+  id              String   @id @default(uuid())
+  evaluationId    String
+
+  // Contenido del addendum. Texto + JSON opcional. Mismo patrón que SWEvaluation.data
+  // pero más libre — un addendum puede ser una nota narrativa o cambio puntual.
+  content         Json
+
+  // Razón del addendum (obligatoria) — por qué se está corrigiendo una eval ya
+  // firmada. Aparece en el PDF para trazabilidad.
+  reason          String
+
+  createdById     String
+  createdAt       DateTime @default(now())
+  signatureBase64 String?  @db.Text
+
+  // Relations
+  evaluation      SWEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  createdBy       User         @relation("SWEvalAddendumCreatedBy", fields: [createdById], references: [id])
+
+  @@index([evaluationId])
 }

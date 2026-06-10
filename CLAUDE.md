@@ -31,7 +31,13 @@ Significa que hay drift en el schema. Tu respuesta correcta es:
 npm run db:push              # corre el guard de seguridad
 ```
 
-El guard bloquea `--force-reset` siempre, y exige `ALLOW_PROD_PUSH=1` si la URL apunta a Neon.
+El guard:
+- Bloquea `--force-reset` SIEMPRE.
+- Detecta prod por host explícito (`ep-wispy-queen-ae20881h`); branches Neon son OK sin flag.
+- Exige `ALLOW_PROD_PUSH=YES_EXPLICIT` solo si el host es prod real.
+- Hace ECHO del host TARGET antes de ejecutar — si ves un host inesperado, ABORTA con Ctrl-C.
+- Aísla Prisma del `.env` del repo durante el push (lo mueve temporalmente y lo restaura al final) → la única fuente de `DATABASE_URL` es la env var del shell.
+- Para probar el guard sin tocar DB: `npm run db:push -- --guard-dry-run`.
 
 ---
 

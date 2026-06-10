@@ -47,4 +47,5 @@ test-results/
 playwright-report/
 scripts/*
 !scripts/db-push-guard.sh
+!scripts/db-push-guard.sh.broken-bak
 !scripts/dr-restore.sh
