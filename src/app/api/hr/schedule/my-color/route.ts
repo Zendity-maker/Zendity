@@ -59,15 +59,25 @@ export async function GET(_req: Request) {
         });
         const evaluatedAt = activeSession?.startTime ?? undefined;
 
-        // Resolver vía el chokepoint canónico (D1+D2+D3, sin overtimeFallback
-        // — my-color quiere semántica precisa: si no hay shift compatible,
-        // el frontend debe ver 'shift_not_current' o 'none', no un fallback).
+        // Resolver vía el chokepoint canónico (D1+D2+D3).
+        //
+        // FIX 11-jun-2026: overtimeFallback es CONDICIONAL a tener sesión activa.
+        // Si la cuidadora está clocked-in (activeSession existe) y tiene pauta del
+        // día aunque sea overtime (ej. MORNING terminó 14:00 pero ella sigue en piso
+        // a las 16:00), el resolver debe seguir reportando su color de pauta — no
+        // 'shift_not_current'. Sin esto, el supervisor wall (que usa overtimeFallback)
+        // veía base YELLOW + assignments mientras my-color veía SOLO assignments,
+        // creando divergencia visible (caso Vivid Cupey, Medelyn 11-jun).
+        // Cuando NO hay sesión activa (cuidadora consulta sin clock-in), mantenemos
+        // la semántica precisa anterior — sin fallback, devuelve 'shift_not_current'
+        // o 'none'.
         const resolved = await resolveCaregiverColors({
             mode: 'single',
             caregiverId: userId,
             hqId,
             at: evaluatedAt,
             includeSource: true,
+            overtimeFallback: !!activeSession,
         });
 
         let colors = resolved.colors;
