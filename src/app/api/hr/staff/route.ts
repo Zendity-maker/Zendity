@@ -116,13 +116,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Email is already in use' }, { status: 400 });
         }
 
+        // FIX 11-jun-2026: hashear pinCode en creación también. Antes este
+        // POST guardaba plaintext, mientras el PATCH (línea 258) ya hasheaba.
+        // El drift causaba el bug del welcome endpoint: leía pinCode crudo y
+        // metía o un hash (si el empleado había sido editado) o un plaintext
+        // (si nunca lo habían tocado) en el email. Ahora ambos endpoints
+        // mantienen el mismo invariante: pinCode siempre bcrypt en DB.
+        const hashedPin = pinCode ? await bcrypt.hash(pinCode, 10) : null;
         const newUser = await prisma.user.create({
             data: {
                 name,
                 email: cleanEmail,
                 role: role,
                 secondaryRoles: secondaryRoles || [],
-                pinCode: pinCode || null,
+                pinCode: hashedPin,
                 headquartersId: hqId
             }
         });
