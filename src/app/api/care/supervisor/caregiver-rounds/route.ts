@@ -118,6 +118,33 @@ export async function GET(req: Request) {
             overtimeFallback: true,
         });
 
+        // FASE 82: shift base de HOY por cuidadora activa — para que la UI del
+        // wall sepa qué scheduledShiftId liberar via /release-shift y muestre
+        // el indicador "Pauta liberada" si releasedAt != null. Trae también
+        // releasedAt para condicionar el botón "Liberar" vs "Reactivar".
+        const baseShifts = await prisma.scheduledShift.findMany({
+            where: {
+                userId: { in: caregiverIds },
+                date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
+                isAbsent: false,
+            },
+            select: {
+                id: true,
+                userId: true,
+                colorGroup: true,
+                shiftType: true,
+                releasedAt: true,
+            },
+            // Si una cuidadora tiene 2 shifts (FULL_DAY + MORNING), priorizamos
+            // el de mayor relevancia para el shift actual.
+            orderBy: [{ shiftType: 'asc' }, { date: 'desc' }],
+        });
+        const baseShiftByUser = new Map<string, typeof baseShifts[number]>();
+        for (const s of baseShifts) {
+            if (!baseShiftByUser.has(s.userId)) baseShiftByUser.set(s.userId, s);
+        }
+
         // Residentes ACTIVE — pedimos TODOS los colores que aparecen en CUALQUIER
         // cuidadora activa (unión global). Si alguna tiene 'ALL', traemos
         // todos los residentes ACTIVE de la sede.
@@ -264,6 +291,15 @@ export async function GET(req: Request) {
                 coverageByColor[c.originalColor] = (coverageByColor[c.originalColor] || 0) + 1;
             }
 
+            // FASE 82: info del shift base para feature "liberar pauta"
+            const bs = baseShiftByUser.get(caregiverId);
+            const baseShift = bs ? {
+                id: bs.id,
+                colorGroup: bs.colorGroup,
+                shiftType: bs.shiftType,
+                releasedAt: bs.releasedAt,
+            } : null;
+
             if (colorGroups.length === 0) {
                 return {
                     caregiverId, name,
@@ -275,6 +311,7 @@ export async function GET(req: Request) {
                     pendingResidents: [], minutesSinceLastRound: null,
                     isNightShift, shiftStartedAt: shiftStart,
                     coverageCount, coverageByColor, coverageResidents,
+                    baseShift,
                 };
             }
 
@@ -297,6 +334,7 @@ export async function GET(req: Request) {
                     pendingResidents: [], minutesSinceLastRound: null,
                     isNightShift, shiftStartedAt: shiftStart,
                     coverageCount, coverageByColor, coverageResidents,
+                    baseShift,
                 };
             }
 
@@ -330,6 +368,7 @@ export async function GET(req: Request) {
                 coverageCount,
                 coverageByColor,
                 coverageResidents,
+                baseShift,          // FASE 82: para feature "liberar pauta"
             };
         });
 

@@ -443,6 +443,63 @@ export default function SupervisorMissionControlPage() {
         }
     };
 
+    // FASE 82 — Liberar/Reactivar pauta base de un ScheduledShift desde el
+    // drill-down del wall. Caso: la cuidadora cambió de cobertura (picker o
+    // set-caregiver-color), el wall mostraba pauta YELLOW + assignment RED
+    // sumados por D1 aditivo. Liberar marca releasedAt → resolver ignora la
+    // pauta YELLOW base → wall solo muestra el color real.
+    const [releasingShift, setReleasingShift] = useState(false);
+    const handleReleaseShift = async (scheduledShiftId: string, baseColor: string | null) => {
+        const colorLabel = baseColor === 'RED' ? 'rojo' : baseColor === 'YELLOW' ? 'amarillo' : baseColor === 'BLUE' ? 'azul' : baseColor === 'GREEN' ? 'verde' : baseColor ?? 'sin color';
+        if (!confirm(`¿Liberar la pauta ${colorLabel} de esta cuidadora? Su color base dejará de contar en el wall.`)) return;
+        setReleasingShift(true);
+        try {
+            const res = await fetch('/api/hr/schedule/release-shift', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledShiftId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: data.message || 'Pauta liberada.', type: 'ok' });
+                setDrillCaregiver(null);
+                fetchCaregiverRounds();
+                fetchUncoveredColors();
+            } else {
+                setToast({ msg: data.error || 'No se pudo liberar', type: 'err' });
+            }
+        } catch (e) {
+            console.error('releaseShift error', e);
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setReleasingShift(false);
+        }
+    };
+    const handleUnreleaseShift = async (scheduledShiftId: string) => {
+        setReleasingShift(true);
+        try {
+            const res = await fetch('/api/hr/schedule/unrelease-shift', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledShiftId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setToast({ msg: data.message || 'Pauta reactivada.', type: 'ok' });
+                setDrillCaregiver(null);
+                fetchCaregiverRounds();
+                fetchUncoveredColors();
+            } else {
+                setToast({ msg: data.error || 'No se pudo reactivar', type: 'err' });
+            }
+        } catch (e) {
+            console.error('unreleaseShift error', e);
+            setToast({ msg: 'Error de conexión', type: 'err' });
+        } finally {
+            setReleasingShift(false);
+        }
+    };
+
     // Cambiar el color base de una cuidadora (1-clic desde la tarjeta del wall).
     // Crea/actualiza ShiftColorAssignment vía /api/care/supervisor/set-caregiver-color.
     const handleSetCaregiverColor = async (color: string) => {
@@ -2629,6 +2686,59 @@ export default function SupervisorMissionControlPage() {
                                                 </div>
                                             );
                                         })()}
+                                    </div>
+                                )}
+
+                                {/* FASE 82: Pauta base — Liberar / Reactivar */}
+                                {cg.baseShift && (
+                                    <div className="mt-6 pt-5 border-t border-slate-200">
+                                        <h3 className="text-sm font-black text-slate-700 uppercase tracking-wide mb-2">
+                                            Pauta del horario
+                                        </h3>
+                                        {cg.baseShift.releasedAt ? (
+                                            <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4">
+                                                <div className="flex items-start gap-3 mb-3">
+                                                    <span className="text-lg">🔓</span>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-bold text-slate-700">
+                                                            Pauta {cg.baseShift.colorGroup
+                                                                ? (colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup)
+                                                                : 'sin color'} liberada
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                                            El color original ya no cuenta en el wall. La cobertura activa de {cg.name.split(' ')[0]} se sigue mostrando.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleUnreleaseShift(cg.baseShift.id)}
+                                                    disabled={releasingShift}
+                                                    className="w-full px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-sm font-bold transition-colors"
+                                                >
+                                                    {releasingShift ? 'Reactivando…' : 'Reactivar pauta'}
+                                                </button>
+                                            </div>
+                                        ) : cg.baseShift.colorGroup && (cg.colorGroups?.length || 0) > 1 ? (
+                                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                                                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                                                    {cg.name.split(' ')[0]} tiene más de un color activo. Si su pauta original
+                                                    {' '}<span className="font-bold">{colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup}</span> ya no aplica
+                                                    (cambió de cobertura), puedes liberarla — el wall solo mostrará el color real de cobertura.
+                                                </p>
+                                                <button
+                                                    onClick={() => handleReleaseShift(cg.baseShift.id, cg.baseShift.colorGroup)}
+                                                    disabled={releasingShift}
+                                                    className="w-full px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white text-sm font-bold transition-colors"
+                                                >
+                                                    {releasingShift ? 'Liberando…' : `Liberar pauta ${colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup}`}
+                                                </button>
+                                            </div>
+                                        ) : cg.baseShift.colorGroup ? (
+                                            <div className="text-xs text-slate-500 italic leading-relaxed bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                                                Pauta {colorLabels[cg.baseShift.colorGroup] || cg.baseShift.colorGroup} activa.
+                                                Para liberarla, primero asigna un color de cobertura distinto a {cg.name.split(' ')[0]}.
+                                            </div>
+                                        ) : null}
                                     </div>
                                 )}
                             </div>

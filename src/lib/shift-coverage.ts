@@ -212,6 +212,7 @@ export async function computeShiftCoverage(params: {
             shiftType: shiftType as any,
             date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
             isAbsent: false,
+            releasedAt: null,                   // FASE 82: ignorar pautas liberadas manualmente
             colorGroup: { not: null },
         },
         select: { id: true, userId: true, colorGroup: true },
@@ -691,6 +692,7 @@ export async function resolveCaregiverColors(
             date: { gte: calendarStartUtc, lt: calendarEndUtc },
             shiftType: { in: compatibleShiftTypes as any[] },
             isAbsent: false,
+            releasedAt: null,                   // FASE 82: pautas liberadas no cuentan como color base
             schedule: { headquartersId: hqId, status: 'PUBLISHED' },
         },
         select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },
@@ -708,6 +710,7 @@ export async function resolveCaregiverColors(
                 userId: { in: userIds },
                 date: { gte: calendarStartUtc, lt: calendarEndUtc },
                 isAbsent: false,
+                releasedAt: null,               // FASE 82: pautas liberadas no son fallback overtime
                 schedule: { headquartersId: hqId, status: 'PUBLISHED' },
             },
             select: { userId: true, colorGroup: true, shiftType: true, notes: true, date: true },

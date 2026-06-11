@@ -286,6 +286,7 @@ model User {
   academyAssignments AcademyAssignment[]
 
   scheduledShifts       ScheduledShift[]
+  releasedScheduledShifts ScheduledShift[] @relation("ScheduledShiftReleasedBy")
   shiftColorAssignments ShiftColorAssignment[]
   notifications         Notification[]
   approvedAppointments  FamilyAppointment[]    @relation("AppointmentApprover") // Sprint C
@@ -416,12 +417,27 @@ model ScheduledShift {
   customEndTime     DateTime?
   customDescription String?
 
+  // FASE 82 (11-jun-2026): liberación manual de pauta por supervisor.
+  // Una pauta "liberada" deja de contar como color base de la cuidadora —
+  // el resolver la trata como si no tuviera colorGroup. Caso de uso: la
+  // cuidadora cambió de cobertura via picker (ShiftColorAssignment RED)
+  // pero su pauta original (YELLOW) sigue apareciendo en el wall del
+  // supervisor sumándose por D1 aditivo. Supervisor libera la pauta YELLOW
+  // y el wall solo muestra el color real de cobertura.
+  // No equivale a isAbsent: ausencia => no estuvo; liberada => sí está,
+  // pero ya no en su color original.
+  releasedAt     DateTime?
+  releasedById   String?
+  releasedReason String?
+
   schedule         Schedule               @relation(fields: [scheduleId], references: [id])
   user             User                   @relation(fields: [userId], references: [id])
+  releasedBy       User?                  @relation("ScheduledShiftReleasedBy", fields: [releasedById], references: [id])
   colorAssignments ShiftColorAssignment[]
 
   @@index([scheduleId, date, shiftType])
   @@index([scheduleId, date, isAbsent])
+  @@index([userId, date, releasedAt])
 }
 
 model ShiftColorAssignment {
