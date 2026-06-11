@@ -77,20 +77,7 @@ export async function POST(req: Request) {
         // ahora BLUE se reparte entre ella y Yedaira.
         // Los colores que SÍ son suyos (o si no tiene base = sustituta/entrante)
         // se procesan abajo con el flujo normal — esos sí los toma completos.
-        // FIX 11-jun-2026: anclar a session.startTime (igual que my-color).
-        // Sin esto, si la cuidadora reclama cobertura cerca del borde de su ventana
-        // de turno (ej. MORNING que termina 14:00, claim a las 14:15), el resolver
-        // evaluaba con `at=now` → veía que ningún ScheduledShift compatible con
-        // EVENING existía para ella → claimerBaseColors=[] → needsColorAssignment=true
-        // → creaba un ShiftColorAssignment "estabilizador" que se SUMABA a su color
-        // base vía D1 ADITIVO en my-color. Resultado: la cuidadora veía 2 colores.
-        // Anclando a startTime, el resolver siempre evalúa desde su clock-in real
-        // (cuando su pauta SÍ era compatible) y reporta su color base correcto.
-        const claimerBaseColors = await resolveCaregiverCurrentColors({
-            caregiverId: invokerId,
-            hqId,
-            at: shiftSession.startTime,
-        });
+        const claimerBaseColors = await resolveCaregiverCurrentColors({ caregiverId: invokerId, hqId });
         let redistributedOrphanCount = 0;
         const orphanDistribution: Array<{ caregiver: string; count: number }> = [];
         if (claimerBaseColors.length > 0) {
