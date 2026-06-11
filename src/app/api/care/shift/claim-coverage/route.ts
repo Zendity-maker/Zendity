@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
-import { inferShiftTypeFromAST, resolveCaregiverColors, type ShiftT } from '@/lib/shift-coverage';
+import { inferShiftTypeFromAST, resolveCaregiverCurrentColors, type ShiftT } from '@/lib/shift-coverage';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { notifyRoles } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
@@ -77,23 +77,19 @@ export async function POST(req: Request) {
         // ahora BLUE se reparte entre ella y Yedaira.
         // Los colores que SÍ son suyos (o si no tiene base = sustituta/entrante)
         // se procesan abajo con el flujo normal — esos sí los toma completos.
-        // FIX 11-jun-2026 (revisión 2): usar resolveCaregiverColors directo con
-        // overtimeFallback: true. Caso real Vivid Cupey: Medelyn pautada MORNING
-        // (06-14 AST) hizo clock-in a las 14:14 — DESPUÉS del cierre de su ventana.
-        // Sin overtimeFallback, el resolver reporta claimerBaseColors=[] tanto con
-        // at=now como con at=session.startTime (ambos fuera de ventana MORNING).
-        // → needsColorAssignment=true → crea ShiftColorAssignment "estabilizador"
-        // → el wall del supervisor (que sí usa overtimeFallback) suma base YELLOW +
-        // assignment RED y muestra a la cuidadora con 2 colores.
-        // Con overtimeFallback=true claim-coverage rescata la pauta del día aunque
-        // sea overtime, alineándose con la semántica de caregiver-rounds, y NO
-        // crea assignment innecesario.
-        const claimerBaseColors = await resolveCaregiverColors({
-            mode: 'single',
+        // FIX 11-jun-2026: anclar a session.startTime (igual que my-color).
+        // Sin esto, si la cuidadora reclama cobertura cerca del borde de su ventana
+        // de turno (ej. MORNING que termina 14:00, claim a las 14:15), el resolver
+        // evaluaba con `at=now` → veía que ningún ScheduledShift compatible con
+        // EVENING existía para ella → claimerBaseColors=[] → needsColorAssignment=true
+        // → creaba un ShiftColorAssignment "estabilizador" que se SUMABA a su color
+        // base vía D1 ADITIVO en my-color. Resultado: la cuidadora veía 2 colores.
+        // Anclando a startTime, el resolver siempre evalúa desde su clock-in real
+        // (cuando su pauta SÍ era compatible) y reporta su color base correcto.
+        const claimerBaseColors = await resolveCaregiverCurrentColors({
             caregiverId: invokerId,
             hqId,
             at: shiftSession.startTime,
-            overtimeFallback: true,
         });
         let redistributedOrphanCount = 0;
         const orphanDistribution: Array<{ caregiver: string; count: number }> = [];
