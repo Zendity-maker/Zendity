@@ -124,7 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "SOCIAL_WORKER" &&
                     pathname !== "/" &&
                     !pathname.startsWith("/corporate/social") &&
-                    !pathname.startsWith("/corporate/medical/patients")) {
+                    !pathname.startsWith("/corporate/medical/patients") &&
+                    // FASE 2 SW Eval: el page de la evaluación vive en su propia ruta
+                    !pathname.startsWith("/corporate/sw-evaluations")) {
                     router.replace("/corporate/social");
                 }
             }

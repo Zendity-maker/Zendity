@@ -8,6 +8,7 @@ import {
     Sparkles, Heart, Stethoscope, FileText, ArrowRight
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/MetricCard";
+import SWEvaluationsSummaryWidget from "@/components/sw-evaluation/SWEvaluationsSummaryWidget";
 
 const PRIORITY_STYLES: Record<string, string> = {
     LOW: "bg-slate-100 text-slate-600", NORMAL: "bg-blue-100 text-blue-700",
@@ -120,6 +121,9 @@ export default function CorporateSocialDashboard() {
                     className="rounded-2xl p-5 shadow-sm"
                 />
             </div>
+
+            {/* SW Evaluations summary widget (P9) */}
+            <SWEvaluationsSummaryWidget />
 
             {/* Pending Tasks */}
             {tasks.length > 0 && (
