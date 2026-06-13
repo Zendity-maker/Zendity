@@ -219,6 +219,16 @@ model User {
   isShiftBlocked Boolean @default(false)
   blockReason    String?
   isDeleted      Boolean @default(false) // Permite soft-delete (Baja Definitiva) sin romper historiales eMAR
+
+  // SPRINT MULTI-FLOOR (jun-2026): piso HABITUAL del empleado.
+  // Reglas (en src/lib/floor.ts):
+  //   - CAREGIVER: floor REQUERIDO (runtime 422 si null). Tablet scoped al piso.
+  //   - SUPERVISOR / DIRECTOR / ADMIN / NURSE: null = ALL (ven todos los pisos).
+  //     Si setean floor, sigue valiendo ALL — la columna queda como referencia
+  //     de "piso habitual" pero NO restringe lo que el usuario ve.
+  // Cobertura de emergencia cross-piso usa flag explícito en el endpoint
+  // (allowCrossFloor=true por SUPERVISOR/DIRECTOR, registrado en audit).
+  floor          Int?
   secondaryRoles Role[] // FASE 51: Permite combinar puestos (ej. CAREGIVER + KITCHEN)
 
   // FASE 6 Integrations
@@ -345,6 +355,9 @@ model User {
   swEvaluationsCreated   SWEvaluation[]         @relation("SWEvalCreatedBy")
   swEvaluationsApproved  SWEvaluation[]         @relation("SWEvalApprovedBy")
   swEvalAddendumsCreated SWEvaluationAddendum[] @relation("SWEvalAddendumCreatedBy")
+
+  // SPRINT MULTI-FLOOR (jun-2026): GET /api/hr/staff?hqId=X&floor=N filtra acá.
+  @@index([headquartersId, floor])
 }
 
 model Account {
@@ -626,6 +639,12 @@ model Patient {
   downtonRisk      Boolean    @default(false) // Escala de Caídas
   nortonRisk       Boolean    @default(false) // Escala de Úlceras
   colorGroup       ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
+  // SPRINT MULTI-FLOOR (jun-2026): piso físico donde vive el residente.
+  // null = legacy o discharged sin room. Para residentes ACTIVE el guard de
+  // integridad exige floor != null — el suite de verify-multi-floor falla
+  // ruidoso si encuentra ACTIVE con floor=null. Backfill desde el prefijo
+  // del roomNumber (1-XX → 1, 2-XX → 2) corre antes del go-live.
+  floor            Int?
   conciergeBalance Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
 
   // FASE 7: Facturación y Cuotas
@@ -757,6 +776,13 @@ model Patient {
 
   // Sprint SW Eval Fase 1 — motor de evaluaciones de Trabajo Social
   swEvaluations SWEvaluation[]
+
+  // SPRINT MULTI-FLOOR (jun-2026): hot paths para queries con scope por piso.
+  // computeShiftCoverage, /api/care (tablet cuidador), caregiver-rounds y
+  // zombie detection filtran por (headquartersId, floor) y por
+  // (headquartersId, floor, colorGroup) — ver src/lib/floor.ts.
+  @@index([headquartersId, floor])
+  @@index([headquartersId, floor, colorGroup])
 }
 
 // =======================
