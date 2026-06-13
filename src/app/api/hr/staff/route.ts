@@ -24,7 +24,12 @@ export async function GET(request: Request) {
         const hqId = await resolveEffectiveHqId(session, requestedHqId);
 
         const staff = await prisma.user.findMany({
-            where: { headquartersId: hqId, isActive: true },
+            // Fix junio-2026: filtrar AMBOS flags. Antes solo isActive=true →
+            // empleados con isDeleted=true (Baja Definitiva) pero isActive sin
+            // tocar seguían apareciendo en el Schedule Builder. Alineado con
+            // el patrón estándar de corporate/headquarters, exec-report,
+            // audit-report, etc. que ya filtran ambos. Ver DELETE abajo.
+            where: { headquartersId: hqId, isActive: true, isDeleted: false },
             select: {
                 id: true,
                 name: true,
@@ -324,9 +329,13 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Empleado no encontrado o de otra sede.' }, { status: 404 });
         }
 
+        // Fix junio-2026: setear AMBOS flags al dar de baja. Antes solo
+        // isDeleted=true → como el filtro del GET miraba isActive, el
+        // empleado seguía apareciendo en el builder. Defensa cinturón+tirantes
+        // junto con el filtro doble del GET (línea 27).
         await prisma.user.update({
             where: { id },
-            data: { isDeleted: true }
+            data: { isDeleted: true, isActive: false }
         });
 
         return NextResponse.json({ success: true }, { status: 200 });
