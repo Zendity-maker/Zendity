@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { todayStartAST, clinicalDayCalendarUTCRange, clinicalDay } from '@/lib/dates';
+import type { FloorScope } from '@/lib/floor';
 
 export type ShiftT = 'MORNING' | 'EVENING' | 'NIGHT' | 'FULL_DAY' | 'FULL_NIGHT';
 
@@ -87,10 +88,22 @@ export interface ShiftCoverage {
 /**
  * Devuelve los colores distintos con residentes ACTIVE en una sede. Útil
  * como fuente del fail-safe del censo — no depende de pautas.
+ *
+ * SPRINT MULTI-FLOOR (jun-2026): `floor` opcional limita el conteo a residentes
+ * del piso indicado. Sin floor → comportamiento legacy HQ-wide.
+ *   • floor=1: solo colores con residentes ACTIVE en piso 1.
+ *   • floor=undefined: todos los colores de la sede (ambos pisos).
+ * El residente con `floor=null` queda fuera cuando se pasa floor explícito
+ * (filter de Prisma `floor: N` excluye nulls). El backfill garantiza que
+ * ACTIVE/TEMPORARY_LEAVE no tengan floor=null en práctica.
  */
-export async function derivePopulatedColors(hqId: string): Promise<Set<string>> {
+export async function derivePopulatedColors(hqId: string, floor?: number): Promise<Set<string>> {
     const rows = await prisma.patient.findMany({
-        where: { headquartersId: hqId, status: 'ACTIVE' },
+        where: {
+            headquartersId: hqId,
+            status: 'ACTIVE',
+            ...(floor !== undefined ? { floor } : {}),
+        },
         select: { colorGroup: true },
         distinct: ['colorGroup'],
     });
@@ -143,12 +156,52 @@ export function filterRealOverrides<T extends { caregiverId: string }>(
  * Misma lógica que GET /api/care/shift/coverage pero como función pura
  * para que el endpoint de redistribución y el cron la puedan reusar sin
  * hacer una llamada HTTP interna (que además no llevaría sesión).
+ *
+ * ─── SPRINT MULTI-FLOOR (jun-2026): scope por piso ──────────────────────
+ *
+ * `floor` opcional acota TODO el cálculo a un piso específico:
+ *   • activeSessions: solo cuidadoras con `caregiver.floor === floor`.
+ *     Una cuidadora del otro piso cubriendo en emergencia (vía override
+ *     cross-piso con flag) NO entra como "active en este piso"; aparece
+ *     a través de activeOverrides cuando un paciente de este piso le tiene
+ *     override asignado (porque el filtro de override sigue al PACIENTE).
+ *   • activeOverrides: solo overrides cuyo `patient.floor === floor`.
+ *     El override sigue al RESIDENTE, no al cuidador — si Yari2 (piso 2)
+ *     cubre vía cross-piso a un residente piso 1, ese override pertenece
+ *     al cómputo de piso 1.
+ *   • scheduledShifts: solo pautas de cuidadoras con `user.floor === floor`.
+ *   • populatedColors: solo colores con residentes ACTIVE del piso.
+ *   • absentColorPatients: residentes filtrados por floor.
+ *
+ * Sin `floor` (undefined): comportamiento legacy HQ-wide preservado, para
+ * que el chip del director (/corporate/live) y otros consumers sin scope
+ * por piso sigan funcionando.
+ *
+ * No invocar con `floor: 0`. Convención: pisos son ≥1.
+ *
+ * Integridad: si la sede tiene residentes ACTIVE con `floor=null`, el
+ * filtro de Prisma los excluye silenciosamente del scope (Prisma `floor: 1`
+ * NO matchea null). Eso es exactamente el "residente invisible" que
+ * queremos evitar. La protección es upstream:
+ *   1. El backfill (scripts/backfill-patient-floor.ts) exit-2 si quedan
+ *      ACTIVE con floor=null.
+ *   2. El endpoint de crear paciente (Phase 3) exige floor en el body.
+ *   3. La suite verify-multi-floor (Phase 5) corre `findMany floor=null
+ *      AND status=ACTIVE` y falla ruidoso si encuentra algo.
+ * Esta función NO ejecuta el check porque añadiría latencia a cada call —
+ * confía en el guard upstream.
  */
 export async function computeShiftCoverage(params: {
     hqId: string;
     shiftType: ShiftT;
+    floor?: number;
 }): Promise<ShiftCoverage> {
-    const { hqId, shiftType } = params;
+    const { hqId, shiftType, floor } = params;
+
+    // FloorScope local: 'ALL' = sin filtro (legacy/director), N = piso scoped.
+    // Mantener como `FloorScope` (en lugar de `number | undefined` crudo) para
+    // que los call sites sean explícitos sobre la decisión de scoping.
+    const floorScope: FloorScope = floor === undefined ? 'ALL' : floor;
 
     // todayStart (10am UTC = 6am AST): para timestamps reales como
     //   ShiftPatientOverride.shiftDate (que ya se guardaba con esta convención).
@@ -169,18 +222,28 @@ export async function computeShiftCoverage(params: {
     // de la conexión Neon); luego scheduledShift usa los IDs en memoria, sin JOIN.
     const oneWeekAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [recentSchedules, activeSessions, activeOverridesRaw, populatedColors] = await Promise.all([
+    const [recentSchedules, allActiveSessionsRaw, activeOverridesRaw, populatedColors] = await Promise.all([
         prisma.schedule.findMany({
             where: { headquartersId: hqId, weekStartDate: { gte: oneWeekAgo } },
             select: { id: true },
         }),
+        // Multi-floor (jun-2026): NO filtramos por floor en la query. Necesitamos
+        // dos vistas distintas:
+        //   • HQ-wide para validar overrides cross-piso (una cuidadora del piso 2
+        //     cubriendo piso 1 sigue siendo "activa" para fines de override).
+        //   • floor-scoped para mostrar `activeCaregivers` solo del piso en el wall.
+        // Hacemos UNA query (sin filtro) y derivamos los dos sets en memoria. Si
+        // filtráramos la query por floor, el override cross-piso quedaría fuera del
+        // set de validación → `filterRealOverrides` descartaría legítimos → el
+        // residente cubierto cross-piso saldría falsamente `uncovered`. Exactamente
+        // el caso "Mari1 ausente, Yari2 cubre con flag".
         prisma.shiftSession.findMany({
             where: {
                 headquartersId: hqId,
                 actualEndTime: null,
                 startTime: { gte: fourteenHrsAgo },
             },
-            include: { caregiver: { select: { id: true, name: true } } },
+            include: { caregiver: { select: { id: true, name: true, floor: true } } },
         }),
         prisma.shiftPatientOverride.findMany({
             where: {
@@ -188,6 +251,11 @@ export async function computeShiftCoverage(params: {
                 shiftType,
                 shiftDate: { gte: todayStart, lt: tomorrow },
                 isActive: true,
+                // Multi-floor: filtro por el PACIENTE del override (no el cuidador).
+                // Un override cross-piso de emergencia tiene patient.floor=1 y
+                // caregiver.floor=2 → en scope=1 SÍ entra (es cobertura para piso 1);
+                // en scope=2 NO entra (no es trabajo de piso 2).
+                ...(floorScope === 'ALL' ? {} : { patient: { floor: floorScope } }),
             },
             include: {
                 patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },
@@ -197,13 +265,29 @@ export async function computeShiftCoverage(params: {
         // Fail-safe del censo — fuente de verdad: colores con residentes
         // ACTIVE en la sede, no las pautas. Garantiza que si una pauta queda
         // marcada absent, el color con residentes igual entra en expectedColors.
-        derivePopulatedColors(hqId),
+        // Multi-floor: scoped al piso si aplica.
+        derivePopulatedColors(hqId, floor),
     ]);
 
-    // Filtrar overrides huérfanos (caregiver clocked-out). El supervisor solo
-    // ve cobertura real — los huérfanos no engañan al wall hasta que C los limpie.
+    // ── HQ-wide: set de cuidadoras clocked-in en cualquier piso ──
+    // Usado SOLO para `filterRealOverrides`. Una cuidadora del piso 2 cubriendo
+    // piso 1 vía override + flag sigue siendo activa a estos efectos.
+    const allActiveUserIdsSet = new Set(allActiveSessionsRaw.map(s => s.caregiverId));
+
+    // ── Floor-scoped: subset de sessions del piso pedido ──
+    // Usado por `activeCaregivers` del return y por `coveredByUser` (que cuenta
+    // cobertura por pauta/assignment dentro del piso). Para scope='ALL' es la
+    // lista completa, idéntica a allActive.
+    const activeSessions = floorScope === 'ALL'
+        ? allActiveSessionsRaw
+        : allActiveSessionsRaw.filter(s => s.caregiver?.floor === floorScope);
     const activeUserIdsSet = new Set(activeSessions.map(s => s.caregiverId));
-    const activeOverrides = filterRealOverrides(activeOverridesRaw, activeUserIdsSet);
+
+    // Filtrar overrides huérfanos usando el set HQ-wide. Override cross-piso
+    // legítimo (caregiver.floor !== floorScope pero con sesión activa) sobrevive.
+    // Override huérfano (caregiver clocked-out, isActive=true por gap del cleanup)
+    // sigue descartándose como antes.
+    const activeOverrides = filterRealOverrides(activeOverridesRaw, allActiveUserIdsSet);
 
     const scheduleIds = recentSchedules.map(s => s.id);
     const scheduledShifts = scheduleIds.length === 0 ? [] : await prisma.scheduledShift.findMany({
@@ -214,6 +298,10 @@ export async function computeShiftCoverage(params: {
             isAbsent: false,
             releasedAt: null,                   // FASE 82: ignorar pautas liberadas manualmente
             colorGroup: { not: null },
+            // Multi-floor: pautas de cuidadoras del piso scoped. Una pauta de
+            // cuidadora del otro piso no debería contribuir a expectedColors
+            // de este piso, aunque coincidan headquartersId+shiftType+fecha.
+            ...(floorScope === 'ALL' ? {} : { user: { floor: floorScope } }),
         },
         select: { id: true, userId: true, colorGroup: true },
     });
@@ -315,6 +403,13 @@ export async function computeShiftCoverage(params: {
                 headquartersId: hqId,
                 status: 'ACTIVE',
                 colorGroup: { in: absentColorsRaw as any[] },
+                // Multi-floor: residentes del piso scoped. Si un color X es
+                // absent en piso 1 PERO los residentes X están en piso 2,
+                // este filtro los excluye del scope piso 1 — el color X
+                // sale de absentColors (porque ya no hay residentes que
+                // descubrir) en piso 1, y la cobertura de piso 2 lo maneja
+                // en su propia llamada.
+                ...(floorScope === 'ALL' ? {} : { floor: floorScope }),
             },
             select: { id: true, name: true, colorGroup: true, roomNumber: true },
             orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
