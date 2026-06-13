@@ -224,7 +224,7 @@ export default function EvaluationPageClient({
                             {mode !== 'DRAFT' && evaluation.signerName && evaluation.approvedAt && (
                                 <p className="text-[11px] text-slate-500">
                                     Aprobada por <span className="font-semibold text-slate-700">{evaluation.signerName}</span>
-                                    {evaluation.signerCollegiateNumber && <> · #{evaluation.signerCollegiateNumber}</>}
+                                    {evaluation.signerCollegiateNumber && <> · Lic. {evaluation.signerCollegiateNumber}</>}
                                     {' · '}
                                     {new Date(evaluation.approvedAt).toLocaleDateString('es-PR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                 </p>

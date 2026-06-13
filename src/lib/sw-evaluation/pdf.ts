@@ -357,7 +357,7 @@ export function generateSWEvaluationPDF(meta: SWEvaluationPDFMeta): ArrayBuffer 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text(`Nombre: ${meta.evaluation.signerName ?? '—'}`, marginX + 2, y); y += 4;
-        doc.text(`Núm. Colegiado: ${meta.evaluation.signerCollegiateNumber ?? '—'}`, marginX + 2, y); y += 4;
+        doc.text(`Lic. Núm.: ${meta.evaluation.signerCollegiateNumber ?? '—'}`, marginX + 2, y); y += 4;
         doc.text(`Fecha aprobación: ${meta.evaluation.approvedAt ? fmtDateTime(meta.evaluation.approvedAt) : '—'}`, marginX + 2, y); y += 4;
 
         if (meta.evaluation.signatureBase64) {

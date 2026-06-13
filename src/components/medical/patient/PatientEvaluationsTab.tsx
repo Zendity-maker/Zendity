@@ -205,7 +205,7 @@ export default function PatientEvaluationsTab({ patientId }: PatientEvaluationsT
                                             <>Iniciada {new Date(e.createdAt).toLocaleDateString('es-PR')} por <span className="font-semibold text-slate-700">{e.createdByName ?? 'Sistema'}</span></>
                                         )}
                                         {e.status === 'APPROVED' && e.approvedAt && (
-                                            <>Aprobada {new Date(e.approvedAt).toLocaleDateString('es-PR')} por <span className="font-semibold text-slate-700">{e.signerName ?? 'Sistema'}</span>{e.signerCollegiateNumber && <> · #{e.signerCollegiateNumber}</>}</>
+                                            <>Aprobada {new Date(e.approvedAt).toLocaleDateString('es-PR')} por <span className="font-semibold text-slate-700">{e.signerName ?? 'Sistema'}</span>{e.signerCollegiateNumber && <> · Lic. {e.signerCollegiateNumber}</>}</>
                                         )}
                                         {e.status === 'ARCHIVED' && (
                                             <>Archivada · creada {new Date(e.createdAt).toLocaleDateString('es-PR')}</>
