@@ -64,9 +64,17 @@ async function getPrefillHandler(req: Request) {
         return NextResponse.json({ success: false, error: 'Residente no encontrado' }, { status: 404 });
     }
 
-    // Template del mismo HQ
+    // Template debe ser PER-SEDE del invocador O PLATAFORMA (hqId=null).
+    // Bloquea uso cross-tenant — un templateId de OTRA sede dará 404.
     const template = await prisma.sWFormTemplate.findFirst({
-        where: { id: templateId, headquartersId: auth.headquartersId, isActive: true },
+        where: {
+            id: templateId,
+            isActive: true,
+            OR: [
+                { headquartersId: auth.headquartersId },
+                { headquartersId: null },
+            ],
+        },
         select: { id: true, name: true, version: true, description: true, schema: true },
     });
     if (!template) {

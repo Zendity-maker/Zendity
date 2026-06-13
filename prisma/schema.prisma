@@ -3034,25 +3034,33 @@ enum SWEvaluationStatus {
 }
 
 model SWFormTemplate {
-  id             String   @id @default(uuid())
-  headquartersId String
-  name           String   // ej. "Evaluación Inicial de Trabajo Social"
+  id   String @id @default(uuid())
+
+  // FASE 2 SW Eval: ALCANCE DE PLATAFORMA vs PER-SEDE.
+  // - headquartersId = null → plantilla GLOBAL (todas las sedes la heredan).
+  //   El MFR9873-ESI v1 es estándar legal de PR, va aquí.
+  // - headquartersId = <uuid> → override per-sede (futuro: variantes locales).
+  // Resolver del /new + /prefill + POST create elige per-sede SI existe,
+  // sino cae a plataforma. Ver orderBy: { headquartersId: { sort: 'desc',
+  // nulls: 'last' } } en los 3 callers.
+  headquartersId String?
+  name           String  // ej. "Evaluación Inicial de Trabajo Social"
   description    String?
-  version        Int      @default(1) // se incrementa si el template se edita; las evals viejas mantienen su snapshot
-  isActive       Boolean  @default(true)
+  version        Int     @default(1) // se incrementa si el template se edita; las evals viejas mantienen su snapshot
+  isActive       Boolean @default(true)
 
   // Estructura del form: { sections: [{ key, title, fields: [{ key, label, type,
   //   prefillMode, prefillFrom, options, validation }] }] }
   // Type-safe en TS via interface compartida; aquí se guarda como Json para
   // permitir evolución sin migrations.
-  schema         Json
+  schema Json
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  headquarters   Headquarters   @relation(fields: [headquartersId], references: [id])
-  evaluations    SWEvaluation[]
+  headquarters Headquarters?  @relation(fields: [headquartersId], references: [id])
+  evaluations  SWEvaluation[]
 
   @@index([headquartersId, isActive])
 }

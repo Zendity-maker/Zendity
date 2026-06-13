@@ -73,12 +73,25 @@ export default async function NewEvaluationPage({
         );
     }
 
-    // Template activo de la sede — Fase 1 asume 1 template seedeado por HQ.
-    // Si hay >1 en el futuro, lookup por `(headquartersId, key, version=max)`
-    // o pasar templateId via query param.
+    // Template activo: prefiere PER-SEDE si existe, sino cae a PLATAFORMA
+    // (hqId=null). Eso permite que el MFR9873-ESI estándar viva como una
+    // sola row de plataforma y todas las sedes la hereden sin re-seed; las
+    // sedes pueden seguir overrideando con su propia row si lo necesitan.
+    // Order trick: headquartersId DESC NULLS LAST → row con hqId real gana
+    // sobre la row con hqId=null cuando ambas existen.
     const template = await prisma.sWFormTemplate.findFirst({
-        where: { headquartersId: hqId },
-        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+        where: {
+            isActive: true,
+            OR: [
+                { headquartersId: hqId },
+                { headquartersId: null },
+            ],
+        },
+        orderBy: [
+            { headquartersId: { sort: 'desc', nulls: 'last' } },
+            { version: 'desc' },
+            { createdAt: 'desc' },
+        ],
         select: { id: true, name: true },
     });
     if (!template) {
