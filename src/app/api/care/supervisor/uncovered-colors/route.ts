@@ -8,6 +8,10 @@ import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
 import { logError, logWarn } from '@/lib/logger';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
 import { clinicalDayCalendarUTCRange } from '@/lib/dates';
+import {
+    canInvokeCrossFloorOverride,
+    floorLabel,
+} from '@/lib/floor';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -101,23 +105,83 @@ export async function GET(req: Request) {
 /**
  * POST /api/care/supervisor/uncovered-colors
  *
+ * Body: { color, shiftType, floor, allowCrossFloor? }
+ *
  * Redistribuye los residentes de un color sin cobertura entre las cuidadoras activas.
  * Usa computeShiftCoverage para idempotencia: solo procesa residentes que NO tienen
  * un ShiftPatientOverride activo todavía. Previene duplicados al tocar el botón
  * múltiples veces.
+ *
+ * ─── SPRINT MULTI-FLOOR (jun-2026) — patrón #4 + STOPGAP reactivo ───────
+ *
+ * El supervisor invoca este endpoint desde el wall cuando ve un color
+ * descubierto en una sección de piso. El click del wall pasa el `floor` del
+ * piso afectado (Phase 4 UI). Patrón #4 + framing STOPGAP por el helper.
+ *
+ * - `floor` REQUERIDO: el supervisor SIEMPRE sabe de qué piso es el color
+ *   descubierto (porque hizo click en su sección del wall). Sin floor → 400.
+ *   Esto previene el caso silent-cross-floor de antes del sprint, cuando el
+ *   endpoint era HQ-wide y un color que vivía en 2 pisos terminaba mezclando.
+ *
+ * - Default (sin allowCrossFloor): candidates SOLO del piso. Si no hay
+ *   candidates en el piso → 422 con mensaje accionable (típico Mari1 única
+ *   piso 1 ausente → no hay otra de piso 1 → supervisor debe decidir).
+ *
+ * - Con `allowCrossFloor=true`: candidates expanden a HQ-wide. Round-robin
+ *   reparte los residentes del piso entre cuidadoras de cualquier piso.
+ *   Cada override creado se marca crossFloor=true (lo expone consumer #2
+ *   crossFloorCoverage en el wall). El helper dispara notificación STOPGAP
+ *   automáticamente al supervisor/director ("PARTIDAS en dos pisos, evalúa
+ *   refuerzo"). Audit log incluye crossFloorCount + stretchedCaregivers.
+ *
+ * - Rol gate del flag: solo SUP/DIR/ADM. requireRole arriba ya filtra a esos
+ *   3 roles para todo el endpoint — el flag es seguro por construcción.
  */
 export async function POST(req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
-        const { id: markedById, headquartersId: hqId } = auth;
-        const { color, shiftType } = await req.json();
+        const { id: markedById, headquartersId: hqId, role: invokerRole } = auth;
+        const body = await req.json();
+        const { color, shiftType } = body;
+        const rawFloor: unknown = body.floor;
+        const allowCrossFloor: boolean = body.allowCrossFloor === true;
 
         if (!color || !shiftType) {
             return NextResponse.json({ success: false, error: 'color y shiftType son requeridos' }, { status: 400 });
         }
         if (!['MORNING', 'EVENING', 'NIGHT'].includes(shiftType)) {
             return NextResponse.json({ success: false, error: 'shiftType inválido' }, { status: 400 });
+        }
+
+        // Multi-floor: floor es REQUERIDO. El wall del supervisor lo conoce
+        // por construcción (cada uncovered color vive en una sección de piso).
+        let parsedFloor: number | null = null;
+        if (rawFloor !== undefined && rawFloor !== null && rawFloor !== '') {
+            const n = typeof rawFloor === 'number' ? rawFloor : parseInt(String(rawFloor), 10);
+            if (!Number.isFinite(n) || n <= 0) {
+                return NextResponse.json(
+                    { success: false, error: 'floor inválido (debe ser entero ≥ 1)' },
+                    { status: 400 },
+                );
+            }
+            parsedFloor = n;
+        }
+        if (parsedFloor === null) {
+            return NextResponse.json({
+                success: false,
+                error: 'floor requerido — especifica el piso del color descubierto (el wall lo conoce por la sección donde está el click).',
+            }, { status: 400 });
+        }
+
+        // Defensa adicional: si pidió flag, valida el rol del invoker.
+        // requireRole arriba ya filtró a SUP/DIR/ADM, pero esto explicita
+        // el gate del cross-floor por si la lista ALLOWED_ROLES cambia.
+        if (allowCrossFloor && !canInvokeCrossFloorOverride(invokerRole)) {
+            return NextResponse.json({
+                success: false,
+                error: `Tu rol no está autorizado a autorizar cobertura cross-piso. Requiere SUPERVISOR, DIRECTOR o ADMIN.`,
+            }, { status: 403 });
         }
 
         const colorLabels: Record<string, string> = { RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde' };
@@ -127,10 +191,27 @@ export async function POST(req: Request) {
             hqId,
             shiftType: shiftType as ShiftT,
             color,
+            floor: parsedFloor,
+            allowCrossFloorCandidates: allowCrossFloor,
             trigger: 'MANUAL',
         });
 
         if (result.error) {
+            // Multi-floor: si el error es "no candidates en piso" + caller NO
+            // pidió flag, re-frasear el 422 para que el supervisor sepa que
+            // tiene el botón break-glass disponible.
+            const noCandidatesInFloor =
+                !allowCrossFloor &&
+                result.error.message.includes('No hay cuidadores en piso');
+            if (noCandidatesInFloor) {
+                return NextResponse.json({
+                    success: false,
+                    error: `No hay cuidadoras activas en ${floorLabel(parsedFloor)} para cubrir Grupo ${colorLabel}. ` +
+                        `Esto es cobertura de EMERGENCIA — vuelve a invocar con allowCrossFloor=true para estirar a cuidadoras de otro piso (queda en audit + notifica STOPGAP).`,
+                    requiresCrossFloor: true,
+                    floor: parsedFloor,
+                }, { status: 422 });
+            }
             return NextResponse.json({ success: false, error: result.error.message }, { status: result.error.status });
         }
 
@@ -139,9 +220,10 @@ export async function POST(req: Request) {
                 success: true,
                 residentsRedistributed: 0,
                 alreadyRedistributed: result.alreadyRedistributedCount,
+                floor: parsedFloor,
                 message: result.alreadyRedistributedCount > 0
-                    ? `Los residentes del Grupo ${colorLabel} ya están redistribuidos (${result.alreadyRedistributedCount}).`
-                    : `Sin residentes pendientes en el Grupo ${colorLabel}.`,
+                    ? `Los residentes del Grupo ${colorLabel} en ${floorLabel(parsedFloor)} ya están redistribuidos (${result.alreadyRedistributedCount}).`
+                    : `Sin residentes pendientes del Grupo ${colorLabel} en ${floorLabel(parsedFloor)}.`,
             });
         }
 
@@ -155,28 +237,47 @@ export async function POST(req: Request) {
                     action: 'SHIFT_REDISTRIBUTE' as any,
                     performedById: markedById,
                     payloadChanges: {
-                        trigger: 'MANUAL_UNCOVERED_COLOR',
+                        trigger: result.crossFloorCount > 0
+                            ? 'MANUAL_UNCOVERED_COLOR_CROSS_FLOOR'
+                            : 'MANUAL_UNCOVERED_COLOR',
                         color,
                         shiftType,
                         redistributedCount: result.overridesCreated.length,
                         overrideIds: result.overridesCreated.map(o => o.id),
+                        // Multi-floor metadata
+                        floor: parsedFloor,
+                        allowCrossFloor,
+                        crossFloorCount: result.crossFloorCount,
+                        stretchedCaregivers: result.stretchedCaregivers,
                     } as any,
                 },
             });
-        } catch (e) { logWarn('care.supervisor.uncovered_colors.audit', e, { hqId, color, shiftType }); }
+        } catch (e) { logWarn('care.supervisor.uncovered_colors.audit', e, { hqId, color, shiftType, floor: parsedFloor }); }
 
-        const distribution = result.overridesCreated.reduce<Array<{ caregiver: string; count: number }>>((acc, ov) => {
+        const distribution = result.overridesCreated.reduce<Array<{ caregiver: string; count: number; crossFloor: boolean }>>((acc, ov) => {
             const existing = acc.find(d => d.caregiver === ov.caregiverName);
-            if (existing) existing.count++;
-            else acc.push({ caregiver: ov.caregiverName, count: 1 });
+            if (existing) {
+                existing.count++;
+                // Si CUALQUIERA de los assignments de esta cuidadora es cross,
+                // ella aparece como cross (worst-case visible).
+                if (ov.crossFloor) existing.crossFloor = true;
+            } else {
+                acc.push({ caregiver: ov.caregiverName, count: 1, crossFloor: ov.crossFloor });
+            }
             return acc;
         }, []);
+
+        const stopgapTag = result.crossFloorCount > 0 ? ' (STOPGAP cross-piso)' : '';
+        const message = `${result.overridesCreated.length} residente${result.overridesCreated.length === 1 ? '' : 's'} del Grupo ${colorLabel} en ${floorLabel(parsedFloor)} distribuido${result.overridesCreated.length === 1 ? '' : 's'} entre ${distribution.length} cuidadora${distribution.length === 1 ? '' : 's'}${stopgapTag}.`;
 
         return NextResponse.json({
             success: true,
             residentsRedistributed: result.overridesCreated.length,
             distribution,
-            message: `${result.overridesCreated.length} residente${result.overridesCreated.length === 1 ? '' : 's'} del Grupo ${colorLabel} distribuido${result.overridesCreated.length === 1 ? '' : 's'} entre ${distribution.length} cuidadora${distribution.length === 1 ? '' : 's'}.`,
+            floor: parsedFloor,
+            crossFloorCount: result.crossFloorCount,
+            stretchedCaregivers: result.stretchedCaregivers,
+            message,
         });
 
     } catch (err: any) {

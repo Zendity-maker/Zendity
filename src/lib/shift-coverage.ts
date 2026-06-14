@@ -42,6 +42,8 @@ export interface ShiftCoverage {
         name: string;
         colorGroup: string;
         room: string | null;
+        /** Multi-floor (jun-2026): piso del residente. null = data anomaly visible. */
+        floor: number | null;
         assignedTo: null;
     }>;
     activeOverrides: Array<{
@@ -61,6 +63,13 @@ export interface ShiftCoverage {
         shiftSessionId: string;
         startTime: Date;
         color: string | null;
+        /**
+         * Multi-floor (jun-2026): piso habitual de la cuidadora (de User.floor).
+         * null = manager/dual-rol sin floor habitual. Usado por
+         * redistributeUncoveredColors para marcar overrides cross-piso cuando
+         * candidates incluyen otros pisos vía allowCrossFloorCandidates.
+         */
+        floor: number | null;
     }>;
     redistributionNeeded: boolean;
     minutesSinceShiftStart: number;
@@ -396,6 +405,7 @@ export async function computeShiftCoverage(params: {
         name: string;
         colorGroup: string | null;
         roomNumber: string | null;
+        floor: number | null;
     }> = [];
     if (absentColorsRaw.length > 0) {
         absentColorPatients = await prisma.patient.findMany({
@@ -411,7 +421,9 @@ export async function computeShiftCoverage(params: {
                 // en su propia llamada.
                 ...(floorScope === 'ALL' ? {} : { floor: floorScope }),
             },
-            select: { id: true, name: true, colorGroup: true, roomNumber: true },
+            // Multi-floor (jun-2026): floor en el select para que uncoveredPatients
+            // lo exponga al consumer (redistribute usa esto para marcar crossFloor).
+            select: { id: true, name: true, colorGroup: true, roomNumber: true, floor: true },
             orderBy: [{ colorGroup: 'asc' }, { name: 'asc' }],
         });
     }
@@ -457,6 +469,10 @@ export async function computeShiftCoverage(params: {
                 name: p.name,
                 colorGroup: p.colorGroup,
                 room: p.roomNumber,
+                // Multi-floor (jun-2026): exponer floor del residente
+                // descubierto. Usado por redistributeUncoveredColors para marcar
+                // overrides cross-piso cuando candidates incluyen otros pisos.
+                floor: p.floor,
                 assignedTo: null,
             }));
     }
@@ -470,6 +486,11 @@ export async function computeShiftCoverage(params: {
             shiftSessionId: s.id,
             startTime: s.startTime,
             color: firstColor,
+            // Multi-floor (jun-2026): floor de la cuidadora (de User.floor).
+            // null = manager/dual-rol sin floor habitual. Usado por
+            // redistributeUncoveredColors para identificar candidates de otro
+            // piso cuando allowCrossFloorCandidates está activo.
+            floor: s.caregiver?.floor ?? null,
         };
     });
 

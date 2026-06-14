@@ -25,6 +25,7 @@ import { computeShiftCoverage, type ShiftT } from './shift-coverage';
 import { todayStartAST } from './dates';
 import { notifyUser, notifyRoles } from './notifications';
 import { logWarn } from './logger';
+import { floorLabel } from './floor';
 
 const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
 
@@ -37,6 +38,14 @@ export interface RedistributionOverride {
     originalColor: string;
     caregiverId: string;
     caregiverName: string;
+    /**
+     * Multi-floor (jun-2026): true si el override es cross-piso (la cuidadora
+     * receptora tiene floor distinto al del residente). Usado para auditoría
+     * y framing STOPGAP en la notificación del supervisor.
+     */
+    crossFloor: boolean;
+    patientFloor: number | null;
+    caregiverFloor: number | null;
 }
 
 export interface RedistributionResult {
@@ -46,6 +55,18 @@ export interface RedistributionResult {
     notifyByCaregiver: Map<string, string[]>;
     /** Cuántos pacientes ya estaban redistribuidos antes del intento */
     alreadyRedistributedCount: number;
+    /**
+     * Multi-floor (jun-2026): cuántos de los overrides creados son cross-piso.
+     * Cuando > 0, el endpoint debería usar framing STOPGAP en la notificación
+     * al supervisor (las cuidadoras receptoras quedan estiradas en 2 pisos).
+     */
+    crossFloorCount: number;
+    /**
+     * Multi-floor (jun-2026): cuidadoras que recibieron overrides cross-piso.
+     * Para el mensaje del supervisor: "los 7 piso 1 repartidos entre
+     * {stretched.join(', ')} — TODAS estiradas, evalúa refuerzo".
+     */
+    stretchedCaregivers: string[];
     coverage: Awaited<ReturnType<typeof computeShiftCoverage>>;
     /** Error de negocio (no excepción). Caller decide qué status retornar. */
     error?: { status: number; message: string };
@@ -57,13 +78,26 @@ export async function redistributeUncoveredColors(opts: {
     /** Si se pasa, sólo procesa pacientes de ese color. Si no, todos los uncovered. */
     color?: string;
     /**
-     * SPRINT MULTI-FLOOR (jun-2026): acota el cómputo a un piso. Sin floor →
-     * comportamiento legacy HQ-wide preservado para callers que aún no fueron
-     * refactoreados (consumer #7 redistribute + uncovered-colors). Caller
-     * claim-coverage (consumer #6) lo pasa scoped al piso de la cuidadora →
-     * orphans se reparten DENTRO de ese piso, sin fuga cross-piso.
+     * SPRINT MULTI-FLOOR (jun-2026): acota los target patients a un piso.
+     *   - Sin floor → comportamiento legacy HQ-wide.
+     *   - Con floor → uncovered patients filtrados a ese piso (Mari1 ausente
+     *     piso 1 → solo target patients de piso 1).
      */
     floor?: number;
+    /**
+     * SPRINT MULTI-FLOOR (jun-2026): cuando true, los CANDIDATES (cuidadoras
+     * receptoras) se buscan HQ-wide, no solo en el piso scoped. Permite el
+     * patrón #4/#3 de cross-piso supervisado: target patients del piso N,
+     * pero recipients de cualquier piso para que la redistribución reparta
+     * cross-piso con flag explícito. Cada override marcado con crossFloor.
+     *
+     * Solo aplica si floor también está especificado (cross-piso sin scope
+     * de target no tiene sentido — sería HQ-wide normal).
+     *
+     * Default: false (same-floor estricto — los candidates de otro piso NO
+     * entran). Usado por #7 endpoints SOLO bajo flag supervisor.
+     */
+    allowCrossFloorCandidates?: boolean;
     trigger: RedistributionTrigger;
     /** Si true (default), crea VitalsOrder de 4h para los residentes nuevos del receptor */
     createVitalsOrders?: boolean;
@@ -75,17 +109,28 @@ export async function redistributeUncoveredColors(opts: {
         shiftType,
         color,
         floor,
+        allowCrossFloorCandidates = false,
         trigger,
         createVitalsOrders = true,
         notify = true,
     } = opts;
 
-    // computeShiftCoverage acepta floor opcional (consumer #0 core). Cuando se
-    // pasa, todas las queries internas (active sessions, overrides, uncovered
-    // patients, recipients) quedan piso-scoped por construcción.
+    // ── Dual-coverage cuando aplica cross-piso ─────────────────────────────
+    // Target patients SIEMPRE scoped al piso pedido (si hay). Candidates
+    // (active caregivers con color) expanden HQ-wide solo si:
+    //   1. floor está especificado (sino "cross-piso" no tiene sentido), Y
+    //   2. allowCrossFloorCandidates=true (el endpoint pidió expandir).
+    //
+    // Esto da el patrón "target piso 1, candidates HQ-wide" sin contaminar
+    // el cómputo de target patients (siguen siendo solo del piso target).
     const coverage = await computeShiftCoverage({ hqId, shiftType, floor });
+    const useCrossFloorCandidates =
+        floor !== undefined && allowCrossFloorCandidates === true;
+    const recipientCoverage = useCrossFloorCandidates
+        ? await computeShiftCoverage({ hqId, shiftType }) // HQ-wide para candidates
+        : coverage;
 
-    // Pacientes objetivo
+    // Pacientes objetivo (siempre scoped al piso si floor está especificado).
     const targetPatients = color
         ? coverage.uncoveredPatients.filter(p => p.colorGroup === color)
         : coverage.uncoveredPatients;
@@ -100,21 +145,34 @@ export async function redistributeUncoveredColors(opts: {
             vitalsCreated: 0,
             notifyByCaregiver: new Map(),
             alreadyRedistributedCount,
+            crossFloorCount: 0,
+            stretchedCaregivers: [],
             coverage,
         };
     }
 
-    const recipients = coverage.activeCaregivers.filter(c => c.color);
+    // Recipients: del `recipientCoverage` (que es coverage scoped si default,
+    // o coverage HQ-wide si allowCrossFloorCandidates).
+    const recipients = recipientCoverage.activeCaregivers.filter(c => c.color);
     if (recipients.length === 0) {
         return {
             overridesCreated: [],
             vitalsCreated: 0,
             notifyByCaregiver: new Map(),
             alreadyRedistributedCount,
+            crossFloorCount: 0,
+            stretchedCaregivers: [],
             coverage,
             error: {
                 status: 400,
-                message: 'No hay cuidadores en piso con color asignado — imposible redistribuir',
+                // El caller (cron #2 o endpoint #3) interpreta este mensaje
+                // como "no candidates en este piso". Cron #2 lo convierte en
+                // notificación URGENTE al supervisor para acción humana
+                // (break-glass). Endpoint #3 lo retorna como 422 "requiere
+                // allowCrossFloorCandidates=true".
+                message: useCrossFloorCandidates
+                    ? 'No hay cuidadores activos con color en ninguna sede — imposible redistribuir'
+                    : 'No hay cuidadores en piso con color asignado — imposible redistribuir',
             },
         };
     }
@@ -161,6 +219,14 @@ export async function redistributeUncoveredColors(opts: {
             },
         });
 
+        // Multi-floor (jun-2026): marcar si este override es cross-piso.
+        // Si patient.floor o recipient.floor son null (data anomaly o manager),
+        // crossFloor=false (no podemos afirmar cross con data incierta — la
+        // anomalía se surfacea via groupByFloor 'unassigned' del wall).
+        const isCrossFloor =
+            patient.floor !== null &&
+            recipient.floor !== null &&
+            patient.floor !== recipient.floor;
         overridesCreated.push({
             id: override.id,
             patientId: patient.patientId,
@@ -168,6 +234,9 @@ export async function redistributeUncoveredColors(opts: {
             originalColor: patient.colorGroup,
             caregiverId: recipient.userId,
             caregiverName: recipient.name,
+            crossFloor: isCrossFloor,
+            patientFloor: patient.floor,
+            caregiverFloor: recipient.floor,
         });
 
         if (createVitalsOrders) {
@@ -224,24 +293,56 @@ export async function redistributeUncoveredColors(opts: {
 
         // Notificar supervisión (agregado).
         // link='/care/supervisor' → panel de supervisión donde ven la cobertura.
+        //
+        // Multi-floor (jun-2026): si hay overrides cross-piso (crossFloorCount > 0)
+        // el mensaje cambia a framing STOPGAP — transmite que las receptoras
+        // están ESTIRADAS en dos pisos, NO que "todo está cubierto". El
+        // supervisor debe saber que es parche, no resolución, y considerar
+        // refuerzo. Match con la decisión de política C (consumer #6) y la
+        // calibración del recon #7: cross-piso siempre se framea como STOPGAP
+        // urgente; same-floor permanece informativo.
         try {
             const colorsSummary = Array.from(new Set(overridesCreated.map(o => o.originalColor))).join(', ');
-            await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
-                type: 'EMAR_ALERT',
-                title: `Redistribución (${trigger})`,
-                message: `${overridesCreated.length} residentes de ${colorsSummary} distribuidos entre ${notifyByCaregiver.size} cuidadores.`,
-                link: '/care/supervisor',
-            });
+            const crossFloorOverrides = overridesCreated.filter(o => o.crossFloor);
+            const crossFloorCount = crossFloorOverrides.length;
+            const stretchedSet = new Set(crossFloorOverrides.map(o => o.caregiverName));
+
+            if (crossFloorCount > 0 && floor !== undefined) {
+                // STOPGAP framing — al menos parte de la redistribución cruzó piso.
+                await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                    type: 'EMAR_ALERT',
+                    title: `🚨 BREAK-GLASS — ${crossFloorCount} residentes ${floorLabel(floor)} cubiertos cross-piso`,
+                    message: `${crossFloorCount} de los ${overridesCreated.length} residentes redistribuidos quedaron cross-piso, ` +
+                        `repartidos entre ${stretchedSet.size} cuidadora(s) de otros pisos: ${[...stretchedSet].join(', ')}. ` +
+                        `TODAS están ahora ESTIRADAS en dos pisos. La cobertura cruzada es STOPGAP, no resolución — ` +
+                        `evalúa mandar refuerzo a ${floorLabel(floor)} o redistribuir la carga.`,
+                    link: '/care/supervisor',
+                });
+            } else {
+                // Framing legacy — same-floor, informativo.
+                const floorTag = floor !== undefined ? ` (${floorLabel(floor)})` : '';
+                await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                    type: 'EMAR_ALERT',
+                    title: `Redistribución (${trigger})${floorTag}`,
+                    message: `${overridesCreated.length} residentes de ${colorsSummary} distribuidos entre ${notifyByCaregiver.size} cuidadores${floorTag}.`,
+                    link: '/care/supervisor',
+                });
+            }
         } catch (e) {
             logWarn('shift_redistribute.notify_supervision', e, { hqId, count: overridesCreated.length });
         }
     }
 
+    // Multi-floor (jun-2026): retornar conteo cross-piso + cuidadoras estiradas
+    // para que el endpoint pueda usar en su audit log + response.
+    const crossFloorList = overridesCreated.filter(o => o.crossFloor);
     return {
         overridesCreated,
         vitalsCreated,
         notifyByCaregiver,
         alreadyRedistributedCount,
+        crossFloorCount: crossFloorList.length,
+        stretchedCaregivers: [...new Set(crossFloorList.map(o => o.caregiverName))],
         coverage,
     };
 }
