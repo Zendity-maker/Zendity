@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
 import { TicketStatus } from '@prisma/client';
+import { groupByFloor } from '@/lib/floor';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,10 +140,19 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
             }),
 
-            // 7. Residentes activos (para zombie detection)
+            // 7. Residentes activos (para zombie detection).
+            //
+            // Multi-floor (jun-2026): NO scopeamos por floor acá — el chip del
+            // director es vista UNSCOPED (ve TODA la sede). El agrupamiento
+            // por piso se hace después con groupByFloor → zombiePatientsByFloor
+            // en el response. Residentes con floor=null caen en bucket
+            // 'unassigned' → Phase 4 UI los pinta como ALARMA de integridad
+            // (no como sección neutral). Esta es la red de seguridad que el
+            // user pidió en el plan: scoped views excluyen nulls, unscoped
+            // views los exponen.
             prisma.patient.findMany({
                 where: { ...patientHqFilter, status: 'ACTIVE' },
-                select: { id: true, name: true, roomNumber: true },
+                select: { id: true, name: true, roomNumber: true, floor: true },
             }),
 
             // 8. En hospital (TEMPORARY_LEAVE con leaveType HOSPITAL)
@@ -163,8 +173,16 @@ export async function GET(request: NextRequest) {
         const handoversSigned  = handoversToday.filter(h =>  h.supervisorSignedAt);
 
         // ── Zombie detection ───────────────────────────────────────────────────
+        // Multi-floor (jun-2026): `floor` añadido a la shape del item para que
+        // groupByFloor pueda agruparlos. UI Phase 4 itera floors dinámicamente
+        // (1, 2, ..., N — sin hardcoding) + alarma sobre bucket 'unassigned'.
         const patientIds = activePatients.map(p => p.id);
-        let zombieList: Array<{ id: string; name: string; roomNumber: string | null }> = [];
+        let zombieList: Array<{
+            id: string;
+            name: string;
+            roomNumber: string | null;
+            floor: number | null;
+        }> = [];
 
         if (patientIds.length > 0) {
             const [bathPatients, mealPatients, vitalPatients] = await Promise.all([
@@ -191,8 +209,23 @@ export async function GET(request: NextRequest) {
             ]);
             zombieList = activePatients
                 .filter(p => !touched.has(p.id))
-                .map(z => ({ id: z.id, name: z.name, roomNumber: z.roomNumber }));
+                .map(z => ({
+                    id: z.id,
+                    name: z.name,
+                    roomNumber: z.roomNumber,
+                    floor: z.floor,
+                }));
         }
+
+        // Multi-floor (jun-2026): agrupar por floor con buckets dinámicos.
+        // groupByFloor retorna { "1": [...], "2": [...], "unassigned": [...] }.
+        // - Floors numéricos: derivados dinámicamente de los items (Mayagüez
+        //   con N pisos funciona sin hardcoding 1/2).
+        // - 'unassigned' bucket: residentes ACTIVE con floor=null (data anomaly).
+        //   El endpoint solo expone — UI Phase 4 lo trata como ALARMA de
+        //   integridad cuando length > 0 (NO sección neutral), per user note:
+        //     "estos residentes no tienen piso, investiga".
+        const zombiePatientsByFloor = groupByFloor(zombieList);
 
         return NextResponse.json({
             success: true,
@@ -269,6 +302,11 @@ export async function GET(request: NextRequest) {
                     time: h.createdAt,
                 })),
                 zombiePatients: zombieList,
+                // Multi-floor (jun-2026): vista agrupada por floor para Phase 4
+                // UI. Buckets numéricos dinámicos + 'unassigned' (data anomaly
+                // → alarma integridad). El flat list de arriba mantiene
+                // backwards-compat con consumers que aún no agrupan.
+                zombiePatientsByFloor,
                 onHospitalLeave: onHospitalLeaveList.map(p => ({
                     id: p.id,
                     name: p.name,
