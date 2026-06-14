@@ -6,6 +6,37 @@ import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logAudit } from '@/lib/audit';
+import { floorLabel } from '@/lib/floor';
+
+/**
+ * SPRINT MULTI-FLOOR (jun-2026) — helper local de validación de floor body.
+ *
+ * Strict integer check: rechaza 1.5, NaN, Infinity, decimales con coma,
+ * strings garbage. Acepta 1, 2, ..., 47, ..., N — sin máximo hardcoded
+ * (Mayagüez puede tener más pisos que Cupey).
+ *
+ * Convención de retorno:
+ *   { ok: true, value: number | null } — value=null cuando body omite o pasa null.
+ *   { ok: false, error: string }        — caller retorna 400 con el error.
+ *
+ * Usado por POST + PATCH para validar `body.floor`. NO confundir con
+ * `staffFloorFilter` de floor.ts, que parsea raw query params defensivamente
+ * (acepta '1.5' como 1 via parseInt). Acá la validación es STRICT porque el
+ * body lleva tipos JS reales.
+ */
+function parseBodyFloor(raw: unknown): { ok: true; value: number | null } | { ok: false; error: string } {
+    if (raw === undefined || raw === null || raw === '') {
+        return { ok: true, value: null };
+    }
+    if (typeof raw !== 'number' && typeof raw !== 'string') {
+        return { ok: false, error: 'floor debe ser número entero ≥ 1 o null' };
+    }
+    const n = typeof raw === 'number' ? raw : parseFloat(raw);
+    if (!Number.isInteger(n) || n < 1) {
+        return { ok: false, error: 'floor inválido (debe ser entero ≥ 1)' };
+    }
+    return { ok: true, value: n };
+}
 
 // Inicializar SendGrid
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -41,7 +72,12 @@ export async function GET(request: Request) {
                 isShiftBlocked: true,
                 isDeleted: true,
                 createdAt: true,
-                photoUrl: true
+                photoUrl: true,
+                // Multi-floor (jun-2026): floor en el response para badges
+                // "Piso N" / "Multi-piso" en el directorio de staff (Phase 4).
+                // El filtro `?floor=` está pospuesto (YAGNI hasta Schedule
+                // Builder lo necesite); por ahora solo exponemos el dato.
+                floor: true,
             },
             orderBy: { name: 'asc' }
         });
@@ -111,6 +147,27 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
         }
 
+        // ── Multi-floor (jun-2026) ─────────────────────────────────────────
+        // Validar `floor` del body. Strict integer ≥ 1, sin máximo hardcoded.
+        const floorParse = parseBodyFloor(body.floor);
+        if (!floorParse.ok) {
+            return NextResponse.json({ error: floorParse.error }, { status: 400 });
+        }
+        const parsedFloor = floorParse.value;
+
+        // Gate de integridad: si el ROL PRIMARIO es CAREGIVER, floor es REQUERIDO.
+        // NO checkeamos secondaryRoles — un NURSE-primario + CAREGIVER-secundario
+        // es manager (scope='ALL', floor referencial). Consistente con la regla
+        // de resolveUserFloorScope en src/lib/floor.ts (FLOOR_REQUIRED_ROLES
+        // contiene solo CAREGIVER, y se aplica sobre user.role primario).
+        // Sin este gate, crear cuidadoras sin floor las dejaría con tablet
+        // vacía downstream (filter de piso excluye floor=null).
+        if (role === 'CAREGIVER' && parsedFloor === null) {
+            return NextResponse.json({
+                error: 'CAREGIVER requiere floor — al crear una cuidadora debes especificar el piso al que está asignada (entero ≥ 1). Manager (NURSE/SUPERVISOR/DIRECTOR/ADMIN) puede crearse sin floor; su scope es multi-piso por diseño.',
+            }, { status: 422 });
+        }
+
         const cleanEmail = email.toLowerCase().trim();
 
         const existing = await prisma.user.findUnique({
@@ -135,7 +192,8 @@ export async function POST(request: Request) {
                 role: role,
                 secondaryRoles: secondaryRoles || [],
                 pinCode: hashedPin,
-                headquartersId: hqId
+                headquartersId: hqId,
+                floor: parsedFloor,   // multi-floor: null para managers, N para CAREGIVER
             }
         });
 
@@ -250,9 +308,51 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'No te puedes bloquear a ti mismo.' }, { status: 403 });
         }
 
+        // ── Multi-floor (jun-2026): fetch usuario existente ────────────────
+        // Necesitamos saber su rol y floor ACTUALES para:
+        //   (a) computar el "final state" (rol y floor post-update) y validar
+        //       el gate CAREGIVER+floor=null.
+        //   (b) detectar cambio de floor en cuidadora clockeada → warning soft.
+        const existingUser = await prisma.user.findUnique({
+            where: { id },
+            select: { id: true, name: true, role: true, floor: true, headquartersId: true },
+        });
+        if (!existingUser) {
+            return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 });
+        }
+
+        // Validar `floor` del body (si vino).
+        // body.floor: undefined = sin cambio, null = clearing explícito, N = set.
+        let finalFloor: number | null;
+        const floorWasPassed = Object.prototype.hasOwnProperty.call(body, 'floor');
+        if (floorWasPassed) {
+            const floorParse = parseBodyFloor(body.floor);
+            if (!floorParse.ok) {
+                return NextResponse.json({ error: floorParse.error }, { status: 400 });
+            }
+            finalFloor = floorParse.value;   // number | null (null = clearing)
+        } else {
+            finalFloor = existingUser.floor;  // sin cambio
+        }
+
+        // Determinar rol final (post-update) — match con la regla "rol primario".
+        const finalRole = role !== undefined ? role : existingUser.role;
+
+        // Gate de integridad: rol final CAREGIVER + floor final null → 422.
+        // Cubre 3 sub-casos en uno:
+        //   1. Cuidadora existente, clearing explícito de floor (body.floor=null).
+        //   2. Cambio role KITCHEN→CAREGIVER sin pasar floor (existingFloor era
+        //      null porque era manager).
+        //   3. Cuidadora con floor existente, role-change PERO body.floor=null.
+        if (finalRole === 'CAREGIVER' && finalFloor === null) {
+            return NextResponse.json({
+                error: 'CAREGIVER requiere floor — no puedes dejar a una cuidadora sin piso (su tablet quedaría vacía por filtro downstream). Si vas a degradar a manager, también cambia el rol primario en el mismo PATCH.',
+            }, { status: 422 });
+        }
+
         const updateData: any = {};
         if (name !== undefined) updateData.name = name;
-        
+
         if (email !== undefined) {
             const cleanEmail = email.toLowerCase().trim();
             const existing = await prisma.user.findFirst({
@@ -275,6 +375,41 @@ export async function PATCH(request: Request) {
             if (isShiftBlocked) updateData.blockReason = "Management suspension";
             else updateData.blockReason = null;
         }
+        // Multi-floor: persistir el final floor solo si fue pasado en body.
+        // No tocar updateData.floor si !floorWasPassed (mantener valor actual).
+        if (floorWasPassed) {
+            updateData.floor = finalFloor;
+        }
+
+        // ── Multi-floor: warning soft mid-shift ───────────────────────────
+        // Detectar cambio de floor en cuidadora CLOCKEADA (sesión activa). NO
+        // bloquea — el director puede insistir (traslado intencional). Pero
+        // surfaceamos las DOS consecuencias del cambio:
+        //   1. La cuidadora pasa a cubrir el piso nuevo.
+        //   2. Los residentes del piso viejo bajo su cuidado quedan SIN
+        //      COBERTURA hasta reasignar — esto el director PUEDE OLVIDAR.
+        // Por eso el mensaje es bidireccional, no solo "cambio de Mari1".
+        let warning: string | null = null;
+        const floorChanged = floorWasPassed && existingUser.floor !== finalFloor;
+        const becameOrIsCaregiver = finalRole === 'CAREGIVER';
+        if (floorChanged && becameOrIsCaregiver && existingUser.floor !== null && finalFloor !== null) {
+            const activeSession = await prisma.shiftSession.findFirst({
+                where: {
+                    caregiverId: id,
+                    actualEndTime: null,
+                    headquartersId: existingUser.headquartersId,
+                },
+                select: { id: true },
+            });
+            if (activeSession) {
+                const fromLabel = floorLabel(existingUser.floor);
+                const toLabel = floorLabel(finalFloor);
+                warning = `${existingUser.name || 'La cuidadora'} está CLOCKEADA con sesión activa. El cambio ${fromLabel} → ${toLabel} surte efecto en su próximo poll de tablet (~30s):\n` +
+                    `  • Pasa a cubrir los residentes del ${toLabel}.\n` +
+                    `  • Los residentes del ${fromLabel} que tenía bajo su cuidado quedan SIN COBERTURA hasta que asignes a otra cuidadora.\n` +
+                    `¿Es traslado intencional? Si sí, asigna cobertura para ${fromLabel} de inmediato.`;
+            }
+        }
 
         const updatedUser = await prisma.user.update({
             where: { id },
@@ -293,11 +428,24 @@ export async function PATCH(request: Request) {
             entityName: 'User',
             entityId: id,
             resourceName: updatedUser.name,
-            payloadChanges: updateData,
+            // Multi-floor: audit incluye contexto de cambio de floor +
+            // si fue mid-shift (warning surfaceado).
+            payloadChanges: {
+                ...updateData,
+                ...(floorChanged ? {
+                    floorChangedFrom: existingUser.floor,
+                    floorChangedTo: finalFloor,
+                    midShiftWarning: warning !== null,
+                } : {}),
+            },
             request,
         });
 
-        return NextResponse.json({ success: true, user: updatedUser }, { status: 200 });
+        return NextResponse.json({
+            success: true,
+            user: updatedUser,
+            warning,   // multi-floor: null si no aplica, string si cambio mid-shift
+        }, { status: 200 });
 
     } catch (error) {
         console.error('API Error:', error);
