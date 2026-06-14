@@ -16,6 +16,13 @@ export default function AddStaffModal() {
     const [role, setRole] = useState("CAREGIVER");
     const [secondaryRoles, setSecondaryRoles] = useState<string[]>([]);
     const [pinCode, setPinCode] = useState("");
+    // Multi-floor (jun-2026): floor input.
+    //   - CAREGIVER: REQUIRED (cuidadora pinneada al piso).
+    //   - Managers (NURSE/SUPERVISOR/DIRECTOR/ADMIN/etc): OPTIONAL.
+    //     Si setean → floor es referencial ("Sup. piso 2" display), su scope
+    //     sigue siendo 'ALL' (ve todos los pisos) — backend se encarga de eso.
+    const [floor, setFloor] = useState<string>("");
+    const isCaregiverPrimary = role === 'CAREGIVER';
 
     const toggleSecondaryRole = (r: string) => {
         setSecondaryRoles(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]);
@@ -26,18 +33,37 @@ export default function AddStaffModal() {
         setLoading(true);
         setError(null);
 
+        // Multi-floor client-side gate: CAREGIVER primario requiere floor.
+        // El backend también lo valida (422) — esto es UX defensiva para no
+        // hacer un roundtrip si el director olvida llenar el campo.
+        if (isCaregiverPrimary && (!floor || floor.trim() === '')) {
+            setError("CAREGIVER requiere piso. Asigna el piso donde la cuidadora atiende habitualmente (entero ≥1).");
+            setLoading(false);
+            return;
+        }
+        let parsedFloor: number | null = null;
+        if (floor.trim() !== '') {
+            const n = parseInt(floor, 10);
+            if (!Number.isInteger(n) || n < 1) {
+                setError("Piso inválido — debe ser entero ≥ 1.");
+                setLoading(false);
+                return;
+            }
+            parsedFloor = n;
+        }
+
         try {
             const res = await fetch('/api/hr/staff', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, role, secondaryRoles, pinCode })
+                body: JSON.stringify({ name, email, role, secondaryRoles, pinCode, floor: parsedFloor })
             });
 
             const data = await res.json();
             if (data.success) {
                 setIsOpen(false);
                 // Reset form
-                setName(""); setEmail(""); setRole("CAREGIVER"); setSecondaryRoles([]); setPinCode("");
+                setName(""); setEmail(""); setRole("CAREGIVER"); setSecondaryRoles([]); setPinCode(""); setFloor("");
                 router.refresh();
             } else {
                 setError(data.error || "Error al registrar al empleado.");
@@ -146,6 +172,30 @@ export default function AddStaffModal() {
                                         />
                                         <p className="text-[10px] text-slate-500 mt-1 ml-1 font-semibold leading-tight">Clave numérica para firmas biométricas rápidas.</p>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">
+                                        Piso {isCaregiverPrimary
+                                            ? <span className="text-rose-600">(requerido para Cuidador/a)</span>
+                                            : <span className="text-slate-400 normal-case font-semibold tracking-normal">(opcional — referencial para managers)</span>}
+                                    </label>
+                                    <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        step={1}
+                                        required={isCaregiverPrimary}
+                                        value={floor}
+                                        onChange={e => setFloor(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-200 focus:border-teal-500 focus:bg-white rounded-xl p-3 text-slate-800 outline-none font-bold transition-all shadow-sm"
+                                        placeholder={isCaregiverPrimary ? "1 ó 2 (piso donde atiende)" : "Opcional: piso habitual"}
+                                    />
+                                    <p className="text-[10px] text-slate-500 mt-1 ml-1 font-semibold leading-tight">
+                                        {isCaregiverPrimary
+                                            ? 'La cuidadora ve SOLO residentes de este piso en su tablet.'
+                                            : 'Manager/Enfermería ve TODOS los pisos. El piso aquí es solo display ("Sup. piso 2").'}
+                                    </p>
                                 </div>
 
                                 <div>

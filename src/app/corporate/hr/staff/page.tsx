@@ -18,9 +18,11 @@ type StaffMember = {
     complianceScore: number;
     isShiftBlocked: boolean;
     createdAt: string;
+    floor: number | null;  // Multi-floor (jun-2026)
 };
 
 import Link from 'next/link';
+import { FloorBadge } from '@/components/ui/FloorBadge';
 
 export default function StaffManagementPage() {
     const { activeHqId } = useActiveHq();
@@ -28,14 +30,17 @@ export default function StaffManagementPage() {
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    // Modal Form State
+    // Modal Form State (multi-floor jun-2026: + floor)
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         role: "CAREGIVER",
-        pinCode: "1234"
+        pinCode: "1234",
+        floor: "",  // string (input numérico) — vacío = null
     });
     const [formSaving, setFormSaving] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const isFormCaregiver = formData.role === 'CAREGIVER';
 
     // Modal de confirmación: muestra el PIN una sola vez tras crear el empleado
     const [pinConfirmModal, setPinConfirmModal] = useState<{
@@ -69,12 +74,35 @@ export default function StaffManagementPage() {
     const handleCreateStaff = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormSaving(true);
+        setFormError(null);
+
+        // Multi-floor client-side gate: CAREGIVER requiere floor.
+        if (isFormCaregiver && (!formData.floor || formData.floor.trim() === '')) {
+            setFormError("CAREGIVER requiere piso. Asígnale el piso donde la cuidadora atiende habitualmente.");
+            setFormSaving(false);
+            return;
+        }
+        let parsedFloor: number | null = null;
+        if (formData.floor.trim() !== '') {
+            const n = parseInt(formData.floor, 10);
+            if (!Number.isInteger(n) || n < 1) {
+                setFormError("Piso inválido — debe ser entero ≥ 1.");
+                setFormSaving(false);
+                return;
+            }
+            parsedFloor = n;
+        }
+
         try {
             const res = await fetch("/api/hr/staff", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...formData,
+                    name: formData.name,
+                    email: formData.email,
+                    role: formData.role,
+                    pinCode: formData.pinCode,
+                    floor: parsedFloor,   // multi-floor: number | null
                     ...(activeHqId && activeHqId !== 'ALL' ? { hqId: activeHqId } : {})
                 })
             });
@@ -86,14 +114,14 @@ export default function StaffManagementPage() {
                 // El PIN NO se envía en el correo de bienvenida por seguridad
                 const pinToShow = formData.pinCode || "No asignado";
                 const nameToShow = formData.name;
-                setFormData({ name: "", email: "", role: "CAREGIVER", pinCode: "1234" });
+                setFormData({ name: "", email: "", role: "CAREGIVER", pinCode: "1234", floor: "" });
                 setPinConfirmModal({ name: nameToShow, pin: pinToShow, copied: false });
             } else {
                 const err = await res.json();
-                alert(err.error || "Error al crear empleado");
+                setFormError(err.error || "Error al crear empleado");
             }
         } catch (error) {
-            alert("Error de conexión al guardar.");
+            setFormError("Error de conexión al guardar.");
         } finally {
             setFormSaving(false);
         }
@@ -215,7 +243,16 @@ export default function StaffManagementPage() {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            {getRoleBadge(s.role)}
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {getRoleBadge(s.role)}
+                                                {/* Multi-floor: badge piso. Para CAREGIVER+null → variante alarma. */}
+                                                {(s.floor !== null || s.role === 'CAREGIVER') && (
+                                                    <FloorBadge
+                                                        floor={s.floor}
+                                                        variant={s.role === 'CAREGIVER' && s.floor === null ? 'alarm' : 'default'}
+                                                    />
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex flex-col gap-1">
@@ -357,6 +394,37 @@ export default function StaffManagementPage() {
                                     <p className="text-[10px] text-gray-500 mt-1">Sugerido: 4 dígitos</p>
                                 </div>
                             </div>
+
+                            {/* Multi-floor (jun-2026): piso del empleado */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Piso {isFormCaregiver
+                                        ? <span className="text-rose-600 font-bold">(requerido para Cuidador/a)</span>
+                                        : <span className="text-gray-400 font-normal">(opcional — referencial para managers)</span>}
+                                </label>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    step={1}
+                                    required={isFormCaregiver}
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold"
+                                    placeholder={isFormCaregiver ? "1 ó 2 (piso donde atiende)" : "Opcional"}
+                                    value={formData.floor}
+                                    onChange={e => setFormData({ ...formData, floor: e.target.value })}
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1 leading-tight">
+                                    {isFormCaregiver
+                                        ? 'CAREGIVER ve solo residentes de este piso en su tablet.'
+                                        : 'Manager ve TODOS los pisos. Aquí es solo display.'}
+                                </p>
+                            </div>
+
+                            {formError && (
+                                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-semibold">
+                                    {formError}
+                                </div>
+                            )}
 
                             <div className="flex gap-3 pt-4 border-t mt-6">
                                 <button
