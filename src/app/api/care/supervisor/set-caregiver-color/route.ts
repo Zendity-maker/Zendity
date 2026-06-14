@@ -6,6 +6,12 @@ import { logError, logWarn } from '@/lib/logger';
 import { notifyUser } from '@/lib/notifications';
 import { SystemAuditAction } from '@prisma/client';
 import { inferShiftTypeFromAST } from '@/lib/shift-coverage';
+import {
+    resolveUserFloorScope,
+    floorLabel,
+    CaregiverFloorMissingError,
+    type FloorScope,
+} from '@/lib/floor';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +28,25 @@ const VALID_COLORS = ['RED', 'YELLOW', 'GREEN', 'BLUE', 'ALL'];
  * Celia necesita decirle al sistema "esta cuidadora cubre BLUE hoy" —
  * antes había que escribir directo a la DB; ahora es un clic.
  *
- * Mecánica:
+ * ─── SPRINT MULTI-FLOOR (jun-2026) ──────────────────────────────────────
+ *
+ * El COLOR BASE es inherentemente per-piso: el resolver downstream
+ * (resolveCaregiverColors → tablet → caregiver-rounds) ya filtra por
+ * caregiver.floor. Por lo tanto NO hay caso cross-piso aquí — una cuidadora
+ * con base RED ve los RED de SU piso, nunca de otro. El cross-piso vive
+ * solo en los caminos de override (assign-color, claim-coverage,
+ * redistribute) con su flag explícito.
+ *
+ * Este endpoint añade:
+ *   1. Integridad — CAREGIVER puro con floor=null → 422 (mismo guard que
+ *      en /api/care). Sin esto: setear color a una cuidadora sin piso
+ *      asignado la deja con su tablet vacía silenciosamente.
+ *   2. Warning soft — si el color asignado no tiene residentes ACTIVE en
+ *      el piso de la cuidadora, la respuesta incluye `warning` para que
+ *      el supervisor lo confirme (típico caso: typo de color). NO bloquea.
+ *      Manager con scope='ALL' o color='ALL' omite el check.
+ *
+ * Mecánica (sin cambios):
  *   - Si la cuidadora ya tiene ColorAssignment de hoy → actualiza color +
  *     refresca assignedAt.
  *   - Si no → crea una nueva, anclada al ScheduledShift más reciente de la
@@ -58,16 +82,35 @@ export async function POST(req: Request) {
             );
         }
 
-        // Verificar que la cuidadora pertenezca a la sede del invocador
+        // Verificar que la cuidadora pertenezca a la sede del invocador.
+        // Multi-floor (jun-2026): floor entra al select para el guard de
+        // integridad + el warning de "color sin residentes en piso".
         const caregiver = await prisma.user.findFirst({
             where: { id: caregiverId, headquartersId: hqId, isActive: true, isDeleted: false },
-            select: { id: true, name: true, role: true },
+            select: { id: true, name: true, role: true, floor: true },
         });
         if (!caregiver) {
             return NextResponse.json(
                 { success: false, error: 'Cuidadora no encontrada en esta sede' },
                 { status: 404 },
             );
+        }
+
+        // Multi-floor guard: CAREGIVER puro con floor=null → 422.
+        // Manager con secondaryRoles=CAREGIVER (scope='ALL') pasa libremente —
+        // su floor es referencial. Solo bloqueamos el caso "data corrupta" donde
+        // un CAREGIVER puro perdió/nunca tuvo su floor asignado.
+        let caregiverScope: FloorScope;
+        try {
+            caregiverScope = resolveUserFloorScope(
+                { role: caregiver.role, floor: caregiver.floor },
+                caregiverId,
+            );
+        } catch (e) {
+            if (e instanceof CaregiverFloorMissingError) {
+                return NextResponse.json({ success: false, error: e.message }, { status: 422 });
+            }
+            throw e;
         }
 
         // Anchor FK — cualquier ScheduledShift de la cuidadora sirve.
@@ -145,6 +188,30 @@ export async function POST(req: Request) {
             closedOverrides = closeRes.count;
         }
 
+        // Multi-floor warning: si el color asignado no tiene residentes ACTIVE
+        // en el piso de la cuidadora, surfaceamos un warning para que el
+        // supervisor confirme (típicamente un typo: Mari1 piso 1 ← YELLOW
+        // cuando piso 1 es todo RED, su tablet quedaría vacía). No bloquea —
+        // el supervisor puede insistir si tiene motivo (ej. preparándola para
+        // un cambio futuro).
+        //
+        // Skip si scope='ALL' (manager con dual-rol, ve todo) o color='ALL'
+        // (barre toda la sede, no tiene sentido el check por color específico).
+        let warning: string | null = null;
+        if (caregiverScope !== 'ALL' && color !== 'ALL' && actionType !== 'noop') {
+            const matching = await prisma.patient.count({
+                where: {
+                    headquartersId: hqId,
+                    status: 'ACTIVE',
+                    colorGroup: color as any,
+                    floor: caregiverScope,
+                },
+            });
+            if (matching === 0) {
+                warning = `${caregiver.name} fue asignada al Grupo ${color} pero ${floorLabel(caregiverScope)} no tiene residentes ACTIVE de ese color. Su tablet quedará vacía hasta que alguno aplique. ¿Era el color correcto?`;
+            }
+        }
+
         // Audit log
         try {
             await prisma.systemAuditLog.create({
@@ -158,10 +225,12 @@ export async function POST(req: Request) {
                         trigger: 'SUPERVISOR_SET_BASE_COLOR',
                         caregiverId,
                         caregiverName: caregiver.name,
+                        caregiverFloor: caregiverScope === 'ALL' ? null : caregiverScope,
                         previousColor: existing?.color ?? null,
                         newColor: color,
                         actionType,
                         closedAutoOverrides: closedOverrides,
+                        emptyOnFloor: warning !== null,
                     },
                 },
             });
@@ -192,10 +261,12 @@ export async function POST(req: Request) {
             success: true,
             caregiverId,
             caregiverName: caregiver.name,
+            caregiverFloor: caregiverScope === 'ALL' ? null : caregiverScope,
             color,
             actionType,
             closedAutoOverrides: closedOverrides,
             message,
+            warning,
         });
     } catch (err: any) {
         logError('care.supervisor.set_caregiver_color.post', err);
