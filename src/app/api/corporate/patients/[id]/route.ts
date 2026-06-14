@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
+import { deriveFloorFromRoom } from '@/lib/floor';
 
 /**
  * HIPAA — Expediente del residente. GET/PUT estaban SIN auth (cualquiera
@@ -108,7 +109,15 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
 
         // Solo actualizar campos que vienen definidos (no sobrescribir con undefined)
         if (name !== undefined) updateData.name = name;
-        if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+        if (roomNumber !== undefined) {
+            updateData.roomNumber = roomNumber;
+            // Multi-floor (jun-2026): roomNumber es la FUENTE DE VERDAD para
+            // floor. Re-derivar SIEMPRE que cambie el room. Sin esto, un
+            // residente movido de 1-03 a 2-05 quedaría con floor=1 en DB
+            // mientras su room dice piso 2 → invisible en piso 2, sigue
+            // contando en piso 1, mismatch de cobertura.
+            updateData.floor = deriveFloorFromRoom(roomNumber);
+        }
         if (diet !== undefined) updateData.diet = diet;
         if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
         if (colorGroup) updateData.colorGroup = colorGroup;

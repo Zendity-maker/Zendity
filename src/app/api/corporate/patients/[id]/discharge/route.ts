@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { deriveFloorFromRoom } from '@/lib/floor';
 
 
 
@@ -70,20 +71,31 @@ export async function POST(
                 break;
 
             case "RETURN":
+                // Multi-floor (jun-2026): re-derivar floor del roomNumber actual
+                // SIEMPRE. El residente pudo cambiar de cuarto durante el leave
+                // (ej. moved 1-03 → 2-05 al volver de hospital). Mantener el
+                // floor viejo crearía mismatch room/floor → invisible al piso
+                // correcto. Idempotente: si el room no cambió, deriva el mismo
+                // floor de antes.
                 updateData = {
                     status: "ACTIVE",
                     leaveType: null,
                     leaveDate: null,
+                    floor: deriveFloorFromRoom(patient.roomNumber),
                 };
                 break;
 
             case "DISCHARGED":
             case "DECEASED":
+                // Multi-floor (jun-2026): roomNumber=null → floor=null por
+                // construcción (deriveFloorFromRoom(null) returns null).
+                // Explícito en lugar de implícito por idempotencia + claridad.
                 updateData = {
                     status: action,
                     dischargeDate: date ? new Date(date) : new Date(),
                     dischargeReason: reason || "No reason provided",
                     roomNumber: null, // Liberamos el cuarto
+                    floor: null,
                 };
                 break;
 

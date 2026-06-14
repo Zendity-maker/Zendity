@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { deriveFloorFromRoom } from '@/lib/floor';
 
 export async function POST(request: Request) {
     try {
@@ -19,6 +20,12 @@ export async function POST(request: Request) {
         // Simulate Norton/Downton logic based on diagnostics or AVD
         const isHighRisk = avdScore >= 2 || (diagnostics || '').toLowerCase().includes('caida');
 
+        // Multi-floor (jun-2026): floor derivado del roomNumber siempre.
+        // El 'A-101' hardcoded NO matchea el patrón numérico → floor=null
+        // (data anomaly visible en /corporate/live zombie chip bucket
+        // 'unassigned' hasta que el director asigne cuarto real vía
+        // PATCH /api/corporate/patients/[id]).
+        const roomNumberForCreate = 'A-101';
         const patient = await prisma.patient.create({
             data: {
                 name,
@@ -27,7 +34,8 @@ export async function POST(request: Request) {
                 avdScore: parseInt(avdScore, 10),
                 downtonRisk: isHighRisk,
                 nortonRisk: isHighRisk,
-                roomNumber: 'A-101', // Assigned logically in a real app
+                roomNumber: roomNumberForCreate,
+                floor: deriveFloorFromRoom(roomNumberForCreate),
             }
         });
 

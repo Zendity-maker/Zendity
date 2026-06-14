@@ -106,10 +106,17 @@ export async function POST(req: Request) {
                 });
 
                 if (!existingPatient) {
+                    // Multi-floor (jun-2026): el lead promovido entra SIN
+                    // roomNumber asignado todavía (la sede le asigna cuarto
+                    // después). floor=null hasta que PATCH del residente
+                    // setee roomNumber y re-derive floor. Bucket 'unassigned'
+                    // del zombie chip surfacea el caso para que el director
+                    // recuerde asignar cuarto.
                     await prisma.patient.create({
                         data: {
                             headquartersId: updatedLead.headquartersId,
-                            name: `${updatedLead.firstName} ${updatedLead.lastName}`
+                            name: `${updatedLead.firstName} ${updatedLead.lastName}`,
+                            floor: null,
                         }
                     });
                     console.log(`[Zero-Data-Entry] Prospecto ${updatedLead.firstName} promovido exitosamente a Residente Clínico.`);

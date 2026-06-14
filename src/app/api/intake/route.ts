@@ -45,12 +45,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Sesión sin sede asignada' }, { status: 400 });
         }
 
-        // 1. Crear el Perfil Demográfico base del Residente
+        // 1. Crear el Perfil Demográfico base del Residente.
+        //
+        // Multi-floor (jun-2026): este endpoint NO recibe roomNumber en el
+        // body (DEPRECATED, flujo legacy). El residente queda con
+        // roomNumber=null + floor=null hasta que el director le asigne cuarto
+        // vía PATCH /api/corporate/patients/[id], el cual re-deriva floor
+        // automáticamente. Durante ese intervalo, el residente aparece en
+        // bucket 'unassigned' del /corporate/live zombie chip (alarma Phase 4).
         const patient = await prisma.patient.create({
             data: {
                 name,
                 headquartersId: finalHqId,
                 colorGroup: colorGroup || 'UNASSIGNED',
+                floor: null,
             }
         });
 

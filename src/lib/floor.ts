@@ -266,6 +266,38 @@ export function floorLabel(scope: FloorScope | null | undefined): string {
 }
 
 /**
+ * Deriva el piso desde el prefijo numérico del `roomNumber`.
+ *
+ * roomNumber es la FUENTE DE VERDAD para `Patient.floor` — todos los
+ * write-paths que setean o cambian roomNumber deben pasar por acá para
+ * mantener floor sincronizado. Sin un único punto de derivación, eventualmente
+ * aparece un residente cuyo room dice "1-03" y cuyo floor dice 2 — invisible
+ * para el scoping y mortal para la cobertura.
+ *
+ * Convención: rooms con shape `^(\d+)-.*` → integer del grupo 1. Otras formas
+ * (sin guión, sin dígito leading, alfa-prefijos como "A-101") retornan null.
+ * El residente queda con floor=null, lo cual:
+ *   - es válido para DISCHARGED/DECEASED (sin room operacional).
+ *   - es DATA ANOMALY para ACTIVE → surfacea en /corporate/live zombie chip
+ *     bajo bucket 'unassigned' (alarma de integridad Phase 4).
+ *
+ * @example
+ *   deriveFloorFromRoom('1-03')   → 1
+ *   deriveFloorFromRoom('2-15')   → 2
+ *   deriveFloorFromRoom('10-01')  → 10   (Mayagüez con 10+ pisos: ok)
+ *   deriveFloorFromRoom(null)     → null
+ *   deriveFloorFromRoom('A-101')  → null (no-numérico, fixed en backlog)
+ *   deriveFloorFromRoom('0-01')   → null (piso 0 rechazado por convención)
+ */
+export function deriveFloorFromRoom(roomNumber: string | null | undefined): number | null {
+    if (!roomNumber) return null;
+    const m = roomNumber.trim().match(/^(\d+)-/);
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
  * Bucket helper para agrupar resultados por piso en UI o response.
  *
  * Toma un array de items con campo `floor: number | null` y los agrupa.
