@@ -82,13 +82,17 @@ export async function GET(req: Request) {
                 id: true,
                 caregiverId: true,
                 startTime: true,
-                caregiver: { select: { name: true } }
+                // Multi-floor (jun-2026): caregiver.floor entra al response y
+                // se usa para scoping per-caregiver de groupPatients abajo.
+                // null en caregiver activo = data issue → wall lo muestra en
+                // bucket 'Sin asignar' por Phase 4.
+                caregiver: { select: { name: true, floor: true } }
             },
             orderBy: { startTime: 'asc' }
         });
 
         if (activeSessions.length === 0) {
-            return NextResponse.json({ success: true, caregivers: [] });
+            return NextResponse.json({ success: true, caregivers: [], crossFloorCoverage: [] });
         }
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
@@ -145,33 +149,17 @@ export async function GET(req: Request) {
             if (!baseShiftByUser.has(s.userId)) baseShiftByUser.set(s.userId, s);
         }
 
-        // Residentes ACTIVE — pedimos TODOS los colores que aparecen en CUALQUIER
-        // cuidadora activa (unión global). Si alguna tiene 'ALL', traemos
-        // todos los residentes ACTIVE de la sede.
-        const allColorsUnion = new Set<string>();
-        for (const colors of colorsByUser.values()) {
-            for (const c of colors) allColorsUnion.add(c);
-        }
-        const hasAll = allColorsUnion.has('ALL');
-        const distinctColors = [...allColorsUnion].filter(c => c !== 'ALL');
-        const allGroupPatients = await prisma.patient.findMany({
-            where: {
-                headquartersId: hqId,
-                status: 'ACTIVE',
-                ...(hasAll ? {} : { colorGroup: { in: distinctColors as any[] } })
-            },
-            select: { id: true, name: true, roomNumber: true, colorGroup: true },
-            orderBy: { roomNumber: 'asc' }
-        });
-
-        const isNightShift = currentShiftType === 'NIGHT';
-
-        const now = new Date();
-
-        // Cobertura adicional por overrides activos. Cada cuidadora puede tener
-        // residentes EXTRA por redistribución (su color base + residentes de
-        // otro color asignados vía ShiftPatientOverride). Para el panel del
-        // supervisor mostramos el desglose.
+        // ─── Activos overrides ─────────────────────────────────────────────
+        // Multi-floor (jun-2026): MOVIDO antes que allGroupPatients para que la
+        // query de patients pueda incluir override-assigned IDs en la rama OR.
+        // Sin esto, override patients de OTRO color que el cuidador no cubre
+        // por pauta NO entraban en allGroupPatients → sus touches no eran
+        // queried → rounds sobre ellos no contaban. Tanto pre-existente como
+        // crítico para cross-piso (X piso 1 RED cubierto por Yari2 piso 2
+        // YELLOW: si solo filtramos por colores de Yari2, X queda fuera).
+        //
+        // Include añadido: patient.floor y caregiver.floor para detectar
+        // cross-piso (comparar floors) y exponer la info al wall.
         const activeOverrides = await prisma.shiftPatientOverride.findMany({
             where: {
                 headquartersId: hqId,
@@ -181,7 +169,8 @@ export async function GET(req: Request) {
                 shiftType: currentShiftType,
             },
             include: {
-                patient: { select: { id: true, name: true, roomNumber: true } },
+                patient: { select: { id: true, name: true, roomNumber: true, floor: true } },
+                caregiver: { select: { id: true, name: true, floor: true } },
             },
         });
         // Agrupar por caregiverId → lista de coberturas { patientId, name, room, originalColor }
@@ -195,6 +184,53 @@ export async function GET(req: Request) {
                 originalColor: ov.originalColor,
             });
         }
+        const allOverridePatientIds = activeOverrides.map(ov => ov.patientId);
+
+        // Residentes ACTIVE — pedimos TODOS los colores que aparecen en CUALQUIER
+        // cuidadora activa (unión global). Si alguna tiene 'ALL', traemos
+        // todos los residentes ACTIVE de la sede.
+        //
+        // Multi-floor: incluimos también los residentes asignados via override
+        // (cualquier color, cualquier piso) en la rama OR de la query. Esto
+        // asegura que un residente cubierto cross-piso entre al cálculo del
+        // cuidador que lo cubre, incluso si su color no está entre los colores
+        // de pauta de ese cuidador. Sin esto, los touches sobre él no se
+        // consultan y sus rounds no cuentan.
+        //
+        // `floor` añadido al select — usado por el per-caregiver filter abajo
+        // (groupPatients restringido al floor del cuidador para la rama
+        // PRIMARIA; la rama OVERRIDE bypasa).
+        const allColorsUnion = new Set<string>();
+        for (const colors of colorsByUser.values()) {
+            for (const c of colors) allColorsUnion.add(c);
+        }
+        const hasAll = allColorsUnion.has('ALL');
+        const distinctColors = [...allColorsUnion].filter(c => c !== 'ALL');
+
+        const orConditions: any[] = [];
+        if (hasAll) {
+            // 'ALL' = sin restricción de color (cuidadora solitaria barre la sede).
+            orConditions.push({});
+        } else if (distinctColors.length > 0) {
+            orConditions.push({ colorGroup: { in: distinctColors as any[] } });
+        }
+        if (allOverridePatientIds.length > 0) {
+            orConditions.push({ id: { in: allOverridePatientIds } });
+        }
+
+        const allGroupPatients = orConditions.length === 0 ? [] : await prisma.patient.findMany({
+            where: {
+                headquartersId: hqId,
+                status: 'ACTIVE',
+                OR: orConditions,
+            },
+            select: { id: true, name: true, roomNumber: true, colorGroup: true, floor: true },
+            orderBy: { roomNumber: 'asc' }
+        });
+
+        const isNightShift = currentShiftType === 'NIGHT';
+
+        const now = new Date();
 
         // Batch query refactor: en lugar de N×5 queries (1 set por cuidadora dentro
         // del Promise.all del map), se hacen 5 queries globales que traen TODOS los
@@ -276,6 +312,11 @@ export async function GET(req: Request) {
         const caregiverResults = activeSessions.map((sess) => {
             const caregiverId = sess.caregiverId;
             const name = sess.caregiver?.name || 'Cuidador';
+            // Multi-floor (jun-2026): floor del cuidador para scoping per-instance.
+            // null = data issue (CAREGIVER sin floor asignado) o manager via
+            // secondaryRoles. El response lo expone para que el wall lo muestre
+            // bajo 'Sin asignar' (groupByFloor en Phase 4).
+            const cgFloor = sess.caregiver?.floor ?? null;
             const shiftStart = sess.startTime;
             const shiftStartMs = shiftStart.getTime();
             // D1 — `colorGroups` es la UNIÓN; `colorGroup` queda como compat
@@ -290,6 +331,9 @@ export async function GET(req: Request) {
             for (const c of coverageResidents) {
                 coverageByColor[c.originalColor] = (coverageByColor[c.originalColor] || 0) + 1;
             }
+            // IDs de override para esta cuidadora — entran a groupPatients vía
+            // la rama OVERRIDE (bypass de floor, cross-piso permitido).
+            const overrideIdsForCg = new Set(coverageResidents.map(c => c.patientId));
 
             // FASE 82: info del shift base para feature "liberar pauta"
             const bs = baseShiftByUser.get(caregiverId);
@@ -300,9 +344,14 @@ export async function GET(req: Request) {
                 releasedAt: bs.releasedAt,
             } : null;
 
-            if (colorGroups.length === 0) {
+            if (colorGroups.length === 0 && overrideIdsForCg.size === 0) {
+                // Sin colores Y sin override → nada que hacer. Antes la rama
+                // emitía noColorGroup; ahora la condición incluye override
+                // porque una cuidadora SIN color pero CON override (raro pero
+                // posible) sí tiene residentes asignados.
                 return {
                     caregiverId, name,
+                    floor: cgFloor,
                     colorGroup: null,
                     colorGroups: [] as string[],
                     noColorGroup: true,
@@ -315,17 +364,37 @@ export async function GET(req: Request) {
                 };
             }
 
-            // groupPatients — D1: residentes de TODOS los colores de la cuidadora
-            // (no solo el primero). 'ALL' barre la sede entera.
+            // groupPatients — multi-floor:
+            //   rama PRIMARIA: residentes de TODOS los colores de la cuidadora
+            //                  filtrados por su floor ('ALL' barre la sede dentro
+            //                  de su floor; cgFloor=null reduce a {} en healthy
+            //                  state pero la rama OVERRIDE puede aún tener data).
+            //   rama OVERRIDE: residentes asignados via override (cualquier
+            //                  color, cualquier floor — bypass).
+            // Unión: residentes de cualquiera de las dos ramas cuentan en rounds.
             const colorGroupsSet = new Set(colorGroups);
-            const groupPatients = colorGroupsSet.has('ALL')
-                ? allGroupPatients
-                : allGroupPatients.filter(p => p.colorGroup && colorGroupsSet.has(p.colorGroup));
+            const matchesPrimary = (p: typeof allGroupPatients[number]): boolean => {
+                const colorOk = colorGroupsSet.has('ALL')
+                    || (p.colorGroup ? colorGroupsSet.has(p.colorGroup) : false);
+                // Si la cuidadora tiene floor seteado: solo matches del mismo floor.
+                // Si null: no hay primary match limpio (data anomaly) — solo override
+                // pinta sus residentes. Esto evita que una cuidadora sin floor
+                // herede silenciosamente "todos los pisos" en su grupo primario.
+                const floorOk = cgFloor !== null && p.floor === cgFloor;
+                return colorOk && floorOk;
+            };
+            const matchesOverride = (p: typeof allGroupPatients[number]): boolean =>
+                overrideIdsForCg.has(p.id);
+
+            const groupPatients = allGroupPatients.filter(p =>
+                matchesPrimary(p) || matchesOverride(p),
+            );
             const groupSize = groupPatients.length;
 
             if (groupSize === 0) {
                 return {
                     caregiverId, name,
+                    floor: cgFloor,
                     colorGroup,
                     colorGroups,
                     emptyGroup: true,
@@ -364,6 +433,7 @@ export async function GET(req: Request) {
 
             return {
                 ...computeRoundStats({ caregiverId, name, colorGroup: colorGroup!, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now }),
+                floor: cgFloor,     // Multi-floor: para que el wall agrupe por piso
                 colorGroups,        // NUEVO (D1): la unión completa
                 coverageCount,
                 coverageByColor,
@@ -372,7 +442,53 @@ export async function GET(req: Request) {
             };
         });
 
-        return NextResponse.json({ success: true, isNightShift, caregivers: caregiverResults });
+        // ─── Cross-floor coverage exposure ──────────────────────────────────
+        // Multi-floor (jun-2026): construir la lista de coberturas cross-piso
+        // para que el wall, en la sección del piso del RESIDENTE, muestre que
+        // está cubierto por alguien de otro piso. Sin esto, el piso 1 con su
+        // única cuidadora ausente pero residentes cubiertos por Yari2 se vería
+        // falsamente abandonado (sección piso 1 vacía, mientras Yari2 aparece
+        // bajo piso 2 con X en sus rounds — desconectado del piso 1).
+        //
+        // Criterio de cross-piso: cgFloor !== patientFloor (strict). Eso
+        // captura:
+        //   - cg=1 + p=2  → cross
+        //   - cg=null + p=1 → cross (visibilidad de data anomaly)
+        //   - cg=1 + p=null → cross (visibilidad)
+        //   - cg=1 + p=1   → NO cross (same-floor, comportamiento estándar)
+        //   - cg=null + p=null → NO cross (ambas anómalas, otra red lo expone)
+        const crossFloorCoverage: Array<{
+            patientId: string;
+            patientName: string;
+            room: string | null;
+            patientFloor: number | null;
+            originalColor: string;
+            coveredBy: { caregiverId: string; name: string; floor: number | null };
+        }> = [];
+        for (const ov of activeOverrides) {
+            const cgFloor = ov.caregiver?.floor ?? null;
+            const pFloor = ov.patient?.floor ?? null;
+            if (cgFloor === pFloor) continue;
+            crossFloorCoverage.push({
+                patientId: ov.patientId,
+                patientName: ov.patient?.name || 'Residente',
+                room: ov.patient?.roomNumber ?? null,
+                patientFloor: pFloor,
+                originalColor: ov.originalColor,
+                coveredBy: {
+                    caregiverId: ov.caregiverId,
+                    name: ov.caregiver?.name || '—',
+                    floor: cgFloor,
+                },
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
+            isNightShift,
+            caregivers: caregiverResults,
+            crossFloorCoverage,
+        });
 
     } catch (err: any) {
         logError('care.supervisor.caregiver_rounds.get', err);
