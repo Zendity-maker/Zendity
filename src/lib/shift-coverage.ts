@@ -331,21 +331,40 @@ export async function computeShiftCoverage(params: {
     const expectedColorsSet = augmentExpectedColors(scheduledColorsSet, populatedColors);
     const expectedColors = Array.from(expectedColorsSet).sort();
 
-    // FIX: usar scheduledShiftId explícito en lugar del nested relation filter
-    // `scheduledShift: { shiftType, date }` que generaba JOINs ineficientes y
-    // 500s intermitentes en producción. Los IDs ya están en memoria del query anterior.
-    // activeUserIdsSet ya está computado arriba (B usa Set para filtrar overrides).
-    const activeUserShiftIds = scheduledShifts
-        .filter(s => activeUserIdsSet.has(s.userId))
-        .map(s => s.id);
+    // FIX (2026-06-14): query por userId + assignedAt en lugar de
+    // scheduledShiftId. Motivo operacional descubierto en prod:
+    //
+    //   Mariangelie no tenía ScheduledShift hoy (sábado, fuera de pauta) pero
+    //   el supervisor le creó ShiftColorAssignment color=RED para que cubriera
+    //   como sustituta. El filtro anterior (scheduledShiftId ∈ activeUserShiftIds)
+    //   solo recogía assignments LIGADOS a un shift activo del día, así que el
+    //   ColorAssignment de Mariangelie quedaba huérfano → RED entraba a
+    //   absentColors aunque ella estuviera en piso con asignación explícita.
+    //
+    //   El fix usa la semántica real de ColorAssignment: "esta cuidadora cubre
+    //   este color HOY", independiente de si tiene pauta hoy. Tomamos el más
+    //   reciente por userId del día clínico actual.
+    const activeUserIds = Array.from(activeUserIdsSet);
 
     let colorAssignments: Array<{ userId: string; color: string }> = [];
-    if (activeUserShiftIds.length > 0) {
+    if (activeUserIds.length > 0) {
         try {
-            colorAssignments = await prisma.shiftColorAssignment.findMany({
-                where: { scheduledShiftId: { in: activeUserShiftIds } },
-                select: { userId: true, color: true },
+            const rawAssignments = await prisma.shiftColorAssignment.findMany({
+                where: {
+                    headquartersId: hqId,
+                    userId: { in: activeUserIds },
+                    assignedAt: { gte: todayStart, lt: tomorrow },
+                },
+                select: { userId: true, color: true, assignedAt: true },
+                orderBy: { assignedAt: 'desc' },
             });
+            // Dedupe: una sola asignación por userId (la más reciente del día).
+            const seen = new Set<string>();
+            colorAssignments = rawAssignments.filter(a => {
+                if (seen.has(a.userId)) return false;
+                seen.add(a.userId);
+                return true;
+            }).map(a => ({ userId: a.userId, color: a.color }));
         } catch (e) {
             // Fallback: sin asignaciones manuales → se usa colorGroup del ScheduledShift
             console.warn('[shift-coverage] ShiftColorAssignment query failed, fallback a colorGroup:', e);

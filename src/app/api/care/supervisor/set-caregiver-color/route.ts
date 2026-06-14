@@ -158,15 +158,23 @@ export async function POST(req: Request) {
             actionType = 'created';
         }
 
-        // Cerrar overrides auto del MISMO color + shift actual.
+        // Cerrar overrides del MISMO color + shift actual a OTRAS cuidadoras.
         // Caso: una cuidadora se ausenta de YELLOW → el cron redistribuye los
-        // 11 residentes YELLOW entre las presentes (ABSENCE_REDISTRIB, auto).
-        // Después el supervisor asigna a Medelyn a YELLOW vía este endpoint.
-        // Si no cerramos los overrides automáticos, los residentes YELLOW
-        // aparecen DUPLICADOS: una vez en la card de Medelyn (color base) y
-        // otra como "extras" en las cards que los recibieron por la
-        // redistribución. Solo cerramos `autoAssigned=true` — los manuales
-        // se respetan (alguien pudo haber asignado a propósito).
+        // 11 residentes YELLOW entre las presentes. Después el supervisor
+        // asigna a Medelyn a YELLOW vía este endpoint. Si no cerramos los
+        // overrides previos, los residentes YELLOW aparecen DUPLICADOS: una
+        // vez en la card de Medelyn (color base) y otra como "extras" en
+        // las cards que los recibieron por la redistribución.
+        //
+        // FIX (2026-06-14): antes solo cerrábamos `autoAssigned: true`. Eso
+        // dejaba huérfanos los overrides MANUALES — caso real con Mariangelie:
+        // el supervisor había redistribuido manualmente residentes RED a
+        // Brendali y Herminia, después le asignó RED como base a Mariangelie,
+        // y los 6 manuales sobrevivieron generando doble carga en otras
+        // cuidadoras. Operacionalmente, "X es ahora la cuidadora de COLOR"
+        // significa que cualquier override previo de ese color a otra
+        // cuidadora debe liberarse — auto o manual.
+        //
         // No aplicamos al color 'ALL' porque eso no representa un grupo
         // específico de residentes.
         let closedOverrides = 0;
@@ -178,7 +186,6 @@ export async function POST(req: Request) {
                     headquartersId: hqId,
                     originalColor: color,
                     isActive: true,
-                    autoAssigned: true,
                     shiftDate: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                     shiftType: currentShiftType as any,
                     caregiverId: { not: caregiverId },
@@ -229,7 +236,7 @@ export async function POST(req: Request) {
                         previousColor: existing?.color ?? null,
                         newColor: color,
                         actionType,
-                        closedAutoOverrides: closedOverrides,
+                        closedOverrides,
                         emptyOnFloor: warning !== null,
                     },
                 },
@@ -254,7 +261,7 @@ export async function POST(req: Request) {
                 ? `${caregiver.name}: cambio a Grupo ${color}.`
                 : `${caregiver.name}: asignada a Grupo ${color}.`;
         const message = closedOverrides > 0
-            ? `${baseMsg} Liberé ${closedOverrides} residente${closedOverrides === 1 ? '' : 's'} ${color} que estaba${closedOverrides === 1 ? '' : 'n'} repartido${closedOverrides === 1 ? '' : 's'} por redistribución automática.`
+            ? `${baseMsg} Liberé ${closedOverrides} residente${closedOverrides === 1 ? '' : 's'} ${color} que estaba${closedOverrides === 1 ? '' : 'n'} cubierto${closedOverrides === 1 ? '' : 's'} por otra cuidadora.`
             : baseMsg;
 
         return NextResponse.json({
@@ -264,7 +271,7 @@ export async function POST(req: Request) {
             caregiverFloor: caregiverScope === 'ALL' ? null : caregiverScope,
             color,
             actionType,
-            closedAutoOverrides: closedOverrides,
+            closedOverrides,
             message,
             warning,
         });
