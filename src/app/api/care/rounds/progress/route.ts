@@ -3,6 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
+import { todayStartAST } from '@/lib/dates';
+import {
+    resolveUserFloorScope,
+    floorWhereFilter,
+    CaregiverFloorMissingError,
+    type FloorScope,
+} from '@/lib/floor';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +23,30 @@ export const dynamic = 'force-dynamic';
  *
  * Responde:
  *   roundsCompleted      — rondas completas desde que empezó el turno
- *   residentsInGroup     — total de residentes del grupo
+ *   residentsInGroup     — total de residentes del grupo (incluye overrides cross-piso)
  *   attendedThisRound    — residentes atendidos en la ronda en curso
  *   remainingThisRound   — residentes que faltan para completar la ronda actual
  *   pendingResidents     — lista de residentes pendientes (nombre + hab)
  *   minutesSinceLastRound — minutos desde que completó la última ronda
  *   isNightShift         — si es turno de guardia (entre 10pm y 6am)
  *   justCompletedRound   — true si esta consulta detectó una ronda recién completada
+ *
+ * ─── SPRINT MULTI-FLOOR (jun-2026) — patrón #1 (tablet) ─────────────────
+ *
+ * Aplica la regla "primario floor-scoped, override floor-bypass":
+ *   - Rama PRIMARIA: residentes de MI color en MI piso (caregiver.floor).
+ *   - Rama OVERRIDE: residentes asignados a mí via ShiftPatientOverride
+ *     (cualquier color, cualquier piso — incluye los cross-piso del break-glass
+ *     de #6 o del assign-color de #4).
+ *
+ * Ambas ramas entran a `groupSize`, así que los rounds sobre residentes
+ * cross-piso CUENTAN hacia el progreso. Coherente con el principio acordado
+ * (consumer #10 spec del user): si Yari2 cubre a X piso 1 vía override,
+ * sus rounds sobre X cuentan en su progreso de Piso 2 también — es su
+ * carga total del turno, no solo lo "propio".
+ *
+ * CAREGIVER puro con floor=null → 422 con mensaje accionable (mismo gate
+ * que #1 tablet — no hay scope coherente sin floor).
  */
 export async function GET(req: Request) {
     try {
@@ -31,6 +55,29 @@ export async function GET(req: Request) {
 
         const userId = (session.user as any).id;
         const hqId   = (session.user as any).headquartersId;
+
+        // Multi-floor: fetch invoker role+floor para resolver scope.
+        // findUnique adicional por poll — aceptable (este endpoint no es hot
+        // path de polling agresivo; el tablet sí lo es y ahí está optimizado).
+        const invoker = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { role: true, floor: true, name: true },
+        });
+        if (!invoker) {
+            return NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 401 });
+        }
+        let floorScope: FloorScope;
+        try {
+            floorScope = resolveUserFloorScope(
+                { role: invoker.role, floor: invoker.floor },
+                userId,
+            );
+        } catch (e) {
+            if (e instanceof CaregiverFloorMissingError) {
+                return NextResponse.json({ success: false, error: e.message }, { status: 422 });
+            }
+            throw e;
+        }
 
         // Sesión activa del cuidador
         const activeSession = await prisma.shiftSession.findFirst({
@@ -58,13 +105,56 @@ export async function GET(req: Request) {
         });
         const myColor = lastColorAssignment?.color ?? null;
 
-        if (!myColor) {
+        // Multi-floor: query overrides ANTES de groupPatients para tener
+        // overridePatientIds disponibles para la rama OVERRIDE de la query OR.
+        // Hoy = inicio del día AST. Misma convención que tablet (consumer #1).
+        const todayStart = todayStartAST();
+        const overrides = await prisma.shiftPatientOverride.findMany({
+            where: {
+                caregiverId: userId,
+                headquartersId: hqId,
+                isActive: true,
+                shiftDate: { gte: todayStart },
+            },
+            select: { patientId: true },
+        });
+        const overridePatientIds = overrides.map(o => o.patientId);
+
+        // Sin color base Y sin overrides → nada que rondar. Antes el early
+        // return era solo por !myColor; ahora la cuidadora puede no tener
+        // color base PERO tener overrides (caso raro: sustituta sin pauta a
+        // la que se le asignan residentes específicos cross-piso). En ese
+        // caso, sus rondas cuentan sobre los overrides.
+        if (!myColor && overridePatientIds.length === 0) {
             return NextResponse.json({ success: true, noColorGroup: true });
         }
 
-        // Residentes del grupo
+        // groupPatients = rama PRIMARIA (color + floor) ∪ rama OVERRIDE (IDs).
+        // - PRIMARIA: residentes de MI color en MI piso. floorWhereFilter
+        //   retorna {} si scope='ALL' (manager) o {floor:N} si CAREGIVER.
+        // - OVERRIDE: residentes con override para mí (cualquier floor).
+        //
+        // Misma regla que #1 (tablet): el override bypasea floor. Si Yari2
+        // (piso 2) cubre cross-piso a X (piso 1) vía override, X entra acá
+        // → sus rondas sobre X cuentan en su progreso.
+        const ownFloorFilter = floorWhereFilter(floorScope);
+        const orConditions: any[] = [];
+        if (myColor) {
+            orConditions.push({
+                colorGroup: myColor as any,
+                ...ownFloorFilter,
+            });
+        }
+        if (overridePatientIds.length > 0) {
+            orConditions.push({ id: { in: overridePatientIds } });
+        }
+
         const groupPatients = await prisma.patient.findMany({
-            where: { headquartersId: hqId, status: 'ACTIVE', colorGroup: myColor as any },
+            where: {
+                headquartersId: hqId,
+                status: 'ACTIVE',
+                OR: orConditions,
+            },
             select: { id: true, name: true, roomNumber: true },
             orderBy: { roomNumber: 'asc' }
         });
