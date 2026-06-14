@@ -56,6 +56,14 @@ export async function redistributeUncoveredColors(opts: {
     shiftType: ShiftT;
     /** Si se pasa, sólo procesa pacientes de ese color. Si no, todos los uncovered. */
     color?: string;
+    /**
+     * SPRINT MULTI-FLOOR (jun-2026): acota el cómputo a un piso. Sin floor →
+     * comportamiento legacy HQ-wide preservado para callers que aún no fueron
+     * refactoreados (consumer #7 redistribute + uncovered-colors). Caller
+     * claim-coverage (consumer #6) lo pasa scoped al piso de la cuidadora →
+     * orphans se reparten DENTRO de ese piso, sin fuga cross-piso.
+     */
+    floor?: number;
     trigger: RedistributionTrigger;
     /** Si true (default), crea VitalsOrder de 4h para los residentes nuevos del receptor */
     createVitalsOrders?: boolean;
@@ -66,12 +74,16 @@ export async function redistributeUncoveredColors(opts: {
         hqId,
         shiftType,
         color,
+        floor,
         trigger,
         createVitalsOrders = true,
         notify = true,
     } = opts;
 
-    const coverage = await computeShiftCoverage({ hqId, shiftType });
+    // computeShiftCoverage acepta floor opcional (consumer #0 core). Cuando se
+    // pasa, todas las queries internas (active sessions, overrides, uncovered
+    // patients, recipients) quedan piso-scoped por construcción.
+    const coverage = await computeShiftCoverage({ hqId, shiftType, floor });
 
     // Pacientes objetivo
     const targetPatients = color
