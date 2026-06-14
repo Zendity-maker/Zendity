@@ -227,6 +227,20 @@ export async function GET(request: NextRequest) {
         //     "estos residentes no tienen piso, investiga".
         const zombiePatientsByFloor = groupByFloor(zombieList);
 
+        // Multi-floor (jun-2026): chip de alarma — residentes ACTIVE con
+        // floor=null. Sentinel a nivel director que complementa al del
+        // supervisor (caregiver-rounds.unassignedFloorPatientsCount).
+        // Vista UNSCOPED del director ES quien debe verlos: los flujos
+        // scoped-por-piso los excluyen silenciosamente. Cuando el director
+        // los caza, los abre desde el chip y asigna piso desde el perfil.
+        const unassignedFloorPatientsList = activePatients
+            .filter(p => p.floor === null)
+            .map(p => ({
+                id: p.id,
+                name: p.name,
+                room: p.roomNumber ?? '—',
+            }));
+
         return NextResponse.json({
             success: true,
             effectiveHqId,
@@ -240,6 +254,7 @@ export async function GET(request: NextRequest) {
                 handoversPending:  handoversPending.length,
                 zombiePatients:    zombieList.length,
                 onHospitalLeave:   onHospitalLeaveList.length,
+                unassignedFloorPatients: unassignedFloorPatientsList.length,
             },
             totals: {
                 activePatients: activePatients.length,
@@ -307,6 +322,7 @@ export async function GET(request: NextRequest) {
                 // → alarma integridad). El flat list de arriba mantiene
                 // backwards-compat con consumers que aún no agrupan.
                 zombiePatientsByFloor,
+                unassignedFloorPatients: unassignedFloorPatientsList,
                 onHospitalLeave: onHospitalLeaveList.map(p => ({
                     id: p.id,
                     name: p.name,

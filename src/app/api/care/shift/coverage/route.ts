@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
+import { prisma } from '@/lib/prisma';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
 
 export const dynamic = 'force-dynamic';
@@ -76,7 +77,19 @@ export async function GET(req: Request) {
             'computeShiftCoverage'
         );
 
-        return NextResponse.json({ success: true, ...coverage });
+        // Multi-floor (jun-2026): floor del invocador para que el
+        // CoveragePickerModal detecte cross-piso (selected floor !== invoker
+        // floor → break-glass UX ámbar + allowCrossFloor flag). null para
+        // managers (DIRECTOR/SUPERVISOR/NURSE dual-rol sin floor habitual)
+        // o data anomaly en CAREGIVER puro — el picker NO marca cross-piso
+        // si invokerFloor es null (no hay base para comparar).
+        const invokerRow = await prisma.user.findUnique({
+            where: { id: auth.id },
+            select: { floor: true },
+        });
+        const invokerFloor = invokerRow?.floor ?? null;
+
+        return NextResponse.json({ success: true, ...coverage, invokerFloor });
 
     } catch (error: any) {
         console.error('[shift/coverage] error:', error);

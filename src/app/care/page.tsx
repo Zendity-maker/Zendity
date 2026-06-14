@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info, Sparkles, Sunrise, UserCheck, FileText, ArrowRight } from "lucide-react";
-import CoveragePickerModal, { type CoverageColorOption } from "@/components/care/CoveragePickerModal";
+import CoveragePickerModal, { type CoverageColorOption, type CoveragePick } from "@/components/care/CoveragePickerModal";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -768,13 +768,27 @@ export default function ZendityCareTabletPage() {
     // Si el turno aún no existe, arrancamos el flujo normal con los colores
     // elegidos (como un startTurnAndBriefing multi-color). Si ya hay sesión
     // activa, llamamos claim-coverage para crear overrides LATE_COVER.
-    const handleCoveragePickerSelect = async (colors: string[]) => {
-        if (colors.length === 0) return;
+    //
+    // Multi-floor (jun-2026): el picker emite (color, floor) tuples + flag
+    // allowCrossFloor. El submit es 1 floor por click — claim-coverage acepta
+    // un solo targetFloor por request, y el picker enforza 1-floor-por-submit.
+    // allowCrossFloor=true significa que el usuario confirmó break-glass
+    // ámbar (selectedFloor !== invokerFloor); el backend lo audita.
+    const handleCoveragePickerSelect = async (picks: CoveragePick[], allowCrossFloor: boolean) => {
+        if (picks.length === 0) return;
+        // Todas las picks comparten floor (constraint del picker).
+        const targetFloor: number | null = picks[0].floor;
+        const colors = picks.map(p => p.color);
         setCoverageSubmitting(true);
         try {
             const colorParam = colors.join(',');
             if (!activeSession) {
-                // Sustituto iniciando turno — pasa a la verificación normal
+                // Sustituto iniciando turno — pasa a la verificación normal.
+                // El flow legacy de startTurnAndBriefing aún no propaga
+                // targetFloor; en Cupey (1 piso) el resolver del backend lo
+                // infiere del piso del invoker. Cross-floor antes de turno
+                // es un caso edge — el picker normalmente se abre con
+                // sesión activa.
                 setCoveragePickerOpen(false);
                 await startTurnAndBriefing(colorParam);
             } else {
@@ -785,6 +799,10 @@ export default function ZendityCareTabletPage() {
                     body: JSON.stringify({
                         colors,
                         shiftSessionId: activeSession.id,
+                        // Solo enviamos targetFloor si es número — null lo
+                        // omite y el backend usa el floor del invoker.
+                        ...(typeof targetFloor === 'number' ? { targetFloor } : {}),
+                        allowCrossFloor,
                     }),
                 });
                 const data = await res.json();
@@ -1965,21 +1983,54 @@ export default function ZendityCareTabletPage() {
 
         const needsCoveragePicker = absentColors.length > 0 && !coverageLoading;
 
-        // Construir opciones para el modal (solo colores ausentes o ya redistribuidos)
-        const pickerOptions: CoverageColorOption[] = [...absentColors, ...alreadyRedistributed]
-            .filter((c, i, arr) => arr.indexOf(c) === i) // dedup
-            .map(color => {
-                const redistTo = activeOverrides
-                    .filter(o => o.originalColor === color)
-                    .map(o => o.caregiverName);
-                return {
-                    color,
-                    patientsCount: (cov?.uncoveredPatients || []).filter((p: any) => p.colorGroup === color).length
-                        || redistTo.length,
-                    status: redistTo.length > 0 ? 'already_redistributed' as const : 'absent' as const,
-                    redistributedTo: redistTo.length > 0 ? redistTo : undefined,
-                };
+        // Construir opciones para el modal (solo colores ausentes o ya redistribuidos).
+        //
+        // Multi-floor (jun-2026): opciones son (color, floor) tuples.
+        //   - Ausentes: derivados de uncoveredPatients agrupados por (colorGroup, floor)
+        //     — el residente carga su floor real, así el picker muestra opciones
+        //     separadas si un mismo color RED existe en piso 1 y piso 2.
+        //   - Redistribuidos: el coverage response NO trae patient.floor en
+        //     activeOverrides (sería extender shift-coverage). Como semánticamente
+        //     "tomar de vuelta" un color implica que era TUYO antes, asignamos
+        //     floor = invokerFloor. Acceptable porque el cross-floor redistribute
+        //     vive en otro flujo (assign-color del supervisor) y no debería
+        //     materializarse en alreadyRedistributed normalmente.
+        const invokerFloor: number | null = (cov?.invokerFloor ?? null) as number | null;
+        const tupleMap = new Map<string, CoverageColorOption>();
+        for (const p of (cov?.uncoveredPatients || []) as any[]) {
+            if (!p?.colorGroup || !absentColors.includes(p.colorGroup)) continue;
+            const floor = (typeof p.floor === 'number') ? p.floor : null;
+            const key = `${p.colorGroup}::${floor ?? 'null'}`;
+            const existing = tupleMap.get(key);
+            if (existing) {
+                existing.patientsCount += 1;
+            } else {
+                tupleMap.set(key, {
+                    color: p.colorGroup,
+                    floor,
+                    patientsCount: 1,
+                    status: 'absent',
+                });
+            }
+        }
+        for (const color of alreadyRedistributed) {
+            const redistTo = activeOverrides
+                .filter(o => o.originalColor === color)
+                .map(o => o.caregiverName);
+            const key = `${color}::${invokerFloor ?? 'null'}`;
+            // No sobrescribir si ya hay una tupla "absent" para este color/floor —
+            // ese caso no debería ocurrir (un color es absent O redistribuido,
+            // no ambos en el mismo floor), pero por seguridad lo evitamos.
+            if (tupleMap.has(key)) continue;
+            tupleMap.set(key, {
+                color,
+                floor: invokerFloor,
+                patientsCount: redistTo.length,
+                status: 'already_redistributed',
+                redistributedTo: redistTo,
             });
+        }
+        const pickerOptions: CoverageColorOption[] = Array.from(tupleMap.values());
 
         return (
             <div className="fixed inset-0 bg-slate-900 flex items-center justify-center p-6 z-50">
@@ -2075,6 +2126,7 @@ export default function ZendityCareTabletPage() {
                 <CoveragePickerModal
                     isOpen={coveragePickerOpen}
                     options={pickerOptions}
+                    invokerFloor={(coverage?.invokerFloor ?? null) as number | null}
                     submitting={coverageSubmitting}
                     onClose={() => setCoveragePickerOpen(false)}
                     onSelect={handleCoveragePickerSelect}
@@ -4558,25 +4610,50 @@ export default function ZendityCareTabletPage() {
                 const activeOverrides: Array<{ originalColor: string; caregiverName: string }> =
                     coverage?.activeOverrides || [];
                 const uncoveredPatients: any[] = coverage?.uncoveredPatients || [];
-                const options: CoverageColorOption[] = [...absent, ...alreadyRedist]
-                    .filter((c, i, arr) => arr.indexOf(c) === i)
-                    .map((color) => {
-                        const redistTo = activeOverrides
-                            .filter((o) => o.originalColor === color)
-                            .map((o) => o.caregiverName);
-                        return {
-                            color,
-                            patientsCount: uncoveredPatients.filter((p: any) => p.colorGroup === color).length
-                                || redistTo.length,
-                            status: redistTo.length > 0 ? 'already_redistributed' as const : 'absent' as const,
-                            redistributedTo: redistTo.length > 0 ? redistTo : undefined,
-                        };
+                const invokerFloor: number | null = (coverage?.invokerFloor ?? null) as number | null;
+
+                // Mismo builder per-(color, floor) que el invocation point principal.
+                // Ver comentario allá para el racional de derivar floor de
+                // uncoveredPatients para 'absent' y de invokerFloor para
+                // 'already_redistributed'.
+                const tupleMap = new Map<string, CoverageColorOption>();
+                for (const p of uncoveredPatients) {
+                    if (!p?.colorGroup || !absent.includes(p.colorGroup)) continue;
+                    const floor = (typeof p.floor === 'number') ? p.floor : null;
+                    const key = `${p.colorGroup}::${floor ?? 'null'}`;
+                    const existing = tupleMap.get(key);
+                    if (existing) {
+                        existing.patientsCount += 1;
+                    } else {
+                        tupleMap.set(key, {
+                            color: p.colorGroup,
+                            floor,
+                            patientsCount: 1,
+                            status: 'absent',
+                        });
+                    }
+                }
+                for (const color of alreadyRedist) {
+                    const redistTo = activeOverrides
+                        .filter((o) => o.originalColor === color)
+                        .map((o) => o.caregiverName);
+                    const key = `${color}::${invokerFloor ?? 'null'}`;
+                    if (tupleMap.has(key)) continue;
+                    tupleMap.set(key, {
+                        color,
+                        floor: invokerFloor,
+                        patientsCount: redistTo.length,
+                        status: 'already_redistributed',
+                        redistributedTo: redistTo,
                     });
+                }
+                const options: CoverageColorOption[] = Array.from(tupleMap.values());
                 if (options.length === 0) return null;
                 return (
                     <CoveragePickerModal
                         isOpen={coveragePickerOpen}
                         options={options}
+                        invokerFloor={invokerFloor}
                         submitting={coverageSubmitting}
                         onClose={() => setCoveragePickerOpen(false)}
                         onSelect={handleCoveragePickerSelect}

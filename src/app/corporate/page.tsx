@@ -190,6 +190,7 @@ export default function CorporateDashboardPage() {
             handoversPending: number;
             zombiePatients: number;
             onHospitalLeave: number;
+            unassignedFloorPatients: number;
         };
         totals: { activePatients: number; handoversToday: number };
         timestamp: string;
@@ -782,6 +783,13 @@ export default function CorporateDashboardPage() {
                             { key: 'handoversPending',  label: 'Handovers pend.',          value: live.chips.handoversPending,  icon: FileSignature,tone: live.chips.handoversPending > 0 ? 'amber' : 'slate' },
                             { key: 'zombiePatients',    label: 'Sin actividad hoy',        value: live.chips.zombiePatients,    icon: Activity,     tone: live.chips.zombiePatients > 0 ? 'red' : 'emerald' },
                             { key: 'onHospitalLeave',   label: 'En hospital',              value: live.chips.onHospitalLeave,   icon: Stethoscope,  tone: live.chips.onHospitalLeave > 0 ? 'rose' : 'slate' },
+                            // Multi-floor (jun-2026): sentinel del director.
+                            // Residentes ACTIVE con floor=null — invisibles en
+                            // todas las vistas scoped-por-piso. Si count>0:
+                            // alarma roja para que el director asigne piso desde
+                            // el perfil del residente. UNSCOPED es el único
+                            // ángulo donde el director los caza.
+                            { key: 'unassignedFloorPatients', label: 'Sin piso asignado',  value: live.chips.unassignedFloorPatients, icon: Building2, tone: live.chips.unassignedFloorPatients > 0 ? 'red' : 'slate' },
                         ] as const).map((chip) => {
                             const tones: Record<string, string> = {
                                 teal:    'bg-[#0F6B78]/10 text-[#0F6B78] border-[#0F6B78]/20 hover:border-[#0F6B78]/50',
@@ -847,6 +855,7 @@ export default function CorporateDashboardPage() {
                         handoversPending:  { title: 'Handovers pendientes de firma',         empty: 'Todos los handovers firmados.' },
                         zombiePatients:    { title: 'Residentes sin actividad registrada hoy', empty: 'Todos los residentes tienen actividad hoy.' },
                         onHospitalLeave:   { title: 'Residentes hospitalizados',             empty: 'Ningún residente hospitalizado.' },
+                        unassignedFloorPatients: { title: 'Residentes activos sin piso asignado', empty: 'Todos los residentes activos tienen piso asignado.' },
                     };
 
                     const meta = chipMeta[activeChip];
@@ -986,6 +995,20 @@ export default function CorporateDashboardPage() {
                                                 <span className="text-xs text-slate-400">desde {r.since ? fmtDate(r.since) : '—'}</span>
                                             </div>
                                             <p className="text-xs text-slate-400">Cuarto {r.room}{r.reason ? ` · ${r.reason}` : ''}</p>
+                                        </div>
+                                    ))}
+
+                                    {/* unassignedFloorPatients — multi-floor sentinel */}
+                                    {activeChip === 'unassignedFloorPatients' && list.map((r: any) => (
+                                        <div key={r.id} className="px-5 py-3 flex items-center justify-between hover:bg-white transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-xs font-black">{r.name.charAt(0)}</div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{r.name}</p>
+                                                    <p className="text-xs text-slate-400">Cuarto {r.room ?? '—'}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-200">Asignar piso desde su perfil</span>
                                         </div>
                                     ))}
                                 </div>
