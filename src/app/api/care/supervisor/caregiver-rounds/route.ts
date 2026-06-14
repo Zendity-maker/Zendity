@@ -184,9 +184,24 @@ export async function GET(req: Request) {
                 patient: { select: { id: true, name: true, roomNumber: true } },
             },
         });
-        // Agrupar por caregiverId → lista de coberturas { patientId, name, room, originalColor }
+        // Agrupar por caregiverId → lista de coberturas { patientId, name, room, originalColor }.
+        //
+        // FIX (2026-06-14): saltar overrides REDUNDANTES — aquellos cuyo
+        // `originalColor` ya está en los colores base de la cuidadora (vía
+        // pauta o ColorAssignment, expuestos por colorsByUser). Caso real:
+        // el supervisor presiona "Redistribuir RED" en la alerta de uncovered
+        // → crea overrides sobre la cuidadora que YA tiene RED como base. Sin
+        // este filtro, el wall mostraba "groupPatients=6 + coverageCount=6"
+        // para los MISMOS 6 residentes — doble cuenta + chip "+6 rojos" en su
+        // tile. La cuidadora con 'ALL' como base nunca tiene cobertura extra.
         const coverageByCaregiver = new Map<string, Array<{ patientId: string; name: string; room: string | null; originalColor: string }>>();
+        let skippedRedundantOverrides = 0;
         for (const ov of activeOverrides) {
+            const baseColors = new Set(colorsByUser.get(ov.caregiverId) || []);
+            if (baseColors.has('ALL') || baseColors.has(ov.originalColor)) {
+                skippedRedundantOverrides++;
+                continue;
+            }
             if (!coverageByCaregiver.has(ov.caregiverId)) coverageByCaregiver.set(ov.caregiverId, []);
             coverageByCaregiver.get(ov.caregiverId)!.push({
                 patientId: ov.patientId,
@@ -194,6 +209,9 @@ export async function GET(req: Request) {
                 room: ov.patient?.roomNumber ?? null,
                 originalColor: ov.originalColor,
             });
+        }
+        if (skippedRedundantOverrides > 0) {
+            console.warn('[caregiver-rounds] skipped redundant overrides (originalColor ∈ base):', skippedRedundantOverrides);
         }
 
         // Batch query refactor: en lugar de N×5 queries (1 set por cuidadora dentro
