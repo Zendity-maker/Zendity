@@ -33,6 +33,8 @@ import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { HeroCard } from "@/components/ui/HeroCard";
 import { StatTile } from "@/components/ui/StatTile";
+import { FloorBadge } from "@/components/ui/FloorBadge";
+import { floorLabel } from "@/lib/floor";
 import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
@@ -216,6 +218,15 @@ export default function SupervisorMissionControlPage() {
     const [roundsNightShift, setRoundsNightShift] = useState(false);
     const [roundsLoading, setRoundsLoading] = useState(false);
     const [roundsLastUpdated, setRoundsLastUpdated] = useState<Date | null>(null);
+    // Multi-floor (jun-2026): pisos del HQ con residentes activos + cobertura
+    // cross-piso del response. Drive las SECCIONES del wall. activeFloors es
+    // la fuente de verdad — el wall renderiza una sección por cada piso CON
+    // RESIDENTES, esté cubierto o no.
+    const [activeFloors, setActiveFloors] = useState<number[]>([]);
+    const [crossFloorCoverage, setCrossFloorCoverage] = useState<any[]>([]);
+    // Sentinel: residentes ACTIVE con floor=null — invisibles en la vista por
+    // pisos. Alarma chica fuerza al supervisor a escalar al director.
+    const [unassignedFloorPatientsCount, setUnassignedFloorPatientsCount] = useState<number>(0);
 
     // Grupos sin cobertura
     const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiverName: string }[]>([]);
@@ -316,6 +327,10 @@ export default function SupervisorMissionControlPage() {
                 setCaregiverRounds(data.caregivers || []);
                 setRoundsNightShift(data.isNightShift || false);
                 setRoundsLastUpdated(new Date());
+                // Multi-floor: capturar pisos del HQ + cobertura cross-piso.
+                setActiveFloors(Array.isArray(data.activeFloors) ? data.activeFloors : []);
+                setCrossFloorCoverage(Array.isArray(data.crossFloorCoverage) ? data.crossFloorCoverage : []);
+                setUnassignedFloorPatientsCount(typeof data.unassignedFloorPatientsCount === 'number' ? data.unassignedFloorPatientsCount : 0);
             }
         } catch (e) { console.error("Caregiver rounds fetch error", e); }
         finally { setRoundsLoading(false); }
@@ -1005,26 +1020,170 @@ export default function SupervisorMissionControlPage() {
                         </button>
                     </div>
 
-                    {roundsLoading && caregiverRounds.length === 0 ? (
+                    {roundsLoading && caregiverRounds.length === 0 && activeFloors.length === 0 ? (
                         <div className="flex items-center justify-center py-10">
                             <Loader2 className="w-8 h-8 text-teal-500 animate-spin" />
                         </div>
-                    ) : caregiverRounds.length === 0 ? (
+                    ) : activeFloors.length === 0 && caregiverRounds.length === 0 ? (
                         <div className="text-center py-10 text-slate-400">
                             <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                            <p className="font-semibold text-sm">Sin cuidadores con sesión activa</p>
-                            <p className="text-xs mt-1">Las tarjetas aparecerán cuando inicien turno</p>
+                            <p className="font-semibold text-sm">Sin residentes activos en esta sede</p>
+                            <p className="text-xs mt-1">Las tarjetas aparecerán cuando ingresen residentes</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {caregiverRounds.map((cg) => (
-                                <SupervisorRondaTile
-                                    key={cg.caregiverId}
-                                    cg={cg}
-                                    onOpenDrill={setDrillCaregiver}
-                                    onOpenColorPicker={setColorPickerCg}
-                                />
-                            ))}
+                        // ─── SPRINT MULTI-FLOOR (jun-2026): secciones por piso ─────
+                        //
+                        // Una sección por cada piso CON RESIDENTES (activeFloors del
+                        // backend). NUNCA derivar de groupByFloor(caregivers) — un
+                        // piso con su única cuidadora ausente tendría 0 caregivers,
+                        // perdería su sección, y se volvería invisible al supervisor
+                        // (exactamente lo que este sprint combate).
+                        //
+                        // Dentro de cada sección:
+                        //   - Tiles de caregivers cuyo floor === sectionFloor.
+                        //   - Cards de crossFloorCoverage donde patientFloor === sectionFloor.
+                        //   - Si AMBOS están vacíos → alarma prominente "sin cobertura
+                        //     propia ni cross-piso, investigar".
+                        //
+                        // Secciones SIEMPRE expandidas — colapsar podría esconder
+                        // residentes descubiertos. Esa fue decisión explícita Phase 4.
+                        <div className="space-y-6">
+                            {/* SENTINEL — Residentes ACTIVE sin piso asignado.
+                                NO entran a ninguna sección de piso. Alarma chica
+                                ámbar (no operacional inmediata — es escalación al
+                                director para limpiar data). Sin esto, esos residentes
+                                quedan invisibles en la vista del supervisor. */}
+                            {unassignedFloorPatientsCount > 0 && (
+                                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                        <p className="font-black text-amber-900 text-sm leading-tight">
+                                            {unassignedFloorPatientsCount} residente{unassignedFloorPatientsCount === 1 ? '' : 's'} activo{unassignedFloorPatientsCount === 1 ? '' : 's'} sin piso asignado
+                                        </p>
+                                        <p className="text-amber-800 text-xs font-medium mt-0.5">
+                                            No aparece{unassignedFloorPatientsCount === 1 ? '' : 'n'} en ninguna sección por piso. Avísale al director para que asigne el piso desde el perfil del residente.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeFloors.map((floor) => {
+                                const floorCaregivers = caregiverRounds.filter((cg: any) => cg.floor === floor);
+                                const floorCrossCoverage = crossFloorCoverage.filter((cf: any) => cf.patientFloor === floor);
+                                const hasNothing = floorCaregivers.length === 0 && floorCrossCoverage.length === 0;
+
+                                return (
+                                    <section key={floor} className="space-y-3">
+                                        {/* Header sticky — visible siempre, no colapsa */}
+                                        <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center gap-2">
+                                            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide">
+                                                {floorLabel(floor)}
+                                            </h3>
+                                            <span className="text-xs font-bold text-slate-400">
+                                                {floorCaregivers.length} cuidador{floorCaregivers.length === 1 ? '' : 'es'} {floorCrossCoverage.length > 0 && `· ${floorCrossCoverage.length} cubierto${floorCrossCoverage.length === 1 ? '' : 's'} cross-piso`}
+                                            </span>
+                                            {hasNothing && (
+                                                <span className="ml-auto inline-flex items-center text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-300">
+                                                    🚨 Sin cobertura
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Tiles del piso (cuidadoras propias) */}
+                                        {floorCaregivers.length > 0 && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {floorCaregivers.map((cg: any) => (
+                                                    <SupervisorRondaTile
+                                                        key={cg.caregiverId}
+                                                        cg={cg}
+                                                        onOpenDrill={setDrillCaregiver}
+                                                        onOpenColorPicker={setColorPickerCg}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Cobertura cross-piso — residentes de ESTE piso cubiertos por
+                                            cuidadoras de OTRO piso (break-glass de #6 o assign-color #4
+                                            con flag). El supervisor ve EL ESTIRAMIENTO, no "todo OK". */}
+                                        {floorCrossCoverage.length > 0 && (
+                                            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className="text-xs font-black uppercase tracking-wider text-red-700">
+                                                        🚨 Cobertura cross-piso (break-glass)
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-red-500">
+                                                        stopgap, no resolución
+                                                    </span>
+                                                </div>
+                                                {floorCrossCoverage.map((cf: any) => (
+                                                    <div key={cf.patientId} className="bg-white border border-red-100 rounded-xl px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="font-bold text-slate-800 text-sm">{cf.patientName}</span>
+                                                            <span className="text-xs text-slate-500">Hab. {cf.room ?? '—'}</span>
+                                                            {cf.originalColor && (
+                                                                <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                                                    {cf.originalColor}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-slate-500">Cubierto por</span>
+                                                            <span className="font-bold text-slate-800 text-sm">{cf.coveredBy?.name ?? '—'}</span>
+                                                            <FloorBadge floor={cf.coveredBy?.floor ?? null} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Alarma: ningún tile propio + ninguna cobertura cross-piso.
+                                            El supervisor DEBE actuar: mandar backup o usar break-glass. */}
+                                        {hasNothing && (
+                                            <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5">
+                                                <p className="font-black text-red-800 text-sm mb-1">
+                                                    🚨 {floorLabel(floor)} SIN COBERTURA
+                                                </p>
+                                                <p className="text-red-900 text-xs font-medium leading-relaxed">
+                                                    No hay cuidadora propia activa y no hay cobertura cross-piso desde otro piso.
+                                                    Los residentes de este piso están sin atención registrada.
+                                                    Manda backup o autoriza cobertura cross-piso con flag explícito desde el módulo de Cobertura.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </section>
+                                );
+                            })}
+
+                            {/* Cuidadoras con floor=null (managers dual-rol o data anomaly).
+                                Sección separada al final — su scope es multi-piso, no encaja
+                                en una sección de piso específico. */}
+                            {(() => {
+                                const noFloorCaregivers = caregiverRounds.filter((cg: any) => cg.floor === null || cg.floor === undefined);
+                                if (noFloorCaregivers.length === 0) return null;
+                                return (
+                                    <section className="space-y-3">
+                                        <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-white/95 backdrop-blur-sm border-b border-slate-200 flex items-center gap-2">
+                                            <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide">
+                                                Multi-piso / Sin asignar
+                                            </h3>
+                                            <span className="text-xs font-bold text-slate-400">
+                                                {noFloorCaregivers.length} cuidador{noFloorCaregivers.length === 1 ? '' : 'es'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                            {noFloorCaregivers.map((cg: any) => (
+                                                <SupervisorRondaTile
+                                                    key={cg.caregiverId}
+                                                    cg={cg}
+                                                    onOpenDrill={setDrillCaregiver}
+                                                    onOpenColorPicker={setColorPickerCg}
+                                                />
+                                            ))}
+                                        </div>
+                                    </section>
+                                );
+                            })()}
                         </div>
                     )}
                 </div>

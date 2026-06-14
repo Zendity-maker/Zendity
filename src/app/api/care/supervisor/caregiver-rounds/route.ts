@@ -91,8 +91,46 @@ export async function GET(req: Request) {
             orderBy: { startTime: 'asc' }
         });
 
+        // Multi-floor (jun-2026): pisos del HQ con residentes ACTIVE.
+        // SIEMPRE expuesto en el response — el wall renderiza una sección por
+        // piso con residentes, INCLUSO si ese piso no tiene cuidadoras propias
+        // activas (caso break-glass: Mari1 ausente, piso 1 sin tile pero con
+        // residentes cubiertos cross-piso por Yari2). Sin esto, el piso
+        // descubierto quedaría INVISIBLE en el wall — exactamente lo que este
+        // sprint protege. Si una cuidadora con secondaryRole CAREGIVER cubre
+        // sin sesión, igual el piso entra acá porque depende de RESIDENTES.
+        const distinctFloorRows = await prisma.patient.findMany({
+            where: { headquartersId: hqId, status: 'ACTIVE', floor: { not: null } },
+            select: { floor: true },
+            distinct: ['floor'],
+            orderBy: { floor: 'asc' },
+        });
+        const activeFloors = distinctFloorRows
+            .map(r => r.floor)
+            .filter((f): f is number => f !== null);
+
+        // Multi-floor (jun-2026): sentinel. Residente ACTIVE con floor=null NO
+        // entra a ninguna sección del wall (las secciones se derivan de
+        // distinctFloorRows filtrado por floor:{not:null}). Si existen, el
+        // supervisor DEBE saber para escalar al director — caso contrario el
+        // residente "desaparece" silenciosamente de la vista operativa, que
+        // es exactamente la falla que este sprint combate. El dashboard
+        // corporativo (pieza #4) lo caza también, pero como respaldo.
+        const unassignedFloorPatientsCount = await prisma.patient.count({
+            where: { headquartersId: hqId, status: 'ACTIVE', floor: null },
+        });
+
         if (activeSessions.length === 0) {
-            return NextResponse.json({ success: true, caregivers: [], crossFloorCoverage: [] });
+            // Aún sin sesiones activas, devolvemos activeFloors — el wall
+            // necesita pintar las secciones de piso con su estado "sin
+            // cuidadora propia" prominente. NO retornar vacío silencioso.
+            return NextResponse.json({
+                success: true,
+                caregivers: [],
+                crossFloorCoverage: [],
+                activeFloors,
+                unassignedFloorPatientsCount,
+            });
         }
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
@@ -488,6 +526,14 @@ export async function GET(req: Request) {
             isNightShift,
             caregivers: caregiverResults,
             crossFloorCoverage,
+            // Multi-floor (jun-2026): la lista de pisos del HQ con residentes
+            // activos. SIEMPRE en el response. El wall renderiza una sección
+            // por cada piso, esté cubierto o no — protege contra el caso
+            // "piso descubierto se vuelve invisible".
+            activeFloors,
+            // Sentinel residentes ACTIVE sin piso — el wall lo muestra como
+            // alarma chica para que el supervisor avise al director.
+            unassignedFloorPatientsCount,
         });
 
     } catch (err: any) {

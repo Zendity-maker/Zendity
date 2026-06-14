@@ -5,6 +5,7 @@ import { CheckCheck, Clock, Timer, Activity } from "lucide-react";
 import { RondaCard } from "@/components/ui/RondaCard";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { FloorBadge } from "@/components/ui/FloorBadge";
 import type { GrupoColor } from "@/components/ui/GrupoBadge";
 
 /**
@@ -66,6 +67,9 @@ export interface RondaTileData {
     pendingResidents?: { name: string; room: string | number | null }[] | null;
     noColorGroup?: boolean;
     emptyGroup?: boolean;
+    /** Multi-floor (jun-2026): piso habitual de la cuidadora. null = manager
+     *  dual-rol o data anomaly. El tile muestra FloorBadge en el header. */
+    floor?: number | null;
 }
 
 export interface SupervisorRondaTileProps {
@@ -183,6 +187,20 @@ export function SupervisorRondaTile({ cg, onOpenDrill, onOpenColorPicker }: Supe
             isLate={isLate}
             onClick={() => onOpenDrill(cg)}
         >
+            {/* Multi-floor (jun-2026): badge piso de la cuidadora. El wall
+                ya agrupa por sección, pero el badge en el tile da contexto
+                inmediato en drill-down + cuando el tile aparece bajo
+                "Multi-piso / Sin asignar". CAREGIVER+null → variante alarma. */}
+            {(cg.floor !== null && cg.floor !== undefined) ? (
+                <div className="mb-2">
+                    <FloorBadge floor={cg.floor} />
+                </div>
+            ) : (
+                <div className="mb-2">
+                    <FloorBadge floor={null} variant="alarm" />
+                </div>
+            )}
+
             {emptyMessage ? (
                 <p className="text-xs text-slate-500 italic">{emptyMessage}</p>
             ) : (
