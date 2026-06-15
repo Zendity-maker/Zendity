@@ -229,7 +229,7 @@ export default function SupervisorMissionControlPage() {
     const [unassignedFloorPatientsCount, setUnassignedFloorPatientsCount] = useState<number>(0);
 
     // Grupos sin cobertura
-    const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiverName: string }[]>([]);
+    const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiver: string; assignedCaregiverName: string }[]>([]);
     const [uncoveredShiftType, setUncoveredShiftType] = useState<string>('');
     const [redistributingColor, setRedistributingColor] = useState<string | null>(null);
 
@@ -957,7 +957,11 @@ export default function SupervisorMissionControlPage() {
                                         <div className={`w-3 h-3 rounded-full ${colorDotClass[u.color] || 'bg-slate-400'}`} />
                                         <div>
                                             <p className="text-sm font-black text-slate-800">Grupo {colorLabel[u.color] || u.color}</p>
-                                            <p className="text-[11px] text-slate-500 font-medium">{u.assignedCaregiverName} no está en piso</p>
+                                            <p className="text-[11px] text-slate-500 font-medium">
+                                                {u.assignedCaregiver
+                                                    ? `${u.assignedCaregiverName} no está en piso`
+                                                    : 'Sin cuidadora pautada hoy'}
+                                            </p>
                                         </div>
                                         {/* Auto: round-robin entre TODAS las activas */}
                                         <button
