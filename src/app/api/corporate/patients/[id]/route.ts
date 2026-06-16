@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
+import { assertPatientInTenant } from '@/lib/patient-tenant';
 
 /**
  * HIPAA — Expediente del residente. GET/PUT estaban SIN auth (cualquiera
@@ -97,12 +98,9 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
             needsDialysis,
         } = body;
 
-        const patient = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
-        if (!patient) return NextResponse.json({ success: false, error: "No encontrado" }, { status: 404 });
-        // Tenant check HIPAA — no permitir modificar el expediente de otra sede
-        if (patient.headquartersId !== invokerHqId) {
-            return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
-        }
+        const patientRaw = await prisma.patient.findUnique({ where: { id }, include: { intakeData: true } });
+        const patient = assertPatientInTenant(patientRaw, invokerHqId);
+        if (patient instanceof NextResponse) return patient;
 
         const updateData: any = {};
 
@@ -198,11 +196,9 @@ async function patchPatientHandler(req: Request, { params }: { params: Promise<{
 
         const { id } = await params;
 
-        // Tenant check HIPAA — no permitir cambiar colorGroup de un residente de otra sede
-        const owner = await prisma.patient.findUnique({ where: { id }, select: { headquartersId: true } });
-        if (!owner || owner.headquartersId !== (session.user as any).headquartersId) {
-            return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
-        }
+        const ownerRaw = await prisma.patient.findUnique({ where: { id }, select: { headquartersId: true } });
+        const owner = assertPatientInTenant(ownerRaw, (session.user as any).headquartersId);
+        if (owner instanceof NextResponse) return owner;
 
         const { colorGroup } = await req.json();
 

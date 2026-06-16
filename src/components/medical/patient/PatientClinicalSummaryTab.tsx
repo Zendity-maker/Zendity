@@ -1,10 +1,59 @@
 import { useState } from "react";
 import { PlusIcon, PhotoIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import EmergencyPdfButton from "./EmergencyPdfButton";
+import { useAuth } from "@/context/AuthContext";
+
+/**
+ * Roles autorizados para togglear el protocolo de rotación postural.
+ * MIRROR del role gate del endpoint PATCH /api/corporate/patients/[id]/rotation-protocol.
+ * CAREGIVER, FAMILY, SOCIAL_WORKER, etc. no ven el botón aunque alcancen este tab.
+ */
+const PROTOCOL_TOGGLE_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { patientData: any, onRefresh: () => void }) {
     const intake = patientData?.intakeData;
     const meds = patientData?.medications?.filter((m: any) => m.isActive) || [];
+    const { user } = useAuth();
+    const canToggleProtocol = !!user?.role && PROTOCOL_TOGGLE_ROLES.includes(user.role);
+
+    const requiresPostural = !!patientData?.requiresPosturalChanges;
+    const [protocolModalOpen, setProtocolModalOpen] = useState(false);
+    const [protocolSubmitting, setProtocolSubmitting] = useState(false);
+    const [protocolConfirmCheck, setProtocolConfirmCheck] = useState(false);
+    const [protocolError, setProtocolError] = useState<string | null>(null);
+
+    const openProtocolModal = () => {
+        setProtocolConfirmCheck(false);
+        setProtocolError(null);
+        setProtocolModalOpen(true);
+    };
+
+    const submitProtocolToggle = async () => {
+        if (!protocolConfirmCheck || protocolSubmitting) return;
+        setProtocolSubmitting(true);
+        setProtocolError(null);
+        try {
+            const res = await fetch(`/api/corporate/patients/${patientData.id}/rotation-protocol`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    requiresPosturalChanges: !requiresPostural,
+                    confirmed: true,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setProtocolError(data.error || 'Error procesando cambio');
+                return;
+            }
+            setProtocolModalOpen(false);
+            onRefresh();
+        } catch (e: any) {
+            setProtocolError(e.message || 'Error de red');
+        } finally {
+            setProtocolSubmitting(false);
+        }
+    };
 
     const [isUploading, setIsUploading] = useState(false);
 
@@ -113,6 +162,46 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                             <p className="text-amber-700/60 font-medium italic">Sin registro de alergias documentadas.</p>
                         )}
                     </div>
+
+                    {/* Sub-sección "Protocolo de Rotación Postural" — toggle de
+                        Patient.requiresPosturalChanges. Sienta el patrón para
+                        flags clínicos editables (futuros: NPO, restrictions). */}
+                    <div className={`rounded-3xl p-6 border shadow-sm ${requiresPostural ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <h3 className={`font-bold mb-3 text-sm uppercase tracking-wider flex items-center gap-2 ${requiresPostural ? 'text-orange-800' : 'text-slate-700'}`}>
+                            Protocolo de Rotación Postural
+                        </h3>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex-1">
+                                {requiresPostural ? (
+                                    <>
+                                        <p className="text-orange-900 font-bold">Activo (encamado)</p>
+                                        <p className="text-orange-700/80 text-xs font-medium mt-1 leading-relaxed">
+                                            Grid de rotación habilitado en el tablet. El residente aparece en el dashboard del enfermero y dispara alertas cada 2 h si no se registra rotación.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-slate-700 font-bold">Sin protocolo activo</p>
+                                        <p className="text-slate-500 text-xs font-medium mt-1 leading-relaxed">
+                                            Vigilancia preventiva estándar. Active solo si el residente está encamado o necesita rotaciones programadas.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                            {canToggleProtocol && (
+                                <button
+                                    onClick={openProtocolModal}
+                                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl shadow-sm active:scale-95 transition-all shrink-0 ${
+                                        requiresPostural
+                                            ? 'bg-white text-orange-700 border border-orange-300 hover:bg-orange-100'
+                                            : 'bg-orange-600 text-white hover:bg-orange-700'
+                                    }`}
+                                >
+                                    {requiresPostural ? 'Suspender' : 'Activar'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Column: Diagnoses & Meds */}
@@ -201,6 +290,99 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                     </div>
                 </div>
             </div>
+
+            {/* Modal confirmación toggle de protocolo. Lenguaje clínico, NO
+                de dev. Copy preciso por dirección — al desactivar NO promete
+                que el residente desaparece del dashboard (puede seguir
+                enrolado por norton o úlcera activa). */}
+            {protocolModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className={`px-6 py-5 border-b ${requiresPostural ? 'bg-amber-50 border-amber-200' : 'bg-orange-50 border-orange-200'}`}>
+                            <h2 className={`text-xl font-black ${requiresPostural ? 'text-amber-900' : 'text-orange-900'}`}>
+                                {requiresPostural
+                                    ? 'Suspender protocolo de rotación postural'
+                                    : 'Activar protocolo de rotación postural'}
+                            </h2>
+                            <p className={`text-sm font-semibold mt-1 ${requiresPostural ? 'text-amber-800' : 'text-orange-800'}`}>
+                                Residente: <span className="font-black">{patientData?.name}</span>
+                            </p>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            {!requiresPostural ? (
+                                <>
+                                    <p className="text-slate-700 font-medium text-sm">
+                                        Vas a marcar a este residente como encamado. Esto cambia el protocolo de cuidado:
+                                    </p>
+                                    <ul className="space-y-2 text-sm text-slate-700">
+                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Aparece el grid de rotación postural (Izquierda / Supino / Derecha) en el tablet de cada cuidadora cuando atienda a este residente.</span></li>
+                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Entra al dashboard del enfermero (<span className="font-bold">Rotación / UPP</span>) con su tier de cumplimiento.</span></li>
+                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Si pasan más de 2 horas sin rotación registrada, el sistema envía alerta a cuidadora, enfermero y supervisor.</span></li>
+                                    </ul>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-slate-700 font-medium text-sm">
+                                        Vas a desmarcar a este residente. Esto <span className="font-black">suspende el protocolo</span>:
+                                    </p>
+                                    <ul className="space-y-2 text-sm text-slate-700">
+                                        <li className="flex gap-2"><span className="text-amber-600 font-black">•</span><span>Las cuidadoras pierden el grid rápido de rotación postural en el tablet.</span></li>
+                                        <li className="flex gap-2"><span className="text-amber-600 font-black">•</span><span>El sistema deja de enviar alertas de rotación vencida específicamente por esta marca.</span></li>
+                                    </ul>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 font-medium leading-relaxed">
+                                        <span className="font-black text-slate-700">Nota:</span> si este residente está marcado con riesgo Norton positivo o tiene una úlcera activa, sigue apareciendo en el dashboard del enfermero y siendo monitoreado por el cron <span className="font-bold">por esas señales</span> — la suspensión solo retira la marca de encamado.
+                                    </div>
+                                </>
+                            )}
+
+                            <label className="flex items-start gap-3 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 cursor-pointer hover:border-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={protocolConfirmCheck}
+                                    onChange={(e) => setProtocolConfirmCheck(e.target.checked)}
+                                    disabled={protocolSubmitting}
+                                    className="mt-0.5 w-4 h-4 cursor-pointer"
+                                />
+                                <span className="text-sm font-bold text-slate-800 leading-snug">
+                                    Entiendo el cambio de protocolo y autorizo {requiresPostural ? 'suspenderlo' : 'activarlo'}.
+                                </span>
+                            </label>
+
+                            {protocolError && (
+                                <div className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700">
+                                    {protocolError}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                            <button
+                                onClick={() => setProtocolModalOpen(false)}
+                                disabled={protocolSubmitting}
+                                className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800 disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={submitProtocolToggle}
+                                disabled={!protocolConfirmCheck || protocolSubmitting}
+                                className={`px-5 py-2 text-sm font-black uppercase tracking-wider rounded-xl shadow-sm active:scale-95 transition-all ${
+                                    !protocolConfirmCheck || protocolSubmitting
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                        : requiresPostural
+                                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                            : 'bg-orange-600 hover:bg-orange-700 text-white'
+                                }`}
+                            >
+                                {protocolSubmitting
+                                    ? 'Procesando...'
+                                    : requiresPostural ? 'Suspender protocolo' : 'Activar protocolo'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

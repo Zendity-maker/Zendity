@@ -2311,6 +2311,11 @@ enum SystemAuditAction {
   INCIDENT_REPORTED
   INCIDENT_REVIEWED
   INCIDENT_CLOSED
+  // Cambios de protocolo de cuidado del residente (encamado, NPO, etc.)
+  // Sprint nursing-upp-dashboard — toggle de Patient.requiresPosturalChanges
+  // dispara entry específico para audit en /corporate (no enterrado en un
+  // PATIENT_UPDATED genérico).
+  PATIENT_PROTOCOL_CHANGED
 }
 
 // =======================

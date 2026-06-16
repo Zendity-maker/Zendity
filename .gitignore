@@ -50,3 +50,4 @@ scripts/*
 !scripts/db-push-guard.sh.broken-bak
 !scripts/dr-restore.sh
 !scripts/smoke-nursing-rotation.ts
+!scripts/smoke-rotation-protocol.ts
