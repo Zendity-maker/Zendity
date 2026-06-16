@@ -165,17 +165,20 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
 
                     {/* Sub-sección "Protocolo de Rotación Postural" — toggle de
                         Patient.requiresPosturalChanges. Sienta el patrón para
-                        flags clínicos editables (futuros: NPO, restrictions). */}
-                    <div className={`rounded-3xl p-6 border shadow-sm ${requiresPostural ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <h3 className={`font-bold mb-3 text-sm uppercase tracking-wider flex items-center gap-2 ${requiresPostural ? 'text-orange-800' : 'text-slate-700'}`}>
+                        flags clínicos editables (futuros: NPO, restrictions).
+                        Color: teal cuando activo (acción afirmativa del sistema
+                        Zéndity), slate cuando inactivo. Botón Suspender en
+                        ámbar (cambio reversible con consecuencia operativa). */}
+                    <div className={`rounded-3xl p-6 border shadow-sm ${requiresPostural ? 'bg-teal-50 border-teal-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <h3 className={`font-bold mb-3 text-sm uppercase tracking-wider flex items-center gap-2 ${requiresPostural ? 'text-teal-800' : 'text-slate-700'}`}>
                             Protocolo de Rotación Postural
                         </h3>
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex-1">
                                 {requiresPostural ? (
                                     <>
-                                        <p className="text-orange-900 font-bold">Activo (encamado)</p>
-                                        <p className="text-orange-700/80 text-xs font-medium mt-1 leading-relaxed">
+                                        <p className="text-teal-900 font-bold">Activo (encamado)</p>
+                                        <p className="text-teal-700/80 text-xs font-medium mt-1 leading-relaxed">
                                             Grid de rotación habilitado en el tablet. El residente aparece en el dashboard del enfermero y dispara alertas cada 2 h si no se registra rotación.
                                         </p>
                                     </>
@@ -193,8 +196,8 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                                     onClick={openProtocolModal}
                                     className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl shadow-sm active:scale-95 transition-all shrink-0 ${
                                         requiresPostural
-                                            ? 'bg-white text-orange-700 border border-orange-300 hover:bg-orange-100'
-                                            : 'bg-orange-600 text-white hover:bg-orange-700'
+                                            ? 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-50'
+                                            : 'bg-teal-600 text-white hover:bg-teal-700'
                                     }`}
                                 >
                                     {requiresPostural ? 'Suspender' : 'Activar'}
@@ -298,13 +301,13 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
             {protocolModalOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className={`px-6 py-5 border-b ${requiresPostural ? 'bg-amber-50 border-amber-200' : 'bg-orange-50 border-orange-200'}`}>
-                            <h2 className={`text-xl font-black ${requiresPostural ? 'text-amber-900' : 'text-orange-900'}`}>
+                        <div className={`px-6 py-5 border-b ${requiresPostural ? 'bg-amber-50 border-amber-200' : 'bg-teal-50 border-teal-200'}`}>
+                            <h2 className={`text-xl font-black ${requiresPostural ? 'text-amber-900' : 'text-teal-900'}`}>
                                 {requiresPostural
                                     ? 'Suspender protocolo de rotación postural'
                                     : 'Activar protocolo de rotación postural'}
                             </h2>
-                            <p className={`text-sm font-semibold mt-1 ${requiresPostural ? 'text-amber-800' : 'text-orange-800'}`}>
+                            <p className={`text-sm font-semibold mt-1 ${requiresPostural ? 'text-amber-800' : 'text-teal-800'}`}>
                                 Residente: <span className="font-black">{patientData?.name}</span>
                             </p>
                         </div>
@@ -316,9 +319,9 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                                         Vas a marcar a este residente como encamado. Esto cambia el protocolo de cuidado:
                                     </p>
                                     <ul className="space-y-2 text-sm text-slate-700">
-                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Aparece el grid de rotación postural (Izquierda / Supino / Derecha) en el tablet de cada cuidadora cuando atienda a este residente.</span></li>
-                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Entra al dashboard del enfermero (<span className="font-bold">Rotación / UPP</span>) con su tier de cumplimiento.</span></li>
-                                        <li className="flex gap-2"><span className="text-orange-600 font-black">•</span><span>Si pasan más de 2 horas sin rotación registrada, el sistema envía alerta a cuidadora, enfermero y supervisor.</span></li>
+                                        <li className="flex gap-2"><span className="text-teal-600 font-black">•</span><span>Aparece el grid de rotación postural (Izquierda / Supino / Derecha) en el tablet de cada cuidadora cuando atienda a este residente.</span></li>
+                                        <li className="flex gap-2"><span className="text-teal-600 font-black">•</span><span>Entra al dashboard del enfermero (<span className="font-bold">Rotación / UPP</span>) con su tier de cumplimiento.</span></li>
+                                        <li className="flex gap-2"><span className="text-teal-600 font-black">•</span><span>Si pasan más de 2 horas sin rotación registrada, el sistema envía alerta a cuidadora, enfermero y supervisor.</span></li>
                                     </ul>
                                 </>
                             ) : (
@@ -372,7 +375,7 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                         : requiresPostural
                                             ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                                            : 'bg-orange-600 hover:bg-orange-700 text-white'
+                                            : 'bg-teal-600 hover:bg-teal-700 text-white'
                                 }`}
                             >
                                 {protocolSubmitting

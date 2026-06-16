@@ -15,7 +15,7 @@
  *   6. NURSE same-HQ + confirmed:true + toggle FALSE→TRUE (PAT_A) → 200
  *      DB row updated; audit row creado con action PATIENT_PROTOCOL_CHANGED
  *      + before/after correctos
- *   7. Re-toggle TRUE→TRUE (noop) → 409
+ *   7. Re-toggle TRUE→TRUE (noop) → 200 + changed:false + audit count NO incrementa
  *   8. Toggle TRUE→FALSE (PAT_A return to baseline) → 200 + audit row #2
  *   9. Dashboard /api/care/nursing/rotation refleja el toggle:
  *      - Después de TRUE: PAT_A.enrolledBy.flag === true
@@ -228,15 +228,28 @@ function record(name: string, pass: boolean, detail?: string) {
         record('6g. audit.entityName=Patient, entityId=PAT_A', audit?.entityName === 'Patient' && audit?.entityId === PAT_A);
     }
 
-    // 7) Noop (TRUE→TRUE) → 409
+    // 7) Noop (TRUE→TRUE) → 200 + changed:false + audit count NO incrementa
     {
+        // Snapshot audit count antes del noop
+        const auditBefore = await p.systemAuditLog.count({
+            where: { entityName: 'Patient', entityId: PAT_A, action: 'PATIENT_PROTOCOL_CHANGED' },
+        });
+
         const r = await fetch(`${BASE_URL}/api/corporate/patients/${PAT_A}/rotation-protocol`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Cookie': nurseLogin.cookies },
             body: JSON.stringify({ requiresPosturalChanges: true, confirmed: true }),
         });
         const json = await r.json().catch(() => ({}));
-        record('7. Noop TRUE→TRUE → 409', r.status === 409 && json.noop === true, `HTTP ${r.status}`);
+        record('7a. Noop TRUE→TRUE → 200', r.status === 200, `HTTP ${r.status}`);
+        record('7b. response.changed === false', json.changed === false, `changed=${json.changed}`);
+        record('7c. success === true', json.success === true);
+
+        // Verifica que audit NO incrementó
+        const auditAfter = await p.systemAuditLog.count({
+            where: { entityName: 'Patient', entityId: PAT_A, action: 'PATIENT_PROTOCOL_CHANGED' },
+        });
+        record('7d. Audit count NO incrementa en noop', auditAfter === auditBefore, `before=${auditBefore} after=${auditAfter}`);
     }
 
     // 8) Toggle TRUE→FALSE → 200 + audit row #2

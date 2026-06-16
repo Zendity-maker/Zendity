@@ -42,7 +42,10 @@ import { SystemAuditAction } from '@prisma/client';
  *         no es boolean
  *   403 — rol no autorizado / paciente fuera de la sede del invocador
  *   404 — paciente no existe
- *   409 — noop (ya estaba en ese valor — no creamos audit row sin cambio)
+ *
+ * Idempotencia: si `requiresPosturalChanges` ya es el valor solicitado,
+ * el endpoint retorna 200 con `{ success: true, changed: false }` y NO
+ * crea audit row (la doble-prensa del botón no debe contaminar el log).
  */
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
@@ -84,12 +87,16 @@ async function patchHandler(req: Request, { params }: { params: Promise<{ id: st
         const patient = assertPatientInTenant(patientRaw, invokerHqId);
         if (patient instanceof NextResponse) return patient;
 
-        // Noop: ya estaba en ese valor. Cortocircuito sin audit row.
+        // Idempotencia: mismo valor → 200 + changed:false, SIN audit row.
+        // Una doble-prensa del botón (click rápido del usuario, retry del
+        // cliente) no debe inflar el audit log. Solo cambios reales se
+        // auditan.
         if (patient.requiresPosturalChanges === requiresPosturalChanges) {
-            return NextResponse.json(
-                { success: false, error: `El residente ya tiene requiresPosturalChanges=${requiresPosturalChanges}`, noop: true },
-                { status: 409 },
-            );
+            return NextResponse.json({
+                success: true,
+                changed: false,
+                patient: { id: patient.id, requiresPosturalChanges },
+            });
         }
 
         // Tx: update + audit atómicos
@@ -122,6 +129,7 @@ async function patchHandler(req: Request, { params }: { params: Promise<{ id: st
 
         return NextResponse.json({
             success: true,
+            changed: true,
             patient: result.updated,
             audit: result.audit,
         });
