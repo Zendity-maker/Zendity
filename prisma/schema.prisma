@@ -625,6 +625,22 @@ model Patient {
   avdScore         Int? // Puntuación de Actividades Vida Diaria
   downtonRisk      Boolean    @default(false) // Escala de Caídas
   nortonRisk       Boolean    @default(false) // Escala de Úlceras
+
+  // Sprint nursing-upp-dashboard (jun-2026) — flag explícito de enrollment al
+  // protocolo de rotación postural. Resuelve la referencia dormante en
+  // /care/page.tsx ("Protocolo UPP (Fase Dual)"): default=false mantiene a
+  // todos en "Vigilancia Dermatológica" (sin cambio); marcar true activa el
+  // grid de rotación de 3 botones (IZQUIERDA/SUPINO/DERECHA) que escribe a
+  // /api/care/postural (path canónico con timing + scoring).
+  //
+  // Enrollment al dashboard de enfermería /api/care/nursing/rotation es UNIÓN:
+  // requiresPosturalChanges OR nortonRisk OR active PressureUlcer. Cualquier
+  // señal entra; el flag explícito es la fuente PRIMARIA cuando el clínico
+  // decide encamamiento (todo el grupo rojo de Cupey, por ej.).
+  //
+  // Aditivo (Bool default false) — backward compatible 100%. Setearlo en
+  // pacientes reales es data op del deploy (similar al backfill de floor).
+  requiresPosturalChanges Boolean @default(false)
   colorGroup       ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
   conciergeBalance Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
 
