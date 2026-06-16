@@ -9,6 +9,13 @@ import {
     resolveCaregiverColors,
     ACTIVE_PRESENCE_MAX_HOURS,
 } from '@/lib/shift-coverage';
+import {
+    parseColorFloorMap,
+    floorsForCaregiver,
+    hasUnmappedFloor,
+    floorOfPatient,
+    hasFloorsConfigured,
+} from '@/lib/floor-map';
 import { logError } from '@/lib/logger';
 
 const SUPERVISOR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -87,8 +94,25 @@ export async function GET(req: Request) {
             orderBy: { startTime: 'asc' }
         });
 
+        // Sprint floor-map — cargar mapa color→piso del HQ una sola vez.
+        // Multi-tenant strict: SOLO el map de ESTE hqId; el de Cupey nunca
+        // toca a Mayagüez. Parser defensivo: map null/vacío/malformado =>
+        // comportamiento legacy (un solo piso, sin secciones).
+        const hqRow = await prisma.headquarters.findUnique({
+            where: { id: hqId },
+            select: { colorFloorMap: true },
+        });
+        const colorFloorMap = parseColorFloorMap(hqRow?.colorFloorMap);
+        const floorsConfigured = hasFloorsConfigured(colorFloorMap);
+
         if (activeSessions.length === 0) {
-            return NextResponse.json({ success: true, caregivers: [] });
+            return NextResponse.json({
+                success: true,
+                caregivers: [],
+                floorsConfigured,
+                activeFloors: [],
+                unassignedFloorPatientsCount: 0,
+            });
         }
 
         const caregiverIds = activeSessions.map(s => s.caregiverId);
@@ -318,11 +342,21 @@ export async function GET(req: Request) {
                 releasedAt: bs.releasedAt,
             } : null;
 
+            // Sprint floor-map — pisos derivados de los colores del turno.
+            // Una cuidadora puede tener 1+ pisos si su pauta mezcla colores
+            // mapeados a distintos pisos (raro pero válido).
+            // `hasUnmappedFloor` señala color sin mapear → la UI lo agrupa
+            // bajo el sentinel ámbar.
+            const floors = floorsForCaregiver(colorGroups, colorFloorMap);
+            const cgHasUnmappedFloor = hasUnmappedFloor(colorGroups, colorFloorMap);
+
             if (colorGroups.length === 0) {
                 return {
                     caregiverId, name,
                     colorGroup: null,
                     colorGroups: [] as string[],
+                    floors: [] as string[],
+                    hasUnmappedFloor: false,
                     noColorGroup: true,
                     roundsCompleted: 0, residentsInGroup: 0,
                     attendedThisRound: 0, remainingThisRound: 0,
@@ -346,6 +380,8 @@ export async function GET(req: Request) {
                     caregiverId, name,
                     colorGroup,
                     colorGroups,
+                    floors,
+                    hasUnmappedFloor: cgHasUnmappedFloor,
                     emptyGroup: true,
                     roundsCompleted: 0, residentsInGroup: 0,
                     attendedThisRound: 0, remainingThisRound: 0,
@@ -383,6 +419,8 @@ export async function GET(req: Request) {
             return {
                 ...computeRoundStats({ caregiverId, name, colorGroup: colorGroup!, groupSize, groupPatients, groupIds, allTouches, isNightShift, shiftStart, now }),
                 colorGroups,        // NUEVO (D1): la unión completa
+                floors,             // floor-map: pisos derivados del HQ map
+                hasUnmappedFloor: cgHasUnmappedFloor,
                 coverageCount,
                 coverageByColor,
                 coverageResidents,
@@ -390,7 +428,26 @@ export async function GET(req: Request) {
             };
         });
 
-        return NextResponse.json({ success: true, isNightShift, caregivers: caregiverResults });
+        // floor-map: pisos con cuidadoras activas hoy (unión global) +
+        // residentes activos cuyo colorGroup NO mapea a un piso (UNASSIGNED
+        // o color sin entrada en el map). Estos caen al sentinel ámbar.
+        const activeFloorsSet = new Set<string>();
+        for (const cg of caregiverResults) {
+            for (const f of cg.floors || []) activeFloorsSet.add(f);
+        }
+        const activeFloors = Array.from(activeFloorsSet).sort();
+        const unassignedFloorPatientsCount = floorsConfigured
+            ? allGroupPatients.filter(p => floorOfPatient(p, colorFloorMap) === null).length
+            : 0;
+
+        return NextResponse.json({
+            success: true,
+            isNightShift,
+            caregivers: caregiverResults,
+            floorsConfigured,
+            activeFloors,
+            unassignedFloorPatientsCount,
+        });
 
     } catch (err: any) {
         logError('care.supervisor.caregiver_rounds.get', err);

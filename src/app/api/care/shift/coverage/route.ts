@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { inferShiftTypeFromAST, computeShiftCoverage, type ShiftT } from '@/lib/shift-coverage';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -70,13 +71,27 @@ export async function GET(req: Request) {
                 ? shiftTypeParam
                 : inferShiftTypeFromAST();
 
-        const coverage = await withTimeout(
-            computeShiftCoverage({ hqId, shiftType }),
-            TIMEOUT_MS,
-            'computeShiftCoverage'
-        );
+        // Sprint floor-map — pasamos el colorFloorMap del HQ junto con la
+        // cobertura para que el CoveragePickerModal pueda agrupar opciones
+        // por piso derivado del color. SELECT mínimo (1 row, indexed PK).
+        // Multi-tenant strict: SOLO el map de ESTE hqId.
+        const [coverage, hqRow] = await Promise.all([
+            withTimeout(
+                computeShiftCoverage({ hqId, shiftType }),
+                TIMEOUT_MS,
+                'computeShiftCoverage'
+            ),
+            prisma.headquarters.findUnique({
+                where: { id: hqId },
+                select: { colorFloorMap: true },
+            }),
+        ]);
 
-        return NextResponse.json({ success: true, ...coverage });
+        return NextResponse.json({
+            success: true,
+            ...coverage,
+            colorFloorMap: hqRow?.colorFloorMap ?? null,
+        });
 
     } catch (error: any) {
         console.error('[shift/coverage] error:', error);

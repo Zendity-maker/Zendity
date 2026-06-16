@@ -80,7 +80,11 @@ export async function GET(req: Request) {
             return {
                 color,
                 assignedCaregiver: ref?.id || '',
-                assignedCaregiverName: ref?.name || 'Sin pauta no-absent',
+                // Cuando NO hay pauta activa hoy para este color (ref undefined),
+                // el frontend condiciona en assignedCaregiver==='' para evitar
+                // el sufijo "no está en piso". Este fallback queda como defensa
+                // en profundidad por si algún consumidor no condiciona.
+                assignedCaregiverName: ref?.name || 'Sin cuidadora pautada',
             };
         });
 

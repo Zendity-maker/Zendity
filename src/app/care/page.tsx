@@ -2075,6 +2075,7 @@ export default function ZendityCareTabletPage() {
                 <CoveragePickerModal
                     isOpen={coveragePickerOpen}
                     options={pickerOptions}
+                    colorFloorMap={coverage?.colorFloorMap ?? null}
                     submitting={coverageSubmitting}
                     onClose={() => setCoveragePickerOpen(false)}
                     onSelect={handleCoveragePickerSelect}
@@ -4577,6 +4578,7 @@ export default function ZendityCareTabletPage() {
                     <CoveragePickerModal
                         isOpen={coveragePickerOpen}
                         options={options}
+                        colorFloorMap={coverage?.colorFloorMap ?? null}
                         submitting={coverageSubmitting}
                         onClose={() => setCoveragePickerOpen(false)}
                         onSelect={handleCoveragePickerSelect}

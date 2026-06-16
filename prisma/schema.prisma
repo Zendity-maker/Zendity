@@ -75,6 +75,13 @@ model Headquarters {
   licenseNumber String?
   address       String?
 
+  // Sprint floor-map — mapa color→piso configurable por sede. JSON con shape
+  // { "RED": "Piso 1", "YELLOW": "Piso 1", "GREEN": "Piso 2", "BLUE": "Piso 3" }.
+  // El PISO se DERIVA del color de la cuidadora/residente; no hay campo de piso
+  // manual por entidad. Sedes sin pisos físicos dejan el map null/vacío y todo
+  // colapsa a un piso virtual único. Editable desde admin UI corporativo.
+  colorFloorMap Json?
+
   // White-label theming — paleta de marca por sede para la superficie familiar.
   // Si null, el portal familiar usa la paleta default Zéndity (teal).
   // Vivid usa navy/lima; otros tenants futuros configuran su propia paleta.

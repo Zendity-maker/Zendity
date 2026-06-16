@@ -53,3 +53,5 @@ scripts/*
 !scripts/smoke-rotation-protocol.ts
 !scripts/smoke-supervisor-hq-isolation.ts
 !scripts/smoke-schedule-overwrite.ts
+!scripts/smoke-floor-map-unit.ts
+!scripts/smoke-floor-map-e2e.ts

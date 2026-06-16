@@ -216,9 +216,16 @@ export default function SupervisorMissionControlPage() {
     const [roundsNightShift, setRoundsNightShift] = useState(false);
     const [roundsLoading, setRoundsLoading] = useState(false);
     const [roundsLastUpdated, setRoundsLastUpdated] = useState<Date | null>(null);
+    // Sprint floor-map — pisos derivados del HQ.colorFloorMap (vía
+    // /caregiver-rounds). Si floorsConfigured=false, la sede no tiene pisos y
+    // el wall renderiza plano (legacy). unassignedFloorPatientsCount cuenta
+    // residentes ACTIVE con color sin mapear (sentinel ámbar).
+    const [floorsConfigured, setFloorsConfigured] = useState(false);
+    const [activeFloors, setActiveFloors] = useState<string[]>([]);
+    const [unassignedFloorPatientsCount, setUnassignedFloorPatientsCount] = useState(0);
 
     // Grupos sin cobertura
-    const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiverName: string }[]>([]);
+    const [uncoveredColors, setUncoveredColors] = useState<{ color: string; assignedCaregiver: string; assignedCaregiverName: string }[]>([]);
     const [uncoveredShiftType, setUncoveredShiftType] = useState<string>('');
     const [redistributingColor, setRedistributingColor] = useState<string | null>(null);
 
@@ -316,6 +323,13 @@ export default function SupervisorMissionControlPage() {
                 setCaregiverRounds(data.caregivers || []);
                 setRoundsNightShift(data.isNightShift || false);
                 setRoundsLastUpdated(new Date());
+                setFloorsConfigured(!!data.floorsConfigured);
+                setActiveFloors(Array.isArray(data.activeFloors) ? data.activeFloors : []);
+                setUnassignedFloorPatientsCount(
+                    typeof data.unassignedFloorPatientsCount === 'number'
+                        ? data.unassignedFloorPatientsCount
+                        : 0,
+                );
             }
         } catch (e) { console.error("Caregiver rounds fetch error", e); }
         finally { setRoundsLoading(false); }
@@ -942,7 +956,11 @@ export default function SupervisorMissionControlPage() {
                                         <div className={`w-3 h-3 rounded-full ${colorDotClass[u.color] || 'bg-slate-400'}`} />
                                         <div>
                                             <p className="text-sm font-black text-slate-800">Grupo {colorLabel[u.color] || u.color}</p>
-                                            <p className="text-[11px] text-slate-500 font-medium">{u.assignedCaregiverName} no está en piso</p>
+                                            <p className="text-[11px] text-slate-500 font-medium">
+                                                {u.assignedCaregiver
+                                                    ? `${u.assignedCaregiverName} no está en piso`
+                                                    : 'Sin cuidadora pautada hoy'}
+                                            </p>
                                         </div>
                                         {/* Auto: round-robin entre TODAS las activas */}
                                         <button
@@ -1015,7 +1033,8 @@ export default function SupervisorMissionControlPage() {
                             <p className="font-semibold text-sm">Sin cuidadores con sesión activa</p>
                             <p className="text-xs mt-1">Las tarjetas aparecerán cuando inicien turno</p>
                         </div>
-                    ) : (
+                    ) : !floorsConfigured ? (
+                        /* Legacy: sede sin pisos configurados — render plano. */
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             {caregiverRounds.map((cg) => (
                                 <SupervisorRondaTile
@@ -1025,6 +1044,82 @@ export default function SupervisorMissionControlPage() {
                                     onOpenColorPicker={setColorPickerCg}
                                 />
                             ))}
+                        </div>
+                    ) : (
+                        /* floor-map: secciones por piso derivado + sentinel
+                           ámbar para cuidadoras con colores sin piso mapeado.
+                           Una cuidadora con N pisos aparece en N secciones
+                           (caso raro: pauta mezclada). */
+                        <div className="space-y-6">
+                            {activeFloors.map((floor) => {
+                                const tiles = caregiverRounds.filter(
+                                    (cg) => Array.isArray(cg.floors) && cg.floors.includes(floor)
+                                );
+                                if (tiles.length === 0) return null;
+                                return (
+                                    <div key={floor}>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                                {floor}
+                                            </h4>
+                                            <span className="text-[10px] font-bold text-slate-400">
+                                                {tiles.length} {tiles.length === 1 ? 'cuidadora' : 'cuidadoras'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                            {tiles.map((cg) => (
+                                                <SupervisorRondaTile
+                                                    key={`${floor}-${cg.caregiverId}`}
+                                                    cg={cg}
+                                                    onOpenDrill={setDrillCaregiver}
+                                                    onOpenColorPicker={setColorPickerCg}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Sentinel ámbar: cuidadoras con colores no
+                                mapeados a ningún piso, o pacientes huérfanos
+                                de la sección (UNASSIGNED / color sin entrada).
+                                NO inventamos un piso "Sin asignar" — es un
+                                bucket explícito que invita a corregir el map. */}
+                            {(() => {
+                                const orphanCgs = caregiverRounds.filter(
+                                    (cg) =>
+                                        cg.hasUnmappedFloor ||
+                                        (Array.isArray(cg.floors) && cg.floors.length === 0 && !cg.noColorGroup)
+                                );
+                                if (orphanCgs.length === 0 && unassignedFloorPatientsCount === 0) return null;
+                                return (
+                                    <div className="border border-amber-300 bg-amber-50 rounded-2xl p-4">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-amber-800">
+                                                Sin piso asignado
+                                            </h4>
+                                            <span className="text-[10px] font-bold text-amber-600">
+                                                {unassignedFloorPatientsCount > 0
+                                                    ? `${unassignedFloorPatientsCount} residente${unassignedFloorPatientsCount === 1 ? '' : 's'} huérfano${unassignedFloorPatientsCount === 1 ? '' : 's'}`
+                                                    : 'revisa el mapa color→piso'}
+                                            </span>
+                                        </div>
+                                        {orphanCgs.length > 0 && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {orphanCgs.map((cg) => (
+                                                    <SupervisorRondaTile
+                                                        key={`orphan-${cg.caregiverId}`}
+                                                        cg={cg}
+                                                        onOpenDrill={setDrillCaregiver}
+                                                        onOpenColorPicker={setColorPickerCg}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
                 </div>
