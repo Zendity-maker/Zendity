@@ -17,7 +17,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield, QrCode
+    Shield, QrCode, Bed
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -30,6 +30,11 @@ const clinicalNavigation = [
     { name: 'Zendity Care (Tablets)', href: '/care', icon: Smartphone },
     { name: 'Vitales', href: '/care/vitals', icon: Activity },
     { name: 'Triage & Supervisión', href: '/care/supervisor', icon: ShieldAlert },
+    // Sprint nursing-upp-dashboard — vista agregada de rotación postural/UPP.
+    // Match exacto del role gate del endpoint /api/care/nursing/rotation
+    // (NURSE/SUPERVISOR/DIRECTOR/ADMIN). CAREGIVER no ve el link y URL directa
+    // recibe 403 del endpoint.
+    { name: 'Rotación / UPP', href: '/care/nursing', icon: Bed, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Reportes de Turno', href: '/care/reports', icon: ClipboardList },
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },

@@ -22,16 +22,27 @@ export async function GET(req: Request) {
         const now = new Date();
         const limitTime = new Date(now.getTime() - TWO_HOURS_MS);
 
-        // Pacientes en riesgo: nortonRisk=true O tienen UPP activa.
+        // Pacientes en riesgo: requiresPosturalChanges=true (flag clínico
+        // explícito, p.ej. encamado), nortonRisk=true (escala predictiva),
+        // O tienen UPP activa.
+        //
         // FIX 2026-05-31: filtrar status ACTIVE/TEMPORARY_LEAVE — antes el cron
         // disparaba notificaciones de rotación postural a cuidadores por
         // residentes DISCHARGED/DECEASED con UPPs históricas no marcadas como
         // RESOLVED. Falsa alerta = ruido operativo y erosiona la confianza
         // en las alertas reales.
+        //
+        // FIX 2026-06-16 (sprint nursing-upp-dashboard): añadido
+        // requiresPosturalChanges al OR. Antes los pacientes flag-only
+        // (encamado sin Norton sin úlcera) entraban al dashboard pero NO al
+        // cron — quedaban sin push proactivo cuando se vencía la ventana.
+        // Inconsistencia threshold cron-vs-postural (flat 2h vs 120/135)
+        // sigue como follow-up — este cambio amplía señales, no umbrales.
         const atRiskPatients = await prisma.patient.findMany({
             where: {
                 status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
                 OR: [
+                    { requiresPosturalChanges: true },
                     { nortonRisk: true },
                     { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } }
                 ]
@@ -40,6 +51,11 @@ export async function GET(req: Request) {
                 id: true,
                 name: true,
                 headquartersId: true,
+                // Multi-señal: necesario para renderizar el fallback correcto
+                // del activeUlcer string cuando NO hay UPP activa pero el
+                // paciente está enrolado via flag o norton.
+                requiresPosturalChanges: true,
+                nortonRisk: true,
                 posturalChanges: {
                     orderBy: { performedAt: 'desc' },
                     take: 1,
@@ -68,14 +84,24 @@ export async function GET(req: Request) {
                 ? ((now.getTime() - lastRotation.performedAt.getTime()) / (1000 * 60 * 60)).toFixed(1)
                 : 'Crítico (+24h)';
 
+            // Fallback text del campo activeUlcer del audit: refleja POR QUÉ
+            // el paciente entró al at-risk set cuando no hay UPP material.
+            // Antes: hardcoded "Sin UPP (nortonRisk)" — incorrecto para
+            // flag-only o pacientes con ambos triggers.
+            const enrollmentReason = activeUlcer
+                ? `Estadio ${activeUlcer.stage} — ${activeUlcer.bodyLocation}`
+                : patient.requiresPosturalChanges
+                    ? 'Sin UPP (encamado)'
+                    : patient.nortonRisk
+                        ? 'Sin UPP (nortonRisk)'
+                        : 'Sin UPP';
+
             violations.push({
                 patientId: patient.id,
                 patientName: patient.name,
                 lastRotationTime: lastRotation?.performedAt ?? 'Ninguna',
                 hoursOverdue,
-                activeUlcer: activeUlcer
-                    ? `Estadio ${activeUlcer.stage} — ${activeUlcer.bodyLocation}`
-                    : 'Sin UPP (nortonRisk)',
+                activeUlcer: enrollmentReason,
             });
 
             const ulcerDetail = activeUlcer

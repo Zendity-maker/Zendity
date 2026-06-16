@@ -150,6 +150,22 @@ async function seed() {
     console.log('✓ Seed complete: SMOKE_HQ(6) + OTHER_HQ(1)');
 }
 
+// ─── Cron at-risk query — espejo del /api/cron/upp-alerts ───────────────
+// HQ-wide (sin filtro de hqId — el cron es global cross-tenant por diseño).
+async function runCronAtRiskQuery() {
+    return p.patient.findMany({
+        where: {
+            status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
+            OR: [
+                { requiresPosturalChanges: true },
+                { nortonRisk: true },
+                { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } },
+            ],
+        },
+        select: { id: true, name: true, headquartersId: true, requiresPosturalChanges: true, nortonRisk: true },
+    });
+}
+
 // Endpoint logic — espejo del route handler
 async function runEndpointLogic(hqId: string) {
     const now = new Date();
@@ -234,6 +250,16 @@ async function runEndpointLogic(hqId: string) {
         { name: 'PAT_F enrolledBy.flag=true, norton=false, ulcer=false', pass: (() => { const f = r1.patients.find(x => x.patientId === PAT_F); return !!(f && f.enrolledBy.flag === true && f.enrolledBy.norton === false && f.enrolledBy.ulcer === false); })() },
         { name: 'PAT_E enrolledBy.ulcer=true, norton=false, flag=false', pass: (() => { const e = r1.patients.find(x => x.patientId === PAT_E); return !!(e && e.enrolledBy.ulcer === true && e.enrolledBy.norton === false && e.enrolledBy.flag === false); })() },
     ];
+
+    // CRON AT-RISK — verifica que el OR del cron incluye flag-only (PAT_F)
+    // además de norton (A-D), ulcer (E), y el cross-HQ (G).
+    const atRisk = await runCronAtRiskQuery();
+    const atRiskIds = new Set(atRisk.map(x => x.id));
+    checks.push({
+        name: 'CRON at-risk set includes PAT_F (flag-only)',
+        pass: atRiskIds.has(PAT_F),
+        detail: atRiskIds.has(PAT_F) ? 'flag-only enrolled in cron OR ✓' : '🚨 flag-only NOT in cron — push perdido',
+    });
 
     let pass = 0, fail = 0;
     for (const c of checks) {
