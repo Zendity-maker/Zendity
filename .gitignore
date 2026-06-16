@@ -51,3 +51,4 @@ scripts/*
 !scripts/dr-restore.sh
 !scripts/smoke-nursing-rotation.ts
 !scripts/smoke-rotation-protocol.ts
+!scripts/smoke-supervisor-hq-isolation.ts

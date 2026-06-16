@@ -32,7 +32,14 @@ export async function GET() {
                 date: { gte: scheduledDayRange.start, lt: scheduledDayRange.end },
                 shiftType: activeShiftType,
                 isAbsent: false,
-                schedule: { status: 'PUBLISHED' },
+                // Multi-tenant strict — schedule debe pertenecer al hqId del
+                // invocador. Sin este filtro, el wall del SUP de una sede
+                // mostraba scheduled shifts de TODAS las sedes en el panel
+                // "Personal No Presentado" (cazado en smoke visual del sprint
+                // floor-map, jun-2026: SUP-Cupey veía pautas de Mayagüez y
+                // Legacy HQ marcadas como ausentes). El otro filtro de status
+                // PUBLISHED estaba pero NO el de HQ — leak silencioso.
+                schedule: { headquartersId: hqId, status: 'PUBLISHED' },
                 // Solo shifts CLÍNICOS (con grupo de color). Antes este filtro
                 // traía TODOS los shifts del turno — incluyendo CLEANING /
                 // KITCHEN / MAINTENANCE que se persisten con colorGroup=null
