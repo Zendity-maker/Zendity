@@ -34,6 +34,7 @@
  *   DATABASE_URL='<branch-neon-fresca>' npx tsx scripts/smoke-nursing-rotation.ts
  */
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const PROD_HOST = 'ep-wispy-queen-ae20881h';
 
@@ -97,11 +98,14 @@ async function seed() {
         ],
     });
 
-    // Nurses (uno por HQ — necesarios para FK de PosturalChangeLog.nurseId)
+    // Nurses (uno por HQ — necesarios para FK de PosturalChangeLog.nurseId).
+    // PIN bcrypt para que el dev server pueda autenticar via NextAuth en el
+    // smoke visual de la página /care/nursing.
+    const pinHash = await bcrypt.hash('1234', 10);
     await p.user.createMany({
         data: [
-            { id: SMOKE_NURSE, name: 'Smoke Nurse', email: 'nurse-smoke@verify.local', role: 'NURSE', headquartersId: SMOKE_HQ_ID, isActive: true },
-            { id: OTHER_NURSE, name: 'Other Nurse', email: 'nurse-other@verify.local', role: 'NURSE', headquartersId: OTHER_HQ_ID, isActive: true },
+            { id: SMOKE_NURSE, name: 'Smoke Nurse', email: 'nurse-smoke@verify.local', role: 'NURSE', headquartersId: SMOKE_HQ_ID, isActive: true, pinCode: pinHash },
+            { id: OTHER_NURSE, name: 'Other Nurse', email: 'nurse-other@verify.local', role: 'NURSE', headquartersId: OTHER_HQ_ID, isActive: true, pinCode: pinHash },
         ],
     });
 
