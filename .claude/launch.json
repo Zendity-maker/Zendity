@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "floor-map-smoke",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3077", "-H", "127.0.0.1"],
+      "port": 3077
     }
   ]
 }

@@ -436,9 +436,22 @@ export async function GET(req: Request) {
             for (const f of cg.floors || []) activeFloorsSet.add(f);
         }
         const activeFloors = Array.from(activeFloorsSet).sort();
-        const unassignedFloorPatientsCount = floorsConfigured
-            ? allGroupPatients.filter(p => floorOfPatient(p, colorFloorMap) === null).length
-            : 0;
+
+        // Cuenta TODOS los residentes ACTIVE del HQ con color sin mapear
+        // — NO se restringe a `allGroupPatients` (residentes de colores de
+        // cuidadoras activas), porque UNASSIGNED por definición no tiene
+        // cuidadora pautada. Si lo limitáramos al grupo activo, residentes
+        // UNASSIGNED quedarían huérfanos invisibles.
+        let unassignedFloorPatientsCount = 0;
+        if (floorsConfigured) {
+            const allActiveColors = await prisma.patient.findMany({
+                where: { headquartersId: hqId, status: 'ACTIVE' },
+                select: { colorGroup: true },
+            });
+            unassignedFloorPatientsCount = allActiveColors.filter(
+                p => floorOfPatient(p, colorFloorMap) === null,
+            ).length;
+        }
 
         return NextResponse.json({
             success: true,
