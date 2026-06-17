@@ -12,7 +12,7 @@ import { withPhiAccessLog } from "@/lib/phi-audit";
 // SOCIAL_WORKER lee el historial del residente para contextualizar su
 // trabajo (notas, beneficios, familia). Es solo lectura — este archivo
 // no tiene handler de escritura.
-const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SOCIAL_WORKER'];
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SOCIAL_WORKER', 'COORDINATOR'];
 
 // PHI audit (Pilar 1) — lectura del expediente completo.
 export const GET = withPhiAccessLog(getHistoryReportHandler, {

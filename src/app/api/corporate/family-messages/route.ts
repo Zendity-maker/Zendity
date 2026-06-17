@@ -1,23 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
-
-
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+// Hub compartido de comunicación familiar — COORDINATOR + DIR/ADMIN/SUP/NURSE.
+// Sprint Coordinador (jun-2026): COORDINATOR añadido. requireRole en lugar de
+// check inline para soportar dual-rol via secondaryRoles consistente.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
 
 // GET — Lista de conversaciones agrupadas por paciente, filtradas por HQ
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        const role = (session?.user as any)?.role;
-
-        if (!session || !ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
-        }
-
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         // Obtener todos los pacientes de esta sede con sus mensajes familiares
         const patients = await prisma.patient.findMany({
@@ -86,14 +81,10 @@ export async function GET(req: Request) {
 // POST — Staff responde a un familiar (por patientId)
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        const role = (session?.user as any)?.role;
-
-        if (!session || !ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
-        }
-
-        const staffUserId = (session.user as any).id;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const staffUserId = auth.id;
+        const hqId = auth.headquartersId;
         const { patientId, content } = await req.json();
 
         if (!patientId || !content?.trim()) {
@@ -106,7 +97,6 @@ export async function POST(req: Request) {
             select: { id: true, name: true, headquartersId: true }
         });
 
-        const hqId = (session.user as any).headquartersId;
         if (!patient || patient.headquartersId !== hqId) {
             return NextResponse.json({ success: false, error: "Paciente no encontrado." }, { status: 404 });
         }

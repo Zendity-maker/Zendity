@@ -3,17 +3,25 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from '@/lib/prisma';
 import { issueFamilyInviteLink } from '@/lib/family-invite-link';
+import { withPhiAccessLog } from '@/lib/phi-audit';
+import { requireRole } from '@/lib/api-auth';
 
 // GET: Obtain the list of family members for a patient
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// PHI audit (Pilar 1) — single-patient list; patientId del param.
+// Sprint Coordinador (jun-2026): wrapped antes de exponer a COORDINATOR
+// (los datos de contacto familiar son PHI). Role gate via requireRole para
+// primary OR secondaryRoles consistente con el resto del repo.
+export const GET = withPhiAccessLog(getFamilyMembersHandler, {
+    resourceType: 'FamilyMember',
+    getPatientId: async ({ params }) => (await params).id,
+});
+
+async function getFamilyMembersHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id: patientId } = await params;
-        const session = await getServerSession(authOptions);
-        if (!session || !['ADMIN', 'DIRECTOR', 'NURSE'].includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
-        }
-
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(['ADMIN', 'DIRECTOR', 'NURSE', 'COORDINATOR']);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         const familyMembers = await prisma.familyMember.findMany({
             where: {

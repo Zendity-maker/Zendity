@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+// Hub compartido — Sprint Coordinador (jun-2026): COORDINATOR añadido.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
 
 /**
  * GET /api/corporate/family?patientId=X
@@ -13,15 +13,9 @@ const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
  */
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-
-        const role = (session.user as any).role;
-        if (!ALLOWED_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: 'Prohibido' }, { status: 403 });
-        }
-
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
         const { searchParams } = new URL(req.url);
         const patientId = searchParams.get('patientId');
         if (!patientId) return NextResponse.json({ success: false, error: 'patientId requerido' }, { status: 400 });

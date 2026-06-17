@@ -55,3 +55,4 @@ scripts/*
 !scripts/smoke-schedule-overwrite.ts
 !scripts/smoke-floor-map-unit.ts
 !scripts/smoke-floor-map-e2e.ts
+!scripts/smoke-coordinator.ts

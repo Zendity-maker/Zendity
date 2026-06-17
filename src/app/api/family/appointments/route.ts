@@ -164,7 +164,10 @@ export async function POST(req: Request) {
         const formattedDate = dateObj.toLocaleDateString('es-PR', { weekday: 'long', day: '2-digit', month: 'short' });
         await notifyRoles(
             apptHqId,
-            ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'],
+            // Sprint Coordinador (jun-2026): COORDINATOR añadido al hub
+            // — recibe la notificación de nueva solicitud de cita igual
+            // que el resto del staff de coordinación.
+            ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'],
             {
                 type:    'FAMILY_VISIT',
                 title:   '📅 Nueva solicitud de cita',

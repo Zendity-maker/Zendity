@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { issueFamilyInviteLink, type InviteVariant } from '@/lib/family-invite-link';
 
 /**
@@ -14,15 +13,16 @@ import { issueFamilyInviteLink, type InviteVariant } from '@/lib/family-invite-l
  * El email + token se emite vía issueFamilyInviteLink (lib compartida).
  * Cero PIN en email. Cero passcode/isRegistered tocado al emitir.
  */
+// Hub compartido — Sprint Coordinador (jun-2026): COORDINATOR + NURSE añadidos.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
+
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN', 'SUPERVISOR'].includes((session.user as any).role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         const body = await req.json();
-        const hqId = (session.user as any).headquartersId;
 
         let familyMember: any = null;
         let variant: InviteVariant = 'nuevo';

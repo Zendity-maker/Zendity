@@ -1,24 +1,23 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
+// Hub compartido de comunicación familiar. Broadcast es high-blast-radius;
+// aceptable porque ADMIN/DIR/NURSE supervisan el hub junto con COORDINATOR.
+// Sprint Coordinador (jun-2026).
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'NURSE', 'COORDINATOR'];
 
 // GET — cuántas familias registradas recibirán el mensaje
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-
-        const hqId = (session.user as any).headquartersId;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         const count = await prisma.familyMember.count({
             where: {
@@ -37,13 +36,10 @@ export async function GET() {
 // POST — enviar mensaje global a todas las familias registradas
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !ALLOWED_ROLES.includes((session.user as any).role)) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
-
-        const hqId    = (session.user as any).headquartersId;
-        const staffId = (session.user as any).id;
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId    = auth.headquartersId;
+        const staffId = auth.id;
         const { content, imageBase64 } = await req.json();
 
         if (!content?.trim()) {

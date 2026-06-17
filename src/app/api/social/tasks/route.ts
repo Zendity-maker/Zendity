@@ -4,11 +4,24 @@ import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { logError } from '@/lib/logger';
 
+// SW_ALLOWED = roles del módulo TS (lectura+escritura completa).
+// COORDINATOR_ALLOWED = COORDINATOR puede crear tareas (referir) y ver SUS
+// propios referidos, pero NO leer las del resto del equipo TS (evals/notas
+// psicosociales fuera de su need-to-know).
+// Sprint Coordinador (jun-2026).
 const SW_ALLOWED = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
+const SW_OR_COORDINATOR = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN', 'COORDINATOR'];
+
+/** ¿El actor es COORDINATOR-puro (sin DIR/ADMIN/SW que le dé visibilidad completa)? */
+function isCoordinatorOnly(user: { role: string; secondaryRoles?: string[] }): boolean {
+    const fullView = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
+    const all = [user.role, ...(user.secondaryRoles ?? [])];
+    return all.includes('COORDINATOR') && !all.some(r => fullView.includes(r));
+}
 
 async function getHandler(req: Request) {
     try {
-        const auth = await requireRole(SW_ALLOWED);
+        const auth = await requireRole(SW_OR_COORDINATOR);
         if (auth instanceof NextResponse) return auth;
 
         const { searchParams } = new URL(req.url);
@@ -17,8 +30,13 @@ async function getHandler(req: Request) {
             return NextResponse.json({ success: false, error: 'patientId requerido' }, { status: 400 });
         }
 
+        // Coordinador-puro: filtra a SUS propios referidos.
+        // DIR/ADMIN/SW: ve todas las tareas del paciente.
+        const where: any = { patientId, headquartersId: auth.headquartersId };
+        if (isCoordinatorOnly(auth)) where.createdById = auth.id;
+
         const tasks = await prisma.socialWorkTask.findMany({
-            where: { patientId, headquartersId: auth.headquartersId },
+            where,
             include: {
                 createdBy: { select: { id: true, name: true } },
                 assignedTo: { select: { id: true, name: true } },
@@ -35,7 +53,9 @@ async function getHandler(req: Request) {
 
 async function postHandler(req: Request) {
     try {
-        const auth = await requireRole(SW_ALLOWED);
+        // COORDINATOR puede crear (referir). PATCH (cerrar tarea) NO — eso
+        // queda en SW/DIR/ADMIN.
+        const auth = await requireRole(SW_OR_COORDINATOR);
         if (auth instanceof NextResponse) return auth;
 
         const { patientId, title, description, category, priority, dueDate, assignedToId, isZendiSuggested } = await req.json();

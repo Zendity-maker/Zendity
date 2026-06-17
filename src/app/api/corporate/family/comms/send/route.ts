@@ -1,23 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireRole } from '@/lib/api-auth';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+// Hub compartido — Sprint Coordinador (jun-2026): COORDINATOR + NURSE añadidos.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'NURSE', 'COORDINATOR'];
+
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
 
         const body = await request.json();
         const { familyMemberId, subject, html } = body;
-        const hqId = session.user.headquartersId || (session.user as any).hqId;
 
         // Validaciones básicas
         if (!familyMemberId || !subject || !html) {

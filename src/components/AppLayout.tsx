@@ -17,7 +17,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield, QrCode, Bed
+    Shield, QrCode, Bed, Send
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -45,7 +45,21 @@ const clinicalNavigation = [
     { name: 'Limpieza & Sanitización', href: '/cleaning', icon: SprayCan, onlyRoles: ['CLEANING', 'MAINTENANCE'] },
 ];
 
+// Sprint Coordinador (jun-2026) — hub compartido. Roles que ven la sección:
+// COORDINATOR (primary o secondary) + ADMIN + DIRECTOR + NURSE.
+const HUB_FAMILIA_ROLES = ['COORDINATOR', 'ADMIN', 'DIRECTOR', 'NURSE'];
+
 const corporateNavigationSections = [
+    {
+        title: "Comunicación Familiar",
+        links: [
+            { name: "Inicio Coordinación", href: "/coordinator", icon: LayoutDashboard, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Mensajes Familia", href: "/corporate/family-messages", icon: MessageSquare, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Citas Familiares", href: "/corporate/family-appointments", icon: CalendarDays, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Comunicado Global", href: "/corporate/family-broadcast", icon: Send, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Referir al Equipo", href: "/coordinator/refer", icon: ShieldAlert, onlyRoles: HUB_FAMILIA_ROLES },
+        ]
+    },
     {
         title: "Operaciones y Crecimiento",
         links: [
@@ -620,7 +634,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             // Reportes de Turno: solo CAREGIVER y NURSE en Clinical
                             if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
                             // Mis Observaciones: solo roles definidos en onlyRoles
-                            if ((item as any).onlyRoles && !(item as any).onlyRoles.includes(user?.role || '')) return null;
+                            // Sprint Coordinador (jun-2026): considera primary OR secondaryRoles.
+// Necesario para dual-rol (ej. NURSE + secondary COORDINATOR) y consistente
+// con requireRole del backend.
+if ((item as any).onlyRoles) {
+    const allRoles = [user?.role || '', ...((user as any)?.secondaryRoles ?? [])];
+    if (!allRoles.some((r: string) => (item as any).onlyRoles.includes(r))) return null;
+}
 
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
@@ -759,7 +779,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
                                     if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
                                     if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
-                                    if ((item as any).onlyRoles && !(item as any).onlyRoles.includes(user?.role || '')) return null;
+                                    // Sprint Coordinador (jun-2026): considera primary OR secondaryRoles.
+// Necesario para dual-rol (ej. NURSE + secondary COORDINATOR) y consistente
+// con requireRole del backend.
+if ((item as any).onlyRoles) {
+    const allRoles = [user?.role || '', ...((user as any)?.secondaryRoles ?? [])];
+    if (!allRoles.some((r: string) => (item as any).onlyRoles.includes(r))) return null;
+}
                                     const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                                     const Icon = item.icon;
                                     const isMyObs = item.href === '/my-observations';

@@ -579,6 +579,13 @@ enum Role {
   KITCHEN
   CLEANING
   INVESTOR // FASE 12: Read-Only Partners Dashboard
+  // Sprint Coordinador (jun-2026): hub compartido de comunicación familiar.
+  // Lo usan COORDINATOR + ADMIN + DIRECTOR + NURSE — pero el rol nuevo es
+  // específicamente para usuarias dedicadas (ej. Wanda) cuyo trabajo
+  // principal es coordinar familias. Acceso al perfil del residente
+  // restringido a tabs mínimo-necesario (Clínico read-only, Family, Citas,
+  // Social Work limitado). Soporta dual-rol via secondaryRoles.
+  COORDINATOR
 }
 
 enum ColorGroup {

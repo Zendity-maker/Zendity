@@ -111,10 +111,13 @@ export async function POST(req: Request) {
                 const patientName = patient.name;
                 const senderName = familyMember.name;
 
-                // Determinar roles a notificar según destinatario
+                // Determinar roles a notificar según destinatario.
+                // Sprint Coordinador (jun-2026): COORDINATOR añadido al hub
+                // de comunicación familiar — recibe ambos buckets para que
+                // sea el primer respondedor sin importar el routing del familiar.
                 const roles = recipientType === 'NURSING'
-                    ? ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']
-                    : ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+                    ? ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'COORDINATOR']
+                    : ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'COORDINATOR'];
 
                 await notifyRoles(hqId, roles as any[], {
                     type: 'FAMILY_VISIT',

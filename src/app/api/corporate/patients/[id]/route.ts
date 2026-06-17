@@ -16,7 +16,7 @@ import { assertPatientInTenant } from '@/lib/patient-tenant';
  * contextualizar su trabajo social (notas, beneficios, familia). NO está
  * en WRITE_ROLES — no edita data clínica del residente.
  */
-const READ_ROLES  = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SOCIAL_WORKER'];
+const READ_ROLES  = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE', 'SOCIAL_WORKER', 'COORDINATOR'];
 const WRITE_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
 async function getPatientHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {

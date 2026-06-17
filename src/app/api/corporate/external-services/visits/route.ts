@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { logError } from '@/lib/logger';
+import { withPhiAccessLog, logPhiAccess } from '@/lib/phi-audit';
+import { PhiAccessAction } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +23,20 @@ export const dynamic = 'force-dynamic';
  *   - take         (number, default 50, max 200)
  *   - skip         (number, default 0)
  *
- * Auth: DIRECTOR/ADMIN/SUPERVISOR (los supervisores pueden ver pero no aprobar).
+ * Auth: DIRECTOR/ADMIN/SUPERVISOR/NURSE/COORDINATOR (lectura).
+ *
+ * PHI audit (Pilar 1) — lista multi-paciente. Wrap exterior + fila-por-paciente
+ * para los residentes únicos referenciados en el response (los servicios
+ * facility-wide no cuentan como acceso individual a paciente).
+ * Sprint Coordinador (jun-2026): wrapped antes de exponer a COORDINATOR.
  */
-export async function GET(req: Request) {
+export const GET = withPhiAccessLog(getVisitsHandler, {
+    resourceType: 'ExternalServiceVisitList',
+});
+
+async function getVisitsHandler(req: Request) {
     try {
-        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR']);
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR']);
         if (auth instanceof NextResponse) return auth;
         const hqId = auth.headquartersId;
 
@@ -73,6 +84,31 @@ export async function GET(req: Request) {
                 },
             }),
         ]);
+
+        // Fila-por-paciente: emite un logPhiAccess por cada residente único
+        // que aparezca en patientVisits del payload. Facility-wide visits no
+        // listan pacientes específicos — no se cuentan como acceso individual
+        // (la fila de la lista exterior ya cubre ese caso).
+        const seenPatients = new Set<string>();
+        for (const v of visits) {
+            for (const pv of v.patientVisits) {
+                const pid = pv.patient?.id;
+                if (!pid || seenPatients.has(pid)) continue;
+                seenPatients.add(pid);
+                logPhiAccess({
+                    action: PhiAccessAction.READ,
+                    resourceType: 'ExternalServiceVisit',
+                    resourceId: v.id,
+                    patientId: pid,
+                    userId: auth.id,
+                    userRole: auth.role,
+                    hqId,
+                    success: true,
+                    routePath: '/api/corporate/external-services/visits',
+                    context: { status, listSize: visits.length },
+                });
+            }
+        }
 
         return NextResponse.json({
             success: true,

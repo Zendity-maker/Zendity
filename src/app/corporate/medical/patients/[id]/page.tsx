@@ -37,6 +37,16 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const hasSocialWorkAccess =
         SOCIAL_WORK_ROLES.includes(userRole) ||
         (Array.isArray(userSecondary) && userSecondary.some((r: string) => SOCIAL_WORK_ROLES.includes(r)));
+
+    // Sprint Coordinador (jun-2026): si el actor es COORDINATOR-puro
+    // (sin DIR/ADMIN/NURSE/SUP/SW que le abra el resto), restringimos
+    // tabs a mínimo-necesario: Clínico read-only, Familia, Citas/External
+    // Services. NO ve Medicamentos/eMAR, Billing, UPPs, Falls, Reportes,
+    // Evaluaciones MFR. El tab Social Work queda gated por hasSocialWorkAccess
+    // — coordinador NO lo ve (refer-only fluye desde T11 endpoint dedicado).
+    const FULL_VIEW_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
+    const allRoles = [userRole, ...(Array.isArray(userSecondary) ? userSecondary : [])];
+    const isCoordinatorOnly = allRoles.includes('COORDINATOR') && !allRoles.some((r: string) => FULL_VIEW_ROLES.includes(r));
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -511,18 +521,22 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         >
                             Resumen Clínico
                         </button>
-                        <button
-                            onClick={() => setActiveTab("meds")}
-                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'meds' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
-                        >
-                            Medicamentos
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("upps")}
-                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'upps' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
-                        >
-                            Registro UPPs (24h)
-                        </button>
+                        {!isCoordinatorOnly && (
+                            <button
+                                onClick={() => setActiveTab("meds")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'meds' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Medicamentos
+                            </button>
+                        )}
+                        {!isCoordinatorOnly && (
+                            <button
+                                onClick={() => setActiveTab("upps")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'upps' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Registro UPPs (24h)
+                            </button>
+                        )}
                         <button
                             onClick={() => setActiveTab("family")}
                             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'family' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
@@ -535,7 +549,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         >
                             Servicios Externos
                         </button>
-                        {hasSocialWorkAccess && (
+                        {hasSocialWorkAccess && !isCoordinatorOnly && (
                             <button
                                 onClick={() => setActiveTab("social-work")}
                                 className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'social-work' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
@@ -543,7 +557,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 Trabajo Social
                             </button>
                         )}
-                        {hasSocialWorkAccess && (
+                        {hasSocialWorkAccess && !isCoordinatorOnly && (
                             <button
                                 onClick={() => setActiveTab("sw-evaluations")}
                                 className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'sw-evaluations' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
@@ -551,24 +565,30 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 Evaluaciones
                             </button>
                         )}
-                        <button
-                            onClick={() => setActiveTab("falls")}
-                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'falls' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
-                        >
-                            Riesgo de Caídas / Incidentes
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("billing")}
-                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'billing' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
-                        >
-                            Facturación y Cuotas
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("reports")}
-                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'reports' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
-                        >
-                            Reportes Triage
-                        </button>
+                        {!isCoordinatorOnly && (
+                            <button
+                                onClick={() => setActiveTab("falls")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'falls' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Riesgo de Caídas / Incidentes
+                            </button>
+                        )}
+                        {!isCoordinatorOnly && (
+                            <button
+                                onClick={() => setActiveTab("billing")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'billing' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Facturación y Cuotas
+                            </button>
+                        )}
+                        {!isCoordinatorOnly && (
+                            <button
+                                onClick={() => setActiveTab("reports")}
+                                className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'reports' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                            >
+                                Reportes Triage
+                            </button>
+                        )}
                     </nav>
                 </div>
 
@@ -576,14 +596,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                 <div className="mt-6 print:mt-0">
                     <div className="print:hidden">
                         {activeTab === "clinical" && <PatientClinicalSummaryTab patientData={patientData} onRefresh={fetchPatientData} />}
-                        {activeTab === "meds" && <PatientEMARTab patientId={params.id as string} />}
-                        {activeTab === "upps" && <PatientUlcersTab patientId={params.id as string} />}
-                        {activeTab === "falls" && <PatientFallRiskTab patientId={params.id as string} />}
+                        {activeTab === "meds" && !isCoordinatorOnly && <PatientEMARTab patientId={params.id as string} />}
+                        {activeTab === "upps" && !isCoordinatorOnly && <PatientUlcersTab patientId={params.id as string} />}
+                        {activeTab === "falls" && !isCoordinatorOnly && <PatientFallRiskTab patientId={params.id as string} />}
                         {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
                         {activeTab === "social" && <PatientExternalServicesTab patientId={params.id as string} />}
-                        {activeTab === "social-work" && hasSocialWorkAccess && <PatientSocialWorkTab patientId={params.id as string} />}
-                        {activeTab === "sw-evaluations" && hasSocialWorkAccess && <PatientEvaluationsTab patientId={params.id as string} />}
-                        {activeTab === "billing" && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}
+                        {activeTab === "social-work" && hasSocialWorkAccess && !isCoordinatorOnly && <PatientSocialWorkTab patientId={params.id as string} />}
+                        {activeTab === "sw-evaluations" && hasSocialWorkAccess && !isCoordinatorOnly && <PatientEvaluationsTab patientId={params.id as string} />}
+                        {activeTab === "billing" && !isCoordinatorOnly && <PatientBillingTab patientId={params.id as string} patientData={patientData} onRefresh={fetchPatientData} />}
                     </div>
                     {/* Hacemos que la pantalla de reportes siempre sea visible si vamos a imprimir, asumiendo que el usuario está en la pestaña reportes */}
                     <div className={activeTab === "reports" ? "block" : "hidden print:block"}>
