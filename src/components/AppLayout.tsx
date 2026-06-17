@@ -51,16 +51,6 @@ const HUB_FAMILIA_ROLES = ['COORDINATOR', 'ADMIN', 'DIRECTOR', 'NURSE'];
 
 const corporateNavigationSections = [
     {
-        title: "Comunicación Familiar",
-        links: [
-            { name: "Inicio Coordinación", href: "/coordinator", icon: LayoutDashboard, onlyRoles: HUB_FAMILIA_ROLES },
-            { name: "Mensajes Familia", href: "/corporate/family-messages", icon: MessageSquare, onlyRoles: HUB_FAMILIA_ROLES },
-            { name: "Citas Familiares", href: "/corporate/family-appointments", icon: CalendarDays, onlyRoles: HUB_FAMILIA_ROLES },
-            { name: "Comunicado Global", href: "/corporate/family-broadcast", icon: Send, onlyRoles: HUB_FAMILIA_ROLES },
-            { name: "Referir al Equipo", href: "/coordinator/refer", icon: ShieldAlert, onlyRoles: HUB_FAMILIA_ROLES },
-        ]
-    },
-    {
         title: "Operaciones y Crecimiento",
         links: [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
@@ -102,6 +92,16 @@ const corporateNavigationSections = [
             { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },
             { name: "Directorio Staff", href: "/hr/staff", icon: UserCog },
             { name: "Bitácora de Turnos", href: "/corporate/hr/shift-log", icon: BookOpen },
+        ]
+    },
+    {
+        title: "Comunicación Familiar",
+        links: [
+            { name: "Inicio Coordinación", href: "/coordinator", icon: LayoutDashboard, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Mensajes Familia", href: "/corporate/family-messages", icon: MessageSquare, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Citas Familiares", href: "/corporate/family-appointments", icon: CalendarDays, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Comunicado Global", href: "/corporate/family-broadcast", icon: Send, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Referir al Equipo", href: "/coordinator/refer", icon: ShieldAlert, onlyRoles: HUB_FAMILIA_ROLES },
         ]
     },
     {
@@ -512,7 +512,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     // Determinar Workspace Activo basado en la ruta interactiva ("Clinical" vs "Corporate")
-    const isCorporateWorkspace = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr");
+    // Sprint Coordinador (jun-2026): incluir /coordinator. Sin esto, COORDINATOR-pura
+    // entra a /coordinator y cae al sidebar clinical (clinicalNavigation, el de
+    // cuidadores) en vez del corporate donde vive el bloque "Comunicación Familiar".
+    const isCorporateWorkspace = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr") || pathname.startsWith("/coordinator");
 
     // Sidebar colors and styles based on workspace
     const sidebarBg = isCorporateWorkspace ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-white border-slate-200 text-slate-600";
