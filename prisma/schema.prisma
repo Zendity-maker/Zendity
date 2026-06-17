@@ -451,7 +451,13 @@ model ShiftColorAssignment {
   assignedAt       DateTime @default(now())
 
   headquarters   Headquarters   @relation(fields: [headquartersId], references: [id])
-  scheduledShift ScheduledShift @relation(fields: [scheduledShiftId], references: [id])
+  // onDelete: Cascade — al sobrescribir un Schedule DRAFT, el endpoint
+  // POST /api/hr/schedule hace deleteMany de ScheduledShift; sin cascade,
+  // si esos shifts tienen ShiftColorAssignment (creados por supervisor vía
+  // /set-caregiver-color), el deleteMany rompe por FK y la transacción se
+  // revierte → "Error al sobrescribir" en UI. Incidente: Celia (DIRECTOR
+  // Vivid Cupey, jun-2026) bloqueada con 84 shifts + 8 ShiftColorAssignments.
+  scheduledShift ScheduledShift @relation(fields: [scheduledShiftId], references: [id], onDelete: Cascade)
   user           User           @relation(fields: [userId], references: [id])
 }
 

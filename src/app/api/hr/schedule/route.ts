@@ -110,6 +110,15 @@ export async function POST(req: Request) {
         // Si existe DRAFT y el cliente confirmó → actualización in-place (NO delete+create)
         if (existing && existing.status === 'DRAFT' && overwrite) {
             const updated = await prisma.$transaction(async (tx) => {
+                // Defensa en profundidad — limpiar ShiftColorAssignment hijos
+                // ANTES del deleteMany de ScheduledShift. El schema ya define
+                // onDelete: Cascade en la relación, pero esto sigue funcionando
+                // si el deploy de schema todavía no aplicó (orden expand).
+                // Incidente jun-2026 (Celia/Vivid Cupey): 8 ShiftColorAssignments
+                // bloqueaban el deleteMany → "Error al sobrescribir" en UI.
+                await tx.shiftColorAssignment.deleteMany({
+                    where: { scheduledShift: { scheduleId: existing.id } },
+                });
                 await tx.scheduledShift.deleteMany({ where: { scheduleId: existing.id } });
                 return tx.schedule.update({
                     where: { id: existing.id },
