@@ -17,7 +17,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield, QrCode, Bed, Send
+    Shield, QrCode, Bed, Send, Phone
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -100,6 +100,7 @@ const corporateNavigationSections = [
             { name: "Inicio Coordinación", href: "/coordinator", icon: LayoutDashboard, onlyRoles: HUB_FAMILIA_ROLES },
             { name: "Mensajes Familia", href: "/corporate/family-messages", icon: MessageSquare, onlyRoles: HUB_FAMILIA_ROLES },
             { name: "Citas Familiares", href: "/corporate/family-appointments", icon: CalendarDays, onlyRoles: HUB_FAMILIA_ROLES },
+            { name: "Bitácora de Llamadas", href: "/coordinator/calls", icon: Phone, onlyRoles: HUB_FAMILIA_ROLES },
             { name: "Comunicado Global", href: "/corporate/family-broadcast", icon: Send, onlyRoles: HUB_FAMILIA_ROLES },
             { name: "Referir al Equipo", href: "/coordinator/refer", icon: ShieldAlert, onlyRoles: HUB_FAMILIA_ROLES },
         ]

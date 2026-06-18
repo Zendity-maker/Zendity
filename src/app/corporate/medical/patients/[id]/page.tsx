@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
 import DietPrescription from "@/components/diet/DietPrescription";
@@ -18,6 +18,7 @@ import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 import PatientExternalServicesTab from "@/components/medical/patient/PatientExternalServicesTab";
 import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWorkTab";
 import PatientEvaluationsTab from "@/components/medical/patient/PatientEvaluationsTab";
+import PatientCallsTab from "@/components/family-contact-logs/PatientCallsTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
 
 // Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
@@ -28,7 +29,14 @@ const SOCIAL_WORK_ROLES = ['SOCIAL_WORKER', 'DIRECTOR', 'ADMIN'];
 export default function PatientDossierPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState("clinical");
+    // ?tab=calls etc. permite linkear directo al tab desde otras vistas
+    // (ej. botón "Ver llamadas" en la bitácora). Allowlist explícita para
+    // que ?tab=anything-random no rompa el componente.
+    const searchParams = useSearchParams();
+    const tabFromUrl = searchParams.get('tab');
+    const ALLOWED_TAB_FROM_URL = ['clinical', 'family', 'social', 'calls', 'social-work', 'sw-evaluations', 'meds', 'upps', 'falls', 'billing', 'reports'];
+    const initialTab = tabFromUrl && ALLOWED_TAB_FROM_URL.includes(tabFromUrl) ? tabFromUrl : 'clinical';
+    const [activeTab, setActiveTab] = useState(initialTab);
 
     // Acceso a Trabajo Social — primary role o secondaryRoles. Consistente
     // con `requireRole()` del backend que acepta dual-rol (FASE 51).
@@ -544,6 +552,12 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                             Familiares y Accesos
                         </button>
                         <button
+                            onClick={() => setActiveTab("calls")}
+                            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'calls' ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
+                        >
+                            Llamadas
+                        </button>
+                        <button
                             onClick={() => setActiveTab("social")}
                             className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition ${activeTab === 'social' ? 'border-violet-500 text-violet-600' : 'border-transparent text-slate-500 hover:border-slate-300'}`}
                         >
@@ -600,6 +614,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         {activeTab === "upps" && !isCoordinatorOnly && <PatientUlcersTab patientId={params.id as string} />}
                         {activeTab === "falls" && !isCoordinatorOnly && <PatientFallRiskTab patientId={params.id as string} />}
                         {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
+                        {activeTab === "calls" && <PatientCallsTab patientId={params.id as string} />}
                         {activeTab === "social" && <PatientExternalServicesTab patientId={params.id as string} />}
                         {activeTab === "social-work" && hasSocialWorkAccess && !isCoordinatorOnly && <PatientSocialWorkTab patientId={params.id as string} />}
                         {activeTab === "sw-evaluations" && hasSocialWorkAccess && !isCoordinatorOnly && <PatientEvaluationsTab patientId={params.id as string} />}
