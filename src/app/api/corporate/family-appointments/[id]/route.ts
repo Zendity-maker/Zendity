@@ -6,13 +6,19 @@ import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/
 import { buildAppointmentICS, googleCalendarLink } from '@/lib/ics';
 import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
 import { EventType } from '@prisma/client';
+import { withPhiAccessLog } from '@/lib/phi-audit';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+// Sprint Coordinador (jun-2026): COORDINATOR puede aprobar/rechazar TODAS
+// las citas familiares (cambio de criterio vs Q2 del sprint inicial donde
+// aprobar quedó en DIR/ADMIN). Refactor a requireRole con secondaryRoles
+// queda como deuda anotada — este fix es quirúrgico; Wanda es COORDINATOR
+// primario puro, no toca el path dual-rol.
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
 
 const TYPE_LABELS: Record<string, string> = {
     VISIT:            'Visita Presencial',
@@ -65,8 +71,25 @@ function logEmailError(stage: 'APPROVE' | 'REJECT', to: string, err: unknown) {
     );
 }
 
+// PHI audit (Pilar 1) — Sprint Coordinador (jun-2026): cierra gap del PATCH
+// que modificaba FamilyAppointment ligada a patientId + familyMemberId sin
+// auditoría. getPatientId hace lookup al DB con el id del param para que la
+// fila quede con patientId NOT NULL, consistente con los demás endpoints
+// wrapped en el sprint. Acción default WRITE (cubre APPROVE y REJECT).
+export const PATCH = withPhiAccessLog(patchHandler, {
+    resourceType: 'FamilyAppointment',
+    getPatientId: async ({ params }) => {
+        const { id } = await params;
+        const appt = await prisma.familyAppointment.findUnique({
+            where: { id },
+            select: { patientId: true },
+        });
+        return appt?.patientId ?? undefined;
+    },
+});
+
 // PATCH — aprobar o rechazar una cita
-export async function PATCH(
+async function patchHandler(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
