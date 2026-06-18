@@ -82,6 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 else if (user.role === "KITCHEN") router.replace("/kitchen");
                 else if (user.role === "CLEANING") router.replace("/cleaning");
                 else if (user.role === "SOCIAL_WORKER") router.replace("/corporate/social");
+                // Sprint Coordinador (jun-2026): COORDINATOR aterriza directamente
+                // en el hub. Sin este caso caía al else → "/" → sidebar clinical
+                // sin link de salida al hub.
+                // Cast a string — el tipo literal de AuthUser.role todavía no
+                // lista COORDINATOR (legacy del codebase, no bloquea runtime).
+                else if ((user.role as string) === "COORDINATOR") router.replace("/coordinator");
                 else router.replace("/"); // NURSE, SUPERVISOR, DIRECTOR
             } else {
                 // Protección de Rutas (Básico)
@@ -128,6 +134,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // FASE 2 SW Eval: el page de la evaluación vive en su propia ruta
                     !pathname.startsWith("/corporate/sw-evaluations")) {
                     router.replace("/corporate/social");
+                }
+                // COORDINATOR-PURO (sin DIR/ADMIN/SUP/NURSE/SW como secondary) —
+                // confinado al hub de comunicación familiar. Sprint Coordinador
+                // (jun-2026). Mismo patrón que SOCIAL_WORKER + criterio de
+                // "puro" IDÉNTICO al del filtro de tabs en
+                // /corporate/medical/patients/[id] (un solo concepto, una sola
+                // definición). UX guard — el control de seguridad real son
+                // los role-lists de los endpoints.
+                //
+                // Allowlist (startsWith, sin slash final → cubre lista Y detalle):
+                //   - /coordinator/*               (Inicio, Refer, Messages, Appts, Residents)
+                //   - /corporate/family-*          (family-messages, family-appointments,
+                //                                   family-broadcast — los 3 items del hub)
+                //   - /corporate/medical/patients  (directorio + detalle ?id/...)
+                //
+                // Si DIR/ADMIN/NURSE/SUP/SW está como primary o secondary,
+                // skipea — esos roles ya tienen acceso amplio legítimo.
+                else if (
+                    (() => {
+                        const FULL_VIEW_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
+                        const allRoles = [user.role, ...((user as any).secondaryRoles ?? [])];
+                        return allRoles.includes('COORDINATOR') && !allRoles.some(r => FULL_VIEW_ROLES.includes(r));
+                    })() &&
+                    !pathname.startsWith("/coordinator") &&
+                    !pathname.startsWith("/corporate/family-") &&
+                    !pathname.startsWith("/corporate/medical/patients")
+                ) {
+                    router.replace("/coordinator");
                 }
             }
         }
