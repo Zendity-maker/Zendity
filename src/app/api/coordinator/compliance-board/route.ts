@@ -153,23 +153,34 @@ async function getComplianceBoardHandler(_req: Request) {
         const pendientes  = enriched.filter(p => p.status === 'pendiente').length;
         const vencidas    = enriched.filter(p => p.status === 'vencida').length;
 
-        // (5) PHI row-per-patient: el board EXPONE qué familias están atrás
-        // (PHI por inferencia clínica). Cada residente listado emite una
-        // fila. Dedupe innato — la lista es por residente, no por log.
-        for (const p of enriched) {
-            logPhiAccess({
-                action:       PhiAccessAction.READ,
-                resourceType: 'ComplianceBoard',
-                resourceId:   null,
-                patientId:    p.patientId,
-                userId:       auth.id,
-                userRole:     auth.role,
-                hqId,
-                success:      true,
-                routePath:    '/api/coordinator/compliance-board',
-                context:      { status: p.status, listSize: enriched.length },
-            });
-        }
+        // (5) PHI: UNA sola fila por carga del board.
+        // El board es la home del coordinador → alta frecuencia (5×/día por
+        // usuario × varios usuarios). Emitir N filas (una por residente)
+        // inflaría PhiAccessLog ~30× por carga sin agregar valor forense —
+        // la lista completa de patientIds del board cabe en `context` como
+        // array auditable. Si el regulador pregunta "qué residentes vio
+        // el actor a las T", una sola fila lo dice.
+        // Trade-off explícito: el query "qué actor vio al residente X" ya
+        // no es un equi-match en `patientId`; requiere un `context @> '...'`
+        // sobre el JSONB. Aceptable para v1; los endpoints de detalle del
+        // residente (perfil, llamadas, citas) sí emiten row-per-patient
+        // y dan ese índice cuando importa.
+        logPhiAccess({
+            action:       PhiAccessAction.READ,
+            resourceType: 'ComplianceBoard',
+            resourceId:   null,
+            patientId:    null,
+            userId:       auth.id,
+            userRole:     auth.role,
+            hqId,
+            success:      true,
+            routePath:    '/api/coordinator/compliance-board',
+            context: {
+                patientIds: enriched.map(p => p.patientId),
+                count:      enriched.length,
+                kpi:        { contactadas, pendientes, vencidas },
+            },
+        });
 
         return NextResponse.json({
             success: true,
