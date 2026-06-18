@@ -183,6 +183,10 @@ model Headquarters {
   // Sprint SW Eval Fase 1 — motor de evaluaciones de Trabajo Social
   swFormTemplates SWFormTemplate[]
   swEvaluations   SWEvaluation[]
+
+  // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos familiares
+  // generados desde esta sede. Multi-tenant scoping.
+  familyContactLogs FamilyContactLog[]
 }
 
 // =======================
@@ -292,14 +296,14 @@ model User {
   performanceScores  PerformanceScore[]
   academyAssignments AcademyAssignment[]
 
-  scheduledShifts       ScheduledShift[]
-  releasedScheduledShifts ScheduledShift[] @relation("ScheduledShiftReleasedBy")
-  shiftColorAssignments ShiftColorAssignment[]
-  notifications         Notification[]
-  approvedAppointments  FamilyAppointment[]    @relation("AppointmentApprover") // Sprint C
-  scoreEvents           ScoreEvent[] // Sprint Z-Score
-  accounts              Account[]
-  sessions              Session[]
+  scheduledShifts         ScheduledShift[]
+  releasedScheduledShifts ScheduledShift[]       @relation("ScheduledShiftReleasedBy")
+  shiftColorAssignments   ShiftColorAssignment[]
+  notifications           Notification[]
+  approvedAppointments    FamilyAppointment[]    @relation("AppointmentApprover") // Sprint C
+  scoreEvents             ScoreEvent[] // Sprint Z-Score
+  accounts                Account[]
+  sessions                Session[]
 
   // Cleaning & Sanitization Module
   cleaningLogs             CleaningLog[]
@@ -309,7 +313,7 @@ model User {
   // Social Work Module
   socialWorkNotes         SocialWorkNote[]
   socialWorkTasks         SocialWorkTask[]
-  socialWorkTasksAssigned SocialWorkTask[]  @relation("SocialWorkTasksAssigned")
+  socialWorkTasksAssigned SocialWorkTask[] @relation("SocialWorkTasksAssigned")
 
   // Zone Inspection Rounds
   zoneInspections ZoneInspection[]
@@ -352,6 +356,10 @@ model User {
   swEvaluationsCreated   SWEvaluation[]         @relation("SWEvalCreatedBy")
   swEvaluationsApproved  SWEvaluation[]         @relation("SWEvalApprovedBy")
   swEvalAddendumsCreated SWEvaluationAddendum[] @relation("SWEvalAddendumCreatedBy")
+
+  // Sprint Coordinador Paso 3 (jun-2026): contactos registrados por este staff.
+  // Auditoría de "quién hizo cuántas llamadas".
+  familyContactsLogged FamilyContactLog[] @relation("FamilyContactLogger")
 }
 
 model Account {
@@ -602,13 +610,13 @@ enum ColorGroup {
 // era un string libre con vocabularios distintos por form de origen (intake / care /
 // perfil), causando que el filtro de cocina no contara dietas modificadas correctamente.
 enum DietTexture {
-  REGULAR         // sólida estándar
-  BLANDA          // sólida cocida/suave, carne molida
-  MAJADA          // machacada sin trozos (mofongo, majado de papa)
-  PUREE           // sin grumos, espesa (disfagia moderada)
-  LICUADO         // sin grumos, líquida (disfagia severa)
+  REGULAR // sólida estándar
+  BLANDA // sólida cocida/suave, carne molida
+  MAJADA // machacada sin trozos (mofongo, majado de papa)
+  PUREE // sin grumos, espesa (disfagia moderada)
+  LICUADO // sin grumos, líquida (disfagia severa)
   LIQUIDOS_CLAROS // caldo, té, jugo colado
-  PEG             // alimentación enteral por sonda, no oral
+  PEG // alimentación enteral por sonda, no oral
 }
 
 // =======================
@@ -616,11 +624,11 @@ enum DietTexture {
 // =======================
 
 model Patient {
-  id               String     @id @default(uuid())
-  headquartersId   String
-  name             String
-  roomNumber       String?
-  dateOfBirth      DateTime?
+  id             String    @id @default(uuid())
+  headquartersId String
+  name           String
+  roomNumber     String?
+  dateOfBirth    DateTime?
 
   // Sprint SW Eval Fase 1 — campos demográficos/operacionales para el motor de
   // evaluaciones de Trabajo Social. Free-form porque la variabilidad real en PR
@@ -628,13 +636,13 @@ model Patient {
   // admissionDate es la fecha REAL de ingreso al hogar (distinta de createdAt
   // que es la fecha del row en BD; los residentes legacy fueron creados todos
   // el mismo día al cargar el sistema).
-  admissionDate    DateTime?
-  maritalStatus    String?
-  religion         String?
-  birthCity        String?
+  admissionDate DateTime?
+  maritalStatus String?
+  religion      String?
+  birthCity     String?
 
-  diet             String? // DEPRECATED — string libre histórico. Mantener para back-compat
-                           // durante la transición. Fuente de verdad nueva: dietTexture + flags.
+  diet           String? // DEPRECATED — string libre histórico. Mantener para back-compat
+  // durante la transición. Fuente de verdad nueva: dietTexture + flags.
   // Sprint Diet System — fuente de verdad canónica
   dietTexture    DietTexture? // textura prescrita (mutuamente excluyente)
   dietDiabetic   Boolean      @default(false) // modificador: diabética / baja en azúcar
@@ -642,9 +650,9 @@ model Patient {
   dietRenal      Boolean      @default(false) // modificador: dieta renal
   dietVegetarian Boolean      @default(false) // modificador: vegetariana
 
-  avdScore         Int? // Puntuación de Actividades Vida Diaria
-  downtonRisk      Boolean    @default(false) // Escala de Caídas
-  nortonRisk       Boolean    @default(false) // Escala de Úlceras
+  avdScore    Int? // Puntuación de Actividades Vida Diaria
+  downtonRisk Boolean @default(false) // Escala de Caídas
+  nortonRisk  Boolean @default(false) // Escala de Úlceras
 
   // Sprint nursing-upp-dashboard (jun-2026) — flag explícito de enrollment al
   // protocolo de rotación postural. Resuelve la referencia dormante en
@@ -660,9 +668,9 @@ model Patient {
   //
   // Aditivo (Bool default false) — backward compatible 100%. Setearlo en
   // pacientes reales es data op del deploy (similar al backfill de floor).
-  requiresPosturalChanges Boolean @default(false)
-  colorGroup       ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
-  conciergeBalance Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
+  requiresPosturalChanges Boolean    @default(false)
+  colorGroup              ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
+  conciergeBalance        Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
 
   // FASE 7: Facturación y Cuotas
   monthlyFee          Float @default(0.0)
@@ -793,6 +801,10 @@ model Patient {
 
   // Sprint SW Eval Fase 1 — motor de evaluaciones de Trabajo Social
   swEvaluations SWEvaluation[]
+
+  // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos con familiares
+  // sobre este residente. Historial por-residente lee de aquí.
+  familyContactLogs FamilyContactLog[]
 }
 
 // =======================
@@ -961,6 +973,10 @@ model FamilyMember {
   // residente entre los familiares registrados. Antes se inferían del
   // relationship string ("Apoderado") — ahora flag explícito + auditable.
   isLegalGuardian Boolean @default(false)
+
+  // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos del staff
+  // con este familiar (llamadas, videos, visitas presenciales registradas).
+  familyContactLogs FamilyContactLog[]
 }
 
 model WellnessDiary {
@@ -2846,6 +2862,10 @@ model FamilyAppointment {
   approvedBy   User?        @relation("AppointmentApprover", fields: [approvedById], references: [id])
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 
+  // Sprint Coordinador Paso 3 (jun-2026): logs de bitácora que coordinaron
+  // esta cita (v2 — el FK linkedAppointmentId del log apunta acá).
+  linkedFromContacts FamilyContactLog[] @relation("FamilyContactLink")
+
   @@index([patientId, status])
   @@index([headquartersId, requestedDate])
 }
@@ -3051,7 +3071,6 @@ model ExternalKioskDevice {
   @@index([headquartersId, isActive])
 }
 
-
 // =======================
 // MOTOR DE EVALUACIONES DE TRABAJO SOCIAL — Sprint SW Eval Fase 1
 // =======================
@@ -3069,13 +3088,13 @@ model ExternalKioskDevice {
 // o NONE (la TS llena desde cero).
 
 enum SWEvaluationStatus {
-  DRAFT     // editable por el creador
-  APPROVED  // firmada, inmutable; solo se le pueden agregar addendums
-  ARCHIVED  // sacada del flujo activo (no se borra)
+  DRAFT // editable por el creador
+  APPROVED // firmada, inmutable; solo se le pueden agregar addendums
+  ARCHIVED // sacada del flujo activo (no se borra)
 }
 
 model SWFormTemplate {
-  id   String @id @default(uuid())
+  id String @id @default(uuid())
 
   // FASE 2 SW Eval: ALCANCE DE PLATAFORMA vs PER-SEDE.
   // - headquartersId = null → plantilla GLOBAL (todas las sedes la heredan).
@@ -3085,7 +3104,7 @@ model SWFormTemplate {
   // sino cae a plataforma. Ver orderBy: { headquartersId: { sort: 'desc',
   // nulls: 'last' } } en los 3 callers.
   headquartersId String?
-  name           String  // ej. "Evaluación Inicial de Trabajo Social"
+  name           String // ej. "Evaluación Inicial de Trabajo Social"
   description    String?
   version        Int     @default(1) // se incrementa si el template se edita; las evals viejas mantienen su snapshot
   isActive       Boolean @default(true)
@@ -3107,63 +3126,126 @@ model SWFormTemplate {
 }
 
 model SWEvaluation {
-  id               String              @id @default(uuid())
-  headquartersId   String
-  patientId        String
-  templateId       String
-  templateVersion  Int                 // snapshot — NO sigue a SWFormTemplate.version si el template cambia
-  status           SWEvaluationStatus  @default(DRAFT)
+  id              String             @id @default(uuid())
+  headquartersId  String
+  patientId       String
+  templateId      String
+  templateVersion Int // snapshot — NO sigue a SWFormTemplate.version si el template cambia
+  status          SWEvaluationStatus @default(DRAFT)
 
   // Respuestas del form. Shape paralelo al template.schema.
-  data             Json
+  data Json
 
   // Snapshot de lo que estaba pre-llenado al CREAR la evaluación. Permite
   // auditar después qué fue heredado del expediente vs qué escribió la TS.
   // Read-only desde el momento del create — NO se actualiza en cada PUT.
-  prefillSnapshot  Json
+  prefillSnapshot Json
 
-  createdById      String
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Firma al aprobar — snapshot inmutable
-  approvedById            String?
-  approvedAt              DateTime?
-  signatureBase64         String?  @db.Text // imagen PNG/SVG en base64 del trazo
-  signerName              String?  // snapshot del User.name al firmar
-  signerCollegiateNumber  String?  // snapshot del User.collegiateNumber al firmar
+  approvedById           String?
+  approvedAt             DateTime?
+  signatureBase64        String?   @db.Text // imagen PNG/SVG en base64 del trazo
+  signerName             String? // snapshot del User.name al firmar
+  signerCollegiateNumber String? // snapshot del User.collegiateNumber al firmar
 
   // Relations
-  headquarters   Headquarters         @relation(fields: [headquartersId], references: [id])
-  patient        Patient              @relation(fields: [patientId], references: [id])
-  template       SWFormTemplate       @relation(fields: [templateId], references: [id])
-  createdBy      User                 @relation("SWEvalCreatedBy",  fields: [createdById], references: [id])
-  approvedBy     User?                @relation("SWEvalApprovedBy", fields: [approvedById], references: [id])
-  addendums      SWEvaluationAddendum[]
+  headquarters Headquarters           @relation(fields: [headquartersId], references: [id])
+  patient      Patient                @relation(fields: [patientId], references: [id])
+  template     SWFormTemplate         @relation(fields: [templateId], references: [id])
+  createdBy    User                   @relation("SWEvalCreatedBy", fields: [createdById], references: [id])
+  approvedBy   User?                  @relation("SWEvalApprovedBy", fields: [approvedById], references: [id])
+  addendums    SWEvaluationAddendum[]
 
   @@index([patientId, status])
   @@index([headquartersId, status])
 }
 
 model SWEvaluationAddendum {
-  id              String   @id @default(uuid())
-  evaluationId    String
+  id           String @id @default(uuid())
+  evaluationId String
 
   // Contenido del addendum. Texto + JSON opcional. Mismo patrón que SWEvaluation.data
   // pero más libre — un addendum puede ser una nota narrativa o cambio puntual.
-  content         Json
+  content Json
 
   // Razón del addendum (obligatoria) — por qué se está corrigiendo una eval ya
   // firmada. Aparece en el PDF para trazabilidad.
-  reason          String
+  reason String
 
   createdById     String
   createdAt       DateTime @default(now())
   signatureBase64 String?  @db.Text
 
   // Relations
-  evaluation      SWEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-  createdBy       User         @relation("SWEvalAddendumCreatedBy", fields: [createdById], references: [id])
+  evaluation SWEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation("SWEvalAddendumCreatedBy", fields: [createdById], references: [id])
 
   @@index([evaluationId])
+}
+
+// =======================
+// Sprint Coordinador Paso 3 (jun-2026) — Bitácora de contactos familiares
+// =======================
+//
+// Registro de cada vez que un miembro del staff (típicamente COORDINATOR, pero
+// también NURSE/DIRECTOR/ADMIN/SUPERVISOR) contacta a un familiar — llamada
+// telefónica, videollamada, visita presencial, WhatsApp, etc. Sirve para:
+//   - Historial por-residente (¿cuándo fue la última llamada de su hija?)
+//   - Métricas operacionales (llamadas/mes, conversión a citas)
+//   - Defensa documental ("se llamó al familiar X veces antes de Y")
+//
+// PHI: `note` es PHI (puede contener detalles clínicos del residente). Endpoints
+// de lectura van wrapped con withPhiAccessLog + row-per-patient consistente con
+// el resto del sprint. NO loguear el contenido de `note` en console.*.
+model FamilyContactLog {
+  id String @id @default(uuid())
+
+  // Multi-tenant + scoping clínico
+  headquartersId String // [HIPAA: Verificación Multitenant]
+  patientId      String // Residente sobre quien fue la conversación
+  familyMemberId String // Familiar contactado
+
+  // Actor — quién registró el contacto desde el staff
+  loggedById String // User.id (COORDINATOR, NURSE, DIRECTOR, etc.)
+
+  // Naturaleza del contacto. String + validación con set en endpoint
+  // (fail-closed) para no requerir migración al agregar canales nuevos.
+  channel   String // "PHONE" | "VIDEO" | "IN_PERSON" | "WHATSAPP" | "OTHER"
+  direction String // "OUTBOUND" (staff llama) | "INBOUND" (familiar llama)
+
+  // Taxonomía opcional para métricas; null = sin clasificar
+  purpose String? // "UPDATE" | "PLANNING" | "COMPLAINT" | "FOLLOWUP" | "OTHER"
+  outcome String? // "SPOKE" | "VOICEMAIL" | "NO_ANSWER" | "WRONG_NUMBER"
+
+  // Contenido (PHI)
+  note        String? @db.Text // resumen libre de la conversación
+  durationMin Int? // duración en minutos, opcional
+
+  // Coordinación de cita
+  // v1: bool simple — el log dice "coordinó cita" sin enlazar.
+  // v2: si Wanda creó la cita desde el modal de bitácora, FK se llena
+  //     y el bool también queda en true (caché para evitar JOIN).
+  coordinatedAppointment Boolean @default(false)
+  linkedAppointmentId    String?
+
+  // Stamps
+  contactedAt DateTime @default(now()) // cuándo se hizo el contacto (no editable)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  headquarters      Headquarters       @relation(fields: [headquartersId], references: [id])
+  patient           Patient            @relation(fields: [patientId], references: [id])
+  familyMember      FamilyMember       @relation(fields: [familyMemberId], references: [id])
+  loggedBy          User               @relation("FamilyContactLogger", fields: [loggedById], references: [id])
+  linkedAppointment FamilyAppointment? @relation("FamilyContactLink", fields: [linkedAppointmentId], references: [id])
+
+  @@index([headquartersId, contactedAt]) // series temporales por sede
+  @@index([patientId, contactedAt]) // historial por residente
+  @@index([familyMemberId, contactedAt]) // historial por familiar
+  @@index([loggedById, contactedAt]) // "quién hizo cuántas"
 }
