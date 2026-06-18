@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { astDateTime, parseTimeOfDay, formatASTDateLong, AST_TZ_LABEL } from '@/lib/dates';
-import { buildAppointmentICS, googleCalendarLink } from '@/lib/ics';
-import { buildAppointmentCopy } from '@/lib/family/appointment-copy';
-import { EventType } from '@prisma/client';
+import { astDateTime, parseTimeOfDay, formatASTDateLong } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import sgMail from '@sendgrid/mail';
-
-if (process.env.SENDGRID_API_KEY) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
+import {
+    TYPE_LABELS,
+    senderFrom,
+    logEmailError,
+    buildApprovedAppointmentEventData,
+    sendApprovedAppointmentNotifications,
+} from '@/lib/family/appointment-effects';
 
 // Sprint Coordinador (jun-2026): COORDINATOR puede aprobar/rechazar TODAS
 // las citas familiares (cambio de criterio vs Q2 del sprint inicial donde
@@ -20,56 +20,11 @@ if (process.env.SENDGRID_API_KEY) {
 // primario puro, no toca el path dual-rol.
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'];
 
-const TYPE_LABELS: Record<string, string> = {
-    VISIT:            'Visita Presencial',
-    VIDEO_CALL:       'Videollamada',
-    PHONE_CALL:       'Llamada Telefónica',
-    DIRECTOR_MEETING: 'Reunión con Director',
-    SPECIAL_OCCASION: 'Ocasión Especial',
-};
-
-// Mapeo de FamilyAppointment.type (string) → EventType (enum del calendario).
-// Las llamadas usan tipos dedicados para que el calendario las pinte distinto
-// de las visitas presenciales (ver corporate/calendar/page.tsx eventPropGetter).
-// DIRECTOR_MEETING y SPECIAL_OCCASION son eventos presenciales en la sede,
-// por lo que se mantienen como FAMILY_VISIT.
-function mapToEventType(apptType: string): EventType {
-    switch (apptType) {
-        case 'VIDEO_CALL':       return EventType.FAMILY_VIDEO_CALL;
-        case 'PHONE_CALL':       return EventType.FAMILY_PHONE_CALL;
-        case 'VISIT':
-        case 'DIRECTOR_MEETING':
-        case 'SPECIAL_OCCASION':
-        default:                 return EventType.FAMILY_VISIT;
-    }
-}
-
-// Fallback de remitente — el resto del codebase (family/invite, zendi/moments, etc.)
-// usa este mismo hardcoded. Sin él, si SENDGRID_FROM_EMAIL no está en Vercel env,
-// el SDK recibe `from: undefined`, tira local, lo agarra el try/catch silente y
-// el correo nunca llega a SendGrid. Tenía que pasar en algún momento. Ahora no.
-const SENDER_FALLBACK_EMAIL = 'notificaciones@zendity.com';
-function senderFrom(hqName: string) {
-    return {
-        email: process.env.SENDGRID_FROM_EMAIL || SENDER_FALLBACK_EMAIL,
-        name: hqName,  // la familia ve "Vivid Senior Living" como remitente
-    };
-}
-
-// Logging enriquecido — el catch antes solo imprimía `emailErr.message`, que para
-// SendGrid es opaco. Lo que importa al diagnosticar es `response.body` (que dice
-// "Sender Identity not verified", "Maximum credits exceeded", etc.) más el code
-// y el to. Esto es lo que ocultó el bug 6 rondas; no volver a esconderlo.
-function logEmailError(stage: 'APPROVE' | 'REJECT', to: string, err: unknown) {
-    const e = err as { code?: string | number; message?: string; response?: { body?: unknown } };
-    console.error(
-        `[family-appointments PATCH ${stage}] Email error:`,
-        'to=' + to,
-        'code=' + (e?.code ?? 'n/a'),
-        'message=' + (e?.message ?? 'n/a'),
-        'sg_body=' + JSON.stringify(e?.response?.body ?? null),
-    );
-}
+// Tag de log del REJECT — formato EXACTO preservado del PATCH original
+// (`[family-appointments PATCH REJECT]`). El APPROVE ya no se loguea desde
+// aquí; vive dentro del helper sendApprovedAppointmentNotifications con su
+// propio tag idéntico al original.
+const REJECT_LOG_TAG = '[family-appointments PATCH REJECT]';
 
 // PHI audit (Pilar 1) — Sprint Coordinador (jun-2026): cierra gap del PATCH
 // que modificaba FamilyAppointment ligada a patientId + familyMemberId sin
@@ -156,171 +111,51 @@ async function patchHandler(
                 );
             }
 
-            // Tipo del evento alineado al canal: visita / videollamada / llamada.
-            const eventType = mapToEventType(appt.type);
-
             // ATÓMICO: la cita pasa a APPROVED Y el evento se crea en la misma transacción.
             // Si el create del evento falla, el update se revierte y la cita queda PENDING
             // — evitando el estado fantasma "APPROVED sin evento" del bug original.
+            // El builder es PURO; el invariante atómico se preserva con el $transaction local.
             const [updated] = await prisma.$transaction([
                 prisma.familyAppointment.update({
                     where: { id },
                     data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date() },
                 }),
                 prisma.headquartersEvent.create({
-                    data: {
-                        headquartersId:   hqId,
-                        title:            `${typeLabel} — ${appt.familyMember.name.trim()} con ${appt.patient.name.trim()}`,
-                        description:      appt.description || undefined,
-                        type:             eventType,
-                        status:           'PENDING',
+                    data: buildApprovedAppointmentEventData({
+                        apptType:         appt.type,
+                        hqId,
+                        patientId:        appt.patientId,
+                        patientName:      appt.patient.name,
+                        familyMemberName: appt.familyMember.name,
+                        description:      appt.description,
                         startTime,
                         endTime,
-                        patientId:        appt.patientId,
-                        targetPopulation: 'SPECIFIC',
-                        targetPatients:   [appt.patientId],
-                    },
+                    }),
                 }),
             ]);
 
-            // Copia ramificada por tipo (WhatsApp vs presencial). Misma fuente para
-            // notificación, email y descripción del ICS — la familia ve siempre lo
-            // mismo en los tres canales.
-            const copy = buildAppointmentCopy({
-                apptType: appt.type,
+            // Side-effects post-DB — notif in-app + ICS + email con SendGrid.
+            // Best-effort: el helper NUNCA propaga error. Si SendGrid está
+            // sin créditos o falla, queda en logs (logEmailError) y la cita
+            // aprobada permanece. Mismos gates que tenía inline.
+            await sendApprovedAppointmentNotifications({
+                stage:             'APPROVE_PATCH',
+                appointmentId:     updated.id,
+                apptType:          appt.type,
+                requestedDate:     appt.requestedDate,
+                requestedTime:     appt.requestedTime,
+                durationMins:      appt.durationMins,
+                description:       appt.description,
+                patientName:       appt.patient.name,
+                familyMemberId:    appt.familyMemberId,
+                familyMemberName:  appt.familyMember.name,
+                familyMemberEmail: appt.familyMember.email,
                 hqName,
                 hqAddress,
-                whatsAppNumber: hqWhatsApp,
-                description: appt.description,
+                hqWhatsApp,
+                startTime,
+                endTime,
             });
-
-            // Notificación in-app al familiar (best-effort) — hora con etiqueta AST
-            // + instrucción de cómo conectar (WhatsApp / dirección).
-            try {
-                const famUser = await prisma.user.findFirst({
-                    where: { email: appt.familyMember.email },
-                    select: { id: true },
-                });
-                if (famUser) {
-                    await prisma.notification.create({
-                        data: {
-                            userId:  famUser.id,
-                            type:    'FAMILY_VISIT',
-                            title:   '✅ Cita aprobada',
-                            message: `Tu ${typeLabel} del ${formattedDate} a las ${appt.requestedTime} (${AST_TZ_LABEL}) fue aprobada. ${copy.connectionInstructions}`,
-                            isRead:  false,
-                            link:    '/family/calendar',
-                        },
-                    });
-                }
-            } catch { /* no-fatal */ }
-
-            // ICS + Google Calendar — co-primarios: la familia vive fuera de PR.
-            // El .ics adjunto al email permite añadir la cita al calendario nativo
-            // sin sesión; el calendario del familiar hace la conversión a su hora
-            // local automática (DTSTART va como instante UTC absoluto).
-            const icsContent = buildAppointmentICS({
-                id: updated.id,
-                title: `${typeLabel} con ${appt.patient.name.trim()}`,
-                description: copy.icsDescription,
-                startUtc: startTime,
-                endUtc: endTime,
-                location: copy.location,
-                organizerName: hqName,
-                organizerEmail: process.env.SENDGRID_FROM_EMAIL || undefined,
-            });
-            const gcalUrl = googleCalendarLink({
-                id: updated.id,
-                title: `${typeLabel} con ${appt.patient.name.trim()}`,
-                description: copy.icsDescription,
-                startUtc: startTime,
-                endUtc: endTime,
-                location: copy.location,
-            });
-
-            // Email al familiar — gate explícito y NO silencioso (cierre del bug del
-            // FROM undefined que estuvo escondido 6 rondas):
-            //   - si falta el email del familiar (datos sucios) → console.warn explícito
-            //   - si falta la API key (config) → console.warn explícito
-            //   - si se intenta y falla → logEmailError con response.body de SendGrid
-            if (!appt.familyMember.email) {
-                console.warn(
-                    '[family-appointments PATCH APPROVE] email skip:',
-                    'FamilyMember', appt.familyMemberId, 'sin email — datos sucios',
-                );
-            } else if (!process.env.SENDGRID_API_KEY) {
-                console.warn(
-                    '[family-appointments PATCH APPROVE] email skip:',
-                    'SENDGRID_API_KEY no configurado en este entorno',
-                );
-            } else {
-                try {
-                    await sgMail.send({
-                        to:      appt.familyMember.email,
-                        from:    senderFrom(hqName),
-                        subject: `✅ Cita aprobada — ${typeLabel} el ${formattedDate}`,
-                        attachments: [
-                            {
-                                content: Buffer.from(icsContent, 'utf8').toString('base64'),
-                                filename: `cita-${updated.id}.ics`,
-                                type: 'text/calendar; charset=utf-8; method=PUBLISH',
-                                disposition: 'attachment',
-                            },
-                        ],
-                        html: `
-<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
-  <div style="background:#0d9488;padding:28px 24px;text-align:center;">
-    <p style="color:rgba(255,255,255,.8);margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">${hqName}</p>
-    <h2 style="color:#ffffff;margin:8px 0 0;font-size:22px;font-weight:800;">✅ Cita Aprobada</h2>
-  </div>
-  <div style="padding:32px;background:#ffffff;color:#334155;font-size:15px;line-height:1.7;">
-    <p style="margin:0 0 20px;">Estimado/a <strong>${appt.familyMember.name}</strong>,</p>
-    <p>Su solicitud de <strong>${typeLabel}</strong> ha sido aprobada.</p>
-    <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:20px;margin:20px 0;">
-      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Tipo</span><br/><strong>${typeLabel}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Fecha</span><br/><strong>${formattedDate}</strong></div>
-      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Hora</span><br/><strong>${appt.requestedTime}</strong> <span style="color:#64748b;font-weight:500;font-size:13px;">(${AST_TZ_LABEL})</span></div>
-      <div style="margin-bottom:8px;"><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Duración</span><br/><strong>${appt.durationMins} minutos</strong></div>
-      <div><span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Residente</span><br/><strong>${appt.patient.name.trim()}</strong></div>
-    </div>
-    ${appt.description ? `<p style="background:#f8fafc;padding:12px 16px;border-radius:10px;font-size:14px;color:#475569;margin:0 0 20px;"><em>${appt.description}</em></p>` : ''}
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 18px;margin:20px 0;">
-      <p style="margin:0 0 4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;">
-        Cómo conectar
-      </p>
-      <p style="margin:0;font-size:14px;color:#0c4a6e;line-height:1.55;">
-        ${copy.connectionInstructions}
-      </p>
-    </div>
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 18px;margin:20px 0;">
-      <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.5;">
-        ⏰ <strong>La hora arriba es hora de Vivid (Puerto Rico, AST).</strong>
-        Si vives en otra zona, abre el archivo <code>cita.ics</code> adjunto o usa el botón de Google Calendar abajo —
-        tu calendario convertirá automáticamente a tu hora local.
-      </p>
-    </div>
-    <div style="margin-top:24px;text-align:center;">
-      <a href="${gcalUrl}"
-         style="display:inline-block;background:#1a73e8;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin:0 4px 8px 0;">
-        📅 Añadir a Google Calendar
-      </a>
-      <a href="${process.env.NEXTAUTH_URL || 'https://app.zendity.com'}/family/calendar"
-         style="display:inline-block;background:#0d9488;color:#ffffff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin:0 4px 8px 0;">
-        Ver en el portal →
-      </a>
-    </div>
-    <p style="margin:24px 0 0;color:#475569;">Te esperamos. ¡Hasta pronto!</p>
-    <p style="margin:4px 0 0;color:#94a3b8;font-size:13px;">— Equipo de ${hqName}</p>
-  </div>
-  <div style="background:#f8fafc;padding:16px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;">
-    <p style="margin:0;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Zéndity OS</p>
-  </div>
-</div>`,
-                    });
-                } catch (emailErr) {
-                    logEmailError('APPROVE', appt.familyMember.email, emailErr);
-                }
-            }
 
             return NextResponse.json({ success: true, appointment: updated });
         }
@@ -354,6 +189,8 @@ async function patchHandler(
         } catch { /* no-fatal */ }
 
         // Email al familiar — mismo gate explícito que el bloque de aprobación.
+        // (REJECT se mantiene inline por ahora — el helper compartido es
+        // específicamente para APPROVE, único bloque que se reusa en POST-create-APPROVED.)
         if (!appt.familyMember.email) {
             console.warn(
                 '[family-appointments PATCH REJECT] email skip:',
@@ -397,7 +234,7 @@ async function patchHandler(
 </div>`,
                 });
             } catch (emailErr) {
-                logEmailError('REJECT', appt.familyMember.email, emailErr);
+                logEmailError(REJECT_LOG_TAG, appt.familyMember.email, emailErr);
             }
         }
 
