@@ -148,6 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 //   - /corporate/family-*          (family-messages, family-appointments,
                 //                                   family-broadcast — los 3 items del hub)
                 //   - /corporate/medical/patients  (directorio + detalle ?id/...)
+                //   - /corporate/calendar          (vista calendario; el GET del endpoint
+                //                                   scopea data a FAMILY_* para COORDINATOR-puro,
+                //                                   defensa-en-profundidad complementaria)
                 //
                 // Si DIR/ADMIN/NURSE/SUP/SW está como primary o secondary,
                 // skipea — esos roles ya tienen acceso amplio legítimo.
@@ -159,7 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     })() &&
                     !pathname.startsWith("/coordinator") &&
                     !pathname.startsWith("/corporate/family-") &&
-                    !pathname.startsWith("/corporate/medical/patients")
+                    !pathname.startsWith("/corporate/medical/patients") &&
+                    !pathname.startsWith("/corporate/calendar")
                 ) {
                     router.replace("/coordinator");
                 }

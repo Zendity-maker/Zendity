@@ -3,18 +3,54 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { notifyRoles } from "@/lib/notifications";
+import { withPhiAccessLog, logPhiAccess } from '@/lib/phi-audit';
+import { getSessionUser } from '@/lib/api-auth';
+import { EventType, PhiAccessAction } from '@prisma/client';
 
 const CARE_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR'];
 const EVENT_AUDIENCE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // ±7 días desde el evento
 
-export async function GET(request: Request) {
+// Tipos del calendario que representan citas/eventos con familiares.
+// Sprint Coordinador (jun-2026): COORDINATOR-puro ve SOLO estos (minimum-necessary).
+// El PATCH de aprobación de FamilyAppointment ya mapea los 5 tipos de cita a
+// estos 3: VIDEO_CALL→FAMILY_VIDEO_CALL, PHONE_CALL→FAMILY_PHONE_CALL, y
+// VISIT/DIRECTOR_MEETING/SPECIAL_OCCASION→FAMILY_VISIT — el set cubre el
+// universo completo de citas aprobadas que Wanda debe ver.
+const FAMILY_EVENT_TYPES = [
+    EventType.FAMILY_VISIT,
+    EventType.FAMILY_VIDEO_CALL,
+    EventType.FAMILY_PHONE_CALL,
+];
+
+// Mismo criterio "puro" que la cláusula de protección en AuthContext y el
+// filtro de tabs en /corporate/medical/patients/[id] (una sola definición).
+const FULL_VIEW_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
+
+// PHI audit (Pilar 1) — Sprint Coordinador (jun-2026): wrap exterior captura
+// el evento de lista; el handler emite además 1 fila logPhiAccess por cada
+// patientId único entre los eventos retornados (patrón "fila por paciente",
+// mismo de los demás list endpoints del sprint). NOTA: esto audita a TODOS
+// los consumidores del calendario (no solo COORDINATOR) — intencional, cierra
+// un gap pre-existente sobre HeadquartersEvent ligados a paciente.
+export const GET = withPhiAccessLog(getCalendarHandler, {
+    resourceType: 'HeadquartersEventList',
+});
+
+async function getCalendarHandler(request: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
+        const auth = await getSessionUser();
+        if (!auth) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        const hqId = auth.headquartersId;
 
-        const hqId = session.user.headquartersId;
+        // ¿COORDINATOR puro? Si SOCIAL_WORKER/NURSE/SUP/DIR/ADMIN aparece como
+        // primary o secondary, NO se considera puro — esos roles ya tienen
+        // acceso amplio legítimo y deben ver el calendario completo.
+        const allRoles = [auth.role, ...auth.secondaryRoles];
+        const isCoordinatorPure =
+            allRoles.includes('COORDINATOR') &&
+            !allRoles.some(r => FULL_VIEW_ROLES.includes(r));
 
         // FIX 2026-05-31: excluir eventos ligados a un paciente DISCHARGED o
         // DECEASED. Antes el calendario seguía mostrando recordatorios futuros
@@ -28,12 +64,35 @@ export async function GET(request: Request) {
                     { patientId: null },
                     { patient: { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } } },
                 ],
+                // Scope minimum-necessary: COORDINATOR-puro solo ve eventos
+                // de familia. El resto de roles ve el calendario completo.
+                ...(isCoordinatorPure ? { type: { in: FAMILY_EVENT_TYPES } } : {}),
             },
             include: {
                 patient: { select: { id: true, name: true } }
             },
             orderBy: { startTime: 'asc' }
         });
+
+        // Fila-por-paciente: dedupe por patientId. Eventos sin patientId NO
+        // emiten fila adicional (el wrap exterior ya registra la consulta).
+        const seen = new Set<string>();
+        for (const ev of events) {
+            if (!ev.patientId || seen.has(ev.patientId)) continue;
+            seen.add(ev.patientId);
+            logPhiAccess({
+                action: PhiAccessAction.READ,
+                resourceType: 'HeadquartersEvent',
+                resourceId: ev.id,
+                patientId: ev.patientId,
+                userId: auth.id,
+                userRole: auth.role,
+                hqId,
+                success: true,
+                routePath: '/api/corporate/calendar',
+                context: { listSize: events.length, scopedToFamily: isCoordinatorPure },
+            });
+        }
 
         return NextResponse.json({ success: true, events });
     } catch (error) {
