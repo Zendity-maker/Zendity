@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Check, X, Clock, ChevronDown } from "lucide-react";
+import { Calendar, Check, X, Clock, ChevronDown, Plus } from "lucide-react";
+import NewAppointmentModal from "@/components/family-appointments/NewAppointmentModal";
 
 type AppStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -52,6 +53,9 @@ export default function FamilyAppointmentsPage() {
     const [rejectModal, setRejectModal] = useState<{ apptId: string; familyName: string } | null>(null);
     const [rejectReason, setRejectReason] = useState('');
 
+    // Modal nueva cita staff-side (Sprint Coordinador 2B)
+    const [newApptOpen, setNewApptOpen] = useState(false);
+
     const load = useCallback(async (tab: AppStatus = activeTab) => {
         setLoading(true);
         try {
@@ -93,10 +97,17 @@ export default function FamilyAppointmentsPage() {
                 <div className="w-11 h-11 bg-teal-500 rounded-2xl flex items-center justify-center shadow-md shadow-teal-200">
                     <Calendar className="w-5 h-5 text-white" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                     <h1 className="text-xl font-extrabold text-slate-900 leading-tight">Citas Familiares</h1>
                     <p className="text-xs text-slate-500 font-semibold mt-0.5">Gestiona las solicitudes de visitas y citas</p>
                 </div>
+                <button
+                    onClick={() => setNewApptOpen(true)}
+                    className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white font-black text-xs px-3 py-2.5 rounded-2xl shadow-sm transition-all active:scale-95"
+                >
+                    <Plus className="w-4 h-4" />
+                    <span>Nueva cita</span>
+                </button>
             </div>
 
             {/* Tabs */}
@@ -223,6 +234,13 @@ export default function FamilyAppointmentsPage() {
                     ))}
                 </div>
             )}
+
+            {/* Modal nueva cita staff-side */}
+            <NewAppointmentModal
+                open={newApptOpen}
+                onClose={() => setNewApptOpen(false)}
+                onCreated={() => { setActiveTab('APPROVED'); load('APPROVED'); }}
+            />
 
             {/* Modal rechazar */}
             {rejectModal && (
