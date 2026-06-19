@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import {
     ArrowLeft, CheckCircle2, XCircle, MessageSquare, Clock,
-    AlertTriangle, User, Shield, FileWarning, Send, Sparkles, RotateCcw
+    AlertTriangle, User, Shield, FileWarning, Send, Sparkles, RotateCcw,
+    FilePen, X,
 } from 'lucide-react';
+import { SignaturePad } from '@/components/sw-evaluation/SignaturePad';
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: 'Borrador',
@@ -52,6 +54,11 @@ export default function IncidentDetailPage() {
     const [zendiLoading, setZendiLoading] = useState(false);
     const [employeeResponse, setEmployeeResponse] = useState('');
     const [appealText, setAppealText] = useState('');
+    // Sprint incident-employee-acknowledge (jun-2026): acuse de recibo write-once.
+    // `ackSignature` guarda la base64 capturada por el SignaturePad dentro del
+    // modal hasta que el empleado confirma el envío.
+    const [ackModalOpen, setAckModalOpen] = useState(false);
+    const [ackSignature, setAckSignature] = useState<string | null>(null);
 
     const isDirector = !!user?.role && DIRECTOR_ROLES.includes(user.role);
     const isHr = !!user?.role && HR_ROLES.includes(user.role);
@@ -127,6 +134,31 @@ export default function IncidentDetailPage() {
         }
     };
 
+    // Sprint incident-employee-acknowledge (jun-2026): envía el acuse con la
+    // firma capturada en el modal. El endpoint valida estado + write-once +
+    // empleado-propio. No cambia status ni toca la firma del supervisor.
+    const handleAcknowledge = async () => {
+        if (!ackSignature) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/hr/incidents/${params.id}/acknowledge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ signatureBase64: ackSignature }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setAckModalOpen(false);
+                setAckSignature(null);
+                await fetchIncident();
+            } else {
+                alert(data.error || 'Error al firmar acuse');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const timeline = useMemo(() => {
         if (!incident) return [];
         const items: Array<{ icon: any; label: string; date: string | null; color: string; description?: string }> = [];
@@ -144,6 +176,15 @@ export default function IncidentDetailPage() {
                 date: null,
                 color: 'bg-amber-500',
                 description: 'Director solicitó explicación (48h)'
+            });
+        }
+        if (incident.acknowledgedAt) {
+            items.push({
+                icon: FilePen,
+                label: 'Empleado acusó recibo',
+                date: incident.acknowledgedAt,
+                color: 'bg-slate-700',
+                description: 'Firma de recibo (no necesariamente conformidad)'
             });
         }
         if (incident.respondedAt) {
@@ -405,6 +446,57 @@ export default function IncidentDetailPage() {
                     </div>
                 )}
 
+                {/* ─── ACUSE DE RECIBO DEL EMPLEADO ─────────────────────────────
+                    Sprint incident-employee-acknowledge (jun-2026).
+                    Acuse = RECIBO, NO acuerdo. La explicación (employeeResponse) es
+                    separada y opcional. Write-once: una vez firmado, queda read-only.
+                    Visible al empleado-propio cuando el reporte está visible y el
+                    status permite acuse. La firma se guarda en acknowledgedSignature
+                    (NO en signatureBase64, que es del supervisor). */}
+                {isOwnEmployee
+                    && incident.visibleToEmployee
+                    && (incident.status === 'PENDING_EXPLANATION' || incident.status === 'EXPLANATION_RECEIVED')
+                    && !incident.acknowledgedAt && (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <FilePen size={16} /> Acuse de recibo
+                        </h3>
+                        <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                            Confirmo que recibí y se me explicó esta observación. Mi firma indica recibo, no necesariamente conformidad.
+                        </p>
+                        <button
+                            onClick={() => { setAckSignature(null); setAckModalOpen(true); }}
+                            disabled={submitting}
+                            className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-900 transition-colors disabled:opacity-50"
+                        >
+                            <FilePen size={14} /> Firmar acuse
+                        </button>
+                    </div>
+                )}
+
+                {/* Acuse YA firmado — vista read-only visible al empleado y a HR */}
+                {incident.acknowledgedAt && (isOwnEmployee || isHr) && (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-teal-600" /> Acuse de recibo registrado
+                        </h3>
+                        <p className="text-xs text-slate-500 mb-3">
+                            Firmado el {new Date(incident.acknowledgedAt).toLocaleString('es-PR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {incident.acknowledgedSignature && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={incident.acknowledgedSignature}
+                                alt="Firma de acuse del empleado"
+                                className="max-h-32 border border-slate-200 rounded-xl bg-white p-2"
+                            />
+                        )}
+                        <p className="text-[11px] text-slate-400 italic mt-3">
+                            Acuse indica recibo del documento. No constituye aceptación del contenido.
+                        </p>
+                    </div>
+                )}
+
                 {/* EMPLOYEE RESPONSE (PENDING_EXPLANATION) */}
                 {isOwnEmployee && incident.status === 'PENDING_EXPLANATION' && (
                     <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
@@ -451,6 +543,77 @@ export default function IncidentDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* MODAL — Acuse de recibo del empleado.
+                Reusa SignaturePad del SW Eval. Mismo patrón: capturar → mostrar
+                preview con opción de "Volver a firmar" → confirmar persiste.
+                NO maneja modal SignaturePad por sí mismo; aquí va el chrome. */}
+            {ackModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md my-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <FilePen className="w-5 h-5 text-slate-700" />
+                                <h3 className="font-extrabold text-slate-800">Acuse de recibo</h3>
+                            </div>
+                            <button
+                                onClick={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                className="p-1 rounded-lg hover:bg-slate-100"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 border-l-4 border-slate-400 p-3 rounded-r-lg">
+                                Confirmo que recibí y se me explicó esta observación.
+                                Mi firma indica recibo, no necesariamente conformidad.
+                            </p>
+
+                            {!ackSignature ? (
+                                <SignaturePad
+                                    onAccept={(b64) => setAckSignature(b64)}
+                                    onCancel={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center gap-3">
+                                    <p className="text-sm font-semibold text-slate-700">Firma capturada — confirma para acusar recibo.</p>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={ackSignature}
+                                        alt="Firma de acuse capturada"
+                                        className="max-h-32 border border-slate-300 rounded-xl bg-white p-1"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setAckSignature(null)}
+                                        className="text-xs font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+                                    >
+                                        Volver a firmar
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 pt-2">
+                                <button
+                                    onClick={() => { setAckModalOpen(false); setAckSignature(null); }}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleAcknowledge}
+                                    disabled={!ackSignature || submitting}
+                                    className="flex-1 py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {submitting ? 'Firmando…' : 'Confirmar acuse'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
