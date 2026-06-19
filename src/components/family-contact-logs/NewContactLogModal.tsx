@@ -95,20 +95,32 @@ export default function NewContactLogModal({
         }
     }, [open, lockedPatientId]);
 
-    // Cargar familiares al elegir residente (o al iniciar con lockedPatientId)
+    // Cargar familiares al elegir residente (o al iniciar con lockedPatientId).
+    //
+    // Bug fix (jun-2026): el Effect 1 vacía `family` en cada open, pero antes
+    // este efecto tenía deps `[patientId]` — si reabrías el modal con el MISMO
+    // lockedPatientId, React dedupea setPatientId(mismo valor), este efecto no
+    // re-fire, y el dropdown quedaba vacío. Dep `open` añadida + guard para
+    // refetchear en cada apertura aunque patientId no cambie. Cleanup con
+    // `ignore` evita aplicar respuesta stale si el modal se cierra mientras
+    // el fetch está en vuelo.
     useEffect(() => {
+        if (!open) return;
         if (!patientId) { setFamily([]); setFamilyMemberId(''); return; }
+        let ignore = false;
         setLoadingFamily(true);
         setFamilyMemberId('');
         (async () => {
             try {
                 const res = await fetch(`/api/corporate/patients/${patientId}/family`);
                 const data = await res.json();
+                if (ignore) return;
                 if (data.success) setFamily(data.familyMembers || []);
             } catch { /* no-op */ }
-            finally { setLoadingFamily(false); }
+            finally { if (!ignore) setLoadingFamily(false); }
         })();
-    }, [patientId]);
+        return () => { ignore = true; };
+    }, [patientId, open]);
 
     const submit = async () => {
         setError(null);
