@@ -233,8 +233,13 @@ export async function GET(req: Request) {
                     },
                     'Patients ACTIVE sin colorGroup asignado': {
                         title: (n) => `⚠️ ${n} residente${n !== 1 ? 's' : ''} sin color de ruta asignado`,
-                        message: (n) => `Causa: ${n} residente${n !== 1 ? 's' : ''} activo${n !== 1 ? 's' : ''} no tiene${n !== 1 ? 'n' : ''} colorGroup configurado (UNASSIGNED).\nAcción requerida: Ir a /hr/schedule y asignar el color de ruta correcto a cada residente afectado.`,
-                        link: '/hr/schedule',
+                        // Fix (jun-2026): el colorGroup del Patient se edita en el perfil
+                        // del residente (/corporate/medical/patients/[id] → modo edición),
+                        // NO en el Schedule Builder. El link viejo (/hr/schedule) mandaba
+                        // al lugar equivocado y el usuario terminaba en el builder de
+                        // horarios sin poder resolver el problema.
+                        message: (n) => `Causa: ${n} residente${n !== 1 ? 's' : ''} activo${n !== 1 ? 's' : ''} no tiene${n !== 1 ? 'n' : ''} colorGroup configurado (UNASSIGNED).\nAcción requerida: Ir al directorio de residentes (/corporate/medical/patients), abrir el perfil de cada residente afectado y asignar el color de ruta desde la edición del perfil.`,
+                        link: '/corporate/medical/patients',
                     },
                     'VitalsOrders PENDING vencidas (>4h)': {
                         title: (n) => `⚠️ ${n} orden${n !== 1 ? 'es' : ''} de vitales vencida${n !== 1 ? 's' : ''} sin completar`,
