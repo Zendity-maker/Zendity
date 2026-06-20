@@ -178,12 +178,6 @@ export default function ZendityCareTabletPage() {
     const [verifyingCensus, setVerifyingCensus] = useState(false);
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
     const [sessionLoading, setSessionLoading] = useState(true);
-    // Sprint caregiver-hub-landing (jun-2026) — fail-safe del rebote a /care/hub.
-    // Solo true cuando el backend confirmó data.success===true. Si el fetch a
-    // /api/care/shift/start falla (red caída, 500, success:false), este flag
-    // queda false → el redirect a /care/hub NO se dispara y el cuidador se
-    // queda en /care. Evita "eject a media-tarea" cuando el wifi titubea.
-    const [sessionConfirmedOk, setSessionConfirmedOk] = useState(false);
 
     // Pantalla post-cierre: tras entregar turno, mostrar confirmación clara
     // ANTES de cerrar sesión, para que la cuidadora no dude si funcionó y
@@ -686,12 +680,6 @@ export default function ZendityCareTabletPage() {
                 const hq = user?.hqId || user?.headquartersId || "";
                 const res = await fetch(`/api/care/shift/start?caregiverId=${user.id}`);
                 const data = await res.json();
-                // Confirma que el backend respondió OK aunque NO haya turno
-                // activo. Es lo que distingue "no hay turno" (rebotar al hub)
-                // de "fetch falló y no sabemos" (quedarse en /care).
-                if (data.success) {
-                    setSessionConfirmedOk(true);
-                }
                 if (data.success && data.activeSession) {
                     setActiveSession(data.activeSession);
 
@@ -775,21 +763,6 @@ export default function ZendityCareTabletPage() {
         };
         checkSession();
     }, [user]);
-
-    // Sprint caregiver-hub-landing (jun-2026) — rebote a /care/hub cuando
-    // CAREGIVER aterriza en /care sin turno activo (bookmark, sesión
-    // persistida, deep-link). Gateado por sessionConfirmedOk: si el fetch
-    // del shift falló o devolvió success=false, NO redirige — el cuidador
-    // se queda en /care (fail-safe contra eject a media-tarea por wifi
-    // inestable). Match estricto en `user.role === 'CAREGIVER'`: NURSE/
-    // SUPERVISOR/etc. que usan /care como tablet eMAR NO se afectan.
-    useEffect(() => {
-        if (sessionLoading) return;             // todavía no sabemos
-        if (!sessionConfirmedOk) return;        // fetch falló → quédate
-        if (user?.role !== 'CAREGIVER') return; // otros roles intactos
-        if (activeSession) return;              // turno activo → quédate
-        router.replace('/care/hub');
-    }, [sessionLoading, sessionConfirmedOk, activeSession, user?.role, router]);
 
     // Sprint N.4 — El sustituto/llegada tarde elige colores desde el modal.
     // Si el turno aún no existe, arrancamos el flujo normal con los colores
@@ -1929,18 +1902,7 @@ export default function ZendityCareTabletPage() {
     // =========================================================
     // VIEW 1: SELECCIÓN DE TURNO Y COLOR ZONING
     // =========================================================
-    // Sprint caregiver-hub-landing (jun-2026): si el cuidador NO tiene turno
-    // activo y el chequeo del shift confirmó OK, lo rebotamos a /care/hub.
-    // Mostramos el mismo loading screen mientras el useEffect de arriba
-    // dispara router.replace — evita un flash del eMAR ("¿Cuál es tu color
-    // de Turno?") antes del rebote.
-    const shouldRedirectToHub =
-        !sessionLoading &&
-        sessionConfirmedOk &&
-        user?.role === 'CAREGIVER' &&
-        !activeSession;
-
-    if (sessionLoading || shouldRedirectToHub) {
+    if (sessionLoading) {
         return <div className="fixed inset-0 bg-slate-100 flex items-center justify-center font-black text-2xl text-slate-500 animate-pulse">Sincronizando Sistema Zendity...</div>;
     }
 
