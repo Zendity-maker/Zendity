@@ -59,6 +59,9 @@ export default function IncidentDetailPage() {
     // modal hasta que el empleado confirma el envío.
     const [ackModalOpen, setAckModalOpen] = useState(false);
     const [ackSignature, setAckSignature] = useState<string | null>(null);
+    // Sprint incident-refuse-signature (jul-2026): rehúso a firmar → reunión formal.
+    const [refuseModalOpen, setRefuseModalOpen] = useState(false);
+    const [refuseReason, setRefuseReason] = useState('');
 
     const isDirector = !!user?.role && DIRECTOR_ROLES.includes(user.role);
     const isHr = !!user?.role && HR_ROLES.includes(user.role);
@@ -159,6 +162,30 @@ export default function IncidentDetailPage() {
         }
     };
 
+    // Sprint incident-refuse-signature (jul-2026): el empleado se niega a firmar.
+    // Registra el rehúso (motivo opcional) → el endpoint notifica a DIRECTOR/ADMIN
+    // y queda marcado como "requiere reunión formal". Write-once, excluyente con firmar.
+    const handleRefuse = async () => {
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/hr/incidents/${params.id}/refuse-acknowledge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: refuseReason.trim() || undefined }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRefuseModalOpen(false);
+                setRefuseReason('');
+                await fetchIncident();
+            } else {
+                alert(data.error || 'Error al registrar el rehúso');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const timeline = useMemo(() => {
         if (!incident) return [];
         const items: Array<{ icon: any; label: string; date: string | null; color: string; description?: string }> = [];
@@ -185,6 +212,15 @@ export default function IncidentDetailPage() {
                 date: incident.acknowledgedAt,
                 color: 'bg-slate-700',
                 description: 'Firma de recibo (no necesariamente conformidad)'
+            });
+        }
+        if (incident.acknowledgeRefusedAt) {
+            items.push({
+                icon: XCircle,
+                label: 'Empleado rehusó firmar',
+                date: incident.acknowledgeRefusedAt,
+                color: 'bg-red-600',
+                description: 'Requiere reunión formal con administración'
             });
         }
         if (incident.respondedAt) {
@@ -456,7 +492,8 @@ export default function IncidentDetailPage() {
                 {isOwnEmployee
                     && incident.visibleToEmployee
                     && (incident.status === 'PENDING_EXPLANATION' || incident.status === 'EXPLANATION_RECEIVED')
-                    && !incident.acknowledgedAt && (
+                    && !incident.acknowledgedAt
+                    && !incident.acknowledgeRefusedAt && (
                     <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
                         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
                             <FilePen size={16} /> Acuse de recibo
@@ -464,13 +501,25 @@ export default function IncidentDetailPage() {
                         <p className="text-sm text-slate-600 leading-relaxed mb-4">
                             Confirmo que recibí y se me explicó esta observación. Mi firma indica recibo, no necesariamente conformidad.
                         </p>
-                        <button
-                            onClick={() => { setAckSignature(null); setAckModalOpen(true); }}
-                            disabled={submitting}
-                            className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-900 transition-colors disabled:opacity-50"
-                        >
-                            <FilePen size={14} /> Firmar acuse
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => { setAckSignature(null); setAckModalOpen(true); }}
+                                disabled={submitting}
+                                className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-900 transition-colors disabled:opacity-50"
+                            >
+                                <FilePen size={14} /> Firmar acuse
+                            </button>
+                            <button
+                                onClick={() => { setRefuseReason(''); setRefuseModalOpen(true); }}
+                                disabled={submitting}
+                                className="bg-white text-red-700 border border-red-200 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                                <XCircle size={14} /> No firmo
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-3">
+                            Si no firmas, se notifica a administración y se coordina una reunión formal.
+                        </p>
                     </div>
                 )}
 
@@ -493,6 +542,27 @@ export default function IncidentDetailPage() {
                         )}
                         <p className="text-[11px] text-slate-400 italic mt-3">
                             Acuse indica recibo del documento. No constituye aceptación del contenido.
+                        </p>
+                    </div>
+                )}
+
+                {/* Rehúso a firmar — vista read-only visible al empleado y a HR */}
+                {incident.acknowledgeRefusedAt && (isOwnEmployee || isHr) && (
+                    <div className="bg-red-50 rounded-2xl border border-red-200 p-6 mb-6">
+                        <h3 className="text-sm font-bold text-red-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <XCircle size={16} className="text-red-600" /> Rehusó firmar · requiere reunión formal
+                        </h3>
+                        <p className="text-xs text-red-700 mb-2">
+                            Registrado el {new Date(incident.acknowledgeRefusedAt).toLocaleString('es-PR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        {incident.acknowledgeRefusedReason && (
+                            <div className="bg-white border border-red-100 rounded-xl px-3 py-2 mb-2">
+                                <p className="text-[10px] font-black uppercase text-red-400 mb-0.5">Motivo del empleado</p>
+                                <p className="text-sm text-red-900">{incident.acknowledgeRefusedReason}</p>
+                            </div>
+                        )}
+                        <p className="text-[11px] text-red-500 italic mt-1">
+                            El empleado se negó a firmar el acuse. Se notificó a administración para coordinar una reunión formal.
                         </p>
                     </div>
                 )}
@@ -608,6 +678,64 @@ export default function IncidentDetailPage() {
                                     className="flex-1 py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-black text-sm disabled:opacity-50 transition-all active:scale-95"
                                 >
                                     {submitting ? 'Firmando…' : 'Confirmar acuse'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL — Rehúso a firmar (Sprint incident-refuse-signature).
+                El empleado confirma que NO firma; motivo opcional. Al confirmar,
+                se notifica a administración y queda marcado para reunión formal. */}
+            {refuseModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md my-auto">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                                <XCircle className="w-5 h-5 text-red-600" />
+                                <h3 className="font-extrabold text-slate-800">No firmar el acuse</h3>
+                            </div>
+                            <button
+                                onClick={() => { setRefuseModalOpen(false); setRefuseReason(''); }}
+                                className="p-1 rounded-lg hover:bg-slate-100"
+                                aria-label="Cerrar"
+                            >
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <p className="text-sm text-slate-700 leading-relaxed bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg">
+                                Estás por dejar constancia de que <strong>no firmas</strong> el acuse.
+                                Esto notifica a administración y se coordinará una <strong>reunión formal</strong>.
+                                Esta acción no se puede deshacer.
+                            </p>
+                            <div>
+                                <label className="block text-[11px] font-black uppercase text-slate-500 mb-1">
+                                    Motivo <span className="text-slate-400">(opcional)</span>
+                                </label>
+                                <textarea
+                                    rows={4}
+                                    value={refuseReason}
+                                    onChange={e => setRefuseReason(e.target.value)}
+                                    placeholder="Puedes explicar por qué no firmas…"
+                                    className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-red-400 outline-none bg-slate-50 text-sm resize-none"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button
+                                    onClick={() => { setRefuseModalOpen(false); setRefuseReason(''); }}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleRefuse}
+                                    disabled={submitting}
+                                    className="flex-1 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-sm disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {submitting ? 'Registrando…' : 'Confirmar que no firmo'}
                                 </button>
                             </div>
                         </div>

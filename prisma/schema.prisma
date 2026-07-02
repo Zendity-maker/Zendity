@@ -2170,21 +2170,26 @@ model IncidentReport {
   createdAt       DateTime  @default(now())
 
   // Sprint C — Módulo Observaciones de Personal
-  severity              HrIncidentSeverity @default(OBSERVATION)
-  category              IncidentCategory   @default(OTHER)
-  status                IncidentStatus     @default(DRAFT)
-  pointsDeducted        Int?
-  acknowledgedAt        DateTime?
-  acknowledgedSignature String?            @db.Text
-  employeeResponse      String?            @db.Text
-  respondedAt           DateTime?
-  appealText            String?            @db.Text
-  appealedAt            DateTime?
-  appliedAt             DateTime?
-  dismissedAt           DateTime?
-  directorNote          String?            @db.Text
-  visibleToEmployee     Boolean            @default(false)
-  relatedPatientId      String?
+  severity                 HrIncidentSeverity @default(OBSERVATION)
+  category                 IncidentCategory   @default(OTHER)
+  status                   IncidentStatus     @default(DRAFT)
+  pointsDeducted           Int?
+  acknowledgedAt           DateTime?
+  acknowledgedSignature    String?            @db.Text
+  // Sprint incident-refuse-signature (jul-2026): el empleado puede negarse a
+  // firmar el acuse. Rehúso → notif a DIRECTOR/ADMIN + requiere reunión formal.
+  // Excluyente con acknowledgedAt (o firma, o rehúsa — no ambos).
+  acknowledgeRefusedAt     DateTime?
+  acknowledgeRefusedReason String?            @db.Text
+  employeeResponse         String?            @db.Text
+  respondedAt              DateTime?
+  appealText               String?            @db.Text
+  appealedAt               DateTime?
+  appliedAt                DateTime?
+  dismissedAt              DateTime?
+  directorNote             String?            @db.Text
+  visibleToEmployee        Boolean            @default(false)
+  relatedPatientId         String?
 
   employee   User         @relation("EmployeeIncidents", fields: [employeeId], references: [id])
   supervisor User         @relation("SupervisorIncidents", fields: [supervisorId], references: [id])
