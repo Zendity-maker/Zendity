@@ -6,9 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 import {
     ArrowLeft, CheckCircle2, XCircle, MessageSquare, Clock,
     AlertTriangle, User, Shield, FileWarning, Send, Sparkles, RotateCcw,
-    FilePen, X,
+    FilePen, X, Printer,
 } from 'lucide-react';
 import { SignaturePad } from '@/components/sw-evaluation/SignaturePad';
+import { generateIncidentReportPDF } from '@/lib/incident-report-pdf';
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: 'Borrador',
@@ -66,6 +67,33 @@ export default function IncidentDetailPage() {
     const isDirector = !!user?.role && DIRECTOR_ROLES.includes(user.role);
     const isHr = !!user?.role && HR_ROLES.includes(user.role);
     const isOwnEmployee = !!user && !!incident && incident.employeeId === user.id;
+
+    // Sprint incident-print (jul-2026): descarga PDF de esta observación individual.
+    const handlePrint = () => {
+        if (!incident) return;
+        generateIncidentReportPDF({
+            id: incident.id,
+            hqName: incident.hq?.name || 'Zéndity',
+            createdAt: incident.createdAt,
+            type: incident.type,
+            severity: incident.severity,
+            category: incident.category,
+            status: incident.status,
+            description: incident.description || '',
+            directorNote: incident.directorNote,
+            employeeResponse: incident.employeeResponse,
+            respondedAt: incident.respondedAt,
+            employeeName: incident.employee?.name || 'Empleado',
+            employeeRole: incident.employee?.role,
+            supervisorName: incident.supervisor?.name,
+            supervisorSignature: incident.signatureBase64,
+            signedAt: incident.signedAt,
+            acknowledgedAt: incident.acknowledgedAt,
+            acknowledgedSignature: incident.acknowledgedSignature,
+            acknowledgeRefusedAt: incident.acknowledgeRefusedAt,
+            acknowledgeRefusedReason: incident.acknowledgeRefusedReason,
+        });
+    };
 
     const fetchIncident = async () => {
         if (!params.id) return;
@@ -328,6 +356,14 @@ export default function IncidentDetailPage() {
                                 {new Date(incident.createdAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'long', year: 'numeric' })}
                             </div>
                             <div className="text-xs text-slate-400 mt-1">por {incident.supervisor?.name}</div>
+                            {(isHr || isOwnEmployee) && (
+                                <button
+                                    onClick={handlePrint}
+                                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                                >
+                                    <Printer size={14} /> Imprimir / PDF
+                                </button>
+                            )}
                         </div>
                     </div>
 
