@@ -2,11 +2,16 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import { prisma } from '@/lib/prisma';
+import { requireSession } from '@/lib/api-auth';
 
 export const maxDuration = 60; // Parche Staging Integral E2E
 
 export async function POST(req: Request) {
   try {
+    // Genera contenido con Gemini → requiere sesión para cortar abuso anónimo de LLM.
+    const auth = await requireSession();
+    if (auth instanceof NextResponse) return auth;
+
     const body = await req.json();
     const { requestType, courseId } = body; // 'flashcards' o 'quiz'
 

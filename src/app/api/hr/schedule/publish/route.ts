@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
+import { requireRole } from '@/lib/api-auth';
+
+// Publicar horarios (y notificar al equipo por email) es operación de gestión.
+const MANAGE_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -106,11 +110,23 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
 
 export async function POST(req: Request) {
     try {
+        const auth = await requireRole(MANAGE_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await req.json();
         const { scheduleId, force = false } = body;
 
         if (!scheduleId) {
             return NextResponse.json({ success: false, error: 'scheduleId requerido' }, { status: 400 });
+        }
+
+        // Ownership: el horario debe pertenecer a la sede del invocador (anti cross-tenant).
+        const owned = await prisma.schedule.findFirst({
+            where: { id: scheduleId, headquartersId: auth.headquartersId },
+            select: { id: true },
+        });
+        if (!owned) {
+            return NextResponse.json({ success: false, error: 'Horario no encontrado' }, { status: 404 });
         }
 
         // ── PASO 1: Cargar shifts del borrador para validar ────────────────────

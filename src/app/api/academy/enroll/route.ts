@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+
+// Inscribir empleados a cursos es acción de gestión.
+const ENROLL_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireRole(ENROLL_ROLES);
+        if (auth instanceof NextResponse) return auth;
+
         const body = await request.json();
         const { userId, courseId } = body;
+
+        // Ownership: el empleado a inscribir debe pertenecer a la sede del gestor.
+        const target = await prisma.user.findFirst({
+            where: { id: userId, headquartersId: auth.headquartersId },
+            select: { id: true, headquartersId: true }
+        });
+        if (!target) {
+            return NextResponse.json({ success: false, error: 'Empleado no encontrado' }, { status: 404 });
+        }
 
         // Check if enrollment already exists
         const existing = await prisma.userCourse.findFirst({
@@ -20,15 +36,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, record: updated }, { status: 200 });
         }
 
-        // Fetch User to get their HQ
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-
         // Create new enrollment
         const record = await prisma.userCourse.create({
             data: {
                 employeeId: userId,
                 courseId,
-                headquartersId: user?.headquartersId || "",
+                headquartersId: target.headquartersId,
                 status: 'IN_PROGRESS'
             }
         });

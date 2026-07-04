@@ -1,15 +1,44 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireSession } from '@/lib/api-auth';
 
-
+// Resetear strikes es un override de gestión; el intento normal lo registra el
+// propio staff sobre su propia inscripción.
+const RESET_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { employeeId, courseId, hqId, forceReset } = body;
+        const auth = await requireSession();
+        if (auth instanceof NextResponse) return auth;
 
-        if (!employeeId || !courseId || !hqId) {
+        const body = await req.json();
+        const { courseId, forceReset, employeeId: bodyEmployeeId } = body;
+
+        if (!courseId) {
             return NextResponse.json({ success: false, error: "Datos incompletos" }, { status: 400 });
+        }
+
+        // hqId sale de la sesión, nunca del body (anti cross-tenant).
+        const hqId = auth.headquartersId;
+
+        // Por defecto la operación es sobre el propio usuario. El reset de strikes
+        // puede apuntar a otro empleado, pero solo con rol de gestión y dentro de la sede.
+        let employeeId = auth.id;
+        if (forceReset) {
+            const canReset = [auth.role, ...auth.secondaryRoles].some(r => RESET_ROLES.includes(r));
+            if (!canReset) {
+                return NextResponse.json({ success: false, error: 'Rol no autorizado para resetear intentos' }, { status: 403 });
+            }
+            if (bodyEmployeeId && bodyEmployeeId !== auth.id) {
+                const target = await prisma.user.findFirst({
+                    where: { id: bodyEmployeeId, headquartersId: hqId },
+                    select: { id: true },
+                });
+                if (!target) {
+                    return NextResponse.json({ success: false, error: 'Empleado no encontrado' }, { status: 404 });
+                }
+                employeeId = bodyEmployeeId;
+            }
         }
 
         // FASE 46: Obtener o crear intento actual
