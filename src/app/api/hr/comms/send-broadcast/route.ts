@@ -30,8 +30,11 @@ export async function POST(request: Request) {
         });
         const hqName = hq?.name || 'Corporate Hub';
 
+        // Solo staff ACTIVO y no dado de baja. Un broadcast a "todo el staff"
+        // NO debe alcanzar empleados desactivados (isActive:false) ni soft-deleted
+        // (isDeleted:true). Mismo patrón que hr/staff, audit-report y corporate/hr/comms.
         const allEmployees = await prisma.user.findMany({
-            where: { headquartersId: hqId },
+            where: { headquartersId: hqId, isActive: true, isDeleted: false },
             select: { email: true, name: true }
         });
 
