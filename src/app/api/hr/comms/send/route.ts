@@ -31,12 +31,15 @@ export async function POST(request: Request) {
         });
         const hqName = hq?.name || 'Corporate Hub';
 
-        const employee = await prisma.user.findUnique({
-            where: { id: employeeId }
+        // findFirst (no findUnique) para poder filtrar por hqId + estado:
+        //  - headquartersId: hqId → evita fuga multi-tenant (no enviar a staff de otra sede por ID).
+        //  - isActive:true, isDeleted:false → no enviar a empleados desactivados/baja.
+        const employee = await prisma.user.findFirst({
+            where: { id: employeeId, headquartersId: hqId, isActive: true, isDeleted: false }
         });
 
         if (!employee || !employee.email) {
-            return NextResponse.json({ error: 'Empleado no encontrado o sin correo asignado.' }, { status: 404 });
+            return NextResponse.json({ error: 'Empleado no encontrado, inactivo o sin correo asignado.' }, { status: 404 });
         }
 
         // Si no tenemos SENDGRID_API_KEY configurado, simular envío (Mock)
