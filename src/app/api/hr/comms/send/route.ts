@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         const msg = {
             to: employee.email,
             from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', // Requiere sender verificado en SendGrid
-            subject: `[${hqName} HR] ${subject}`,
+            subject: `${hqName} · ${subject}`,
             html: corporateTemplate,
         };
 

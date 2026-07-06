@@ -98,7 +98,7 @@ export async function POST(request: Request) {
                 email: senderEmail,
                 name: hqName
             },
-            subject: `[RRHH] ${subject}`,
+            subject: `${hqName} · ${subject}`,
             html: memoTemplate,
             personalizations: [
                 {
