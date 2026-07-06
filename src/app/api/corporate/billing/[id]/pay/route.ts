@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -95,7 +96,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         const familyEmail = (invoice.patient as any)?.primaryFamilyMember?.email;
         const familyName = (invoice.patient as any)?.primaryFamilyMember?.name;
         const hqName = invoice.headquarters?.name || 'Vivid Senior Living';
-        const logoUrl = invoice.headquarters?.logoUrl;
+        const logoUrl = emailLogoSrc((invoice as any).headquartersId, invoice.headquarters?.logoUrl);
 
         if (familyEmail) {
             try {

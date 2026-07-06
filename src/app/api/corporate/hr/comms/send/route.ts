@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -61,7 +62,8 @@ export async function POST(request: Request) {
         }
 
         // 3. Diseño estético del correo corporativo RRHH
-        const logoHtml = hq?.logoUrl ? `<img src="${hq.logoUrl}" alt="${hqName}" style="max-height: 80px; margin-bottom: 20px; object-fit: contain;" />` : '';
+        const logoSrc = emailLogoSrc(hqId, hq?.logoUrl);
+        const logoHtml = logoSrc ? `<img src="${logoSrc}" alt="${hqName}" style="max-height: 80px; margin-bottom: 20px; object-fit: contain;" />` : '';
 
         const memoTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #C9D4D8; border-radius: 8px; background-color: #f8fafc; padding: 30px;">

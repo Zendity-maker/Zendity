@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -135,7 +136,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 const familyEmail = (patient as any)?.primaryFamilyMember?.email;
                 const familyName = (patient as any)?.primaryFamilyMember?.name;
                 const hqName = (patient as any)?.headquarters?.name || 'Zéndity';
-                const logoUrl = (patient as any)?.headquarters?.logoUrl;
+                const logoUrl = emailLogoSrc((patient as any)?.headquartersId, (patient as any)?.headquarters?.logoUrl);
 
                 if (familyEmail) {
                     const logoHtml = logoUrl

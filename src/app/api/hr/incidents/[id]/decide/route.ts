@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { notifyUser } from '@/lib/notifications';
 import { applyScoreEvent } from '@/lib/score-event';
 import { IncidentStatus, HrIncidentSeverity } from '@prisma/client';
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
 export const dynamic = 'force-dynamic';
@@ -104,8 +105,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             if (incident.employee?.email && process.env.SENDGRID_API_KEY) {
                 try {
                     const hqName = incident.hq?.name || 'Zéndity';
-                    const logoHtml = incident.hq?.logoUrl
-                        ? `<img src="${incident.hq.logoUrl}" alt="${hqName}" style="max-height:72px;margin-bottom:16px;object-fit:contain;" />`
+                    const logoHtml = emailLogoSrc(incident.headquartersId, incident.hq?.logoUrl)
+                        ? `<img src="${emailLogoSrc(incident.headquartersId, incident.hq?.logoUrl)}" alt="${hqName}" style="max-height:72px;margin-bottom:16px;object-fit:contain;" />`
                         : '';
                     const directorNoteHtml = (directorNote || incident.directorNote)
                         ? `<div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:14px;margin:16px 0;">
@@ -210,8 +211,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         if (incident.employee?.email && process.env.SENDGRID_API_KEY) {
             try {
                 const hqName = incident.hq?.name || 'Zéndity';
-                const logoHtml = incident.hq?.logoUrl
-                    ? `<img src="${incident.hq.logoUrl}" alt="${hqName}" style="max-height:72px;margin-bottom:16px;object-fit:contain;" />`
+                const logoHtml = emailLogoSrc(incident.headquartersId, incident.hq?.logoUrl)
+                    ? `<img src="${emailLogoSrc(incident.headquartersId, incident.hq?.logoUrl)}" alt="${hqName}" style="max-height:72px;margin-bottom:16px;object-fit:contain;" />`
                     : '';
                 const sigHtml = incident.signatureBase64
                     ? `<img src="${incident.signatureBase64}" alt="Firma" style="max-height:80px;border-top:1px solid #cbd5e1;padding-top:6px;" />`

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 
 // Setear el API Key (Asume que existe SENDGRID_API_KEY en .env)
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
         const corporateTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #C9D4D8; border-radius: 12px; overflow: hidden;">
             <div style="background-color: #1F2D3A; padding: 24px; text-align: center; border-bottom: 4px solid #0F6B78;">
-                ${hq?.logoUrl ? `<img src="${hq.logoUrl}" alt="${hqName}" style="max-height: 50px; margin-bottom: 12px; border-radius: 8px;" />` : `<h2 style="color: white; margin: 0; font-size: 24px;">${hqName}</h2>`}
+                ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-height: 50px; margin-bottom: 12px; border-radius: 8px;" />` : `<h2 style="color: white; margin: 0; font-size: 24px;">${hqName}</h2>`}
                 <p style="color: #3CC6C4; margin: 5px 0 0 0; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Aviso Oficial de Recursos Humanos</p>
             </div>
             <div style="padding: 32px; background-color: #ffffff; color: #1F2D3A; line-height: 1.6;">

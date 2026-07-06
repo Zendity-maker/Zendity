@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
                 });
 
                 const facilityName = hqData?.name || 'Zendity Care Center';
-                const logoHtml = hqData?.logoUrl ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${hqData.logoUrl}" alt="${facilityName}" style="max-height: 80px; object-fit: contain;" /></div>` : '';
+                const logoHtml = emailLogoSrc(hqId, hqData?.logoUrl) ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${emailLogoSrc(hqId, hqData?.logoUrl)}" alt="${facilityName}" style="max-height: 80px; object-fit: contain;" /></div>` : '';
 
                 const roleNames: Record<string, string> = {
                     "NURSE": "Enfermera(o) a Cargo",

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { SystemAuditAction } from '@prisma/client';
+import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
 import bcrypt from 'bcryptjs';
 
@@ -92,8 +93,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const senderEmail = process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com';
         const facilityName = employee.headquarters?.name || 'Zendity Care Center';
         const brandPrimary = employee.headquarters?.brandPrimary || '#0F6B78';
-        const logoHtml = employee.headquarters?.logoUrl
-            ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${employee.headquarters.logoUrl}" alt="${facilityName}" style="max-height: 80px; object-fit: contain;" /></div>`
+        const logoHtml = emailLogoSrc(employee.headquartersId, employee.headquarters?.logoUrl)
+            ? `<div style="text-align: center; margin-bottom: 20px;"><img src="${emailLogoSrc(employee.headquartersId, employee.headquarters?.logoUrl)}" alt="${facilityName}" style="max-height: 80px; object-fit: contain;" /></div>`
             : '';
 
         const roleNames: Record<string, string> = {
