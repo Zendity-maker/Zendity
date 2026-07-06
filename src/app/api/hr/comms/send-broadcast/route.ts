@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         const msg = {
             to: targetEmails,
             from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
-            subject: `[Aviso Sede] ${subject}`,
+            subject: `${hqName} · ${subject}`,
             html: corporateTemplate,
             isMultiple: true, // Crucial para que no se vean las direcciones de los demás (BCC implícito)
         };
