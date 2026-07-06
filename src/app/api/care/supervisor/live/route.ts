@@ -112,7 +112,7 @@ export async function GET(req: Request) {
             //    NIGHT que arrancaron antes del día clínico actual y sesiones que
             //    iniciaron 16 min antes de las 6am AST. Antes usaba gte: todayStart
             //    (6am AST) y dejaba fuera al NIGHT vivo.
-            prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: fourteenHrsAgo } }, include: { caregiver: { select: { id: true, name: true, role: true, pinCode: true, complianceScore: true } } } }),
+            prisma.shiftSession.findMany({ where: { headquartersId: hqId, actualEndTime: null, startTime: { gte: fourteenHrsAgo } }, include: { caregiver: { select: { id: true, name: true, role: true, complianceScore: true } } } }),
             // 1b. Sesiones zombies — turnos sin cerrar de los últimos 7 días.
             // Sin filtro de 14h para que los olvidos viejos sigan visibles
             // en el panel del supervisor y puedan ser cerrados manualmente.
