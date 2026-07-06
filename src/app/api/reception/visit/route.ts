@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireKioskDevice } from '@/lib/external-kiosk-auth';
 
 export async function POST(req: Request) {
     try {
+        // hqId del token del dispositivo (x-device-token), no del residente hallado.
+        // Antes: se buscaba paciente por nombre/id sin filtrar por sede → dos sedes
+        // con residentes de nombre parecido cruzaban la visita a la sede equivocada,
+        // y sin auth se podía registrar contra cualquier residente del sistema.
+        const device = await requireKioskDevice(req);
+        if (device instanceof NextResponse) return device;
+        const deviceHqId = device.headquartersId;
+
         const { residentName, visitorName, visitorRelation, signatureData, timestamp, patientId: incomingPatientId } = await req.json();
 
         if (!residentName || !visitorName) {
@@ -11,18 +20,19 @@ export async function POST(req: Request) {
 
         const visitedAt = new Date(timestamp || Date.now());
 
-        // 1. Usar patientId directo si viene del frontend (búsqueda previa), si no buscar por nombre
+        // 1. Buscar el residente SIEMPRE dentro de la sede de la tablet.
         let patient = null;
         if (incomingPatientId) {
-            patient = await prisma.patient.findUnique({
-                where: { id: incomingPatientId },
+            patient = await prisma.patient.findFirst({
+                where: { id: incomingPatientId, headquartersId: deviceHqId },
                 include: { headquarters: { select: { id: true, name: true } } }
             });
         } else {
             patient = await prisma.patient.findFirst({
                 where: {
                     name: { contains: residentName, mode: 'insensitive' },
-                    status: 'ACTIVE'
+                    status: 'ACTIVE',
+                    headquartersId: deviceHqId
                 },
                 include: { headquarters: { select: { id: true, name: true } } }
             });
