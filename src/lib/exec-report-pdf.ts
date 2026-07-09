@@ -85,8 +85,14 @@ export function generateExecReportPDF(d: ExecReportData): void {
     y += 6;
 
     // Helper: section header (teal bar)
+    // Fix (jul-2026): la barra teal se dibuja en `y - 4` (retrocede 4mm). El
+    // kpiRow previo solo dejaba 2mm de margen, así que la barra de la sección
+    // siguiente caía sobre los sub-textos de los KPIs anteriores ("Residentes
+    // ACTIVE", etc.) — se veían como franjas tapando palabras. Se añade padding
+    // superior (y += 5) y se reserva más alto en el salto de página.
     const sectionHeader = (title: string) => {
-        pageBreakIfNeeded(12);
+        pageBreakIfNeeded(17);
+        y += 5;
         doc.setFillColor(15, 110, 86); doc.rect(marginX, y - 4, usableW, 6, 'F');
         doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
         doc.text(title, marginX + 2, y);
