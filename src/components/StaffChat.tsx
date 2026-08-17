@@ -90,6 +90,20 @@ export default function StaffChat({ open, onClose, onUnreadChange }: StaffChatPr
         return () => clearInterval(iv);
     }, [fetchMessages, fetchUsers]);
 
+    // Abrir el chat = ver los mensajes → limpiar las notificaciones
+    // STAFF_MESSAGE de la campana de este usuario. Incondicional a propósito:
+    // los broadcasts comparten un solo flag isRead, así que si un colega leyó
+    // primero, el efecto de abajo no dispara (unread vacío) y las
+    // notificaciones quedarían vivas para siempre.
+    useEffect(() => {
+        if (!open) return;
+        fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'STAFF_MESSAGE' }),
+        }).catch(() => {});
+    }, [open]);
+
     // Mark unread as read when opening the panel + switching tabs
     useEffect(() => {
         if (!open || !user) return;

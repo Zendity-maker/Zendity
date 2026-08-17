@@ -89,10 +89,28 @@ export async function GET(req: Request) {
                 } catch { /* silenciar */ }
 
                 // ── B. Notificaciones >48h → AUTO-CORRECCIÓN ────────────
+                // EXENTAS las accionables: una notificación que apunta a una
+                // cola de aprobación (citas familiares, visitas externas por
+                // aprobar) representa a una persona esperando respuesta. Antes
+                // esta limpieza las marcaba leídas sin distinción y dos
+                // solicitudes de cita pasaron su fecha sin que nadie las viera
+                // (ago-2026). "Mantener el sistema limpio" no puede costar
+                // solicitudes reales; esas mueren solo cuando su badge de
+                // estado (pending-count) muere con ellas.
                 let notificationsFixed = 0;
                 try {
                     const result = await prisma.notification.updateMany({
-                        where: { isRead: false, createdAt: { lt: h48ago }, user: { headquartersId: hq.id } },
+                        where: {
+                            isRead: false,
+                            createdAt: { lt: h48ago },
+                            user: { headquartersId: hq.id },
+                            NOT: {
+                                OR: [
+                                    { link: '/corporate/family-appointments' },
+                                    { type: 'EXTERNAL_VISIT_PENDING' },
+                                ],
+                            },
+                        },
                         data: { isRead: true },
                     });
                     notificationsFixed = result.count;
@@ -264,8 +282,14 @@ export async function GET(req: Request) {
                 };
 
                 // ── Enviar 1 notificación por anomalía ─────────────────
+                // La limpieza de notificaciones NO se anuncia con otra
+                // notificación: es ruido sobre ruido (una campana avisando que
+                // se limpió la campana). Queda registrada en el SystemAuditLog
+                // de abajo, que es donde pertenece.
                 await Promise.allSettled(
-                    anomalies.map(a => {
+                    anomalies
+                        .filter(a => a.check !== 'Notificaciones antiguas limpiadas automáticamente')
+                        .map(a => {
                         const def = anomalyDefs[a.check];
                         const title   = def ? def.title(a.count)   : `${a.autoFixed ? '✅' : '⚠️'} ${a.check}`;
                         const message = def ? def.message(a.count) : `${a.count} caso${a.count !== 1 ? 's' : ''} en ${hq.name}.`;

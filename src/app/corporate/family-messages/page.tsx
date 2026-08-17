@@ -45,6 +45,13 @@ export default function CorporateFamilyMessages() {
 
     useEffect(() => {
         loadConversations();
+        // Entrar a la página = ver los mensajes → limpiar las notificaciones 💬
+        // de la campana de este usuario (fuera del interval: el polling no marca).
+        fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: '/corporate/family-messages' }),
+        }).catch(() => {});
         const interval = setInterval(loadConversations, 12000);
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps

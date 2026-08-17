@@ -151,6 +151,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [familyMsgOpen, setFamilyMsgOpen] = useState(false);
     const [familyMsgUnread, setFamilyMsgUnread] = useState(0);
     const [intakePendingCount, setIntakePendingCount] = useState(0);
+    const [apptPendingCount, setApptPendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
     const [inboxPendingCount, setInboxPendingCount] = useState(0);
     // Estado de alerta cuando el Schedule de la semana actual está en DRAFT.
@@ -292,6 +293,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchIntakePending, 60000);
         return () => clearInterval(interval);
     }, [isIntakeRole]);
+
+    // Polling badge citas familiares pendientes de autorizar.
+    // Badge derivado de ESTADO (FamilyAppointment.status=PENDING), no de
+    // notificaciones-evento: la campana se inunda y el cron health-monitor
+    // marca leídas las notifs >48h, así que dos solicitudes de cita pasaron su
+    // fecha sin que nadie las viera (caso Maria del Pilar, ago-2026). Este
+    // badge existe mientras haya algo pendiente de verdad y no se puede
+    // "limpiar".
+    const isApptRole = user?.role && ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'COORDINATOR'].includes(user.role);
+    useEffect(() => {
+        if (!isApptRole) return;
+        const fetchApptPending = async () => {
+            try {
+                const res = await fetch('/api/corporate/family-appointments/pending-count');
+                const data = await res.json();
+                if (data.success) setApptPendingCount(data.count ?? 0);
+            } catch {}
+        };
+        fetchApptPending();
+        const interval = setInterval(fetchApptPending, 60000);
+        return () => clearInterval(interval);
+    }, [isApptRole]);
 
     // Polling alerta "Schedule semana actual en DRAFT" (DIRECTOR, ADMIN, SUPERVISOR).
     // Defensa para evitar la trampa histórica: armar el horario, creer que
@@ -606,6 +629,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                                 {intakePendingCount > 9 ? '9+' : intakePendingCount}
                                                             </span>
                                                         )}
+                                                        {isSidebarCollapsed && link.href === '/corporate/family-appointments' && apptPendingCount > 0 && (
+                                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                                {apptPendingCount > 9 ? '9+' : apptPendingCount}
+                                                            </span>
+                                                        )}
                                                         {/* Alerta DRAFT: el horario de la semana en curso aún no se publicó. */}
                                                         {isSidebarCollapsed && link.href === '/hr/schedule' && scheduleDraftAlert && (
                                                             <span className="absolute -top-1.5 -right-1.5 w-[12px] h-[12px] bg-rose-500 rounded-full border-[1.5px] border-white" title="Horario en BORRADOR" />
@@ -615,6 +643,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                                     {!isSidebarCollapsed && link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
                                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                             {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                        </span>
+                                                    )}
+                                                    {!isSidebarCollapsed && link.href === '/corporate/family-appointments' && apptPendingCount > 0 && (
+                                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                            {apptPendingCount > 9 ? '9+' : apptPendingCount}
                                                         </span>
                                                     )}
                                                     {!isSidebarCollapsed && link.href === '/hr/schedule' && scheduleDraftAlert && (
@@ -769,6 +802,11 @@ if ((item as any).onlyRoles) {
                                                             {link.href === '/corporate/patients/intake' && intakePendingCount > 0 && (
                                                                 <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                                     {intakePendingCount > 9 ? '9+' : intakePendingCount}
+                                                                </span>
+                                                            )}
+                                                            {link.href === '/corporate/family-appointments' && apptPendingCount > 0 && (
+                                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                                    {apptPendingCount > 9 ? '9+' : apptPendingCount}
                                                                 </span>
                                                             )}
                                                         </Link>

@@ -57,6 +57,15 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
     useEffect(() => {
         if (!open) return;
         loadConversations();
+        // Abrir el panel = ver los mensajes → limpiar las notificaciones 💬 de
+        // la campana de ESTE usuario. Sin esto quedaban vivas para siempre
+        // aunque el chat ya estuviera leído. Fuera del interval a propósito:
+        // el polling de fondo no debe marcar nada.
+        fetch('/api/notifications', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ link: '/corporate/family-messages' }),
+        }).catch(() => {});
         const interval = setInterval(() => loadConversations(true), 12000);
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
