@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getBillableResidents } from '@/lib/billable-residents';
 import { calculateMonthlyCharge } from '@/lib/proration';
+import { applyCreditsToInvoice } from '@/lib/patient-credits';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -28,6 +29,9 @@ export interface MonthlyInvoicingResult {
     skippedNoFee: number;
     /** Cuántas de las creadas salieron prorrateadas por ingreso a mitad de mes. */
     proratedCount: number;
+    /** Facturas a las que se les aplicó saldo a favor, y monto total aplicado. */
+    creditsAppliedCount: number;
+    creditsAppliedAmount: number;
     emailsSent: number;
     invoiceIds: string[];
 }
@@ -99,9 +103,11 @@ export async function generateMonthlyInvoicesForHq(opts: {
 
     const toCreate = eligible.filter(p => !existingPatientIds.has(p.id));
 
-    const created: { id: string; patientId: string; patientName: string }[] = [];
+    const created: { id: string; patientId: string; patientName: string; settledByCredit: boolean }[] = [];
     let counter = maxN + 1;
     let proratedCount = 0;
+    let creditsAppliedCount = 0;
+    let creditsAppliedAmount = 0;
 
     for (const p of toCreate) {
         // Prorrateo del primer mes. admissionDate es la fuente correcta;
@@ -143,8 +149,32 @@ export async function generateMonthlyInvoicesForHq(opts: {
                 },
             },
         });
-        created.push({ id: inv.id, patientId: p.id, patientName: p.name });
         if (charge.isProrated) proratedCount++;
+
+        // Aplicar saldo a favor si el residente tiene (adelantos de meses
+        // anteriores). La factura ya se emitió por el monto completo; el crédito
+        // entra como InvoicePayment, que es lo que lo hace visible en reportes
+        // de ingreso y emitible como recibo.
+        let settledByCredit = false;
+        try {
+            const applied = await applyCreditsToInvoice({
+                invoiceId: inv.id,
+                patientId: p.id,
+                totalAmount: subtotal,
+            });
+            if (applied.applied > 0) {
+                creditsAppliedCount++;
+                creditsAppliedAmount = Math.round((creditsAppliedAmount + applied.applied) * 100) / 100;
+                settledByCredit = applied.remaining <= 0;
+            }
+        } catch (err) {
+            // No abortamos la generación por un fallo al aplicar crédito: la
+            // factura ya existe y es correcta. El saldo queda disponible para
+            // aplicarse manualmente o en la siguiente corrida.
+            console.error('[monthly-invoicing] fallo aplicando crédito', { patientId: p.id, err });
+        }
+
+        created.push({ id: inv.id, patientId: p.id, patientName: p.name, settledByCredit });
     }
 
     // 3. Email a familiar primario (best-effort, paralelo)
@@ -156,6 +186,10 @@ export async function generateMonthlyInvoicesForHq(opts: {
         const dueLabel = dueDate.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Puerto_Rico' });
 
         for (const inv of created) {
+            // Si el saldo a favor cubrió la factura completa, no mandamos el
+            // aviso de "tu factura está disponible": la familia ya pagó y
+            // recibiría un correo pidiéndole plata que no debe.
+            if (inv.settledByCredit) continue;
             try {
                 const primaryFamily = await prisma.familyMember.findFirst({
                     where: {
@@ -209,6 +243,8 @@ export async function generateMonthlyInvoicesForHq(opts: {
         skippedExisting: eligible.length - toCreate.length,
         skippedNoFee,
         proratedCount,
+        creditsAppliedCount,
+        creditsAppliedAmount,
         emailsSent,
         invoiceIds: created.map(c => c.id),
     };

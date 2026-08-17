@@ -59,6 +59,9 @@ model Headquarters {
   // FASE 19 Integrations
   invoices Invoice[]
 
+  // Saldos a favor de residentes (adelantos, sobrepagos)
+  patientCredits PatientCredit[]
+
   // FASE 21 Integrations
   shiftHandovers ShiftHandover[]
 
@@ -763,6 +766,9 @@ model Patient {
 
   // FASE 19 Integrations
   invoices Invoice[]
+
+  // Saldos a favor (adelantos de familiares, sobrepagos)
+  credits PatientCredit[]
 
   // FASE 21 Integrations
   handoverNotes HandoverNote[]
@@ -1569,9 +1575,64 @@ model InvoicePayment {
   date      DateTime      @default(now())
   notes     String?
 
+  // Si el pago proviene de un saldo a favor del residente (adelanto), aquí
+  // queda el vínculo. Nullable: la enorme mayoría de pagos son cobros directos.
+  patientCreditId String?
+
   createdAt DateTime @default(now())
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  patientCredit PatientCredit? @relation(fields: [patientCreditId], references: [id])
+
+  @@index([patientCreditId])
+}
+
+/// Saldo a favor de un residente.
+///
+/// Nace del caso Velez Grau (agosto 2026): un familiar adelantó la cuota del
+/// mes siguiente y, al no existir este modelo, la "solución" fue editar la
+/// factura a $0 y registrar un pago de $1 para poder marcarla PAID. Resultado:
+/// $3,000 realmente cobrados que no existían en ninguna parte del sistema, sin
+/// recibo emitible y sin forma de defender el cobro ante un reclamo.
+///
+/// Regla que este modelo hace cumplir: la factura SIEMPRE se emite por el monto
+/// completo de la cuota. Un adelanto es un pago, nunca un descuento.
+///
+/// El consumo es parcial y acumulativo: `amount` es el crédito original y
+/// `appliedAmount` cuánto se ha consumido. Disponible = amount - appliedAmount.
+model PatientCredit {
+  id             String @id @default(uuid())
+  headquartersId String
+  patientId      String
+
+  amount        Float // crédito original
+  appliedAmount Float @default(0.0) // cuánto se ha consumido ya
+
+  source PatientCreditSource @default(ADVANCE_PAYMENT)
+  reason String?
+
+  /// Fecha REAL en que entró el dinero, no la fecha del registro. Es la que
+  /// permite reconstruir a qué mes correspondía el adelanto.
+  receivedAt DateTime
+
+  /// Quién lo registró. Auditoría desde el día 1: este modelo mueve dinero.
+  createdById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters     @relation(fields: [headquartersId], references: [id])
+  patient      Patient          @relation(fields: [patientId], references: [id])
+  applications InvoicePayment[]
+
+  @@index([headquartersId, patientId])
+  @@index([patientId, receivedAt])
+}
+
+enum PatientCreditSource {
+  ADVANCE_PAYMENT // familiar adelantó la cuota de un mes futuro
+  OVERPAYMENT // pagó de más sobre una factura
+  ADJUSTMENT // ajuste manual del Director
 }
 
 enum PaymentSource {
