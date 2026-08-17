@@ -1,10 +1,14 @@
 import { prisma } from '@/lib/prisma';
 import { getBillableResidents } from '@/lib/billable-residents';
+import { calculateMonthlyCharge } from '@/lib/proration';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
+
+/** Plazo mínimo cuando la factura se emite después de su fecha nominal de vencimiento. */
+const GRACE_DAYS_LATE_ISSUE = 5;
 
 const MONTH_LABELS_ES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -22,6 +26,8 @@ export interface MonthlyInvoicingResult {
     created: number;
     skippedExisting: number;
     skippedNoFee: number;
+    /** Cuántas de las creadas salieron prorrateadas por ingreso a mitad de mes. */
+    proratedCount: number;
     emailsSent: number;
     invoiceIds: string[];
 }
@@ -36,7 +42,10 @@ export interface MonthlyInvoicingResult {
  *   - Idempotente: si ya existe una Invoice de este mes para este paciente
  *     (rango issueDate del primer al último día del mes), se saltea.
  *   - dueDate = día 5 del mismo mes (configurable vía dueDay).
- *   - Crea 1 InvoiceItem: "Cuota mensual {Mes} {Año}".
+ *   - Prorrateo por días reales si el residente ingresó dentro del mes que se
+ *     factura (ver `proration.ts`). El mes de egreso se cobra completo.
+ *   - Crea 1 InvoiceItem: "Cuota mensual {Mes} {Año}" (o su variante
+ *     prorrateada, que explica el cálculo en la propia descripción).
  *   - status: PENDING.
  *   - Si el familiar primario tiene email, le envía notificación
  *     "Tu factura del mes está disponible".
@@ -54,7 +63,16 @@ export async function generateMonthlyInvoicesForHq(opts: {
 
     const firstOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
     const firstOfNextMonth = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
-    const dueDate = new Date(Date.UTC(year, month, dueDay, 23, 59, 59));
+    // dueDate = día `dueDay` del mes facturado. Pero desde que la reconciliación
+    // corre a diario, una factura puede crearse el día 20 (alta a mitad de mes,
+    // cuota cargada tarde); con el vencimiento fijo al día 5 nacería OVERDUE y
+    // dispararía el cron de morosidad contra una familia que nunca recibió nada.
+    // Si la fecha ya pasó, se le da un plazo mínimo desde hoy.
+    const nominalDueDate = new Date(Date.UTC(year, month, dueDay, 23, 59, 59));
+    const now = new Date();
+    const dueDate = nominalDueDate > now
+        ? nominalDueDate
+        : new Date(now.getTime() + GRACE_DAYS_LATE_ISSUE * 24 * 3600 * 1000);
     const monthLabel = MONTH_LABELS_ES[month];
     const monthPrefix = `INV-${String(month + 1).padStart(2, '0')}${year}-`;
 
@@ -83,9 +101,23 @@ export async function generateMonthlyInvoicesForHq(opts: {
 
     const created: { id: string; patientId: string; patientName: string }[] = [];
     let counter = maxN + 1;
+    let proratedCount = 0;
 
     for (const p of toCreate) {
-        const subtotal = p.monthlyFee;
+        // Prorrateo del primer mes. admissionDate es la fuente correcta;
+        // createdAt es el fallback mientras se puebla (los residentes legacy
+        // se crearon todos el mismo día en la carga inicial, así que su
+        // createdAt viejo nunca cae dentro del mes facturado y reciben cuota
+        // completa — que es el resultado correcto).
+        const charge = calculateMonthlyCharge({
+            monthlyFee: p.monthlyFee,
+            year,
+            month,
+            admissionDate: p.admissionDate ?? p.createdAt,
+            status: p.status,
+            monthLabel,
+        });
+        const subtotal = charge.amount;
         const invoiceNumber = `${monthPrefix}${String(counter).padStart(3, '0')}`;
         counter++;
 
@@ -100,10 +132,10 @@ export async function generateMonthlyInvoicesForHq(opts: {
                 taxRate: 0,
                 totalAmount: subtotal,
                 status: 'PENDING',
-                notes: `Cuota mensual ${monthLabel} ${year}`,
+                notes: charge.description,
                 items: {
                     create: [{
-                        description: `Cuota mensual ${monthLabel} ${year}`,
+                        description: charge.description,
                         quantity: 1,
                         unitPrice: subtotal,
                         totalPrice: subtotal,
@@ -112,6 +144,7 @@ export async function generateMonthlyInvoicesForHq(opts: {
             },
         });
         created.push({ id: inv.id, patientId: p.id, patientName: p.name });
+        if (charge.isProrated) proratedCount++;
     }
 
     // 3. Email a familiar primario (best-effort, paralelo)
@@ -175,6 +208,7 @@ export async function generateMonthlyInvoicesForHq(opts: {
         created: created.length,
         skippedExisting: eligible.length - toCreate.length,
         skippedNoFee,
+        proratedCount,
         emailsSent,
         invoiceIds: created.map(c => c.id),
     };
