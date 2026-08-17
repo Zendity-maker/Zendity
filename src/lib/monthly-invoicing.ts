@@ -120,7 +120,6 @@ export async function generateMonthlyInvoicesForHq(opts: {
             year,
             month,
             admissionDate: p.admissionDate ?? p.createdAt,
-            status: p.status,
             monthLabel,
         });
         const subtotal = charge.amount;

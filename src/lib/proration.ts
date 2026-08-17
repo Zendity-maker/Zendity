@@ -1,5 +1,3 @@
-import { PatientStatus } from '@prisma/client';
-
 /**
  * Prorrateo de la cuota del primer mes.
  *
@@ -10,8 +8,10 @@ import { PatientStatus } from '@prisma/client';
  *     una familia.
  *   - El mes de EGRESO se cobra completo. El prorrateo aplica solo a la
  *     entrada. Decisión explícita del dueño del producto.
- *   - TEMPORARY_LEAVE nunca prorratea: el hospitalizado paga cuota completa
- *     porque la cama sigue reservada. Ver `billable-residents.ts`.
+ *   - No se descuenta por días de AUSENCIA: el hospitalizado paga cuota
+ *     completa porque la cama sigue reservada. Esto es independiente del
+ *     prorrateo de ingreso — un residente que entró el 24 paga 8/31 aunque
+ *     hoy esté en TEMPORARY_LEAVE. Ver `billable-residents.ts`.
  *
  * Ejemplo: cuota $3,100, ingreso el 24 de agosto (31 días) →
  *   días facturables = 31 - 24 + 1 = 8
@@ -48,10 +48,9 @@ export function calculateMonthlyCharge(opts: {
     year: number;
     month: number; // 0-11
     admissionDate: Date | null;
-    status: PatientStatus;
     monthLabel: string;
 }): ProrationResult {
-    const { monthlyFee, year, month, admissionDate, status, monthLabel } = opts;
+    const { monthlyFee, year, month, admissionDate, monthLabel } = opts;
     const totalDays = daysInMonth(year, month);
     const fullMonth: ProrationResult = {
         amount: round2(monthlyFee),
@@ -61,9 +60,12 @@ export function calculateMonthlyCharge(opts: {
         description: `Cuota mensual ${monthLabel} ${year}`,
     };
 
-    // Un residente en leave paga completo aunque su ingreso caiga en este mes:
-    // el prorrateo mide días de estadía, y la cama estuvo reservada igual.
-    if (status === 'TEMPORARY_LEAVE') return fullMonth;
+    // OJO: el status NO anula el prorrateo de ingreso. "El hospitalizado paga
+    // completo" significa que no se descuenta por días de AUSENCIA —regla que
+    // se cumple simplemente por no implementar ese descuento—, no que alguien
+    // que ingresó el 24 pague el mes entero por estar hoy en el hospital. Son
+    // dos cosas distintas y confundirlas le cobraba a Carlos Varona $3,200 de
+    // julio cuando solo vivió 8 días de ese mes.
     if (!admissionDate) return fullMonth;
 
     // Solo prorratea si el ingreso ocurre DENTRO del mes que se factura.
