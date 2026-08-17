@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { notifyRoles } from '@/lib/notifications';
 
 // Vercel Cron: cada 2 horas (vercel.json: "0 */2 * * *")
 // Detecta pacientes sin rotación postural >2h con nortonRisk=true
@@ -70,8 +69,56 @@ export async function GET(req: Request) {
             }
         });
 
+        // ── Targeting + dedup (recorte de ruido, 17-ago-2026) ────────────
+        //
+        // Antes: por CADA paciente vencido, notificación a TODOS los
+        // CAREGIVER+NURSE+SUPERVISOR de la sede, repetida cada corrida (2h).
+        // Medido en prod: 36,500 notificaciones/30 días — el 86% de TODO el
+        // ruido del sistema. Una cuidadora en su casa recibía "requiere cambio
+        // de posición inmediato" 60 veces al día. Como advierte el comentario
+        // de arriba: falsa alerta erosiona la confianza en las alertas reales.
+        //
+        // Ahora:
+        //   1. CAREGIVERs: solo con turno ACTIVO (sesión abierta <14h) —
+        //      el resto no puede rotar a nadie desde su casa.
+        //   2. NURSE/SUPERVISOR: siguen (son la ruta de escalamiento).
+        //   3. Dedup: máx 1 notificación por paciente/usuario/día. La
+        //      persistencia del estado vive en el dashboard UPP, no en
+        //      martillar la campana.
+        const fourteenHrsAgo = new Date(now.getTime() - 14 * 3600 * 1000);
+        // 00:00 AST de hoy = 04:00 UTC del día AST en curso
+        const nowAST = new Date(now.getTime() - 4 * 3600 * 1000);
+        const todayStart = new Date(Date.UTC(nowAST.getUTCFullYear(), nowAST.getUTCMonth(), nowAST.getUTCDate(), 4, 0, 0));
+
+        const hqIds = [...new Set(atRiskPatients.map(p => p.headquartersId))];
+        const [escalationStaff, activeSessions, notifiedToday] = await Promise.all([
+            prisma.user.findMany({
+                where: { headquartersId: { in: hqIds }, role: { in: ['NURSE', 'SUPERVISOR'] as any }, isActive: true, isDeleted: false },
+                select: { id: true, headquartersId: true },
+            }),
+            prisma.shiftSession.findMany({
+                where: { headquartersId: { in: hqIds }, actualEndTime: null, startTime: { gte: fourteenHrsAgo } },
+                select: { caregiverId: true, headquartersId: true },
+            }),
+            prisma.notification.findMany({
+                where: { type: 'SHIFT_ALERT', title: { startsWith: 'Alerta UPP' }, createdAt: { gte: todayStart } },
+                select: { userId: true, title: true },
+            }),
+        ]);
+        const targetsByHq = new Map<string, Set<string>>();
+        for (const u of escalationStaff) {
+            if (!targetsByHq.has(u.headquartersId)) targetsByHq.set(u.headquartersId, new Set());
+            targetsByHq.get(u.headquartersId)!.add(u.id);
+        }
+        for (const s of activeSessions) {
+            if (!targetsByHq.has(s.headquartersId)) targetsByHq.set(s.headquartersId, new Set());
+            targetsByHq.get(s.headquartersId)!.add(s.caregiverId);
+        }
+        // Clave de dedup: userId + título (el título lleva el nombre del paciente)
+        const alreadyNotified = new Set(notifiedToday.map(n => `${n.userId}|${n.title}`));
+
         const violations: object[] = [];
-        const notifyPromises: Promise<unknown>[] = [];
+        const toCreate: { userId: string; type: string; title: string; message: string; link: string; isRead: boolean }[] = [];
 
         for (const patient of atRiskPatients) {
             const lastRotation = patient.posturalChanges[0];
@@ -108,28 +155,27 @@ export async function GET(req: Request) {
                 ? ` UPP Estadio ${activeUlcer.stage} en ${activeUlcer.bodyLocation}.`
                 : '';
 
-            notifyPromises.push(
-                notifyRoles(
-                    patient.headquartersId,
-                    ['CAREGIVER', 'NURSE', 'SUPERVISOR'],
-                    {
-                        type: 'SHIFT_ALERT',
-                        title: 'Alerta UPP — Rotación vencida',
-                        message: `${patient.name} lleva más de ${hoursOverdue}h sin rotación postural.${ulcerDetail} Requiere cambio de posición inmediato.`,
-                        link: '/care',
-                    }
-                )
-            );
+            // El título lleva el nombre para que el dedup sea por paciente.
+            const title = `Alerta UPP — ${patient.name.trim()}`;
+            const message = `Lleva más de ${hoursOverdue}h sin rotación postural.${ulcerDetail} Requiere cambio de posición inmediato.`;
+            const targets = targetsByHq.get(patient.headquartersId) ?? new Set<string>();
+            for (const userId of targets) {
+                if (alreadyNotified.has(`${userId}|${title}`)) continue;
+                toCreate.push({ userId, type: 'SHIFT_ALERT', title, message, link: '/care', isRead: false });
+            }
         }
 
-        await Promise.allSettled(notifyPromises);
+        if (toCreate.length > 0) {
+            await prisma.notification.createMany({ data: toCreate });
+        }
 
         return NextResponse.json({
             ok: true,
             message: 'Auditoría UPP completada.',
             scannedPatients: atRiskPatients.length,
             violationsDetected: violations.length,
-            notificationsSent: notifyPromises.length,
+            notificationsSent: toCreate.length,
+            onShiftCaregivers: activeSessions.length,
             violations,
         });
 

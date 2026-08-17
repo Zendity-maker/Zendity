@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from '@/lib/prisma';
-import { notifyRoles } from '@/lib/notifications';
 import { requireRole } from '@/lib/api-auth';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -70,15 +69,8 @@ export async function POST(req: Request) {
             }
         });
 
-        // Notificar a SUPERVISOR/NURSE/DIRECTOR
-        try {
-            await notifyRoles(patient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
-                type: 'TRIAGE',
-                title: 'Nuevo ticket de Triage',
-                message: `${patient.name} — Queja familiar: ${(description || 'sin descripción').substring(0, 120)}`,
-                link: '/corporate/triage',
-            });
-        } catch (e) { console.error('[notify TRIAGE complaint]', e); }
+        // Recorte de ruido (17-ago-2026): ticket nuevo ya no genera campana —
+        // el badge del inbox operativo lo anuncia y persiste hasta atenderse.
 
         return NextResponse.json({ success: true, complaint });
     } catch (error: any) {

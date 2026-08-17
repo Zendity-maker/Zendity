@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { notifyRoles } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -176,26 +175,12 @@ export async function GET(req: Request) {
             roundCompletedAt !== null &&
             roundCompletedAt >= oneMinuteAgo;
 
-        // ── Si completó una ronda → notificar al supervisor ──────────────────
-        if (justCompletedRound) {
-            const caregiver = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { name: true }
-            });
-            const firstName = caregiver?.name?.split(' ')[0] || 'El cuidador';
-            const colorEmoji = myColor === 'RED' ? '🔴' : myColor === 'YELLOW' ? '🟡' : myColor === 'BLUE' ? '🔵' : '⚪';
-
-            try {
-                await notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
-                    type: 'SHIFT_ALERT',
-                    title: `${colorEmoji} Ronda completa — ${firstName}`,
-                    message: `${firstName} completó la ronda ${roundsCompleted} (grupo ${myColor}). Considera enviarle un mensaje de felicitación.`,
-                    link: '/care/supervisor',
-                });
-            } catch (e) {
-                console.error('[rounds/progress] Error notificando supervisor:', e);
-            }
-        }
+        // Recorte de ruido (17-ago-2026): completar una ronda ya NO genera
+        // campana a supervisión — eran 820/mes de FYI ("considera felicitarlo")
+        // que enterraban las alertas reales. El panel live del supervisor
+        // muestra el progreso de rondas en tiempo real, que es donde este dato
+        // pertenece. `justCompletedRound` sigue en el response: la UI del
+        // cuidador celebra el hito localmente.
 
         return NextResponse.json({
             success: true,

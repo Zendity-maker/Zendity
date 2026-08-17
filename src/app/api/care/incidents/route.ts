@@ -196,22 +196,8 @@ export async function POST(req: Request) {
                 }
             });
 
-            try {
-                let patientName = 'Reporte operativo';
-                if (patientId) {
-                    const p = await prisma.patient.findFirst({
-                        where: { id: patientId, headquartersId: hqId },
-                        select: { name: true }
-                    });
-                    patientName = p?.name || patientName;
-                }
-                await notifyRoles(hqId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
-                    type: 'TRIAGE',
-                    title: 'Nuevo ticket de Triage',
-                    message: `${patientName} — Mantenimiento: ${(description || 'sin descripción').substring(0, 120)}`,
-                    link: '/corporate/triage',
-                });
-            } catch (e) { logWarn('care.incidents.notify_other', e, { patientId }); }
+            // Recorte de ruido (17-ago-2026): ticket nuevo ya no genera
+            // campana — el badge del inbox operativo lo anuncia y persiste.
 
             return NextResponse.json({ success: true, event });
         }

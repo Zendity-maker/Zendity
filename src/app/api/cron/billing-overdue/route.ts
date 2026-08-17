@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
  * Cron diario 7 AM AST (11 UTC). Para cada sede:
  *   1. Encuentra Invoice status=PENDING con dueDate < now → cambia a OVERDUE
  *   2. Cuenta el total vencido del HQ
- *   3. Si hay nuevos vencidos o ya hay un balance vencido > 0, notifica
- *      a DIRECTOR/ADMIN
+ *   3. Notifica a DIRECTOR/ADMIN solo si algo venció HOY (el backlog
+ *      permanente vive en los KPIs de /corporate/billing, no en la campana)
  *
  * Auth: Bearer CRON_SECRET.
  */
@@ -43,8 +43,12 @@ export async function GET(req: Request) {
             });
             const totalOverdue = overdue.reduce((sum, i) => sum + (i.totalAmount - i.amountPaid), 0);
 
-            // 3. Notificar si hubo cambios HOY o si hay backlog
-            if (updated.count > 0 || overdue.length > 0) {
+            // 3. Notificar SOLO si algo venció HOY. Antes el `|| overdue.length`
+            // repetía la misma campana diaria con el mismo backlog (las mismas
+            // 26 facturas, 90 notifs/mes al Director) — recordatorio que ya no
+            // informa nada. El backlog permanente vive en los KPIs de
+            // /corporate/billing (vencidoTotal), que es su lugar.
+            if (updated.count > 0) {
                 try {
                     await notifyRoles(hq.id, ['DIRECTOR', 'ADMIN'], {
                         type: 'EMAR_ALERT',

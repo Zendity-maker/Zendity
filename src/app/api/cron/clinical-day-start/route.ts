@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
 import { requireCronSecret } from '@/lib/cron-auth';
@@ -18,7 +17,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy' });
  *      — incidentes, meds omitidos, vitales críticos, UPPs nuevas,
  *      hospitalizaciones y retornos.
  *   2. Genera un ShiftHandover con resumen IA (Zendi) para el turno MORNING.
- *   3. Notifica a CAREGIVER/NURSE/SUPERVISOR con type:'HANDOVER'.
+ *   3. (Recorte de ruido 17-ago-2026) Ya NO notifica: el briefing aparece
+ *      en /care al entrar. Anunciar lo diario y ceremonial entierra lo urgente.
  *
  * Cron canónico del prólogo del día clínico. El cron nocturno de 5:45 AM
  * se eliminó en Sprint A (era duplicado).
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
         });
 
         const hqs = await prisma.headquarters.findMany({ where: { isActive: true } });
-        const results: Array<{ hq: string; handoverId: string; notified: number }> = [];
+        const results: Array<{ hq: string; handoverId: string }> = [];
 
         for (const hq of hqs) {
             // 1. Residentes ACTIVOS de la sede.
@@ -217,19 +217,13 @@ ${dataBlock}
                 }
             });
 
-            // 9. Notificar a todo el equipo del turno mañana
-            const notified = await notifyRoles(
-                hq.id,
-                ['CAREGIVER', 'NURSE', 'SUPERVISOR'],
-                {
-                    type: 'HANDOVER',
-                    title: 'Nuevo día clínico — Prólogo Zendi',
-                    message: 'El resumen del día está listo. Toca para leer el briefing de hoy.',
-                    link: '/care',
-                }
-            );
+            // Recorte de ruido (17-ago-2026): el prólogo ya NO se anuncia con
+            // campana — eran 600/mes de broadcast a todo el equipo por un
+            // evento que ocurre TODOS los días a la misma hora. El briefing
+            // aparece en /care apenas el cuidador entra; anunciar lo
+            // ceremonial entierra lo urgente.
 
-            results.push({ hq: hq.name, handoverId: handover.id, notified });
+            results.push({ hq: hq.name, handoverId: handover.id });
         }
 
         return NextResponse.json({

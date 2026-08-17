@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { logError, logWarn } from '@/lib/logger';
-import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
 import { getServerSession } from 'next-auth/next';
@@ -303,14 +302,10 @@ export async function POST(req: Request) {
                     });
 
                     // Notificar a SUPERVISOR/NURSE/DIRECTOR de la sede
-                    try {
-                        await notifyRoles(patient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
-                            type: 'TRIAGE',
-                            title: 'Nuevo ticket de Triage',
-                            message: `${patient.name} — Alerta clínica: ${(data.notes || 'sin descripción').substring(0, 120)}`,
-                            link: '/corporate/triage',
-                        });
-                    } catch (e) { logWarn('care.vitals.notify_triage', e, { patientId }); }
+                // Recorte de ruido (17-ago-2026): el ticket nuevo ya NO genera
+                // campana — el badge del inbox operativo (inbox-count, sidebar)
+                // ya lo anuncia y persiste hasta atenderse. La campana queda
+                // reservada para la escalación por SLA, que sí es urgente.
                 }
             }
         }

@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireSession } from '@/lib/api-auth';
-import { logError, logWarn } from '@/lib/logger';
+import { logError } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 import { todayStartAST } from '@/lib/dates';
-import { notifyRoles } from '@/lib/notifications';
 import {
     inferShiftType,
     resolveColorGroupsForCaregiver,
@@ -213,23 +212,12 @@ export async function POST(req: Request) {
                 return [shiftHandover, updatedSession];
             });
 
-            // Notificar a SUPERVISOR/DIRECTOR/ADMIN que hay reporte pendiente de firma.
-            // Soft-error: si falla la notificación no revertimos el cierre.
-            try {
-                const shiftLabel =
-                    shiftTypeDraft === 'MORNING'    ? 'mañana'
-                    : shiftTypeDraft === 'EVENING'  ? 'tarde'
-                    : shiftTypeDraft === 'NIGHT'    ? 'noche'
-                    : shiftTypeDraft;
-                await notifyRoles(session.headquartersId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
-                    type: 'HANDOVER',
-                    title: 'Cierre de turno confirmado',
-                    message: `${session.caregiver?.name || 'Un cuidador(a)'} completó y firmó el reporte del turno de ${shiftLabel}.`,
-                    link: `/corporate/reports/${handover.id}`,
-                });
-            } catch (e) {
-                logWarn('care.shift.end.notify_supervisor', e, { shiftSessionId });
-            }
+            // Recorte de ruido (17-ago-2026): el cierre de turno ya NO
+            // notifica a supervisión — generaba 1,265 campanas/mes por un
+            // evento que es el happy path. El reporte vive en
+            // /corporate/reports y los handovers sin firmar tienen su propio
+            // flujo de seguimiento. El cierre forzado (flujo 2) tampoco
+            // notifica: lo ejecuta el propio supervisor.
 
             return NextResponse.json({ success: true, shiftSession: closedSession, handover });
         }
