@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateMonthlyInvoicesForHq } from '@/lib/monthly-invoicing';
+import { logAudit } from '@/lib/audit';
 import { logError } from '@/lib/logger';
 import { requireCronSecret } from '@/lib/cron-auth';
 
@@ -47,9 +48,38 @@ export async function GET(req: Request) {
                     sendEmails: true,
                 });
                 results.push({ hq: hq.name, ...r });
+
+                // Trazabilidad de la corrida. Antes, el resultado solo viajaba en
+                // el response HTTP del cron y se perdía: no había forma de saber
+                // si corrió, cuántas facturas creó, ni a quién salteó. Reconstruir
+                // la corrida de agosto 2026 hubo que hacerlo por arqueología de
+                // createdAt.
+                await logAudit({
+                    headquartersId: hq.id,
+                    action: 'CREATED',
+                    entityName: 'MonthlyInvoicingRun',
+                    entityId: `${year}-${String(month + 1).padStart(2, '0')}`,
+                    resourceName: `Facturación mensual ${String(month + 1).padStart(2, '0')}/${year} — ${hq.name}`,
+                    payloadChanges: {
+                        eligiblePatients: r.eligiblePatients,
+                        created: r.created,
+                        skippedExisting: r.skippedExisting,
+                        skippedNoFee: r.skippedNoFee,
+                        emailsSent: r.emailsSent,
+                    },
+                });
             } catch (e: any) {
                 logError('cron.monthly-invoicing.hq', e, { hqId: hq.id });
                 results.push({ hq: hq.name, error: e.message });
+
+                await logAudit({
+                    headquartersId: hq.id,
+                    action: 'CREATED',
+                    entityName: 'MonthlyInvoicingRun',
+                    entityId: `${year}-${String(month + 1).padStart(2, '0')}`,
+                    resourceName: `Facturación mensual ${String(month + 1).padStart(2, '0')}/${year} — ${hq.name} (FALLÓ)`,
+                    payloadChanges: { error: e.message },
+                });
             }
         }
 

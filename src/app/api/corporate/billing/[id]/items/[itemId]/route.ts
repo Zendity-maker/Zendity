@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { logAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
 import { logError } from '@/lib/logger';
 
@@ -22,7 +23,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
         const invoice = await prisma.invoice.findFirst({
             where: { id: invoiceId, headquartersId: hqId },
-            select: { id: true, status: true, taxRate: true },
+            select: {
+                id: true, status: true, taxRate: true,
+                invoiceNumber: true, totalAmount: true,
+                patient: { select: { name: true } },
+            },
         });
         if (!invoice) return NextResponse.json({ success: false, error: 'Factura no encontrada' }, { status: 404 });
         if (invoice.status !== 'PENDING' && invoice.status !== 'OVERDUE') {
@@ -40,6 +45,27 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         const subtotal = remaining.reduce((sum, i) => sum + i.totalPrice, 0);
         const totalAmount = subtotal + subtotal * (invoice.taxRate || 0);
         await prisma.invoice.update({ where: { id: invoiceId }, data: { subtotal, totalAmount } });
+
+        // Borrar la última línea de una factura la deja en $0 sin dejar rastro
+        // del monto original. Guardamos la línea completa, no solo su id.
+        await logAudit({
+            headquartersId: hqId,
+            performedById: auth.id,
+            action: 'STATE_CHANGED',
+            entityName: 'Invoice',
+            entityId: invoiceId,
+            resourceName: `${invoice.invoiceNumber} — ${invoice.patient?.name ?? 'Sin residente'}`,
+            payloadChanges: {
+                operation: 'DELETE_ITEM',
+                item: {
+                    description: item.description, quantity: item.quantity,
+                    unitPrice: item.unitPrice, totalPrice: item.totalPrice,
+                },
+                totalAmount: { before: invoice.totalAmount, after: totalAmount },
+                remainingItems: remaining.length,
+            },
+            request: _req,
+        });
 
         return NextResponse.json({ success: true });
     } catch (err: any) {

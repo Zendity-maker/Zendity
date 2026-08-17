@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { logAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
 
 
@@ -48,8 +49,31 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             }
         });
 
-        return NextResponse.json({ 
-            success: true, 
+        // Auditoría: cambiar la cuota mensual mueve dinero real y antes no dejaba
+        // ningún rastro. Sin esto no hay forma de reconstruir por qué una factura
+        // salió por un monto distinto al de la cuota vigente hoy.
+        if (
+            patient.monthlyFee !== monthlyFee ||
+            patient.adfContribution !== adfContribution
+        ) {
+            await logAudit({
+                headquartersId: hqId,
+                performedById: (session.user as any).id,
+                action: 'STATE_CHANGED',
+                entityName: 'PatientBillingSpecs',
+                entityId: patientId,
+                resourceName: `Cuota mensual — ${patient.name}`,
+                payloadChanges: {
+                    monthlyFee: { before: patient.monthlyFee, after: monthlyFee },
+                    adfContribution: { before: patient.adfContribution, after: adfContribution },
+                    privateContribution: { before: patient.privateContribution, after: privateContribution },
+                },
+                request: req,
+            });
+        }
+
+        return NextResponse.json({
+            success: true,
             message: "Métricas de facturación actualizadas.",
             billingSpecs: {
                 monthlyFee: updatedPatient.monthlyFee,

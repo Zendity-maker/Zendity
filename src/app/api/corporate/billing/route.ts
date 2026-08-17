@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireRole } from '@/lib/api-auth';
+import { billableResidentsWhere } from '@/lib/billable-residents';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['ADMIN', 'DIRECTOR'].includes((session.user as any).role)) return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        const auth = await requireRole(['ADMIN', 'DIRECTOR']);
+        if (auth instanceof NextResponse) return auth;
 
-        const headquartersId = (session.user as any).headquartersId;
+        const headquartersId = auth.headquartersId;
 
         const invoices = await prisma.invoice.findMany({
             where: { headquartersId },
@@ -30,10 +30,13 @@ export async function GET(req: Request) {
         const totalPending = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((acc, curr) => acc + curr.totalAmount, 0);
         const totalPaid = invoices.filter(i => i.status === 'PAID').reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-        // Required for the UI Dropdown "Emitir Recibo"
+        // Required for the UI Dropdown "Emitir Recibo".
+        // Incluye TEMPORARY_LEAVE: un residente hospitalizado sigue pagando, así
+        // que tiene que poder recibir factura manual. Antes solo listaba ACTIVE
+        // y por eso no había forma —ni automática ni manual— de facturarle.
         const patients = await prisma.patient.findMany({
-            where: { headquartersId, status: "ACTIVE" },
-            select: { id: true, name: true, roomNumber: true },
+            where: billableResidentsWhere(headquartersId),
+            select: { id: true, name: true, roomNumber: true, status: true },
             orderBy: { name: 'asc' }
         });
 
@@ -46,16 +49,27 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !['ADMIN', 'DIRECTOR'].includes((session.user as any).role)) return NextResponse.json({ success: false, error: "No autorizado" }, { status: 401 });
+        const auth = await requireRole(['ADMIN', 'DIRECTOR']);
+        if (auth instanceof NextResponse) return auth;
 
-        const headquartersId = (session.user as any).headquartersId;
+        const headquartersId = auth.headquartersId;
         const body = await req.json();
 
         const { patientId, items, dueDate, notes } = body;
 
         if (!patientId || !items || items.length === 0 || !dueDate) {
             return NextResponse.json({ success: false, error: "Datos incompletos para facturar" }, { status: 400 });
+        }
+
+        // Ownership: el patientId viene del body. Sin este chequeo, un DIRECTOR
+        // podía emitir una factura contra un residente de OTRA sede pasando su
+        // id, y la factura quedaba colgada de su propio headquartersId.
+        const target = await prisma.patient.findFirst({
+            where: { id: patientId, headquartersId },
+            select: { id: true },
+        });
+        if (!target) {
+            return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede" }, { status: 404 });
         }
 
         let subtotal = 0;

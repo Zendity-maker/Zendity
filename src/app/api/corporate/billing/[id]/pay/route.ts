@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { logAudit } from '@/lib/audit';
 import { notifyUser } from '@/lib/notifications';
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
@@ -80,6 +81,29 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                 date: paidDate,
                 notes: referenceNumber ? `Ref: ${referenceNumber} | Método: ${paymentMethod || 'N/A'}` : (paymentMethod || null),
             }
+        });
+
+        // 2b. Auditoría del cobro. `isUnderpayment` marca los casos en que se dio
+        // por saldada una factura con un pago menor al total — hoy el endpoint lo
+        // permite sin avisar (ver INV-082026-018: $1 cobrado sobre $3,000 de cuota).
+        await logAudit({
+            headquartersId: invoice.headquartersId,
+            performedById: directorId,
+            action: 'STATE_CHANGED',
+            entityName: 'Invoice',
+            entityId: invoiceId,
+            resourceName: `${invoice.invoiceNumber} — ${invoice.patient?.name ?? 'Sin residente'}`,
+            payloadChanges: {
+                operation: 'PAYMENT_RECORDED',
+                amountPaid: { before: invoice.amountPaid, after: paidAmount },
+                totalAmount: invoice.totalAmount,
+                isUnderpayment: paidAmount < invoice.totalAmount,
+                status: { before: invoice.status, after: 'PAID' },
+                paymentMethod: paymentMethod || null,
+                referenceNumber: referenceNumber || null,
+                paidAt: paidDate.toISOString(),
+            },
+            request: req,
         });
 
         // 3. Notificar al DIRECTOR in-app

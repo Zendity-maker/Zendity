@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
+import { logAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
 import { logError } from '@/lib/logger';
 
@@ -36,7 +37,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         const invoice = await prisma.invoice.findFirst({
             where: { id: invoiceId, headquartersId: hqId },
-            select: { id: true, status: true, taxRate: true },
+            select: { id: true, status: true, taxRate: true, invoiceNumber: true, totalAmount: true },
         });
         if (!invoice) return NextResponse.json({ success: false, error: 'Factura no encontrada' }, { status: 404 });
         if (invoice.status !== 'PENDING' && invoice.status !== 'OVERDUE') {
@@ -60,6 +61,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             where: { id: invoiceId },
             data: { subtotal, totalAmount },
             include: { items: true, patient: { select: { name: true } } },
+        });
+
+        await logAudit({
+            headquartersId: hqId,
+            performedById: auth.id,
+            action: 'STATE_CHANGED',
+            entityName: 'Invoice',
+            entityId: invoiceId,
+            resourceName: `${invoice.invoiceNumber} — ${updated.patient?.name ?? 'Sin residente'}`,
+            payloadChanges: {
+                operation: 'ADD_ITEM',
+                item: { description, quantity, unitPrice, totalPrice },
+                totalAmount: { before: invoice.totalAmount, after: totalAmount },
+            },
+            request: req,
         });
 
         return NextResponse.json({ success: true, invoice: updated });

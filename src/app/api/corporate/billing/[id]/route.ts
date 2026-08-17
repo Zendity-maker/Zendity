@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,12 @@ export async function PATCH(
         // Verificar que la factura pertenece a esta sede
         const invoice = await prisma.invoice.findUnique({
             where: { id },
-            select: { id: true, headquartersId: true, status: true }
+            select: {
+                id: true, headquartersId: true, status: true,
+                invoiceNumber: true, subtotal: true, totalAmount: true,
+                patient: { select: { name: true } },
+                items: { select: { description: true, quantity: true, unitPrice: true, totalPrice: true } },
+            }
         });
 
         if (!invoice || invoice.headquartersId !== hqId) {
@@ -83,6 +89,30 @@ export async function PATCH(
                 },
                 include: { items: true, patient: true }
             });
+        });
+
+        // Auditoría: este es el endpoint por el que una factura puede pasar de
+        // $3,000 a $0. Antes no quedaba registro de quién ni cuándo. El diff de
+        // montos va explícito para poder rastrear subfacturación sin reconstruir
+        // items uno por uno.
+        await logAudit({
+            headquartersId: hqId,
+            performedById: (session.user as any).id,
+            action: 'STATE_CHANGED',
+            entityName: 'Invoice',
+            entityId: id,
+            resourceName: `${invoice.invoiceNumber} — ${invoice.patient?.name ?? 'Sin residente'}`,
+            payloadChanges: {
+                operation: 'EDIT_ITEMS',
+                totalAmount: { before: invoice.totalAmount, after: totalAmount },
+                subtotal: { before: invoice.subtotal, after: subtotal },
+                itemsBefore: invoice.items,
+                itemsAfter: updated.items.map(i => ({
+                    description: i.description, quantity: i.quantity,
+                    unitPrice: i.unitPrice, totalPrice: i.totalPrice,
+                })),
+            },
+            request: req,
         });
 
         return NextResponse.json({ success: true, invoice: updated });

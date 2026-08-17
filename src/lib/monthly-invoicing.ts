@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { getBillableResidents } from '@/lib/billable-residents';
 import sgMail from '@sendgrid/mail';
 
 if (process.env.SENDGRID_API_KEY) {
@@ -29,7 +30,8 @@ export interface MonthlyInvoicingResult {
  * Genera facturas mensuales para una sede.
  *
  * Reglas:
- *   - Solo pacientes con status ACTIVE.
+ *   - Pacientes facturables según BILLABLE_PATIENT_STATUSES (ACTIVE +
+ *     TEMPORARY_LEAVE — el hospitalizado paga, la cama sigue reservada).
  *   - Solo si monthlyFee > 0 (los demás se cuentan en skippedNoFee).
  *   - Idempotente: si ya existe una Invoice de este mes para este paciente
  *     (rango issueDate del primer al último día del mes), se saltea.
@@ -56,13 +58,10 @@ export async function generateMonthlyInvoicesForHq(opts: {
     const monthLabel = MONTH_LABELS_ES[month];
     const monthPrefix = `INV-${String(month + 1).padStart(2, '0')}${year}-`;
 
-    // 1. Pacientes elegibles (ACTIVE + monthlyFee>0)
-    const allActive = await prisma.patient.findMany({
-        where: { headquartersId: hqId, status: 'ACTIVE' },
-        select: { id: true, name: true, monthlyFee: true, primaryFamilyMemberId: true },
-    });
-    const eligible = allActive.filter(p => (p.monthlyFee || 0) > 0);
-    const skippedNoFee = allActive.length - eligible.length;
+    // 1. Pacientes elegibles (facturables + monthlyFee>0)
+    const allBillable = await getBillableResidents(hqId);
+    const eligible = allBillable.filter(p => (p.monthlyFee || 0) > 0);
+    const skippedNoFee = allBillable.length - eligible.length;
 
     // 2. Ya existen facturas de este mes (idempotencia)
     const existing = await prisma.invoice.findMany({
