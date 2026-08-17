@@ -3,58 +3,85 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { Activity, Users, DollarSign, CheckCircle, Clock, ShieldAlert, HeartPulse } from "lucide-react";
+import {
+    Activity, Users, DollarSign, CheckCircle, Clock, HeartPulse,
+    TrendingUp, BedDouble, Landmark, Sparkles, UserCheck, ArrowUpRight, ArrowDownRight,
+} from "lucide-react";
+
+/**
+ * Partners & Investor Dashboard (v2 — 17-ago-2026).
+ *
+ * Estructura tipo "dashboard del Director" pero con contenido para socios:
+ * resumen ejecutivo arriba, KPIs hero, y secciones de finanzas (devengado vs
+ * caja + serie mensual), crecimiento (pipeline CRM agregado) y calidad.
+ *
+ * REGLA: aquí no entra PHI. Sin nombres de residentes, sin facturas
+ * individuales, sin staff con nombre. Solo agregados.
+ */
 
 interface VividKPI {
     hqId: string;
     name: string;
-    capacity: number;
-    isOpen: boolean;
-    occupancyRate: number;
-    monthlyRevenue: number;
-    clinicalComplianceRate: number;
-    activePatients: number;
-    staffCount: number;
     logoUrl?: string | null;
-    facilityHealthScore?: number;
-    facilityHealthGrade?: 'EXCELENTE' | 'BUENO' | 'ALERTA' | 'CRITICO';
-    facilityHealthBreakdown?: {
-        activeUPPs: number;
-        uppPenalty: number;
-        severeFalls: number;
-        fallPenalty: number;
-        pendingComplaints: number;
-        complaintPenalty: number;
-        missingHandovers: number;
-        handoverPenalty: number;
-        medCompliancePct: number;
-        medPenalty: number;
-        incidentsLast7d: number;
-        incidentBonus: number;
-        totalDeduction: number;
+    isOpen: boolean;
+    resumen: string[];
+    ocupacion: {
+        capacity: number;
+        ocupadas: number;
+        fisicos: number;
+        enHospital: number;
+        occupancyRate: number;
+        camasLibres: number;
+        altasMes: number;
+        bajasMes: number;
+    };
+    finanzas: {
+        facturadoMes: number;
+        cobradoMes: number;
+        tasaCobranza: number | null;
+        vencidoTotal: number;
+        arpu: number;
+        mrr: number;
+        potencialMensual: number;
+        brechaFacturacion: number;
+        serie: { mes: string; facturado: number; cobrado: number }[];
+    };
+    crecimiento: {
+        pipeline: Record<string, number>;
+        leadsActivos: number;
+        ritmoMensualAdmisiones: number;
+        mesesAFullOcupacion: number | null;
+    };
+    calidad: {
+        facilityHealthScore: number;
+        facilityHealthGrade: 'EXCELENTE' | 'BUENO' | 'ALERTA' | 'CRITICO';
+        clinicalComplianceRate: number;
+    };
+    equipo: {
+        staffCount: number;
+        clinicalCount: number;
+        ratioStaffResidente: number;
     };
 }
+
+const MESES_ES: Record<string, string> = {
+    '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr', '05': 'May', '06': 'Jun',
+    '07': 'Jul', '08': 'Ago', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic',
+};
+
+const STAGE_LABELS: Record<string, string> = {
+    PROSPECT: 'Prospectos',
+    TOUR: 'Tour',
+    EVALUATION: 'Evaluación',
+    CONTRACT: 'Contrato',
+    ADMISSION: 'Admitidos',
+};
 
 export default function VividInvestorsDashboard() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [kpis, setKpis] = useState<VividKPI[]>([]);
     const [fetchLoading, setFetchLoading] = useState(true);
-
-    const fetchKpis = async () => {
-        setFetchLoading(true);
-        try {
-            const res = await fetch('/api/corporate/investors/kpis');
-            const data = await res.json();
-            if (data.success) {
-                setKpis(data.targets);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setFetchLoading(false);
-        }
-    };
 
     const INVESTOR_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
 
@@ -63,7 +90,11 @@ export default function VividInvestorsDashboard() {
             if (!user || !INVESTOR_ROLES.includes(user.role as string)) {
                 router.push('/unauthorized');
             } else {
-                fetchKpis();
+                fetch('/api/corporate/investors/kpis')
+                    .then(res => res.json())
+                    .then(data => { if (data.success) setKpis(data.targets); })
+                    .catch(console.error)
+                    .finally(() => setFetchLoading(false));
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,21 +102,18 @@ export default function VividInvestorsDashboard() {
 
     if (loading || fetchLoading) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-4 border-slate-200 border-t-amber-600 rounded-full animate-spin"></div>
-                <p className="mt-4 text-slate-500 font-bold tracking-widest uppercase text-sm">Validando Credenciales Bursátiles...</p>
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 border-4 border-slate-700 border-t-amber-500 rounded-full animate-spin"></div>
+                <p className="mt-4 text-slate-500 font-bold tracking-widest uppercase text-sm">Preparando Métricas del Grupo...</p>
             </div>
         );
     }
 
-    // Format utility for USD
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-    };
+    const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
     return (
         <div className="min-h-screen bg-slate-900 font-sans selection:bg-amber-600 selection:text-white">
-            {/* Ultra-Premium Vivid Header */}
+            {/* Header */}
             <div className="bg-black/40 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-6 lg:px-12 py-6 flex flex-col md:flex-row items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -97,149 +125,205 @@ export default function VividInvestorsDashboard() {
                             <p className="text-slate-500 font-medium text-xs tracking-[0.2em] uppercase leading-relaxed">Partners & Investor Dashboard</p>
                         </div>
                     </div>
-
                     <div className="mt-4 md:mt-0 flex items-center gap-4 bg-white/5 border border-white/10 px-6 py-2 rounded-full">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Conexión Segura (En Vivo)</span>
+                        <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Datos en Vivo</span>
                     </div>
                 </div>
             </div>
 
-            <main className="max-w-7xl mx-auto px-6 lg:px-12 py-12">
+            <main className="max-w-7xl mx-auto px-6 lg:px-12 py-12 space-y-12">
+                {kpis.map((hq) => {
+                    const o = hq.ocupacion, f = hq.finanzas, c = hq.crecimiento, q = hq.calidad, e = hq.equipo;
+                    const maxSerie = Math.max(...f.serie.map(s => s.facturado), 1);
+                    const gradeColor = q.facilityHealthGrade === 'EXCELENTE' ? 'text-emerald-400' : q.facilityHealthGrade === 'BUENO' ? 'text-teal-400' : q.facilityHealthGrade === 'ALERTA' ? 'text-amber-400' : 'text-rose-400';
+                    const maxPipeline = Math.max(...Object.values(c.pipeline), 1);
 
-                <div className="mb-12">
-                    <h2 className="text-4xl font-light text-white tracking-tight mb-2">Visión General Operativa</h2>
-                    <p className="text-slate-500 text-lg">Métricas agregadas en tiempo real de las facilidades Vivid Senior Living.</p>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    {kpis.map((hq) => (
-                        <div key={hq.hqId} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-3xl overflow-hidden hover:border-amber-500/30 transition-all duration-500 group">
-
-                            {/* Card Header */}
-                            <div className="p-8 border-b border-slate-700/50 bg-gradient-to-b from-slate-800 to-transparent flex justify-between items-start">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <h3 className="text-2xl font-bold text-white tracking-tight">{hq.name}</h3>
-                                        {hq.isOpen ? (
-                                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
-                                                <CheckCircle className="w-3 h-3" /> Operativo
-                                            </span>
-                                        ) : (
-                                            <span className="px-3 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
-                                                <Clock className="w-3 h-3" /> Pre-Apertura
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-slate-500 text-sm font-medium">Capacidad Total Restringida: {hq.capacity} Camas Autorizadas</p>
+                    return (
+                        <section key={hq.hqId} className="space-y-8">
+                            {/* Título de sede */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-3xl font-light text-white tracking-tight">{hq.name}</h2>
+                                    {hq.isOpen ? (
+                                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                                            <CheckCircle className="w-3 h-3" /> Operativo
+                                        </span>
+                                    ) : (
+                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> Pre-Apertura
+                                        </span>
+                                    )}
                                 </div>
-                                {hq.logoUrl ? (
-                                    <div className="hidden sm:flex h-12 w-32 items-center justify-end">
-                                        <img src={hq.logoUrl} alt="Logo" className="max-h-12 object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] grayscale hover:grayscale-0 transition-all duration-500" />
-                                    </div>
-                                ) : (
-                                    <div className="hidden sm:flex h-12 w-12 rounded-full bg-slate-700 items-center justify-center text-slate-500 group-hover:bg-amber-500/10 group-hover:text-amber-500 transition-colors">
-                                        <Activity className="w-6 h-6" />
-                                    </div>
+                                {hq.logoUrl && (
+                                    <img src={hq.logoUrl} alt="Logo" className="max-h-10 object-contain hidden sm:block opacity-70" />
                                 )}
                             </div>
 
-                            {/* Card Body - Telemetry Grid */}
-                            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                                {/* Occupancy */}
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-end">
-                                        <div className="flex items-center gap-2 text-slate-500">
-                                            <Users className="w-4 h-4 text-emerald-400" />
-                                            <span className="text-sm font-bold uppercase tracking-wider">Ocupación</span>
-                                        </div>
-                                        <span className="text-2xl font-black text-white">{hq.occupancyRate}%</span>
-                                    </div>
-                                    <div className="h-3 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000"
-                                            style={{ width: `${Math.min(hq.occupancyRate, 100)}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-slate-500 font-medium text-right">{hq.activePatients} Pacientes Activos / {hq.capacity} Camas</p>
-                                </div>
-
-                                {/* Revenue */}
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-end">
-                                        <div className="flex items-center gap-2 text-slate-500">
-                                            <DollarSign className="w-4 h-4 text-amber-400" />
-                                            <span className="text-sm font-bold uppercase tracking-wider">Ingresos MTD</span>
-                                        </div>
-                                        <span className="text-2xl font-black text-white">{formatCurrency(hq.monthlyRevenue)}</span>
-                                    </div>
-                                    <div className="h-3 w-full bg-slate-900 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full transition-all duration-1000"
-                                            style={{ width: `${Math.min((hq.monthlyRevenue / 150000) * 100, 100)}%` }} // Arbitrary 150k target scale for visuals
-                                        />
-                                    </div>
-                                    <p className="text-xs text-slate-500 font-medium text-right">Facturación liquidada (Mes a la fecha)</p>
-                                </div>
-
-                                {/* Clinical Compliance */}
-                                <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                            <Activity className="w-4 h-4 text-blue-400" /> Índice Clínico Laboral
-                                        </h4>
-                                        <p className="text-slate-500 text-xs mt-1">Promedio compliance de {hq.staffCount} clínicos</p>
-                                    </div>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-black text-white">{hq.clinicalComplianceRate}</span>
-                                        <span className="text-slate-500 font-bold">/ 100</span>
-                                    </div>
-                                </div>
-
-                                {/* Facility Health Score */}
-                                {hq.facilityHealthScore !== undefined && (() => {
-                                    const fhs = hq.facilityHealthScore!;
-                                    const grade = hq.facilityHealthGrade!;
-                                    const bd = hq.facilityHealthBreakdown!;
-                                    const gradeColor = grade === 'EXCELENTE' ? 'text-emerald-400' : grade === 'BUENO' ? 'text-teal-400' : grade === 'ALERTA' ? 'text-amber-400' : 'text-rose-400';
-                                    const gradeBorder = grade === 'EXCELENTE' ? 'border-emerald-500/20' : grade === 'BUENO' ? 'border-teal-500/20' : grade === 'ALERTA' ? 'border-amber-500/20' : 'border-rose-500/20';
-                                    const gradeBg = grade === 'EXCELENTE' ? 'bg-emerald-500/5' : grade === 'BUENO' ? 'bg-teal-500/5' : grade === 'ALERTA' ? 'bg-amber-500/5' : 'bg-rose-500/10';
-                                    return (
-                                        <div className={`rounded-2xl p-6 border ${gradeBorder} ${gradeBg}`}>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                                    <HeartPulse className={`w-4 h-4 ${gradeColor}`} /> Facility Health Score
-                                                </h4>
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className={`text-4xl font-black ${gradeColor}`}>{fhs}</span>
-                                                    <span className={`text-xs font-black uppercase tracking-widest ${gradeColor}`}>{grade}</span>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] text-slate-500">
-                                                {bd.activeUPPs > 0 && <span>UPPs activas: <span className="text-rose-400 font-bold">{bd.activeUPPs} (−{bd.uppPenalty})</span></span>}
-                                                {bd.severeFalls > 0 && <span>Caídas severas 30d: <span className="text-rose-400 font-bold">{bd.severeFalls} (−{bd.fallPenalty})</span></span>}
-                                                {bd.pendingComplaints > 0 && <span>Quejas pendientes: <span className="text-amber-400 font-bold">{bd.pendingComplaints} (−{bd.complaintPenalty})</span></span>}
-                                                {bd.missingHandovers > 0 && <span>Handovers faltantes: <span className="text-amber-400 font-bold">{bd.missingHandovers} (−{bd.handoverPenalty})</span></span>}
-                                                {bd.medPenalty > 0 && <span>Med compliance: <span className="text-amber-400 font-bold">{bd.medCompliancePct}% (−{bd.medPenalty})</span></span>}
-                                                {bd.incidentBonus > 0 && <span className="col-span-2 text-emerald-400 font-bold">✓ 0 incidentes en 7 días (+{bd.incidentBonus})</span>}
-                                                {bd.totalDeduction === 0 && bd.incidentBonus === 0 && <span className="col-span-2 text-emerald-400 font-bold">✓ Sin penalizaciones activas</span>}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
+                            {/* Resumen ejecutivo */}
+                            <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 rounded-3xl p-8">
+                                <h3 className="text-sm font-black text-amber-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                    <Sparkles className="w-4 h-4" /> Resumen Ejecutivo
+                                </h3>
+                                <ul className="space-y-2.5">
+                                    {hq.resumen.map((r, i) => (
+                                        <li key={i} className="text-slate-300 text-[15px] leading-relaxed flex gap-3">
+                                            <span className="text-amber-500 font-black shrink-0">·</span>{r}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                        </div>
-                    ))}
 
-                    {kpis.length === 0 && (
-                        <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-700 rounded-3xl">
-                            <p className="text-slate-500 font-bold text-lg">No se detectaron sedes bajo la rúbrica corporativa actual.</p>
-                            <p className="text-slate-600 mt-2">Inyecte los registros iniciales mediante el comando de soporte técnico.</p>
-                        </div>
-                    )}
-                </div>
+                            {/* KPIs hero */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                {[
+                                    { label: 'Ocupación', value: `${o.occupancyRate}%`, sub: `${o.ocupadas}/${o.capacity} camas`, icon: BedDouble, tone: 'text-emerald-400' },
+                                    { label: 'Ingreso Recurrente', value: fmt(f.mrr), sub: `ARPU ${fmt(f.arpu)}`, icon: DollarSign, tone: 'text-amber-400' },
+                                    { label: 'Cobranza del Mes', value: f.tasaCobranza !== null ? `${f.tasaCobranza}%` : '—', sub: `${fmt(f.cobradoMes)} cobrado`, icon: Landmark, tone: 'text-teal-400' },
+                                    { label: 'Salud Operativa', value: `${q.facilityHealthScore}`, sub: q.facilityHealthGrade, icon: HeartPulse, tone: gradeColor },
+                                ].map(kpi => (
+                                    <div key={kpi.label} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
+                                        <div className="flex items-center gap-2 text-slate-500 mb-3">
+                                            <kpi.icon className={`w-4 h-4 ${kpi.tone}`} />
+                                            <span className="text-[11px] font-black uppercase tracking-widest">{kpi.label}</span>
+                                        </div>
+                                        <p className="text-3xl font-black text-white">{kpi.value}</p>
+                                        <p className={`text-xs font-bold mt-1 ${kpi.tone}`}>{kpi.sub}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+                                {/* Finanzas */}
+                                <div className="xl:col-span-3 bg-slate-800/50 border border-slate-700/50 rounded-3xl p-8 space-y-8">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <DollarSign className="w-5 h-5 text-amber-400" /> Finanzas
+                                        </h3>
+                                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Devengado vs Caja</span>
+                                    </div>
+
+                                    {/* Serie mensual */}
+                                    <div className="space-y-4">
+                                        {f.serie.map(s => {
+                                            const [yy, mm] = s.mes.split('-');
+                                            return (
+                                                <div key={s.mes} className="space-y-1.5">
+                                                    <div className="flex justify-between items-baseline text-xs">
+                                                        <span className="font-black text-slate-400 uppercase tracking-wider">{MESES_ES[mm]} {yy}</span>
+                                                        <span className="text-slate-500">
+                                                            <span className="text-white font-bold">{fmt(s.facturado)}</span> facturado
+                                                            <span className="mx-1.5 text-slate-700">·</span>
+                                                            <span className="text-emerald-400 font-bold">{fmt(s.cobrado)}</span> cobrado
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-3 w-full bg-slate-900 rounded-full overflow-hidden relative">
+                                                        <div className="absolute inset-y-0 left-0 bg-amber-500/30 rounded-full" style={{ width: `${(s.facturado / maxSerie) * 100}%` }} />
+                                                        <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" style={{ width: `${(s.cobrado / maxSerie) * 100}%` }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Detalle */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-slate-700/50">
+                                        {[
+                                            { label: 'Facturado (mes)', value: fmt(f.facturadoMes), tone: 'text-white' },
+                                            { label: 'Vencido acum.', value: fmt(f.vencidoTotal), tone: f.vencidoTotal > 0 ? 'text-rose-400' : 'text-emerald-400' },
+                                            { label: 'Por facturar', value: fmt(f.brechaFacturacion), tone: f.brechaFacturacion > 0 ? 'text-amber-400' : 'text-emerald-400' },
+                                            { label: 'Potencial 100%', value: fmt(f.potencialMensual), tone: 'text-slate-300' },
+                                        ].map(d => (
+                                            <div key={d.label} className="pt-4">
+                                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{d.label}</p>
+                                                <p className={`text-lg font-black mt-0.5 ${d.tone}`}>{d.value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Crecimiento */}
+                                <div className="xl:col-span-2 bg-slate-800/50 border border-slate-700/50 rounded-3xl p-8 space-y-6">
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5 text-emerald-400" /> Crecimiento
+                                    </h3>
+
+                                    <div className="space-y-3">
+                                        {Object.entries(c.pipeline).map(([stage, count]) => (
+                                            <div key={stage} className="flex items-center gap-3">
+                                                <span className="text-[11px] text-slate-500 font-black uppercase tracking-wider w-24 shrink-0">{STAGE_LABELS[stage] || stage}</span>
+                                                <div className="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full ${stage === 'ADMISSION' ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
+                                                        style={{ width: `${(count / maxPipeline) * 100}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-white font-black text-sm w-6 text-right">{count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700/50">
+                                        <div>
+                                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Camas libres</p>
+                                            <p className="text-2xl font-black text-white mt-0.5">{o.camasLibres}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Full ocupación</p>
+                                            <p className="text-2xl font-black text-white mt-0.5">{c.mesesAFullOcupacion !== null ? `~${c.mesesAFullOcupacion} meses` : '—'}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-4 pt-4 border-t border-slate-700/50 text-xs">
+                                        <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                                            <ArrowUpRight className="w-4 h-4" /> {o.altasMes} admisión{o.altasMes !== 1 ? 'es' : ''} este mes
+                                        </span>
+                                        <span className="flex items-center gap-1.5 text-slate-500 font-bold">
+                                            <ArrowDownRight className="w-4 h-4" /> {o.bajasMes} egreso{o.bajasMes !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Calidad + Equipo */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[11px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
+                                            <Activity className="w-4 h-4 text-blue-400" /> Compliance Clínico
+                                        </p>
+                                        <p className="text-slate-500 text-xs mt-1">Promedio de {e.clinicalCount} clínicos</p>
+                                    </div>
+                                    <p className="text-3xl font-black text-white">{q.clinicalComplianceRate}<span className="text-slate-600 text-lg">/100</span></p>
+                                </div>
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[11px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-teal-400" /> Equipo
+                                        </p>
+                                        <p className="text-slate-500 text-xs mt-1">Staff activo total</p>
+                                    </div>
+                                    <p className="text-3xl font-black text-white">{e.staffCount}</p>
+                                </div>
+                                <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[11px] text-slate-500 font-black uppercase tracking-widest flex items-center gap-2">
+                                            <UserCheck className="w-4 h-4 text-amber-400" /> Ratio Staff/Residente
+                                        </p>
+                                        <p className="text-slate-500 text-xs mt-1">Dotación por cama ocupada</p>
+                                    </div>
+                                    <p className="text-3xl font-black text-white">{e.ratioStaffResidente}</p>
+                                </div>
+                            </div>
+                        </section>
+                    );
+                })}
+
+                {kpis.length === 0 && (
+                    <div className="py-20 text-center border-2 border-dashed border-slate-700 rounded-3xl">
+                        <p className="text-slate-500 font-bold text-lg">No hay sedes activas para mostrar.</p>
+                    </div>
+                )}
             </main>
         </div>
     );
