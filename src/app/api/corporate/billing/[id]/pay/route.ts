@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit';
+import { createPatientCredit } from '@/lib/patient-credits';
+import { computePayment, round2 } from '@/lib/payment-math';
 import { notifyUser } from '@/lib/notifications';
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
@@ -57,17 +59,42 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         }
 
         const paidDate = paidAt ? new Date(paidAt) : new Date();
-        const paidAmount = amount ? parseFloat(amount) : invoice.totalAmount;
 
-        // 1. Actualizar Invoice
+        // Sin `amount` explícito se salda el pendiente completo (comportamiento
+        // histórico del botón "Marcar pagada"). Con monto, se trata como abono.
+        const requested = amount !== undefined && amount !== null && amount !== ''
+            ? parseFloat(amount)
+            : null;
+        if (requested !== null && !Number.isFinite(requested)) {
+            return NextResponse.json({ success: false, error: 'Monto de pago inválido' }, { status: 400 });
+        }
+
+        const { paymentAmount: paidAmount, newAmountPaid, isFullySettled, overpaid } =
+            computePayment({
+                totalAmount: invoice.totalAmount,
+                previouslyPaid: invoice.amountPaid || 0,
+                requestedAmount: requested,
+            });
+        const previouslyPaid = invoice.amountPaid || 0;
+
+        if (paidAmount <= 0) {
+            return NextResponse.json({ success: false, error: 'El monto del pago debe ser mayor que cero' }, { status: 400 });
+        }
+
+        // 1. Actualizar Invoice.
+        //    Antes marcaba PAID SIEMPRE, sin comparar contra el total: registrar
+        //    $100 de una cuota de $3,000 daba la factura por saldada y la sacaba
+        //    de pendientes. Así quedó INV-082026-018 en "$1 pagado / PAID", y así
+        //    cualquier subcobro se volvía invisible.
         const updated = await prisma.invoice.update({
             where: { id: invoiceId },
             data: {
-                status: 'PAID',
-                paidAt: paidDate,
+                ...(isFullySettled
+                    ? { status: 'PAID' as const, paidAt: paidDate }
+                    : {}),
                 paymentMethod: paymentMethod || null,
                 referenceNumber: referenceNumber || null,
-                amountPaid: paidAmount,
+                amountPaid: newAmountPaid,
                 updatedAt: new Date(),
             }
         });
@@ -83,9 +110,25 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             }
         });
 
-        // 2b. Auditoría del cobro. `isUnderpayment` marca los casos en que se dio
-        // por saldada una factura con un pago menor al total — hoy el endpoint lo
-        // permite sin avisar (ver INV-082026-018: $1 cobrado sobre $3,000 de cuota).
+        // 2a. Un sobrepago se convierte en saldo a favor en vez de evaporarse.
+        //     Es el mismo mecanismo que resuelve los adelantos de cuota.
+        if (overpaid > 0) {
+            try {
+                await createPatientCredit({
+                    headquartersId: invoice.headquartersId,
+                    patientId: invoice.patientId,
+                    amount: overpaid,
+                    receivedAt: paidDate,
+                    source: 'OVERPAYMENT',
+                    reason: `Excedente del pago de ${invoice.invoiceNumber}`,
+                    createdById: directorId,
+                });
+            } catch (err) {
+                console.error('[billing pay] fallo creando crédito por sobrepago', err);
+            }
+        }
+
+        // 2b. Auditoría del cobro.
         await logAudit({
             headquartersId: invoice.headquartersId,
             performedById: directorId,
@@ -94,11 +137,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             entityId: invoiceId,
             resourceName: `${invoice.invoiceNumber} — ${invoice.patient?.name ?? 'Sin residente'}`,
             payloadChanges: {
-                operation: 'PAYMENT_RECORDED',
-                amountPaid: { before: invoice.amountPaid, after: paidAmount },
+                operation: isFullySettled ? 'PAYMENT_RECORDED' : 'PARTIAL_PAYMENT_RECORDED',
+                paymentAmount: paidAmount,
+                amountPaid: { before: previouslyPaid, after: newAmountPaid },
                 totalAmount: invoice.totalAmount,
-                isUnderpayment: paidAmount < invoice.totalAmount,
-                status: { before: invoice.status, after: 'PAID' },
+                outstandingAfter: round2(Math.max(0, invoice.totalAmount - newAmountPaid)),
+                overpaidToCredit: overpaid > 0 ? overpaid : undefined,
+                status: { before: invoice.status, after: updated.status },
                 paymentMethod: paymentMethod || null,
                 referenceNumber: referenceNumber || null,
                 paidAt: paidDate.toISOString(),
@@ -110,8 +155,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         try {
             await notifyUser(directorId, {
                 type: 'EMAR_ALERT',
-                title: 'Pago registrado',
-                message: `${invoice.patient?.name} — $${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} — ${paymentMethod || 'Sin método'}`,
+                title: isFullySettled ? 'Pago registrado' : 'Abono parcial registrado',
+                message: `${invoice.patient?.name} — $${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} — ${paymentMethod || 'Sin método'}${isFullySettled ? '' : ` — pendiente $${round2(invoice.totalAmount - newAmountPaid).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}`,
                 link: '/corporate/billing',
             });
         } catch { /* silenciar */ }
@@ -137,19 +182,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                     <div style="background:#0f172a;padding:28px 32px;text-align:center;">
                         ${logoHtml}
                         <h1 style="color:#fff;margin:0;font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:2px;">${hqName}</h1>
-                        <p style="color:#64748b;font-size:11px;margin:4px 0 0;letter-spacing:2px;text-transform:uppercase;">Recibo de Pago Oficial</p>
+                        <p style="color:#64748b;font-size:11px;margin:4px 0 0;letter-spacing:2px;text-transform:uppercase;">${isFullySettled ? 'Recibo de Pago Oficial' : 'Comprobante de Abono'}</p>
                     </div>
                     <div style="padding:32px;">
-                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
-                            <span style="font-size:24px;">✅</span>
+                        <div style="background:${isFullySettled ? '#f0fdf4' : '#fffbeb'};border:1px solid ${isFullySettled ? '#bbf7d0' : '#fde68a'};border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px;">
+                            <span style="font-size:24px;">${isFullySettled ? '✅' : '🧾'}</span>
                             <div>
-                                <p style="margin:0;font-weight:900;color:#15803d;font-size:16px;">Pago Confirmado</p>
-                                <p style="margin:2px 0 0;color:#166534;font-size:13px;">${paidDate.toLocaleDateString('es-PR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                <p style="margin:0;font-weight:900;color:${isFullySettled ? '#15803d' : '#b45309'};font-size:16px;">${isFullySettled ? 'Pago Confirmado' : 'Abono Recibido'}</p>
+                                <p style="margin:2px 0 0;color:${isFullySettled ? '#166534' : '#92400e'};font-size:13px;">${paidDate.toLocaleDateString('es-PR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             </div>
                         </div>
 
                         <p style="color:#475569;font-size:15px;">Estimado(a) <strong>${familyName || 'Familiar'}</strong>,</p>
-                        <p style="color:#475569;font-size:14px;line-height:1.6;">Confirmamos la recepción del pago correspondiente a <strong>${invoice.patient?.name}</strong> — ${monthYear}.</p>
+                        <p style="color:#475569;font-size:14px;line-height:1.6;">Confirmamos la recepción ${isFullySettled ? 'del pago' : 'de un abono'} correspondiente a <strong>${invoice.patient?.name}</strong> — ${monthYear}.</p>
 
                         <table style="width:100%;border-collapse:collapse;margin:20px 0;">
                             <thead>
@@ -161,9 +206,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                             <tbody>${itemsHtml}</tbody>
                             <tfoot>
                                 <tr style="border-top:2px solid #1e293b;">
-                                    <td style="padding:12px 0;font-weight:900;color:#0f172a;font-size:16px;">Total Pagado</td>
+                                    <td style="padding:12px 0;font-weight:900;color:#0f172a;font-size:16px;">${isFullySettled ? 'Total Pagado' : 'Abono Recibido'}</td>
                                     <td style="padding:12px 0;text-align:right;font-weight:900;color:#15803d;font-size:20px;">$${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                 </tr>
+                                ${!isFullySettled ? `
+                                <tr>
+                                    <td style="padding:8px 0;font-weight:900;color:#b45309;font-size:15px;">Saldo Pendiente</td>
+                                    <td style="padding:8px 0;text-align:right;font-weight:900;color:#b45309;font-size:18px;">$${round2(invoice.totalAmount - newAmountPaid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                </tr>` : ''}
+                                ${overpaid > 0 ? `
+                                <tr>
+                                    <td style="padding:8px 0;font-weight:900;color:#0f6b78;font-size:15px;">Saldo a Favor</td>
+                                    <td style="padding:8px 0;text-align:right;font-weight:900;color:#0f6b78;font-size:18px;">$${overpaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                </tr>` : ''}
                             </tfoot>
                         </table>
 
@@ -184,7 +239,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
                 await sgMail.send({
                     to: familyEmail,
                     from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: hqName },
-                    subject: `Recibo de pago — ${invoice.patient?.name} — ${monthYear}`,
+                    subject: `${isFullySettled ? 'Recibo de pago' : 'Comprobante de abono'} — ${invoice.patient?.name} — ${monthYear}`,
                     html: receiptHtml,
                 });
 
@@ -203,6 +258,12 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             success: true,
             invoice: updated,
             receiptSent: !!familyEmail,
+            // La UI necesita distinguir abono de pago total para no decirle al
+            // Director "factura pagada" cuando todavía hay saldo por cobrar.
+            isFullySettled,
+            amountPaid: newAmountPaid,
+            outstanding: round2(Math.max(0, invoice.totalAmount - newAmountPaid)),
+            overpaidToCredit: overpaid > 0 ? overpaid : null,
         });
 
     } catch (error: any) {
