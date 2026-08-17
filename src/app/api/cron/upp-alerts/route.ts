@@ -25,9 +25,9 @@ export async function GET(req: Request) {
         // explícito, p.ej. encamado), nortonRisk=true (escala predictiva),
         // O tienen UPP activa.
         //
-        // FIX 2026-05-31: filtrar status ACTIVE/TEMPORARY_LEAVE — antes el cron
+        // FIX 2026-05-31: excluir DISCHARGED/DECEASED — antes el cron
         // disparaba notificaciones de rotación postural a cuidadores por
-        // residentes DISCHARGED/DECEASED con UPPs históricas no marcadas como
+        // residentes egresados con UPPs históricas no marcadas como
         // RESOLVED. Falsa alerta = ruido operativo y erosiona la confianza
         // en las alertas reales.
         //
@@ -37,9 +37,18 @@ export async function GET(req: Request) {
         // cron — quedaban sin push proactivo cuando se vencía la ventana.
         // Inconsistencia threshold cron-vs-postural (flat 2h vs 120/135)
         // sigue como follow-up — este cambio amplía señales, no umbrales.
+        // Solo ACTIVE. Un residente en TEMPORARY_LEAVE (hospital, visita
+        // familiar) NO está en el edificio: nadie puede rotarlo y alertar
+        // "requiere cambio de posición inmediato" es falsa alarma por
+        // definición (caso Isidra Beaton, ago-2026: 7 días de alertas
+        // diarias estando hospitalizada). El sistema SÍ sabe dónde está —
+        // status/leaveType/leaveDate — y este filtro ahora lo usa. Al volver
+        // (status→ACTIVE) reentra al barrido automáticamente, y su rotación
+        // "vieja" disparará la alerta de inmediato: eso sí es correcto,
+        // porque recién llegada necesita rotación pronto.
         const atRiskPatients = await prisma.patient.findMany({
             where: {
-                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
+                status: 'ACTIVE',
                 OR: [
                     { requiresPosturalChanges: true },
                     { nortonRisk: true },
