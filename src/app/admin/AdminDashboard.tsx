@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getPlanDisplayName, PLAN_PRICING, normalizePlan } from "@/lib/entitlements";
+import { getPlanDisplayName, PLAN_PRICING, normalizePlan, BED_PRICE, calculateMonthlyFee } from "@/lib/entitlements";
 import {
     Building2,
     DollarSign,
@@ -910,9 +910,7 @@ function NewProspectModal({
                                     className={inputCls}
                                 >
                                     <option value="">— Sin definir —</option>
-                                    <option value="LITE">Plan Esencial — ${PLAN_PRICING.LITE.pricePerBed}/cama</option>
-                                    <option value="PRO">Plan Profesional — ${PLAN_PRICING.PRO.pricePerBed}/cama</option>
-                                    <option value="ENTERPRISE">Plan Corporativo — ${PLAN_PRICING.ENTERPRISE.pricePerBed}/cama</option>
+                                    <option value="PRO">Zendity Completo — ${BED_PRICE}/cama</option>
                                 </select>
                             </Field>
                             <Field label="Camas estimadas">
@@ -1006,7 +1004,7 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
                                     </td>
                                     <td className="p-4 text-center">
                                         <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                                            {getPlanDisplayName(s.subscriptionPlan)}
+                                            {s.capacity} camas · ${calculateMonthlyFee(s.capacity).toLocaleString()}
                                         </span>
                                     </td>
                                     <td className="p-4 text-center text-slate-300">
@@ -1090,7 +1088,7 @@ function ManageSedeModal({
     const [busy, setBusy] = useState<string | null>(null);
     const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
     const [months, setMonths] = useState("12");
-    const [plan, setPlan] = useState(sede.subscriptionPlan || "PRO");
+    const [camas, setCamas] = useState(String(sede.capacity ?? ""));
     const [pin, setPin] = useState("");
 
     const suspended = !sede.isActive || sede.subscriptionStatus !== "ACTIVE";
@@ -1126,7 +1124,7 @@ function ManageSedeModal({
                     <div>
                         <h2 className="text-xl font-black text-white">{sede.name}</h2>
                         <p className="text-xs text-slate-500 mt-1">
-                            Plan {getPlanDisplayName(sede.subscriptionPlan)} · {sede.subscriptionStatus}
+                            {sede.capacity} camas · ${calculateMonthlyFee(sede.capacity).toLocaleString()}/mes · {sede.subscriptionStatus}
                         </p>
                     </div>
                     <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:bg-slate-800 hover:text-white transition-colors">
@@ -1195,25 +1193,31 @@ function ManageSedeModal({
                         </div>
                     </div>
 
-                    {/* Plan */}
+                    {/* Tarifa — depende de las camas autorizadas, no de un plan.
+                        Cambiar la capacidad cambia lo que el hogar paga, por eso
+                        pide confirmación con el monto nuevo a la vista. */}
                     <div>
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Plan</h3>
-                        <div className="flex gap-2">
-                            <select
-                                value={plan}
-                                onChange={(e) => setPlan(e.target.value)}
-                                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#3CC6C4]"
-                            >
-                                <option value="LITE">Esencial</option>
-                                <option value="PRO">Profesional</option>
-                                <option value="ENTERPRISE">Corporativo</option>
-                            </select>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Camas autorizadas</h3>
+                        <p className="text-[11px] text-slate-500 mb-3">
+                            Capacidad de la licencia del Departamento de la Familia. Define la tarifa: ${BED_PRICE}/cama.
+                        </p>
+                        <div className="flex gap-2 items-center">
+                            <input
+                                type="number" min={1} max={500}
+                                value={camas}
+                                onChange={(e) => setCamas(e.target.value.replace(/\D/g, ""))}
+                                className="w-28 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#3CC6C4]"
+                            />
+                            <span className="text-sm text-slate-400 font-bold">
+                                → ${calculateMonthlyFee(Number(camas) || 0).toLocaleString()}/mes
+                            </span>
                             <button
-                                onClick={() => run("CHANGE_PLAN", { plan })}
-                                disabled={!!busy || plan === sede.subscriptionPlan}
-                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition disabled:opacity-40"
+                                onClick={() => run("CHANGE_CAPACITY", { capacity: Number(camas) },
+                                    `¿Cambiar la capacidad de ${sede.name} a ${camas} camas?\n\nLa tarifa mensual pasa de $${calculateMonthlyFee(sede.capacity).toLocaleString()} a $${calculateMonthlyFee(Number(camas) || 0).toLocaleString()}.`)}
+                                disabled={!!busy || !camas || Number(camas) === sede.capacity}
+                                className="ml-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition disabled:opacity-40"
                             >
-                                Cambiar
+                                Actualizar
                             </button>
                         </div>
                     </div>

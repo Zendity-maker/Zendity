@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { normalizePlan } from '@/lib/entitlements';
+import { requireSuperAdmin } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,12 +66,23 @@ export async function GET(_req: NextRequest) {
  * POST /api/corporate/headquarters
  * Crear nueva sede.
  * Body: { name, capacity, licenseExpiry, ownerName?, ownerEmail?, ownerPhone?, taxId?, subscriptionPlan? }
- * Auth: DIRECTOR, ADMIN
+ *
+ * Auth: SUPER_ADMIN ÚNICAMENTE (cambiado 17-ago-2026).
+ *
+ * Antes: DIRECTOR/ADMIN. Eso permitía que un operador cliente se
+ * auto-provisionara sedes con `licenseActive: true` y el plan que eligiera —
+ * saltándose a Zendity y a facturación. Crear una sede es una acción
+ * COMERCIAL (vender una licencia), no operacional.
+ *
+ * El alta de sedes vive en /admin/sedes. Este endpoint conserva el POST solo
+ * para no romper integraciones existentes, pero con el rol correcto.
+ * DIRECTOR/ADMIN mantienen GET y PATCH sobre SUS sedes: renombrar, cambiar
+ * capacidad o logo sí es operacional.
  */
 export async function POST(req: NextRequest) {
     try {
-        const auth = await requireMultiHqRole();
-        if ('error' in auth) return auth.error;
+        const guard = await requireSuperAdmin();
+        if (!guard.ok) return guard.response;
 
         const body = await req.json();
 
@@ -148,38 +160,35 @@ export async function PATCH(req: NextRequest) {
 
         const data: any = {};
 
+        // CAMPOS OPERACIONALES — el hogar administra los suyos.
         if (typeof body.name === 'string' && body.name.trim().length > 0) {
             data.name = body.name.trim();
         }
-        if (body.capacity !== undefined) {
-            const c = parseInt(String(body.capacity), 10);
-            if (isNaN(c) || c < 1) {
-                return NextResponse.json({ success: false, error: 'Capacidad inválida' }, { status: 400 });
-            }
-            data.capacity = c;
-        }
-        if (body.licenseExpiry) {
-            const d = new Date(body.licenseExpiry);
-            if (isNaN(d.getTime())) {
-                return NextResponse.json({ success: false, error: 'Fecha de licencia inválida' }, { status: 400 });
-            }
-            data.licenseExpiry = d;
-        }
-        if (typeof body.licenseActive === 'boolean') data.licenseActive = body.licenseActive;
-        if (typeof body.isActive === 'boolean') data.isActive = body.isActive;
         if (body.ownerName !== undefined) data.ownerName = body.ownerName || null;
         if (body.ownerEmail !== undefined) data.ownerEmail = body.ownerEmail || null;
         if (body.ownerPhone !== undefined) data.ownerPhone = body.ownerPhone || null;
         if (body.taxId !== undefined) data.taxId = body.taxId || null;
-        if (body.subscriptionPlan) {
-            const normalized = normalizePlan(body.subscriptionPlan);
-            if (!normalized) {
-                return NextResponse.json({
-                    success: false,
-                    error: `Plan no reconocido: "${body.subscriptionPlan}". Usa Esencial, Profesional o Corporativo.`
-                }, { status: 400 });
-            }
-            data.subscriptionPlan = normalized;
+
+        // CAMPOS COMERCIALES — solo Zendity (17-ago-2026).
+        //
+        // Antes este PATCH aceptaba capacity, licenseActive, licenseExpiry,
+        // isActive y subscriptionPlan con rol DIRECTOR/ADMIN, y la UI de
+        // /corporate/sedes los enviaba en cada guardado. Un director podía
+        // extenderse la licencia, reactivarse tras una suspensión por falta de
+        // pago —anulando el corte— o cambiarse de plan.
+        //
+        // `capacity` entra a esta lista porque desde el modelo de tarifa por
+        // cama ES el input de facturación, y además refleja la licencia del
+        // Departamento de la Familia: un dato regulatorio, no una preferencia.
+        //
+        // Todo esto se gestiona en /admin → Sedes, donde queda auditado.
+        const comerciales = ['capacity', 'licenseActive', 'licenseExpiry', 'isActive', 'subscriptionPlan']
+            .filter(k => body[k] !== undefined);
+        if (comerciales.length > 0) {
+            return NextResponse.json({
+                success: false,
+                error: `Estos datos los gestiona Zendity: ${comerciales.join(', ')}. Comunícate con nosotros para modificarlos.`,
+            }, { status: 403 });
         }
 
         const updated = await prisma.headquarters.update({

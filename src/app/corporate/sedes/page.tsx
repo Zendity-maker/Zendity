@@ -133,25 +133,19 @@ export default function SedesPage() {
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
         if (!form.name.trim()) return showToast("error", "Nombre requerido");
-        if (!form.capacity || parseInt(form.capacity) < 1) return showToast("error", "Capacidad inválida");
-        if (!form.licenseExpiry) return showToast("error", "Fecha de licencia requerida");
 
         setSaving(true);
         try {
             const method = modalMode === "create" ? "POST" : "PATCH";
             const payload: any = {
                 name: form.name.trim(),
-                capacity: parseInt(form.capacity),
-                licenseExpiry: form.licenseExpiry,
                 ownerName: form.ownerName.trim() || null,
                 ownerEmail: form.ownerEmail.trim() || null,
                 ownerPhone: form.ownerPhone.trim() || null,
                 taxId: form.taxId.trim() || null,
-                subscriptionPlan: form.subscriptionPlan,
             };
             if (modalMode === "edit") {
                 payload.id = form.id;
-                payload.isActive = form.isActive;
             }
             const res = await fetch("/api/corporate/headquarters", {
                 method,
@@ -388,15 +382,16 @@ export default function SedesPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-1">Capacidad *</label>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">Capacidad autorizada</label>
                                         <input
-                                            required
                                             type="number"
-                                            min={1}
                                             value={form.capacity}
-                                            onChange={e => setForm({ ...form, capacity: e.target.value })}
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-teal-500 transition-colors"
+                                            disabled
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
                                         />
+                                        <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                                            Camas de tu licencia del Departamento de la Familia. La ajusta Zendity.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -413,20 +408,23 @@ export default function SedesPage() {
                                             Vencimiento de licencia *
                                         </label>
                                         <input
-                                            required
                                             type="date"
                                             value={form.licenseExpiry}
-                                            onChange={e => setForm({ ...form, licenseExpiry: e.target.value })}
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:border-teal-500 transition-colors"
+                                            disabled
+                                            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
                                         />
+                                        <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                                            La renovación la gestiona Zendity.
+                                        </p>
                                     </div>
                                     {modalMode === "edit" && (
                                         <div>
                                             <label className="block text-xs font-bold text-slate-600 mb-1">Sede activa</label>
                                             <button
                                                 type="button"
-                                                onClick={() => setForm({ ...form, isActive: !form.isActive })}
-                                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                                disabled
+                                                title="El estado del servicio lo administra Zendity"
+                                                className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-bold flex items-center justify-between cursor-not-allowed"
                                                 style={{ color: form.isActive ? COLORS.green : COLORS.red }}
                                             >
                                                 <span>{form.isActive ? "Activa" : "Inactiva"}</span>

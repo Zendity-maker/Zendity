@@ -28,6 +28,21 @@
 
 import { prisma } from '@/lib/prisma';
 
+/**
+ * MODELO COMERCIAL (17-ago-2026): tarifa única, plataforma completa.
+ *
+ * Zendity no vende funciones recortadas: todo hogar recibe el producto
+ * entero y paga por cama autorizada en su licencia del Departamento de la
+ * Familia. Los planes diferenciados (Esencial/Profesional/Corporativo) se
+ * eliminaron — nunca llegaron a gatear nada (`hasFeature` no se usaba en
+ * ningún punto del código) y solo abrían la puerta a que un hogar se
+ * auto-ascendiera de plan.
+ *
+ * `subscriptionPlan` se conserva en el schema por compatibilidad con los
+ * registros existentes, pero ya no altera precio ni acceso.
+ */
+export const BED_PRICE = 12.49;
+
 // ── Feature keys disponibles en la plataforma ────────────────────
 export type Feature =
     // Core clínico — en TODOS los planes (Esencial+)
@@ -52,44 +67,42 @@ export type Feature =
     | 'CUSTOM_REPORTS'     // Reportes exportables y auditoría HIPAA avanzada
     | 'IMPERSONATION';     // Soporte remoto con impersonation (solo Zéndity)
 
-// ── Matriz de features por plan (alineada con zendity.com) ───────
-const PLAN_FEATURES: Record<string, Feature[]> = {
-    LITE: [
-        // Esencial: lo básico para operar — alineado con el plan "Esencial" de la web
-        'EMAR', 'HANDOVERS', 'VITALS', 'FAMILY_PORTAL', 'SCHEDULE',
-        'TRIAGE', 'ACADEMY', 'ZENDI_AI_BASIC',
-    ],
-    PRO: [
-        // Profesional: facilidad creciente — alineado con plan "Profesional" de la web
-        'EMAR', 'HANDOVERS', 'VITALS', 'FAMILY_PORTAL', 'SCHEDULE',
-        'TRIAGE', 'ACADEMY', 'ZENDI_AI_BASIC',
-        'ANALYTICS', 'SCHEDULE_ADVANCED', 'FAMILY_CHAT',
-        'CRM_ADMISIONES', 'KITCHEN_NUTRITION', 'RECEPTION_KIOSK',
-    ],
-    ENTERPRISE: [
-        // Corporativo: operación multi-sede — alineado con plan "Corporativo" de la web
-        'EMAR', 'HANDOVERS', 'VITALS', 'FAMILY_PORTAL', 'SCHEDULE',
-        'TRIAGE', 'ACADEMY', 'ZENDI_AI_BASIC',
-        'ANALYTICS', 'SCHEDULE_ADVANCED', 'FAMILY_CHAT',
-        'CRM_ADMISIONES', 'KITCHEN_NUTRITION', 'RECEPTION_KIOSK',
-        'AI_BRIEFING', 'MULTI_HQ', 'CUSTOM_REPORTS', 'IMPERSONATION',
-    ],
-};
+// ── Plataforma completa: no hay features por plan ────────────────
+// Se mantiene la lista para que `Feature` siga siendo un tipo útil (y para
+// que requireFeature pueda seguir usándose si algún día algo es opcional),
+// pero hoy TODA sede activa recibe todas.
+const ALL_FEATURES: Feature[] = [
+    'EMAR', 'HANDOVERS', 'VITALS', 'FAMILY_PORTAL', 'SCHEDULE',
+    'TRIAGE', 'ACADEMY', 'ZENDI_AI_BASIC',
+    'ANALYTICS', 'SCHEDULE_ADVANCED', 'FAMILY_CHAT', 'CRM_ADMISIONES',
+    'KITCHEN_NUTRITION', 'RECEPTION_KIOSK',
+    'AI_BRIEFING', 'MULTI_HQ', 'CUSTOM_REPORTS', 'IMPERSONATION',
+];
 
-// ── Nombres comerciales y pricing (lo que vende la web) ──────────
+/** Un solo producto: el nombre es el mismo sea cual sea el valor guardado. */
 export const PLAN_DISPLAY_NAMES: Record<string, string> = {
-    LITE: 'Plan Esencial',
-    PRO: 'Plan Profesional',
-    ENTERPRISE: 'Plan Corporativo',
+    LITE: 'Zendity Completo',
+    PRO: 'Zendity Completo',
+    ENTERPRISE: 'Zendity Completo',
 };
 
 export const PLAN_PRICING: Record<string, { pricePerBed: number; monthlyMinimum: number; founderPrice: number }> = {
-    // pricePerBed × camas o monthlyMinimum, lo que sea mayor
-    // founderPrice = 50% lifetime para primeras 10 facilidades
-    LITE:       { pricePerBed: 10, monthlyMinimum: 150, founderPrice: 5 },
-    PRO:        { pricePerBed: 15, monthlyMinimum: 225, founderPrice: 7.5 },
-    ENTERPRISE: { pricePerBed: 20, monthlyMinimum: 400, founderPrice: 10 },
+    LITE:       { pricePerBed: BED_PRICE, monthlyMinimum: 0, founderPrice: BED_PRICE },
+    PRO:        { pricePerBed: BED_PRICE, monthlyMinimum: 0, founderPrice: BED_PRICE },
+    ENTERPRISE: { pricePerBed: BED_PRICE, monthlyMinimum: 0, founderPrice: BED_PRICE },
 };
+
+/**
+ * Tarifa mensual de una sede = camas autorizadas × BED_PRICE.
+ *
+ * `capacity` es la capacidad de la licencia del Departamento de la Familia:
+ * un dato REGULATORIO, no una preferencia del hogar. Por eso solo Zendity
+ * puede modificarlo — desde que el precio depende de él, bajarlo sería
+ * abaratarse la factura.
+ */
+export function calculateMonthlyFee(capacity: number): number {
+    return Math.round(capacity * BED_PRICE * 100) / 100;
+}
 
 // Mapeo aliases comerciales ↔ códigos internos
 const PLAN_ALIASES: Record<string, string> = {
@@ -107,16 +120,8 @@ const PLAN_ALIASES: Record<string, string> = {
     'CORPORATE': 'ENTERPRISE',
 };
 
-/**
- * Normaliza un nombre de plan (acepta nombre comercial o código interno)
- * y lo convierte al código interno. Retorna null si no es válido.
- *
- * Ejemplos:
- *   normalizePlan('Esencial')      → 'LITE'
- *   normalizePlan('PROFESIONAL')   → 'PRO'
- *   normalizePlan('LITE')          → 'LITE'
- *   normalizePlan('plan-invalido') → null
- */
+/** Normaliza valores históricos al código interno. Se conserva porque la DB
+ * sigue teniendo LITE/PRO/ENTERPRISE guardados, aunque ya no diferencien. */
 export function normalizePlan(input: string | null | undefined): string | null {
     if (!input) return null;
     const key = input.trim().toUpperCase();
@@ -126,7 +131,7 @@ export function normalizePlan(input: string | null | undefined): string | null {
 /** Retorna el nombre comercial mostrable de un plan. */
 export function getPlanDisplayName(plan: string): string {
     const normalized = normalizePlan(plan) ?? 'LITE';
-    return PLAN_DISPLAY_NAMES[normalized] ?? PLAN_DISPLAY_NAMES.LITE;
+    return PLAN_DISPLAY_NAMES[normalized] ?? 'Zendity Completo';
 }
 
 /** Retorna el pricing del plan. */
@@ -138,7 +143,7 @@ export function getPlanPricing(plan: string): { pricePerBed: number; monthlyMini
 /** Retorna la lista de features para un plan. */
 export function getPlanFeatures(plan: string): Feature[] {
     const normalized = normalizePlan(plan) ?? 'LITE';
-    return PLAN_FEATURES[normalized] ?? PLAN_FEATURES.LITE;
+    return ALL_FEATURES;
 }
 
 // ── Resultado de entitlements para una sede ───────────────────────
@@ -228,7 +233,8 @@ function buildEntitlements(
         subscriptionStatus === 'CANCELED' ||
         (licenseExpiry !== null && licenseExpiry < new Date());
 
-    const features: Feature[] = suspended ? [] : (PLAN_FEATURES[plan] ?? PLAN_FEATURES.LITE);
+    // Suspendida = sin features. Activa = plataforma completa.
+    const features: Feature[] = suspended ? [] : ALL_FEATURES;
 
     return {
         hqId,

@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
 import { requireSuperAdmin } from '@/lib/admin-auth';
-import { normalizePlan } from '@/lib/entitlements';
+import { normalizePlan, calculateMonthlyFee, BED_PRICE } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,24 +142,27 @@ export async function POST(req: Request) {
                 },
             });
 
-            let contract = null;
-            if (plan && beds && monthlyAmount) {
-                const startDate = new Date();
-                const renewalDate = new Date(startDate);
-                renewalDate.setFullYear(renewalDate.getFullYear() + 1);
-                contract = await tx.saaSContract.create({
-                    data: {
-                        headquartersId: hq.id,
-                        plan,
-                        pricePerBed: pricePerBed ? Number(pricePerBed) : 0,
-                        beds: Number(beds),
-                        monthlyAmount: Number(monthlyAmount),
-                        startDate,
-                        renewalDate,
-                        status: 'ACTIVE',
-                    },
-                });
-            }
+            // El contrato se crea SIEMPRE, derivado de la capacidad autorizada.
+            // Antes dependía de que el formulario mandara plan+beds+monthlyAmount:
+            // si faltaba alguno, la sede nacía sin contrato y por tanto sin nada
+            // que facturar. Con tarifa única no hay nada que preguntar —
+            // camas × $12.49.
+            const startDate = new Date();
+            const renewalDate = new Date(startDate);
+            renewalDate.setFullYear(renewalDate.getFullYear() + 1);
+            const camas = hq.capacity;
+            const contract = await tx.saaSContract.create({
+                data: {
+                    headquartersId: hq.id,
+                    plan: 'PRO', // vestigio del modelo de planes; ya no diferencia
+                    pricePerBed: BED_PRICE,
+                    beds: camas,
+                    monthlyAmount: calculateMonthlyFee(camas),
+                    startDate,
+                    renewalDate,
+                    status: 'ACTIVE',
+                },
+            });
 
             return { hq, director, contract };
         });
