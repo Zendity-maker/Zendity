@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { getEntitlements } from '@/lib/entitlements';
 
 /**
  * Tipo concreto del usuario de sesión que usan los route handlers.
@@ -47,6 +48,43 @@ export async function getSessionUser(): Promise<SessionUser | null> {
  *       // a partir de aquí, auth: SessionUser
  *   }
  */
+/**
+ * Corta el acceso de una sede suspendida por facturación.
+ *
+ * Vive aquí porque requireSession/requireRole es el punto ÚNICO por donde pasa
+ * toda la API autenticada: ponerlo en cada endpoint sería inviable (cientos) y
+ * dejaría huecos. `getEntitlements` cachea 30s en memoria, así que no agrega
+ * una query por request.
+ *
+ * Devuelve 402 Payment Required — código correcto y distinguible del 401/403,
+ * para que el cliente muestre la pantalla de facturación y no un "no
+ * autorizado" genérico que confunda al usuario.
+ *
+ * SUPER_ADMIN nunca se bloquea: es Zendity, y necesita entrar precisamente
+ * para resolver la suspensión.
+ */
+async function billingBlock(user: SessionUser): Promise<NextResponse | null> {
+    if (user.role === 'SUPER_ADMIN') return null;
+    try {
+        const ent = await getEntitlements(user.headquartersId);
+        if (!ent.suspended) return null;
+        return NextResponse.json(
+            {
+                success: false,
+                error: 'Servicio suspendido por facturación',
+                code: 'BILLING_SUSPENDED',
+                message: 'El servicio está temporalmente suspendido por un asunto de facturación. La operación debe continuar con documentación manual. Contacta a Zendity para restablecerlo.',
+            },
+            { status: 402 }
+        );
+    } catch {
+        // Fail-open deliberado: si el chequeo de licencia falla (DB caída,
+        // timeout), NO se bloquea el hogar. Un falso positivo aquí apagaría el
+        // eMAR de un hogar que sí paga, a mitad de turno, con residentes reales.
+        return null;
+    }
+}
+
 export async function requireSession(): Promise<SessionUser | NextResponse> {
     const user = await getSessionUser();
     if (!user) {
@@ -55,6 +93,8 @@ export async function requireSession(): Promise<SessionUser | NextResponse> {
             { status: 401 }
         );
     }
+    const blocked = await billingBlock(user);
+    if (blocked) return blocked;
     return user;
 }
 
@@ -91,5 +131,7 @@ export async function requireRole(
             { status: 403 }
         );
     }
+    const blocked = await billingBlock(user);
+    if (blocked) return blocked;
     return user;
 }
