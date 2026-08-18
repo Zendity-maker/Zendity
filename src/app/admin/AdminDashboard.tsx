@@ -1154,6 +1154,14 @@ function ManageSedeModal({
 
     const suspended = !sede.isActive || sede.subscriptionStatus !== "ACTIVE";
 
+    // El botón servía solo para CAMBIAR la capacidad y se bloqueaba si el número
+    // no variaba. Pero el caso real más común es el inverso: la capacidad está
+    // bien y lo que quedó viejo es el CONTRATO (Cupey: 50 autorizadas, contrato
+    // por 35). Ahí el botón aparecía muerto sin explicar por qué.
+    const cambiaCapacidad = !!camas && Number(camas) !== sede.capacity;
+    const contratoDesalineado =
+        !!sede.saasContract && Math.abs(sede.saasContract.monthlyAmount - calculateMonthlyFee(sede.capacity)) > 0.01;
+
     async function run(action: string, extra: Record<string, unknown> = {}, confirmMsg?: string) {
         if (confirmMsg && !window.confirm(confirmMsg)) return;
         setBusy(action); setMsg(null);
@@ -1262,6 +1270,17 @@ function ManageSedeModal({
                         <p className="text-[11px] text-slate-500 mb-3">
                             Capacidad de la licencia del Departamento de la Familia. Define la tarifa: ${BED_PRICE}/cama.
                         </p>
+                        {contratoDesalineado && !cambiaCapacidad && (
+                            <div className="mb-3 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+                                <p className="text-[11px] text-amber-300 font-bold">
+                                    El contrato factura ${sede.saasContract!.monthlyAmount.toLocaleString()} por {sede.saasContract!.beds} camas.
+                                </p>
+                                <p className="text-[11px] text-amber-200/70 mt-0.5">
+                                    Con {sede.capacity} camas autorizadas serían ${calculateMonthlyFee(sede.capacity).toLocaleString()}.
+                                    Si es un acuerdo especial, déjalo así.
+                                </p>
+                            </div>
+                        )}
                         <div className="flex gap-2 items-center">
                             <input
                                 type="number" min={1} max={500}
@@ -1274,11 +1293,13 @@ function ManageSedeModal({
                             </span>
                             <button
                                 onClick={() => run("CHANGE_CAPACITY", { capacity: Number(camas) },
-                                    `¿Cambiar la capacidad de ${sede.name} a ${camas} camas?\n\nLa tarifa mensual pasa de $${calculateMonthlyFee(sede.capacity).toLocaleString()} a $${calculateMonthlyFee(Number(camas) || 0).toLocaleString()}.`)}
-                                disabled={!!busy || !camas || Number(camas) === sede.capacity}
+                                    cambiaCapacidad
+                                        ? `¿Cambiar la capacidad de ${sede.name} a ${camas} camas?\n\nLa tarifa mensual pasa de $${calculateMonthlyFee(sede.capacity).toLocaleString()} a $${calculateMonthlyFee(Number(camas) || 0).toLocaleString()}.`
+                                        : `¿Alinear el contrato de ${sede.name} a ${camas} camas?\n\nLa mensualidad pasa de $${(sede.saasContract?.monthlyAmount ?? 0).toLocaleString()} a $${calculateMonthlyFee(Number(camas) || 0).toLocaleString()}.`)}
+                                disabled={!!busy || !camas || (!cambiaCapacidad && !contratoDesalineado)}
                                 className="ml-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition disabled:opacity-40"
                             >
-                                Actualizar
+                                {busy === "CHANGE_CAPACITY" ? "Guardando…" : cambiaCapacidad ? "Actualizar" : "Alinear contrato"}
                             </button>
                         </div>
                     </div>

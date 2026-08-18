@@ -25,6 +25,26 @@ import { prisma } from '@/lib/prisma';
  */
 export const BILLABLE_PATIENT_STATUSES: PatientStatus[] = ['ACTIVE', 'TEMPORARY_LEAVE'];
 
+/**
+ * Estados que cuentan como MATRÍCULA del hogar.
+ *
+ * Regla del dueño (17-ago-2026): un residente sigue siendo residente aunque
+ * esté hospitalizado o de permiso; deja de serlo solo cuando se le da de baja
+ * o egresa. Coincide con los estados facturables —la cama sigue reservada— y
+ * por eso comparten valor, pero se nombran distinto porque responden a
+ * preguntas distintas: cuánto se factura vs cuánta gente hay matriculada.
+ *
+ * NO usar para operación de turno: para saber a quién hay que bañar, medicar
+ * o rotar HOY, el hospitalizado no cuenta (no está en el edificio). Ese caso
+ * filtra por 'ACTIVE' a secas.
+ */
+export const ENROLLED_PATIENT_STATUSES: PatientStatus[] = ['ACTIVE', 'TEMPORARY_LEAVE'];
+
+/** Cláusula `where` para contar la matrícula de una sede. */
+export function enrolledResidentsWhere(hqId: string): Prisma.PatientWhereInput {
+    return { headquartersId: hqId, status: { in: ENROLLED_PATIENT_STATUSES } };
+}
+
 /** ¿Este estado de residente genera cuota mensual? */
 export function isBillableStatus(status: PatientStatus): boolean {
     return BILLABLE_PATIENT_STATUSES.includes(status);

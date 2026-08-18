@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { normalizePlan } from '@/lib/entitlements';
 import { requireSuperAdmin } from '@/lib/admin-auth';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,9 @@ export async function GET(_req: NextRequest) {
                 subscriptionStatus: true,
                 _count: {
                     select: {
-                        patients: { where: { status: 'ACTIVE' } } as any,
+                        // Matrícula, no ocupación del turno: incluye a los que
+                        // están hospitalizados o de permiso.
+                        patients: { where: { status: { in: ENROLLED_PATIENT_STATUSES } } } as any,
                         users: { where: { isActive: true, isDeleted: false } } as any,
                     },
                 },

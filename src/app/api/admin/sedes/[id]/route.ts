@@ -108,9 +108,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                     return NextResponse.json({ success: false, error: 'capacity debe ser un entero entre 1 y 500' }, { status: 400 });
                 }
                 data = { capacity };
-                const antes = calculateMonthlyFee(hq.capacity);
                 const despues = calculateMonthlyFee(capacity);
-                resumen = `Capacidad ${hq.capacity} → ${capacity} camas ($${antes} → $${despues}/mes)`;
+                // Se admite recibir la MISMA capacidad: el caso frecuente no es
+                // cambiarla sino alinear un contrato viejo (Cupey: 50 camas
+                // autorizadas con contrato por 35). El resumen distingue ambos
+                // para que la auditoría no diga "50 → 50".
+                const contratoPrevio = await prisma.saaSContract.findUnique({
+                    where: { headquartersId: id },
+                    select: { beds: true, monthlyAmount: true },
+                });
+                resumen = capacity !== hq.capacity
+                    ? `Capacidad ${hq.capacity} → ${capacity} camas ($${calculateMonthlyFee(hq.capacity)} → $${despues}/mes)`
+                    : `Contrato alineado a ${capacity} camas ($${contratoPrevio?.monthlyAmount ?? 0} → $${despues}/mes)`;
 
                 // El contrato SaaS es la fuente de la facturación: dejarlo con
                 // la capacidad vieja haría que el hogar pague por camas que ya

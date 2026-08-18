@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { prisma } from '@/lib/prisma';
+import { enrolledResidentsWhere } from '@/lib/billable-residents';
 import { todayStartAST } from '@/lib/dates';
 
 export const dynamic = 'force-dynamic';
@@ -56,7 +57,8 @@ export async function GET(req: Request) {
             absences, handoversAll, handoversCompleted, overridesCreated,
             staffWithScore, hrIncidents,
         ] = await Promise.all([
-            prisma.patient.count({ where: { headquartersId: hqId, status: 'ACTIVE' } }),
+            // Matrícula del hogar — el hospitalizado sigue contando.
+            prisma.patient.count({ where: enrolledResidentsWhere(hqId) }),
             prisma.patient.count({ where: { headquartersId: hqId, status: 'TEMPORARY_LEAVE' } }),
             prisma.patient.count({ where: { headquartersId: hqId, createdAt: { gte: periodStart, lte: periodEnd } } }),
             prisma.patient.count({ where: { headquartersId: hqId, dischargeDate: { gte: periodStart, lte: periodEnd } } }),

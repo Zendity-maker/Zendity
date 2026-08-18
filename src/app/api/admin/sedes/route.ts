@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
 import { requireSuperAdmin } from '@/lib/admin-auth';
 import { normalizePlan, calculateMonthlyFee, BED_PRICE } from '@/lib/entitlements';
+import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,9 @@ export async function GET() {
                 saasContract: true,
                 _count: {
                     select: {
-                        patients: { where: { status: 'ACTIVE' } },
+                        // Matrícula: el hospitalizado sigue siendo residente.
+                        // Deja de contar solo al darse de baja o egresar.
+                        patients: { where: { status: { in: ENROLLED_PATIENT_STATUSES } } },
                         users: { where: { isActive: true, isDeleted: false } },
                     },
                 },
