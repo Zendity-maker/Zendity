@@ -62,6 +62,9 @@ model Headquarters {
   // Saldos a favor de residentes (adelantos, sobrepagos)
   patientCredits PatientCredit[]
 
+  // Gastos operativos mensuales (carga manual) — base del margen
+  monthlyExpenses MonthlyExpense[]
+
   // FASE 21 Integrations
   shiftHandovers ShiftHandover[]
 
@@ -1633,6 +1636,58 @@ enum PatientCreditSource {
   ADVANCE_PAYMENT // familiar adelantó la cuota de un mes futuro
   OVERPAYMENT // pagó de más sobre una factura
   ADJUSTMENT // ajuste manual del Director
+}
+
+/// Gasto operativo mensual de una sede — carga MANUAL.
+///
+/// Fase 3 del dashboard de socios (17-ago-2026). El sistema no tiene nómina,
+/// hourlyRate ni cuentas por pagar, así que el margen era imposible de
+/// calcular: el dashboard solo mostraba la mitad del negocio (ingresos).
+///
+/// Decisión de alcance deliberada: en vez de construir un ERP, el Director
+/// carga ~5 números una vez al mes (nómina, renta, comida, utilities, otros).
+/// Con eso sale margen operativo real, que es lo que un socio pregunta. Si
+/// algún día la contabilidad se integra de verdad, este modelo se reemplaza
+/// sin tocar el resto del dashboard.
+///
+/// Un registro por sede+mes+categoría (único), para que recargar un mes
+/// actualice en vez de duplicar.
+model MonthlyExpense {
+  id             String @id @default(uuid())
+  headquartersId String
+
+  /// Primer día del mes en UTC (2026-08-01T00:00:00Z) — mismo anclaje que
+  /// Invoice.issueDate, para que los rangos del dashboard coincidan sin
+  /// conversiones de zona.
+  periodMonth DateTime
+
+  category ExpenseCategory
+  amount   Float
+  notes    String?
+
+  /// Quién lo cargó. Este modelo mueve la cifra de rentabilidad que ven los
+  /// socios: sin autoría no hay forma de auditar un margen que no cuadra.
+  createdById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@unique([headquartersId, periodMonth, category])
+  @@index([headquartersId, periodMonth])
+}
+
+enum ExpenseCategory {
+  PAYROLL // nómina + beneficios + contribuciones
+  RENT // renta / hipoteca de la facilidad
+  FOOD // alimentos y cocina
+  UTILITIES // agua, luz, internet, teléfono
+  SUPPLIES // insumos clínicos y de limpieza
+  INSURANCE // seguros (propiedad, malpractice, workers comp)
+  MAINTENANCE // mantenimiento y reparaciones
+  PROFESSIONAL_FEES // contabilidad, legal, consultoría
+  OTHER // todo lo demás
 }
 
 enum PaymentSource {

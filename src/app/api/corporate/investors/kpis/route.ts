@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/api-auth';
 import { calculateFacilityHealthScore } from '@/lib/facility-health';
 import { billableResidentsWhere } from '@/lib/billable-residents';
 import { round2 } from '@/lib/payment-math';
+import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven } from '@/lib/profitability';
 import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -188,6 +189,18 @@ export async function GET(_req: Request) {
                 : 0;
             const ratioStaffResidente = billable.length > 0 ? round2(staffAll / billable.length) : 0;
 
+            // ── Rentabilidad (Fase 3) ────────────────────────────────────
+            // Gastos de carga manual; un mes sin cargar NO reporta margen del
+            // 100% (hasExpenseData=false). Ver profitability.ts.
+            const profitSeries = await getProfitabilitySeries({ hqId: hq.id, from: seriesStart, to: monthEnd });
+            const profitSummary = summarizeProfitability(profitSeries);
+            const breakEven = calculateBreakEven({
+                gastoMensualPromedio: profitSummary.gastoMensualPromedio,
+                arpu,
+                ocupadas: billable.length,
+                capacity,
+            });
+
             // ── Resumen ejecutivo — bullets deterministas desde los datos ──
             const fmt = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
             const resumen: string[] = [
@@ -199,6 +212,23 @@ export async function GET(_req: Request) {
                     : `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline activo.`,
                 `Salud operativa: ${fhs.score}/100 (${fhs.grade}) — compliance clínico promedio ${avgCompliance}/100.`,
             ];
+
+            // Rentabilidad: solo se afirma con datos cargados. Si faltan, el
+            // bullet lo dice en vez de callar — un socio debe saber por qué no
+            // ve margen.
+            if (profitSummary.mesesConDatos > 0) {
+                resumen.push(
+                    `Rentabilidad (${profitSummary.mesesConDatos} mes${profitSummary.mesesConDatos !== 1 ? 'es' : ''} con gastos cargados): ${fmt(profitSummary.margen)} de margen sobre ${fmt(profitSummary.ingresos)} facturados${profitSummary.margenPct !== null ? ` (${profitSummary.margenPct}%)` : ''}.` +
+                    (breakEven
+                        ? ` Punto de equilibrio: ${breakEven.camasNecesarias} camas (${breakEven.ocupacionEquilibrioPct}% de ocupación)` +
+                          (breakEven.alcanzable
+                              ? `; hoy ${breakEven.camasSobreEquilibrio >= 0 ? `${breakEven.camasSobreEquilibrio} por encima` : `${Math.abs(breakEven.camasSobreEquilibrio)} por debajo`}.`
+                              : ` — NO alcanzable con ${capacity} camas al ARPU actual.`)
+                        : '')
+                );
+            } else {
+                resumen.push('Rentabilidad: sin datos — falta cargar los gastos operativos mensuales para calcular margen.');
+            }
 
             kpisByHq.push({
                 hqId: hq.id,
@@ -243,6 +273,11 @@ export async function GET(_req: Request) {
                     staffCount: staffAll,
                     clinicalCount: clinicalStaff.length,
                     ratioStaffResidente,
+                },
+                rentabilidad: {
+                    ...profitSummary,
+                    serie: profitSeries,
+                    breakEven,
                 },
             });
         }

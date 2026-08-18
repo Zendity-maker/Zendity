@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
     Activity, Users, DollarSign, CheckCircle, Clock, HeartPulse,
-    TrendingUp, BedDouble, Landmark, Sparkles, UserCheck, ArrowUpRight, ArrowDownRight,
+    TrendingUp, BedDouble, Landmark, Sparkles, UserCheck, ArrowUpRight, ArrowDownRight, Scale, PiggyBank,
 } from "lucide-react";
 
 /**
@@ -61,6 +61,26 @@ interface VividKPI {
         staffCount: number;
         clinicalCount: number;
         ratioStaffResidente: number;
+    };
+    rentabilidad: {
+        mesesConDatos: number;
+        mesesSinDatos: number;
+        ingresos: number;
+        gastos: number;
+        margen: number;
+        margenPct: number | null;
+        gastoMensualPromedio: number | null;
+        serie: {
+            mes: string; ingresos: number; gastos: number; margen: number;
+            margenPct: number | null; hasExpenseData: boolean;
+            porCategoria: { category: string; label: string; amount: number }[];
+        }[];
+        breakEven: {
+            camasNecesarias: number;
+            camasSobreEquilibrio: number;
+            ocupacionEquilibrioPct: number;
+            alcanzable: boolean;
+        } | null;
     };
 }
 
@@ -134,7 +154,7 @@ export default function VividInvestorsDashboard() {
 
             <main className="max-w-7xl mx-auto px-6 lg:px-12 py-12 space-y-12">
                 {kpis.map((hq) => {
-                    const o = hq.ocupacion, f = hq.finanzas, c = hq.crecimiento, q = hq.calidad, e = hq.equipo;
+                    const o = hq.ocupacion, f = hq.finanzas, c = hq.crecimiento, q = hq.calidad, e = hq.equipo, p = hq.rentabilidad;
                     const maxSerie = Math.max(...f.serie.map(s => s.facturado), 1);
                     const gradeColor = q.facilityHealthGrade === 'EXCELENTE' ? 'text-emerald-400' : q.facilityHealthGrade === 'BUENO' ? 'text-teal-400' : q.facilityHealthGrade === 'ALERTA' ? 'text-amber-400' : 'text-rose-400';
                     const maxPipeline = Math.max(...Object.values(c.pipeline), 1);
@@ -283,6 +303,147 @@ export default function VividInvestorsDashboard() {
                                         </span>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Rentabilidad — Fase 3 */}
+                            <div className="bg-slate-800/50 border border-slate-700/50 rounded-3xl p-8 space-y-6">
+                                <div className="flex items-center justify-between flex-wrap gap-3">
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <PiggyBank className="w-5 h-5 text-emerald-400" /> Rentabilidad Operativa
+                                    </h3>
+                                    {p.mesesSinDatos > 0 && (
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                                            {p.mesesSinDatos} mes{p.mesesSinDatos !== 1 ? 'es' : ''} sin gastos cargados
+                                        </span>
+                                    )}
+                                </div>
+
+                                {p.mesesConDatos === 0 ? (
+                                    <div className="py-10 text-center border-2 border-dashed border-slate-700 rounded-2xl">
+                                        <p className="text-slate-400 font-bold">Sin datos de gastos operativos</p>
+                                        <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto leading-relaxed">
+                                            El margen no puede calcularse hasta que se carguen los gastos del mes.
+                                            No mostramos un margen inflado por datos faltantes.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Hero de margen */}
+                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                            {[
+                                                { label: 'Ingresos', value: fmt(p.ingresos), tone: 'text-white' },
+                                                { label: 'Gastos', value: fmt(p.gastos), tone: 'text-rose-400' },
+                                                { label: 'Margen', value: fmt(p.margen), tone: p.margen >= 0 ? 'text-emerald-400' : 'text-rose-400' },
+                                                { label: 'Margen %', value: p.margenPct !== null ? `${p.margenPct}%` : '—', tone: (p.margenPct ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400' },
+                                            ].map(k => (
+                                                <div key={k.label} className="bg-slate-900/50 rounded-2xl p-5 border border-slate-700/50">
+                                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{k.label}</p>
+                                                    <p className={`text-2xl font-black mt-1 ${k.tone}`}>{k.value}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Serie mensual ingresos vs gastos */}
+                                        <div className="space-y-4">
+                                            {p.serie.map(s => {
+                                                const [yy, mm] = s.mes.split('-');
+                                                const max = Math.max(...p.serie.map(x => Math.max(x.ingresos, x.gastos)), 1);
+                                                return (
+                                                    <div key={s.mes} className="space-y-1.5">
+                                                        <div className="flex justify-between items-baseline text-xs">
+                                                            <span className="font-black text-slate-400 uppercase tracking-wider">{MESES_ES[mm]} {yy}</span>
+                                                            {s.hasExpenseData ? (
+                                                                <span className="text-slate-500">
+                                                                    <span className="text-white font-bold">{fmt(s.ingresos)}</span>
+                                                                    <span className="mx-1.5 text-slate-700">−</span>
+                                                                    <span className="text-rose-400 font-bold">{fmt(s.gastos)}</span>
+                                                                    <span className="mx-1.5 text-slate-700">=</span>
+                                                                    <span className={`font-black ${s.margen >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                        {fmt(s.margen)}{s.margenPct !== null ? ` (${s.margenPct}%)` : ''}
+                                                                    </span>
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-amber-400/70 font-bold text-[11px] uppercase tracking-wider">
+                                                                    {fmt(s.ingresos)} facturado · gastos sin cargar
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex gap-1 h-3">
+                                                            <div className="flex-1 bg-slate-900 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full" style={{ width: `${(s.ingresos / max) * 100}%` }} />
+                                                            </div>
+                                                            <div className="flex-1 bg-slate-900 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-gradient-to-r from-rose-600 to-rose-400 rounded-full" style={{ width: `${(s.gastos / max) * 100}%` }} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Punto de equilibrio */}
+                                        {p.breakEven && (
+                                            <div className={`rounded-2xl p-6 border ${p.breakEven.alcanzable ? 'border-slate-700/50 bg-slate-900/50' : 'border-rose-500/30 bg-rose-500/5'}`}>
+                                                <h4 className="text-sm font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
+                                                    <Scale className="w-4 h-4 text-amber-400" /> Punto de Equilibrio
+                                                </h4>
+                                                {p.breakEven.alcanzable ? (
+                                                    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                                                        <p className="text-slate-300 text-[15px]">
+                                                            Se necesitan <span className="text-white font-black text-xl">{p.breakEven.camasNecesarias}</span> camas
+                                                            ocupadas <span className="text-slate-500">({p.breakEven.ocupacionEquilibrioPct}% de ocupación)</span> para cubrir el costo operativo.
+                                                        </p>
+                                                        <span className={`text-sm font-black px-3 py-1 rounded-full ${p.breakEven.camasSobreEquilibrio >= 0 ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'}`}>
+                                                            {p.breakEven.camasSobreEquilibrio >= 0
+                                                                ? `${p.breakEven.camasSobreEquilibrio} camas por encima`
+                                                                : `${Math.abs(p.breakEven.camasSobreEquilibrio)} camas por debajo`}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-rose-300 text-[15px] leading-relaxed">
+                                                        El equilibrio exige <span className="font-black">{p.breakEven.camasNecesarias}</span> camas,
+                                                        más que las <span className="font-black">{o.capacity}</span> autorizadas. Al ARPU actual de {fmt(f.arpu)},
+                                                        el costo operativo no se cubre ni a plena ocupación.
+                                                    </p>
+                                                )}
+                                                {p.gastoMensualPromedio !== null && (
+                                                    <p className="text-slate-500 text-xs mt-3">
+                                                        Base: costo operativo promedio de {fmt(p.gastoMensualPromedio)}/mes sobre {p.mesesConDatos} mes{p.mesesConDatos !== 1 ? 'es' : ''} con datos.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Desglose del mes más reciente con datos */}
+                                        {(() => {
+                                            const ultimo = [...p.serie].reverse().find(s => s.hasExpenseData);
+                                            if (!ultimo || ultimo.porCategoria.length === 0) return null;
+                                            const [yy, mm] = ultimo.mes.split('-');
+                                            const maxCat = Math.max(...ultimo.porCategoria.map(c2 => c2.amount), 1);
+                                            return (
+                                                <div className="pt-2 border-t border-slate-700/50">
+                                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-4">
+                                                        Estructura de costos — {MESES_ES[mm]} {yy}
+                                                    </p>
+                                                    <div className="space-y-2.5">
+                                                        {ultimo.porCategoria.map(cat => (
+                                                            <div key={cat.category} className="flex items-center gap-3">
+                                                                <span className="text-[11px] text-slate-400 font-bold w-36 shrink-0 truncate">{cat.label}</span>
+                                                                <div className="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-gradient-to-r from-slate-500 to-slate-400 rounded-full" style={{ width: `${(cat.amount / maxCat) * 100}%` }} />
+                                                                </div>
+                                                                <span className="text-white font-bold text-xs w-20 text-right">{fmt(cat.amount)}</span>
+                                                                <span className="text-slate-500 font-bold text-[10px] w-10 text-right">
+                                                                    {Math.round((cat.amount / ultimo.gastos) * 100)}%
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
+                                )}
                             </div>
 
                             {/* Calidad + Equipo */}

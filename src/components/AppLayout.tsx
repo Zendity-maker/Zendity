@@ -13,7 +13,7 @@ import SupportButton from "./support/SupportButton"; // Punto 8 — Soporte
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
     Activity, ClipboardList, ShieldAlert, Pill,
-    Package, Calendar, UserCheck, Receipt, Settings, Scale,
+    Package, Calendar, UserCheck, Receipt, Settings, Scale, Landmark,
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
@@ -109,6 +109,8 @@ const corporateNavigationSections = [
         title: "Administración",
         links: [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
+            // Carga mensual de gastos → base del margen del dashboard de socios.
+            { name: "Gastos Operativos", href: "/corporate/expenses", icon: Landmark, requiredRoles: ["DIRECTOR", "ADMIN"] },
             // Sprint P — "Documentos Legales" oculto del sidebar.
             // Vivid maneja contratos presencialmente. La ruta y el endpoint
             // siguen vivos para clientes futuros que los necesiten.
