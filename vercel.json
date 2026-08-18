@@ -61,6 +61,10 @@
       "schedule": "0 10 * * 1"
     },
     {
+      "path": "/api/cron/check-licenses",
+      "schedule": "0 12 * * *"
+    },
+    {
       "path": "/api/cron/monthly-invoicing",
       "schedule": "0 10 * * *"
     },
