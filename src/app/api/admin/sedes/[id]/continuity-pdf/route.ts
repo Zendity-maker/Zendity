@@ -69,6 +69,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 meds: p.medications.map(m => ({
                     name: m.medication.name,
                     dosage: m.medication.dosage,
+                    instructions: m.instructions,
                     // scheduleTimes es CSV o JSON según antigüedad del registro.
                     times: parseTimes(m.scheduleTimes, m.frequency),
                 })),
