@@ -38,6 +38,8 @@ type Overview = {
     sedesActivas: number;
     sedesTotal: number;
     mrr: number;
+    mrrSegunModelo?: number;
+    contratosDesalineados?: { sede: string; camasContrato: number; camasAutorizadas: number; facturaActual: number; facturaSegunModelo: number }[];
     arr: number;
     prospectos: number;
     prospectosEnProceso: number;
@@ -297,11 +299,56 @@ function OverviewTab({
     const activeSedes = sedes.filter((s) => s.isActive);
     const pendingInvoices = invoices.filter((i) => i.status === "PENDING" || i.status === "OVERDUE");
 
+    const desalineados = overview.contratosDesalineados ?? [];
+
     return (
         <div className="space-y-10">
+            {/* Contratos cuyo número de camas no coincide con la capacidad
+                autorizada. Desde la tarifa por cama, ese desfase es dinero mal
+                facturado — se muestra en vez de quedar enterrado en el MRR. */}
+            {desalineados.length > 0 && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p className="font-black text-amber-300 text-sm">
+                                {desalineados.length} contrato{desalineados.length !== 1 ? "s" : ""} no coincide{desalineados.length !== 1 ? "n" : ""} con la capacidad autorizada
+                            </p>
+                            <p className="text-amber-200/70 text-xs mt-1">
+                                La tarifa es ${BED_PRICE} por cama. Si el monto difiere por un acuerdo especial, déjalo;
+                                si es un contrato viejo, actualiza las camas desde Gestionar y se recalcula solo.
+                            </p>
+                            <div className="mt-3 space-y-1.5">
+                                {desalineados.map((d) => (
+                                    <div key={d.sede} className="text-xs flex flex-wrap items-center gap-2 text-slate-300">
+                                        <span className="font-bold text-white">{d.sede}</span>
+                                        <span className="text-slate-500">contrato por {d.camasContrato} camas · autorizadas {d.camasAutorizadas}</span>
+                                        <span className="ml-auto font-mono">
+                                            <span className="text-amber-400">{fmtMoney(d.facturaActual)}</span>
+                                            <span className="text-slate-600 mx-1.5">→</span>
+                                            <span className="text-emerald-400">{fmtMoney(d.facturaSegunModelo)}</span>
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Fila 1 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <KpiCard label="MRR" value={fmtMoney(overview.mrr)} suffix="/ mes" color={overview.mrr > 0 ? "emerald" : "slate"} icon={DollarSign} />
+                <KpiCard
+                    label="MRR"
+                    value={fmtMoney(overview.mrr)}
+                    suffix={
+                        overview.mrrSegunModelo !== undefined && Math.abs(overview.mrrSegunModelo - overview.mrr) > 0.01
+                            ? `/ mes · según tarifa: ${fmtMoney(overview.mrrSegunModelo)}`
+                            : "/ mes"
+                    }
+                    color={overview.mrr > 0 ? "emerald" : "slate"}
+                    icon={DollarSign}
+                />
                 <KpiCard label="ARR" value={fmtMoney(overview.arr)} suffix="/ año" color="teal" icon={TrendingUp} />
                 <KpiCard label="Sedes Activas" value={overview.sedesActivas.toString()} suffix={`de ${overview.sedesTotal}`} color="aqua" icon={Building2} />
                 <KpiCard label="Cupos Fundador" value={`${overview.cuposFounder}`} suffix="/ 20" color="amber" icon={Crown} />
@@ -1003,9 +1050,23 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
                                         <p className="text-[11px] text-slate-500 font-mono">{s.id.split("-")[0]}***</p>
                                     </td>
                                     <td className="p-4 text-center">
-                                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                                            {s.capacity} camas · ${calculateMonthlyFee(s.capacity).toLocaleString()}
-                                        </span>
+                                        {(() => {
+                                            const teorico = calculateMonthlyFee(s.capacity);
+                                            const real = s.saasContract?.monthlyAmount;
+                                            const desfase = real !== undefined && Math.abs(real - teorico) > 0.01;
+                                            return (
+                                                <span
+                                                    title={desfase ? `El contrato factura $${real?.toLocaleString()} pero ${s.capacity} camas × $${BED_PRICE} = $${teorico.toLocaleString()}` : undefined}
+                                                    className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full border ${
+                                                        desfase
+                                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                                            : "bg-slate-800 text-slate-300 border-slate-700"
+                                                    }`}
+                                                >
+                                                    {s.capacity} camas · ${teorico.toLocaleString()}{desfase ? " ⚠" : ""}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="p-4 text-center text-slate-300">
                                         {s._count.patients} / {s.capacity} <span className="text-slate-600">({pct}%)</span>
