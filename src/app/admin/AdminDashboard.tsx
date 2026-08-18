@@ -252,7 +252,18 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                             }
                         }} />}
                         {tab === "pipeline" && <PipelineTab prospects={prospects} setProspects={setProspects} onSedeCreated={(s) => setSedes((prev) => [s, ...prev])} />}
-                        {tab === "sedes" && <SedesTab sedes={sedes} onCreated={(s) => setSedes((prev) => [s, ...prev])} />}
+                        {tab === "sedes" && (
+                            <SedesTab
+                                sedes={sedes}
+                                onCreated={(s) => setSedes((prev) => [s, ...prev])}
+                                onRefresh={async () => {
+                                    // Recarga desde el servidor: una acción de ciclo de
+                                    // vida cambia estado, plan y health score a la vez.
+                                    const r = await fetch("/api/admin/sedes").then((x) => x.json()).catch(() => null);
+                                    if (r?.success) setSedes(r.sedes);
+                                }}
+                            />
+                        )}
                         {tab === "comunicaciones" && (
                             <CommsTab
                                 messages={messages}
@@ -954,8 +965,9 @@ function NewProspectModal({
 }
 
 // =============== Tab 3 — Sedes Activas ===============
-function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) => void }) {
+function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (s: Sede) => void; onRefresh?: () => void }) {
     const [modalOpen, setModalOpen] = useState(false);
+    const [manageSede, setManageSede] = useState<Sede | null>(null);
 
     return (
         <div className="space-y-6">
@@ -980,6 +992,7 @@ function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) =>
                             <th className="text-center p-4">MRR</th>
                             <th className="text-center p-4">Health</th>
                             <th className="text-center p-4">Estado</th>
+                            <th className="text-center p-4">Gestión</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
@@ -1027,11 +1040,19 @@ function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) =>
                                             </span>
                                         )}
                                     </td>
+                                    <td className="p-4 text-center">
+                                        <button
+                                            onClick={() => setManageSede(s)}
+                                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-colors"
+                                        >
+                                            Gestionar
+                                        </button>
+                                    </td>
                                 </tr>
                             );
                         })}
                         {sedes.length === 0 && (
-                            <tr><td colSpan={7} className="p-12 text-center text-slate-500">No hay sedes todavía.</td></tr>
+                            <tr><td colSpan={8} className="p-12 text-center text-slate-500">No hay sedes todavía.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -1043,6 +1064,197 @@ function SedesTab({ sedes, onCreated }: { sedes: Sede[]; onCreated: (s: Sede) =>
                     onCreated={(s) => { onCreated(s); setModalOpen(false); }}
                 />
             )}
+
+            {manageSede && (
+                <ManageSedeModal
+                    sede={manageSede}
+                    onClose={() => setManageSede(null)}
+                    onChanged={() => { onRefresh?.(); setManageSede(null); }}
+                />
+            )}
+        </div>
+    );
+}
+
+/**
+ * Gestión comercial de una sede: suspender por facturación, reactivar,
+ * renovar licencia, cambiar plan, cerrar y restablecer el PIN del Director.
+ *
+ * Todo lo que aquí se toca es COMERCIAL. El staff del hogar (cuidadoras,
+ * enfermeras) lo gestiona el propio Director desde /hr/staff — Zendity solo
+ * destraba al titular cuando pierde su acceso.
+ */
+function ManageSedeModal({
+    sede, onClose, onChanged,
+}: { sede: Sede; onClose: () => void; onChanged: () => void }) {
+    const [busy, setBusy] = useState<string | null>(null);
+    const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+    const [months, setMonths] = useState("12");
+    const [plan, setPlan] = useState(sede.subscriptionPlan || "PRO");
+    const [pin, setPin] = useState("");
+
+    const suspended = !sede.isActive || sede.subscriptionStatus !== "ACTIVE";
+
+    async function run(action: string, extra: Record<string, unknown> = {}, confirmMsg?: string) {
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        setBusy(action); setMsg(null);
+        try {
+            const res = await fetch(`/api/admin/sedes/${sede.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action, ...extra }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setMsg({ kind: "ok", text: data.message || "Listo" });
+                if (action !== "RESET_DIRECTOR_PIN") setTimeout(onChanged, 1200);
+                else setPin("");
+            } else {
+                setMsg({ kind: "err", text: data.error || "Error" });
+            }
+        } catch {
+            setMsg({ kind: "err", text: "Error de red" });
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-slate-800 flex items-start justify-between sticky top-0 bg-slate-900 z-10">
+                    <div>
+                        <h2 className="text-xl font-black text-white">{sede.name}</h2>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Plan {getPlanDisplayName(sede.subscriptionPlan)} · {sede.subscriptionStatus}
+                        </p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-lg text-slate-500 hover:bg-slate-800 hover:text-white transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                    {msg && (
+                        <div className={`rounded-xl px-4 py-3 text-sm font-bold border ${
+                            msg.kind === "ok"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                        }`}>{msg.text}</div>
+                    )}
+
+                    {/* Servicio */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Servicio</h3>
+                        {suspended ? (
+                            <button
+                                onClick={() => run("REACTIVATE")}
+                                disabled={!!busy}
+                                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition disabled:opacity-50"
+                            >
+                                {busy === "REACTIVATE" ? "Reactivando…" : "Reactivar servicio"}
+                            </button>
+                        ) : (
+                            <>
+                                <a
+                                    href={`/api/admin/sedes/${sede.id}/continuity-pdf`}
+                                    className="block w-full py-3 mb-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm text-center transition"
+                                >
+                                    ↓ Descargar hoja de continuidad (antes de suspender)
+                                </a>
+                                <button
+                                    onClick={() => run("SUSPEND", {},
+                                        `¿Suspender ${sede.name}?\n\nEl hogar perderá acceso INMEDIATAMENTE y deberá operar en papel. Descarga y envía la hoja de continuidad antes de continuar.`)}
+                                    disabled={!!busy}
+                                    className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition disabled:opacity-50"
+                                >
+                                    {busy === "SUSPEND" ? "Suspendiendo…" : "Suspender por facturación"}
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Licencia */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Licencia</h3>
+                        <div className="flex gap-2">
+                            <select
+                                value={months}
+                                onChange={(e) => setMonths(e.target.value)}
+                                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#3CC6C4]"
+                            >
+                                {[1, 3, 6, 12, 24].map((m) => <option key={m} value={m}>{m} mes{m > 1 ? "es" : ""}</option>)}
+                            </select>
+                            <button
+                                onClick={() => run("RENEW_LICENSE", { months: Number(months) })}
+                                disabled={!!busy}
+                                className="flex-1 py-2.5 rounded-xl bg-[#0F6B78] hover:brightness-110 text-white font-bold text-sm transition disabled:opacity-50"
+                            >
+                                {busy === "RENEW_LICENSE" ? "Renovando…" : "Renovar licencia"}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Plan */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Plan</h3>
+                        <div className="flex gap-2">
+                            <select
+                                value={plan}
+                                onChange={(e) => setPlan(e.target.value)}
+                                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-bold outline-none focus:ring-2 focus:ring-[#3CC6C4]"
+                            >
+                                <option value="LITE">Esencial</option>
+                                <option value="PRO">Profesional</option>
+                                <option value="ENTERPRISE">Corporativo</option>
+                            </select>
+                            <button
+                                onClick={() => run("CHANGE_PLAN", { plan })}
+                                disabled={!!busy || plan === sede.subscriptionPlan}
+                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition disabled:opacity-40"
+                            >
+                                Cambiar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Acceso del titular */}
+                    <div>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Acceso del Director</h3>
+                        <p className="text-[11px] text-slate-500 mb-3">
+                            Solo para destrabar al titular. El resto del equipo lo gestiona el Director en su sede.
+                        </p>
+                        <div className="flex gap-2">
+                            <input
+                                type="text" inputMode="numeric" maxLength={6}
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                                placeholder="PIN nuevo (4-6 dígitos)"
+                                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white font-mono outline-none focus:ring-2 focus:ring-[#3CC6C4]"
+                            />
+                            <button
+                                onClick={() => run("RESET_DIRECTOR_PIN", { pinCode: pin })}
+                                disabled={!!busy || !/^\d{4,6}$/.test(pin)}
+                                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition disabled:opacity-40"
+                            >
+                                Restablecer
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Fin de contrato */}
+                    <div className="pt-4 border-t border-slate-800">
+                        <button
+                            onClick={() => run("CLOSE", {},
+                                `¿CERRAR ${sede.name} definitivamente?\n\nEs el fin del contrato: el hogar pierde el acceso por completo. Asegúrate de haberle entregado su información antes.`)}
+                            disabled={!!busy || !sede.isActive}
+                            className="w-full py-2.5 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold text-sm transition disabled:opacity-40"
+                        >
+                            {busy === "CLOSE" ? "Cerrando…" : "Cerrar sede (fin de contrato)"}
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

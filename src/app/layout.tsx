@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ActiveHqProvider } from "@/contexts/ActiveHqContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
+import BillingGuard from "@/components/BillingGuard";
 import AppLayout from "@/components/AppLayout";
 import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
 
@@ -61,6 +62,7 @@ export default function RootLayout({
             <ActiveHqProvider>
               <AppLayout>
                 <ZendiSpeaker />
+                <BillingGuard />
                 {children}
               </AppLayout>
             </ActiveHqProvider>
