@@ -159,6 +159,9 @@ export async function PATCH(request: Request) {
                 data: {
                     headquartersId: hqId,
                     name: fullName,
+                    // Fecha de ingreso = fecha de registro. Aquí es literal: el
+                    // Patient nace cuando el lead pasa a ADMISSION.
+                    admissionDate: new Date(),
                     colorGroup: 'UNASSIGNED', // Awaiting formal assessment
                 }
             });

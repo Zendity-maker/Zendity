@@ -50,6 +50,8 @@ export async function POST(req: Request) {
             data: {
                 name,
                 headquartersId: finalHqId,
+                // Fecha de ingreso = fecha de registro (regla del dueño).
+                admissionDate: new Date(),
                 colorGroup: colorGroup || 'UNASSIGNED',
             }
         });

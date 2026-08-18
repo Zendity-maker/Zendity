@@ -645,9 +645,16 @@ model Patient {
   // Sprint SW Eval Fase 1 — campos demográficos/operacionales para el motor de
   // evaluaciones de Trabajo Social. Free-form porque la variabilidad real en PR
   // (especialmente religion y birthCity) no se beneficia de enums.
-  // admissionDate es la fecha REAL de ingreso al hogar (distinta de createdAt
-  // que es la fecha del row en BD; los residentes legacy fueron creados todos
-  // el mismo día al cargar el sistema).
+  // Fecha de ingreso al hogar. Regla del dueño (17-ago-2026): es la fecha en
+  // que se REGISTRA al residente, así que todos los caminos de creación la
+  // setean al momento. Sigue siendo editable para corregir un registro
+  // tardío o anticipado.
+  //
+  // Los 23 residentes de la carga inicial (21-may-2026) quedan en null a
+  // propósito: se cargaron en bloque ese día y escribirles esa fecha
+  // inventaría un ingreso que no ocurrió. El prorrateo usa
+  // `admissionDate ?? createdAt`, y como esa fecha nunca cae dentro de un mes
+  // facturado, reciben cuota completa — el resultado correcto.
   admissionDate DateTime?
   maritalStatus String?
   religion      String?

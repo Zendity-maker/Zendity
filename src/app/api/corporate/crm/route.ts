@@ -109,7 +109,9 @@ export async function POST(req: Request) {
                     await prisma.patient.create({
                         data: {
                             headquartersId: updatedLead.headquartersId,
-                            name: `${updatedLead.firstName} ${updatedLead.lastName}`
+                            name: `${updatedLead.firstName} ${updatedLead.lastName}`,
+                            // Fecha de ingreso = fecha de registro (regla del dueño).
+                            admissionDate: new Date(),
                         }
                     });
                     console.log(`[Zero-Data-Entry] Prospecto ${updatedLead.firstName} promovido exitosamente a Residente Clínico.`);

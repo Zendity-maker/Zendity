@@ -51,6 +51,8 @@ export async function saveIntakeDraft(data: {
         data: {
           name: data.name,
           headquartersId: data.headquartersId,
+          // Fecha de ingreso = fecha de registro (regla del dueño).
+          admissionDate: new Date(),
           downtonRisk: false,
           nortonRisk: false,
         }

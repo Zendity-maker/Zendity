@@ -23,6 +23,8 @@ export async function POST(request: Request) {
             data: {
                 name,
                 headquartersId: hqId,
+                // Fecha de ingreso = fecha de registro (regla del dueño).
+                admissionDate: new Date(),
                 diet: diet,
                 avdScore: parseInt(avdScore, 10),
                 downtonRisk: isHighRisk,
