@@ -243,7 +243,7 @@ export default function CRMDashboardPage() {
                         {isImporting ? 'Importando...' : 'Importar CSV'}
                     </button>
                     <button onClick={() => setIsModalOpen(true)} className="px-5 py-2.5 bg-indigo-600 shadow-[0_4px_15px_rgba(79,70,229,0.3)] rounded-xl text-sm font-bold text-white hover:bg-indigo-500 active:scale-95 transition-all">
-                        + Nuevo Ingreso
+                        + Nuevo Prospecto
                     </button>
                 </div>
             </div>
@@ -320,7 +320,7 @@ export default function CRMDashboardPage() {
                 </div>
             </div>
 
-            {/* Modal Nuevo Ingreso */}
+            {/* Modal Nuevo Prospecto */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in zoom-in duration-200">
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-6">
@@ -344,7 +344,7 @@ export default function CRMDashboardPage() {
                             </div>
 
                             <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
-                                <h3 className="font-bold text-indigo-900 text-sm mb-3">Datos del Familiar Reposable</h3>
+                                <h3 className="font-bold text-indigo-900 text-sm mb-3">Datos del Familiar Responsable</h3>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-[10px] font-bold text-indigo-600 mb-1 uppercase tracking-wider">Email (Para enviar contrato y Portal)</label>

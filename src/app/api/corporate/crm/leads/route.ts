@@ -41,6 +41,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'Missing required fields (First Name, Last Name, Email are mandatory)' }, { status: 400 });
         }
 
+        // El lead y su primer evento nacen juntos: si el evento no se
+        // registrara, el prospecto sería invisible para el embudo mensual del
+        // dashboard de socios.
         const newLead = await prisma.cRMLead.create({
             data: {
                 headquartersId: hqId,
@@ -49,7 +52,15 @@ export async function POST(request: Request) {
                 lastName,
                 phone,
                 email,
-                notes
+                notes,
+                stageEvents: {
+                    create: [{
+                        headquartersId: hqId,
+                        stage: LeadStage.PROSPECT,
+                        fromStage: null,
+                        createdById: (session.user as any).id ?? null,
+                    }],
+                },
             }
         });
 
@@ -80,12 +91,39 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ success: false, error: 'Invalid stage' }, { status: 400 });
         }
 
+        // Ownership: antes el update iba con `where: { id }` a secas — un
+        // DIRECTOR podía mover un lead de OTRA sede pasando su id. Solo el
+        // camino de ADMISSION lo validaba.
+        const current = await prisma.cRMLead.findFirst({
+            where: { id, headquartersId: hqId },
+            select: { id: true, stage: true },
+        });
+        if (!current) {
+            return NextResponse.json({ success: false, error: 'Lead no encontrado en tu sede' }, { status: 404 });
+        }
+
         // If stage is NOT ADMISSION, simply update the lead
         if (stage !== 'ADMISSION') {
-            const updatedLead = await prisma.cRMLead.update({
-                where: { id },
-                data: { stage: stage as LeadStage }
-            });
+            // Sin cambio real no se registra evento: arrastrar una tarjeta y
+            // soltarla en su misma columna no es un tour nuevo.
+            if (current.stage === stage) {
+                return NextResponse.json({ success: true, lead: current, unchanged: true });
+            }
+            const [updatedLead] = await prisma.$transaction([
+                prisma.cRMLead.update({
+                    where: { id },
+                    data: { stage: stage as LeadStage }
+                }),
+                prisma.cRMLeadStageEvent.create({
+                    data: {
+                        headquartersId: hqId,
+                        leadId: id,
+                        stage: stage as LeadStage,
+                        fromStage: current.stage,
+                        createdById: (session.user as any).id ?? null,
+                    },
+                }),
+            ]);
             return NextResponse.json({ success: true, lead: updatedLead });
         }
 
@@ -98,11 +136,22 @@ export async function PATCH(request: Request) {
         }
 
         const result = await prisma.$transaction(async (tx) => {
-            // 1. Update Lead Status
+            // 1. Update Lead Status + evento de la transición
             const updatedLead = await tx.cRMLead.update({
                 where: { id },
                 data: { stage: 'ADMISSION' }
             });
+            if (lead.stage !== 'ADMISSION') {
+                await tx.cRMLeadStageEvent.create({
+                    data: {
+                        headquartersId: hqId,
+                        leadId: id,
+                        stage: 'ADMISSION',
+                        fromStage: lead.stage,
+                        createdById: (session.user as any).id ?? null,
+                    },
+                });
+            }
 
             // 2. Create the Patient
             const fullName = `${lead.firstName} ${lead.lastName}`;

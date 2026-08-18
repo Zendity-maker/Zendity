@@ -275,6 +275,11 @@ export default function MonthlyClosePage() {
                         Cada pestaña se guarda por separado. Un mes sin datos se reporta a los socios
                         como &ldquo;sin cargar&rdquo;, nunca como cero real — para no mostrar una caída
                         comercial o un margen del 100% que en realidad es un olvido.
+                        {tab === 'CRECIMIENTO' && (
+                            <> <strong className="text-slate-500">El embudo solo hace falta si no se usa el CRM:</strong> si
+                            los prospectos se registran y se mueven de etapa allí, el dashboard de socios
+                            se llena solo y estos campos quedan como respaldo.</>
+                        )}
                     </p>
                 </>
             )}

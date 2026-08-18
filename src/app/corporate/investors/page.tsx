@@ -52,7 +52,9 @@ interface VividKPI {
         ritmoMensualAdmisiones: number;
         mesesAFullOcupacion: number | null;
         funnel: {
-            serie: { mes: string; prospects: number; tours: number; evaluations: number; contracts: number; admissions: number; hasData: boolean }[];
+            serie: { mes: string; prospects: number; tours: number; evaluations: number; contracts: number; admissions: number; hasData: boolean; source: 'CRM' | 'MANUAL' | 'NONE' }[];
+            mesesDesdeCRM: number;
+            mesesManuales: number;
             totales: { prospects: number; tours: number; evaluations: number; contracts: number; admissions: number };
             mesesConDatos: number;
             conversionPct: number | null;
@@ -299,6 +301,13 @@ export default function VividInvestorsDashboard() {
                                             <div className="flex items-center justify-between">
                                                 <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
                                                     Embudo · {c.funnel.mesesConDatos} mes{c.funnel.mesesConDatos !== 1 ? 'es' : ''}
+                                                    {c.funnel.mesesDesdeCRM > 0 && (
+                                                        <span className="ml-2 text-teal-400/70 normal-case tracking-normal font-bold">
+                                                            {c.funnel.mesesManuales > 0
+                                                                ? `${c.funnel.mesesDesdeCRM} desde CRM, ${c.funnel.mesesManuales} manual`
+                                                                : 'desde CRM'}
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 {c.funnel.conversionPct !== null && (
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">

@@ -68,6 +68,9 @@ model Headquarters {
   // Embudo comercial mensual (carga manual) — tendencia de crecimiento
   growthSnapshots MonthlyGrowthSnapshot[]
 
+  // Transiciones de etapa del CRM — fuente automática del embudo
+  leadStageEvents CRMLeadStageEvent[]
+
   // FASE 21 Integrations
   shiftHandovers ShiftHandover[]
 
@@ -1842,6 +1845,35 @@ enum LeadStage {
   ADMISSION
 }
 
+/// Registro de cada transición de etapa de un lead.
+///
+/// Existe porque `CRMLead.stage` guarda SOLO la etapa actual y cada cambio
+/// sobrescribe el anterior. Con eso el sistema puede responder "hay 3 leads en
+/// TOUR ahora", pero NO "en julio se hicieron 12 tours" — que es justo lo que
+/// el área de crecimiento del dashboard de socios necesita.
+///
+/// Cada fila es un hecho con fecha: el embudo mensual se deriva de aquí sin
+/// que nadie cargue nada a mano. La carga manual (MonthlyGrowthSnapshot) se
+/// mantiene como respaldo para meses previos al CRM o si se deja de usar.
+model CRMLeadStageEvent {
+  id             String @id @default(uuid())
+  headquartersId String
+  leadId         String
+
+  stage LeadStage
+  /// Etapa de la que viene. null = evento de creación del prospecto.
+  fromStage LeadStage?
+
+  occurredAt  DateTime @default(now())
+  createdById String?
+
+  lead         CRMLead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@index([headquartersId, occurredAt])
+  @@index([leadId, occurredAt])
+}
+
 model CRMLead {
   id             String    @id @default(uuid())
   headquartersId String
@@ -1861,9 +1893,10 @@ model CRMLead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  headquarters Headquarters     @relation(fields: [headquartersId], references: [id])
+  headquarters Headquarters        @relation(fields: [headquartersId], references: [id])
   transcripts  AITranscript[]
   interactions InteractionLog[]
+  stageEvents  CRMLeadStageEvent[]
 }
 
 model AITranscript {
