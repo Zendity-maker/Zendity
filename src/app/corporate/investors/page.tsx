@@ -51,6 +51,14 @@ interface VividKPI {
         leadsActivos: number;
         ritmoMensualAdmisiones: number;
         mesesAFullOcupacion: number | null;
+        funnel: {
+            serie: { mes: string; prospects: number; tours: number; evaluations: number; contracts: number; admissions: number; hasData: boolean }[];
+            totales: { prospects: number; tours: number; evaluations: number; contracts: number; admissions: number };
+            mesesConDatos: number;
+            conversionPct: number | null;
+            tourRatePct: number | null;
+            admisionesMensualPromedio: number | null;
+        };
     };
     calidad: {
         facilityHealthScore: number;
@@ -282,6 +290,47 @@ export default function VividInvestorsDashboard() {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Embudo comercial del mes — carga manual del Director.
+                                        El pipeline de arriba es el ESTADO del CRM hoy;
+                                        esto es el FLUJO mensual real del negocio. */}
+                                    {c.funnel.mesesConDatos > 0 && (
+                                        <div className="pt-4 border-t border-slate-700/50 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                                    Embudo · {c.funnel.mesesConDatos} mes{c.funnel.mesesConDatos !== 1 ? 'es' : ''}
+                                                </p>
+                                                {c.funnel.conversionPct !== null && (
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                                                        {c.funnel.conversionPct}% conversión
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {(() => {
+                                                const t = c.funnel.totales;
+                                                const steps = [
+                                                    { label: 'Prospectos', v: t.prospects },
+                                                    { label: 'Tours', v: t.tours },
+                                                    { label: 'Evaluaciones', v: t.evaluations },
+                                                    { label: 'Contratos', v: t.contracts },
+                                                    { label: 'Admisiones', v: t.admissions },
+                                                ];
+                                                const top = Math.max(...steps.map(s => s.v), 1);
+                                                return steps.map((s, i) => (
+                                                    <div key={s.label} className="flex items-center gap-3">
+                                                        <span className="text-[11px] text-slate-500 font-black uppercase tracking-wider w-24 shrink-0">{s.label}</span>
+                                                        <div className="flex-1 h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full ${i === steps.length - 1 ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-teal-600 to-teal-400'}`}
+                                                                style={{ width: `${(s.v / top) * 100}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-white font-black text-sm w-8 text-right">{s.v}</span>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700/50">
                                         <div>

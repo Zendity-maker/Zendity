@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { ExpenseCategory } from '@prisma/client';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { logAudit } from '@/lib/audit';
 import { EXPENSE_LABELS, EXPENSE_ORDER } from '@/lib/profitability';
 import { prisma } from '@/lib/prisma';
@@ -17,6 +20,10 @@ export const dynamic = 'force-dynamic';
  *
  * Acceso: DIRECTOR/ADMIN. Deliberadamente NO INVESTOR: un socio LEE la
  * rentabilidad en su dashboard, pero no carga los gastos del negocio.
+ *
+ * Multi-sede: acepta ?hqId= (GET) / hqId en el body (PUT) y lo resuelve con
+ * resolveEffectiveHqId — sin esto, al abrir Mayagüez el Director cargaría
+ * gastos contra Cupey sin darse cuenta.
  */
 
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
@@ -33,9 +40,16 @@ export async function GET(req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
-        const hqId = auth.headquartersId;
 
         const { searchParams } = new URL(req.url);
+        const session = await getServerSession(authOptions);
+        let hqId: string;
+        try {
+            hqId = await resolveEffectiveHqId(session!, searchParams.get('hqId'));
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
+        }
+
         const now = new Date();
         const periodMonth = parseMonth(searchParams.get('month'))
             ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -61,6 +75,7 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             success: true,
+            hqId,
             month: periodMonth.toISOString().slice(0, 7),
             expenses,
             total: expenses.reduce((s, e) => s + e.amount, 0),
@@ -85,9 +100,16 @@ export async function PUT(req: Request) {
     try {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
-        const hqId = auth.headquartersId;
 
         const body = await req.json().catch(() => ({}));
+        const session = await getServerSession(authOptions);
+        let hqId: string;
+        try {
+            hqId = await resolveEffectiveHqId(session!, body.hqId ?? null);
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
+        }
+
         const periodMonth = parseMonth(body.month);
         if (!periodMonth) {
             return NextResponse.json({ success: false, error: 'month inválido (formato YYYY-MM)' }, { status: 400 });

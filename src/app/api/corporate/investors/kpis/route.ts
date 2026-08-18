@@ -5,6 +5,7 @@ import { calculateFacilityHealthScore } from '@/lib/facility-health';
 import { billableResidentsWhere } from '@/lib/billable-residents';
 import { round2 } from '@/lib/payment-math';
 import { getProfitabilitySeries, summarizeProfitability, calculateBreakEven } from '@/lib/profitability';
+import { getGrowthFunnel } from '@/lib/growth';
 import { logError } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -32,9 +33,13 @@ export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
 
-// La facturación mensual sistemática arrancó en julio 2026; junio tiene $21 de
-// ruido de pruebas de concierge. Ancla de la serie histórica.
-const SERIES_START = { year: 2026, month: 6 }; // month 0-11 → julio
+// Piso global de la serie: la facturación sistemática arrancó en julio 2026
+// (junio tiene $21 de ruido de pruebas de concierge). Cada sede ancla en el
+// MÁXIMO entre este piso y su propia fecha de apertura — sin eso, una sede
+// nueva (Mayagüez) arrastraría meses vacíos desde julio-2026 y su ritmo de
+// admisiones saldría diluido entre meses en que ni existía, inflando la
+// proyección de "meses a plena ocupación".
+const SERIES_FLOOR = { year: 2026, month: 6 }; // month 0-11 → julio
 
 const LEAD_STAGES = ['PROSPECT', 'TOUR', 'EVALUATION', 'CONTRACT', 'ADMISSION'] as const;
 
@@ -54,19 +59,27 @@ export async function GET(_req: Request) {
         // rango en hora local (AST) dejaba fuera TODAS las facturas del mes.
         const monthStart = new Date(Date.UTC(y, m, 1));
         const monthEnd = new Date(Date.UTC(y, m + 1, 1));
-        const seriesStart = new Date(Date.UTC(SERIES_START.year, SERIES_START.month, 1));
-        // Meses transcurridos desde el ancla de datos reales, para el ritmo de
-        // admisiones. Una ventana móvil de 90 días capturaba la carga inicial
-        // del sistema (26 residentes legacy creados en bloque el 21-may) e
-        // inflaba el ritmo a ~10/mes → "full ocupación en 2 meses", fantasía.
-        const mesesDesdeAncla = Math.max(
-            (now.getTime() - seriesStart.getTime()) / (30.44 * 24 * 3600 * 1000),
-            0.5
-        );
+        const seriesFloor = new Date(Date.UTC(SERIES_FLOOR.year, SERIES_FLOOR.month, 1));
 
         const kpisByHq = [];
 
         for (const hq of targetHqs) {
+            // Ancla POR SEDE: el mayor entre el piso global y el mes de
+            // apertura de la sede.
+            const hqCreated = (hq as any).createdAt as Date | undefined;
+            const hqOpenMonth = hqCreated
+                ? new Date(Date.UTC(hqCreated.getUTCFullYear(), hqCreated.getUTCMonth(), 1))
+                : seriesFloor;
+            const seriesStart = hqOpenMonth > seriesFloor ? hqOpenMonth : seriesFloor;
+
+            // Meses transcurridos desde que la sede opera, para el ritmo de
+            // admisiones. Una ventana móvil de 90 días capturaba la carga
+            // inicial del sistema (26 residentes legacy creados en bloque el
+            // 21-may) e inflaba el ritmo a ~10/mes → "full en 2 meses".
+            const mesesDesdeAncla = Math.max(
+                (now.getTime() - seriesStart.getTime()) / (30.44 * 24 * 3600 * 1000),
+                0.5
+            );
             const [
                 billable,
                 monthInvoices,
@@ -158,9 +171,10 @@ export async function GET(_req: Request) {
                     .reduce((s, p) => s + p.monthlyFee, 0)
             );
 
-            // Serie mensual desde julio-2026 (agrupación en JS, un solo query)
+            // Serie mensual desde la apertura de ESTA sede (agrupación en JS,
+            // un solo query). Una sede nueva no arrastra meses vacíos previos.
             const serie: { mes: string; facturado: number; cobrado: number }[] = [];
-            for (let yy = SERIES_START.year, mm = SERIES_START.month; yy < y || (yy === y && mm <= m);) {
+            for (let yy = seriesStart.getUTCFullYear(), mm = seriesStart.getUTCMonth(); yy < y || (yy === y && mm <= m);) {
                 serie.push({ mes: `${yy}-${String(mm + 1).padStart(2, '0')}`, facturado: 0, cobrado: 0 });
                 mm++; if (mm > 11) { mm = 0; yy++; }
             }
@@ -174,11 +188,17 @@ export async function GET(_req: Request) {
             }
 
             // ── Crecimiento ──────────────────────────────────────────────
+            // Embudo comercial de carga manual — la tendencia que el CRM no
+            // captura porque nadie llena fichas individuales.
+            const funnel = await getGrowthFunnel({ hqId: hq.id, from: seriesStart, to: monthEnd });
             const pipeline: Record<string, number> = Object.fromEntries(LEAD_STAGES.map(s => [s, 0]));
             for (const row of leadsByStage) pipeline[row.stage] = row._count._all;
             const leadsActivos = LEAD_STAGES.filter(s => s !== 'ADMISSION').reduce((s, k) => s + pipeline[k], 0);
             const camasLibres = Math.max(0, capacity - billable.length);
-            const ritmoMensual = altasDesdeAncla / mesesDesdeAncla;
+            // Ritmo de admisiones: si el Director carga el embudo a mano, ESE
+            // es el dato del negocio (incluye admisiones que el sistema no vio).
+            // Si no, se deriva de los residentes creados desde la apertura.
+            const ritmoMensual = funnel.admisionesMensualPromedio ?? (altasDesdeAncla / mesesDesdeAncla);
             const mesesAFullOcupacion = ritmoMensual > 0 && camasLibres > 0
                 ? Math.ceil(camasLibres / ritmoMensual)
                 : null;
@@ -207,9 +227,14 @@ export async function GET(_req: Request) {
                 `Ocupación ${occupancyRate}% — ${billable.length} de ${capacity} camas${enHospital > 0 ? ` (${enHospital} en hospital con cama reservada)` : ''}${altasMes > 0 ? `, +${altasMes} admisión${altasMes > 1 ? 'es' : ''} este mes` : ''}${bajasMes > 0 ? `, −${bajasMes} egreso${bajasMes > 1 ? 's' : ''}` : ''}.`,
                 `Mes en curso: ${fmt(facturadoMes)} facturado, ${fmt(cobradoMes)} cobrado${tasaCobranza !== null ? ` (${tasaCobranza}% cobranza)` : ''}${vencidoTotal > 0 ? ` — ${fmt(vencidoTotal)} vencido acumulado` : ''}.`,
                 `Ingreso recurrente: ${fmt(mrr)}/mes con cuota promedio de ${fmt(arpu)}. Potencial a plena ocupación: ${fmt(potencialMensual)}/mes.`,
-                mesesAFullOcupacion !== null
-                    ? `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline; al ritmo actual, plena ocupación en ~${mesesAFullOcupacion} meses.`
-                    : `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline activo.`,
+                // Crecimiento: se prefiere el embudo cargado a mano (refleja el
+                // negocio real) sobre el pipeline del CRM, que hoy nadie llena.
+                funnel.mesesConDatos > 0
+                    ? `Crecimiento: ${funnel.totales.prospects} prospecto${funnel.totales.prospects !== 1 ? 's' : ''} y ${funnel.totales.tours} tour${funnel.totales.tours !== 1 ? 's' : ''} en ${funnel.mesesConDatos} mes${funnel.mesesConDatos !== 1 ? 'es' : ''}, ${funnel.totales.admissions} admisión${funnel.totales.admissions !== 1 ? 'es' : ''}${funnel.conversionPct !== null ? ` (${funnel.conversionPct}% de conversión)` : ''}` +
+                      (mesesAFullOcupacion !== null ? `; al ritmo actual, plena ocupación en ~${mesesAFullOcupacion} meses.` : '.')
+                    : mesesAFullOcupacion !== null
+                        ? `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline; al ritmo actual, plena ocupación en ~${mesesAFullOcupacion} meses.`
+                        : `Crecimiento: ${leadsActivos} prospecto${leadsActivos !== 1 ? 's' : ''} en pipeline activo.`,
                 `Salud operativa: ${fhs.score}/100 (${fhs.grade}) — compliance clínico promedio ${avgCompliance}/100.`,
             ];
 
@@ -262,6 +287,7 @@ export async function GET(_req: Request) {
                     leadsActivos,
                     ritmoMensualAdmisiones: round2(ritmoMensual),
                     mesesAFullOcupacion,
+                    funnel,
                 },
                 calidad: {
                     facilityHealthScore: fhs.score,

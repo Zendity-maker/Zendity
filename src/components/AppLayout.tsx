@@ -109,8 +109,9 @@ const corporateNavigationSections = [
         title: "Administración",
         links: [
             { name: "Facturación", href: "/corporate/billing", icon: Receipt },
-            // Carga mensual de gastos → base del margen del dashboard de socios.
-            { name: "Gastos Operativos", href: "/corporate/expenses", icon: Landmark, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            // Cierre mensual: gastos + embudo comercial → alimenta rentabilidad
+            // y crecimiento en el dashboard de socios.
+            { name: "Cierre Mensual", href: "/corporate/expenses", icon: Landmark, requiredRoles: ["DIRECTOR", "ADMIN"] },
             // Sprint P — "Documentos Legales" oculto del sidebar.
             // Vivid maneja contratos presencialmente. La ruta y el endpoint
             // siguen vivos para clientes futuros que los necesiten.

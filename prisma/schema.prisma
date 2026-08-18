@@ -65,6 +65,9 @@ model Headquarters {
   // Gastos operativos mensuales (carga manual) — base del margen
   monthlyExpenses MonthlyExpense[]
 
+  // Embudo comercial mensual (carga manual) — tendencia de crecimiento
+  growthSnapshots MonthlyGrowthSnapshot[]
+
   // FASE 21 Integrations
   shiftHandovers ShiftHandover[]
 
@@ -1675,6 +1678,43 @@ model MonthlyExpense {
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
 
   @@unique([headquartersId, periodMonth, category])
+  @@index([headquartersId, periodMonth])
+}
+
+/// Embudo comercial del mes — carga MANUAL, un registro por sede+mes.
+///
+/// Complementa (no reemplaza) a CRMLead:
+///   - CRMLead   = ESTADO del pipeline vivo hoy (quién está en qué etapa).
+///   - Este modelo = FLUJO del mes (cuántos tours se hicieron en julio).
+///
+/// Existen los dos porque son preguntas distintas y porque el CRM individual
+/// exige capturar cada prospecto con nombre y teléfono — trabajo que en la
+/// práctica no se está haciendo (0 leads registrados a ago-2026). Un socio
+/// necesita ver la tendencia comercial aunque nadie llene fichas: 4 números
+/// al mes lo resuelven.
+model MonthlyGrowthSnapshot {
+  id             String @id @default(uuid())
+  headquartersId String
+
+  /// Primer día del mes en UTC — mismo anclaje que MonthlyExpense e
+  /// Invoice.issueDate, para que todos los rangos del dashboard coincidan.
+  periodMonth DateTime
+
+  prospects   Int @default(0) // contactos nuevos del mes
+  tours       Int @default(0) // visitas a la facilidad
+  evaluations Int @default(0) // evaluaciones clínicas/financieras
+  contracts   Int @default(0) // contratos firmados
+  admissions  Int @default(0) // ingresos efectivos
+
+  notes       String?
+  createdById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+
+  @@unique([headquartersId, periodMonth])
   @@index([headquartersId, periodMonth])
 }
 
