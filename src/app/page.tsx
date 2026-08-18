@@ -225,6 +225,20 @@ export default function InsightsDashboard() {
     }
   };
 
+  // Abrir un hilo = leerlo. Antes los mensajes solo se marcaban leídos al
+  // RESPONDER, así que el badge de la Sala quedaba encendido para siempre
+  // aunque el hilo ya estuviera visto. Optimista en local + PATCH al server.
+  const markThreadRead = async (patientId: string) => {
+    setInboxThreads(prev => prev.map(t => t.patient.id === patientId ? { ...t, unreadCount: 0 } : t));
+    try {
+      await fetch('/api/corporate/family-messages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId }),
+      });
+    } catch { /* el polling reconcilia si falla */ }
+  };
+
   // ── Carga inicial (una sola vez con spinner) ──
   useEffect(() => {
     loadDashboard(true);
@@ -884,7 +898,7 @@ export default function InsightsDashboard() {
                     </div>
                   ) : (
                     inboxThreads.map((thread: any, idx) => (
-                      <div key={idx} onClick={() => { setActiveThread(thread); fetchMessages(); }} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
+                      <div key={idx} onClick={() => { setActiveThread(thread); markThreadRead(thread.patient.id).then(fetchMessages); }} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-teal-400 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group">
                         <div>
                           <h4 className="font-bold text-slate-800 text-sm group-hover:text-teal-600">{thread.patient.name}</h4>
                           <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Cuarto {thread.patient.room}</p>

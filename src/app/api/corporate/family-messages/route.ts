@@ -78,6 +78,44 @@ export async function GET(req: Request) {
     }
 }
 
+// PATCH — Marcar el hilo de un residente como LEÍDO (al abrirlo, sin responder).
+//
+// Antes los mensajes de familiares solo se marcaban leídos al RESPONDER
+// (POST). Leer sin responder no limpiaba nada, así que los badges de
+// "Mensajes Familia" (header) y "Sala de Enfermería" (dashboard) quedaban
+// encendidos para siempre aunque el hilo ya estuviera visto. Semántica
+// compartida a propósito: isRead es un flag de equipo (igual que al
+// responder) — si una enfermera ya vio el mensaje, el equipo lo vio.
+export async function PATCH(req: Request) {
+    try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
+
+        const body = await req.json().catch(() => ({}));
+        const patientId = (body.patientId || '').toString();
+        if (!patientId) {
+            return NextResponse.json({ success: false, error: 'patientId requerido' }, { status: 400 });
+        }
+
+        // Ownership: el hilo debe ser de un residente de la sede del invocador.
+        const result = await prisma.familyMessage.updateMany({
+            where: {
+                patientId,
+                patient: { headquartersId: hqId },
+                senderType: 'FAMILY',
+                isRead: false,
+            },
+            data: { isRead: true },
+        });
+
+        return NextResponse.json({ success: true, marked: result.count });
+    } catch (error: any) {
+        console.error("[corporate/family-messages PATCH] Error:", error);
+        return NextResponse.json({ success: false, error: "Error al marcar leído." }, { status: 500 });
+    }
+}
+
 // POST — Staff responde a un familiar (por patientId)
 export async function POST(req: Request) {
     try {

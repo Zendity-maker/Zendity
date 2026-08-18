@@ -64,6 +64,16 @@ export default function CorporateFamilyMessages() {
     const handleSelectConversation = (conv: any) => {
         setSelected(conv);
         setReply("");
+        // Abrir un hilo = leerlo (antes solo responder marcaba leído y el
+        // badge del hub quedaba encendido en hilos ya vistos).
+        if (conv.unreadCount > 0) {
+            setConversations(prev => prev.map((c: any) => c.patientId === conv.patientId ? { ...c, unreadCount: 0 } : c));
+            fetch('/api/corporate/family-messages', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId: conv.patientId }),
+            }).catch(() => { /* el polling reconcilia si falla */ });
+        }
     };
 
     const handleSend = async (e: React.FormEvent) => {

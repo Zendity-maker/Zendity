@@ -80,6 +80,21 @@ export default function FamilyMessagesPanel({ open, onClose, onUnreadChange }: P
     const handleSelectConversation = (conv: any) => {
         setSelected(conv);
         setReply("");
+        // Abrir un hilo = leerlo. Antes solo RESPONDER marcaba los mensajes
+        // leídos, así que el badge del header (familyMsgUnread) quedaba
+        // encendido para siempre en hilos vistos sin respuesta.
+        if (conv.unreadCount > 0) {
+            setConversations(prev => {
+                const next = prev.map(c => c.patientId === conv.patientId ? { ...c, unreadCount: 0 } : c);
+                onUnreadChange(next.reduce((acc: number, c: any) => acc + c.unreadCount, 0));
+                return next;
+            });
+            fetch('/api/corporate/family-messages', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId: conv.patientId }),
+            }).catch(() => { /* el polling reconcilia si falla */ });
+        }
     };
 
     const handleImproveWithZendi = async () => {
