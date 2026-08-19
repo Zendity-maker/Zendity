@@ -54,6 +54,8 @@ scripts/*
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva
 !scripts/academy-fase2.ts
+# Corrección ortográfica del catálogo Academy
+!scripts/academy-tildes.ts
 !scripts/smoke-rotation-protocol.ts
 !scripts/smoke-supervisor-hq-isolation.ts
 !scripts/smoke-schedule-overwrite.ts
