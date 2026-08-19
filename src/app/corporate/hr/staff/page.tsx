@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { estaDeBaja } from "@/lib/staff-status";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -17,6 +18,8 @@ type StaffMember = {
     pinCode: string | null;
     complianceScore: number;
     isShiftBlocked: boolean;
+    isActive: boolean;
+    isDeleted: boolean;
     createdAt: string;
 };
 
@@ -26,6 +29,9 @@ export default function StaffManagementPage() {
     const { activeHqId } = useActiveHq();
     const [staff, setStaff] = useState<StaffMember[]>([]);
     const [loading, setLoading] = useState(true);
+    // Las bajas se traen siempre y se filtran aquí: sin esto no hay forma de
+    // llegar al perfil de alguien inactivo para reactivarlo.
+    const [verBajas, setVerBajas] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Modal Form State
@@ -52,8 +58,8 @@ export default function StaffManagementPage() {
         try {
             setLoading(true);
             const url = activeHqId && activeHqId !== 'ALL'
-                ? `/api/hr/staff?hqId=${activeHqId}`
-                : '/api/hr/staff';
+                ? `/api/hr/staff?hqId=${activeHqId}&incluirBajas=1`
+                : '/api/hr/staff?incluirBajas=1';
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
@@ -121,8 +127,7 @@ export default function StaffManagementPage() {
     };
 
     const handleDeleteEmployee = async (id: string, name: string) => {
-        if (!confirm(`¿Estás absolutamente seguro de que deseas ELIMINAR PERMANENTEMENTE a ${name}?`)) return;
-        if (!confirm(`ADVERTENCIA FINAL: Esto removerá su acceso y desaparecerá de todas las listas. ¿Proceder?`)) return;
+        if (!confirm(`¿Dar de baja a ${name}?\n\nPierde el acceso a Zendity. Su historial se conserva completo y puedes reactivarlo desde su perfil.`)) return;
 
         try {
             const res = await fetch(`/api/hr/staff?id=${id}`, {
@@ -150,6 +155,10 @@ export default function StaffManagementPage() {
         }
     };
 
+    const activos = staff.filter(s => !estaDeBaja(s));
+    const bajas = staff.filter(estaDeBaja);
+    const visibles = verBajas ? [...activos, ...bajas] : activos;
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             {/* Header */}
@@ -163,13 +172,25 @@ export default function StaffManagementPage() {
                         <Building2 className="w-4 h-4" /> Gestione los accesos y credenciales de su sede.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
-                >
-                    <Plus className="w-5 h-5" />
-                    Contratar Empleado
-                </button>
+                <div className="flex items-center gap-3">
+                    {bajas.length > 0 && (
+                        <button
+                            onClick={() => setVerBajas(v => !v)}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors ${verBajas
+                                ? 'bg-slate-800 border-slate-800 text-white'
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                        >
+                            {verBajas ? 'Ocultar bajas' : `Ver bajas (${bajas.length})`}
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-sm flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95"
+                    >
+                        <Plus className="w-5 h-5" />
+                        Contratar Empleado
+                    </button>
+                </div>
             </div>
 
             {/* Staff Table Card */}
@@ -194,15 +215,15 @@ export default function StaffManagementPage() {
                                         Cargando nómina...
                                     </td>
                                 </tr>
-                            ) : staff.length === 0 ? (
+                            ) : visibles.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-gray-500">
                                         Vaya, no hay personal registrado en esta sede.
                                     </td>
                                 </tr>
                             ) : (
-                                staff.map((s) => (
-                                    <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                visibles.map((s) => (
+                                    <tr key={s.id} className={`border-b border-gray-50 transition-colors ${estaDeBaja(s) ? 'bg-slate-50/60 opacity-70' : 'hover:bg-gray-50/50'}`}>
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center font-bold text-blue-700 border border-blue-200">
@@ -243,7 +264,11 @@ export default function StaffManagementPage() {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            {s.isShiftBlocked ? (
+                                            {estaDeBaja(s) ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium border border-slate-200">
+                                                    De baja
+                                                </span>
+                                            ) : s.isShiftBlocked ? (
                                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-medium border border-red-100">
                                                     <Ban className="w-3.5 h-3.5" />
                                                     Suspendido
@@ -260,10 +285,11 @@ export default function StaffManagementPage() {
                                                 <Link
                                                     href={`/corporate/hr/staff/${s.id}`}
                                                     className="p-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                                                    title="Ver Perfil & Rendimiento"
+                                                    title={estaDeBaja(s) ? 'Ver perfil / reactivar' : 'Ver Perfil & Rendimiento'}
                                                 >
                                                     <UserCog className="w-4 h-4" />
                                                 </Link>
+                                                {!estaDeBaja(s) && (
                                                 <button
                                                     onClick={() => toggleStaffStatus(s.id, s.isShiftBlocked)}
                                                     className={`p-2 rounded-xl border transition-colors ${s.isShiftBlocked
@@ -274,13 +300,16 @@ export default function StaffManagementPage() {
                                                 >
                                                     {s.isShiftBlocked ? <Shield className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
                                                 </button>
+                                                )}
+                                                {!estaDeBaja(s) && (
                                                 <button
                                                     onClick={() => handleDeleteEmployee(s.id, s.name)}
                                                     className={`p-2 rounded-xl border transition-colors bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100`}
-                                                    title="Eliminar Empleado Permanentemente"
+                                                    title="Dar de baja"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
