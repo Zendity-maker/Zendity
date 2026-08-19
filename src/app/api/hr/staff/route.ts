@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { asignarRutaIngreso } from '@/lib/academy-assign';
+import { asignarRutaIngreso, asignarRutaCertificacion, requiereCertificacion } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -151,6 +151,17 @@ export async function POST(request: Request) {
             role: String(role),
             assignedByUserId: (session.user as any).id,
         });
+
+        // Certificación geriátrica: quien va a tocar a un residente la recibe
+        // desde el alta. Va aparte de la ruta de ingreso porque acredita a la
+        // persona ante el Departamento, no le enseña a usar el sistema.
+        if (requiereCertificacion(String(role))) {
+            await asignarRutaCertificacion({
+                hqId,
+                userId: newUser.id,
+                assignedByUserId: (session.user as any).id,
+            });
+        }
 
         // ==========================================
         // FASE 66: Welcome Email automatizado al Staff

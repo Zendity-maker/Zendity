@@ -51,6 +51,42 @@ const RUTA_INGRESO: Record<string, string[]> = {
     COORDINATOR: ['Acceso y Roles en Zendity', 'El Administrador en Zendity'],
 };
 
+/**
+ * Certificación geriátrica — la formación del OFICIO, no del software.
+ *
+ * Es lo que el Departamento de la Familia exige para acreditar a un cuidador.
+ * Va aparte de RUTA_INGRESO a propósito: la ruta de ingreso enseña a usar
+ * Zendity y se completa en un par de días; esta acredita a la persona y toma
+ * cuatro horas de contenido. Mezclarlas hace que lo urgente entierre lo
+ * importante.
+ *
+ * El orden importa: el general primero, emergencias al final.
+ */
+const RUTA_CERTIFICACION: string[] = [
+    'Cuidado Geriátrico General',
+    'Demencia y Alzheimer',
+    'Movilización y Transferencias',
+    'Higiene, Piel y Control de Infecciones',
+    'Alimentación, Hidratación',
+    'Trato Digno, Derechos',
+    'Emergencias: Los Primeros Minutos',
+];
+
+/**
+ * Roles con contacto directo con residentes.
+ *
+ * La certificación es para quien toca a un residente, no para quien nunca
+ * entra al piso. INVESTOR, SUPER_ADMIN y ADMIN quedan fuera; MAINTENANCE y
+ * KITCHEN también, aunque circulen por la facilidad.
+ */
+const ROLES_CON_RESIDENTES = new Set([
+    'CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'SOCIAL_WORKER', 'COORDINATOR',
+]);
+
+export function requiereCertificacion(role: string): boolean {
+    return ROLES_CON_RESIDENTES.has(role);
+}
+
 async function buscarCurso(hqId: string, fragmento: string) {
     return prisma.course.findFirst({
         where: { headquartersId: hqId, isActive: true, title: { contains: fragmento, mode: 'insensitive' } },
@@ -176,6 +212,64 @@ export async function asignarRutaIngreso(opts: {
         return creadas;
     } catch (err) {
         logError('academy.assign.onboarding', err);
+        return 0;
+    }
+}
+
+/**
+ * Asigna la certificación geriátrica completa.
+ *
+ * Idempotente por curso: si ya tiene la asignación (en cualquier estado) no la
+ * duplica, así que puede correrse sobre personal existente sin ensuciar nada.
+ *
+ * Una sola notificación al final, no siete. El ruido es lo que hace que la
+ * gente deje de mirar la campana.
+ */
+export async function asignarRutaCertificacion(opts: {
+    hqId: string;
+    userId: string;
+    assignedByUserId?: string | null;
+    /** Sin notificación: para backfills masivos que se anuncian aparte. */
+    silencioso?: boolean;
+}): Promise<number> {
+    try {
+        let creadas = 0;
+
+        for (const fragmento of RUTA_CERTIFICACION) {
+            const curso = await buscarCurso(opts.hqId, fragmento);
+            if (!curso) continue;
+
+            const existente = await prisma.academyAssignment.findFirst({
+                where: { userId: opts.userId, moduleCode: curso.id },
+                select: { id: true },
+            });
+            if (existente) continue;
+
+            await prisma.academyAssignment.create({
+                data: {
+                    headquartersId: opts.hqId,
+                    userId: opts.userId,
+                    moduleCode: curso.id,
+                    reason: 'Certificación geriátrica',
+                    status: 'PENDING',
+                    assignedBySystem: true,
+                    assignedByUserId: opts.assignedByUserId ?? null,
+                },
+            });
+            creadas++;
+        }
+
+        if (creadas > 0 && !opts.silencioso) {
+            await notifyUser(opts.userId, {
+                type: 'COURSE_COMPLETED',
+                title: '🎓 Certificación geriátrica',
+                message: `Tu formación de cuidado geriátrico está disponible: ${creadas} módulo${creadas !== 1 ? 's' : ''}. Es la que acredita tu preparación.`,
+                link: '/academy',
+            });
+        }
+        return creadas;
+    } catch (err) {
+        logError('academy.assign.certificacion', err);
         return 0;
     }
 }
