@@ -41,7 +41,11 @@ const PLAN: Record<string, { role: string | null; pts: number }> = {
     'Handover':                        { role: null,            pts: 20 },
     'Proceso de Cierre de Turno':      { role: null,            pts: 15 },
     'Uso de Zendi AI':                 { role: null,            pts: 10 },
-    'Limpieza y Sanitizacion':         { role: 'CLEANING',      pts: 20 },
+    // Global a propósito: la higiene la ejerce todo el que toca a un residente,
+    // no solo el personal de limpieza — y los 30 incidentes de higiene de Vivid
+    // son de cuidadoras. Dirigirlo a CLEANING lo escondería justo de quienes lo
+    // necesitan (y hoy no hay ningún empleado con ese rol).
+    'Limpieza y Sanitizacion':         { role: null,            pts: 20 },
     'Trabajo Social':                  { role: 'SOCIAL_WORKER', pts: 15 },
 };
 

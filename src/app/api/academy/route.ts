@@ -85,15 +85,31 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, enrollments, assignments });
 
         } else {
-            const userRole = searchParams.get('role') || '';
-            // Catálogo Completo Sede — incluye cursos globales + cursos de la sede
+            // El rol se toma de la SESIÓN, no del query param: el cliente
+            // mandaba `?role=` y cualquiera podía pedir el catálogo de otro rol.
+            // Se incluyen los roles secundarios — hay supervisoras que también
+            // son cuidadoras y directores que también son enfermeras; filtrar
+            // solo por el primario les escondería la formación de su segundo rol.
+            const roles = [auth.role, ...(auth.secondaryRoles ?? [])].filter(Boolean);
+
+            // Los cursos ASIGNADOS se ven siempre, coincida o no el rol. Sin
+            // esto, un incidente de higiene a una cuidadora le asignaría el
+            // curso de Limpieza (dirigido a CLEANING) y ella no podría abrirlo:
+            // una tarea imposible de completar.
+            const asignados = await prisma.academyAssignment.findMany({
+                where: { userId: auth.id, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+                select: { moduleCode: true },
+            });
+            const idsAsignados = asignados.map(a => a.moduleCode);
+
             const catalog = await prisma.course.findMany({
                 where: {
                     isActive: true,
                     headquartersId: hqId,
                     OR: [
                         { isGlobal: true, targetRole: null },
-                        { targetRole: userRole }
+                        { targetRole: { in: roles } },
+                        ...(idsAsignados.length > 0 ? [{ id: { in: idsAsignados } }] : []),
                     ]
                 },
                 orderBy: [{ order: 'asc' }, { createdAt: 'asc' }]
