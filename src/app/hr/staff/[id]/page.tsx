@@ -29,6 +29,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     } | null>(null);
     const [loading, setLoading] = useState(true);
     const [incidents, setIncidents] = useState<any[]>([]);
+    const [attendance, setAttendance] = useState<any>(null);
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -106,10 +107,13 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const fetchProfile = async () => {
         setLoading(true);
         try {
-            const [profileRes, historyRes] = await Promise.all([
+            const [profileRes, historyRes, attendanceRes] = await Promise.all([
                 fetch(`/api/hr/staff/${id}`),
                 fetch(`/api/hr/staff/${id}/score-history`),
+                fetch(`/api/hr/staff/${id}/attendance?days=90`),
             ]);
+            const att = await attendanceRes.json().catch(() => null);
+            if (att?.success) setAttendance(att);
             const data = await profileRes.json();
             if (data.success) {
                 setEmployee(data.employee);
@@ -373,6 +377,97 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                             </p>
                         </div>
                     </div>
+
+
+                    {/* Asistencia — los datos existían pero solo se veían
+                        consultando la base. Sin esta vista, un supervisor no
+                        tenía cómo entrar a la conversación con hechos. */}
+                    {attendance?.success && (
+                        <div className="lg:col-span-3 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200">
+                            <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                        <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Asistencia
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-1">Últimos {attendance.ventanaDias} días</p>
+                                </div>
+                                {attendance.patron.yaSupera ? (
+                                    <span className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black">
+                                        Supera el umbral disciplinario
+                                    </span>
+                                ) : attendance.patron.sinAvisoEnVentana > 0 && (
+                                    <span className="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black">
+                                        A {attendance.patron.faltanParaObservacion} de la observación automática
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                {[
+                                    { l: 'Turnos programados', v: attendance.resumen.turnosProgramados, tone: 'text-slate-800' },
+                                    { l: 'Ausencias', v: attendance.resumen.ausencias, tone: 'text-slate-800' },
+                                    { l: 'Sin aviso', v: attendance.resumen.sinAviso, tone: attendance.resumen.sinAviso > 0 ? 'text-rose-600' : 'text-emerald-600' },
+                                    { l: 'Tasa de ausencia', v: `${attendance.resumen.tasaAusenciaPct}%`, tone: attendance.resumen.tasaAusenciaPct > 5 ? 'text-amber-600' : 'text-slate-800' },
+                                ].map(k => (
+                                    <div key={k.l} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{k.l}</p>
+                                        <p className={`text-2xl font-black mt-1 ${k.tone}`}>{k.v}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {attendance.diasConsecutivos?.length > 0 && (
+                                <div className="mb-6 rounded-2xl bg-rose-50 border border-rose-200 px-5 py-4">
+                                    <p className="text-sm font-black text-rose-800">
+                                        Ausencias en días consecutivos
+                                    </p>
+                                    <p className="text-xs text-rose-700 mt-1">
+                                        {attendance.diasConsecutivos.map((r: string[]) => r.join(' y ')).join(' · ')}
+                                        {' — '}dos turnos seguidos es una señal distinta a faltas sueltas en el mes.
+                                    </p>
+                                </div>
+                            )}
+
+                            {attendance.detalle.length === 0 ? (
+                                <p className="text-sm text-slate-500 py-8 text-center bg-slate-50 rounded-2xl">
+                                    Sin ausencias registradas en el período. 
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {attendance.detalle.map((a: any) => (
+                                        <div key={a.id} className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                                            <span className="font-bold text-slate-800 text-sm w-24">
+                                                {new Date(a.fecha).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 w-16">{a.turno}</span>
+                                            <span className="text-sm text-slate-600">
+                                                {a.motivoLabel ?? <span className="italic text-slate-400">Sin motivo registrado</span>}
+                                            </span>
+                                            <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
+                                                a.avisoPrevio
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                            }`}>
+                                                {a.avisoPrevio ? 'Avisó' : 'Sin aviso'}
+                                            </span>
+                                            {a.nota && (
+                                                <p className="w-full text-xs text-slate-500 pl-24 -mt-1">{a.nota}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <p className="text-[11px] text-slate-400 mt-4 leading-snug">
+                                Solo las ausencias sin aviso cuentan para la detección de patrón
+                                ({attendance.patron.umbral} en {attendance.patron.ventanaDias} días genera una observación con
+                                72 horas para explicar). Las anteriores a agosto 2026 no tienen motivo porque el campo no existía.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Right Column: Z-Score Real History Chart */}
                     <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col gap-6">
