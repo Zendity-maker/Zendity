@@ -982,6 +982,746 @@ d) Porque evita que se caigan los dientes
 EXPLICACION: La neumonía por aspiración es una de las principales causas de hospitalización en esta población, y una boca en mal estado multiplica el riesgo. Además el dolor bucal reduce el apetito, lo que arrastra pérdida de peso y debilidad.
 `,
     },
+    {
+        title: 'Alimentación, Hidratación y Atragantamiento',
+        description: 'Asistir a comer con seguridad, reconocer las señales de disfagia y deshidratación, y actuar correctamente ante un atragantamiento.',
+        durationMins: 35,
+        bonusCompliance: 25,
+        emoji: '🍽️',
+        category: 'Cuidado Geriátrico',
+        order: 104,
+        targetRole: null,
+        content: `---META---
+TITULO: Alimentación, Hidratación y Atragantamiento
+PROMPT_ZENDI: Evalúa si el empleado sabe asistir en la alimentación con seguridad, reconoce las señales de dificultad para tragar y de deshidratación, actúa correctamente ante un atragantamiento, y entiende que la dieta y su consistencia las establece el plan, no su criterio.
+TERMINOS_CLAVE: disfagia, aspiración, atragantamiento, consistencia modificada, espesante, deshidratación, posición a 90 grados, Heimlich, dieta indicada, ingesta
+PREGUNTA_REFLEXION: Un residente con dieta blanda te pide un pedazo de la carne que están comiendo los demás. Insiste en que puede masticarla bien. ¿Qué haces?
+
+---SECCION_1---
+LECTURA:
+# Comer es más que nutrición
+
+Para muchos residentes la comida es lo mejor del día: el sabor, la compañía, el momento de conversar. Y para el cuerpo, comer bien es lo que sostiene la fuerza, la piel y las defensas. Un residente que pierde peso pierde también movilidad, cicatrización y resistencia a infecciones.
+
+**Lo que cambia con la edad:**
+
+- **Menos sensación de sed.** El cuerpo deja de avisar. Esta es la razón número uno de deshidratación
+- Menos gusto y olfato — la comida sabe a menos, y el apetito baja con ella
+- Menos saliva, muchas veces por medicamentos
+- Menos apetito por menor actividad
+- Problemas de boca: dentadura floja, dientes que duelen, llagas
+- Dificultad para tragar
+
+**La dieta la establece el plan de cuidado**, y eso incluye la consistencia. Cuando ves "dieta blanda", "líquidos espesados" o "puré", eso no es una preferencia ni una sugerencia: alguien determinó que esa persona no puede manejar otra cosa con seguridad.
+
+**Dar algo fuera de la dieta indicada, aunque el residente lo pida, puede matarlo.** Suena fuerte porque lo es: la aspiración —comida o líquido que entra al pulmón— es una de las principales causas de neumonía y muerte en esta población. Y ocurre exactamente así: alguien le dio "un pedacito" por complacerlo.
+
+Si el residente reclama la dieta, se reporta para que se reevalúe. No se ajusta en la bandeja.
+
+PREGUNTAS:
+P: Un residente con dieta blanda te pide un pedazo de carne del menú regular, insistiendo en que puede masticarla. ¿Qué haces?
+a) Se lo doy cortado en trozos pequeños
+b) Se lo doy, él conoce su capacidad
+*c) Le explico que su dieta la indicó su evaluación y reporto que la está reclamando
+d) Le digo que no y no lo menciono a nadie
+EXPLICACION: La consistencia de la dieta no es una preferencia: alguien determinó que esa persona no puede manejar otra textura sin riesgo de aspiración. Dar algo fuera de la dieta indicada es una de las formas más frecuentes de causar una neumonía por aspiración. Si la reclama, se reporta para reevaluación.
+
+P: ¿Por qué los adultos mayores se deshidratan con tanta facilidad?
+a) Porque toman menos agua a propósito
+*b) Porque la sensación de sed disminuye con la edad y el cuerpo deja de avisar
+c) Porque sudan más
+d) Porque los medicamentos siempre deshidratan
+EXPLICACION: El mecanismo de la sed se debilita con la edad, así que la persona puede estar deshidratada sin sentir ninguna necesidad de tomar agua. Por eso el líquido se ofrece de forma activa durante todo el turno, sin esperar a que lo pidan.
+
+---SECCION_2---
+LECTURA:
+# Asistir a comer con seguridad
+
+**La posición es lo primero y lo más importante:**
+
+- **Sentado derecho, a 90 grados.** En silla si puede; si está en cama, con la cabecera bien elevada
+- **Nunca se alimenta a alguien acostado.** Nunca, por más apurado que sea el turno
+- **La cabeza ligeramente hacia adelante**, la barbilla algo bajada. Con la cabeza hacia atrás, la vía respiratoria queda abierta y el alimento entra directo al pulmón
+- **Se mantiene sentado 30 minutos después** de comer
+
+**Al asistir:**
+
+- Siéntate **a su altura**, de frente. Alimentar de pie y desde arriba obliga a levantar la cabeza — la peor posición posible
+- **Bocados pequeños.** Media cucharada, no cucharada llena
+- **Espera a que trague antes del siguiente.** Verifica que la boca quedó vacía
+- **No lo apures.** El apuro es el factor de riesgo más común en un atragantamiento
+- **Alterna** sólido y líquido
+- **No converses con él mientras tiene comida en la boca**, y no le hagas preguntas que lo obliguen a contestar
+- Dile qué le estás dando. "Ahora un poco de arroz"
+
+**Deja que haga lo que pueda.** Un residente que puede sostener la cuchara la sostiene, aunque tarde y se ensucie. Cada vez que le quitas la cuchara para ir más rápido, pierde un poco más de independencia.
+
+**Ambiente:** sin TV alta, sin apuro, buena luz. Comer distraído aumenta el riesgo de atragantarse.
+
+**Al terminar, revisa la boca.** Comida guardada en el cachete es señal de dificultad para tragar y se reporta — además puede aspirarla después, ya acostado.
+
+PREGUNTAS:
+P: Vas a asistir a comer a un residente encamado. ¿Cuál es la posición correcta?
+a) Acostado de lado, para que sea más cómodo
+*b) Sentado a 90 grados con la barbilla ligeramente hacia abajo, y así 30 minutos después
+c) Semisentado con la cabeza hacia atrás para que pase mejor
+d) Como esté, si solo son unas cucharadas
+EXPLICACION: Con la cabeza hacia atrás la vía respiratoria queda abierta y la comida entra directo al pulmón. Sentado derecho con la barbilla algo baja se cierra esa vía. Los 30 minutos posteriores evitan que el contenido regrese y se aspire.
+
+P: Al terminar de comer notas que el residente tiene comida acumulada en el cachete. ¿Qué significa?
+a) Que come despacio, es normal
+*b) Es señal de dificultad para tragar: se limpia la boca y se reporta
+c) Que no le gustó la comida
+d) Que necesita bocados más grandes
+EXPLICACION: La comida retenida indica que el residente no está tragando bien, y ya acostado puede aspirarla. Es una de las señales tempranas de disfagia y se reporta para que se evalúe la consistencia de su dieta.
+
+---SECCION_3---
+LECTURA:
+# Señales de que algo anda mal al tragar
+
+La **disfagia** —dificultad para tragar— casi nunca aparece de golpe. Da avisos, y quien está en la mesa todos los días es quien los ve.
+
+**Se reporta si observas:**
+
+- **Tos durante o después de comer o beber** — la señal más importante de todas
+- Voz "húmeda" o gorgoteo después de tragar
+- Carraspera constante en las comidas
+- Le toma varios intentos tragar un bocado
+- Comida que se queda en la boca
+- Babeo o comida que se le sale
+- Se queja de que "se le queda atorado"
+- Evita ciertas comidas o líquidos que antes tomaba
+- Come mucho más lento que antes
+- Fiebres repetidas sin causa clara — puede ser aspiración silenciosa
+
+**Aspiración silenciosa:** algunos residentes aspiran sin toser. No hay señal en la mesa; aparece días después como fiebre o neumonía. Por eso las fiebres repetidas en alguien que come con dificultad siempre se reportan juntas con esa observación.
+
+**Los espesantes** se usan porque el líquido delgado es lo que más fácil se cuela a la vía respiratoria — más fácil que la comida sólida. Si un residente tiene líquidos espesados, **todo** líquido va espesado: agua, jugo, café, sopa. No hay excepciones "por esta vez".
+
+**Documenta lo que realmente comió.** "Comió el 50%" o "solo tomó el jugo" no es papeleo: es el dato con el que se detecta una pérdida de peso antes de que sea grave. Un residente que lleva tres días comiendo la mitad es una alerta, pero solo si alguien lo anotó.
+
+**Se reporta también:** rechazo de comida por más de una comida, pérdida de peso visible, ropa que le queda floja, y cualquier queja de dolor al comer.
+
+PREGUNTAS:
+P: Un residente tose cada vez que toma agua, pero come sólidos sin problema. ¿Qué haces?
+a) Le doy el agua más despacio y no lo reporto
+b) Le suspendo el agua hasta que mejore
+*c) Lo reporto: la tos con líquidos es señal de disfagia y puede requerir espesantes
+d) Le doy el agua con pajilla para que pase más rápido
+EXPLICACION: El líquido delgado es lo que más fácil se cuela a la vía respiratoria, por eso muchas personas tosen con agua antes que con sólidos. La tos al beber es la señal más importante de disfagia y quien indica el espesante es la evaluación, no el cuidador.
+
+P: Un residente con líquidos espesados te pide agua normal porque tiene mucha sed. ¿Qué haces?
+a) Le doy un vaso pequeño, la sed es real
+*b) Le ofrezco agua espesada: la indicación aplica a todo líquido, sin excepciones
+c) Le doy agua normal con pajilla
+d) Le doy hielo en vez de agua
+EXPLICACION: Si tiene líquidos espesados es porque el líquido delgado se le cuela a la vía respiratoria. Eso incluye agua, jugo, café y sopa — y el hielo derretido también. Una sola excepción puede causar una neumonía por aspiración.
+
+---SECCION_4---
+LECTURA:
+# Atragantamiento: los primeros segundos
+
+Es la emergencia más frecuente en el comedor y la que más depende de que reacciones bien de inmediato.
+
+**Lo primero: distinguir obstrucción parcial de completa.** No es lo mismo y la respuesta es opuesta.
+
+**Obstrucción PARCIAL — la persona tose con fuerza, hace ruido, puede hablar:**
+
+- **NO le des golpes en la espalda**
+- **NO le des agua**
+- **NO le metas los dedos en la boca**
+- **Anímalo a toser.** La tos es el mecanismo más efectivo que existe para expulsar algo
+- Quédate al lado, observando
+- Si la tos se debilita, se vuelve completa: pasa a lo siguiente
+
+**Obstrucción COMPLETA — no puede toser, no puede hablar, no hace ruido, se agarra el cuello, se pone morado:**
+
+Esto es una emergencia inmediata.
+
+1. **Pide ayuda a gritos.** Que alguien llame al 911 mientras tú actúas
+2. **Compresiones abdominales (Heimlich):** párate detrás, rodéalo con los brazos, un puño arriba del ombligo y debajo del esternón, la otra mano encima, y empuja **hacia adentro y hacia arriba** con fuerza
+3. **Repite hasta que expulse el objeto o pierda el conocimiento**
+4. **Si pierde el conocimiento:** bájalo al piso con cuidado y empieza RCP si estás certificado. Que el 911 ya venga en camino
+
+**En silla de ruedas:** aplica las compresiones desde atrás con los frenos puestos. **Si la persona es muy obesa o está embarazada:** las compresiones van en el pecho, no en el abdomen.
+
+**Después de cualquier atragantamiento, aunque lo resuelva:** se reporta y se documenta. Siempre. Un atragantamiento es aviso de que algo en la dieta o en la técnica necesita revisarse — y muchas veces el próximo es el grave.
+
+**Certificación:** el Heimlich y el RCP se aprenden con práctica presencial, no leyendo. Este módulo te dice qué hacer; la certificación te da la mano entrenada. Si la tuya está vencida, repórtalo.
+
+PREGUNTAS:
+P: Un residente empieza a toser con fuerza durante la comida, pero puede hablar. ¿Qué haces?
+a) Le doy golpes fuertes en la espalda
+b) Le doy agua para que baje
+*c) Lo animo a seguir tosiendo y me quedo observando
+d) Le meto el dedo en la boca para sacar la comida
+EXPLICACION: Si tose con fuerza y puede hablar, la obstrucción es parcial y su propia tos es el mecanismo más efectivo para expulsarla. Los golpes, el agua o meter los dedos pueden empujar el objeto más adentro y convertirla en completa.
+
+P: Un residente se agarra el cuello, no puede hablar ni toser y se está poniendo morado. ¿Qué haces primero?
+a) Le doy agua
+b) Lo acuesto para revisarle la boca
+*c) Pido ayuda a gritos para que llamen al 911 y empiezo compresiones abdominales
+d) Espero unos segundos a ver si tose
+EXPLICACION: No poder toser ni hablar indica obstrucción completa: sin aire, el daño cerebral empieza en minutos. Se pide ayuda y se actúa simultáneamente con compresiones hacia adentro y hacia arriba, sin esperar.
+
+---SECCION_5---
+LECTURA:
+# Hidratación: el problema invisible
+
+La deshidratación es de los problemas más comunes y más subestimados en un hogar de envejecientes. No se ve, no duele al principio, y termina en confusión, infección urinaria, caída u hospitalización.
+
+**Por qué pasa tan fácil:**
+
+- La sed no avisa
+- Muchos residentes **toman menos a propósito** para no ir tanto al baño, o para no tener que pedir ayuda
+- Diuréticos y otros medicamentos aumentan la pérdida
+- Quien tiene demencia sencillamente no recuerda tomar agua
+- Quien tiene disfagia toma menos porque le cuesta
+- El calor de Puerto Rico acelera todo lo anterior
+
+**Señales de deshidratación — se reportan:**
+
+- **Orina oscura, concentrada, o mucho menos orina de lo normal** — el indicador más práctico que tienes
+- Boca y labios secos, lengua áspera
+- **Confusión nueva o más somnolencia** — en el adulto mayor la deshidratación se manifiesta primero en la cabeza
+- Piel que al pellizcarla suavemente tarda en volver
+- Mareo al levantarse
+- Debilidad, dolor de cabeza
+- Estreñimiento
+
+**Lo que sí puedes hacer, cada turno:**
+
+- **Ofrecer líquido activamente**, sin esperar a que lo pidan. En cada ronda
+- Dejar el vaso **al alcance** y lleno — un vaso lejos es un vaso que no se toma
+- Ofrecer lo que le guste: jugo, té frío, gelatina, frutas con agua. No tiene que ser agua
+- Respetar el espesante si lo tiene
+- **Ofrecer el baño con regularidad**, porque el miedo a no llegar es la razón real por la que muchos dejan de tomar
+- Anotar lo que tomó
+
+**En calor o si tiene fiebre, diarrea o vómito, la necesidad sube.** Esos días la hidratación se vigila de cerca y cualquier señal se reporta rápido.
+
+Y recuerda: una confusión nueva en un residente siempre se reporta. Puede ser deshidratación, puede ser una infección urinaria — las dos se tratan si se detectan a tiempo.
+
+PREGUNTAS:
+P: Una residente que siempre está orientada hoy amanece confusa y somnolienta, y su orina está muy oscura. ¿Qué haces?
+a) La dejo descansar, seguramente durmió mal
+*b) Lo reporto de inmediato: puede ser deshidratación o una infección urinaria
+c) Le doy mucha agua de golpe y espero
+d) Lo anoto para el próximo cambio de turno
+EXPLICACION: En el adulto mayor la deshidratación y la infección urinaria se manifiestan primero como confusión, no como sed o ardor. Ambas son tratables si se detectan pronto, y ambas terminan en hospitalización si se dejan pasar un turno más.
+
+P: ¿Cuál es la razón más frecuente por la que un residente toma menos líquido de lo que necesita?
+a) Que no le gusta el agua
+*b) Que toma menos a propósito para no ir tanto al baño o no tener que pedir ayuda
+c) Que ya tomó suficiente
+d) Que el vaso es muy pequeño
+EXPLICACION: Es un cálculo consciente y muy común: prefieren la sed a la incomodidad de pedir ayuda o al miedo de no llegar a tiempo. Por eso ofrecer el baño con regularidad hace tanto por la hidratación como ofrecer el vaso.
+`,
+    },
+    {
+        title: 'Trato Digno, Derechos y Comunicación',
+        description: 'Los derechos del residente en el turno real: privacidad, autonomía, confidencialidad, y la obligación de reportar cualquier sospecha de maltrato.',
+        durationMins: 35,
+        bonusCompliance: 25,
+        emoji: '🤝',
+        category: 'Cuidado Geriátrico',
+        order: 105,
+        targetRole: null,
+        content: `---META---
+TITULO: Trato Digno, Derechos y Comunicación
+PROMPT_ZENDI: Evalúa si el empleado conoce los derechos del residente, se comunica de forma que preserva su dignidad y autonomía, maneja la confidencialidad correctamente, y sabe que está obligado a reportar cualquier sospecha de maltrato aunque involucre a un compañero.
+TERMINOS_CLAVE: dignidad, autonomía, derechos del residente, confidencialidad, consentimiento, maltrato, negligencia, reporte obligatorio, infantilización, privacidad
+PREGUNTA_REFLEXION: Ves a un compañero hablarle con brusquedad a un residente y halarlo del brazo. Es alguien que te cae bien y que sabes que está pasando por un mal momento. ¿Qué haces?
+
+---SECCION_1---
+LECTURA:
+# Es su casa, no tu área de trabajo
+
+Un hogar de envejecientes es, antes que nada, **la casa de quien vive ahí**. Tú entras a trabajar; ellos ya están en su casa. Ese cambio de perspectiva ordena casi todo lo demás.
+
+**Los derechos que tiene cada residente, siempre:**
+
+- **A ser tratado con respeto y dignidad**
+- **A la privacidad** — de su cuerpo, de su cuarto, de sus cosas, de sus llamadas, de sus visitas
+- **A decidir** sobre su cuidado, incluso a negarse a algo
+- **A la confidencialidad** de su información médica y personal
+- **A sus pertenencias** y a que estén seguras
+- **A quejarse** sin miedo a represalias
+- **A recibir visitas** y mantener sus relaciones
+- **A participar** en su plan de cuidado
+- **A no ser sujetado** física ni químicamente por conveniencia del personal
+- **A estar libre de maltrato** de cualquier tipo
+
+Estos no son ideales bonitos: son derechos, y violarlos tiene consecuencias legales para la persona que lo hace y para la facilidad.
+
+**Lo que significan en el turno real:**
+
+- Tocar la puerta y **esperar respuesta** antes de entrar
+- No revisar sus cosas sin permiso
+- No hablar de un residente en el pasillo, ni delante de otro
+- No decidir por él lo que él puede decidir
+- No apurarlo porque tú vas apurada
+
+**La autonomía se pierde de a poquito.** No con un gesto grande, sino con cien decisiones pequeñas que alguien más tomó por él porque era más rápido: qué ropa, a qué hora, con quién sentarse, qué ver en la TV. Cada decisión que le devuelves es dignidad que conserva.
+
+PREGUNTAS:
+P: Un residente se niega a bajar al comedor y quiere comer en su cuarto. ¿Qué haces?
+a) Lo bajo igual, la rutina es la rutina
+*b) Respeto su decisión, se lo llevo al cuarto y lo documento
+c) Le digo que si no baja no come
+d) Lo dejo sin comer hasta que cambie de opinión
+EXPLICACION: Decidir sobre su cuidado es un derecho, y comer en su cuarto no pone en riesgo a nadie. Se respeta y se documenta. Si la negativa a bajar se vuelve un patrón, eso sí se reporta — puede indicar depresión o un conflicto con otro residente.
+
+P: ¿Qué significa en la práctica el derecho a la privacidad?
+a) Que el residente puede cerrar su puerta cuando quiera
+*b) Tocar y esperar respuesta antes de entrar, no revisar sus cosas, y no hablar de él delante de otros
+c) Que la familia no puede recibir información
+d) Que no se documenta lo que ocurre en su cuarto
+EXPLICACION: La privacidad no es solo la puerta: incluye su cuerpo durante el cuidado, sus pertenencias, sus conversaciones y su información. Hablar de un residente en el pasillo o delante de otro es una violación tan real como entrar sin tocar.
+
+---SECCION_2---
+LECTURA:
+# Cómo se habla
+
+La forma de hablarle a un adulto mayor comunica, antes que cualquier contenido, si lo estás tratando como persona adulta o no.
+
+**La infantilización es el error más común y el menos consciente.** Casi nadie lo hace por mala intención:
+
+- ❌ "Abuelita", "mi amor", "mamita", "papito", "nene"
+- ✅ **Su nombre**, como él prefiera que lo llamen. Pregúntaselo
+- ❌ "¿Vamos a bañarnos?" cuando el que se baña es él
+- ✅ "Le voy a ayudar a bañarse"
+- ❌ Voz aguda y cantadita, como con un bebé
+- ✅ Tu voz normal, más despacio y más claro si hace falta
+- ❌ Hablar de él en tercera persona estando presente: "Ella no come bien"
+- ✅ Hablarle a él: "Doña Carmen, ¿hoy no tuvo apetito?"
+
+**Ser viejo no es ser sordo, y ser sordo no es ser bobo.** Si no oye bien:
+
+- Ponte **de frente**, a su altura, con luz en tu cara para que lea tus labios
+- Habla **más claro y más despacio**, no más alto — gritar distorsiona
+- Baja el ruido de fondo
+- Si no entendió, **di la frase de otra manera** en vez de repetir la misma más fuerte
+- Verifica que tenga su audífono puesto y con batería
+
+**Si tiene dificultad para hablar** (después de un derrame, por ejemplo): dale tiempo. No completes sus frases. No adivines para ir más rápido. Ofrece sí/no cuando se frustre.
+
+**Y lo que más cuenta y menos toma:** escuchar. Un residente que cuenta la misma historia por quinta vez no está fallando; está buscando conexión. Dos minutos de atención real hacen más por su ánimo que cualquier otra cosa que hagas ese turno.
+
+PREGUNTAS:
+P: Una residente tiene dificultad para oír. ¿Cómo te comunicas?
+a) Le hablo más alto, casi gritando
+*b) De frente, a su altura, más claro y despacio, y reformulo si no entendió
+c) Le escribo todo en papel
+d) Le hablo a su familiar para que le transmita
+EXPLICACION: Gritar distorsiona el sonido y además avergüenza a la persona delante de otros. Ponerte de frente le permite leer los labios, y reformular funciona mucho mejor que repetir la misma frase más fuerte.
+
+P: ¿Por qué no se debe llamar "abuelita" o "mi amor" a un residente?
+a) Porque suena poco profesional ante las visitas
+*b) Porque lo infantiliza: es una persona adulta con su propio nombre
+c) Porque puede confundirlo
+d) No hay problema si se dice con cariño
+EXPLICACION: La intención suele ser cariñosa, pero el efecto es tratarlo como un niño y no como el adulto que es. Usar su nombre, como él prefiera que lo llamen, es una de las formas más simples y directas de sostener su dignidad.
+
+---SECCION_3---
+LECTURA:
+# Confidencialidad
+
+Todo lo que sabes de un residente por trabajar aquí es información protegida: su diagnóstico, sus medicamentos, su situación familiar, su dinero, lo que te contó en confianza, incluso el hecho de que vive aquí.
+
+**Dónde se rompe en la vida real** — casi nunca por maldad:
+
+- Comentar un caso **en el pasillo, el comedor o el elevador**, donde otros escuchan
+- Contarlo en casa "sin nombres" — en un pueblo pequeño, los detalles bastan
+- **Publicar en redes sociales.** Una foto en el fondo, un comentario sobre "una residente que hoy...", una historia de Instagram desde el trabajo. Esto es despido y consecuencia legal, no un regaño
+- Dejar el expediente o la pantalla abierta a la vista
+- Darle información a un familiar por teléfono **sin verificar quién es**
+- Hablarlo con un residente sobre otro
+
+**Con la familia:** no toda la familia tiene derecho a toda la información. Solo el contacto autorizado. Y aun a él, la información clínica la da la enfermera o el director — tú puedes contarle del día: si comió, si durmió, si participó, si estaba de buen ánimo.
+
+**Nunca:** fotos de residentes sin autorización escrita, ni siquiera para un grupo de la facilidad. Ni siquiera "porque se veía linda en la actividad".
+
+**Lo que sí se comparte, y debe compartirse:** lo que otro cuidador necesita saber para cuidarlo bien, en el relevo de turno y en la documentación. Confidencialidad no es esconder información del equipo — es no sacarla del equipo.
+
+**Regla práctica:** si estás por decir algo sobre un residente, pregúntate si él estaría cómodo escuchándolo, y si quien te escucha necesita saberlo para cuidarlo. Si alguna respuesta es no, no lo digas.
+
+PREGUNTAS:
+P: Llama alguien diciendo ser hijo de una residente y pide saber cómo sigue. ¿Qué haces?
+a) Le doy la información, es de la familia
+*b) No doy información: verifico si es el contacto autorizado y refiero al director o la enfermera
+c) Le doy solo el diagnóstico, no los medicamentos
+d) Le pido que llame más tarde
+EXPLICACION: Por teléfono no puedes verificar quién llama, y no toda la familia tiene derecho a toda la información — solo el contacto autorizado. La información clínica además la da la enfermera o el director, no el cuidador.
+
+P: Tomaste una foto en una actividad donde salen varios residentes sonriendo. ¿Qué puedes hacer con ella?
+a) Publicarla, se ven contentos y es buena publicidad
+b) Compartirla solo en el grupo de WhatsApp del personal
+*c) Nada sin autorización escrita: no se publican ni se comparten fotos de residentes
+d) Publicarla si no se ven las caras claramente
+EXPLICACION: Las imágenes de residentes son información protegida y requieren autorización escrita, incluso para uso interno. Compartirlas en un grupo de personal las saca del control de la facilidad y es motivo de despido y consecuencia legal.
+
+---SECCION_4---
+LECTURA:
+# Maltrato: reconocerlo y reportarlo
+
+Esta es la sección más incómoda del curso y la más importante. **Tú eres, por ley y por posición, quien puede detenerlo.**
+
+**El maltrato no es solo golpear:**
+
+- **Físico** — golpear, empujar, sujetar sin indicación, forzar el cuidado, manejar el cuerpo con brusquedad
+- **Verbal y emocional** — gritar, insultar, amenazar, humillar, burlarse, ignorar a propósito, aislar como castigo
+- **Negligencia** — dejar sin comida, sin líquido, sin cambiar, sin atender el llamador, sin asistencia para moverse. **Es la forma más común y la más silenciosa**
+- **Financiero** — quedarse con dinero o pertenencias, hacer que firme algo, "prestado" que no se devuelve
+- **Sexual** — cualquier contacto de esa naturaleza, sin excepción
+
+**Señales que debes reportar:**
+
+- Moretones, quemaduras o marcas sin explicación clara, o en lugares poco usuales
+- Miedo, silencio o tensión al acercarse una persona específica
+- Cambio brusco de conducta, retraimiento nuevo
+- Pérdida de peso, deshidratación o piel deteriorada sin causa
+- Higiene descuidada de forma sostenida
+- Dinero o cosas que desaparecen
+- Un residente que dice que lo maltrataron — **siempre se toma en serio**, aunque tenga demencia
+
+**Tu obligación de reportar:**
+
+Reportar **no es opcional** y **no depende de estar seguro**. No tienes que investigar, ni confirmar, ni decidir si fue grave. Tu trabajo es **reportar lo que viste**, con hechos y sin interpretar.
+
+**Reportas aunque:**
+
+- Sea un compañero que aprecias
+- Sea alguien con más rango que tú
+- No estés seguro de lo que viste
+- Temas que se moleste contigo
+
+**No reportar te hace responsable.** El silencio es lo que permite que el maltrato continúe — casi siempre hay varias personas que vieron algo y ninguna habló.
+
+**Y protégete de acusaciones injustas:** trabaja siempre de forma que puedas explicar lo que hiciste. Documenta. Pide un segundo par de manos cuando el cuidado sea íntimo o el residente esté resistente. La buena documentación te protege a ti también.
+
+PREGUNTAS:
+P: Ves a un compañero que aprecias hablarle con brusquedad a un residente y halarlo del brazo. ¿Qué haces?
+a) Hablo con él en privado y lo dejo ahí, todos tenemos días malos
+b) No digo nada, no estoy seguro de lo que vi
+c) Se lo comento a otros compañeros a ver qué opinan
+*d) Lo reporto a supervisión describiendo lo que vi, sin interpretar
+EXPLICACION: Reportar no es opcional ni depende de estar seguro: tu trabajo es describir lo que viste y que lo evalúe quien corresponde. Manejarlo entre compañeros o callarlo es lo que permite que se repita — y no reportar te hace responsable.
+
+P: Una residente con demencia dice que alguien del personal le pegó. ¿Qué haces?
+a) No le hago caso, su demencia la hace confundir cosas
+b) Le pregunto a los compañeros del turno si es verdad
+*c) Lo reporto de inmediato: un señalamiento de maltrato siempre se toma en serio
+d) Espero a ver si lo repite otro día
+EXPLICACION: Tener demencia no invalida un señalamiento de maltrato — precisamente las personas con demencia son las más vulnerables y las menos creídas. Reportarlo no acusa a nadie: activa que lo evalúe quien corresponde.
+
+---SECCION_5---
+LECTURA:
+# Lo que sostiene el trato digno todos los días
+
+Nadie maltrata a un residente en su primer día. El trato se deteriora por desgaste, por prisa y por costumbre. Reconocer eso a tiempo es parte del oficio.
+
+**Lo que erosiona el trato:**
+
+- **La prisa.** Cuando vas corriendo, dejas de tocar la puerta, dejas de explicar, dejas de esperar. La prisa es la puerta de entrada
+- **La costumbre.** Ver el cuerpo de alguien todos los días hace que dejes de pedir permiso
+- **El agotamiento propio.** Un cuidador quemado tiene menos paciencia, y lo paga el residente
+- **El grupo.** Si en tu turno se normaliza hablar con desprecio de un residente, cuesta mucho ser el que no lo hace
+
+**Cuídate para poder cuidar.** No es un consejo de bienestar: un cuidador agotado comete más errores y trata peor. Si estás llegando al límite, dilo. Es información operativa, no una queja.
+
+**Cuando el residente es difícil.** Algunos insultan, escupen, pegan. A veces por demencia, a veces por dolor, a veces porque siempre fueron así. Tienes derecho a no ser agredido:
+
+- Retírate y respira. No respondas en el momento
+- Pide relevo con esa persona si lo necesitas
+- **Reporta la agresión.** No la aguantes en silencio
+- Lo que no haces: responder igual, castigar con indiferencia, o tomártelo como algo personal
+
+**Al final del turno, el relevo también es trato digno.** Pasar bien la información —qué comió, cómo durmió, qué le molestó, qué funciona con él— es lo que hace que el próximo turno lo trate como persona conocida y no como una cama.
+
+**Lo que siempre se reporta:** cualquier sospecha de maltrato o negligencia, cualquier agresión que recibas, un residente que se queja de trato, y un compañero que veas al límite. Reportar a tiempo protege al residente y también protege a tu compañero.
+
+PREGUNTAS:
+P: Un residente te insulta y te escupe mientras lo asistes. ¿Qué haces?
+a) Le respondo con firmeza para que entienda que no se hace
+b) Lo dejo sin asistir el resto del turno
+*c) Me retiro, me calmo, pido relevo si lo necesito y reporto la agresión
+d) Lo aguanto en silencio, es parte del trabajo
+EXPLICACION: Tienes derecho a no ser agredido, y aguantarlo en silencio desgasta hasta que el trato se deteriora. Retirarte evita responder en caliente; reportarlo permite que se evalúe la causa —dolor, demencia, un medicamento— en vez de que se repita cada turno.
+
+P: ¿Cuál es el factor que más frecuentemente erosiona el trato digno en un turno?
+a) La mala intención del personal
+*b) La prisa: cuando vas corriendo dejas de tocar, de explicar y de esperar
+c) La falta de reglas escritas
+d) El tamaño de la facilidad
+EXPLICACION: El maltrato rara vez empieza con mala intención. Empieza con prisa y costumbre: se deja de tocar la puerta, se deja de avisar antes de destapar, se deja de esperar la respuesta. Reconocerlo a tiempo es lo que evita que se normalice.
+`,
+    },
+    {
+        title: 'Emergencias: Los Primeros Minutos',
+        description: 'Reconocer, proteger, activar la ayuda y documentar: caídas, derrame, dolor de pecho, convulsiones y qué entregar cuando llegan los paramédicos.',
+        durationMins: 40,
+        bonusCompliance: 30,
+        emoji: '🚑',
+        category: 'Cuidado Geriátrico',
+        order: 106,
+        targetRole: null,
+        content: `---META---
+TITULO: Emergencias: Los Primeros Minutos
+PROMPT_ZENDI: Evalúa si el empleado sabe reconocer una emergencia real, actuar en los primeros minutos sin salirse de su rol, cuándo llamar al 911 sin pedir permiso, y qué información entregar cuando llegue la ayuda.
+TERMINOS_CLAVE: 911, cadena de emergencia, caída, derrame cerebral, dolor de pecho, convulsión, cambio de estado mental, signos vitales, escalamiento, documentación
+PREGUNTA_REFLEXION: Encuentras a un residente en el piso, consciente pero confundido. No sabes cuánto tiempo lleva ahí. ¿Cuáles son tus primeros tres pasos?
+
+---SECCION_1---
+LECTURA:
+# Tu rol en una emergencia
+
+En una emergencia el hogar no diagnostica ni trata: **reconoce, protege, activa la ayuda y documenta**. Ese es tu papel completo, y hacerlo bien salva vidas.
+
+Lo que sí decides tú, y no necesita permiso de nadie: **llamar al 911 cuando hay una emergencia real**. Nunca esperes autorización para eso. Nadie va a sancionarte por activar el 911 ante una señal de alarma; el problema es siempre el contrario.
+
+**El orden que aplica en toda emergencia:**
+
+1. **Mantén la calma.** Tu tono baja o sube el pánico de todos, incluido el residente
+2. **Verifica que la escena sea segura** para ti — no puedes ayudar si te lesionas
+3. **Verifica si responde.** Llámalo por su nombre, tócale el hombro
+4. **Pide ayuda a gritos.** Nunca manejes una emergencia sola si hay alguien más
+5. **Llama al 911** si aplica, o que alguien llame mientras tú atiendes
+6. **No muevas al residente** salvo que esté en peligro donde está
+7. **Quédate con él.** No lo dejes solo
+8. **Avisa a supervisión**
+9. **Documenta** todo con hora exacta
+
+**Llama al 911 sin pensarlo dos veces si hay:**
+
+- No responde, o no respira normalmente
+- Dificultad respiratoria evidente
+- Dolor de pecho
+- Señales de derrame cerebral
+- Sangrado que no se detiene
+- Convulsión, sobre todo si es la primera o dura más de 5 minutos
+- Caída con golpe en la cabeza, o sospecha de fractura
+- Quemadura grande
+- Cambio brusco e inexplicable del estado mental
+- Cualquier situación donde dudes — **la duda se resuelve llamando**
+
+**Lo que nunca haces:** dar medicamentos por tu cuenta "para el dolor", dar de comer o beber a alguien alterado, ni esperar "a ver si se le pasa" ante una de esas señales.
+
+PREGUNTAS:
+P: Un residente presenta una señal que podría ser grave, pero no estás seguro y tu supervisor no contesta. ¿Qué haces?
+a) Espero a localizar al supervisor antes de decidir
+*b) Llamo al 911: la duda se resuelve llamando, no esperando
+c) Lo observo 30 minutos a ver si mejora
+d) Le pregunto a un compañero qué opina
+EXPLICACION: Activar el 911 ante una emergencia real no requiere autorización de nadie. El costo de una llamada de más es cero; el de esperar puede ser la vida del residente. Se llama y después se avisa a supervisión.
+
+P: ¿Cuál es tu rol en una emergencia dentro del hogar?
+a) Diagnosticar qué le pasa para informarlo bien
+*b) Reconocer, proteger, activar la ayuda y documentar
+c) Aplicar el tratamiento que corresponda hasta que llegue ayuda
+d) Esperar instrucciones antes de hacer nada
+EXPLICACION: El hogar no diagnostica ni trata. Reconocer la señal, proteger al residente, activar la ayuda y documentar es el rol completo — y hacerlo rápido y bien es lo que determina el resultado.
+
+---SECCION_2---
+LECTURA:
+# Caídas
+
+La emergencia más frecuente. Lo que hagas en el primer minuto importa más de lo que parece.
+
+**Encuentras a un residente en el piso. NO lo levantes.**
+
+Levantar a alguien que puede tener una fractura de cadera o una lesión de columna convierte un problema en uno mucho peor. Y es el impulso natural de todo el mundo — por eso hay que decirlo explícito.
+
+**Los pasos:**
+
+1. **Quédate con él.** Pide ayuda a gritos
+2. **¿Responde?** Si no responde o no respira normal → **911 inmediato**
+3. **Pregúntale qué pasó y qué le duele**, sin moverlo
+4. **Mira sin mover:** ¿alguna pierna se ve más corta o girada hacia afuera? Eso sugiere fractura de cadera → **911, no lo muevas**
+5. **¿Se golpeó la cabeza?** ¿O no sabes si se la golpeó? → **911**. Un golpe en la cabeza puede sangrar por dentro durante horas sin señal visible, y es mucho más peligroso en quien toma anticoagulantes
+6. **Si no hay señal de lesión** y él puede moverse solo: que se levante **con calma, por sus propios medios**, con dos personas asistiendo y una silla al lado. Nunca halándolo del brazo
+7. **Cúbrelo** — el piso enfría rápido
+8. **Avisa a supervisión y documenta**
+
+**Se documenta siempre**, aunque se levante como si nada: hora, dónde estaba, en qué posición lo encontraste, si hubo testigos, qué dijo, qué observaste, qué hiciste. Y si no viste la caída, se escribe **"encontrado en el piso"** — no "se cayó". No inventes lo que no viste.
+
+**Después de una caída, vigila las siguientes 24-48 horas:** dolor nuevo, confusión, somnolencia inusual, vómito, dificultad para caminar o cargar peso. Cualquiera de esas se reporta de inmediato.
+
+**Toda caída se reporta.** La caída que no se reporta es la que se repite, porque nadie revisó qué la causó.
+
+PREGUNTAS:
+P: Encuentras a un residente en el piso, consciente, que dice estar bien y quiere levantarse. No sabes si se golpeó la cabeza. ¿Qué haces?
+a) Lo ayudo a levantarse, él sabe cómo se siente
+*b) No lo muevo y llamo al 911: un posible golpe en la cabeza requiere evaluación
+c) Lo levanto y lo observo el resto del turno
+d) Lo dejo levantarse solo y lo documento
+EXPLICACION: Un golpe en la cabeza puede producir un sangrado interno que tarda horas en dar señales, y el riesgo se multiplica si el residente toma anticoagulantes. Cuando no sabes si se golpeó, se asume que sí y se evalúa.
+
+P: No presenciaste la caída. ¿Cómo lo documentas?
+a) "Se cayó mientras caminaba al baño"
+*b) "Encontrado en el piso" con la hora, la posición y lo que observé
+c) "Se resbaló, probablemente por el piso mojado"
+d) Lo dejo sin documentar porque no lo vi
+EXPLICACION: Documentar lo que no viste como si lo hubieras visto compromete la investigación y tu credibilidad. Se escribe exactamente lo observado — encontrado en el piso, en qué posición, a qué hora — y lo que el residente dijo entre comillas.
+
+---SECCION_3---
+LECTURA:
+# Derrame cerebral, dolor de pecho y dificultad para respirar
+
+Las tres emergencias donde **cada minuto cuenta literalmente**.
+
+## Derrame cerebral — la prueba RÁPIDO
+
+Un derrame se trata con medicamentos que solo funcionan dentro de las primeras horas. Reconocerlo temprano es la diferencia entre recuperarse y quedar con secuela permanente.
+
+- **R**ostro — pídele que sonría. ¿Un lado se queda caído?
+- **A**rmas (brazos) — que levante los dos. ¿Uno se cae o no sube?
+- **P**alabra — que repita una frase. ¿Arrastra, confunde palabras, no puede hablar?
+- **I**mprevisto — visión borrosa de golpe, mareo intenso, pérdida de equilibrio
+- **DO**lor de cabeza súbito y muy fuerte, distinto a cualquier otro
+
+**Una sola de estas señales basta para llamar al 911.** Y anota **la hora exacta en que lo viste normal por última vez** — es el dato que el hospital necesita para decidir el tratamiento, y muchas veces solo tú lo tienes.
+
+No le des nada de comer ni beber: si tiene el tragado afectado, lo aspira.
+
+## Dolor de pecho
+
+**Siempre se trata como emergencia cardíaca hasta que se demuestre lo contrario.**
+
+Señales: dolor u opresión en el pecho, dolor que se corre al brazo, cuello, mandíbula o espalda, sudor frío, náusea, falta de aire, palidez, angustia intensa.
+
+**En adultos mayores, y especialmente en mujeres y en personas con diabetes, el infarto puede no doler.** Puede presentarse como debilidad súbita, falta de aire, náusea o sudor frío sin dolor alguno.
+
+Qué haces: **911 de inmediato**, siéntalo cómodo y semisentado, afloja la ropa, mantenlo tranquilo, no lo dejes caminar y **no le des nada** — ni agua, ni aspirina, ni medicamento de otro residente.
+
+## Dificultad para respirar
+
+Señales: respiración rápida o muy trabajosa, labios o uñas azulados, no puede completar una oración, se agarra el pecho, ruidos al respirar, angustia.
+
+Qué haces: **911**, **siéntalo derecho** (nunca acostado), afloja la ropa, ventila el cuarto, quédate con él y háblale con calma — el pánico empeora la falta de aire. Oxígeno solo si está indicado en su plan y sabes usarlo.
+
+PREGUNTAS:
+P: Una residente sonríe con un lado de la cara caído y arrastra las palabras. ¿Qué haces?
+a) La acuesto a descansar y la vigilo
+*b) Llamo al 911 y anoto la hora en que la vi normal por última vez
+c) Le doy agua y espero a ver si se recupera
+d) Llamo primero a la familia
+EXPLICACION: Es la prueba RÁPIDO positiva y una sola señal basta para activar el 911. El tratamiento del derrame depende de una ventana de horas, y la hora en que se la vio normal por última vez es el dato con el que el hospital decide qué puede hacer.
+
+P: Un residente se queja de opresión en el pecho que se le corre al brazo, con sudor frío. ¿Qué haces?
+a) Le doy una aspirina y lo acuesto
+*b) Llamo al 911, lo siento semisentado, aflojo su ropa y no le doy nada
+c) Le doy agua y lo llevo caminando a su cuarto
+d) Espero 15 minutos a ver si el dolor cede
+EXPLICACION: Todo dolor de pecho se maneja como emergencia cardíaca. Caminar aumenta la demanda del corazón y dar cualquier medicamento por cuenta propia —incluida la aspirina— está fuera del rol del cuidador y puede ser peligroso según lo que ya tome.
+
+---SECCION_4---
+LECTURA:
+# Convulsiones, azúcar y cambios de estado mental
+
+## Convulsión
+
+Ver una convulsión asusta, y el instinto lleva a hacer justo lo que no se debe.
+
+**Qué haces:**
+
+- **Protégelo del entorno:** retira lo que tenga cerca, pon algo suave bajo la cabeza
+- **Afloja la ropa** del cuello
+- **Anota la hora en que empezó** — la duración decide todo lo demás
+- Cuando termine, **ponlo de lado** para que no aspire saliva o vómito
+- **Quédate con él.** Después queda confuso y agotado: háblale con calma, oriéntalo
+- **Documenta** cómo empezó, qué partes del cuerpo, cuánto duró, cómo quedó
+
+**Qué NUNCA haces:**
+
+- **No lo sujetes** ni intentes detener los movimientos
+- **No le metas nada en la boca.** Nada. Es imposible que se trague la lengua, y meter un objeto rompe dientes y provoca aspiración
+- No le des agua ni medicamentos durante o justo después
+
+**Llama al 911 si:** es la primera convulsión, dura más de 5 minutos, viene otra seguida, no recupera la conciencia, se lesionó, o tiene dificultad para respirar después.
+
+## Azúcar baja
+
+Frecuente en residentes con diabetes, sobre todo si comieron poco. Señales: sudor frío, temblor, debilidad súbita, confusión, irritabilidad nueva, palidez, hambre intensa, mareo.
+
+Qué haces: **si está consciente y traga bien**, dale de inmediato algo dulce de absorción rápida — jugo, refresco regular, azúcar — según lo indicado en su plan, y **repórtalo**. **Si está inconsciente o no traga, no le des nada por boca: 911.** Dar líquido a alguien que no puede tragar lo hace aspirar.
+
+## Cambio de estado mental
+
+Repito esto porque es lo que más se pasa por alto: **una confusión nueva es una emergencia hasta que se demuestre lo contrario.**
+
+Un residente que ayer estaba orientado y hoy no reconoce el lugar, o que está anormalmente somnoliento, agitado o no responde como siempre, puede tener una infección urinaria, deshidratación, azúcar baja, un derrame o una reacción a un medicamento. Todas se tratan si se detectan a tiempo.
+
+**Nunca lo atribuyas a "que ya está mayor" ni a "que su demencia avanzó".** Se reporta el mismo turno.
+
+PREGUNTAS:
+P: Un residente está convulsionando en el piso. ¿Qué haces?
+a) Lo sujeto para que no se lastime con los movimientos
+b) Le pongo algo en la boca para que no se trague la lengua
+*c) Retiro objetos, protejo su cabeza, anoto la hora y lo pongo de lado al terminar
+d) Lo siento en una silla y le doy agua
+EXPLICACION: Sujetar produce fracturas y no detiene la convulsión. Meter un objeto en la boca rompe dientes y provoca aspiración — tragarse la lengua es imposible. Lo correcto es proteger el entorno, cronometrar y girarlo de lado al terminar.
+
+P: Un residente diabético está sudoroso, tembloroso y confuso, pero consciente y traga bien. ¿Qué haces?
+a) Lo acuesto a descansar y lo vigilo
+*b) Le doy algo dulce de absorción rápida según su plan y lo reporto
+c) Le doy agua y espero
+d) No le doy nada y espero al supervisor
+EXPLICACION: Son señales clásicas de azúcar baja, que se corrige en minutos con azúcar de absorción rápida si la persona está consciente y traga. Si estuviera inconsciente o sin poder tragar, no se le da nada por boca: se llama al 911.
+
+---SECCION_5---
+LECTURA:
+# Cuando llega la ayuda, y lo que queda después
+
+**Prepara la información antes de que lleguen.** Los paramédicos tienen minutos y cada dato que no tengan lo tienen que adivinar.
+
+Ten listo:
+
+- **Nombre y edad**
+- **Qué pasó y a qué hora exacta.** Sé preciso: "a las 2:15 lo encontré en el piso"
+- **Cómo lo encontraste** y qué has hecho desde entonces
+- **Sus condiciones médicas** y su **lista de medicamentos** — sobre todo si toma anticoagulantes
+- **Alergias**
+- **Su nivel habitual**: si camina solo, si está orientado normalmente. Sin eso, los paramédicos no pueden saber qué es cambio y qué es su base
+- **Signos vitales** si los tomaste, con la hora
+- Directrices anticipadas si las tiene
+
+**Al llamar al 911:** di la dirección exacta y clara, qué pasa, si respira y si responde. **No cuelgues hasta que te lo digan** — te van a guiar mientras llega la ambulancia.
+
+**Después de la emergencia:**
+
+1. **Documenta de inmediato**, mientras está fresco. Hora exacta de cada cosa, qué observaste, qué hiciste, quién estuvo, qué dijo el residente entre comillas
+2. **Hechos, no interpretaciones.** "Encontrado en el piso, decúbito lateral derecho, refiere dolor en cadera izquierda" — no "se cayó porque estaba mareado"
+3. **A la familia la notifica quien corresponde**, no tú por tu cuenta
+4. **Atiende a los otros residentes.** Vieron todo y quedan asustados; explícales con calma que hay ayuda
+5. **Y atiéndete tú.** Manejar una emergencia deja el cuerpo temblando y la cabeza dando vueltas. No es debilidad, es normal. Si te quedaste mal, dilo
+
+**Antes de que pase algo, hoy mismo, revisa que sepas:**
+
+- Dónde está el botiquín y el desfibrilador si hay
+- Dónde está la lista de contactos de emergencia
+- Cuál es la ruta de evacuación
+- Dónde están los expedientes y las listas de medicamentos
+- Si tu certificación de RCP está vigente
+
+Buscar eso durante la emergencia es tiempo que no tienes.
+
+PREGUNTAS:
+P: Llegan los paramédicos por un residente que encontraste en el piso. ¿Qué información es la más importante que puedes darles?
+a) Mi opinión de lo que probablemente le pasó
+*b) La hora exacta, cómo lo encontré, sus condiciones, medicamentos —sobre todo anticoagulantes— y su nivel habitual
+c) El nombre del supervisor de turno
+d) El historial completo de su expediente
+EXPLICACION: Los paramédicos necesitan hechos con hora y una referencia de su estado normal, porque sin saber su nivel habitual no pueden distinguir qué es un cambio. Los anticoagulantes cambian el manejo de cualquier golpe y son de los datos más críticos.
+
+P: ¿Cómo documentas después de una emergencia?
+a) Al final del turno, con un resumen general
+*b) De inmediato, con horas exactas y hechos observados, sin interpretar causas
+c) Solo si el residente resultó lesionado
+d) Con mi conclusión de qué provocó el episodio
+EXPLICACION: La memoria se distorsiona en minutos, y la documentación es lo que protege al residente, a la facilidad y a ti. Se escriben hechos con hora —lo observado y lo dicho entre comillas— no la causa que uno supone.
+`,
+    },
 ];
 
 async function main() {
