@@ -37,8 +37,11 @@ export default function ZendityStaffDirectoryPage() {
     }, [user]);
 
     const handleBlockToggle = async (empId: string, currentState: boolean) => {
-        const action = currentState ? "Desbloquear" : "Bloquear";
-        if (!confirm(`¿${action} el acceso de este empleado al sistema y reloj ponchador?`)) return;
+        const action = currentState ? "Reactivar" : "Suspender";
+        const detalle = currentState
+            ? "Volverá a aparecer en el itinerario y podrá ponchar."
+            : "Sigue siendo empleado activo y puede entrar a Zendity, pero no podrá ponchar ni se le asignarán turnos nuevos.";
+        if (!confirm(`¿${action} de turno a este empleado?\n\n${detalle}`)) return;
 
         try {
             const res = await fetch("/api/hr/staff", {
@@ -210,7 +213,7 @@ export default function ZendityStaffDirectoryPage() {
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleBlockToggle(emp.id, emp.isShiftBlocked); }}
                                                         className={`p-2 rounded-lg transition-colors shadow-sm border ${emp.isShiftBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'}`}
-                                                        title={emp.isShiftBlocked ? "Restaurar Privilegios" : "Suspender de Turno"}
+                                                        title={emp.isShiftBlocked ? "Reactivar de turno" : "Suspender de turno"}
                                                     >
                                                         {emp.isShiftBlocked ? "" : ""}
                                                     </button>

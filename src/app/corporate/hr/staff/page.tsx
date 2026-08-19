@@ -270,7 +270,7 @@ export default function StaffManagementPage() {
                                                         ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100'
                                                         : 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100'
                                                         }`}
-                                                    title={s.isShiftBlocked ? 'Reactivar Empleado' : 'Suspender Acceso'}
+                                                    title={s.isShiftBlocked ? 'Reactivar de turno' : 'Suspender de turno'}
                                                 >
                                                     {s.isShiftBlocked ? <Shield className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
                                                 </button>

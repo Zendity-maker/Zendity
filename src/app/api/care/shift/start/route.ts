@@ -100,10 +100,39 @@ export async function POST(req: Request) {
         const auth = await requireRole(CAREGIVER_ROLES);
         if (auth instanceof NextResponse) return auth;
 
-        const { caregiverId, headquartersId, initialCensus } = await req.json();
+        const body = await req.json();
+        const { initialCensus } = body;
 
-        if (!caregiverId || !headquartersId || typeof initialCensus !== 'number') {
-            return NextResponse.json({ success: false, error: "Datos incompletos o census inválido (requiere caregiverId, headquartersId, initialCensus)" }, { status: 400 });
+        if (typeof initialCensus !== 'number') {
+            return NextResponse.json({ success: false, error: "Census inválido (requiere initialCensus)" }, { status: 400 });
+        }
+
+        // La identidad y la sede salen de la SESIÓN, no del body. Antes ambas
+        // venían del request: cualquier cuidadora podía abrir un turno a nombre
+        // de otra persona, o en otra sede. El cliente ya manda sus propios
+        // valores, así que un desajuste es señal de manipulación y se rechaza.
+        const caregiverId = auth.id;
+        const headquartersId = auth.headquartersId;
+        if (body.caregiverId && body.caregiverId !== caregiverId) {
+            return NextResponse.json({ success: false, error: "No puedes iniciar turno a nombre de otra persona" }, { status: 403 });
+        }
+        if (body.headquartersId && body.headquartersId !== headquartersId) {
+            return NextResponse.json({ success: false, error: "Sede inválida" }, { status: 403 });
+        }
+
+        // Suspensión de turno: el empleado sigue activo en el sistema y puede
+        // entrar a Zendity, pero no abre turno. Es la diferencia con la baja
+        // (isActive:false), donde ni siquiera puede iniciar sesión.
+        const bloqueado = await prisma.user.findUnique({
+            where: { id: caregiverId },
+            select: { isShiftBlocked: true },
+        });
+        if (bloqueado?.isShiftBlocked) {
+            return NextResponse.json({
+                success: false,
+                code: 'SHIFT_BLOCKED',
+                error: "Tu acceso a turnos está suspendido. Habla con tu supervisor antes de ponchar.",
+            }, { status: 403 });
         }
 
         // FIX: Auto-cerrar sesiones huérfanas del mismo cuidador (>14h sin cerrar).

@@ -165,8 +165,11 @@ export default function ScheduleBuilderPage() {
             const data = await res.json();
             // La API puede devolver array directo O { success, staff }
             const staffList = Array.isArray(data) ? data : (data.staff || data.employees || []);
+            // Suspendido de turno = no se le asignan turnos nuevos. Si se le
+            // asignaran igual, el hueco aparecería al ponchar, cuando ya no hay
+            // tiempo de cubrirlo.
             setStaff(staffList.filter((s: any) =>
-                ['CAREGIVER', 'SUPERVISOR', 'NURSE', 'CLEANING'].includes(s.role)
+                ['CAREGIVER', 'SUPERVISOR', 'NURSE', 'CLEANING'].includes(s.role) && !s.isShiftBlocked
             ));
         } catch (e) { console.error(e); }
     };
