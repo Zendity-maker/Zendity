@@ -201,6 +201,27 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     if (!employee) return null;
 
     // Colorear el score badge basado en la calificacion
+    // Etiqueta de la banda: el número solo no dice si va bien o mal.
+    const scoreBand = (score: number) => {
+        if (score >= 90) return 'Excelente';
+        if (score >= 70) return 'Cumplimiento sólido';
+        if (score >= 50) return 'Requiere seguimiento';
+        return 'Crítico';
+    };
+
+    // Tendencia real contra el promedio de hace 4 semanas — un número sin
+    // dirección no dice si el empleado está mejorando o cayendo.
+    const semanas = scoreHistory?.weeklyAverage ?? [];
+    const scoreDelta = semanas.length >= 5
+        ? Math.round(semanas[semanas.length - 1].avgScore - semanas[semanas.length - 5].avgScore)
+        : null;
+    const scoreRange = semanas.length > 0
+        ? {
+            min: Math.round(Math.min(...semanas.map((w) => w.avgScore))),
+            max: Math.round(Math.max(...semanas.map((w) => w.avgScore))),
+        }
+        : null;
+
     const getScoreColor = (score: number) => {
         if (score >= 90) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
         if (score >= 70) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
@@ -226,9 +247,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 </div>
 
                 {/* Profile Header Card */}
-                <div className="bg-white rounded-2xl p-8 md:p-10 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-8 items-center md:items-start relative overflow-hidden">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center md:items-start relative overflow-hidden">
                     {/* Decorative Background Blur */}
-                    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
+                    
 
                     {/* Avatar / Photo */}
                     <div className="flex-shrink-0 flex flex-col items-center gap-3 relative">
@@ -238,9 +259,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                             className="relative group cursor-pointer"
                         >
                             {employee.photoUrl || employee.image ? (
-                                <img src={employee.photoUrl || employee.image} alt={employee.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-white shadow-xl bg-slate-100" />
+                                <img src={employee.photoUrl || employee.image} alt={employee.name} className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-md bg-slate-100" />
                             ) : (
-                                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-4 border-white shadow-xl flex items-center justify-center text-indigo-400 text-5xl font-black">
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-50 to-indigo-100 border-4 border-white shadow-md flex items-center justify-center text-indigo-400 text-2xl font-black">
                                     {employee.name.charAt(0)}
                                 </div>
                             )}
@@ -248,7 +269,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
                             </div>
                             {/* Status Dot */}
-                            <div className="absolute bottom-2 right-2 w-6 h-6 bg-emerald-500 border-4 border-white rounded-full shadow-sm" title="Activo"></div>
+                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-[3px] border-white rounded-full shadow-sm" title="Activo"></div>
                         </div>
                         <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
                             {isUploadingPhoto ? " Subiendo..." : " Cambiar Foto"}
@@ -335,13 +356,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         )}
                     </div>
 
-                    {/* Score Highlight */}
-                    <div className="shrink-0 flex flex-col justify-center items-center md:items-end">
-                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Desempeño Z-Score</p>
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 shadow-inner ${getScoreColor(employee.complianceScore)}`}>
-                            <span className="text-3xl font-black">{employee.complianceScore}</span>
-                        </div>
-                    </div>
+                    {/* El Z-Score salió de aquí: estaba partido entre este
+                        círculo y el gráfico de más abajo, y ninguno de los dos
+                        mandaba. Ahora vive completo en su propia banda. */}
                 </div>
 
                 {/* Body Content Grid */}
@@ -362,10 +379,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                     <span className="text-slate-500 font-medium text-sm">Medicamentos (eMAR)</span>
                                     <span className="text-slate-800 font-black text-xl">{employee._count?.administeredMeds || 0}</span>
                                 </div>
-                                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <span className="text-slate-500 font-medium text-sm">Ingreso a Cursos</span>
-                                    <span className="text-indigo-600 font-black text-xl">100%</span>
-                                </div>
+                                {/* "Ingreso a Cursos 100%" eliminado (17-ago-2026):
+                                    era un literal escrito a mano, no un dato — mostraba
+                                    100% para todos, siempre. Vuelve cuando exista una
+                                    métrica real de Academia. */}
                             </div>
                         </div>
 
@@ -379,120 +396,56 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     </div>
 
 
-                    {/* Asistencia — los datos existían pero solo se veían
-                        consultando la base. Sin esta vista, un supervisor no
-                        tenía cómo entrar a la conversación con hechos. */}
-                    {attendance?.success && (
-                        <div className="lg:col-span-3 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200">
-                            <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
-                                <div>
-                                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                        <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        Asistencia
-                                    </h3>
-                                    <p className="text-sm text-slate-500 mt-1">Últimos {attendance.ventanaDias} días</p>
-                                </div>
-                                {attendance.patron.yaSupera ? (
-                                    <span className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black">
-                                        Supera el umbral disciplinario
+                    {/* Z-SCORE — la pieza protagonista.
+                        Número, tendencia y las 13 semanas juntos en una banda a
+                        todo el ancho: antes el dato vivía partido entre un
+                        círculo en el header y este gráfico, separados por otras
+                        secciones, y ninguno de los dos mandaba. */}
+                    <div className="lg:col-span-3 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col lg:flex-row gap-8">
+
+                        {/* Izquierda: el número y qué significa */}
+                        <div className="lg:w-56 shrink-0 flex flex-col justify-between gap-4">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.14em]">Z-Score</p>
+                                <div className="flex items-baseline gap-3 mt-1">
+                                    <span className="text-6xl md:text-7xl font-black text-slate-800 leading-none tracking-tight">
+                                        {employee.complianceScore}
                                     </span>
-                                ) : attendance.patron.sinAvisoEnVentana > 0 && (
-                                    <span className="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black">
-                                        A {attendance.patron.faltanParaObservacion} de la observación automática
-                                    </span>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                {[
-                                    { l: 'Turnos programados', v: attendance.resumen.turnosProgramados, tone: 'text-slate-800' },
-                                    { l: 'Ausencias', v: attendance.resumen.ausencias, tone: 'text-slate-800' },
-                                    { l: 'Sin aviso', v: attendance.resumen.sinAviso, tone: attendance.resumen.sinAviso > 0 ? 'text-rose-600' : 'text-emerald-600' },
-                                    { l: 'Tasa de ausencia', v: `${attendance.resumen.tasaAusenciaPct}%`, tone: attendance.resumen.tasaAusenciaPct > 5 ? 'text-amber-600' : 'text-slate-800' },
-                                ].map(k => (
-                                    <div key={k.l} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{k.l}</p>
-                                        <p className={`text-2xl font-black mt-1 ${k.tone}`}>{k.v}</p>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {attendance.diasConsecutivos?.length > 0 && (
-                                <div className="mb-6 rounded-2xl bg-rose-50 border border-rose-200 px-5 py-4">
-                                    <p className="text-sm font-black text-rose-800">
-                                        Ausencias en días consecutivos
-                                    </p>
-                                    <p className="text-xs text-rose-700 mt-1">
-                                        {attendance.diasConsecutivos.map((r: string[]) => r.join(' y ')).join(' · ')}
-                                        {' — '}dos turnos seguidos es una señal distinta a faltas sueltas en el mes.
-                                    </p>
+                                    {scoreDelta !== null && scoreDelta !== 0 && (
+                                        <span className={`inline-flex items-center gap-1 text-sm font-black ${scoreDelta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                            {scoreDelta > 0 ? '▲' : '▼'} {Math.abs(scoreDelta)}
+                                        </span>
+                                    )}
                                 </div>
-                            )}
-
-                            {attendance.detalle.length === 0 ? (
-                                <p className="text-sm text-slate-500 py-8 text-center bg-slate-50 rounded-2xl">
-                                    Sin ausencias registradas en el período. 
-                                </p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {attendance.detalle.map((a: any) => (
-                                        <div key={a.id} className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
-                                            <span className="font-bold text-slate-800 text-sm w-24">
-                                                {new Date(a.fecha).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}
-                                            </span>
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 w-16">{a.turno}</span>
-                                            <span className="text-sm text-slate-600">
-                                                {a.motivoLabel ?? <span className="italic text-slate-400">Sin motivo registrado</span>}
-                                            </span>
-                                            <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
-                                                a.avisoPrevio
-                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                                            }`}>
-                                                {a.avisoPrevio ? 'Avisó' : 'Sin aviso'}
-                                            </span>
-                                            {a.nota && (
-                                                <p className="w-full text-xs text-slate-500 pl-24 -mt-1">{a.nota}</p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <p className="text-[11px] text-slate-400 mt-4 leading-snug">
-                                Solo las ausencias sin aviso cuentan para la detección de patrón
-                                ({attendance.patron.umbral} en {attendance.patron.ventanaDias} días genera una observación con
-                                72 horas para explicar). Las anteriores a agosto 2026 no tienen motivo porque el campo no existía.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Right Column: Z-Score Real History Chart */}
-                    <div className="lg:col-span-2 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 flex flex-col gap-6">
-                        {/* Chart header + summary pills */}
-                        <div>
-                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                <ChartBarIcon className="w-6 h-6 text-emerald-500" />
-                                Z-Score — Últimas 13 Semanas
-                            </h3>
+                                <span className={`inline-block mt-3 px-3 py-1 rounded-full border text-[11px] font-black ${getScoreColor(employee.complianceScore)}`}>
+                                    {scoreBand(employee.complianceScore)}
+                                </span>
+                            </div>
                             {scoreHistory && (
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
-                                        +{scoreHistory.summary.totalPositive} pts ganados
+                                <div className="flex flex-wrap gap-1.5">
+                                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+                                        +{scoreHistory.summary.totalPositive} ganados
                                     </span>
-                                    <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
-                                        {scoreHistory.summary.totalNegative} pts perdidos
+                                    <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold">
+                                        {scoreHistory.summary.totalNegative} perdidos
                                     </span>
                                     {scoreHistory.summary.topCategory && (
-                                        <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
-                                            Top: {scoreHistory.summary.topCategory}
+                                        <span className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold">
+                                            {scoreHistory.summary.topCategory}
                                         </span>
                                     )}
                                 </div>
                             )}
                         </div>
+
+                        {/* Derecha: la historia del número */}
+                        <div className="flex-1 min-w-0 lg:border-l lg:border-slate-100 lg:pl-8 flex flex-col gap-4">
+                            <div className="flex items-baseline justify-between gap-3">
+                                <h3 className="text-sm font-black text-slate-700">Últimas 13 semanas</h3>
+                                {scoreRange && (
+                                    <span className="text-[11px] text-slate-400 font-bold">rango {scoreRange.min}–{scoreRange.max}</span>
+                                )}
+                            </div>
 
                         {/* Weekly line chart */}
                         <div className="min-h-[220px] w-full">
@@ -587,7 +540,98 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 </div>
                             </div>
                         )}
+                        </div>
                     </div>
+
+                    {/* Asistencia — los datos existían pero solo se veían
+                        consultando la base. Sin esta vista, un supervisor no
+                        tenía cómo entrar a la conversación con hechos. */}
+                    {attendance?.success && (
+                        <div className="lg:col-span-3 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200">
+                            <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                        <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Asistencia
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-1">Últimos {attendance.ventanaDias} días</p>
+                                </div>
+                                {attendance.patron.yaSupera ? (
+                                    <span className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-black">
+                                        Supera el umbral disciplinario
+                                    </span>
+                                ) : attendance.patron.sinAvisoEnVentana > 0 && (
+                                    <span className="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-black">
+                                        A {attendance.patron.faltanParaObservacion} de la observación automática
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                {[
+                                    { l: 'Turnos programados', v: attendance.resumen.turnosProgramados, tone: 'text-slate-800' },
+                                    { l: 'Ausencias', v: attendance.resumen.ausencias, tone: 'text-slate-800' },
+                                    { l: 'Sin aviso', v: attendance.resumen.sinAviso, tone: attendance.resumen.sinAviso > 0 ? 'text-rose-600' : 'text-emerald-600' },
+                                    { l: 'Tasa de ausencia', v: `${attendance.resumen.tasaAusenciaPct}%`, tone: attendance.resumen.tasaAusenciaPct > 5 ? 'text-amber-600' : 'text-slate-800' },
+                                ].map(k => (
+                                    <div key={k.l} className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{k.l}</p>
+                                        <p className={`text-2xl font-black mt-1 ${k.tone}`}>{k.v}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {attendance.diasConsecutivos?.length > 0 && (
+                                <div className="mb-6 rounded-2xl bg-rose-50 border border-rose-200 px-5 py-4">
+                                    <p className="text-sm font-black text-rose-800">
+                                        Ausencias en días consecutivos
+                                    </p>
+                                    <p className="text-xs text-rose-700 mt-1">
+                                        {attendance.diasConsecutivos.map((r: string[]) => r.join(' y ')).join(' · ')}
+                                        {' — '}dos turnos seguidos es una señal distinta a faltas sueltas en el mes.
+                                    </p>
+                                </div>
+                            )}
+
+                            {attendance.detalle.length === 0 ? (
+                                <p className="text-sm text-slate-500 py-8 text-center bg-slate-50 rounded-2xl">
+                                    Sin ausencias registradas en el período. 
+                                </p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {attendance.detalle.map((a: any) => (
+                                        <div key={a.id} className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors">
+                                            <span className="font-bold text-slate-800 text-sm w-24">
+                                                {new Date(a.fecha).toLocaleDateString('es-PR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 w-16">{a.turno}</span>
+                                            <span className="text-sm text-slate-600">
+                                                {a.motivoLabel ?? <span className="italic text-slate-400">Sin motivo registrado</span>}
+                                            </span>
+                                            <span className={`ml-auto text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border ${
+                                                a.avisoPrevio
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                            }`}>
+                                                {a.avisoPrevio ? 'Avisó' : 'Sin aviso'}
+                                            </span>
+                                            {a.nota && (
+                                                <p className="w-full text-xs text-slate-500 pl-24 -mt-1">{a.nota}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <p className="text-[11px] text-slate-400 mt-4 leading-snug">
+                                Solo las ausencias sin aviso cuentan para la detección de patrón
+                                ({attendance.patron.umbral} en {attendance.patron.ventanaDias} días genera una observación con
+                                72 horas para explicar). Las anteriores a agosto 2026 no tienen motivo porque el campo no existía.
+                            </p>
+                        </div>
+                    )}
 
                 </div>
 
