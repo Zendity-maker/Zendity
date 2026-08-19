@@ -117,7 +117,9 @@ const corporateNavigationSections = [
             // siguen vivos para clientes futuros que los necesiten.
             // { name: "Documentos Legales", href: "/corporate/intake", icon: FileText },
             { name: "Localizaciones", href: "/locations", icon: Building2 },
-            { name: "Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            // "Mis Sedes": ver y editar las propias. El ALTA de sedes es de
+            // Zendity (/admin/sedes, SUPER_ADMIN) — nunca del operador cliente.
+            { name: "Mis Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },

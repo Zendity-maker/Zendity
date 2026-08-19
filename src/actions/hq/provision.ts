@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { Role, SystemAuditAction } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function provisionNewHeadquarters(data: {
   hqName: string;
@@ -13,6 +15,17 @@ export async function provisionNewHeadquarters(data: {
   adminUserId: string; // Quien ejecuta la acción (SUPER_ADMIN)
 }) {
   try {
+    // 0. Autorización REAL (17-ago-2026). Antes esta server action confiaba en
+    // el `adminUserId` que le pasaran por parámetro y nunca validaba la sesión:
+    // provisionar una sede con licencia activa es una acción comercial de
+    // Zendity, no de un cliente. Ahora el rol sale de la sesión del servidor y
+    // el parámetro solo se usa para el registro de auditoría.
+    const session = await getServerSession(authOptions);
+    const invokerRole = (session?.user as any)?.role;
+    if (invokerRole !== "SUPER_ADMIN") {
+      return { success: false, error: "Solo Zendity (SUPER_ADMIN) puede dar de alta una sede." };
+    }
+
     // 1. Evitar Duplicidad: Validar reintentos accidentales
     const existing = await prisma.headquarters.findFirst({
       where: { name: data.hqName },

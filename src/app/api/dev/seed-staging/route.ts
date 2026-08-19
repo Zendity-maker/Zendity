@@ -9,6 +9,18 @@ export const maxDuration = 60;
 const SANDBOX_HQ_NAME = 'Sede de Prueba (Sandbox)';
 
 export async function GET(req: Request) {
+    // Bloqueo duro en producción (17-ago-2026). Antes este endpoint era un GET
+    // PÚBLICO sin autenticación alguna, desplegado en prod: cualquiera con la
+    // URL creaba una sede, usuarios y pacientes. Estaba "protegido" solo por
+    // convención (el código apunta a la sede sandbox), lo cual no impide que
+    // se ejecute — solo limita el daño.
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_SEED !== 'YES_EXPLICIT') {
+        return NextResponse.json(
+            { success: false, error: 'Endpoint de desarrollo — deshabilitado en producción' },
+            { status: 404 }
+        );
+    }
+
     try {
         console.log(`[🚀] Ejecutando Staging E2E Seed en SANDBOX (jamás en producción)...`);
 
