@@ -22,7 +22,12 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const requestedHqId = new URL(request.url).searchParams.get('hqId');
+        const url = new URL(request.url);
+        const requestedHqId = url.searchParams.get('hqId');
+        // Las bajas quedan fuera por defecto — la lista es de quien trabaja hoy.
+        // Con incluirBajas=1 aparecen, que es la única forma de llegar al perfil
+        // de alguien inactivo para reactivarlo.
+        const incluirBajas = url.searchParams.get('incluirBajas') === '1';
         const hqId = await resolveEffectiveHqId(session, requestedHqId);
 
         const staff = await prisma.user.findMany({
@@ -31,7 +36,9 @@ export async function GET(request: Request) {
             // tocar seguían apareciendo en el Schedule Builder. Alineado con
             // el patrón estándar de corporate/headquarters, exec-report,
             // audit-report, etc. que ya filtran ambos. Ver DELETE abajo.
-            where: { headquartersId: hqId, isActive: true, isDeleted: false },
+            where: incluirBajas
+                ? { headquartersId: hqId }
+                : { headquartersId: hqId, isActive: true, isDeleted: false },
             select: {
                 id: true,
                 name: true,
@@ -42,6 +49,7 @@ export async function GET(request: Request) {
                 complianceScore: true,
                 isShiftBlocked: true,
                 isDeleted: true,
+                isActive: true,
                 createdAt: true,
                 photoUrl: true
             },

@@ -40,6 +40,8 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [editForm, setEditForm] = useState({ name: "", email: "", newPin: "" });
     const [isSaving, setIsSaving] = useState(false);
     const [isResending, setIsResending] = useState(false);
+    const [isBajaModalOpen, setIsBajaModalOpen] = useState(false);
+    const [isBajaSaving, setIsBajaSaving] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -182,6 +184,32 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         }
     };
 
+    /**
+     * Baja / reactivación. El backend cierra la sesión viva del empleado y
+     * verifica sede, rol y que nadie se dé de baja a sí mismo.
+     */
+    const handleToggleActive = async (activar: boolean) => {
+        setIsBajaSaving(true);
+        try {
+            const res = await fetch(`/api/hr/staff/${employee.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: activar }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setEmployee({ ...employee, isActive: activar });
+                setIsBajaModalOpen(false);
+            } else {
+                alert(data.error || "No se pudo completar la operación.");
+            }
+        } catch (e) {
+            alert("Error de conexión.");
+        } finally {
+            setIsBajaSaving(false);
+        }
+    };
+
     const fetchIncidents = async (hqId: string) => {
         try {
             const res = await fetch(`/api/hr/incidents?employeeId=${id}&hqId=${hqId}`);
@@ -253,6 +281,26 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     )}
                 </div>
 
+                {employee.isActive === false && (
+                    <div className="mb-4 bg-slate-800 text-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between shadow-sm">
+                        <div>
+                            <p className="font-black tracking-tight">Fuera del sistema</p>
+                            <p className="text-sm text-slate-300 mt-0.5">
+                                No puede iniciar sesión ni entrar al kiosko. Su historial se conserva completo.
+                            </p>
+                        </div>
+                        {(user?.role === "ADMIN" || user?.role === "DIRECTOR") && (
+                            <button
+                                onClick={() => handleToggleActive(true)}
+                                disabled={isBajaSaving}
+                                className="shrink-0 px-4 py-2 bg-white text-slate-800 text-sm font-bold rounded-xl hover:bg-slate-100 transition shadow-sm disabled:opacity-50"
+                            >
+                                {isBajaSaving ? "Reactivando..." : "Reactivar acceso"}
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center md:items-start relative overflow-hidden">
                     {/* Decorative Background Blur */}
@@ -276,7 +324,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                 <span className="text-white text-xs font-bold uppercase tracking-widest text-center px-2">Subir Foto</span>
                             </div>
                             {/* Status Dot */}
-                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-[3px] border-white rounded-full shadow-sm" title="Activo"></div>
+                            <div className={`absolute bottom-0 right-0 w-4 h-4 border-[3px] border-white rounded-full shadow-sm ${employee.isActive === false ? 'bg-slate-400' : 'bg-emerald-500'}`} title={employee.isActive === false ? 'Fuera del sistema' : 'Activo'}></div>
                         </div>
                         <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-white hover:bg-indigo-600 px-4 py-1.5 rounded-full shadow-sm transition-colors w-full text-center">
                             {isUploadingPhoto ? " Subiendo..." : " Cambiar Foto"}
@@ -320,6 +368,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                             <button onClick={handleResendWelcome} disabled={isResending} className="text-xs px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50">
                                                 {isResending ? " Enviando..." : " Reenviar Credenciales"}
                                             </button>
+                                            {employee.isActive !== false && employee.id !== user?.id && (
+                                                <button onClick={() => setIsBajaModalOpen(true)} className="text-xs px-3 py-1.5 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-600 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1.5">
+                                                    Dar de baja
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -780,6 +833,72 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     employees={[employee]}
                     onSuccess={() => fetchIncidents(employee.headquartersId)}
                 />
+
+                {/* Baja: la acción cierra un acceso, así que el modal dice
+                    exactamente qué pasa y qué no — y advierte de los turnos
+                    del itinerario antes de confirmar, no después. */}
+                {isBajaModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                                Dar de baja a {employee.name}
+                            </h3>
+                            <p className="text-sm text-slate-500 mt-1">
+                                {employee.role} · {employee.email}
+                            </p>
+
+                            <div className="mt-5 space-y-3 text-sm">
+                                <div className="flex gap-2.5">
+                                    <span className="text-red-500 font-black shrink-0">·</span>
+                                    <p className="text-slate-700">
+                                        <strong className="font-bold">Pierde el acceso de inmediato</strong> — no podrá
+                                        iniciar sesión ni entrar al kiosko con su PIN. Si tiene una sesión abierta, se cierra.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2.5">
+                                    <span className="text-emerald-600 font-black shrink-0">·</span>
+                                    <p className="text-slate-700">
+                                        <strong className="font-bold">No se borra nada.</strong> Todo lo que documentó
+                                        —eMAR, turnos, incidentes— se conserva. Es expediente.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2.5">
+                                    <span className="text-slate-400 font-black shrink-0">·</span>
+                                    <p className="text-slate-700">
+                                        Es reversible: si regresa, puedes reactivarla desde este mismo perfil.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {employee.futureShifts > 0 && (
+                                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                                    <p className="text-sm text-amber-900">
+                                        <strong className="font-bold">
+                                            Tiene {employee.futureShifts} turno{employee.futureShifts !== 1 ? 's' : ''} en el itinerario.
+                                        </strong>{' '}
+                                        La baja no los cancela — reasígnalos para no dejar el turno descubierto.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-slate-100">
+                                <button
+                                    onClick={() => setIsBajaModalOpen(false)}
+                                    className="px-5 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-xl transition-all shadow-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => handleToggleActive(false)}
+                                    disabled={isBajaSaving}
+                                    className="px-6 py-2 bg-red-600 text-white font-bold rounded-xl text-sm shadow-md shadow-red-500/20 hover:bg-red-700 transition-all disabled:opacity-50"
+                                >
+                                    {isBajaSaving ? "Dando de baja..." : "Dar de baja"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>

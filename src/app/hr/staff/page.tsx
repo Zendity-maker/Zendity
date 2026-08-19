@@ -18,7 +18,9 @@ export default function ZendityStaffDirectoryPage() {
         const fetchStaff = async () => {
             try {
                 const hqId = user.hqId || user.headquartersId;
-                const res = await fetch(`/api/hr/staff?hqId=${hqId}`);
+                // incluirBajas: sin esto la pestaña "Archivo / Bajas" siempre
+                // salía en cero — el API filtraba los inactivos antes de llegar.
+                const res = await fetch(`/api/hr/staff?hqId=${hqId}&incluirBajas=1`);
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     setStaff(data);
@@ -100,8 +102,9 @@ export default function ZendityStaffDirectoryPage() {
     const sortByLastName = (a: any, b: any) =>
         getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' });
 
-    const activeStaff = staff.filter(e => !e.isDeleted).sort(sortByLastName);
-    const inactiveStaff = staff.filter(e => e.isDeleted).sort(sortByLastName);
+    const estaDeBaja = (e: any) => e.isDeleted || e.isActive === false;
+    const activeStaff = staff.filter(e => !estaDeBaja(e)).sort(sortByLastName);
+    const inactiveStaff = staff.filter(estaDeBaja).sort(sortByLastName);
     const displayedStaff = activeTab === 'ACTIVE' ? activeStaff : inactiveStaff;
 
     return (
