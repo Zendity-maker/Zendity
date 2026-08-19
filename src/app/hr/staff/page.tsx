@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { estaDeBaja } from "@/lib/staff-status";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import AddStaffModal from "./AddStaffModal";
@@ -59,7 +60,7 @@ export default function ZendityStaffDirectoryPage() {
     };
 
     const handleDelete = async (empId: string, empName: string) => {
-        if (!confirm(`¿Está seguro que desea eliminar a ${empName} PERMANENTEMENTE?\nEsta acción es irreversible y eliminará su acceso al sistema Zendity.`)) return;
+        if (!confirm(`¿Dar de baja a ${empName}?\n\nPierde el acceso a Zendity. Su historial se conserva completo y puedes reactivarlo desde su perfil.`)) return;
 
         try {
             const res = await fetch(`/api/hr/staff?id=${empId}`, {
@@ -105,7 +106,6 @@ export default function ZendityStaffDirectoryPage() {
     const sortByLastName = (a: any, b: any) =>
         getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' });
 
-    const estaDeBaja = (e: any) => e.isDeleted || e.isActive === false;
     const activeStaff = staff.filter(e => !estaDeBaja(e)).sort(sortByLastName);
     const inactiveStaff = staff.filter(estaDeBaja).sort(sortByLastName);
     const displayedStaff = activeTab === 'ACTIVE' ? activeStaff : inactiveStaff;

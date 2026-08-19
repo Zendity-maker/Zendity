@@ -64,3 +64,4 @@ scripts/*
 !scripts/smoke-coordinator.ts
 !scripts/academy-certificacion-backfill.ts
 !scripts/hr-baja-empleado.ts
+!scripts/normalizar-estado-empleados.ts

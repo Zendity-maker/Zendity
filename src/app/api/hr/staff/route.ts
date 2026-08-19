@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { datosBaja } from '@/lib/staff-status';
 import { asignarRutaIngreso, asignarRutaCertificacion, requiereCertificacion } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -361,13 +362,11 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Empleado no encontrado o de otra sede.' }, { status: 404 });
         }
 
-        // Fix junio-2026: setear AMBOS flags al dar de baja. Antes solo
-        // isDeleted=true → como el filtro del GET miraba isActive, el
-        // empleado seguía apareciendo en el builder. Defensa cinturón+tirantes
-        // junto con el filtro doble del GET (línea 27).
+        // Misma baja que el botón del perfil — un solo concepto, un solo
+        // helper. Ver el invariante en src/lib/staff-status.ts.
         await prisma.user.update({
             where: { id },
-            data: { isDeleted: true, isActive: false }
+            data: datosBaja(),
         });
 
         return NextResponse.json({ success: true }, { status: 200 });

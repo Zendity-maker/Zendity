@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
+import { datosAlta, datosBaja } from '@/lib/staff-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -154,12 +155,12 @@ export async function PATCH(
         });
 
         await prisma.$transaction(async (tx) => {
-            // Al reactivar se limpia isDeleted también: el GET de la lista filtra
-            // por ambos flags, así que restaurar solo isActive devolvía el acceso
-            // pero dejaba a la persona invisible en /hr/staff.
+            // Las dos banderas se mueven juntas — ver el invariante en
+            // src/lib/staff-status.ts. Escribir solo una es lo que dejó a dos
+            // cuidadoras "borradas pero activas" durante meses.
             await tx.user.update({
                 where: { id: employeeId },
-                data: activar ? { isActive: true, isDeleted: false } : { isActive: false },
+                data: activar ? datosAlta() : datosBaja(),
             });
             // Al dar de baja, la sesión abierta se cae en el acto. Sin esto
             // alguien ya autenticado sigue navegando hasta que expire.
