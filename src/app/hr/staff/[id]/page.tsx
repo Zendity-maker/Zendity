@@ -30,6 +30,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const [loading, setLoading] = useState(true);
     const [incidents, setIncidents] = useState<any[]>([]);
     const [attendance, setAttendance] = useState<any>(null);
+    // Consolidación (19-ago-2026): estas métricas vivían en un SEGUNDO perfil
+    // duplicado bajo /corporate/hr/staff/[id]. Dos perfiles del mismo empleado
+    // divergiendo es deuda que se paga en cada cambio — se unifican aquí.
+    const [hrMetrics, setHrMetrics] = useState<any>(null);
     const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -107,13 +111,16 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     const fetchProfile = async () => {
         setLoading(true);
         try {
-            const [profileRes, historyRes, attendanceRes] = await Promise.all([
+            const [profileRes, historyRes, attendanceRes, hrRes] = await Promise.all([
                 fetch(`/api/hr/staff/${id}`),
                 fetch(`/api/hr/staff/${id}/score-history`),
                 fetch(`/api/hr/staff/${id}/attendance?days=90`),
+                fetch(`/api/corporate/hr/staff/${id}`),
             ]);
             const att = await attendanceRes.json().catch(() => null);
             if (att?.success) setAttendance(att);
+            const hrm = await hrRes.json().catch(() => null);
+            if (hrm?.success) setHrMetrics(hrm.staff);
             const data = await profileRes.json();
             if (data.success) {
                 setEmployee(data.employee);
@@ -542,6 +549,84 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         )}
                         </div>
                     </div>
+
+                    {/* MÉTRICAS DE RRHH — venían del perfil duplicado de corporate.
+                        Evaluaciones, Academia y eMAR son tres lecturas distintas del
+                        mismo empleado y ahora conviven con el Z-Score en una sola
+                        pantalla, en vez de obligar a saber cuál de dos rutas abrir. */}
+                    {hrMetrics && (
+                        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Evaluaciones RRHH</p>
+                                <div className="flex items-baseline gap-2 mt-2">
+                                    <span className="text-3xl font-black text-slate-800">
+                                        {hrMetrics.avgEvalScore ?? '—'}
+                                    </span>
+                                    {hrMetrics.avgEvalScore != null && <span className="text-slate-400 font-bold">/100</span>}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {hrMetrics.evaluationsCount === 0
+                                        ? 'Sin evaluaciones registradas'
+                                        : `Promedio de ${hrMetrics.evaluationsCount} evaluación${hrMetrics.evaluationsCount !== 1 ? 'es' : ''}`}
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Academia</p>
+                                <div className="flex items-baseline gap-2 mt-2">
+                                    <span className="text-3xl font-black text-slate-800">
+                                        {(hrMetrics.courseEnrolls ?? []).filter((c: any) => c.status === 'COMPLETED').length}
+                                    </span>
+                                    <span className="text-slate-400 font-bold">
+                                        /{(hrMetrics.courseEnrolls ?? []).length || '—'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">Cursos aprobados</p>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Cumplimiento eMAR</p>
+                                <div className="flex items-baseline gap-2 mt-2">
+                                    <span className={`text-3xl font-black ${
+                                        hrMetrics.emarCompliance == null ? 'text-slate-800'
+                                        : hrMetrics.emarCompliance >= 95 ? 'text-emerald-600'
+                                        : hrMetrics.emarCompliance >= 85 ? 'text-amber-600' : 'text-rose-600'
+                                    }`}>
+                                        {hrMetrics.emarCompliance != null ? `${hrMetrics.emarCompliance}%` : '—'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {hrMetrics.emarCompliance == null
+                                        ? 'Sin administraciones registradas'
+                                        : `${hrMetrics.medsGivenRecord} administrados · ${hrMetrics.medsMissedRecord} omitidos`}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Historial de evaluaciones — también venía de corporate */}
+                    {hrMetrics?.evalsReceived?.length > 0 && (
+                        <div className="lg:col-span-3 bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200">
+                            <h3 className="text-xl font-black text-slate-800 mb-6">Historial de Evaluaciones</h3>
+                            <div className="space-y-3">
+                                {hrMetrics.evalsReceived.map((ev: any) => (
+                                    <div key={ev.id} className="flex items-center gap-4 flex-wrap px-5 py-4 rounded-xl border border-slate-200">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-slate-800 text-sm">
+                                                {ev.evaluator?.name ?? 'Evaluador'}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {new Date(ev.createdAt).toLocaleDateString('es-PR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                            </p>
+                                        </div>
+                                        <span className={`px-3 py-1.5 rounded-lg border font-black text-sm ${getScoreColor(ev.score)}`}>
+                                            {ev.score}/100
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Asistencia — los datos existían pero solo se veían
                         consultando la base. Sin esta vista, un supervisor no
