@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ActiveHqProvider } from "@/contexts/ActiveHqContext";
@@ -16,6 +16,16 @@ const outfit = Outfit({
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
   subsets: ["latin"],
+});
+
+// Serif de lectura para Zendity Academy. La Academia acredita profesionalmente
+// y debe leerse como institución educativa, no como otro módulo de la app;
+// `font-serif` sin fuente propia caía al Times del sistema, distinto en cada
+// máquina. Solo se usa en /academy.
+const sourceSerif = Source_Serif_4({
+  variable: "--font-serif-academy",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 import { Viewport } from "next";
@@ -55,7 +65,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${outfit.variable} ${plusJakartaSans.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
+        className={`${outfit.variable} ${plusJakartaSans.variable} ${sourceSerif.variable} antialiased bg-gray-50 text-gray-900 flex min-h-screen font-sans`}
       >
         <NextAuthProvider>
           <AuthProvider>

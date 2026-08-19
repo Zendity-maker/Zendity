@@ -436,40 +436,49 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
     // ── RENDER: IDLE ───────────────────────────────────────────────────────────
 
     if (stage === 'IDLE') return (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all">
-            {course.imageUrl ? (
-                <img src={course.imageUrl} alt={course.title} className="w-full h-40 object-cover"
-                    onError={(e) => {
-                        const target = e.currentTarget;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                            const fallback = document.createElement('div');
-                            fallback.style.cssText = 'width:100%;height:160px;background:linear-gradient(135deg,#0F6E56,#1E293B);display:flex;align-items:center;justify-content:center;';
-                            fallback.innerHTML = '<span style="font-size:3rem;">📘</span>';
-                            parent.insertBefore(fallback, target);
-                        }
-                    }}
-                />
-            ) : (
-                <div className="w-full h-40 bg-gradient-to-br from-teal-600 to-slate-800 flex items-center justify-center">
-                    <span className="text-5xl">{course.emoji || '📘'}</span>
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:border-slate-300 hover:shadow-md transition-all flex flex-col">
+            {/* Portada 16:9. Las imágenes actuales son 768×768 cuadradas y se
+                recortan al centro; el formato apaisado da el aire editorial que
+                pide una academia y sobrevive a un reemplazo de arte futuro. */}
+            <div className="relative w-full aspect-[16/9] bg-[#0F2E28] overflow-hidden">
+                {course.imageUrl ? (
+                    <img
+                        src={course.imageUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-4xl opacity-90">{course.emoji || '📘'}</span>
+                    </div>
+                )}
+                {/* Velo inferior: asienta la portada y deja legible el sello */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0F2E28]/70 via-transparent to-transparent" />
+                <span className="absolute bottom-3 left-4 text-[10px] font-bold uppercase tracking-[0.16em] text-white/90">
+                    {course.category}
+                </span>
+                {strikes > 0 && (
+                    <span className="absolute top-3 right-3 text-[10px] font-bold px-2 py-1 rounded-full bg-white/95 text-rose-700">
+                        Intento {strikes}/3
+                    </span>
+                )}
+            </div>
+
+            <div className="p-5 flex flex-col flex-1">
+                <h3 className="font-serif text-lg text-slate-900 leading-snug">{course.title}</h3>
+                <p className="text-slate-500 text-[13px] mt-2 leading-relaxed line-clamp-2 flex-1">{course.description}</p>
+
+                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100 text-[11px] font-semibold text-slate-500">
+                    <span>{course.durationMins || 15} min</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                    <span>{course.bonusCompliance || 10} créditos</span>
                 </div>
-            )}
-            <div className="p-5">
-                <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-black text-slate-800 text-sm leading-tight flex-1">{course.title}</h3>
-                    {strikes > 0 && <span className="text-xs text-red-500 font-bold ml-2">{strikes}/3</span>}
-                </div>
-                <p className="text-slate-500 text-xs mb-4 line-clamp-2">{course.description}</p>
-                <div className="flex gap-2">
-                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded-full">+{course.bonusCompliance || 50} PTS</span>
-                    <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{course.durationMins || 15} min</span>
-                </div>
-                {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+
+                {error && <p className="text-rose-600 text-xs mt-2">{error}</p>}
                 <button onClick={startLesson}
-                    className="mt-4 w-full bg-teal-600 hover:bg-teal-500 text-white font-black py-3 rounded-xl transition-all text-sm">
-                    Comenzar leccion
+                    className="mt-4 w-full bg-[#0F6E56] hover:bg-[#0B5642] text-white font-bold py-3 rounded-xl transition-colors text-sm">
+                    Comenzar
                 </button>
             </div>
         </div>

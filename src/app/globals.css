@@ -12,6 +12,8 @@
   /* Zendity Brand Typography */
   --font-sans: var(--font-plus-jakarta);
   --font-display: var(--font-outfit);
+  /* Academy: registro editorial/académico. Solo se usa en /academy. */
+  --font-serif: var(--font-serif-academy);
 
   /* Zendity Core Colors */
   --color-zendity-teal: #0F6B78;
