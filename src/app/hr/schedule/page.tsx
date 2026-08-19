@@ -137,6 +137,7 @@ export default function ScheduleBuilderPage() {
         countdown: number;
     } | null>(null);
     const [processingAbsent, setProcessingAbsent] = useState<string | null>(null);
+    const [absenceDialog, setAbsenceDialog] = useState<ShiftEntry | null>(null);
 
     // Errores de validación del inline manual (por tempId)
     const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
@@ -483,12 +484,39 @@ export default function ScheduleBuilderPage() {
         }
     };
 
-    const markAbsent = async (shift: ShiftEntry) => {
+    const clearAbsent = async (shift: ShiftEntry) => {
+        if (!window.confirm(`¿Revertir la ausencia de ${shift.userName ?? 'este empleado'}?\n\nLos residentes que se hayan redistribuido vuelven a su cuidador.`)) return;
+        setProcessingAbsent(shift.tempId);
+        try {
+            const res = await fetch('/api/hr/schedule/absent', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledShiftId: shift.tempId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setShifts(prev => prev.map(s => s.tempId === shift.tempId ? { ...s, isAbsent: false } : s));
+                if (data.message) alert(data.message);
+            } else {
+                alert(data.error || 'No se pudo revertir la ausencia');
+            }
+        } catch {
+            alert('Error de red al revertir la ausencia');
+        } finally {
+            setProcessingAbsent(null);
+        }
+    };
+
+    const markAbsent = async (shift: ShiftEntry, detalle?: { absenceReason: string; absenceNotified: boolean; absenceNotes?: string }) => {
         // Si el turno no está guardado aún, guardar primero
         if (shift.tempId.startsWith('temp-')) {
             alert('Guarda el horario primero antes de marcar ausencias.');
             return;
         }
+        // Sin motivo, se abre el diálogo: "faltó" y "faltó sin avisar" no son
+        // el mismo registro para nómina ni para disciplina.
+        if (!detalle) { setAbsenceDialog(shift); return; }
+        setAbsenceDialog(null);
         setProcessingAbsent(shift.tempId);
         try {
             const res = await fetch('/api/hr/schedule/absent', {
@@ -497,7 +525,8 @@ export default function ScheduleBuilderPage() {
                 body: JSON.stringify({
                     scheduledShiftId: shift.tempId,
                     markedById: user?.id,
-                    hqId
+                    hqId,
+                    ...detalle,
                 })
             });
             const data = await res.json();
@@ -1439,6 +1468,123 @@ export default function ScheduleBuilderPage() {
                 </div>
             </div>
         )}
+
+        {/* Motivo de la ausencia. Sin este dato, "faltó" y "faltó sin avisar"
+            quedaban como el mismo registro: inservible para nómina y para
+            disciplina. El aviso previo es lo que distingue una ausencia
+            justificada de un abandono de turno. */}
+        {absenceDialog && (
+            <AbsenceReasonDialog
+                shift={absenceDialog}
+                onCancel={() => setAbsenceDialog(null)}
+                onConfirm={(detalle) => markAbsent(absenceDialog, detalle)}
+            />
+        )}
         </>
+    );
+}
+
+const ABSENCE_REASONS: { value: string; label: string; hint: string }[] = [
+    { value: 'SICK', label: 'Enfermedad', hint: 'Se reportó enferma/o' },
+    { value: 'FAMILY_EMERGENCY', label: 'Emergencia familiar', hint: 'Situación urgente en su familia' },
+    { value: 'MEDICAL_APPOINTMENT', label: 'Cita médica', hint: 'Cita programada' },
+    { value: 'PERSONAL', label: 'Asunto personal', hint: 'Motivo personal informado' },
+    { value: 'NO_SHOW', label: 'No se presentó', hint: 'No llegó y no avisó' },
+    { value: 'OTHER', label: 'Otro', hint: 'Detállalo en la nota' },
+];
+
+function AbsenceReasonDialog({
+    shift, onCancel, onConfirm,
+}: {
+    shift: ShiftEntry;
+    onCancel: () => void;
+    onConfirm: (d: { absenceReason: string; absenceNotified: boolean; absenceNotes?: string }) => void;
+}) {
+    const [reason, setReason] = useState('SICK');
+    const [notified, setNotified] = useState(true);
+    const [notes, setNotes] = useState('');
+    // Un "no se presentó" es, por definición, sin aviso.
+    const esNoShow = reason === 'NO_SHOW';
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100">
+                    <h3 className="text-lg font-black text-slate-800">Marcar ausencia</h3>
+                    <p className="text-sm text-slate-500 mt-0.5">{shift.userName}</p>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    <div>
+                        <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Motivo</label>
+                        <div className="space-y-1.5">
+                            {ABSENCE_REASONS.map(r => (
+                                <button
+                                    key={r.value}
+                                    type="button"
+                                    onClick={() => { setReason(r.value); if (r.value === 'NO_SHOW') setNotified(false); }}
+                                    className={`w-full text-left px-4 py-2.5 rounded-xl border transition-colors ${
+                                        reason === r.value
+                                            ? 'border-teal-500 bg-teal-50'
+                                            : 'border-slate-200 hover:border-slate-300'
+                                    }`}
+                                >
+                                    <span className="text-sm font-bold text-slate-800 block">{r.label}</span>
+                                    <span className="text-[11px] text-slate-500">{r.hint}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">¿Avisó antes del turno?</label>
+                        <div className="flex gap-2">
+                            {[{ v: true, l: 'Sí avisó' }, { v: false, l: 'No avisó' }].map(o => (
+                                <button
+                                    key={String(o.v)}
+                                    type="button"
+                                    disabled={esNoShow}
+                                    onClick={() => setNotified(o.v)}
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        notified === o.v ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-600'
+                                    }`}
+                                >
+                                    {o.l}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+                            {esNoShow
+                                ? 'Un “no se presentó” cuenta siempre como sin aviso.'
+                                : 'Solo las ausencias sin aviso cuentan para la detección de patrón disciplinario.'}
+                        </p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Nota (opcional)</label>
+                        <textarea
+                            value={notes}
+                            onChange={e => setNotes(e.target.value)}
+                            rows={2}
+                            maxLength={500}
+                            placeholder="Detalle que quieras dejar registrado"
+                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="px-6 py-4 bg-slate-50 flex gap-3">
+                    <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={() => onConfirm({ absenceReason: reason, absenceNotified: esNoShow ? false : notified, absenceNotes: notes.trim() || undefined })}
+                        className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold transition-colors"
+                    >
+                        Marcar ausente
+                    </button>
+                </div>
+            </div>
+        </div>
     );
 }

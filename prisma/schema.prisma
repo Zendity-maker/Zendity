@@ -436,6 +436,20 @@ model ScheduledShift {
   isAbsent         Boolean   @default(false)
   absentMarkedAt   DateTime?
   absentMarkedById String?
+
+  // Contexto de la ausencia (17-ago-2026). Antes solo se guardaba el booleano:
+  // "faltó" y "faltó sin avisar" quedaban como el MISMO registro, inservible
+  // para nómina y para disciplina.
+  absenceReason   AbsenceReason?
+  /// ¿Avisó ANTES del turno? Es la variable que distingue una ausencia
+  /// justificada de un abandono, aun con el mismo motivo.
+  absenceNotified Boolean        @default(false)
+  absenceNotes    String?
+
+  // Reversión: marcar por error o que la persona llegue tarde y sí trabaje
+  // era irreversible desde la app — quedaba en su historial para siempre.
+  absentClearedAt   DateTime?
+  absentClearedById String?
   createdAt        DateTime  @default(now())
 
   // FASE 80: Turnos manuales con hora personalizada
@@ -2400,6 +2414,18 @@ enum HrIncidentSeverity {
   WARNING
   SUSPENSION
   TERMINATION
+}
+
+/// Motivo de ausencia de un turno. Se combina con `absenceNotified`: la misma
+/// enfermedad avisada con tiempo o no avisada son casos disciplinarios
+/// distintos.
+enum AbsenceReason {
+  SICK // enfermedad
+  FAMILY_EMERGENCY // emergencia familiar
+  MEDICAL_APPOINTMENT // cita médica
+  PERSONAL // asunto personal
+  NO_SHOW // no se presentó ni avisó
+  OTHER
 }
 
 enum IncidentCategory {

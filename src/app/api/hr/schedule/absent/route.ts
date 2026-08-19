@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
+import { logAudit } from '@/lib/audit';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
@@ -34,7 +35,13 @@ export async function POST(req: Request) {
         const markedById = auth.id;
         // HIPAA/multi-tenant — la sede sale de la sesión; ignoramos hqId del body.
         const hqId = auth.headquartersId;
-        const { scheduledShiftId } = await req.json();
+        const body = await req.json();
+        const { scheduledShiftId } = body;
+        const REASONS = ['SICK', 'FAMILY_EMERGENCY', 'MEDICAL_APPOINTMENT', 'PERSONAL', 'NO_SHOW', 'OTHER'];
+        const absenceReason: string | null = REASONS.includes(body.absenceReason) ? body.absenceReason : null;
+        // Un NO_SHOW es, por definición, sin aviso.
+        const absenceNotified = absenceReason === 'NO_SHOW' ? false : !!body.absenceNotified;
+        const absenceNotes = body.absenceNotes ? String(body.absenceNotes).trim().slice(0, 500) : null;
 
         if (!scheduledShiftId) {
             return NextResponse.json({ success: false, error: 'scheduledShiftId es requerido' }, { status: 400 });
@@ -52,7 +59,12 @@ export async function POST(req: Request) {
         // ── 1. Marcar ausente ─────────────────────────────────────────
         const shift = await prisma.scheduledShift.update({
             where: { id: scheduledShiftId },
-            data: { isAbsent: true, absentMarkedAt: new Date(), absentMarkedById: markedById },
+            data: {
+                isAbsent: true, absentMarkedAt: new Date(), absentMarkedById: markedById,
+                absenceReason: absenceReason as any, absenceNotified, absenceNotes,
+                // Re-marcar limpia una reversión previa: el estado vigente manda.
+                absentClearedAt: null, absentClearedById: null,
+            },
             include: { user: { select: { id: true, name: true } } }
         });
 
@@ -76,11 +88,20 @@ export async function POST(req: Request) {
         try {
             const windowStart = new Date(Date.now() - ABSENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
             const employeeId = shift.userId;
+            // Solo cuentan las ausencias SIN AVISO. Tres citas médicas avisadas
+            // con tiempo no son el mismo caso disciplinario que tres abandonos
+            // de turno, y penalizarlas igual castiga a quien hace las cosas bien.
+            // Los registros previos a este cambio tienen absenceNotified=false
+            // por default, así que siguen contando como antes.
             const absenceCount = await prisma.scheduledShift.count({
                 where: {
                     userId: employeeId,
                     isAbsent: true,
+                    absenceNotified: false,
                     date: { gte: windowStart },
+                    // Acotado a la sede: el patrón disciplinario es del hogar
+                    // donde ocurre, no del historial global del empleado.
+                    schedule: { headquartersId: hqId },
                 },
             });
             if (absenceCount >= ABSENCE_THRESHOLD) {
@@ -336,5 +357,101 @@ export async function POST(req: Request) {
             { success: false, error: error.message || 'Error procesando ausencia' },
             { status: 500 }
         );
+    }
+}
+
+/**
+ * DELETE /api/hr/schedule/absent
+ *
+ * Revierte una ausencia marcada por error, o cuando el cuidador llega tarde y
+ * termina trabajando el turno. Antes no existía: una marca equivocada quedaba
+ * en el historial del empleado para siempre y alimentaba la detección de
+ * patrón disciplinario.
+ *
+ * Deshace también la REDISTRIBUCIÓN: los residentes que se transfirieron por
+ * esta ausencia vuelven a su cuidador. Sin esto, el cuidador quedaría presente
+ * pero sin sus residentes, y el receptor cargando un grupo que ya no le toca.
+ *
+ * Body: { scheduledShiftId, reason? }
+ * Auth: SUPERVISOR/DIRECTOR/ADMIN.
+ */
+export async function DELETE(req: Request) {
+    try {
+        const auth = await requireRole(ALLOWED_ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const hqId = auth.headquartersId;
+
+        const body = await req.json().catch(() => ({}));
+        const { scheduledShiftId } = body;
+        if (!scheduledShiftId) {
+            return NextResponse.json({ success: false, error: 'scheduledShiftId es requerido' }, { status: 400 });
+        }
+
+        const shift = await prisma.scheduledShift.findUnique({
+            where: { id: scheduledShiftId },
+            select: {
+                id: true, userId: true, date: true, shiftType: true, colorGroup: true, isAbsent: true,
+                user: { select: { name: true } },
+                schedule: { select: { headquartersId: true } },
+            },
+        });
+        if (!shift || shift.schedule.headquartersId !== hqId) {
+            return NextResponse.json({ success: false, error: 'Turno fuera de tu sede' }, { status: 403 });
+        }
+        if (!shift.isAbsent) {
+            return NextResponse.json({ success: false, error: 'Este turno no está marcado como ausencia' }, { status: 409 });
+        }
+
+        // Ventana del día clínico del turno, para ubicar sus overrides.
+        const dayStart = new Date(Date.UTC(shift.date.getUTCFullYear(), shift.date.getUTCMonth(), shift.date.getUTCDate()));
+        const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+
+        const [, overrides] = await prisma.$transaction([
+            prisma.scheduledShift.update({
+                where: { id: scheduledShiftId },
+                data: {
+                    isAbsent: false,
+                    absentClearedAt: new Date(),
+                    absentClearedById: auth.id,
+                },
+            }),
+            prisma.shiftPatientOverride.updateMany({
+                where: {
+                    headquartersId: hqId,
+                    shiftType: shift.shiftType,
+                    shiftDate: { gte: dayStart, lt: dayEnd },
+                    reason: 'ABSENCE_REDISTRIB',
+                    isActive: true,
+                    ...(shift.colorGroup ? { originalColor: shift.colorGroup } : {}),
+                },
+                data: { isActive: false, resolvedAt: new Date() },
+            }),
+        ]);
+
+        await logAudit({
+            headquartersId: hqId,
+            performedById: auth.id,
+            action: 'STATE_CHANGED',
+            entityName: 'ScheduledShift',
+            entityId: scheduledShiftId,
+            resourceName: `Ausencia revertida — ${shift.user?.name ?? 'empleado'} · ${shift.date.toISOString().slice(0, 10)} ${shift.shiftType}`,
+            payloadChanges: {
+                operation: 'ABSENCE_CLEARED',
+                reason: body.reason ? String(body.reason).slice(0, 300) : null,
+                overridesRevertidos: overrides.count,
+            },
+            request: req,
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: overrides.count > 0
+                ? `Ausencia revertida. ${overrides.count} residente(s) devuelto(s) a ${shift.user?.name ?? 'su cuidador'}.`
+                : 'Ausencia revertida.',
+            overridesRevertidos: overrides.count,
+        });
+    } catch (err: any) {
+        logError('hr.schedule.absent.delete', err);
+        return NextResponse.json({ success: false, error: err.message || 'Error revirtiendo la ausencia' }, { status: 500 });
     }
 }
