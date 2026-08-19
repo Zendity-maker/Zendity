@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { asignarRutaIngreso } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -138,6 +139,17 @@ export async function POST(request: Request) {
                 pinCode: hashedPin,
                 headquartersId: hqId
             }
+        });
+
+        // Ruta de ingreso: los cursos base de su rol quedan asignados desde el
+        // primer día. Sin esto, quien entra ve 16 tarjetas sin orden ni
+        // prioridad — y la pregunta "¿por dónde empiezo?" la contesta el 89%
+        // no entrando nunca. Best-effort: el alta no se revierte por esto.
+        const cursosAsignados = await asignarRutaIngreso({
+            hqId,
+            userId: newUser.id,
+            role: String(role),
+            assignedByUserId: (session.user as any).id,
         });
 
         // ==========================================

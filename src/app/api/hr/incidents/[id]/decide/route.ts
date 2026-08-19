@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyUser } from '@/lib/notifications';
+import { asignarPorIncidente } from '@/lib/academy-assign';
 import { applyScoreEvent } from '@/lib/score-event';
 import { IncidentStatus, HrIncidentSeverity } from '@prisma/client';
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -92,6 +93,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     visibleToEmployee: true,
                     directorNote: directorNote || incident.directorNote || null,
                 }
+            });
+
+            // Formación correctiva: recién ahora, cuando el Director EMITE la
+            // observación, tiene sentido asignar el curso que la aborda. En
+            // DRAFT el empleado no sabe que existe el incidente.
+            //
+            // Cierra el hueco que originó esta función: había 30 incidentes de
+            // higiene y el curso de higiene con cero matrículas — el sistema
+            // detectaba el problema y escondía la formación que ya tenía.
+            const formacion = await asignarPorIncidente({
+                hqId,
+                userId: incident.employeeId,
+                category: String(incident.category),
+                incidentId: incident.id,
+                assignedByUserId: (session.user as any).id,
             });
 
             await notifyUser(incident.employeeId, {

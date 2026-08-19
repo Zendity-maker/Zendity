@@ -38,12 +38,51 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: "No puedes consultar historial ajeno" }, { status: 403 });
         }
         if (employeeId) {
-            // Historial de un Solo Empleado
-            const enrollments = await prisma.userCourse.findMany({
-                where: { employeeId },
-                include: { course: true }
-            });
-            return NextResponse.json({ success: true, enrollments });
+            // Historial de un Solo Empleado + su formación asignada.
+            // Las asignaciones son lo que convierte la Academia de biblioteca
+            // opcional en trabajo concreto: se devuelven aparte para que la UI
+            // pueda ponerlas ARRIBA del catálogo.
+            const [enrollments, asignaciones] = await Promise.all([
+                prisma.userCourse.findMany({
+                    where: { employeeId },
+                    include: { course: true }
+                }),
+                prisma.academyAssignment.findMany({
+                    where: { userId: employeeId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+                    orderBy: { createdAt: 'asc' },
+                }),
+            ]);
+
+            // moduleCode guarda el id del curso; se resuelve el título para que
+            // la UI no tenga que cruzar dos listas.
+            const cursoIds = asignaciones.map(a => a.moduleCode);
+            const cursos = cursoIds.length > 0
+                ? await prisma.course.findMany({
+                    where: { id: { in: cursoIds } },
+                    select: { id: true, title: true, durationMins: true, emoji: true, category: true },
+                })
+                : [];
+            const porId = new Map(cursos.map(c => [c.id, c]));
+
+            const assignments = asignaciones
+                .map(a => {
+                    const c = porId.get(a.moduleCode);
+                    if (!c) return null; // curso borrado — la asignación no se muestra
+                    return {
+                        id: a.id,
+                        courseId: c.id,
+                        title: c.title,
+                        durationMins: c.durationMins,
+                        emoji: c.emoji,
+                        category: c.category,
+                        reason: a.reason,
+                        assignedAt: a.createdAt,
+                        status: a.status,
+                    };
+                })
+                .filter(Boolean);
+
+            return NextResponse.json({ success: true, enrollments, assignments });
 
         } else {
             const userRole = searchParams.get('role') || '';
@@ -136,6 +175,14 @@ export async function POST(req: Request) {
             where: { employeeId_courseId: { employeeId, courseId } },
             update: { status: 'COMPLETED', score: examScore ?? 100, completedAt: new Date() },
             create: { employeeId, courseId, headquartersId: hqId, status: 'COMPLETED', score: examScore ?? 100, completedAt: new Date() },
+        });
+
+        // Cerrar la asignación que motivó este curso, si la hubo. Sin esto, el
+        // empleado completa la formación y la sigue viendo como pendiente —
+        // que es la forma más rápida de enseñarle a ignorar las asignaciones.
+        await prisma.academyAssignment.updateMany({
+            where: { userId: employeeId, moduleCode: courseId, status: { in: ['PENDING', 'IN_PROGRESS'] } },
+            data: { status: 'COMPLETED', completedAt: new Date() },
         });
 
         // 2. Sumar puntos al Z-Score (clamp [0,100] interno)

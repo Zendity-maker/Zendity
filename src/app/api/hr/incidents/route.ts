@@ -81,6 +81,11 @@ export async function POST(req: Request) {
             }
         });
 
+        // La formación correctiva NO se asigna aquí: el incidente nace en
+        // DRAFT y el empleado no debe enterarse hasta que el Director decida
+        // emitirlo. Asignarla ahora le notificaría "formación asignada" por un
+        // incidente que aún puede descartarse. Vive en /incidents/[id]/decide.
+
         // En DRAFT NO se notifica al empleado ni se envía email.
         // El flujo dispara notificaciones cuando el director decide (decide endpoint).
 
