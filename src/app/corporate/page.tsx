@@ -215,6 +215,7 @@ export default function CorporateDashboardPage() {
         totalPatients: number;
         totalCriticalIncidents: number;
         globalMedCompliance: number | null;
+        ventanaDias?: number;
     }>({
         activeHqs: 0,
         totalCapacity: null,
@@ -702,7 +703,10 @@ export default function CorporateDashboardPage() {
                         deltaInverted: false,
                     },
                     {
-                        label: "Incidentes Críticos",
+                        // Rotulado con su ventana: antes decía "Incidentes
+                        // Críticos" a secas y mostraba 0 siempre, porque
+                        // filtraba por severidades que no existen en el enum.
+                        label: `Incidentes Serios · ${kpis.ventanaDias ?? 30}d`,
                         value: kpis.totalCriticalIncidents.toString(),
                         sub: trends ? `Triage semana: ${trends.totals.triageCurrent} (prev ${trends.totals.triagePrev})` : "Consolidado total",
                         color: "bg-red-50 text-red-700 border-red-100",
