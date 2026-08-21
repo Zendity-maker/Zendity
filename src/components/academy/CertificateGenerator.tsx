@@ -67,10 +67,14 @@ function drawSeal(doc: jsPDF, cx: number, cy: number, r: number, label: string, 
     // Seal text
     doc.setTextColor(GOLD_LIGHT);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text(label, cx, cy - 3, { align: 'center' });
-    doc.setFontSize(5.5);
-    doc.text(sublabel, cx, cy + 3, { align: 'center' });
+    // El tamaño del texto sigue al radio del sello. Estaba fijo en 7pt, pensado
+    // para el sello grande; al reducir el maestro a r=14 la palabra
+    // "CERTIFICADO" se salía del círculo interior y tocaba el anillo.
+    const escala = Math.min(1, r / 18);
+    doc.setFontSize(7 * escala);
+    doc.text(label, cx, cy - 3 * escala, { align: 'center' });
+    doc.setFontSize(5.5 * escala);
+    doc.text(sublabel, cx, cy + 3 * escala, { align: 'center' });
     doc.setFontSize(5);
     doc.text('ZENDITY', cx, cy + 8, { align: 'center' });
 }
@@ -117,8 +121,8 @@ export function generateZendityCertificate(
     doc.setTextColor(SLATE2);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Este certificado se otorga a quien a continuacion se menciona, en reconocimiento a haber', W / 2, 60, { align: 'center' });
-    doc.text('completado satisfactoriamente el programa de capacitacion y superado la evaluacion oficial.', W / 2, 67, { align: 'center' });
+    doc.text('Este certificado se otorga a quien a continuación se menciona, en reconocimiento a haber', W / 2, 60, { align: 'center' });
+    doc.text('completado satisfactoriamente el programa de capacitación y superado la evaluación oficial.', W / 2, 67, { align: 'center' });
 
     // Employee name
     doc.setFont('times', 'italic');
@@ -165,7 +169,7 @@ export function generateZendityCertificate(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(SLATE2);
-    doc.text('Andres Flores', 75, 170, { align: 'center' });
+    doc.text('Andrés Flores', 75, 170, { align: 'center' });
     doc.setFontSize(7);
     doc.setTextColor(GRAY);
     doc.text('Director — Zendity', 75, 175, { align: 'center' });
@@ -222,7 +226,7 @@ export function generateZendityMasterCertificate(
     doc.setTextColor(SLATE);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.text('CERTIFICADO MAESTRO — SERIE COMPLETA DE PROTOCOLOS', W / 2, 49.5, { align: 'center' });
+    doc.text('CERTIFICACIÓN EN CUIDADO GERIÁTRICO', W / 2, 49.5, { align: 'center' });
 
     drawDivider(doc, 56, W);
 
@@ -230,8 +234,8 @@ export function generateZendityMasterCertificate(
     doc.setTextColor(SLATE2);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text('Con especial distincion, se certifica que el profesional que a continuacion se indica ha completado', W / 2, 65, { align: 'center' });
-    doc.text('la Serie Oficial Completa de Protocolos de Zendity, demostrando dominio operativo y clinico integral.', W / 2, 72, { align: 'center' });
+    doc.text('Con especial distinción, se certifica que el profesional que a continuación se indica ha completado', W / 2, 65, { align: 'center' });
+    doc.text('el programa completo de Cuidado Geriátrico, la formación que acredita su preparación como cuidador.', W / 2, 72, { align: 'center' });
 
     // Employee name
     doc.setFont('times', 'italic');
@@ -247,11 +251,19 @@ export function generateZendityMasterCertificate(
     drawDivider(doc, 101, W);
 
     // Courses — two columns
+    // Los diez módulos de la certificación geriátrica, en el orden en que se
+    // cursan. Antes esta lista tenía los cursos del SOFTWARE —eMAR, Zendi AI,
+    // Acceso y Roles— porque se escribió antes de que la certificación
+    // existiera: el documento acreditaba manejo del sistema mientras el texto
+    // hablaba de dominio clínico.
+    //
+    // Debe calzar con RUTA_CERTIFICACION en src/lib/academy-assign.ts.
     const courses = [
-        'Cierre de Turno', 'Admision de Residentes',
-        'eMAR Digital', 'Protocolo de Caidas',
-        'Handover Clinico', 'Zendi AI',
-        'Acceso y Roles', 'Mantenimiento'
+        'Cuidado Geriátrico General', 'Trato Digno y Derechos',
+        'Demencia y Alzheimer', 'Emergencias',
+        'Movilización y Transferencias', 'Continuidad del Plan de Cuidado',
+        'Higiene, Piel e Infecciones', 'Piel: Prevención y Observación',
+        'Alimentación e Hidratación', 'Signos Vitales y Escalamiento',
     ];
 
     doc.setFont('helvetica', 'normal');
@@ -259,7 +271,18 @@ export function generateZendityMasterCertificate(
 
     const col1X = 55;
     const col2X = 165;
-    let rowY = 112;
+    // Reparto vertical del tercio inferior. La página mide 210mm y la banda
+    // verde del pie arranca en y=180, así que todo tiene que caber antes:
+    //
+    //   108–136  los diez módulos (5 filas de 7mm)
+    //   144      la fecha
+    //   149–177  el sello (centro 163, radio 14)
+    //   168      las líneas de firma — no chocan: el sello va centrado en x,
+    //            entre los dos bloques de firma, sin solaparlos
+    //
+    // Antes la fecha estaba en 152 y el sello centrado en 165 con radio 22:
+    // el círculo la tapaba y además invadía el pie.
+    let rowY = 108;
 
     for (let i = 0; i < courses.length; i += 2) {
         // Left
@@ -275,14 +298,17 @@ export function generateZendityMasterCertificate(
             doc.setTextColor(SLATE2);
             doc.text(courses[i + 1], col2X, rowY, { align: 'left' });
         }
-        rowY += 8;
+        rowY += 7;
     }
 
-    // Date
+    // Fecha. Estaba en y=152, justo donde cae el sello de radio 22 centrado en
+    // y=165 — el círculo la tapaba y se leía "Serie completa... osto de 2026".
+    // Sube a 157, que con diez módulos queda debajo de la lista y encima del
+    // sello, sin cruzarse con ninguno.
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(GRAY);
-    doc.text(`Serie completada el ${completionDate}`, W / 2, 152, { align: 'center' });
+    doc.text(`Certificación completada el ${completionDate}`, W / 2, 144, { align: 'center' });
 
     // Signatures
     doc.setDrawColor(SLATE2);
@@ -291,13 +317,12 @@ export function generateZendityMasterCertificate(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(SLATE2);
-    doc.text('Andres Flores', 70, 173, { align: 'center' });
+    doc.text('Andrés Flores', 70, 173, { align: 'center' });
     doc.setFontSize(7);
     doc.setTextColor(GRAY);
     doc.text('Director — Zendity', 70, 178, { align: 'center' });
 
-    // Master seal — center, larger
-    drawSeal(doc, W / 2, 165, 22, 'CERTIFICADO', 'MAESTRO');
+    drawSeal(doc, W / 2, 163, 14, 'CERTIFICADO', 'GERIÁTRICO');
 
     doc.setDrawColor(SLATE2);
     doc.setLineWidth(0.3);
