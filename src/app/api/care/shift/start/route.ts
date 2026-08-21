@@ -6,6 +6,7 @@ import { resolveCaregiverCurrentColors, resolveCaregiverColors, isSoloCaregiver 
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
+import { VITALS_WINDOW_MS } from '@/lib/vitals-window';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +17,7 @@ export const dynamic = 'force-dynamic';
 // (ej. SUPERVISOR + CAREGIVER como Zuleyka Valcarcel).
 const CAREGIVER_ROLES = ['CAREGIVER', 'NURSE'];
 
-// Sprint J: ventana automática de 4h al inicio de turno
-const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
+// El plazo vive en un solo sitio — ver src/lib/vitals-window.ts.
 
 // Resuelve los residentes asignados al cuidador para la ventana de vitales
 // que se crea al hacer clock-in.
@@ -283,22 +283,22 @@ export async function POST(req: Request) {
             logWarn('care.shift.start.resolve_overrides', ovErr, { caregiverId, headquartersId });
         }
 
-        // ── Sprint J: Abrir ventana de 4h para tomar vitales a residentes asignados ──
+        // ── Abrir la ventana de vitales para los residentes asignados ──
         try {
             const assigned = await resolveAssignedPatients(caregiverId, headquartersId);
             if (assigned.length > 0) {
                 const now = new Date();
                 const expiresAt = new Date(now.getTime() + VITALS_WINDOW_MS);
-                const fourHoursAgo = new Date(now.getTime() - VITALS_WINDOW_MS);
+                const inicioVentana = new Date(now.getTime() - VITALS_WINDOW_MS);
 
-                // Evitar duplicados: órdenes PENDING para el mismo residente en las últimas 4h
+                // Evitar duplicados: órdenes PENDING del mismo residente dentro de la ventana
                 const patientIds = assigned.map(p => p.id);
                 const recentPending = await prisma.vitalsOrder.findMany({
                     where: {
                         headquartersId,
                         patientId: { in: patientIds },
                         status: 'PENDING',
-                        orderedAt: { gte: fourHoursAgo }
+                        orderedAt: { gte: inicioVentana }
                     },
                     select: { patientId: true }
                 });

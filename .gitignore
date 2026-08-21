@@ -65,3 +65,4 @@ scripts/*
 !scripts/academy-certificacion-backfill.ts
 !scripts/hr-baja-empleado.ts
 !scripts/normalizar-estado-empleados.ts
+!scripts/verificar-ventana-vitales.ts

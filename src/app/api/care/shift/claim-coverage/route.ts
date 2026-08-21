@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { VITALS_WINDOW_MS } from '@/lib/vitals-window';
 import { todayStartAST, clinicalDayCalendarUTCRange } from '@/lib/dates';
 import { inferShiftTypeFromAST, resolveCaregiverCurrentColors, type ShiftT } from '@/lib/shift-coverage';
 import { redistributeUncoveredColors } from '@/lib/shift-redistribute';
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE'];
-const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
+// El plazo vive en un solo sitio — ver src/lib/vitals-window.ts.
 
 /**
  * POST /api/care/shift/claim-coverage

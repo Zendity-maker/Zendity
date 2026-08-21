@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
+import { PENALTY_GRACE_MS } from '@/lib/vitals-window';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,11 +12,13 @@ export const dynamic = 'force-dynamic';
 // vitales a 15 residentes). Máximo 5 penalidades/día = −10 pts máx.
 const DAILY_PENALTY_CAP = 5;
 
+// La gracia vive en src/lib/vitals-window.ts, junto al plazo que modifica.
+
 // Cron cada 5 min:
 //  A. Recuerda al cuidador si una orden pendiente vence en ~20 min.
 //  B. Marca EXPIRED las vencidas sin completar.
 //  C. Sprint J: aplica -2 puntos al cuidador por cada VitalsOrder autoCreada
-//     que expiró sin completarse en la ventana de 4h.
+//     que expiró sin completarse, una vez pasada la gracia (ver arriba).
 export async function GET(req: Request) {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET no configurado en entorno' }, { status: 500 });
@@ -66,13 +69,16 @@ export async function GET(req: Request) {
         });
 
         // ── C. Sprint J: penalizar autoCreate expirados sin vitales ──
+        const limitePenalidad = new Date(now.getTime() - PENALTY_GRACE_MS);
         const toPenalize = await prisma.vitalsOrder.findMany({
             where: {
                 status: 'EXPIRED',
                 autoCreated: true,
                 penaltyApplied: false,
                 completedAt: null,
-                caregiverId: { not: null }
+                caregiverId: { not: null },
+                // La gracia mantiene el umbral real de penalidad donde estaba.
+                expiresAt: { lt: limitePenalidad },
             },
             include: {
                 patient: { select: { name: true, headquartersId: true } },

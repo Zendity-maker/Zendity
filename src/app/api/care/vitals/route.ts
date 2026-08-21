@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { VITALS_WINDOW_MS, PENALTY_GRACE_MS } from '@/lib/vitals-window';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
@@ -175,12 +176,29 @@ export async function POST(req: Request) {
 
         if (type === 'VITALS') {
 
-            // Ventana de orden a petición: si hay una VitalsOrder PENDING para este residente
-            // y su expiresAt ya pasó, exigimos lateReason (>=20 chars) y aplicamos -2 al complianceScore.
+            // Buscamos la orden abierta del residente para cerrarla con esta toma.
+            //
+            // Antes esto miraba SOLO status PENDING, y el cron de vitals-reminder
+            // marca EXPIRED a los 5 minutos de vencer. Resultado: si el cuidador
+            // tomaba los vitales un rato tarde, la orden ya era EXPIRED, no la
+            // encontraba nadie, y quedaba con completedAt en null — es decir,
+            // penalizada. Medido en Cupey el 19-ago-2026: de 1,500 órdenes
+            // vencidas sin completar, 384 (26%) SÍ tenían los vitales tomados en
+            // ventana. El cuidador hizo el trabajo y el sistema lo contó como
+            // incumplimiento, las 384 veces.
+            //
+            // Ahora también cerramos las EXPIRED recientes. Se acota a la ventana
+            // más la gracia para no cerrar una orden de anteayer con la toma de hoy.
+            const bordeCierre = new Date(Date.now() - (VITALS_WINDOW_MS + PENALTY_GRACE_MS));
             const pendingOrder = await prisma.vitalsOrder.findFirst({
-                where: { patientId, status: 'PENDING' },
+                where: {
+                    patientId,
+                    status: { in: ['PENDING', 'EXPIRED'] },
+                    completedAt: null,
+                    orderedAt: { gte: bordeCierre },
+                },
                 orderBy: { orderedAt: 'desc' },
-                select: { id: true, expiresAt: true }
+                select: { id: true, expiresAt: true, status: true }
             });
 
             let orderStatusUpdate: 'COMPLETED_ON_TIME' | 'COMPLETED_LATE' | null = null;
@@ -189,7 +207,11 @@ export async function POST(req: Request) {
 
             if (pendingOrder) {
                 const isLate = new Date() > pendingOrder.expiresAt;
-                if (isLate) {
+                if (!isLate) {
+                    orderStatusUpdate = 'COMPLETED_ON_TIME';
+                } else if (pendingOrder.status === 'PENDING') {
+                    // Llegó tarde pero el cron todavía no la había vencido:
+                    // se mantiene la regla que ya existía — justificar y −2.
                     if (lateReasonRaw.length < 20) {
                         return NextResponse.json({
                             success: false,
@@ -200,7 +222,13 @@ export async function POST(req: Request) {
                     orderStatusUpdate = 'COMPLETED_LATE';
                     applyLatePenalty = true;
                 } else {
-                    orderStatusUpdate = 'COMPLETED_ON_TIME';
+                    // Ya estaba EXPIRED. Antes esta toma se perdía y la orden
+                    // quedaba penalizada. Ahora se registra como tardía, pero NO
+                    // se penaliza dos veces ni se bloquea al cuidador por escribir
+                    // una justificación: lo que importa es que los vitales entren
+                    // al expediente y que la orden deje de contar como no hecha.
+                    orderStatusUpdate = 'COMPLETED_LATE';
+                    applyLatePenalty = false;
                 }
             }
 
@@ -244,7 +272,9 @@ export async function POST(req: Request) {
                     data: {
                         status: orderStatusUpdate,
                         completedAt: new Date(),
-                        lateReason: applyLatePenalty ? lateReasonRaw : null,
+                        lateReason: lateReasonRaw.length > 0
+                            ? lateReasonRaw
+                            : (orderStatusUpdate === 'COMPLETED_LATE' ? 'Tomados fuera de plazo' : null),
                     }
                 });
                 if (applyLatePenalty) {
