@@ -26,23 +26,34 @@ export interface HallazgoVital {
 }
 
 /**
- * Hipotermia — la enfermera aprobó 35.5 °C como "llamar ya".
+ * Hipotermia — por qué el umbral no es el que aprobó la enfermera.
  *
- * Medido contra las 4,836 lecturas reales de Cupey, ese corte parte por la
- * mitad la distribución normal del hogar: la mediana está en 36.1 °C, hay 1,314
- * lecturas entre 35.5 y 36.0, y de las 484 que quedarían bajo 35.5, **443 (92%)
- * caen en la banda 35.0–35.5**. Solo 41 bajan de 35.0.
+ * Ella aprobó 35.5 °C como "llamar ya". Ese número es correcto para una
+ * temperatura CENTRAL. El hogar mide con termómetro láser de frente
+ * (confirmado 21-ago-2026), que lee la piel — y la piel de alguien que lleva
+ * la noche en una habitación con aire acondicionado está fría.
  *
- * Esa forma es la de la toma AXILAR, que lee medio grado por debajo del centro.
- * Aplicar 35.5 tal cual mandaría a observación de 45 minutos a residentes que
- * casi con seguridad están bien, unas cinco veces al día.
+ * Lo que dicen las 4,761 lecturas reales de Cupey:
  *
- * Mientras la enfermera confirma con qué método se mide:
- *   - bajo 35.0  → LLAMAR  (la cola donde sí hay hipotermia plausible)
- *   - 35.0–35.5  → ANOTAR  (llega a su reporte, no interrumpe el turno)
+ *   Mediana general ........ 36.1 °C   (central normal: 36.5–37.0)
+ *   Turno de mañana ........ 35.8 °C   ← el más frío de todos
+ *   Lecturas ≥ 37.0 ........ 55 de 4,761
+ *   Lecturas ≤ 35.5 ........ 484, y 443 de ellas (92%) entre 35.0 y 35.5
  *
- * Si confirma que la toma es central, HIPOTERMIA_LLAMAR_C sube a 35.5 y la
- * banda ANOTAR desaparece — es una línea.
+ * La escala entera está corrida medio grado hacia abajo. Aplicar 35.5 tal cual
+ * mandaría a observación de 45 minutos a residentes que están bien, sobre todo
+ * en el turno de mañana — y eso es exactamente cómo el personal aprende a
+ * ignorar una alarma.
+ *
+ * El arreglo de fondo no es un número: es CONFIRMAR POR OTRA VÍA antes de
+ * escalar. Una lectura baja de frente no es un diagnóstico, es una señal para
+ * volver a medir bien. Por eso el mensaje de LLAMAR lo pide explícitamente.
+ *
+ *   - bajo 35.0  → LLAMAR, confirmando primero por vía axilar
+ *   - 35.0–35.5  → ANOTAR, llega al reporte sin interrumpir el turno
+ *
+ * Si algún día se mide por vía central, HIPOTERMIA_LLAMAR_C sube a 35.5 y la
+ * banda ANOTAR desaparece.
  */
 const HIPOTERMIA_LLAMAR_C = 35.0;
 const HIPOTERMIA_ANOTAR_C = 35.5;
@@ -94,10 +105,15 @@ export function evaluarVitales(v: {
         const t = `${c.toFixed(1)} °C`;
         if (c >= 38.0) add('LLAMAR', 'temperatura', `Fiebre — ${t}.`);
         else if (c < HIPOTERMIA_LLAMAR_C) {
-            add('LLAMAR', 'temperatura', `Temperatura baja — ${t}. En un adulto mayor también puede indicar infección.`);
+            add('LLAMAR', 'temperatura',
+                `Temperatura baja — ${t}. Confírmala por vía axilar antes de escalar: el termómetro de frente lee la piel, y con aire acondicionado marca por debajo. Si se confirma, avisa — en un adulto mayor la hipotermia también puede indicar infección.`);
         } else if (c <= HIPOTERMIA_ANOTAR_C) {
-            add('ANOTAR', 'temperatura', `Temperatura en el límite bajo — ${t}.`);
-        } else if (c >= 37.5) add('ANOTAR', 'temperatura', `Febrícula — ${t}.`);
+            add('ANOTAR', 'temperatura', `Temperatura en el límite bajo — ${t}. Si el residente se ve mal, confírmala por vía axilar.`);
+        } else if (c >= 37.5) {
+            // Con termómetro de frente una febrícula puede ser fiebre real: el
+            // aparato subestima. Por eso esta banda pide confirmación.
+            add('ANOTAR', 'temperatura', `Febrícula — ${t}. Con termómetro de frente puede quedarse corta: confírmala por vía axilar.`);
+        }
     }
 
     // ── Presión ────────────────────────────────────────────────────────

@@ -2263,7 +2263,18 @@ EXPLICACION: Un valor que llama la atención se confirma antes de que pase el tu
 LECTURA:
 # Cómo se toma cada uno
 
-**Temperatura.** Con el mismo método siempre — anota cuál usaste, porque la axilar y la de oído no dan lo mismo. Espera si acaba de tomar algo caliente o frío.
+**Temperatura.** En el hogar se mide con **termómetro láser de frente**. Es rápido y no molesta al residente, pero tiene una limitación que hay que conocer: **mide la piel, no el interior**. Y la piel de alguien que lleva la noche en una habitación con aire acondicionado está fría.
+
+Por eso las lecturas del hogar salen medio grado por debajo de lo esperado, y el turno de mañana es el más frío de todos.
+
+**Para que la lectura sirva:**
+
+- **Frente seca y despejada** — sin sudor, sin pelo, sin gorro
+- A la distancia que indica el aparato, apuntando al centro de la frente
+- **Siempre en el mismo punto**, para poder comparar
+- **Espera unos minutos** si el residente acaba de llegar de la calle, de bañarse, o de estar bajo el chorro del aire
+
+**Y lo más importante: una lectura baja o alta se confirma por vía axilar antes de escalar.** El termómetro de frente sirve para vigilar a todos rápido; cuando marca algo raro, se confirma con otro método. Anota las dos lecturas y con qué método tomaste cada una.
 
 **Pulso.** En la muñeca, con los dedos —nunca con el pulgar— durante un minuto completo. Fíjate no solo en cuántos: **si es regular o irregular**, y si se siente fuerte o débil. Un pulso irregular nuevo se reporta.
 
@@ -2288,6 +2299,13 @@ Explica por qué un residente se marea o se cae al levantarse, y es una de las c
 **Cuándo se hace:** cuando la enfermera del hogar lo indique — típicamente en residentes que se han caído, que se quejan de mareo al levantarse, o que empezaron un medicamento nuevo para la presión.
 
 PREGUNTAS:
+P: El termómetro de frente marca 35.1 en un residente que se ve bien. ¿Qué haces?
+*a) Lo confirmo por vía axilar antes de escalar y anoto las dos lecturas
+b) Aviso de inmediato, es hipotermia
+c) Lo anoto y sigo, se ve bien
+d) Vuelvo a medir en la frente hasta que dé normal
+EXPLICACION: El termómetro de frente mide la piel, y con aire acondicionado marca por debajo. Una lectura baja es señal para confirmar bien, no un diagnóstico. Repetir en la misma frente solo repite el mismo error.
+
 P: Vas a contar la respiración de un residente. ¿Cómo lo haces?
 a) Le aviso para que se quede quieto y respire normal
 *b) Sin avisarle, discretamente, después de tomarle el pulso
