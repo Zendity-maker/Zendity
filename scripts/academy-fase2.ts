@@ -1722,6 +1722,704 @@ d) Con mi conclusión de qué provocó el episodio
 EXPLICACION: La memoria se distorsiona en minutos, y la documentación es lo que protege al residente, a la facilidad y a ti. Se escriben hechos con hora —lo observado y lo dicho entre comillas— no la causa que uno supone.
 `,
     },
+    {
+        title: 'Continuidad del Plan de Cuidado',
+        description: 'Tu documentación es lo que el servicio externo lee para decidir: la cadena de escalamiento, los estados del eMAR, y por dónde entra de verdad un cambio de orden.',
+        durationMins: 35,
+        bonusCompliance: 25,
+        emoji: '🔗',
+        // Capa B: la continuidad con el servicio externo. Aprobada por la
+        // enfermera del hogar el 21-ago-2026 tras dos vueltas de revisión.
+        category: 'Cuidado Geriátrico',
+        order: 107,
+        targetRole: null,
+        content: `---META---
+TITULO: Continuidad del Plan de Cuidado
+PROMPT_ZENDI: Evalúa si el empleado entiende que su documentación es lo que el servicio externo usa para decidir, conoce la cadena de escalamiento del hogar, usa correctamente los estados del eMAR, y sabe que ningún cambio de orden entra por un familiar.
+TERMINOS_CLAVE: continuidad, servicio externo, enfermera del hogar, supervisor de turno, eMAR, rechazado, no administrado, escalamiento, relevo de turno, canal de orden
+PREGUNTA_REFLEXION: Un familiar te dice que el médico indicó suspender un medicamento. ¿Qué haces antes de la próxima dosis?
+
+---SECCION_1---
+LECTURA:
+# Tu documentación es lo que él lee
+
+El servicio externo —home care, hospicio, médico primario, especialistas, terapias— no está aquí todos los días. El resto del tiempo, **lo que sabe del residente es lo que tú escribiste**.
+
+Eso cambia el peso de la documentación. No es papeleo: es el instrumento con el que se decide. Si documentas que un residente rechazó su medicamento tres veces esta semana, se puede cambiar la presentación o el horario. Si no lo documentas, para quien lee ese residente está tomando su tratamiento completo — y va a seguir así.
+
+**Dentro del hogar hay dos eslabones más**, y saber cuál te toca evita la mitad de los errores:
+
+- **El supervisor de turno** — a quien le reportas lo que ves
+- **La enfermera del hogar** — quien recibe del supervisor, decide si hace falta consulta y coordina con el servicio externo
+
+**La cadena completa:**
+
+1. El **servicio externo** evalúa y establece el plan
+2. El hogar **ejecuta** exactamente lo indicado
+3. El **cuidador documenta** lo que pasó, incluido lo que no se pudo hacer
+4. El **cuidador escala al supervisor de turno**
+5. El **supervisor lo pasa a la enfermera del hogar**
+6. La **enfermera del hogar** coordina la consulta con el servicio externo
+7. El **servicio externo ajusta** con lo que el hogar documentó
+
+**Nunca saltes eslabones.** Un cuidador no llama al médico: reporta al supervisor. Y tampoco se queda con la información esperando a ver si mejora.
+
+**Lo que NO decide el hogar, nunca:** qué medicamento se da y en qué dosis, cambiar un horario, suspender una dosis, qué tratamiento lleva una herida, si una lesión es una úlcera y en qué etapa, cuándo se cambia un apósito, o si alguien necesita ir al hospital.
+
+**Lo que sí es tuyo, y nadie más lo puede hacer:** observar todos los días, ejecutar el plan como está escrito, documentar con precisión y a tiempo, escalar sin demora, y decir cuando algo no se pudo hacer.
+
+PREGUNTAS:
+P: Notas que un residente lleva tres días comiendo la mitad. ¿Por qué importa escribirlo?
+a) Porque lo exige el reglamento del hogar
+*b) Porque el servicio externo no está aquí a diario: decide con lo que el hogar documentó
+c) Porque así queda constancia de que hiciste tu turno
+d) Porque la familia puede pedir el expediente
+EXPLICACION: El servicio externo viene una o dos veces por semana. Lo que sabe del residente el resto del tiempo es exactamente lo que el hogar escribió. Un cambio no documentado no existe para quien tiene que decidir.
+
+P: Ves algo que te preocupa en un residente. ¿A quién se lo dices primero?
+a) Directamente al médico o al servicio externo
+b) A la familia, que es quien paga
+*c) Al supervisor de turno, que lo pasa a la enfermera del hogar
+d) Lo anoto y espero a que alguien lo lea
+EXPLICACION: La cadena del hogar es cuidador → supervisor de turno → enfermera del hogar → servicio externo. Saltar eslabones hacia arriba deja al hogar sin saber lo que pasa, y anotarlo sin avisar retrasa la respuesta.
+
+---SECCION_2---
+LECTURA:
+# eMAR: los estados y qué significa cada uno
+
+En Zendity cada medicamento programado tiene un estado. **Elegir el correcto no es un detalle de sistema: es lo que la enfermera va a leer.**
+
+- **PENDIENTE** — aún no llega la hora
+- **ADMINISTRADO** — se dio y el residente lo tomó
+- **RECHAZADO** — el residente se negó
+- **OMITIDO** — no se dio por una razón documentada
+- **NO ADMINISTRADO** — pasó la hora y no se dio. Es una falla de continuidad
+
+**"Retenido" no se usa en este hogar.** Existe en el sistema porque en otros sitios se marca cuando hay una instrucción previa de no dar un medicamento bajo cierta condición. Aquí no hay ninguna cargada, y **nadie retiene un medicamento por criterio propio**.
+
+Si piensas que un medicamento no se debe dar —porque el residente se ve mal, porque acaba de vomitar, por lo que sea— eso **no lo decides tú**: se lo dices al supervisor de turno **antes de la hora**, no después.
+
+**La distinción que más importa: rechazado no es lo mismo que no administrado.**
+
+- **Rechazado** = el residente ejerció su derecho a negarse. Tú hiciste tu parte
+- **No administrado** = nadie se lo ofreció. Es una falla
+
+Marcar "no administrado" cuando en realidad lo rechazó esconde un dato clínico importante — que esa persona está rechazando su tratamiento. Y marcar "rechazado" cuando en realidad se olvidó es falsear el expediente.
+
+**Si un residente rechaza:** no insistas ni lo escondas en la comida. Averigua por qué —sabor, dolor al tragar, desconfianza, ya se sentía mal—, ofrécelo otra vez un poco después, **márcalo como rechazado con la razón en tus palabras**, y repórtalo. Un rechazo repetido cambia el plan.
+
+**Si se pasó la hora:** no lo des tarde por tu cuenta. Repórtalo de inmediato y documenta con la verdad. Un medicamento dado fuera de horario puede ser peor que uno no dado, y esa decisión no es del cuidador.
+
+PREGUNTAS:
+P: Un residente se niega a tomar su medicamento después de ofrecérselo dos veces. ¿Qué marcas?
+a) No administrado, porque al final no se lo tomó
+*b) Rechazado, con la razón escrita en tus palabras
+c) Omitido, para no perjudicar al residente
+d) Retenido, porque se retuvo la dosis
+EXPLICACION: Rechazado significa que el residente ejerció su derecho y tú hiciste tu parte. Marcarlo como no administrado esconde un dato clínico —que está rechazando su tratamiento— y además te atribuye una falla que no cometiste.
+
+P: Piensas que un medicamento no se le debe dar a un residente porque se ve mal. ¿Qué haces?
+*a) Se lo digo al supervisor de turno antes de la hora
+b) Lo marco como retenido y sigo
+c) Se lo doy igual, la orden es la orden
+d) Espero al próximo turno para que decidan ellos
+EXPLICACION: Retener una dosis por criterio propio no es una opción del cuidador, y "retenido" no se usa en este hogar. La duda se plantea antes de la hora, para que decida quien corresponde y aún se esté a tiempo.
+
+---SECCION_3---
+LECTURA:
+# Órdenes y cambios: por dónde entran de verdad
+
+**Un cambio en el plan de cuidado llega por un canal, no por conversación.**
+
+El riesgo más común y más real: alguien de la familia dice *"la enfermera dijo que ya no le den esa pastilla"*, o trae un frasco nuevo y pide que se lo den.
+
+**Ningún cambio de medicamento entra por un familiar.** Ni por teléfono, ni verbal, ni con el frasco en la mano. Ningún medicamento nuevo se administra sin estar en el plan y en el sistema.
+
+Esto no es desconfianza hacia la familia. Es que suelen tener información incompleta o desactualizada, y el residente es quien paga el error.
+
+**Si la familia trae medicamentos:**
+
+1. **Se reciben.** No se rechazan ni se devuelven en la puerta
+2. **Se llevan a enfermería** y se guardan ahí, no en la habitación
+3. **Se identifican debidamente** — nombre del residente en el envase
+4. **Se notifica al supervisor de turno**, o se pasa a enfermería por Zendity
+5. **No se administran** hasta que estén en el plan
+
+**Cómo entra un cambio de verdad:**
+
+1. Lo que hayas oído, **se lo dices verbalmente al supervisor de turno**
+2. El supervisor lo comunica a la **enfermera del hogar**
+3. Ella decide y, si hace falta, **lleva al residente a consulta con el servicio externo**
+4. El cambio vuelve al plan y **aparece en el sistema**
+5. Desde ahí, y solo desde ahí, se ejecuta
+
+**Si no está en el sistema, no se da.** Ese es el resumen de toda la sección.
+
+Un residente que se niega a todo su tratamiento no es un problema de disciplina: es un cambio clínico, y se reporta.
+
+PREGUNTAS:
+P: Un familiar trae un frasco de medicamento nuevo y pide que se lo den a su mamá. ¿Qué haces?
+a) Se lo devuelvo y le explico que no se aceptan medicamentos
+b) Lo guardo en la habitación de la residente por si acaso
+*c) Lo recibo, lo llevo a enfermería identificado y aviso al supervisor de turno
+d) Se lo administro, la familia sabe lo que su mamá necesita
+EXPLICACION: El medicamento se recibe —no se rechaza en la puerta— pero va a enfermería, identificado y bajo aviso al supervisor. No se administra hasta estar en el plan y en el sistema, porque la familia suele tener información incompleta.
+
+P: Un familiar te asegura que el doctor suspendió una pastilla. ¿Qué pasa con la próxima dosis?
+*a) Se administra según el plan, y se lo digo verbalmente al supervisor de turno
+b) Se suspende, el doctor manda más que el sistema
+c) Se suspende solo si el familiar lo pone por escrito
+d) Se decide en el relevo del próximo turno
+EXPLICACION: Un cambio de orden no entra por un familiar. Mientras el plan diga que se administra, se administra — y en paralelo se escala al supervisor para que la enfermera del hogar lo verifique con el servicio externo.
+
+---SECCION_4---
+LECTURA:
+# Escalar: qué se reporta ya y qué espera
+
+No todo tiene la misma urgencia, y tratarlo todo igual es tan malo como no reportar. **Si todo es urgente, nada lo es.**
+
+**AHORA MISMO — se interrumpe lo que estés haciendo:**
+
+- No responde, respira con dificultad, dolor de pecho
+- Señales de derrame cerebral
+- Caída, sobre todo con golpe en la cabeza
+- Sangrado que no se detiene
+- Convulsión
+- **Confusión que aparece de golpe** en alguien que estaba orientado
+- Fiebre alta
+- Atragantamiento
+- Cualquier cosa que te haga dudar
+
+**EL MISMO TURNO — se reporta antes de irte:**
+
+- Rechazo de medicamento
+- Rechazo de comida o de líquido
+- Piel enrojecida que no cede al presionar, o cualquier piel abierta
+- Dolor nuevo o que aumentó
+- Cambio de conducta
+- Orina de olor fuerte, turbia o con sangre
+- Diarrea o vómito
+- Menos movilidad que ayer
+
+**EN EL RELEVO — se pasa al próximo turno:**
+
+- Cómo durmió, cómo comió
+- Estado de ánimo y actividades
+- Cómo se logró que aceptara algo que suele rechazar
+- Lo que la familia comentó
+
+**Cómo se reporta bien:** hechos, con hora, sin interpretar la causa.
+
+- Mal: "Estaba raro, creo que le duele algo"
+- Bien: "A las 3:15 se quejó de dolor en la cadera derecha al levantarse. No quiso caminar al comedor. Comió el 30%."
+
+La segunda versión le sirve a la enfermera. La primera no.
+
+PREGUNTAS:
+P: Una residente que siempre está orientada amanece confusa y no reconoce el lugar. ¿Qué nivel de urgencia tiene?
+*a) Ahora mismo — se interrumpe lo que estés haciendo
+b) El mismo turno, antes de irte
+c) En el relevo, con el resto de la información
+d) Se observa unos días a ver si se estabiliza
+EXPLICACION: Una confusión que aparece de golpe puede ser infección urinaria, deshidratación, azúcar baja o un derrame — todas tratables si se detectan a tiempo. La demencia avanza en meses, nunca de un día para otro.
+
+P: ¿Cuál de estas dos notas le sirve a la enfermera?
+a) "El residente estaba raro en la tarde, creo que algo le molesta"
+*b) "A las 3:15 se quejó de dolor en la cadera derecha al levantarse. Comió el 30%."
+c) "Todo normal durante el turno"
+d) "Parece que le está empezando una infección"
+EXPLICACION: La documentación útil tiene hora, hecho observado y dato concreto, sin interpretar la causa. La primera no permite actuar y la última introduce un diagnóstico que no le corresponde al cuidador.
+
+---SECCION_5---
+LECTURA:
+# El relevo: lo que se firma, se cumple
+
+En Zendity el cierre de turno se firma. Esa firma es tu declaración de que **lo que documentaste es lo que ocurrió**.
+
+**Lo que pasa en un buen relevo:**
+
+- Lo que cambió respecto a ayer
+- Medicamentos rechazados, omitidos o no administrados, **con su razón**
+- Piel: cualquier cosa nueva
+- Comida y líquido: quién comió poco
+- Rotaciones y movilidad
+- Lo que quedó pendiente y por qué
+
+**Lo que más se pierde hoy: lo que la familia preguntó.**
+
+Es la información que más se queda sin pasar, y la que más cuesta después. Un familiar pregunta en la tarde por qué su mamá está durmiendo más, nadie lo anota, y cuando llama al día siguiente el turno nuevo no sabe de qué le hablan — o peor, le contesta otra cosa.
+
+**Se pasa siempre:** qué preguntó el familiar y **quién era**, qué se le contestó, qué quedó pendiente de contestarle, y si se le prometió que alguien lo llamaría. Una pregunta de familia sin registrar se convierte en una queja a los tres días.
+
+**Lo que rompe la continuidad:**
+
+- Firmar sin haber documentado durante el turno, de memoria al final
+- Dejar el pendiente sin decir que quedó pendiente
+- Pasar la información hablada pero no escrita — el próximo turno se la lleva, el de pasado mañana no
+- Documentar lo que debió haber pasado en vez de lo que pasó
+
+**Un turno mal cerrado le cuesta al residente**, no al sistema: la enfermera llega y decide con información de la que falta la mitad.
+
+PREGUNTAS:
+P: Un familiar te pregunta en la tarde por qué su mamá está durmiendo más. Le contestas y él se va tranquilo. ¿Qué haces con eso?
+*a) Lo paso en el relevo: quién preguntó, qué se le contestó y qué quedó pendiente
+b) Nada, ya quedó resuelto en el momento
+c) Se lo comento de palabra al compañero que entra
+d) Lo anoto solo si el familiar se fue molesto
+EXPLICACION: Lo que la familia preguntó es la información que más se pierde en el relevo. Si no queda escrito, el turno siguiente contesta otra cosa cuando el familiar vuelva a llamar — y ahí nace la queja.
+
+P: ¿Qué significa firmar el cierre de turno en Zendity?
+a) Que terminaste tu jornada
+*b) Que lo que documentaste durante el turno es lo que realmente ocurrió
+c) Que el próximo turno ya recibió la información de palabra
+d) Que no quedaron pendientes
+EXPLICACION: La firma es una declaración sobre el contenido, no un marcador de salida. Por eso documentar de memoria al final del turno, o registrar lo que debió pasar en vez de lo que pasó, compromete un expediente clínico.
+`,
+    },
+    {
+        title: 'Piel: Prevención, Observación y Continuidad',
+        description: 'Prevenir la lesión por presión, rotar con la posición de hamaca, describir sin clasificar, y saber cuándo se maneja un apósito y cuándo se llama al supervisor.',
+        durationMins: 35,
+        bonusCompliance: 25,
+        emoji: '🩹',
+        // Capa B: la continuidad con el servicio externo. Aprobada por la
+        // enfermera del hogar el 21-ago-2026 tras dos vueltas de revisión.
+        category: 'Cuidado Geriátrico',
+        order: 108,
+        targetRole: null,
+        content: `---META---
+TITULO: Piel: Prevención, Observación y Continuidad
+PROMPT_ZENDI: Evalúa si el empleado sabe prevenir una lesión por presión, ejecuta la rotación con la técnica correcta, reconoce y describe lo que ve sin clasificarlo, y sabe cuándo puede manejar un apósito y cuándo debe llamar al supervisor.
+TERMINOS_CLAVE: presión, cizallamiento, humedad, escala de Braden, posición de hamaca, prueba del dedo, rotación, apósito, servicio externo, higiene y aspecto
+PREGUNTA_REFLEXION: Al rotar a un residente ves una zona roja en el sacro que no se aclara al presionarla. ¿Cuáles son tus tres pasos?
+
+---SECCION_1---
+LECTURA:
+# Por qué aparece una lesión por presión
+
+El peso del propio cuerpo comprime la piel contra el hueso y le corta la circulación. Sin circulación, el tejido empieza a morir. En una persona mayor, encamada y con la piel delgada, eso puede empezar **en dos horas**.
+
+**Los tres factores que la producen:**
+
+- **Presión** — el peso sostenido sobre un mismo punto
+- **Cizallamiento** — arrastrar en vez de levantar: la piel se queda pegada a la sábana mientras el hueso se mueve por dentro
+- **Humedad** — orina, heces o sudor que macera la piel y la vuelve frágil
+
+Casi siempre están los tres juntos, y casi siempre son evitables.
+
+**Dónde aparecen:** sacro y coxis, talones, caderas, codos, hombros, orejas y la parte de atrás de la cabeza.
+
+**Una lesión por presión es, en la mayoría de los casos, un evento prevenible.** No es algo que le pasa a los viejitos: es lo que ocurre cuando la rotación, la piel seca y la nutrición no se sostienen todos los días.
+
+## La escala de Braden
+
+Sirve para poner número al riesgo en vez de dejarlo en intuición. Se puntúan seis factores: percepción sensorial, humedad, actividad, movilidad, nutrición, y fricción y cizallamiento.
+
+**Se suman los seis. Mientras más bajo el total, mayor el riesgo:** de 19 a 23 sin riesgo; 15 a 18 riesgo leve; 13 a 14 moderado; 10 a 12 alto; 9 o menos muy alto.
+
+**Quién la aplica: solo la enfermera del hogar**, y la reevalúa **cada seis meses** o antes si el residente cambia.
+
+**El cuidador no puntúa.** Lo que sí tiene que hacer es **entender la escala**, por dos razones: para saber por qué a un residente se le vigila más que a otro, y sobre todo para **reportar lo que mueve la puntuación** entre una evaluación y la siguiente — que empezó a comer menos, que ya no se gira solo, que está amaneciendo mojado. Seis meses es mucho tiempo, y lo que pasa en medio lo ve el cuidador, no la escala.
+
+PREGUNTAS:
+P: ¿Cuánto tiempo basta para que empiece el daño por presión en un residente encamado?
+a) Un turno completo de ocho horas
+*b) Dos horas sobre el mismo punto
+c) Un día entero sin moverse
+d) Depende solo del peso del residente
+EXPLICACION: Sin circulación el tejido empieza a dañarse en horas, y en una persona mayor con piel delgada eso puede comenzar a las dos horas. Por eso el intervalo de rotación es el que es.
+
+P: Un residente con Braden de 16 hace dos meses ahora come poco y ya no se gira solo. ¿Qué te toca hacer?
+a) Bajarle la puntuación de Braden en el sistema
+b) Nada, la escala se reevalúa a los seis meses
+*c) Reportar los cambios: son justo lo que mueve la puntuación entre evaluaciones
+d) Aumentar la rotación por mi cuenta a cada hora
+EXPLICACION: El cuidador no puntúa la escala —eso es de la enfermera del hogar, cada seis meses— pero es quien ve lo que la mueve en medio. Reportar que come menos y que perdió movilidad es exactamente el aporte que se espera.
+
+---SECCION_2---
+LECTURA:
+# La rotación y la posición de hamaca
+
+En Zendity el cambio postural se registra, y el sistema marca cuando se hizo **fuera de la ventana de dos horas**. Esa alerta no es para castigar: es la señal de que un residente pasó demasiado tiempo sobre el mismo punto.
+
+**Cada dos horas, para todos.** No hay excepciones por residente. Si alguien necesita más frecuencia, la enfermera del hogar lo indica — pero nadie rota menos de cada dos horas.
+
+**Las posiciones que se alternan:** supino (boca arriba), decúbito lateral izquierdo y decúbito lateral derecho.
+
+**La posición de hamaca.** Es la forma correcta de dejar a alguien de lado. En vez de acostarlo sobre la cadera, se le inclina unos 30 grados y se le **sostiene con almohadas por detrás de la espalda**, de modo que el cuerpo quede apoyado en la almohada y no en el hueso. Otra almohada entre las rodillas, y los tobillos separados.
+
+El residente queda como en una hamaca, sostenido por los lados, con **la cadera y el sacro sin carga directa**. Acostarlo a 90 grados sobre la cadera —que es lo que sale natural— concentra todo el peso en el trocánter, uno de los puntos donde más rápido aparece una lesión.
+
+**Lo que se hace en cada rotación, sin excepción:**
+
+1. Cambiar la posición según toque
+2. **Mirar la piel** — es el momento en que la ves
+3. Estirar las sábanas: una arruga sostenida marca
+4. Almohadas para separar rodillas y tobillos
+5. **Talones al aire**, sobre almohada, no apoyados en el colchón
+6. Verificar que no esté húmedo
+7. **Registrarlo**
+
+**Lo que nunca se hace:** arrastrar (se levanta entre dos o con sábana de deslizamiento), dar masaje sobre una zona enrojecida, usar flotadores o donas, o dejar la cabecera sobre 30 grados más tiempo del necesario.
+
+**Si no pudiste rotar a tiempo, se documenta con la razón real.** Un registro tardío con explicación sirve; un registro puesto al día a las once de la noche para que no salga la alerta es información falsa en un expediente clínico.
+
+PREGUNTAS:
+P: Vas a dejar a un residente de lado. ¿Cómo lo colocas?
+a) A 90 grados, apoyado sobre la cadera
+*b) Inclinado unos 30 grados, sostenido con almohadas por detrás de la espalda
+c) Boca abajo, para descargar totalmente el sacro
+d) Sentado con la cabecera bien alta
+EXPLICACION: Es la posición de hamaca: el cuerpo se apoya en la almohada y no en el hueso, dejando cadera y sacro sin carga directa. Acostarlo sobre la cadera concentra el peso en el trocánter, donde la lesión aparece rápido.
+
+P: Terminó tu turno y no alcanzaste a rotar a un residente a la hora que tocaba. ¿Qué haces?
+a) Lo registro a la hora correcta para que no salga la alerta
+*b) Lo documento tarde, con la razón real de por qué no se pudo
+c) No lo registro, así no queda constancia del retraso
+d) Le pido al turno siguiente que lo registre como si lo hubiera hecho yo
+EXPLICACION: La alerta de rotación tardía no es un castigo: avisa que un residente pasó demasiado tiempo sobre el mismo punto. Registrar una hora falsa deja información inventada en un expediente clínico y le quita a la enfermera el dato que necesita.
+
+---SECCION_3---
+LECTURA:
+# Observar la piel: la prueba del dedo
+
+Esto es lo más importante que hace el hogar en materia de piel: **ver a tiempo**.
+
+**La prueba del dedo.** Presiona la zona enrojecida unos segundos y suelta:
+
+- **Se pone blanca y vuelve al rosado** → la circulación responde. Alivia la presión y vigila de cerca
+- **Sigue roja, no cambia** → la circulación ya está comprometida. **Se reporta**
+
+Esa es la señal más temprana que existe, y llega antes de que haya nada abierto.
+
+**En piel oscura el enrojecimiento no se ve igual.** Busca una zona más oscura o morada que el resto, cambio de temperatura al tacto, dureza, hinchazón, o que el residente se queje de dolor ahí. **La queja de dolor en un punto de presión es señal, aunque no veas nada.**
+
+**Se reporta siempre, el mismo turno:** enrojecimiento que no cede al presionar, zona morada u oscura, ampolla, cualquier piel abierta por pequeña que sea, piel macerada por humedad, mal olor, aumento de tamaño de algo ya conocido, o dolor nuevo en un punto de presión.
+
+**Sobre las etapas 1 a 4:** el sistema las registra porque se clasifican clínicamente. **El cuidador no clasifica.** Decir "creo que es una etapa 2" introduce en el expediente un dato que no te corresponde.
+
+**El tamaño se dice por comparación, no en centímetros.** Nadie anda con una regla en el turno, y un número inventado es peor que ninguno: como una moneda de diez centavos, como una peseta, como una moneda de un peso, como la palma de la mano.
+
+**Y se toma foto en Zendity.** Es el dato más útil que puede dar el hogar: deja ver la evolución real entre una visita y otra del servicio externo, sin depender de cómo cada persona describa lo mismo.
+
+- Mal: "Úlcera etapa 2 en sacro"
+- Bien: "Zona abierta en sacro, como una peseta, roja, sin mal olor. Se queja al girar." + foto
+
+PREGUNTAS:
+P: Presionas una zona enrojecida en el talón y el color no cambia. ¿Qué significa?
+a) Es irritación normal del roce de la sábana
+*b) La circulación ya está comprometida: se alivia la presión, se documenta y se reporta
+c) Que la piel está sana, porque no duele
+d) Que hay que darle masaje para reactivar la circulación
+EXPLICACION: El enrojecimiento que no cede al presionar indica que el tejido ya no recibe circulación adecuada. Es la señal más temprana de daño por presión, y el masaje sobre esa zona empeora el daño en vez de ayudar.
+
+P: Encuentras una zona abierta en el sacro. ¿Cómo la describes en el reporte?
+a) "Úlcera etapa 2 en sacro"
+*b) "Zona abierta en sacro, como una peseta, roja, sin mal olor" y le tomo foto
+c) "Lesión de 2 por 3 centímetros aproximadamente"
+d) "Herida en la espalda baja, parece infectada"
+EXPLICACION: El cuidador describe, no clasifica ni diagnostica. El tamaño va por comparación —nadie carga una regla en el turno— y la foto deja ver la evolución real entre visitas del servicio externo.
+
+---SECCION_4---
+LECTURA:
+# Continuidad del tratamiento y la regla de los apósitos
+
+Cuando ya hay una lesión en tratamiento, **el hogar no cura: sostiene lo que se indicó**.
+
+**Lo que sí hace el hogar:** mantener la zona **sin presión** —ese es el tratamiento más importante y es del hogar—, mantener la piel limpia y seca, cumplir la rotación sin fallar, asegurar que coma y beba, avisar cuando el apósito se despegó o se mojó, y documentar lo que se observa en cada cambio de posición.
+
+**Lo que NO hace el hogar, nunca:** aplicar cremas, pomadas, remedios caseros o productos de otro residente; limpiar una herida con nada que no esté indicado; retirar tejido, costras o nada adherido; o decidir que ya está bien y suspender el cuidado.
+
+## Los apósitos: la regla real
+
+Aquí no hay una prohibición absoluta. **Depende de dos cosas a la vez:**
+
+1. **Que las instrucciones del servicio externo permitan** que el personal del hogar maneje o cambie el apósito, y
+2. **Que el cuidador a cargo tenga el conocimiento** para hacerlo
+
+**Si se cumplen las dos**, el cuidador lo hace y lo documenta.
+
+**Si falta cualquiera de las dos** —no hay instrucción que lo permita, o el cuidador no sabe— **no se improvisa: se contacta al supervisor de turno**, y él toma la acción: que lo haga alguien capacitado, o que la enfermera del hogar coordine consulta con el servicio externo.
+
+**No saber no es una falla; hacerlo sin saber sí lo es.** Si nunca has cambiado ese apósito, dilo. Nadie espera que todos sepan todo, y un apósito mal puesto puede infectar una herida que iba cerrando.
+
+**Lo que sigue estando prohibido siempre:** destapar un apósito solo para mirar cómo va. Eso rompe la barrera contra la infección y no aporta nada — para eso está la foto del registro anterior.
+
+**Se reporta:** apósito despegado, sucio, mojado o con filtración; mal olor nuevo; aumento de dolor; enrojecimiento alrededor; fiebre; o que el residente empezó a evitar apoyarse de ese lado.
+
+PREGUNTAS:
+P: Encuentras un apósito despegado a las 2 de la mañana y nunca has cambiado uno. ¿Qué haces?
+a) Lo cambio con cuidado, no puede quedarse así
+*b) Contacto al supervisor de turno para que él tome la acción
+c) Lo despego para ver cómo va la herida y lo vuelvo a pegar
+d) Lo dejo y lo reporto al final del turno
+EXPLICACION: El personal maneja apósitos cuando las instrucciones lo permiten Y el cuidador sabe hacerlo. Si falta cualquiera de las dos, se llama al supervisor. No saber no es una falla; hacerlo sin saber sí lo es.
+
+P: Un residente tiene un apósito puesto y quieres saber cómo va la herida. ¿Puedes destaparlo?
+a) Sí, si lo vuelves a tapar enseguida
+b) Sí, siempre que uses guantes
+*c) No: destaparlo solo para mirar rompe la barrera contra la infección
+d) Sí, pero solo en el turno de día
+EXPLICACION: Destapar un apósito para mirar expone la herida a infección y no aporta nada, porque la referencia de cómo iba está en la foto del registro anterior. Esa es la parte que sigue prohibida siempre.
+
+---SECCION_5---
+LECTURA:
+# Lo que sostiene la piel todos los días
+
+La piel no se cuida en el momento de la lesión. Se cuida en las cosas aburridas que se hacen bien todos los días.
+
+**Higiene:** agua tibia, jabón suave, **secar sin frotar** y con cuidado en los pliegues. Hidratar la piel seca — la piel agrietada se rompe antes. **Nunca hidratar sobre una zona enrojecida ni sobre piel abierta.**
+
+**Humedad:** cambio pronto tras cada episodio de incontinencia. El pañal ni apretado ni doblado, y nunca dos ni con toalla adentro.
+
+**Ropa de cama:** estirada, sin arrugas, sin migas. Una arruga bajo el sacro durante ocho horas deja marca.
+
+**Nutrición e hidratación:** una herida no cierra sin proteína ni líquido. Por eso **reportar que alguien está comiendo poco es cuidado de la piel**, aunque no lo parezca.
+
+**Movilidad:** quien puede caminar, camina. Quien puede sentarse, se sienta — pero **también en la silla hay que reacomodar, cada hora aproximadamente**. Sentado el peso se concentra en los isquiones, y una silla no protege más que la cama.
+
+**Dispositivos:** revisar que nada roce. Sondas, tubos de oxígeno, férulas y hasta el elástico de la media dejan lesión por presión si quedan debajo del cuerpo o aprietan.
+
+## Higiene y aspecto: no es cosmético
+
+**Todos los días, todos los residentes:** peinado, afeitado —o la barba arreglada, si la usa—, bien vestido con ropa limpia que le quede y que él haya podido escoger, uñas cortas y limpias, boca cuidada.
+
+**Y con especial cuidado en los horarios de visita.** Cuando la familia llega y encuentra a su mamá despeinada y con la ropa de ayer, lo que ve no es un detalle estético: concluye —muchas veces con razón— que si eso no se cuidó, tampoco se cuidó lo demás.
+
+**Por qué importa clínicamente:** un residente bien arreglado se siente persona. Uno descuidado se abandona — come menos, se mueve menos, participa menos. Y todo eso termina en la piel.
+
+PREGUNTAS:
+P: Un residente pasa el día sentado en su silla en vez de en cama. ¿Está protegido de una lesión por presión?
+a) Sí, sentado el peso se reparte mejor
+*b) No: sentado hay que reacomodar cada hora aproximadamente
+c) Sí, siempre que tenga un cojín
+d) Solo si se levanta a caminar una vez al día
+EXPLICACION: Sentado el peso se concentra en los isquiones, y una silla no protege más que la cama. Por eso el intervalo de reacomodo en silla es incluso más corto que el de rotación en cama.
+
+P: ¿Por qué se insiste en que el residente esté peinado, afeitado y bien vestido, sobre todo en horario de visita?
+a) Solo por la impresión que se lleva la familia
+*b) Porque un residente bien arreglado se siente persona, y el que se abandona come y se mueve menos
+c) Porque lo exige el Departamento de la Familia
+d) Porque así se distingue quién recibe visitas
+EXPLICACION: No es cosmético: el aspecto sostiene el ánimo, y el ánimo sostiene el apetito y la movilidad, que son dos de los factores que protegen la piel. La impresión de la familia es real, pero es la consecuencia, no la razón.
+`,
+    },
+    {
+        title: 'Signos Vitales, Observación y Escalamiento',
+        description: 'Tomar bien cada signo, los umbrales que obligan a llamar, y por qué el cambio respecto a lo habitual dice más que el valor absoluto.',
+        durationMins: 35,
+        bonusCompliance: 25,
+        emoji: '🌡️',
+        // Capa B: la continuidad con el servicio externo. Aprobada por la
+        // enfermera del hogar el 21-ago-2026 tras dos vueltas de revisión.
+        category: 'Cuidado Geriátrico',
+        order: 109,
+        targetRole: null,
+        content: `---META---
+TITULO: Signos Vitales, Observación y Escalamiento
+PROMPT_ZENDI: Evalúa si el empleado toma bien cada signo vital, conoce los umbrales que obligan a llamar al supervisor, describe sin diagnosticar, y entiende que el cambio respecto a lo habitual dice más que el valor absoluto.
+TERMINOS_CLAVE: ventana de vitales, presión ortostática, umbral, hipotermia, describir sin diagnosticar, escalamiento, base del residente, cambio de estado mental, observación
+PREGUNTA_REFLEXION: Los vitales de un residente salen todos normales, pero algo te dice que no está como siempre. ¿Qué haces?
+
+---SECCION_1---
+LECTURA:
+# La ventana de vitales al abrir turno
+
+En Zendity, al abrir tu turno se crea una **ventana de tres horas** para tomar los signos vitales de los residentes que te corresponden. Si se vence sin completarla, el sistema pide una razón.
+
+Eso no es una tarea del sistema: es la foto del estado del residente al inicio del turno. Sin ella, cuando algo cambie a las tres de la tarde nadie sabrá desde cuándo — y ese "desde cuándo" es lo primero que pregunta la enfermera o el paramédico.
+
+**Una toma buena por turno es suficiente.** No se trata de medir muchas veces: se trata de que la que se tome esté bien tomada. Una lectura hecha con prisa, con el residente recién llegado de caminar, vale menos que ninguna — porque queda escrita como si fuera su estado real.
+
+**La excepción: si algo sale muy distinto de lo habitual, se repite en una o dos horas.** No se espera al próximo turno para confirmar un valor que llamó la atención.
+
+**Lo que hace útil la toma:**
+
+- **A la misma hora**, para poder comparar
+- **Con el residente en reposo** — no justo después de caminar, comer o alterarse
+- **Anotarlo en el momento**, no de memoria al final del turno
+- Si un valor sale raro, **tómalo otra vez** antes de reportar: brazo mal puesto, brazalete flojo o el residente hablando dan lecturas falsas
+
+**Si no pudiste completar la ventana**, escribe la razón real: que estaba en terapia, que se negó, que estaba fuera con la familia. Una razón verdadera sirve; una inventada para cerrar la alerta contamina el expediente.
+
+**Si un residente se niega a que lo midan**, no se fuerza: se ofrece más tarde, se documenta el rechazo y se reporta si se repite.
+
+PREGUNTAS:
+P: ¿Cuánto dura la ventana para tomar los vitales al abrir turno?
+a) Una hora
+*b) Tres horas, y con una toma buena por turno basta
+c) Todo el turno
+d) Hasta que el supervisor lo pida
+EXPLICACION: Son tres horas. No se trata de medir muchas veces sino de que la toma esté bien hecha: una lectura con prisa queda escrita como si fuera el estado real del residente.
+
+P: Una lectura sale muy distinta de lo habitual en ese residente. ¿Qué haces?
+a) La anoto y espero al próximo turno para confirmar
+*b) La repito en una o dos horas, además de reportarla
+c) La descarto y tomo solo la siguiente
+d) La anoto sin más, los aparatos no fallan
+EXPLICACION: Un valor que llama la atención se confirma antes de que pase el turno, porque puede ser un error de técnica o el inicio de un cambio real. Esperar al próximo turno pierde las horas que importan.
+
+---SECCION_2---
+LECTURA:
+# Cómo se toma cada uno
+
+**Temperatura.** Con el mismo método siempre — anota cuál usaste, porque la axilar y la de oído no dan lo mismo. Espera si acaba de tomar algo caliente o frío.
+
+**Pulso.** En la muñeca, con los dedos —nunca con el pulgar— durante un minuto completo. Fíjate no solo en cuántos: **si es regular o irregular**, y si se siente fuerte o débil. Un pulso irregular nuevo se reporta.
+
+**Respiración.** **Sin avisarle.** En cuanto le dices que vas a contar su respiración, la persona la cambia sin querer. Cuenta un minuto discretamente, después del pulso.
+
+**Presión arterial.** El residente sentado, en reposo cinco minutos, brazo apoyado a la altura del corazón, pies en el piso, sin hablar. **Brazalete del tamaño correcto**: uno pequeño da lecturas falsamente altas, un error muy común. Sobre la piel, no sobre la manga.
+
+**Oxígeno.** Dedo limpio, sin esmalte, mano tibia. Una mano fría da lecturas falsamente bajas: caliéntala y repite antes de alarmarte.
+
+**Peso.** Misma báscula, misma hora, ropa similar. Es de las señales más valiosas y de las más ignoradas: una pérdida sostenida se ve semanas antes de que el residente se vea mal.
+
+## Presión ortostática
+
+Explica por qué un residente se marea o se cae al levantarse, y es una de las causas de caída más fáciles de detectar.
+
+**Se toma la presión tres veces, en tres posiciones:** acostado tras cinco minutos en reposo; de pie al minuto de haberse levantado; y de pie otra vez a los tres minutos. Se anotan las tres con su posición y su hora.
+
+**Qué se busca:** una caída de la presión al ponerse de pie. Si la sistólica baja de forma marcada respecto a la de acostado, o si el residente se marea, se tambalea o se pone pálido, **eso se reporta** — es riesgo de caída, y muchas veces se corrige ajustando un medicamento.
+
+**Seguridad:** no lo dejes solo de pie; alguien a su lado o una silla justo detrás. **Si se marea, siéntalo de inmediato** y no completes la prueba.
+
+**Cuándo se hace:** cuando la enfermera del hogar lo indique — típicamente en residentes que se han caído, que se quejan de mareo al levantarse, o que empezaron un medicamento nuevo para la presión.
+
+PREGUNTAS:
+P: Vas a contar la respiración de un residente. ¿Cómo lo haces?
+a) Le aviso para que se quede quieto y respire normal
+*b) Sin avisarle, discretamente, después de tomarle el pulso
+c) Le pido que respire hondo mientras cuento
+d) Le pregunto cuántas veces siente que respira
+EXPLICACION: En cuanto la persona sabe que le están contando la respiración, la cambia sin querer. Contarla justo después del pulso, sin avisar, es la única forma de obtener el valor real.
+
+P: Durante la prueba de presión ortostática el residente se marea al ponerse de pie. ¿Qué haces?
+a) Completo las tres tomas rápido para tener el dato
+*b) Lo siento de inmediato, no completo la prueba y lo reporto
+c) Lo sostengo del brazo y sigo
+d) Lo acuesto y repito la prueba desde el principio
+EXPLICACION: La seguridad del residente manda sobre el dato. El mareo al levantarse ya es en sí mismo el hallazgo que se buscaba, así que no hace falta completar la prueba para reportarlo.
+
+---SECCION_3---
+LECTURA:
+# Los umbrales del hogar
+
+Estos son los valores aprobados. Hay dos niveles, y la diferencia importa: **llamar** interrumpe el turno; **anotar** llega al reporte de enfermería sin interrumpir a nadie.
+
+**LLAMA AL SUPERVISOR DE INMEDIATO si:**
+
+- **Temperatura** 38.0 °C o más
+- **Temperatura baja** — en un adulto mayor la hipotermia también puede indicar infección, y es la que más se deja pasar porque nadie la espera
+- **Pulso** más de 110, menos de 50, o **irregular cuando antes no lo era**
+- **Sistólica** más de 180, o menos de 90
+- **Diastólica** más de 110, o menos de 50
+- **Oxígeno** menos de 90%, confirmado con la mano tibia
+- **Peso** con aumento de un kilo en un día o dos en una semana
+
+**ANOTA Y PÁSALO EN EL REPORTE si:** temperatura de 37.5 a 37.9; pulso de 100 a 110 sostenido; sistólica de 160 a 180; diastólica de 100 a 110; oxígeno de 90 a 93%; o pérdida de peso sostenida en dos pesajes.
+
+**Dos notas sobre la tabla.** El aumento rápido de peso **no es que comió bien**: un kilo en un día es líquido retenido, y suele verse antes de que se compliquen los pulmones o el corazón. Y la hipotermia asusta menos que la fiebre y avisa igual.
+
+**Lo más importante de esta sección:** el número que más dice **no es el valor absoluto, es el cambio respecto a lo habitual de esa persona**. Un residente que siempre anda en 90/60 y hoy está en 130/85 puede estar peor que otro que siempre anduvo en 130/85. Por eso hay que conocer su base, y por eso importa que las tomas sean consistentes.
+
+**Señales que se reportan aunque los números salgan bien:** confusión nueva o más somnolencia, dejó de comer o beber, no orinó como de costumbre, dolor nuevo, menos movilidad, o simplemente que **no está como siempre**.
+
+PREGUNTAS:
+P: Un residente tiene la temperatura por debajo de lo normal. ¿Es preocupante?
+a) No, lo preocupante es la fiebre
+*b) Sí: en un adulto mayor la hipotermia también puede indicar infección
+c) Solo si además tiene frío
+d) Solo si es menor de 30 grados
+EXPLICACION: La hipotermia avisa igual que la fiebre y se deja pasar más, precisamente porque nadie la espera. En un adulto mayor una infección puede manifestarse bajando la temperatura en vez de subiéndola.
+
+P: Un residente que siempre anda en 90/60 hoy tiene 130/85. ¿Qué haces?
+a) Nada, 130/85 está dentro de lo normal
+*b) Lo reporto: lo que dice más es el cambio respecto a su base, no el valor absoluto
+c) Repito la toma hasta que dé 90/60
+d) Solo lo anoto si además se siente mal
+EXPLICACION: Un valor "normal" puede ser anormal para esa persona. Por eso se conoce la base de cada residente y por eso las tomas tienen que ser consistentes: sin base no hay con qué comparar.
+
+---SECCION_4---
+LECTURA:
+# Describir sin diagnosticar
+
+Lo que escribes se queda en un expediente clínico. **Interpretar es lo que no te toca; describir es lo que nadie más puede hacer.**
+
+- En vez de "parece que tiene infección urinaria" → **"Orina turbia y de olor fuerte. Se quejó al orinar dos veces."**
+- En vez de "está deprimido" → **"No quiso salir del cuarto ni bajar al comedor. Llevaba tres días participando en actividades."**
+- En vez de "le duele por la artritis" → **"Se quejó de dolor en la rodilla derecha al levantarse. Caminó apoyándose en la pared."**
+- En vez de "estaba agresivo" → **"A las 4:10 gritó y empujó la bandeja al intentar asistirlo con el baño."**
+- En vez de "comió mal" → **"Comió el 25% del almuerzo. Tomó todo el jugo."**
+
+**Las reglas:** hora exacta; lo que observaste, no lo que supones; lo que el residente dijo **entre comillas** con sus palabras; lo que hiciste después; y números cuando los haya.
+
+**Documenta durante el turno, no al final.** La memoria se distorsiona en horas, y un turno de ocho horas reconstruido a las 9:55 pierde exactamente los detalles que importan.
+
+**Tres formas de escribir que le quitan información a quien lee:**
+
+**El pasivo sin persona ni hora.** "Se observó que no se administró el medicamento de las 8 p.m." no dice quién lo notó ni cuándo. Mejor: "El medicamento de las 8:00 p.m. no se administró. Lo noté a las 9:30 al revisar el eMAR. Lo reporté al supervisor a las 9:35."
+
+**El resumen que no dice qué pasó.** "Se registró una observación relacionada con el cuidado de un residente" podría ser cualquier cosa. Mejor: "A las 2:10 encontré a doña X con el pañal sin cambiar desde el turno anterior. Piel enrojecida en el sacro, cede al presionar."
+
+**La conclusión en lugar del hecho.** "Estuvo agresivo" deja una etiqueta pegada al residente. Mejor: "A las 4:10 gritó y empujó la bandeja cuando lo asistí con el baño. Me retiré y volví a las 4:40; aceptó sin problema."
+
+**Nunca:** borrar o alterar lo escrito, documentar algo que no hiciste, ni firmar por otra persona.
+
+PREGUNTAS:
+P: ¿Cómo se documenta lo que parece una infección urinaria?
+a) "Posible infección urinaria, favor evaluar"
+*b) "Orina turbia y de olor fuerte. Se quejó al orinar dos veces."
+c) "El residente tiene molestias urinarias por su edad"
+d) "Sospecho infección, ya le di más agua"
+EXPLICACION: El diagnóstico no le corresponde al cuidador, pero la observación sí — y es la que nadie más puede aportar. Describir lo concreto le da a quien decide exactamente lo que necesita.
+
+P: ¿Cuándo se documenta lo ocurrido en el turno?
+a) Al final, en un resumen ordenado
+*b) Durante el turno, en el momento
+c) Al día siguiente, con la cabeza fresca
+d) Solo si pasó algo fuera de lo normal
+EXPLICACION: La memoria se distorsiona en horas. Un turno de ocho horas reconstruido al final pierde justo los detalles —la hora exacta, las palabras del residente— que hacen útil la documentación.
+
+---SECCION_5---
+LECTURA:
+# La cadena completa
+
+Este curso cierra donde empezó: **tú eres los ojos del servicio externo los días que no está**.
+
+**Cómo se ve la cadena cuando funciona:**
+
+1. **Lunes** — la cuidadora anota: "comió el 30%, rechazó el jugo, orina oscura"
+2. **Martes** — otra cuidadora anota: "más callada, se durmió en el comedor"
+3. **Martes noche** — se reporta confusión nueva
+4. **La enfermera del hogar** lo lee junto y ve el patrón: posible infección urinaria o deshidratación
+5. **Se coordina consulta y se trata** — sin hospitalización
+
+**Cómo se ve cuando falla:** los mismos tres días ocurren, nadie los escribe porque cada uno por separado "no era nada", y el jueves la residente va a emergencias.
+
+La diferencia no fue el conocimiento clínico de nadie. Fue que alguien anotó.
+
+**Lo que sostiene la cadena:** tomar los vitales en su ventana y bien tomados; anotar en el momento; describir sin diagnosticar; escalar según urgencia, sin inflar ni minimizar; pasar el relevo completo por escrito; y **decir cuando algo no se pudo hacer**.
+
+**Y lo último, que es lo más difícil de enseñar:** cuando algo te dé mala espina y no sepas explicar por qué, repórtalo igual. Ese instinto viene de ver a esa persona todos los días, y es información clínica real aunque no tenga nombre. Prefieren un reporte de más que enterarse en emergencias.
+
+PREGUNTAS:
+P: Tres días seguidos anotas cosas pequeñas de una residente: comió poco, orina oscura, más callada. Por separado ninguna parecía nada. ¿Para qué sirvió anotarlas?
+*a) Juntas dejan ver un patrón —posible infección o deshidratación— que se puede tratar a tiempo
+b) Para tener respaldo si la familia reclama
+c) Para cumplir con el registro diario
+d) Para que el próximo turno sepa cómo tratarla
+EXPLICACION: Ninguna de las tres, sola, justifica una consulta. Juntas dibujan un patrón que se atiende antes de que termine en emergencias. Esa es toda la razón de ser de la documentación diaria.
+
+P: Los vitales de un residente salen normales, pero algo te dice que no está como siempre. ¿Qué haces?
+a) Confío en los números y sigo con el turno
+*b) Lo reporto igual: ese instinto viene de verlo todos los días y es información real
+c) Espero al próximo turno a ver si alguien más lo nota
+d) Repito los vitales hasta que salga algo anormal
+EXPLICACION: Conocer al residente todos los días produce una lectura que ningún aparato da. Un reporte de más cuesta una conversación; uno de menos puede costar una hospitalización.
+`,
+    },
 ];
 
 async function main() {

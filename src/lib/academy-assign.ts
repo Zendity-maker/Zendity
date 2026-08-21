@@ -70,6 +70,12 @@ const RUTA_CERTIFICACION: string[] = [
     'Alimentación, Hidratación',
     'Trato Digno, Derechos',
     'Emergencias: Los Primeros Minutos',
+    // Capa B — continuidad con el servicio externo. Van al final a propósito:
+    // enseñan a sostener un plan que alguien más estableció, y eso se entiende
+    // mejor cuando ya se sabe cuidar.
+    'Continuidad del Plan de Cuidado',
+    'Piel: Prevención',
+    'Signos Vitales, Observación',
 ];
 
 /**
