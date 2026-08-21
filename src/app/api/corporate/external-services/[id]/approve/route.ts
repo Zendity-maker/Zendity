@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { avisoFamiliaSinPHI } from '@/lib/family-email';
 import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 import sgMail from '@sendgrid/mail';
@@ -98,15 +99,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
                         await sgMail.send({
                             to: fm.email,
                             from: fromEmail,
-                            subject: `${icon} Nueva visita a ${fm.patient?.name || 'tu ser querido'}`,
-                            text: `Hola ${fm.name || ''},\n\n${providerName}${serviceLabel} visitó hoy en Vivid Senior Living Cupey.\n\nEntra a app.zendity.com/family/feed para ver detalles.\n\n— Equipo Zéndity`,
-                            html: `<div style="font-family: system-ui, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px;">
-                                <h2 style="color:#0F6E56;">${icon} Visita externa registrada</h2>
-                                <p>Hola <strong>${fm.name || ''}</strong>,</p>
-                                <p><strong>${providerName}</strong>${serviceLabel} visitó hoy a <strong>${fm.patient?.name || 'tu ser querido'}</strong> en Vivid Senior Living Cupey.</p>
-                                <p><a href="https://app.zendity.com/family/feed" style="display:inline-block;background:#0F6E56;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Ver en el portal →</a></p>
-                                <p style="color:#64748b;font-size:13px;margin-top:32px;">— Equipo Zéndity</p>
-                            </div>`,
+                            // Sin PHI: el nombre del proveedor puede ser el
+                            // diagnóstico (un hospicio lo dice todo). Gemelo del
+                            // cron external-services-sla. Ver src/lib/family-email.ts.
+                            ...(() => {
+                                const aviso = avisoFamiliaSinPHI({
+                                    familyName: fm.name,
+                                    hqName: 'Vivid Senior Living Cupey',
+                                    titulo: 'Visita registrada',
+                                    detalle: 'Se registró una visita de servicio en el hogar. Los detalles están en el portal familiar.',
+                                });
+                                return { subject: aviso.subject, text: aviso.text, html: aviso.html };
+                            })(),
                         });
                         notifiedFamilies++;
                     } catch (e) {

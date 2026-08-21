@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { avisoFamiliaSinPHI } from '@/lib/family-email';
 import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -143,34 +144,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                         ? `<img src="${logoUrl}" alt="${hqName}" style="max-height:60px;object-fit:contain;margin-bottom:12px;" />`
                         : '';
 
-                    const emailHtml = `
-<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#f8fafc;">
-    <div style="background:#0f172a;padding:28px 32px;text-align:center;">
-        ${logoHtml}
-        <h1 style="color:#fff;margin:0;font-size:18px;font-weight:900;text-transform:uppercase;letter-spacing:2px;">${hqName}</h1>
-        <p style="color:#64748b;font-size:11px;margin:4px 0 0;letter-spacing:2px;text-transform:uppercase;">Plan de Atención Individualizado</p>
-    </div>
-    <div style="padding:32px;">
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-            <p style="margin:0;font-weight:900;color:#15803d;font-size:16px;">✅ Plan de Atención Aprobado</p>
-            <p style="margin:4px 0 0;color:#166534;font-size:13px;">
-                Estimado(a) <strong>${familyName || 'Familiar'}</strong>, el equipo clínico de ${hqName} ha aprobado el Plan de Atención de <strong>${patient?.name}</strong>.
-            </p>
-        </div>
-
-        <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:24px;white-space:pre-wrap;font-size:14px;color:#334155;line-height:1.7;">
-${bodyFamilyVersion}
-        </div>
-
-        <p style="margin-top:24px;font-size:13px;color:#94a3b8;">
-            Puede ver el historial completo de planes en el portal familiar:
-            <a href="https://app.zendity.com/family/pai" style="color:#0f6b78;">app.zendity.com/family/pai</a>
-        </p>
-    </div>
-    <div style="background:#f1f5f9;padding:16px 32px;text-align:center;font-size:11px;color:#94a3b8;">
-        Enviado automáticamente por Zéndity OS — ${hqName}
-    </div>
-</div>`;
+                    // El plan de atención NO se envía por correo. Es el documento
+                    // clínico más completo del residente —diagnósticos, medicación,
+                    // indicaciones— e iba entero en el cuerpo. El asunto además
+                    // revelaba que esa persona está bajo plan clínico sin necesidad
+                    // de abrirlo. Ver src/lib/family-email.ts.
+                    const aviso = avisoFamiliaSinPHI({
+                        familyName,
+                        hqName,
+                        titulo: 'Plan de atención aprobado',
+                        detalle: 'El equipo clínico aprobó una actualización del plan de atención. Puede leerlo completo en el portal familiar.',
+                        ruta: '/family/pai',
+                    });
 
                     await sgMail.send({
                         to: familyEmail,
@@ -178,8 +163,9 @@ ${bodyFamilyVersion}
                             email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
                             name: hqName
                         },
-                        subject: `Plan de Atención de ${patient?.name} — Aprobado`,
-                        html: emailHtml,
+                        subject: aviso.subject,
+                        html: aviso.html,
+                        text: aviso.text,
                     });
 
                     // Marcar emailSentAt
