@@ -65,7 +65,11 @@ async function measurePage(page: any, route: string): Promise<PageResult> {
 
 test.describe('06 — Performance & Calidad', () => {
 
-    test('Director — medir tiempos de carga y errores', { timeout: 180_000 }, async ({ page }) => {
+    test('Director — medir tiempos de carga y errores', async ({ page }) => {
+        // El timeout va aquí, no en el segundo argumento: TestDetails de
+        // Playwright solo acepta { annotation, tag }, así que `{ timeout }` ahí
+        // no compila — y era el último error que ensuciaba `tsc --noEmit`.
+        test.setTimeout(180_000);
         await loginAs(page, 'director');
         await page.waitForTimeout(2000);
 

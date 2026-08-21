@@ -72,3 +72,4 @@ scripts/*
 !scripts/academy-imagenes.ts
 public/academy/_backup_old/
 !scripts/simular-emar-dosis.ts
+!scripts/_ARCHIVADOS.md
