@@ -66,3 +66,4 @@ scripts/*
 !scripts/hr-baja-empleado.ts
 !scripts/normalizar-estado-empleados.ts
 !scripts/verificar-ventana-vitales.ts
+!scripts/simular-umbrales-vitales.ts

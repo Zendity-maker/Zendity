@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { VITALS_WINDOW_MS, PENALTY_GRACE_MS } from '@/lib/vitals-window';
+import { evaluarVitales, nivelDe, aCelsius } from '@/lib/vitals-thresholds';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
@@ -237,19 +238,25 @@ export async function POST(req: Request) {
             const glucose = data.glucose ?? null;
             const spo2 = data.spo2 ?? null;
 
-            // ── FIX 3: Detección unidad temperatura ──
-            // Si temp < 45 → Celsius (valores humanos típicos 35-42°C). Convertir a °F para el threshold.
-            // Si temp ≥ 45 → Fahrenheit (valores humanos típicos 95-106°F).
-            const tempF = temp < 45 ? (temp * 9 / 5) + 32 : temp;
+            // Temperatura ilegible: ni Celsius ni Fahrenheit plausibles. En los datos
+            // de Cupey hay 86 lecturas así, entrando al expediente como válidas.
+            // Se rechaza aquí para que la cuidadora la corrija en el momento.
+            if (aCelsius(temp) === null) {
+                return NextResponse.json({
+                    success: false,
+                    error: `Temperatura fuera de rango (${temp}). Revisa el valor y vuelve a registrarlo.`
+                }, { status: 400 });
+            }
 
-            let isCritical = false;
-            let criticalMessage = "";
-
-            if (sys > 140 || dia > 90) { isCritical = true; criticalMessage = "Posible crisis hipertensiva detectada."; }
-            else if (sys < 90) { isCritical = true; criticalMessage = "Posible cuadro de hipotensión."; }
-            else if (tempF > 100.4) { isCritical = true; criticalMessage = `Fiebre sistémica detectada (${temp < 45 ? `${temp}°C` : `${temp}°F`}).`; }
-            // SpO2 crítica si < 94%
-            else if (spo2 !== null && spo2 < 94) { isCritical = true; criticalMessage = `Hipoxemia detectada (SpO2 ${spo2}%).`; }
+            // Umbrales aprobados por la enfermera del hogar — ver
+            // src/lib/vitals-thresholds.ts. Antes esta evaluación vivía aquí
+            // inline con valores que nadie había decidido: `sys > 140 || dia > 90`
+            // marcaba como crisis hipertensiva la presión que se le espera a un
+            // adulto mayor, y no había nada para hipotermia, pulso ni diastólica.
+            const hallazgos = evaluarVitales({ systolic: sys, diastolic: dia, heartRate: hr, temperature: temp, spo2 });
+            const nivel = nivelDe(hallazgos);
+            const isCritical = nivel === 'LLAMAR';
+            const criticalMessage = hallazgos.filter(x => x.nivel === 'LLAMAR').map(x => x.mensaje).join(' ');
 
             // measuredById: SIEMPRE session.user.id (no confiamos en body)
             await prisma.vitalSigns.create({
@@ -293,10 +300,25 @@ export async function POST(req: Request) {
                         appointmentDate: new Date(Date.now() + 45 * 60 * 1000)
                     }
                 });
-                return NextResponse.json({ 
-                    success: true, 
-                    criticalAlert: true, 
-                    message: ` ${criticalMessage} Zendity colocó al residente bajo protocolo de observación. Se agendó una revisión mandatoria en 45 minutos. Por favor, documente la incidencia.` 
+                return NextResponse.json({
+                    success: true,
+                    criticalAlert: true,
+                    hallazgos,
+                    message: `${criticalMessage} Avisa al supervisor. Zendity colocó al residente bajo protocolo de observación: hay una revisión obligatoria en 45 minutos.`
+                });
+            }
+
+            // Nivel ANOTAR: se le pasa a la enfermera en el reporte, sin
+            // interrumpir el turno ni agendar revisión. Es la mitad del diseño
+            // de dos niveles que ella aprobó, y lo que evita que el sistema
+            // grite por todo hasta que nadie lo escuche.
+            if (nivel === 'ANOTAR') {
+                return NextResponse.json({
+                    success: true,
+                    criticalAlert: false,
+                    aviso: true,
+                    hallazgos,
+                    message: `${hallazgos.map(x => x.mensaje).join(' ')} Queda anotado para el reporte de enfermería.`
                 });
             }
         } else if (type === 'LOG') {
