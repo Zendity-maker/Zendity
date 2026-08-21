@@ -58,7 +58,7 @@ export async function GET(req: Request) {
         const [complaints, incidents, clinicalAlerts, uppPatients] = await Promise.all([
             prisma.complaint.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
             prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } } }),
-            prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, createdAt: { gte: twentyFourHrsAgo } } }),
+            prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
             prisma.patient.count({ where: { headquartersId: hqId, pressureUlcers: { some: { status: 'ACTIVE' } } } }),
         ]);
 

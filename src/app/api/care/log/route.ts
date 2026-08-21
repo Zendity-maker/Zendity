@@ -51,26 +51,20 @@ export async function POST(req: Request) {
             }
         });
 
-        // FASE 28: Zendity Triggered Reactive Learning
-        if (isClinicalAlert) {
-            try {
-                const reactiveCourse = await prisma.course.findFirst({
-                    where: { headquartersId: hqId, isActive: true },
-                    orderBy: { createdAt: 'desc' }
-                });
-
-                if (reactiveCourse) {
-                    await prisma.userCourse.upsert({
-                        where: { employeeId_courseId: { employeeId: authorId, courseId: reactiveCourse.id } },
-                        create: { employeeId: authorId, courseId: reactiveCourse.id, headquartersId: hqId, status: 'ASSIGNED' },
-                        update: { status: 'ASSIGNED' }
-                    });
-                    console.log(`[Zendi Academy] Curso Reactivo Asignado a ${authorId}`);
-                }
-            } catch (e) {
-                console.error("Reactive Learning DailyLog Error:", e);
-            }
-        }
+        // Antes, levantar una alerta clínica le asignaba al cuidador un curso
+        // elegido con `findFirst orderBy createdAt desc` — es decir, el curso
+        // sembrado más recientemente, sin relación alguna con lo que reportó.
+        // Hoy eso le habría asignado "Signos Vitales" a quien documentó que un
+        // residente no comió.
+        //
+        // Se elimina por dos razones. Asignar formación que no aborda el
+        // problema enseña al equipo a ignorar las asignaciones — el mismo
+        // criterio que ya sigue academy-assign. Y sobre todo: castigaba con
+        // tarea a quien REPORTA, que es exactamente la conducta que el hogar
+        // necesita fomentar.
+        //
+        // La formación por incidente sigue existiendo donde tiene sentido: en
+        // /api/hr/incidents/[id]/decide, cuando alguien evaluó el caso.
 
         return NextResponse.json({ success: true, log, alert: isClinicalAlert ? "Notificación de Riesgo Operativo y Asignación de Curso Activa." : null });
 

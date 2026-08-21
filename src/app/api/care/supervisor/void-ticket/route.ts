@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         const hqId = invokerHqId;
         const reasonTrimmed = reason.trim();
 
-        let affected: 'triage' | 'complaint' | 'none' = 'none';
+        let affected: 'triage' | 'complaint' | 'clinical_alert' | 'none' = 'none';
 
         if (sourceType === 'TRIAGE_TICKET') {
             const ticketCheck = await prisma.triageTicket.findUnique({
@@ -94,16 +94,34 @@ export async function POST(req: Request) {
                 },
             });
             affected = 'complaint';
+        } else if (sourceType === 'CLINICAL_ALERT') {
+            // CLINICAL_ALERT SÍ tiene fila canónica: es un DailyLog, y su campo
+            // isResolved existe exactamente para esto. Se asumió que era
+            // sintético como los grupos de Zendi, así que el supervisor
+            // descartaba, recibía "listo", y el registro quedaba igual.
+            // Resultado en Cupey: 286 alertas levantadas, CERO resueltas.
+            const logCheck = await prisma.dailyLog.findUnique({
+                where: { id: sourceId },
+                select: { patient: { select: { headquartersId: true } } },
+            });
+            if (!logCheck || logCheck.patient.headquartersId !== hqId) {
+                return NextResponse.json({ success: false, error: 'Alerta fuera de tu sede' }, { status: 403 });
+            }
+            await prisma.dailyLog.update({
+                where: { id: sourceId },
+                data: { isResolved: true },
+            });
+            affected = 'clinical_alert';
         }
-        // Otros sourceType (INCIDENT, CLINICAL_ALERT, UPP_SLA, ZENDI_*) no tienen
-        // fila canónica — el feed del supervisor los regenera por computación.
-        // Registramos solo el audit log para trazabilidad del descarte.
+        // Los demás sourceType (INCIDENT, UPP_SLA, ZENDI_*) sí se regeneran por
+        // computación y no tienen fila que cerrar. Solo queda el audit log.
 
         try {
             await prisma.systemAuditLog.create({
                 data: {
                     headquartersId: hqId,
-                    entityName: affected === 'complaint' ? 'Complaint' : 'TriageFeed',
+                    entityName: affected === 'complaint' ? 'Complaint'
+                        : affected === 'clinical_alert' ? 'DailyLog' : 'TriageFeed',
                     entityId: sourceId,
                     action: SystemAuditAction.VOIDED,
                     performedById: invokerId,
