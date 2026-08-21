@@ -9,6 +9,7 @@ import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
 import BackToDashboard from "./ui/BackToDashboard";
+import AvisoCertificacion from "./academy/AvisoCertificacion";
 import SupportButton from "./support/SupportButton"; // Punto 8 — Soporte
 import {
     LayoutDashboard, Users, UserCog, GraduationCap,
@@ -1054,6 +1055,12 @@ if ((item as any).onlyRoles) {
                         )}
                     </div>
                 </header>
+
+                {/* Aviso de certificación pendiente. Va aquí, bajo la barra
+                    superior, para que aparezca en TODAS las pantallas: el pedido
+                    era que lo vieran varias veces, no una. Se apaga solo cuando
+                    la persona aprueba el curso. */}
+                <AvisoCertificacion />
 
                 {/* Page Content */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 main-content relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-transparent">
