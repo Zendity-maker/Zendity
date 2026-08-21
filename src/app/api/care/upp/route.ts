@@ -104,7 +104,19 @@ export async function POST(req: Request) {
         const invokerHqId = (session.user as any).headquartersId;
 
         const body = await req.json();
-        const { patientId, stage, bodyLocation, treatmentApplied, notes, woundSize } = body;
+        const { patientId, stage, bodyLocation, treatmentApplied, notes, woundSize, photoUrl } = body;
+
+        // Foto de la lesión. Mismo tope que IncidentReport y DailyLog: el cliente
+        // reescala antes de subir, así que 2 MB es holgado para una foto de herida.
+        // Rechazar aquí evita que una foto sin reescalar tumbe la transacción.
+        if (photoUrl != null) {
+            if (typeof photoUrl !== 'string' || photoUrl.length > 2_000_000) {
+                return NextResponse.json(
+                    { success: false, error: 'La foto excede el tamaño permitido. Vuelve a tomarla desde la app.' },
+                    { status: 400 }
+                );
+            }
+        }
 
         if (!patientId || !stage || !bodyLocation || !treatmentApplied) {
             return NextResponse.json({ success: false, error: 'Faltan campos: patientId, stage, bodyLocation, treatmentApplied' }, { status: 400 });
@@ -141,7 +153,11 @@ export async function POST(req: Request) {
                     notes: notes || `Declaración inicial de UPP — ${bodyLocation}`,
                     treatmentApplied,
                     woundSize: woundSize || null,
-                    hasPhoto: false,
+                    photoUrl: photoUrl || null,
+                    // hasPhoto existía desde antes y nunca se llenaba: quedaba
+                    // siempre en false aunque hubiera foto. Se mantiene en
+                    // sincronía con photoUrl para no dejar dos verdades.
+                    hasPhoto: Boolean(photoUrl),
                 },
             });
 

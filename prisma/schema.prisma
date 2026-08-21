@@ -450,7 +450,7 @@ model ScheduledShift {
   // era irreversible desde la app — quedaba en su historial para siempre.
   absentClearedAt   DateTime?
   absentClearedById String?
-  createdAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
 
   // FASE 80: Turnos manuales con hora personalizada
   isManual          Boolean   @default(false)
@@ -1066,6 +1066,12 @@ model UlcerLog {
   treatmentApplied String // Ej: "Limpieza con Salina + Vendaje Hidrocoloide"
   createdAt        DateTime @default(now())
   hasPhoto         Boolean  @default(false)
+  // Foto de la lesión, pedida por la enfermera del hogar (19-ago-2026): deja ver
+  // la evolución real entre visitas del servicio externo sin depender de cómo
+  // cada persona describa lo mismo. Base64 en columna, igual que IncidentReport
+  // y DailyLog — el reescalado ocurre en el cliente antes de subir.
+  // Es PHI: no sale en emails ni en notificaciones, solo dentro de la app.
+  photoUrl         String?  @db.Text
 
   ulcer PressureUlcer @relation(fields: [ulcerId], references: [id])
   nurse User          @relation(fields: [nurseId], references: [id])
@@ -1881,7 +1887,7 @@ model CRMLeadStageEvent {
   headquartersId String
   leadId         String
 
-  stage LeadStage
+  stage     LeadStage
   /// Etapa de la que viene. null = evento de creación del prospecto.
   fromStage LeadStage?
 
