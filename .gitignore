@@ -67,3 +67,4 @@ scripts/*
 !scripts/normalizar-estado-empleados.ts
 !scripts/verificar-ventana-vitales.ts
 !scripts/simular-umbrales-vitales.ts
+!scripts/ver-senales-clinicas.ts

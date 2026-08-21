@@ -97,6 +97,11 @@ export default function NursingRotationPage() {
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [lastFetched, setLastFetched] = useState<Date | null>(null);
+    // Señales clínicas: el cruce de vitales, eMAR, ingesta y piel que antes
+    // nadie hacía. Se carga aparte de la rotación para no retrasar la pantalla
+    // principal si el análisis tarda.
+    const [senales, setSenales] = useState<any[] | null>(null);
+    const [senalesAbiertas, setSenalesAbiertas] = useState(true);
 
     const fetchData = useCallback(async () => {
         try {
@@ -118,6 +123,13 @@ export default function NursingRotationPage() {
             setLoading(false);
             setRefreshing(false);
         }
+    }, []);
+
+    useEffect(() => {
+        fetch('/api/care/nursing/senales', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => { if (d.success) setSenales(d.residentes); })
+            .catch(() => { /* la rotación es lo principal; esto es adicional */ });
     }, []);
 
     useEffect(() => {
@@ -222,7 +234,55 @@ export default function NursingRotationPage() {
             </div>
 
             {/* Patient list */}
-            <div className="max-w-6xl mx-auto px-6 py-6">
+            <div className="max-w-6xl mx-auto px-6 pt-6">
+                {senales !== null && senales.length > 0 && (
+                    <section className="mb-6 bg-white border border-amber-200 rounded-2xl overflow-hidden shadow-sm">
+                        <button
+                            onClick={() => setSenalesAbiertas(v => !v)}
+                            className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-amber-50/50 transition-colors text-left"
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-black">
+                                    {senales.length}
+                                </span>
+                                <div>
+                                    <p className="font-bold text-slate-800 leading-tight">
+                                        {senales.length === 1 ? 'Un residente conviene mirarlo' : `${senales.length} residentes conviene mirarlos`}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        Patrones de los últimos 7 días. No son diagnósticos.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="text-xs font-bold text-slate-400">{senalesAbiertas ? 'Ocultar' : 'Ver'}</span>
+                        </button>
+
+                        {senalesAbiertas && (
+                            <div className="border-t border-amber-100 divide-y divide-slate-100">
+                                {senales.map((r: any) => (
+                                    <div key={r.patientId} className="px-5 py-4">
+                                        <p className="font-bold text-slate-800 text-sm mb-2">{r.nombre}</p>
+                                        <ul className="space-y-2">
+                                            {r.senales.map((sn: any, i: number) => (
+                                                <li key={i} className="flex gap-2.5">
+                                                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-none ${sn.gravedad === 'REVISAR' ? 'bg-rose-500' : 'bg-amber-400'}`} />
+                                                    <div>
+                                                        <p className="text-sm text-slate-700 leading-snug">{sn.titulo}</p>
+                                                        {/* La evidencia va siempre: sin ella no se puede verificar. */}
+                                                        {sn.evidencia.map((e: string, j: number) => (
+                                                            <p key={j} className="text-xs text-slate-500 mt-0.5">{e}</p>
+                                                        ))}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
+
                 {sorted.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
                         <Heart className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
