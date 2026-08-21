@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { materializarDosisDelDia } from '@/lib/emar-schedule';
 import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
 import { requireCronSecret } from '@/lib/cron-auth';
@@ -40,6 +41,19 @@ export async function GET(req: Request) {
             month: 'long',
             day: 'numeric',
         });
+
+        // Materializar las dosis del día ANTES de todo lo demás: el prólogo y
+        // los conteos que siguen leen MedicationAdministration, y hasta hoy la
+        // fila solo existía si alguien administraba. Ver src/lib/emar-schedule.ts.
+        let dosisCreadas = 0;
+        try {
+            const r = await materializarDosisDelDia();
+            dosisCreadas = r.creadas;
+            console.log(`[clinical-day-start] Dosis del día materializadas: ${r.creadas} (omitidas: ${r.omitidas})`);
+        } catch (e) {
+            // No bloquea el arranque del día clínico.
+            console.error('[clinical-day-start] Error materializando dosis:', e);
+        }
 
         const hqs = await prisma.headquarters.findMany({ where: { isActive: true } });
         const results: Array<{ hq: string; handoverId: string }> = [];

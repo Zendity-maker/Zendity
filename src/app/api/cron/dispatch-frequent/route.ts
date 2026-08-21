@@ -26,6 +26,7 @@
 
 import { NextResponse } from 'next/server';
 import { GET as vitalsReminderGET } from '@/app/api/cron/vitals-reminder/route';
+import { marcarDosisVencidas } from '@/lib/emar-schedule';
 import { GET as shiftRedistributeGET } from '@/app/api/cron/shift-redistribute/route';
 import { GET as expireCleaningGET } from '@/app/api/cron/expire-cleaning-requests/route';
 
@@ -90,6 +91,12 @@ export async function GET(req: Request) {
     // Ejecución SECUENCIAL — reusa el mismo singleton de Prisma entre tareas.
     // Si una falla, las demás siguen (aislamiento por try/catch en runTask).
     results.push(await runTask('vitals-reminder', vitalsReminderGET, req));
+    // Dosis PENDING cuya hora ya pasó → MISSED. Sin este barrido, materializar
+    // solo acumularia PENDING y el cumplimiento seguiria sin significar nada.
+    results.push(await runTask('emar-vencidas', async () => {
+        const n = await marcarDosisVencidas();
+        return NextResponse.json({ success: true, marcadas: n });
+    }, req));
     results.push(await runTask('shift-redistribute', shiftRedistributeGET, req));
     results.push(await runTask('expire-cleaning-requests', expireCleaningGET, req));
 

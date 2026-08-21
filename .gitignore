@@ -71,3 +71,4 @@ scripts/*
 !scripts/auditar-phi-en-correos.ts
 !scripts/academy-imagenes.ts
 public/academy/_backup_old/
+!scripts/simular-emar-dosis.ts

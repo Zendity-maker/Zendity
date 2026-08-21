@@ -48,62 +48,18 @@ export async function approveMedicationDraft(data: {
 /**
  * 2. EL RELOJ DE EXPANSIÓN (CRON MOTOR)
  */
-export async function executeDailyCronExpansion() {
-  try {
-    const activeMeds = await prisma.patientMedication.findMany({
-      where: {
-        status: MedActiveStatus.ACTIVE,
-        isActive: true,
-      },
-    });
+/**
+ * ELIMINADA — reemplazada por materializarDosisDelDia() en src/lib/emar-schedule.ts.
+ *
+ * Se llamaba "executeDailyCronExpansion" y ningún cron la llamaba: era código
+ * muerto desde su creación. Por eso la fila de MedicationAdministration solo
+ * nacía al administrar, y el cumplimiento eMAR daba 100% dividiendo
+ * administradas entre administradas.
+ *
+ * Ademas componia la hora con setHours, que sobre Vercel usa el reloj UTC y
+ * dejaba cada dosis corrida cuatro horas respecto a AST.
+ */
 
-    const now = new Date();
-    const todayBase = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    let injectedCount = 0;
-
-    for (const pm of activeMeds) {
-      if (!pm.scheduleTimes) continue;
-
-      const times = pm.scheduleTimes.split(",").map((t) => t.trim());
-      
-      for (const timeStr of times) {
-        const [hours, minutes] = timeStr.split(":").map(Number);
-        if (isNaN(hours) || isNaN(minutes)) continue;
-
-        const scheduledTime = new Date(todayBase);
-        scheduledTime.setHours(hours, minutes, 0, 0);
-
-        try {
-          await prisma.medicationAdministration.upsert({
-            where: {
-              patientMedicationId_scheduledTime: {
-                patientMedicationId: pm.id,
-                scheduledTime: scheduledTime,
-              },
-            },
-            update: {}, 
-            create: {
-              patientMedicationId: pm.id,
-              scheduledFor: timeStr,
-              scheduledTime: scheduledTime,
-              status: MedStatus.PENDING,
-              administeredById: "SYSTEM",
-            },
-          });
-          injectedCount++;
-        } catch (e) {
-          // Silent catch for edge upsert cases
-        }
-      }
-    }
-
-    return { success: true, injected: injectedCount };
-  } catch (error) {
-    console.error("[executeDailyCronExpansion] Error:", error);
-    return { success: false, error: "Fallo crónico del Motor de Expansión" };
-  }
-}
 
 /**
  * 3. GRACE PERIOD SWEEP (Manejo Tolerante de MISSED)
