@@ -26,7 +26,12 @@ const SHIFT_STYLES: Record<string, string> = {
     OFF:            "bg-slate-100 text-slate-500 border-slate-300"
 };
 
-const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "NONE"];
+// SUPERVISION no es un color: es el valor que representa el turno de
+// supervisión de piso dentro del mismo desplegable, porque para quien arma el
+// horario es la misma decisión ("¿qué lleva esta persona?"). Se traduce al
+// campo isFloorSupervision al guardar — nunca viaja como colorGroup.
+const COLOR_OPTIONS = ["RED", "YELLOW", "GREEN", "BLUE", "ALL", "SUPERVISION", "NONE"];
+const VALOR_SUPERVISION = "SUPERVISION";
 
 const COLOR_STYLES: Record<string, string> = {
     RED: "bg-red-100 text-red-700 border-red-200",
@@ -34,7 +39,10 @@ const COLOR_STYLES: Record<string, string> = {
     GREEN: "bg-green-100 text-green-700 border-green-200",
     BLUE: "bg-blue-100 text-blue-700 border-blue-200",
     ALL: "bg-slate-100 text-slate-700 border-slate-200",
-    NONE: "bg-slate-600 text-white border-slate-500"
+    NONE: "bg-slate-600 text-white border-slate-500",
+    // La supervisión se distingue del "sin color": una es una decisión, el otro
+    // es un pendiente. Que se vean distintos es la mitad del arreglo.
+    SUPERVISION: "bg-indigo-100 text-indigo-700 border-indigo-300"
 };
 
 function getMondayOf(date: Date) {
@@ -63,6 +71,7 @@ type ShiftEntry = {
     date: string;
     shiftType: string;
     colorGroup: string | null;
+    isFloorSupervision?: boolean;
     notes?: string;
     isAbsent?: boolean;
     isManual?: boolean;
@@ -191,6 +200,7 @@ export default function ScheduleBuilderPage() {
                     date: sh.date.split('T')[0],
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
+                    isFloorSupervision: sh.isFloorSupervision ?? false,
                     notes: sh.notes || '',
                     isAbsent: sh.isAbsent || false,
                     isManual: sh.isManual || false,
@@ -241,10 +251,28 @@ export default function ScheduleBuilderPage() {
         setManualErrors(prev => { const next = { ...prev }; delete next[tempId]; return next; });
     };
 
+    /**
+     * Traduce la selección del desplegable a los dos campos que se guardan.
+     *
+     * "Supervisión de piso" y "un color" son excluyentes: quien supervisa no es
+     * dueña de un grupo. Por eso se escriben juntos y nunca queda un turno con
+     * las dos cosas.
+     */
+    const setColorOSupervision = (tempId: string, valor: string) => {
+        setShifts(prev => prev.map(s => s.tempId !== tempId ? s : {
+            ...s,
+            isFloorSupervision: valor === VALOR_SUPERVISION,
+            colorGroup: valor === VALOR_SUPERVISION || valor === 'NONE' ? '' : valor,
+        }));
+    };
+
     /** Sale de modo manual y vuelve a MORNING por default. */
     const exitManualMode = (tempId: string) => {
         setShifts(prev => prev.map(s => s.tempId === tempId
-            ? { ...s, isManual: false, customStartTime: null, customEndTime: null, customDescription: null, shiftType: 'MORNING', colorGroup: s.colorGroup || 'GREEN' }
+            // Sin el guard de supervisión, salir del modo manual le devolvía el
+            // color a GREEN y borraba en silencio lo que el director había
+            // decidido. Ese es el "vuelve solo" que reportó Celia.
+            ? { ...s, isManual: false, customStartTime: null, customEndTime: null, customDescription: null, shiftType: 'MORNING', colorGroup: s.isFloorSupervision ? '' : (s.colorGroup || 'GREEN') }
             : s));
         setManualErrors(prev => { const next = { ...prev }; delete next[tempId]; return next; });
     };
@@ -351,6 +379,7 @@ export default function ScheduleBuilderPage() {
                     date: s.date,
                     shiftType: s.shiftType,
                     colorGroup: s.colorGroup || null,
+                    isFloorSupervision: Boolean(s.isFloorSupervision),
                     notes: s.notes || null,
                     isManual: s.isManual || false,
                     customStartTime: s.customStartTime || null,
@@ -639,6 +668,7 @@ export default function ScheduleBuilderPage() {
                     date: dateStr,
                     shiftType: sh.shiftType,
                     colorGroup: sh.colorGroup,
+                    isFloorSupervision: sh.isFloorSupervision ?? false,
                     notes: sh.notes || '',
                     isAbsent: false,
                     isManual: sh.isManual || false,
@@ -760,8 +790,8 @@ export default function ScheduleBuilderPage() {
                                                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[shift.shiftType] || SHIFT_STYLES.MORNING}`}>
                                                                 {SHIFT_LABELS[shift.shiftType]?.split(' ')[0] || shift.shiftType}
                                                             </span>
-                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.colorGroup || 'NONE']}`}>
-                                                                {shift.colorGroup || 'Sin color'}
+                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[shift.isFloorSupervision ? 'SUPERVISION' : (shift.colorGroup || 'NONE')]}`}>
+                                                                {shift.isFloorSupervision ? '👁 Supervisión' : (shift.colorGroup || 'Sin color')}
                                                             </span>
                                                         </>
                                                     )}
@@ -820,8 +850,8 @@ export default function ScheduleBuilderPage() {
                                                     <option value="__MANUAL__">✏️ Horario manual...</option>
                                                 </select>
                                                 <select
-                                                    value={shift.colorGroup || 'NONE'}
-                                                    onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                                    value={shift.isFloorSupervision ? VALOR_SUPERVISION : (shift.colorGroup || 'NONE')}
+                                                    onChange={e => setColorOSupervision(shift.tempId, e.target.value)}
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
                                                     {COLOR_OPTIONS.map(c => {
@@ -829,7 +859,7 @@ export default function ScheduleBuilderPage() {
                                                         const disabledAll = c === 'ALL' && !isNight;
                                                         return (
                                                             <option key={c} value={c} disabled={disabledAll}>
-                                                                {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
                                                             </option>
                                                         );
                                                     })}
@@ -867,8 +897,8 @@ export default function ScheduleBuilderPage() {
                                                     <p className="text-[10px] text-red-600 font-bold px-1">{manualErrors[shift.tempId]}</p>
                                                 )}
                                                 <select
-                                                    value={shift.colorGroup || 'NONE'}
-                                                    onChange={e => updateShift(shift.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                                    value={shift.isFloorSupervision ? VALOR_SUPERVISION : (shift.colorGroup || 'NONE')}
+                                                    onChange={e => setColorOSupervision(shift.tempId, e.target.value)}
                                                     className="w-full text-[11px] bg-white border border-slate-200 rounded-lg px-2 py-1 font-medium text-slate-700 focus:outline-none focus:border-teal-400"
                                                 >
                                                     {COLOR_OPTIONS.map(c => {
@@ -876,7 +906,7 @@ export default function ScheduleBuilderPage() {
                                                         const disabledAll = c === 'ALL' && !isNight;
                                                         return (
                                                             <option key={c} value={c} disabled={disabledAll}>
-                                                                {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                                {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
                                                             </option>
                                                         );
                                                     })}
@@ -1198,8 +1228,8 @@ export default function ScheduleBuilderPage() {
                                 <div>
                                     <label className="text-[11px] font-black text-slate-500 uppercase tracking-wide block mb-1">Grupo de color</label>
                                     <select
-                                        value={sh.colorGroup || 'NONE'}
-                                        onChange={e => updateShift(sh.tempId, 'colorGroup', e.target.value === 'NONE' ? '' : e.target.value)}
+                                        value={sh.isFloorSupervision ? VALOR_SUPERVISION : (sh.colorGroup || 'NONE')}
+                                        onChange={e => setColorOSupervision(sh.tempId, e.target.value)}
                                         className="w-full text-sm bg-white border border-slate-300 rounded-lg px-3 py-2 font-medium text-slate-700 focus:outline-none focus:border-teal-500"
                                     >
                                         {COLOR_OPTIONS.map(c => {
@@ -1207,7 +1237,7 @@ export default function ScheduleBuilderPage() {
                                             const disabledAll = c === 'ALL' && !isNight;
                                             return (
                                                 <option key={c} value={c} disabled={disabledAll}>
-                                                    {c === 'NONE' ? 'Sin asignar' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
+                                                    {c === 'NONE' ? 'Sin asignar' : c === VALOR_SUPERVISION ? '👁 Supervisión de piso' : c === 'ALL' ? `Todos los colores${disabledAll ? ' (solo nocturno)' : ''}` : `Grupo ${c}`}
                                                 </option>
                                             );
                                         })}

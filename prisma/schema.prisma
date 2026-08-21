@@ -426,16 +426,23 @@ model Schedule {
 }
 
 model ScheduledShift {
-  id               String    @id @default(uuid())
-  scheduleId       String
-  userId           String
-  date             DateTime
-  shiftType        ShiftType
-  colorGroup       String?
-  notes            String?
-  isAbsent         Boolean   @default(false)
-  absentMarkedAt   DateTime?
-  absentMarkedById String?
+  id                 String    @id @default(uuid())
+  scheduleId         String
+  userId             String
+  date               DateTime
+  shiftType          ShiftType
+  colorGroup         String?
+  /// Turno de supervisión de piso: la persona trabaja el piso supervisando, sin
+  /// dueña de un grupo de color. Antes esto solo se podía expresar dejando el
+  /// color vacío, que se lee igual que "se me olvidó asignarlo" — y el builder
+  /// se lo devolvía a GREEN por su cuenta. Campo propio para que el horario
+  /// diga lo que la persona hace, en vez de mostrar un hueco.
+  /// Pedido por Celia (Vivid Cupey) el 21-ago-2026 para Zuleyka.
+  isFloorSupervision Boolean   @default(false)
+  notes              String?
+  isAbsent           Boolean   @default(false)
+  absentMarkedAt     DateTime?
+  absentMarkedById   String?
 
   // Contexto de la ausencia (17-ago-2026). Antes solo se guardaba el booleano:
   // "faltó" y "faltó sin avisar" quedaban como el MISMO registro, inservible

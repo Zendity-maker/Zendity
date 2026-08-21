@@ -73,6 +73,10 @@ function runValidations(shifts: any[]): { errors: ValidationIssue[]; warnings: V
     for (const s of workShifts) {
         const role = s.user?.role ?? '';
         if (s.colorGroup) continue;                          // tiene color → ok
+        // Supervisión de piso declarada: la ausencia de color es intencional y
+        // el horario lo dice. Se exime por el CAMPO, no por el rol, para que
+        // valga también cuando quien supervisa no tiene rol SUPERVISOR.
+        if (s.isFloorSupervision) continue;
         if (NO_COLOR_ROLES.includes(role)) continue;         // roles exentos → ignorar
         if (SUPERVISOR_ROLES.includes(role)) continue;       // supervisor sin color → normal
 
