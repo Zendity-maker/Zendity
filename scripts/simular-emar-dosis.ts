@@ -9,6 +9,9 @@
 import { PrismaClient, MedActiveStatus } from '@prisma/client';
 import { parseTimeOfDay } from '../src/lib/dates';
 
+/** Mismo criterio que src/lib/emar-schedule.ts. */
+const NO_PROGRAMABLE = /\b(PRN|semanal|weekly|mensual|monthly)\b/i;
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -17,19 +20,21 @@ async function main() {
         select: { scheduleTimes: true },
     });
 
-    let porDia = 0, sinHorario = 0, noParsea = 0;
+    let porDia = 0, sinHorario = 0, noParsea = 0, noProgramable = 0;
     for (const m of meds) {
         if (!m.scheduleTimes) { sinHorario++; continue; }
         for (const raw of m.scheduleTimes.split(',')) {
             const t = raw.trim();
             if (!t) continue;
+            if (NO_PROGRAMABLE.test(t)) { noProgramable++; continue; }
             try { parseTimeOfDay(t); porDia++; } catch { noParsea++; }
         }
     }
 
     console.log(`Medicamentos activos      : ${meds.length}`);
     console.log(`  sin horario definido    : ${sinHorario}`);
-    console.log(`  horas que no parsean    : ${noParsea}`);
+    console.log(`  PRN o semanales (fuera) : ${noProgramable}`);
+    console.log(`  formato inesperado      : ${noParsea}`);
     console.log(`\nDosis que se crearán por día: ${porDia}`);
 
     const desde = new Date(Date.now() - 30 * 24 * 3600 * 1000);

@@ -34,12 +34,34 @@ import { MedStatus, MedActiveStatus } from '@prisma/client';
 const GRACIA_MS = 2 * 60 * 60 * 1000;
 
 /**
+ * Horarios que NO se materializan, y por qué.
+ *
+ * Al conectar esto aparecieron 17 entradas que no parsean como hora. No son
+ * datos rotos: son dos conceptos clínicos que `scheduleTimes` no sabe expresar.
+ *
+ * PRN (pro re nata, "según se necesite") — Pepcid, Clonidine. No tienen hora
+ *   porque se dan cuando hacen falta. Una dosis PRN que no se dio NO es una
+ *   dosis perdida, y materializarla a diario haría que el cumplimiento
+ *   castigue al hogar por no medicar a quien no lo necesitaba.
+ *
+ * SEMANAL — Alendronate 70mg, entre otros. Se dan una vez por semana, pero la
+ *   cadena guarda "08:00 AM (Semanal)" sin decir QUÉ DÍA. Materializarlas a
+ *   diario crearía siete veces las dosis reales y hundiría el cumplimiento por
+ *   un medicamento que se está dando bien.
+ *
+ * Ambos se cuentan aparte para que se vean, en vez de desaparecer en un catch.
+ * Rastrear los semanales de verdad necesita un campo de día de la semana en el
+ * schema — hasta entonces, quedan fuera del cómputo a sabiendas.
+ */
+const NO_PROGRAMABLE = /\b(PRN|semanal|weekly|mensual|monthly)\b/i;
+
+/**
  * Crea las filas PENDING de todas las dosis programadas para hoy.
  *
  * Idempotente por el unique (patientMedicationId, scheduledTime): correrlo dos
  * veces no duplica. Devuelve cuántas creó.
  */
-export async function materializarDosisDelDia(): Promise<{ creadas: number; omitidas: number }> {
+export async function materializarDosisDelDia(): Promise<{ creadas: number; omitidas: number; noProgramables: number }> {
     const meds = await prisma.patientMedication.findMany({
         where: { status: MedActiveStatus.ACTIVE, isActive: true },
         select: { id: true, scheduleTimes: true },
@@ -48,6 +70,7 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
     const ahora = new Date();
     let creadas = 0;
     let omitidas = 0;
+    let noProgramables = 0;
 
     for (const pm of meds) {
         if (!pm.scheduleTimes) { omitidas++; continue; }
@@ -56,12 +79,15 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
             const txt = raw.trim();
             if (!txt) continue;
 
+            // PRN y semanales quedan fuera a propósito — ver NO_PROGRAMABLE.
+            if (NO_PROGRAMABLE.test(txt)) { noProgramables++; continue; }
+
             let hora: { hour: number; minute: number };
             try {
                 hora = parseTimeOfDay(txt);
             } catch {
-                // Formato que no parsea: se cuenta y se sigue. Reventar aquí
-                // dejaría al hogar sin el resto de sus dosis del día.
+                // Formato inesperado de verdad. Se cuenta y se sigue: reventar
+                // aquí dejaría al hogar sin el resto de sus dosis del día.
                 omitidas++;
                 continue;
             }
@@ -89,7 +115,7 @@ export async function materializarDosisDelDia(): Promise<{ creadas: number; omit
         }
     }
 
-    return { creadas, omitidas };
+    return { creadas, omitidas, noProgramables };
 }
 
 /**

@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         try {
             const r = await materializarDosisDelDia();
             dosisCreadas = r.creadas;
-            console.log(`[clinical-day-start] Dosis del día materializadas: ${r.creadas} (omitidas: ${r.omitidas})`);
+            console.log(`[clinical-day-start] Dosis materializadas: ${r.creadas} · PRN/semanales fuera: ${r.noProgramables} · sin formato: ${r.omitidas}`);
         } catch (e) {
             // No bloquea el arranque del día clínico.
             console.error('[clinical-day-start] Error materializando dosis:', e);
