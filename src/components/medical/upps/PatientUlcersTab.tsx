@@ -47,6 +47,24 @@ const stageBadge = (stage: number) => {
 };
 
 export default function PatientUlcersTab({ patientId }: { patientId?: string }) {
+    // La foto se pide solo cuando alguien la quiere ver — no viaja en la lista.
+    const [fotoAbierta, setFotoAbierta] = useState<string | null>(null);
+    const [cargandoFoto, setCargandoFoto] = useState<string | null>(null);
+
+    const verFoto = async (logId: string) => {
+        setCargandoFoto(logId);
+        try {
+            const res = await fetch(`/api/care/upp/foto/${logId}`);
+            const data = await res.json();
+            if (data.success) setFotoAbierta(data.photoUrl);
+            else alert(data.error || "No se pudo abrir la foto.");
+        } catch {
+            alert("Error de conexión abriendo la foto.");
+        } finally {
+            setCargandoFoto(null);
+        }
+    };
+
     const [ulcers, setUlcers] = useState<Ulcer[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -78,6 +96,7 @@ export default function PatientUlcersTab({ patientId }: { patientId?: string }) 
     }
 
     return (
+        <>
         <div className="space-y-6 animate-in fade-in duration-300">
             {/* Cabecera */}
             <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-5 rounded-2xl shadow-sm border border-neutral-100 gap-4">
@@ -146,9 +165,14 @@ export default function PatientUlcersTab({ patientId }: { patientId?: string }) 
                                                     <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
                                                         <span className="text-xs font-bold text-slate-500">{formatDate(log.createdAt)}</span>
                                                         {log.hasPhoto && (
-                                                            <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg">
-                                                                <PhotoIcon className="w-3.5 h-3.5" /> Foto adjunta
-                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => verFoto(log.id)}
+                                                                className="text-[10px] font-medium text-emerald-700 flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg transition-colors"
+                                                            >
+                                                                <PhotoIcon className="w-3.5 h-3.5" />
+                                                                {cargandoFoto === log.id ? "Abriendo…" : "Ver foto"}
+                                                            </button>
                                                         )}
                                                     </div>
                                                     {log.woundSize && (
@@ -195,5 +219,33 @@ export default function PatientUlcersTab({ patientId }: { patientId?: string }) 
                 </>
             )}
         </div>
+
+            {fotoAbierta && (
+                <div
+                    className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    onClick={() => setFotoAbierta(null)}
+                >
+                    <div className="max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={fotoAbierta}
+                            alt="Foto de la lesión"
+                            className="w-full max-h-[80vh] object-contain rounded-xl bg-black"
+                        />
+                        <div className="flex justify-between items-center mt-3">
+                            {/* Recordatorio de que esto es PHI y no sale de aquí. */}
+                            <p className="text-xs text-white/70">
+                                Información clínica protegida. No la compartas fuera de Zendity.
+                            </p>
+                            <button
+                                onClick={() => setFotoAbierta(null)}
+                                className="px-5 py-2 bg-white text-slate-800 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

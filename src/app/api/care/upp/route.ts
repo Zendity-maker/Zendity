@@ -52,7 +52,17 @@ async function getUppHandler(req: Request) {
                 where: { patientId },
                 include: {
                     logs: {
-                        include: { nurse: { select: { name: true, role: true } } },
+                        // photoUrl NO viaja en la lista: es base64 y crecería la
+                        // respuesta varios MB por residente conforme se acumulen
+                        // curaciones. Se pide una a una por
+                        // /api/care/upp/foto/[logId]. Por eso el select es
+                        // explícito en vez de traer todo el modelo.
+                        select: {
+                            id: true, ulcerId: true, nurseId: true, notes: true,
+                            woundSize: true, treatmentApplied: true, createdAt: true,
+                            hasPhoto: true,
+                            nurse: { select: { name: true, role: true } },
+                        },
                         orderBy: { createdAt: 'desc' },
                     },
                 },
@@ -73,7 +83,17 @@ async function getUppHandler(req: Request) {
             },
             include: {
                 patient: { select: { id: true, name: true, roomNumber: true, colorGroup: true } },
-                logs: { take: 1, orderBy: { createdAt: 'desc' }, include: { nurse: { select: { name: true } } } },
+                logs: {
+                    take: 1,
+                    orderBy: { createdAt: 'desc' },
+                    // Sin photoUrl — ver la nota de arriba.
+                    select: {
+                            id: true, ulcerId: true, nurseId: true, notes: true,
+                            woundSize: true, treatmentApplied: true, createdAt: true,
+                            hasPhoto: true,
+                        nurse: { select: { name: true } },
+                    },
+                },
             },
             orderBy: [{ stage: 'desc' }, { identifiedAt: 'desc' }],
         });

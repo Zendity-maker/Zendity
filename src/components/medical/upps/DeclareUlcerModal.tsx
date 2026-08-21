@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { XMarkIcon, ExclamationCircleIcon, DocumentCheckIcon } from "@heroicons/react/24/outline";
+import { useState, useRef } from "react";
+import { reescalarImagen } from "@/lib/image-resize";
+import { XMarkIcon, ExclamationCircleIcon, DocumentCheckIcon, CameraIcon } from "@heroicons/react/24/outline";
 
 interface DeclareUlcerModalProps {
     isOpen: boolean;
@@ -19,6 +20,12 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients, onCreated
     const [notes, setNotes] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Foto de la lesión — la pidió la enfermera del hogar para ver la evolución
+    // real entre visitas del servicio externo, sin depender de cómo cada persona
+    // describa lo mismo.
+    const [foto, setFoto] = useState<string | null>(null);
+    const [procesandoFoto, setProcesandoFoto] = useState(false);
+    const fotoInputRef = useRef<HTMLInputElement>(null);
 
     if (!isOpen) return null;
 
@@ -29,7 +36,25 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients, onCreated
         setTreatment("");
         setWoundSize("");
         setNotes("");
+        setFoto(null);
         setError(null);
+    };
+
+    const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        // Se limpia el input para que volver a escoger el mismo archivo dispare
+        // el evento otra vez.
+        e.target.value = "";
+        if (!file) return;
+        setError(null);
+        setProcesandoFoto(true);
+        try {
+            setFoto(await reescalarImagen(file));
+        } catch (err: any) {
+            setError(err?.message || "No se pudo procesar la foto.");
+        } finally {
+            setProcesandoFoto(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -47,6 +72,7 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients, onCreated
                     treatmentApplied: treatment.trim() || "Declaración inicial — tratamiento pendiente",
                     notes: notes.trim() || undefined,
                     woundSize: woundSize.trim() || undefined,
+                    photoUrl: foto || undefined,
                 }),
             });
             const data = await res.json();
@@ -138,16 +164,78 @@ export default function DeclareUlcerModal({ isOpen, onClose, patients, onCreated
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <div>
+                        <div className="col-span-2">
                             <label className="block text-sm font-semibold text-slate-700 mb-1">Tamaño (opcional)</label>
                             <input
                                 type="text"
-                                placeholder="Ej. 2x3 cm"
+                                list="tamanos-referencia"
+                                placeholder="Como una peseta"
                                 value={woundSize}
                                 onChange={(e) => setWoundSize(e.target.value)}
                                 className="w-full bg-neutral-50 border border-neutral-200 text-slate-800 text-sm rounded-xl focus:ring-rose-500 focus:border-rose-500 block p-3"
                             />
+                            {/* Por comparación, no en centímetros: nadie anda con
+                                una regla en el turno, y un número inventado es
+                                peor que ninguno. */}
+                            <datalist id="tamanos-referencia">
+                                <option value="Como una moneda de diez centavos" />
+                                <option value="Como una peseta" />
+                                <option value="Como una moneda de un peso" />
+                                <option value="Como la palma de la mano" />
+                            </datalist>
+                            <p className="text-xs text-slate-500 mt-1">Por comparación, no en centímetros.</p>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">Foto de la lesión</label>
+                        {/* capture="environment" abre la cámara trasera directo en
+                            la tablet del piso, en vez del selector de archivos. */}
+                        <input
+                            ref={fotoInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleFoto}
+                            className="hidden"
+                        />
+
+                        {foto ? (
+                            <div className="relative rounded-xl overflow-hidden border border-neutral-200 bg-neutral-50">
+                                <img src={foto} alt="Lesión registrada" className="w-full max-h-56 object-contain" />
+                                <div className="flex gap-2 p-2 bg-white border-t border-neutral-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => fotoInputRef.current?.click()}
+                                        className="flex-1 text-xs font-bold text-slate-600 hover:text-slate-800 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-lg py-2 transition-colors"
+                                    >
+                                        Tomar otra
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFoto(null)}
+                                        className="px-4 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg py-2 transition-colors"
+                                    >
+                                        Quitar
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => fotoInputRef.current?.click()}
+                                disabled={procesandoFoto}
+                                className="w-full border-2 border-dashed border-neutral-300 hover:border-rose-300 hover:bg-rose-50/40 rounded-xl p-5 text-center transition-colors disabled:opacity-60"
+                            >
+                                <CameraIcon className="w-7 h-7 mx-auto text-slate-400 mb-1.5" />
+                                <span className="block text-sm font-semibold text-slate-700">
+                                    {procesandoFoto ? "Procesando…" : "Tomar foto"}
+                                </span>
+                                <span className="block text-xs text-slate-500 mt-0.5">
+                                    Deja ver la evolución entre visitas del servicio externo
+                                </span>
+                            </button>
+                        )}
                     </div>
 
                     <div>
