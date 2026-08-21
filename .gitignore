@@ -69,3 +69,5 @@ scripts/*
 !scripts/simular-umbrales-vitales.ts
 !scripts/ver-senales-clinicas.ts
 !scripts/auditar-phi-en-correos.ts
+!scripts/academy-imagenes.ts
+public/academy/_backup_old/
