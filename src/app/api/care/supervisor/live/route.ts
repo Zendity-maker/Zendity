@@ -592,9 +592,30 @@ export async function GET(req: Request) {
                 respondedAt: ir.respondedAt,
             }));
 
-        const incidentAppeals = activeIncidentReports
-            .filter(ir => ir.severity !== 'OBSERVATION' && (ir.appealedAt || ir.status === 'EXPLANATION_RECEIVED'))
-            .map(ir => ({
+        // ── Apelaciones sin resolver ──────────────────────────────────────
+        //
+        // Consulta propia, sin la ventana de 7 días del feed. Una apelación
+        // llega cuando el empleado la escribe, que puede ser semanas después
+        // del incidente: en Cupey las 25 registradas son de incidentes más
+        // viejos, así que ninguna cabía en la ventana.
+        //
+        // Y ninguna podía aparecer por otra razón: el feed filtra estados
+        // NOTIFIED/PENDING/EXPLANATION_RECEIVED, pero apelar EXIGE que la
+        // sanción ya esté APPLIED. Eran condiciones incompatibles — el panel
+        // de apelaciones no podía mostrar una apelación jamás.
+        const apelacionesAbiertas = await prisma.incidentReport.findMany({
+            where: { headquartersId: hqId, appealedAt: { not: null }, appealResolvedAt: null },
+            select: {
+                id: true, createdAt: true, status: true, severity: true, category: true,
+                description: true, appealText: true, appealedAt: true,
+                employee: { select: { name: true } },
+            },
+            orderBy: { appealedAt: 'desc' },
+            take: 50,
+        });
+
+        const incidentAppeals = [
+            ...apelacionesAbiertas.map(ir => ({
                 id: ir.id,
                 createdAt: ir.createdAt,
                 status: ir.status,
@@ -604,7 +625,23 @@ export async function GET(req: Request) {
                 appealText: ir.appealText,
                 employeeName: ir.employee?.name || 'Empleado',
                 appealedAt: ir.appealedAt,
-            }));
+            })),
+            // Respuestas del empleado pendientes de revisar — estas sí viven en
+            // la ventana del feed porque son parte del proceso reciente.
+            ...activeIncidentReports
+                .filter(ir => ir.status === 'EXPLANATION_RECEIVED' && ir.severity !== 'OBSERVATION')
+                .map(ir => ({
+                    id: ir.id,
+                    createdAt: ir.createdAt,
+                    status: ir.status,
+                    severity: ir.severity,
+                    category: ir.category,
+                    description: ir.description,
+                    appealText: ir.appealText,
+                    employeeName: ir.employee?.name || 'Empleado',
+                    appealedAt: ir.appealedAt,
+                })),
+        ];
 
         // — Handovers feed (individuales por cuidador, sin el prólogo del cron) —
         // Cada fila es el reporte de una cuidadora con los colores que cubrió.

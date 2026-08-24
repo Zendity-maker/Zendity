@@ -2407,6 +2407,14 @@ model IncidentReport {
   employeeResponse         String?            @db.Text
   respondedAt              DateTime?
   appealText               String?            @db.Text
+  /// Resolución de la apelación. Hasta el 21-ago-2026 una apelación se guardaba
+  /// y ahí moría: no había forma de aceptarla, denegarla ni contestarle al
+  /// empleado. 25 personas escribieron su descargo y ninguna recibió respuesta.
+  /// ACCEPTED revierte la penalidad de Z-Score; DENIED la deja como está.
+  appealOutcome            String? // 'ACCEPTED' | 'DENIED'
+  appealResponseText       String?            @db.Text
+  appealResolvedAt         DateTime?
+  appealResolvedById       String?
   appealedAt               DateTime?
   appliedAt                DateTime?
   dismissedAt              DateTime?

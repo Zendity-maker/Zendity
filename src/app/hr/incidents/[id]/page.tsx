@@ -55,9 +55,45 @@ export default function IncidentDetailPage() {
     const [zendiLoading, setZendiLoading] = useState(false);
     const [employeeResponse, setEmployeeResponse] = useState('');
     const [appealText, setAppealText] = useState('');
+    // Resolución de la apelación (RRHH). Hasta hoy una apelación se guardaba y
+    // ahí moría: no había forma de aceptarla, denegarla ni contestarle a quien
+    // la escribió.
+    const [resolucionTexto, setResolucionTexto] = useState('');
+    const [resolviendo, setResolviendo] = useState(false);
     // Sprint incident-employee-acknowledge (jun-2026): acuse de recibo write-once.
     // `ackSignature` guarda la base64 capturada por el SignaturePad dentro del
     // modal hasta que el empleado confirma el envío.
+    const resolverApelacion = async (outcome: 'ACCEPTED' | 'DENIED') => {
+        if (resolucionTexto.trim().length < 10) {
+            alert('Escribe la razón de la decisión. El empleado la va a leer.');
+            return;
+        }
+        setResolviendo(true);
+        try {
+            const res = await fetch(`/api/hr/incidents/${params.id}/resolver-apelacion`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ outcome, responseText: resolucionTexto.trim() }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setIncident((prev: any) => ({
+                    ...prev,
+                    appealOutcome: outcome,
+                    appealResponseText: resolucionTexto.trim(),
+                    appealResolvedAt: new Date().toISOString(),
+                }));
+                setResolucionTexto('');
+            } else {
+                alert(data.error || 'No se pudo resolver la apelación.');
+            }
+        } catch {
+            alert('Error de conexión.');
+        } finally {
+            setResolviendo(false);
+        }
+    };
+
     const [ackModalOpen, setAckModalOpen] = useState(false);
     const [ackSignature, setAckSignature] = useState<string | null>(null);
     // Sprint incident-refuse-signature (jul-2026): rehúso a firmar → reunión formal.
@@ -423,9 +459,55 @@ export default function IncidentDetailPage() {
                                 )}
                             </div>
                             {incident.appealText && (
-                                <div className="mt-4 bg-white border border-rose-200 rounded-lg p-3">
-                                    <div className="text-xs font-bold text-rose-600 uppercase mb-1">Apelación pendiente</div>
+                                <div className="mt-4 bg-white border border-rose-200 rounded-lg p-4">
+                                    <div className="text-xs font-bold text-rose-600 uppercase mb-1">
+                                        {incident.appealResolvedAt ? 'Apelación' : 'Apelación pendiente de resolver'}
+                                    </div>
                                     <div className="text-sm text-slate-700 whitespace-pre-wrap">{incident.appealText}</div>
+
+                                    {incident.appealResolvedAt ? (
+                                        <div className={`mt-3 rounded-lg p-3 border ${incident.appealOutcome === 'ACCEPTED' ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                                            <div className={`text-xs font-bold uppercase mb-1 ${incident.appealOutcome === 'ACCEPTED' ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                                {incident.appealOutcome === 'ACCEPTED' ? '✅ Aceptada' : 'Denegada'}
+                                                <span className="font-normal text-slate-400 ml-2">
+                                                    {new Date(incident.appealResolvedAt).toLocaleDateString('es-PR')}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-slate-700 whitespace-pre-wrap">{incident.appealResponseText}</div>
+                                        </div>
+                                    ) : (user?.role === 'DIRECTOR' || user?.role === 'ADMIN') ? (
+                                        <div className="mt-4 pt-4 border-t border-rose-100">
+                                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                                                Tu respuesta — la va a leer el empleado
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                value={resolucionTexto}
+                                                onChange={e => setResolucionTexto(e.target.value)}
+                                                placeholder="Explica la decisión con la razón concreta…"
+                                                className="w-full text-sm border border-slate-200 rounded-lg p-3 focus:outline-none focus:border-rose-400 resize-none"
+                                            />
+                                            <div className="flex gap-2 justify-end mt-3">
+                                                <button
+                                                    onClick={() => resolverApelacion('DENIED')}
+                                                    disabled={resolviendo}
+                                                    className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50"
+                                                >
+                                                    Denegar
+                                                </button>
+                                                <button
+                                                    onClick={() => resolverApelacion('ACCEPTED')}
+                                                    disabled={resolviendo}
+                                                    className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 disabled:opacity-50"
+                                                >
+                                                    {resolviendo ? 'Guardando…' : 'Aceptar y devolver puntos'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[11px] text-slate-500 mt-2">
+                                                Aceptar devuelve los puntos que la sanción descontó y le avisa al empleado.
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>

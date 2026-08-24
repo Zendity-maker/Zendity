@@ -43,6 +43,8 @@ export default function HrIncidentsPage() {
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<'ALL' | Status>('ALL');
     const [severityFilter, setSeverityFilter] = useState<'ALL' | Severity>('ALL');
+    // Atajo para lo que no tenía dónde verse: quién apeló y sigue sin respuesta.
+    const [soloApeladas, setSoloApeladas] = useState(false);
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
 
@@ -82,6 +84,7 @@ export default function HrIncidentsPage() {
         return incidents.filter(i => {
             if (statusFilter !== 'ALL' && i.status !== statusFilter) return false;
             if (severityFilter !== 'ALL' && i.severity !== severityFilter) return false;
+            if (soloApeladas && !(i.appealedAt && !i.appealResolvedAt)) return false;
             if (search) {
                 const q = search.toLowerCase();
                 const empName = (i.employee?.name || '').toLowerCase();
@@ -90,7 +93,7 @@ export default function HrIncidentsPage() {
             }
             return true;
         });
-    }, [incidents, statusFilter, severityFilter, search]);
+    }, [incidents, statusFilter, severityFilter, search, soloApeladas]);
 
     if (authLoading || !isAuthorized) {
         return (
@@ -163,6 +166,14 @@ export default function HrIncidentsPage() {
                                 <option key={k} value={k}>{v.label}</option>
                             ))}
                         </select>
+                        <button
+                            onClick={() => setSoloApeladas(v => !v)}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors ${soloApeladas
+                                ? 'bg-rose-600 border-rose-600 text-white'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            ⚖ Solo apeladas
+                        </button>
                     </div>
                 </div>
 
@@ -197,6 +208,19 @@ export default function HrIncidentsPage() {
                                                 <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-teal-50 text-teal-700">
                                                     {CATEGORY_LABELS[inc.category] || inc.category}
                                                 </span>
+                                                {/* Apelación sin resolver. Antes la lista no lo marcaba:
+                                                    había que abrir observación por observación para
+                                                    saber quién había apelado. */}
+                                                {inc.appealedAt && !inc.appealResolvedAt && (
+                                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide bg-rose-100 text-rose-700 border border-rose-200">
+                                                        ⚖ Apelada · sin resolver
+                                                    </span>
+                                                )}
+                                                {inc.appealResolvedAt && (
+                                                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide ${inc.appealOutcome === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                        ⚖ {inc.appealOutcome === 'ACCEPTED' ? 'Apelación aceptada' : 'Apelación denegada'}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="font-bold text-slate-900 text-lg leading-tight mb-1">
                                                 {inc.employee?.name ?? 'Empleado desconocido'}
