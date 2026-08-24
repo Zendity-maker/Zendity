@@ -97,13 +97,20 @@ export default function UPPsDashboard() {
                         <p className="text-neutral-500 mt-1">Úlceras por Presión activas en la sede — datos en vivo.</p>
                     </div>
                     <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-rose-700 transition"
-                        >
-                            <PlusCircleIcon className="w-5 h-5" />
-                            Declarar Nueva Úlcera
-                        </button>
+                        {/* Declarar es acto clínico: enfermería, dirección o
+                            administración. La supervisora observa y reporta la
+                            piel como cualquier cuidadora, pero la declaración y
+                            su etapa no las hace ella. Mismo gate que el endpoint
+                            — esto solo evita ofrecer un botón que dirá que no. */}
+                        {['NURSE', 'DIRECTOR', 'ADMIN'].includes(user?.role ?? '') && (
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-rose-700 transition"
+                            >
+                                <PlusCircleIcon className="w-5 h-5" />
+                                Declarar Nueva Úlcera
+                            </button>
+                        )}
                     </div>
                 </div>
 

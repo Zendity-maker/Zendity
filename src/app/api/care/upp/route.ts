@@ -7,7 +7,14 @@ import { withPhiAccessLog } from '@/lib/phi-audit';
 
 export const dynamic = 'force-dynamic';
 
-const WRITE_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+// Declarar una úlcera es acto clínico: la clasifica quien puede clasificarla.
+// SUPERVISOR sale de la lista el 24-ago-2026 por decisión de Andrés — una
+// supervisora observa y reporta la piel como cualquier cuidadora, pero la
+// declaración formal y su etapa las hace enfermería o dirección.
+//
+// El registro vive en Zendity y también en el expediente de enfermería fuera
+// del sistema, así que el número aquí no es el conteo completo del hogar.
+const WRITE_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN'];
 // SOCIAL_WORKER añadido solo a READ — lee úlceras del residente para
 // contextualizar su trabajo. NO está en WRITE.
 const READ_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPERVISOR', 'CAREGIVER', 'SOCIAL_WORKER'];
@@ -117,7 +124,7 @@ export async function POST(req: Request) {
 
         const role = (session.user as any).role;
         if (!WRITE_ROLES.includes(role)) {
-            return NextResponse.json({ success: false, error: 'Solo NURSE, DIRECTOR, ADMIN o SUPERVISOR pueden registrar úlceras' }, { status: 403 });
+            return NextResponse.json({ success: false, error: 'Solo enfermería, dirección o administración pueden declarar una úlcera' }, { status: 403 });
         }
 
         const invokerId = (session.user as any).id;
