@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import Link from "next/link";
 import { Loader2, Menu, Moon, Sun, Bell, ClipboardList, LayoutGrid, LayoutList, X, MessageSquare, AlertTriangle, CheckCircle2, Users as UsersIcon, Info, Sparkles, Sunrise, UserCheck, FileText, ArrowRight } from "lucide-react";
 import CoveragePickerModal, { type CoverageColorOption } from "@/components/care/CoveragePickerModal";
+import { useAviso, AvisoPiso } from "@/components/care/Aviso";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -174,6 +175,8 @@ export default function ZendityCareTabletPage() {
 
     // Shift Session (Clock-In) Core
     const [activeSession, setActiveSession] = useState<any>(null);
+    // Avisos del piso — reemplazan los 57 avisoOk() que bloqueaban la pantalla.
+    const { aviso, ok: avisoOk, error: avisoError, cerrar: cerrarAviso } = useAviso();
     const [shiftNotes, setShiftNotes] = useState<string | null>(null);
     const [verifyingCensus, setVerifyingCensus] = useState(false);
     const [censusChecklist, setCensusChecklist] = useState<Record<string, string>>({});
@@ -528,11 +531,11 @@ export default function ZendityCareTabletPage() {
                 setDayDiaperConfirm({ patientId, type });
                 setTimeout(() => setDayDiaperConfirm(null), 3000);
             } else {
-                alert(`No se pudo registrar el pañal: ${data?.error || `HTTP ${res.status}`}. Intenta otra vez.`);
+                avisoError(`No se pudo registrar el pañal: ${data?.error || `HTTP ${res.status}`}. Intenta otra vez.`);
             }
         } catch (error: any) {
             console.error('logDayDiaper', error);
-            alert(`Error de conexión al registrar pañal: ${error?.message || 'desconocido'}. Verifica internet.`);
+            avisoError(`Error de conexión al registrar pañal: ${error?.message || 'desconocido'}. Verifica internet.`);
         } finally {
             setSavingDiaper(false);
         }
@@ -607,7 +610,7 @@ export default function ZendityCareTabletPage() {
             setHubPhotoBase64(dataUrl);
         } catch (err: any) {
             console.error('compress photo', err);
-            alert(`No se pudo procesar la foto: ${err?.message || 'error desconocido'}. Intenta con otra.`);
+            avisoError(`No se pudo procesar la foto: ${err?.message || 'error desconocido'}. Intenta con otra.`);
         } finally {
             // Reset input para permitir reintentar con la misma foto
             e.target.value = '';
@@ -641,7 +644,7 @@ export default function ZendityCareTabletPage() {
                 } : p));
                 setTimeout(() => setZendiToast(""), 3500);
             } else {
-                alert("Error al actualizar la dieta.");
+                avisoError("Error al actualizar la dieta.");
             }
         } catch (e) {
             console.error(e);
@@ -792,15 +795,15 @@ export default function ZendityCareTabletPage() {
                     setCoveragePickerOpen(false);
                     // Refrescar el coverage
                     setCoverage(null);
-                    alert(`Tomaste cobertura de ${data.claimed} residentes.`);
+                    avisoOk(`Tomaste cobertura de ${data.claimed} residentes.`);
                     // refresca pacientes visibles
                     if (selectedColor) refreshPatientsSilently(selectedColor);
                 } else {
-                    alert(data.error || 'Error tomando cobertura');
+                    avisoError(data.error || 'Error tomando cobertura');
                 }
             }
         } catch (e: any) {
-            alert(e.message || 'Error de conexión');
+            avisoError(e.message || 'Error de conexión');
         } finally {
             setCoverageSubmitting(false);
         }
@@ -858,7 +861,7 @@ export default function ZendityCareTabletPage() {
 
     const confirmCensusAndClockIn = async () => {
         const calculatedCensus = Object.values(censusChecklist).filter(v => v === 'PRESENT').length;
-        if (calculatedCensus < 0) return alert("Error calculando el censo de residentes presentes.");
+        if (calculatedCensus < 0) return avisoError("Error calculando el censo de residentes presentes.");
 
         setSubmitting(true);
         try {
@@ -891,7 +894,7 @@ export default function ZendityCareTabletPage() {
                     continueToBriefing(selectedColor!);
                 }
             } else {
-                alert("Error de Inicio de Turno: " + data.error);
+                avisoError("Error de Inicio de Turno: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -1224,7 +1227,7 @@ export default function ZendityCareTabletPage() {
                 setHubDescription("");
                 setHubCaregiverId("");
             } else {
-                alert(data.error);
+                avisoError(data.error);
             }
         } catch (e) { console.error(e); } finally {
             setSubmitting(false);
@@ -1242,7 +1245,7 @@ export default function ZendityCareTabletPage() {
         const hasMissing = missing.sys || missing.dia || missing.hr || missing.temp;
         if (hasMissing) {
             setVitalsErrors(missing);
-            alert("Completa los campos obligatorios: Sistólica, Diastólica, Pulso y Temperatura.");
+            avisoError("Completa los campos obligatorios: Sistólica, Diastólica, Pulso y Temperatura.");
             return;
         }
 
@@ -1256,7 +1259,7 @@ export default function ZendityCareTabletPage() {
         if (!tempValid) {
             setVitalsErrors(prev => ({ ...prev, temp: true }));
             const unit = isCelsiusEntry ? '°C (rango válido: 34–42)' : '°F (rango válido: 93–107)';
-            alert(`Temperatura fuera de rango fisiológico: ${vitals.temp} ${unit}.\n\nVerifica que el termómetro esté correctamente aplicado y vuelve a tomar la lectura.`);
+            avisoError(`Temperatura fuera de rango fisiológico: ${vitals.temp} ${unit}.\n\nVerifica que el termómetro esté correctamente aplicado y vuelve a tomar la lectura.`);
             return;
         }
 
@@ -1289,7 +1292,7 @@ export default function ZendityCareTabletPage() {
                 refreshPatientsSilently(selectedColor!);
 
                 if (data.criticalAlert) {
-                    alert(data.message);
+                    avisoOk(data.message);
                     setDailyLog({ bathCompleted: false, foodIntake: 100, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
                     setModalType('LOG');
                 } else {
@@ -1299,7 +1302,7 @@ export default function ZendityCareTabletPage() {
                 // Orden vencida → pedir justificación tardía (20 chars mín, -2 cumplimiento)
                 setLateReasonOpen(true);
             } else {
-                alert("Error interno: " + data.error);
+                avisoError("Error interno: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -1311,7 +1314,7 @@ export default function ZendityCareTabletPage() {
     // ── Flujo de packs: administrar pack completo con firma única ─────────────
     const administerPack = async (pack: { label: string; meds: any[] }) => {
         if (!packSigCanvas.current || packSigCanvas.current.isEmpty()) {
-            return alert("Es mandatorio plasmar tu firma para administrar el pack.");
+            return avisoError("Es mandatorio plasmar tu firma para administrar el pack.");
         }
         const signatureBase64 = packSigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
         const medicationIds = pack.meds.map((m: any) => m.id);
@@ -1329,7 +1332,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (!data.success) {
-                alert("Error: " + (data.error || "No se pudo administrar el pack"));
+                avisoError("Error: " + (data.error || "No se pudo administrar el pack"));
                 return;
             }
             // Optimistic: inyectar el registro hoy para que isPackComplete cierre el pack sin esperar fetch
@@ -1350,7 +1353,7 @@ export default function ZendityCareTabletPage() {
             refreshPatientsSilently(selectedColor!);
         } catch (e) {
             console.error(e);
-            alert("Error de red");
+            avisoError("Error de red");
         } finally {
             setSubmitting(false);
         }
@@ -1360,7 +1363,7 @@ export default function ZendityCareTabletPage() {
         if (!omittingMed) return;
         const reasonText = omitReasonText.trim();
         if (reasonText.length < 10) {
-            return alert("La razón de omisión debe tener mínimo 10 caracteres.");
+            return avisoOk("La razón de omisión debe tener mínimo 10 caracteres.");
         }
         const fullReason = `${omitReasonCat}: ${reasonText}`;
         setSubmitting(true);
@@ -1376,7 +1379,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (!data.success) {
-                alert("Error: " + (data.error || "No se pudo omitir"));
+                avisoError("Error: " + (data.error || "No se pudo omitir"));
                 return;
             }
             // Optimistic: marcar OMITTED localmente para que el pack avance si todos quedan resueltos
@@ -1398,7 +1401,7 @@ export default function ZendityCareTabletPage() {
             refreshPatientsSilently(selectedColor!);
         } catch (e) {
             console.error(e);
-            alert("Error de red");
+            avisoError("Error de red");
         } finally {
             setSubmitting(false);
         }
@@ -1430,13 +1433,13 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitBulkMeds = async (action: 'PRN' | 'OMISSION') => {
-        if (action === 'PRN' && !prnNote.trim()) return alert("Especifique qué medicamento PRN se administra.");
-        if (action === 'OMISSION' && !omissionNote.trim()) return alert("Debe especificar la razón clínica de descontinuar/omitir.");
+        if (action === 'PRN' && !prnNote.trim()) return avisoOk("Especifique qué medicamento PRN se administra.");
+        if (action === 'OMISSION' && !omissionNote.trim()) return avisoOk("Debe especificar la razón clínica de descontinuar/omitir.");
 
         let signatureBase64 = null;
         if (action === 'PRN' && sigCanvas.current) {
             if (sigCanvas.current.isEmpty()) {
-                return alert(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
+                return avisoError(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
             }
             signatureBase64 = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
         }
@@ -1444,7 +1447,7 @@ export default function ZendityCareTabletPage() {
         setSubmitting(true);
         try {
             const medicationIds = getMedsForCurrentShift(activePatient.medications).map((m: any) => m.id);
-            if (medicationIds.length === 0) return alert("No hay medicamentos para procesar.");
+            if (medicationIds.length === 0) return avisoOk("No hay medicamentos para procesar.");
 
             let finalNotes = "";
             if (action === 'PRN') finalNotes = `SOS/PRN Aplicado: ${prnNote}`;
@@ -1468,9 +1471,9 @@ export default function ZendityCareTabletPage() {
                 setOmissionNote("");
                 setActiveMedAction(null);
                 sigCanvas.current?.clear();
-                alert(` Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
+                avisoOk(` Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
             } else {
-                alert("Error: " + data.error);
+                avisoError("Error: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -1488,7 +1491,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Baño registrado al sistema central.");
+                avisoOk(" Baño registrado al sistema central.");
                 // BUG FIX: añadir el nuevo BathLog al activePatient para que
                 // `bathCompletedToday` (useMemo) se recalcule y el botón se
                 // deshabilite SOLO para este residente, no para los demás.
@@ -1498,7 +1501,7 @@ export default function ZendityCareTabletPage() {
                 } : prev);
                 refreshPatientsSilently(selectedColor!);
             } else {
-                alert(` Alerta: ${data.message || data.error}`);
+                avisoError(` Alerta: ${data.message || data.error}`);
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
@@ -1512,22 +1515,22 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+                avisoOk(` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
                 refreshPatientsSilently(selectedColor!);
             } else {
-                alert(` Error Clínico: ${data.error}`);
+                avisoError(` Error Clínico: ${data.error}`);
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
     const handleLaundryLog = () => {
         setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + " Lavado de ropa e higienización completado." }));
-        alert(" Tarea de lavandería añadida a la bitácora.");
+        avisoOk(" Tarea de lavandería añadida a la bitácora.");
     };
 
     const handleRoomCleaningLog = () => {
         setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + " Aseo de habitación y áreas adyacentes completado." }));
-        alert(" Aseo de habitación añadido a la bitácora.");
+        avisoOk(" Aseo de habitación añadido a la bitácora.");
     };
 
     const handleSecurityRound = () => {
@@ -1549,8 +1552,8 @@ export default function ZendityCareTabletPage() {
     }, [activePatient, modalType, isNightShift]);
 
     const handleNightRoundSubmit = async () => {
-        if (!nightRoundStatus) return alert("Selecciona el estado del residente (, , ).");
-        if (nightRoundStatus === 'ANOMALY' && !nightRoundNote) return alert("Debes documentar la anomalía detectada.");
+        if (!nightRoundStatus) return avisoOk("Selecciona el estado del residente (, , ).");
+        if (nightRoundStatus === 'ANOMALY' && !nightRoundNote) return avisoOk("Debes documentar la anomalía detectada.");
         
         setSubmitting(true);
         try {
@@ -1565,13 +1568,13 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Ronda de Noche sincronizada exitosamente.\\nSLA de 2 Horas reactivado (No podrás reportar a este residente hasta las próximas 2h).");
+                avisoOk(" Ronda de Noche sincronizada exitosamente.\\nSLA de 2 Horas reactivado (No podrás reportar a este residente hasta las próximas 2h).");
                 setNightRoundStatus(null);
                 setNightRoundNote("");
                 setNightRoundSLA(0); // Lock it immediately
                 refreshPatientsSilently(selectedColor!);
             } else {
-                alert(` Error Clínico: ${data.error}`);
+                avisoError(` Error Clínico: ${data.error}`);
             }
         } catch (e) {
             console.error(e);
@@ -1596,7 +1599,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(" Alerta médica preventiva enviada a Enfermería.");
+                avisoOk(" Alerta médica preventiva enviada a Enfermería.");
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
@@ -1615,18 +1618,25 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                let gamifiedMsg = "";
-                if (data.pointsDelta > 0) gamifiedMsg = ` ¡Excelente tiempo clínico! +${data.pointsDelta} Puntos Zendity.`;
-                else if (data.pointsDelta < 0) gamifiedMsg = ` Rotación atrasada. Zendity HR dedujo ${data.pointsDelta} Puntos por incumplimiento.`;
+                // Los puntos van en su propio renglón del aviso, no dentro del
+                // mensaje clínico. Antes se leía "Cambio Postural registrado.
+                // ¡Excelente tiempo clínico! +2 Puntos Zendity." — mezclando el
+                // registro del expediente con la puntuación de desempeño.
+                const atrasada = data.pointsDelta < 0;
 
-                alert(` Cambio Postural (${position}) registrado exitosamente.\n${gamifiedMsg}`);
+                avisoOk(
+                    atrasada
+                        ? `Cambio postural a ${position} registrado, fuera de la ventana de 2 horas.`
+                        : `Cambio postural a ${position} registrado.`,
+                    data.pointsDelta,
+                );
                 refreshPatientsSilently(selectedColor!);
                 setActivePatient({
                     ...activePatient,
                     posturalChanges: [data.rotation, ...(activePatient.posturalChanges || [])]
                 });
             } else {
-                alert(` Error Clínico: ${data.error}`);
+                avisoError(` Error Clínico: ${data.error}`);
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
@@ -1640,7 +1650,7 @@ export default function ZendityCareTabletPage() {
     };
 
     const handlePreventiveSubmit = async () => {
-        if (!selectedSymptom) return alert("Selecciona un síntoma de la lista.");
+        if (!selectedSymptom) return avisoOk("Selecciona un síntoma de la lista.");
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/preventive", {
@@ -1654,13 +1664,13 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(` Acción Preventiva reportada exitosamente.\n +${data.pointsDelta} Puntos Zendity añadidos a tu perfil.`);
+                avisoOk(` Acción Preventiva reportada exitosamente.\n +${data.pointsDelta} Puntos Zendity añadidos a tu perfil.`);
                 setModalType(null);
                 setSelectedSymptom(null);
                 setPreventiveNote("");
                 refreshPatientsSilently(selectedColor!);
             } else {
-                alert(` Error Clínico: ${data.error}`);
+                avisoError(` Error Clínico: ${data.error}`);
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
@@ -1692,7 +1702,7 @@ export default function ZendityCareTabletPage() {
                     setPrintingFallId(data.incident.id);
                 }
             } else {
-                alert(` Error: ${data.error || 'No se pudo registrar la caída'}`);
+                avisoError(` Error: ${data.error || 'No se pudo registrar la caída'}`);
             }
         } catch (e) {
             console.error(e);
@@ -1718,7 +1728,7 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
 
             if (data.success) {
-                alert(" Traslado registrado. Abriendo Nota de Progreso Médica para impresión...");
+                avisoOk(" Traslado registrado. Abriendo Nota de Progreso Médica para impresión...");
                 setPdfNoteData({ ...data.patient, transferReason: hospitalReason, printDate: new Date() });
                 setHospitalReason("");
                 setModalType('PROGRESS_NOTE_PDF');
@@ -1726,11 +1736,11 @@ export default function ZendityCareTabletPage() {
                 // Fetch de nuevo para que el residente se vea deshabilitado con status TEMPORARY_LEAVE
                 fetchPatients(selectedColor!);
             } else {
-                alert(` Error: ${data.error}`);
+                avisoError(` Error: ${data.error}`);
             }
         } catch (e) {
             console.error(e);
-            alert("Error de conexión al procesar el traslado.");
+            avisoError("Error de conexión al procesar el traslado.");
         } finally {
             setSubmitting(false);
         }
@@ -1747,8 +1757,8 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitHubReport = async () => {
-        if (hubAction !== 'MAINTENANCE' && !hubPatientId) return alert("Seleccione un residente.");
-        if (!hubDescription) return alert("Agregue una descripción del incidente.");
+        if (hubAction !== 'MAINTENANCE' && !hubPatientId) return avisoOk("Seleccione un residente.");
+        if (!hubDescription) return avisoOk("Agregue una descripción del incidente.");
         setSubmitting(true);
         try {
             const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
@@ -1803,7 +1813,7 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
 
             if (data.success) {
-                alert(` Reporte de tipo ${hubAction} enviado a Central.`);
+                avisoOk(` Reporte de tipo ${hubAction} enviado a Central.`);
                 setHubAction(null);
                 setModalType(null);
                 setHubDescription("");
@@ -1812,7 +1822,7 @@ export default function ZendityCareTabletPage() {
                 setHubRoom("");
                 fetchMyReports(); // Refrescar historial de reportes del cuidador
             } else {
-                alert("Error al enviar reporte: " + data.error);
+                avisoError("Error al enviar reporte: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -1832,10 +1842,10 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert("Retorno registrado exitosamente.");
+                avisoOk("Retorno registrado exitosamente.");
                 fetchPatients(selectedColor!); // Recargar la lista
             } else {
-                alert("Error al registrar retorno: " + data.error);
+                avisoError("Error al registrar retorno: " + data.error);
             }
         } catch (e) {
             console.error(e);
@@ -1858,7 +1868,7 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 fetchPatients(selectedColor!);
             } else {
-                alert('Error al registrar salida: ' + data.error);
+                avisoError('Error al registrar salida: ' + data.error);
             }
         } catch (e) { console.error(e); }
         finally { setSubmitting(false); }
@@ -1876,10 +1886,10 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert('Retorno de diálisis registrado. Recuerda tomar vitales post-diálisis.');
+                avisoOk('Retorno de diálisis registrado. Recuerda tomar vitales post-diálisis.');
                 fetchPatients(selectedColor!);
             } else {
-                alert('Error al registrar retorno: ' + data.error);
+                avisoError('Error al registrar retorno: ' + data.error);
             }
         } catch (e) { console.error(e); }
         finally { setSubmitting(false); }
@@ -2362,6 +2372,7 @@ export default function ZendityCareTabletPage() {
     };
 
     return (
+        <>
         <div className="min-h-screen bg-[#f5f5f4] pb-20 flex [scroll-behavior:smooth]">
             <Toaster position="top-center" richColors />
 
@@ -4359,7 +4370,7 @@ export default function ZendityCareTabletPage() {
                         });
                         if (!res.ok) {
                             const errData = await res.json().catch(() => ({}));
-                            alert(errData.error || "Error finalizando turno. Intenta nuevamente.");
+                            avisoError(errData.error || "Error finalizando turno. Intenta nuevamente.");
                             return false;
                         }
                         // Cerrar el wizard y mostrar pantalla de confirmación
@@ -4370,7 +4381,7 @@ export default function ZendityCareTabletPage() {
                         setShiftDeliveredScreen(true);
                         return true;
                     } catch (e) {
-                        alert("Error finalizando turno localmente.");
+                        avisoError("Error finalizando turno localmente.");
                         return false;
                     }
                 }}
@@ -4587,5 +4598,10 @@ export default function ZendityCareTabletPage() {
             })()}
             </div>{/* end flex-1 main content */}
         </div>
+
+            {/* Avisos del piso. Reemplazan los 57 alert() que bloqueaban la
+                pantalla y había que cerrar con el dedo a mitad de un turno. */}
+            <AvisoPiso aviso={aviso} onCerrar={cerrarAviso} />
+        </>
     );
 }
