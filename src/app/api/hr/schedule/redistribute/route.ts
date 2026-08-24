@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
@@ -27,10 +28,41 @@ export async function POST(req: Request) {
             );
         }
 
-        const { scheduledShiftId, targetUserId, color, hqId, isAutoAssigned } = await req.json();
+        const { scheduledShiftId, targetUserId, color, hqId: requestedHqId, isAutoAssigned } = await req.json();
 
-        if (!scheduledShiftId || !targetUserId || !color || !hqId) {
+        if (!scheduledShiftId || !targetUserId || !color) {
             return NextResponse.json({ success: false, error: 'Datos incompletos' }, { status: 400 });
+        }
+
+        // La sede sale de la sesión, nunca del body. Antes se escribía el hqId
+        // que mandara el cliente: un SUPERVISOR podía crear asignaciones en el
+        // horario de OTRA sede. Con una sola sede en producción no se notaba.
+        let hqId: string;
+        try {
+            hqId = await resolveEffectiveHqId(session, requestedHqId);
+        } catch (e: any) {
+            return NextResponse.json({ success: false, error: e.message || 'Sede inválida' }, { status: 400 });
+        }
+
+        // Y el turno y la persona tienen que ser de esa sede. El rol correcto
+        // sobre un id ajeno sigue siendo acceso ajeno.
+        const [turno, destinatario] = await Promise.all([
+            // ScheduledShift no tiene sede propia: cuelga de Schedule. Hay que
+            // atravesar la relación o el filtro no aísla nada.
+            prisma.scheduledShift.findFirst({
+                where: { id: scheduledShiftId, schedule: { headquartersId: hqId } },
+                select: { id: true },
+            }),
+            prisma.user.findFirst({
+                where: { id: targetUserId, headquartersId: hqId },
+                select: { id: true },
+            }),
+        ]);
+        if (!turno) {
+            return NextResponse.json({ success: false, error: 'Turno no encontrado en esta sede' }, { status: 404 });
+        }
+        if (!destinatario) {
+            return NextResponse.json({ success: false, error: 'El empleado no pertenece a esta sede' }, { status: 404 });
         }
 
         const assignment = await prisma.shiftColorAssignment.create({
