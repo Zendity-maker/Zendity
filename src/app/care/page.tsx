@@ -445,7 +445,7 @@ export default function ZendityCareTabletPage() {
             .catch(() => {});
     }, [user?.id]);
 
-    const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
+    const [dailyLog, setDailyLog] = useState<{ bathCompleted: boolean; foodIntake: number | null; notes: string; selectedMeal?: string }>({ bathCompleted: false, foodIntake: 100, notes: "", selectedMeal: undefined });
 
     // BUG FIX baños: derivar el estado de "baño completado hoy" directamente
     // del residente activo, NO de un flag global en dailyLog.
@@ -1294,7 +1294,7 @@ export default function ZendityCareTabletPage() {
 
                 if (data.criticalAlert) {
                     avisoOk(data.message);
-                    setDailyLog({ bathCompleted: false, foodIntake: 100, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
+                    setDailyLog({ bathCompleted: false, foodIntake: null, notes: `[ALERTA VITALES] ${data.message} \n\nEscriba los detalles de lo sucedido: ` });
                     setModalType('LOG');
                 } else {
                     setModalType(null);

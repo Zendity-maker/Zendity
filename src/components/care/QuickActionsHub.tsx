@@ -99,7 +99,7 @@ export function QuickActionsHub({ open, onClose, currentUserId, patients: patien
                 endpoint = "/api/care/vitals";
                 payload = {
                     patientId, authorId: currentUserId, type: 'LOG',
-                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA UPP/PIEL] " + description, isAlert: true },
+                    data: { bathCompleted: false, foodIntake: null, notes: "[ALERTA UPP/PIEL] " + description, isAlert: true },
                 };
             } else if (action === "CLINICAL") {
                 endpoint = "/api/care/vitals";
