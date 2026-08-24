@@ -484,6 +484,7 @@ export default function ZendityCareTabletPage() {
     
     // Preventive Hub
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
+    const [mostrarSintomas, setMostrarSintomas] = useState(false);
     const [preventiveNote, setPreventiveNote] = useState("");
     const [isSavingFastAction, setIsSavingFastAction] = useState(false);
 
@@ -1650,7 +1651,7 @@ export default function ZendityCareTabletPage() {
     };
 
     const handlePreventiveSubmit = async () => {
-        if (!selectedSymptom) return avisoOk("Selecciona un síntoma de la lista.");
+        if (!preventiveNote.trim()) return avisoOk("Escribe lo que observaste.");
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/preventive", {
@@ -1658,7 +1659,7 @@ export default function ZendityCareTabletPage() {
                 body: JSON.stringify({
                     patientId: activePatient.id,
                     caregiverId: user?.id,
-                    symptom: selectedSymptom,
+                    symptom: selectedSymptom || "Observación general",
                     aiNote: preventiveNote
                 })
             });
@@ -1779,7 +1780,7 @@ export default function ZendityCareTabletPage() {
                     patientId: hubPatientId,
                     authorId: user?.id,
                     type: 'LOG',
-                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA UPP/PIEL] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
+                    data: { bathCompleted: false, foodIntake: null, notes: "[ALERTA UPP/PIEL] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
                 };
             } else if (hubAction === "CLINICAL") {
                 endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog pero con flag isAlert true
@@ -1787,7 +1788,7 @@ export default function ZendityCareTabletPage() {
                     patientId: hubPatientId,
                     authorId: user?.id,
                     type: 'LOG',
-                    data: { bathCompleted: false, foodIntake: 100, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
+                    data: { bathCompleted: false, foodIntake: null, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
                 };
             } else if (hubAction === "MAINTENANCE") {
                 endpoint = "/api/care/incidents";
@@ -3334,7 +3335,7 @@ export default function ZendityCareTabletPage() {
                                                 <span className="text-[12px] font-medium text-[#1F2D3A]">Bitácora</span>
                                             </button>
                                             <button
-                                                onClick={() => { setActivePatient(p); setSelectedSymptom(null); setModalType('PREVENTIVE'); }}
+                                                onClick={() => { setActivePatient(p); setSelectedSymptom(null); setMostrarSintomas(false); setPreventiveNote(""); setModalType('PREVENTIVE'); }}
                                                 className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
                                             >
                                                 <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3427,53 +3428,84 @@ export default function ZendityCareTabletPage() {
 
                         {modalType === 'PREVENTIVE' && (
                             <div className="space-y-4">
-                                <p className="font-bold text-slate-500 uppercase tracking-widest text-xs border-b pb-2 flex items-center justify-between">
-                                    <span> Motor de Salud Preventiva</span>
-                                    {selectedSymptom && (
-                                        <button onClick={() => setSelectedSymptom(null)} className="text-indigo-500 font-bold text-xs hover:text-indigo-600">← Volver al Menú</button>
-                                    )}
+                                <p className="font-bold text-slate-500 uppercase tracking-widest text-xs border-b pb-2">
+                                    Reporte a Enfermería
                                 </p>
-                                
-                                {!selectedSymptom ? (
-                                    <div className="space-y-4 h-[55vh] overflow-y-auto pr-2 pb-10 custom-scrollbar">
-                                        <p className="text-xs font-bold text-slate-500 text-center mb-2 px-4 shadow-sm py-2 bg-slate-100 rounded-lg">Selecciona el signo clínico o conductual observado para reportar al Mando de Enfermería.</p>
-                                        
-                                        {Object.entries(SYMPTOM_CATEGORIES).map(([category, symptoms]) => (
-                                            <div key={category} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
-                                                <h4 className="font-black text-slate-700 mb-3 text-sm">{category}</h4>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {symptoms.map(sym => (
-                                                        <button 
-                                                            key={sym} 
-                                                            onClick={() => setSelectedSymptom(sym)}
-                                                            className="text-left p-3 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 hover:shadow-md rounded-xl text-xs font-black text-indigo-900 transition-all active:scale-95 flex items-center"
-                                                        >
-                                                            {sym}
-                                                        </button>
-                                                    ))}
+
+                                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl">
+                                    <p className="text-emerald-800 font-black uppercase tracking-wide text-[11px]">Residente</p>
+                                    <p className="text-emerald-700 font-black text-lg leading-tight">{activePatient?.name}</p>
+                                </div>
+
+                                <ZendiAssist
+                                    value={preventiveNote}
+                                    onChange={setPreventiveNote}
+                                    type="FORMAT_NOTES"
+                                    context="reporte preventivo clínico"
+                                    placeholder="¿Qué observaste? Ej. Comenzó a toser después del almuerzo, se le puso la cara roja y le costó tragar."
+                                    rows={6}
+                                />
+
+                                {/* El síntoma es opcional: sirve para que enfermería agrupe casos,
+                                    no para bloquear el reporte. Antes era obligatorio elegir entre
+                                    30 etiquetas y el botón se usó 15 veces en tres meses. */}
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMostrarSintomas(v => !v)}
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                                    >
+                                        <span className="text-xs font-black text-slate-600">
+                                            {selectedSymptom
+                                                ? <>Síntoma: <span className="text-indigo-700">{selectedSymptom}</span></>
+                                                : 'Etiquetar un síntoma (opcional)'}
+                                        </span>
+                                        <span className="text-slate-400 text-xs font-black">{mostrarSintomas ? '▲' : '▼'}</span>
+                                    </button>
+
+                                    {mostrarSintomas && (
+                                        <div className="max-h-[38vh] overflow-y-auto p-3 space-y-3 custom-scrollbar bg-white">
+                                            {selectedSymptom && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedSymptom(null)}
+                                                    className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
+                                                >
+                                                    Quitar etiqueta
+                                                </button>
+                                            )}
+                                            {Object.entries(SYMPTOM_CATEGORIES).map(([category, symptoms]) => (
+                                                <div key={category}>
+                                                    <h4 className="font-black text-slate-500 mb-2 text-[11px] uppercase tracking-wide">{category}</h4>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {symptoms.map(sym => (
+                                                            <button
+                                                                key={sym}
+                                                                type="button"
+                                                                onClick={() => { setSelectedSymptom(sym); setMostrarSintomas(false); }}
+                                                                className={`px-3 py-2 rounded-full text-[11px] font-black border transition-all active:scale-95 ${
+                                                                    selectedSymptom === sym
+                                                                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                                                                        : 'bg-white border-slate-200 text-indigo-900 hover:border-indigo-400 hover:bg-indigo-50'
+                                                                }`}
+                                                            >
+                                                                {sym}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                                        <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl shadow-inner">
-                                            <p className="text-emerald-800 font-black mb-1 uppercase tracking-wide text-xs">Síntoma Detectado:</p>
-                                            <p className="text-emerald-700 font-black text-lg">{selectedSymptom}</p>
+                                            ))}
                                         </div>
-                                        <ZendiAssist
-                                            value={preventiveNote}
-                                            onChange={setPreventiveNote}
-                                            type="FORMAT_NOTES"
-                                            context="reporte preventivo clínico"
-                                            placeholder="Detalla lo que observaste (Ej. Cuándo comenzó, severidad, si el residente se queja...)"
-                                            rows={5}
-                                        />
-                                        <button onClick={handlePreventiveSubmit} disabled={submitting} className="w-full py-5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-[0_8px_30px_rgb(5,150,105,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 text-lg">
-                                            {submitting ? "Sincronizando..." : "Enviar Reporte (+5 Pts)"}
-                                        </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={handlePreventiveSubmit}
+                                    disabled={submitting || !preventiveNote.trim()}
+                                    className="w-full py-5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:shadow-none text-white font-black rounded-2xl shadow-[0_8px_30px_rgb(5,150,105,0.3)] transition-all active:scale-95 text-lg"
+                                >
+                                    {submitting ? "Enviando..." : "Enviar a Enfermería (+5 Pts)"}
+                                </button>
                             </div>
                         )}
 
