@@ -512,9 +512,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     if (isFullScreenRoute) {
         const showBackButton = pathname.startsWith('/care') && pathname !== '/care';
+        // El aviso de certificación también va aquí. /care y /cleaning son
+        // full-screen y se saltaban el marco de la app, así que el personal
+        // que TIENE que tomar el curso era justo el único que no veía el
+        // aviso: 17 de 18 no lo habían abierto a ocho días del plazo.
+        // Se excluyen /family, /wall y los kioskos: ahí no hay empleado
+        // al otro lado de la pantalla.
+        const avisoAquí = pathname.startsWith('/care') || pathname.startsWith('/cleaning');
         return (
             <div className="w-full h-full">
                 {showBackButton && <BackToDashboard />}
+                {avisoAquí && <AvisoCertificacion />}
                 {children}
             </div>
         );
