@@ -32,7 +32,9 @@ export async function POST(req: Request) {
                 patientId,
                 authorId: caregiverId,
                 bathCompleted: false,
-                foodIntake: 0,
+                // null, no 0: este evento no dice nada sobre la comida, y un 0
+                // se lee como "no comió nada".
+                foodIntake: null,
                 notes: logContext,
                 isClinicalAlert: true, // Esto envía el registro autónomo al Mando de Enfermería
                 isResolved: false

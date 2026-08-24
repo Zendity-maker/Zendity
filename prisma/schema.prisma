@@ -1364,7 +1364,17 @@ model DailyLog {
   patientId       String
   authorId        String
   bathCompleted   Boolean  @default(false)
-  foodIntake      Int // % de ingesta (0, 25, 50, 75, 100)
+  /// % de ingesta. NULLABLE desde el 24-ago-2026.
+  ///
+  /// La alimentación real se registra en MealLog desde la pantalla de la
+  /// cuidadora — 623 comidas por semana contra 10 bitácoras. Este campo lo
+  /// llenaban eventos administrativos que no hablan de comida: hospitalizar
+  /// escribía 0 (que se lee como "no comió nada") y el registro de vitales
+  /// escribía 100 por defecto. Ambos ensuciaban cualquier lectura nutricional.
+  ///
+  /// Ahora esos eventos escriben null: no dicen nada sobre la comida, que es
+  /// exactamente lo que saben. Ver scripts/verificar-fuentes-cuidado.ts.
+  foodIntake      Int? // % de ingesta (0, 25, 50, 75, 100)
   notes           String?
   isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
   isResolved      Boolean  @default(false) // FASE 33: Triage Flag

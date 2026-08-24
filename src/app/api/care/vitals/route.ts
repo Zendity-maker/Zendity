@@ -323,9 +323,11 @@ export async function POST(req: Request) {
             }
         } else if (type === 'LOG') {
             const isClinicalAlert = data.isAlert === true;
+            // Sin dato explícito va null, no 100. El default silencioso hacía
+            // que cada registro de vitales afirmara que el residente comió todo.
             const foodIntakeNum = typeof data.foodIntake === 'number'
                 ? data.foodIntake
-                : parseInt(String(data.foodIntake ?? '100'), 10) || 100;
+                : (data.foodIntake != null ? (parseInt(String(data.foodIntake), 10) || 0) : null);
             const dailyLog = await prisma.dailyLog.create({
                 data: {
                     patientId,

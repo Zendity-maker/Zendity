@@ -82,7 +82,9 @@ export async function PATCH(req: Request) {
                 patientId,
                 authorId,
                 bathCompleted: false,
-                foodIntake: 0,
+                // null, no 0: este evento no dice nada sobre la comida, y un 0
+                // se lee como "no comió nada".
+                foodIntake: null,
                 notes: `[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: ${reason}`,
                 isClinicalAlert: true // Esto lo manda a triage
             }

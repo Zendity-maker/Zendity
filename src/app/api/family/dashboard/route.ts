@@ -78,6 +78,18 @@ export async function GET(req: Request) {
             },
         });
 
+        // Comidas de hoy, de la fuente que el hogar usa de verdad.
+        //
+        // La banda de alimentación se derivaba de DailyLog.foodIntake, un campo
+        // que ninguna pantalla llena: medido en Cupey, 0 residentes tenían
+        // bitácora hoy mientras las comidas de los 33 SÍ estaban registradas.
+        // Resultado: las 33 familias veían "sin dato" sobre algo que el hogar
+        // había anotado tres veces ese día.
+        const comidasHoy = await prisma.mealLog.findMany({
+            where: { patientId: resident.id, timeLogged: { gte: todayStart } },
+            select: { quality: true },
+        });
+
         // Bypassing Prisma Client Schema Cache for LifePlan using Raw SQL Hotfix
         let lifePlan = null;
         try {
@@ -137,8 +149,14 @@ export async function GET(req: Request) {
         ]);
         const medsOnTrack: boolean | null = totalToday === 0 ? null : omitsToday === 0;
 
-        // foodBand cualitativo derivado del % de ingesta (no se expone el número en LIFESTYLE)
-        const foodPct: number | null = (dailyLogsFixed[0] as any)?.foodIntake ?? null;
+        // foodBand cualitativo derivado de la ingesta (no se expone el número en LIFESTYLE).
+        // Las categorías de MealLog se promedian a porcentaje solo para reusar
+        // computeFoodBand sin cambiar su contrato.
+        const pctDeCalidad = (q: string) =>
+            q === 'ALL' ? 100 : q === 'HALF' ? 50 : q === 'LITTLE' ? 25 : 0;
+        const foodPct: number | null = comidasHoy.length > 0
+            ? Math.round(comidasHoy.reduce((a, m) => a + pctDeCalidad(String(m.quality)), 0) / comidasHoy.length)
+            : ((dailyLogsFixed[0] as any)?.foodIntake ?? null);  // respaldo histórico
         const foodBand = computeFoodBand(foodPct);
 
         const wellness = {

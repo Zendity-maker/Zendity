@@ -56,8 +56,22 @@ export async function detectarSenales(hqId: string, dias = DIAS): Promise<Reside
             name: true,
             dailyLogs: {
                 where: { createdAt: { gte: desde } },
-                select: { foodIntake: true, createdAt: true, isClinicalAlert: true, isResolved: true },
+                select: { createdAt: true, isClinicalAlert: true, isResolved: true },
                 orderBy: { createdAt: 'asc' },
+            },
+            // La ingesta REAL vive aquí, no en DailyLog.foodIntake.
+            //
+            // Este detector se construyó leyendo DailyLog, que en Cupey tiene 10
+            // registros por semana para 33 residentes — la señal de ingesta baja
+            // no podía dispararse nunca. La comida se registra desde la pantalla
+            // de la cuidadora en MealLog: 623 registros en la misma semana.
+            //
+            // MealLog guarda calidad (TODO / MITAD / POCO / NADA) en vez de un
+            // porcentaje, así que la comparación es por categoría.
+            mealLogs: {
+                where: { timeLogged: { gte: desde } },
+                select: { quality: true, timeLogged: true },
+                orderBy: { timeLogged: 'asc' },
             },
             vitalSigns: {
                 where: { createdAt: { gte: desde } },
@@ -74,28 +88,37 @@ export async function detectarSenales(hqId: string, dias = DIAS): Promise<Reside
         const senales: SenalClinica[] = [];
 
         // ── Ingesta ────────────────────────────────────────────────────
-        const bajas = p.dailyLogs.filter(l => l.foodIntake <= 50);
+        // POCO y NADA son las dos categorías que preocupan; MITAD entra en el
+        // conteo pero pesa menos, igual que un 50% pesaba menos que un 0%.
+        const comidas = p.mealLogs;
+        const bajas = comidas.filter(m => m.quality === 'LITTLE' || m.quality === 'NONE');
+        const nada = comidas.filter(m => m.quality === 'NONE').length;
         if (bajas.length >= 3) {
             senales.push({
                 codigo: 'INGESTA_BAJA',
-                gravedad: bajas.length >= 5 ? 'REVISAR' : 'VIGILAR',
+                gravedad: (bajas.length >= 6 || nada >= 3) ? 'REVISAR' : 'VIGILAR',
                 titulo: 'Está comiendo poco de forma sostenida',
-                evidencia: [`${bajas.length} de ${p.dailyLogs.length} registros con ingesta de 50% o menos en ${dias} días`],
+                evidencia: [
+                    `${bajas.length} de ${comidas.length} comidas con poca o ninguna ingesta en ${dias} días`
+                    + (nada > 0 ? ` · ${nada} sin comer nada` : ''),
+                ],
             });
         }
 
-        // Caída reciente: compara la mitad nueva contra la vieja de la ventana.
-        if (p.dailyLogs.length >= 4) {
-            const mitad = Math.floor(p.dailyLogs.length / 2);
-            const prom = (xs: typeof p.dailyLogs) => xs.reduce((a, b) => a + b.foodIntake, 0) / xs.length;
-            const antes = prom(p.dailyLogs.slice(0, mitad));
-            const ahora = prom(p.dailyLogs.slice(mitad));
+        // Caída reciente: compara la mitad nueva de la ventana contra la vieja.
+        // Las categorías se convierten a porcentaje solo para poder promediar.
+        if (comidas.length >= 6) {
+            const pct = (q: string) => q === 'ALL' ? 100 : q === 'HALF' ? 50 : q === 'LITTLE' ? 25 : 0;
+            const mitad = Math.floor(comidas.length / 2);
+            const prom = (xs: typeof comidas) => xs.reduce((a, b) => a + pct(String(b.quality)), 0) / xs.length;
+            const antes = prom(comidas.slice(0, mitad));
+            const ahora = prom(comidas.slice(mitad));
             if (antes - ahora >= 25) {
                 senales.push({
                     codigo: 'INGESTA_EN_CAIDA',
                     gravedad: 'REVISAR',
                     titulo: 'La ingesta bajó respecto a días anteriores',
-                    evidencia: [`Promedio pasó de ${Math.round(antes)}% a ${Math.round(ahora)}%`],
+                    evidencia: [`De comer ${Math.round(antes)}% del plato en promedio a ${Math.round(ahora)}%`],
                 });
             }
         }

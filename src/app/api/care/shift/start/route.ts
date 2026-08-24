@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
-import { resolveCaregiverCurrentColors, resolveCaregiverColors, isSoloCaregiver } from '@/lib/shift-coverage';
+import { resolveCaregiverCurrentColors, resolveCaregiverColors, isSoloCaregiver, inferShiftTypeFromAST } from '@/lib/shift-coverage';
 import { ColorGroup } from '@prisma/client';
 import { requireRole } from '@/lib/api-auth';
 import { logError, logWarn } from '@/lib/logger';
@@ -284,8 +284,25 @@ export async function POST(req: Request) {
         }
 
         // ── Abrir la ventana de vitales para los residentes asignados ──
+        //
+        // NO en la guardia. Medido en Cupey sobre 30 días: de 922 órdenes
+        // abiertas entre las 10pm y las 6am, 876 vencieron — el 95%, contra el
+        // 35% del resto de turnos. Ahí estaba concentrado el vencimiento que
+        // veníamos arrastrando.
+        //
+        // Y la razón es sensata: nadie despierta a un residente a las dos de la
+        // mañana para tomarle la presión. Se le pedía algo que no corresponde a
+        // su turno y después se le contaba como incumplido. La guardia rota y
+        // anota — 1,885 rotaciones en 30 días, ninguna fuera de ventana.
+        //
+        // Si un residente necesita vitales de noche, la enfermera puede crear la
+        // orden a mano: esto solo apaga la creación automática.
+        const esGuardia = inferShiftTypeFromAST(new Date()) === 'NIGHT';
+        if (esGuardia) {
+            console.log('[shift/start] Turno de guardia — no se abren órdenes de vitales.');
+        }
         try {
-            const assigned = await resolveAssignedPatients(caregiverId, headquartersId);
+            const assigned = esGuardia ? [] : await resolveAssignedPatients(caregiverId, headquartersId);
             if (assigned.length > 0) {
                 const now = new Date();
                 const expiresAt = new Date(now.getTime() + VITALS_WINDOW_MS);

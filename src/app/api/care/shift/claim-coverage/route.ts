@@ -144,7 +144,11 @@ export async function POST(req: Request) {
 
         const now = new Date();
         const vitalsExpiresAt = new Date(shiftSession.startTime.getTime() + VITALS_WINDOW_MS);
-        const vitalsWindowOpen = vitalsExpiresAt > now;
+        // Misma exención que shift/start: en la guardia no se abren órdenes de
+        // vitales, porque nadie despierta a un residente de madrugada para
+        // medirlo y el 95% de esas órdenes terminaba vencida.
+        const esGuardia = inferShiftTypeFromAST(shiftSession.startTime) === 'NIGHT';
+        const vitalsWindowOpen = !esGuardia && vitalsExpiresAt > now;
 
         // ¿La cuidadora tiene un color base efectivo AHORA? Si no (caso típico:
         // pauta NIGHT entrando 4h antes en EVENING — su pauta no aplica todavía),

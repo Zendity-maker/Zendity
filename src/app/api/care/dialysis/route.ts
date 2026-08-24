@@ -92,7 +92,9 @@ export async function POST(req: Request) {
                     patientId,
                     authorId: invokerId,
                     bathCompleted: false,
-                    foodIntake: 0,
+                    // null, no 0: este evento no dice nada sobre la comida, y un 0
+                    // se lee como "no comió nada".
+                    foodIntake: null,
                     notes: `[SALIDA DIÁLISIS] ${patient.name} salió a tratamiento de diálisis. Hora de salida: ${now.toLocaleTimeString('es-PR', { timeZone: 'America/Puerto_Rico', hour: '2-digit', minute: '2-digit' })}.`,
                     isClinicalAlert: false
                 }
@@ -127,7 +129,9 @@ export async function POST(req: Request) {
                 patientId,
                 authorId: invokerId,
                 bathCompleted: false,
-                foodIntake: 0,
+                // null, no 0: este evento no dice nada sobre la comida, y un 0
+                // se lee como "no comió nada".
+                foodIntake: null,
                 notes: `[RETORNO DIÁLISIS] ${patient.name} regresó de tratamiento de diálisis. Hora de retorno: ${now.toLocaleTimeString('es-PR', { timeZone: 'America/Puerto_Rico', hour: '2-digit', minute: '2-digit' })}.`,
                 isClinicalAlert: false
             }

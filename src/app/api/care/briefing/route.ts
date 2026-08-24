@@ -36,6 +36,11 @@ export async function POST(req: Request) {
                         where: { createdAt: { gte: todayStart } },
                         orderBy: { createdAt: 'desc' },
                     },
+                    // La comida de hoy, de donde la escribe la cuidadora.
+                    mealLogs: {
+                        where: { timeLogged: { gte: todayStart } },
+                        select: { quality: true },
+                    },
                     dailyLogs: {
                         where: { createdAt: { gte: todayStart } },
                         orderBy: { createdAt: 'desc' },
@@ -102,7 +107,11 @@ export async function POST(req: Request) {
                 hasIssues = true;
             }
 
-            const emptyFood = p.dailyLogs.find(l => l.foodIntake === 0);
+            // Antes miraba DailyLog.foodIntake === 0, un campo que llenaban
+            // eventos administrativos: hospitalizar escribía 0, así que Zendi le
+            // anunciaba a la cuidadora que un residente hospitalizado no había
+            // comido. Ahora mira las comidas reales.
+            const emptyFood = (p as any).mealLogs?.some((m: any) => m.quality === 'NONE');
             if (emptyFood) {
                 ttsMessage += `Noté que ${p.name} tuvo una ingesta reducida en su última comida. Recomiendo ofrecer una alternativa o suplemento para asegurar su perfil nutricional. `;
                 quickRead.foodAlerts++;
