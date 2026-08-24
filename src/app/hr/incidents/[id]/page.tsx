@@ -609,7 +609,7 @@ export default function IncidentDetailPage() {
                     (NO en signatureBase64, que es del supervisor). */}
                 {isOwnEmployee
                     && incident.visibleToEmployee
-                    && (incident.status === 'PENDING_EXPLANATION' || incident.status === 'EXPLANATION_RECEIVED')
+                    && ['PENDING_EXPLANATION', 'EXPLANATION_RECEIVED', 'APPLIED'].includes(incident.status)
                     && !incident.acknowledgedAt
                     && !incident.acknowledgeRefusedAt && (
                     <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">

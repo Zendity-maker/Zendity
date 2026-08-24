@@ -21,6 +21,11 @@ export const dynamic = 'force-dynamic';
 const REFUSE_ALLOWED_STATUSES: IncidentStatus[] = [
     IncidentStatus.PENDING_EXPLANATION,
     IncidentStatus.EXPLANATION_RECEIVED,
+    // APPLIED también: en Cupey hay 78 observaciones aplicadas sin una sola
+    // firma ni negativa, porque hasta hoy se aplicaba sin pasar por la
+    // notificación. Poder firmar después permite regularizarlas en vez de
+    // dejar un hueco permanente en el expediente.
+    IncidentStatus.APPLIED,
 ];
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {

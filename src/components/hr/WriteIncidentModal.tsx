@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SignaturePad } from '@/components/sw-evaluation/SignaturePad';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from "@/context/AuthContext";
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -46,6 +47,10 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     const [description, setDescription] = useState('');
     const [directorNote, setDirectorNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    // Firma de quien emite la observación. Es el otro extremo del mismo
+    // documento que el empleado firmará al recibirlo.
+    const [firma, setFirma] = useState<string | null>(null);
+    const [firmando, setFirmando] = useState(false);
     const [generatingAI, setGeneratingAI] = useState(false);
     const { user } = useAuth();
 
@@ -122,6 +127,11 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                     category,
                     directorNote: directorNote || undefined,
                     type: severityToLegacyType(severity),
+                    // Firma de quien emite. El endpoint ya la aceptaba y la
+                    // guardaba con su signedAt, pero esta pantalla nunca la
+                    // enviaba: 88 observaciones con el campo en null. Es el otro
+                    // extremo del mismo documento que el empleado va a firmar.
+                    signatureBase64: firma || undefined,
                 })
             });
             const data = await res.json();
@@ -143,6 +153,7 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
     const handleClose = () => {
         setEmployeeId('');
         setDescription('');
+        setFirma(null);
         setDirectorNote('');
         setSeverity('OBSERVATION');
         setCategory('OTHER');
@@ -272,6 +283,36 @@ export default function WriteIncidentModal({ isOpen, onClose, hqId, supervisorId
                                 placeholder="Contexto adicional para el director que revisará esta observación..."
                                 className="bg-gray-50 resize-none"
                             />
+                        </Field>
+
+                        {/* Firma de quien emite */}
+                        <Field label="Tu firma" htmlFor="firma">
+                            {firma ? (
+                                <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                                    <img src={firma} alt="Firma" className="h-14 bg-white rounded border border-gray-200 px-2" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFirma(null)}
+                                        className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                                    >
+                                        Volver a firmar
+                                    </button>
+                                </div>
+                            ) : firmando ? (
+                                <SignaturePad
+                                    height={150}
+                                    onAccept={(b64) => { setFirma(b64); setFirmando(false); }}
+                                    onCancel={() => setFirmando(false)}
+                                />
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setFirmando(true)}
+                                    className="w-full border-2 border-dashed border-gray-300 hover:border-blue-300 hover:bg-blue-50/40 rounded-xl py-4 text-sm font-semibold text-slate-600 transition-colors"
+                                >
+                                    Firmar la observación
+                                </button>
+                            )}
                         </Field>
                     </div>
 

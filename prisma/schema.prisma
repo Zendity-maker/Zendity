@@ -2406,6 +2406,10 @@ model IncidentReport {
   acknowledgeRefusedReason String?            @db.Text
   employeeResponse         String?            @db.Text
   respondedAt              DateTime?
+  /// Cuándo se notificó al empleado (acción "pedir explicación"). Es el reloj
+  /// que decide cuándo se puede aplicar sin su acuse: sin esta marca no había
+  /// forma de saber cuánto llevaba esperando la observación.
+  notifiedAt               DateTime?
   appealText               String?            @db.Text
   /// Resolución de la apelación. Hasta el 21-ago-2026 una apelación se guardaba
   /// y ahí moría: no había forma de aceptarla, denegarla ni contestarle al
