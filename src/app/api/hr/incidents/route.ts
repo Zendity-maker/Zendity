@@ -7,7 +7,7 @@ import { HrIncidentSeverity, IncidentCategory, IncidentStatus } from '@prisma/cl
 export const dynamic = 'force-dynamic';
 
 // Datos disciplinarios — solo SUPERVISOR/DIRECTOR/ADMIN (RR.HH.)
-const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 export async function POST(req: Request) {
     try {

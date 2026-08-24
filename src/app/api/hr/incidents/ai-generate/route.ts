@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 const SEVERITY_LABEL: Record<string, string> = {
     OBSERVATION: 'Observación (sin penalidad)',

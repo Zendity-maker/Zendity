@@ -50,6 +50,34 @@ const clinicalNavigation = [
 // COORDINATOR (primary o secondary) + ADMIN + DIRECTOR + NURSE.
 const HUB_FAMILIA_ROLES = ['COORDINATOR', 'ADMIN', 'DIRECTOR', 'NURSE'];
 
+/**
+ * Lo único que ve HR_MANAGER en el menú corporativo.
+ *
+ * El resto de secciones —dashboard global, residentes, clínico, facturación—
+ * se le ocultan. No es cosmética: el encargado de personal no necesita ver un
+ * expediente para hacer su trabajo, y en un sistema con datos clínicos lo que
+ * no hace falta no se da.
+ *
+ * Ocultar el enlace no basta por sí solo; cada endpoint tiene su propia puerta.
+ * Esto evita que se tope con pantallas que le van a decir que no.
+ */
+const RRHH_SECCIONES = ['Recursos Humanos'];
+const RRHH_RUTAS_EXCLUIDAS = [
+    // Construir y publicar horarios sigue siendo de la directora y las
+    // supervisoras. RRHH marca ausencias desde el perfil del empleado.
+    '/hr/schedule',
+];
+
+function seccionesParaRol(secciones: any[], role?: string | null) {
+    if (role !== 'HR_MANAGER') return secciones;
+    return secciones
+        .filter(sec => RRHH_SECCIONES.includes(sec.title))
+        .map(sec => ({
+            ...sec,
+            links: sec.links.filter((l: any) => !RRHH_RUTAS_EXCLUIDAS.includes(l.href)),
+        }));
+}
+
 const corporateNavigationSections = [
     {
         title: "Operaciones y Crecimiento",
@@ -608,7 +636,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 {/* Navigation Links */}
                 <nav className="flex-1 min-h-0 overflow-y-auto py-5 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
                     {isCorporateWorkspace ? (
-                        corporateNavigationSections.map((section, idx) => (
+                        seccionesParaRol(corporateNavigationSections, user?.role as string | null).map((section, idx) => (
                             <div key={idx} className="mb-6">
                                 {!isSidebarCollapsed && (
                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-3">
@@ -616,7 +644,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                     </h3>
                                 )}
                                 <ul className="space-y-1">
-                                    {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link) => {
+                                    {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link: any) => {
                                         const isExact = pathname === link.href;
                                         const isNested = link.href !== '/corporate' && pathname?.startsWith(link.href);
                                         const isCurrent = isExact || isNested;
@@ -793,11 +821,11 @@ if ((item as any).onlyRoles) {
                         </div>
                         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                             {isCorporateWorkspace ? (
-                                corporateNavigationSections.map((section, idx) => (
+                                seccionesParaRol(corporateNavigationSections, user?.role as string | null).map((section, idx) => (
                                     <div key={idx} className="mb-5">
                                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-3">{section.title}</h3>
                                         <ul className="space-y-1">
-                                            {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link) => {
+                                            {section.links.filter((link: any) => !link.requiredRoles || link.requiredRoles.includes(user?.role)).map((link: any) => {
                                                 const isCurrent = pathname === link.href || (link.href !== '/corporate' && pathname?.startsWith(link.href));
                                                 const Icon = link.icon;
                                                 return (

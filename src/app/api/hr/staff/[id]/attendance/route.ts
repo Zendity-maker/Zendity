@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic';
  * Auth: SUPERVISOR/DIRECTOR/ADMIN — mismo alcance que marcar la ausencia.
  */
 
-const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 /** Debe coincidir con el umbral del endpoint que marca ausencias. */
 const PATTERN_WINDOW_DAYS = 30;

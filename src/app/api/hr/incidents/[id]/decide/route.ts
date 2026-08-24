@@ -15,7 +15,7 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN'];
+const DIRECTOR_ROLES = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 /**
  * Días que se espera al empleado tras notificarle, antes de poder aplicar sin

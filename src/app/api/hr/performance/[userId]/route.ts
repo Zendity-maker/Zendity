@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/api-auth';
 export async function GET(req: Request, { params }: any) {
     try {
         // RRHH — KPIs de staff: supervisión/gerencia + tenant check.
-        const auth = await requireRole(['SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+        const auth = await requireRole(['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER']);
         if (auth instanceof NextResponse) return auth;
 
         const { userId } = await params;

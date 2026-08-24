@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN'];
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || 'dummy',

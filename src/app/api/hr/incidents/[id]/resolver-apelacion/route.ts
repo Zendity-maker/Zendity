@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // Resolver una apelación es decisión de RRHH: el supervisor que emitió la
 // observación no debería ser quien juzgue su propia apelación.
-const ROLES = ['DIRECTOR', 'ADMIN'];
+const ROLES = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 /**
  * Puntos que se devuelven si la apelación se acepta.

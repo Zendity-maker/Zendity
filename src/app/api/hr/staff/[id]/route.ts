@@ -7,7 +7,7 @@ import { datosAlta, datosBaja } from '@/lib/staff-status';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE'];
+const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'HR_MANAGER'];
 
 // Formateador de mes abreviado en español (Ej: "Ene 26")
 const MONTH_ABBR_ES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -120,7 +120,7 @@ export async function PATCH(
 
         // Dar de baja es decisión de RRHH, no de operación: SUPERVISOR y NURSE
         // pueden emitir faltas pero no cerrar el acceso de nadie.
-        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPER_ADMIN']);
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER']);
         if (auth instanceof NextResponse) return auth;
 
         const body = await req.json().catch(() => ({}));

@@ -5,7 +5,7 @@ import { logError } from '@/lib/logger';
 import { logAudit } from '@/lib/audit';
 import { notifyUser, notifyRoles } from '@/lib/notifications';
 
-const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
+const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER'];
 
 /**
  * POST /api/hr/schedule/absent
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
                             message: `Se detectó un patrón de ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS} días. Tienes 72h para explicar las circunstancias antes de que se aplique automáticamente.`,
                             link: `/my-observations/${created.id}`,
                         }),
-                        notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                        notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'], {
                             type: 'EMAR_ALERT',
                             title: `Patrón de ausencias — ${empName}`,
                             message: `${empName} acumula ${absenceCount} ausencias en ${ABSENCE_WINDOW_DAYS}d. Sistema generó observación WARNING (PENDING_EXPLANATION).`,
@@ -318,7 +318,7 @@ export async function POST(req: Request) {
                     });
                 }),
                 // Notificar a supervisores con el resumen real
-                notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN'], {
+                notifyRoles(hqId, ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'], {
                     type: 'SHIFT_ALERT',
                     title: `Ausencia — ${absentName} · Grupo ${absentColorGroup}`,
                     message: `${totalCreated} residente${totalCreated === 1 ? '' : 's'} distribuido${totalCreated === 1 ? '' : 's'} entre ${recipientsWithCreated.length} cuidador${recipientsWithCreated.length === 1 ? '' : 'es'}: ${recipientsWithCreated.map(c => `${c.shift.user?.name || '?'} (${c.created.length})`).join(', ')}.`,

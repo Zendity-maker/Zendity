@@ -58,6 +58,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
     CAREGIVER: 'Cuidador(a)', NURSE: 'Enfermero(a)', SUPERVISOR: 'Supervisor(a)',
     DIRECTOR: 'Director(a)', ADMIN: 'Administrador(a)',
+    HR_MANAGER: 'Recursos Humanos',
 };
 
 function fmtDateTime(iso: string): string {

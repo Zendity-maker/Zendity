@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     try {
         const { id } = await params;
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

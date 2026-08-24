@@ -122,6 +122,7 @@ export default function AddStaffModal() {
                                             <option value="CAREGIVER">Cuidador(a)</option>
                                             <option value="NURSE">Enfermería</option>
                                             <option value="SOCIAL_WORKER">Trabajo Social</option>
+                                            <option value="HR_MANAGER">Recursos Humanos</option>
                                             <option value="THERAPIST">Terapeuta</option>
                                             <option value="BEAUTY_SPECIALIST">Especialista (Belleza)</option>
                                             <option value="SUPERVISOR">Supervisor(a)</option>
@@ -158,6 +159,7 @@ export default function AddStaffModal() {
                                             { id: 'MAINTENANCE', label: 'Mantenimiento' },
                                             { id: 'CLEANING', label: 'Limpieza' },
                                             { id: 'SOCIAL_WORKER', label: 'Social' },
+                                            { id: 'HR_MANAGER', label: 'RRHH' },
                                             { id: 'SUPERVISOR', label: 'Supervisor' }
                                         ].map(r => (
                                             <button

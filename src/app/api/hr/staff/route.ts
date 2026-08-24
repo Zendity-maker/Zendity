@@ -19,7 +19,7 @@ if (SENDGRID_API_KEY) {
 export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -192,6 +192,7 @@ export async function POST(request: Request) {
                     "NURSE": "Enfermera(o) a Cargo",
                     "CAREGIVER": "Cuidador(a) Principal",
                     "SOCIAL_WORKER": "Trabajador(a) Social",
+                    "HR_MANAGER": "Recursos Humanos",
                     "KITCHEN": "Cocina y Dietas",
                     "MAINTENANCE": "Mantenimiento",
                     "DIRECTOR": "Director(a) de Sede",
@@ -267,7 +268,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -341,7 +342,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['DIRECTOR', 'ADMIN'].includes(session.user.role)) {
+        if (!session || !['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(session.user.role)) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 

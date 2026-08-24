@@ -15,7 +15,7 @@ export const maxDuration = 60; // Parche Staging Integral E2E
 export async function POST(request: NextRequest) {
     try {
         // HIPAA/RRHH — solo gerencia evalúa (bloquea turnos). Evaluador = sesión.
-        const auth = await requireRole(['DIRECTOR', 'ADMIN']);
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'HR_MANAGER']);
         if (auth instanceof NextResponse) return auth;
 
         const data = await request.json();

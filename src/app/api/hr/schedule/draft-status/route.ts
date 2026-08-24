@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
     try {
-        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR']);
+        const auth = await requireRole(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'HR_MANAGER']);
         if (auth instanceof NextResponse) return auth;
 
         // Calcular lunes de esta semana en hora local (PR). Aproximación con UTC:

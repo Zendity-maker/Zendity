@@ -620,6 +620,16 @@ enum Role {
   KITCHEN
   CLEANING
   INVESTOR // FASE 12: Read-Only Partners Dashboard
+  /// Recursos Humanos (24-ago-2026). Acceso completo a la gestión de personal
+  /// —observaciones, apelaciones, asistencia, evaluaciones, formación— con el
+  /// mismo poder que Dirección sobre una sanción: puede notificar, aplicar y
+  /// resolver apelaciones.
+  ///
+  /// Lo que NO tiene es acceso clínico: residentes, eMAR, expedientes, piso.
+  /// Esa es la razón de que sea un rol propio y no un DIRECTOR más — el
+  /// encargado de personal no necesita ver un diagnóstico para hacer su
+  /// trabajo, y en un sistema con PHI lo que no hace falta no se da.
+  HR_MANAGER
   // Sprint Coordinador (jun-2026): hub compartido de comunicación familiar.
   // Lo usan COORDINATOR + ADMIN + DIRECTOR + NURSE — pero el rol nuevo es
   // específicamente para usuarias dedicadas (ej. Wanda) cuyo trabajo

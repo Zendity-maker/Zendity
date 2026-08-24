@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const HR_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {

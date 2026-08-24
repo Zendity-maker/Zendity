@@ -8,7 +8,7 @@ import { openai } from '@ai-sdk/openai';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const AUDIT_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
+const AUDIT_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN', 'HR_MANAGER'];
 
 type SystemFindings = {
     meds: { total: number; administered: number; missed: number; refused: number; held: number; omitted: number; pending: number; compliancePct: number; avgDelayMinutes: number | null };
@@ -206,7 +206,7 @@ export async function GET(request: Request) {
         // Grupo A: Clínico directo — responsables de eMAR, vitales y turnos de cuidado
         const isClinico = ['CAREGIVER', 'NURSE'].includes(employee.role);
         // Grupo B: Supervisión y dirección — gestión de equipo y cumplimiento operativo
-        const isSupervisor = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(employee.role);
+        const isSupervisor = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(employee.role);
         // Grupo C: Servicios de apoyo — no tienen eMAR ni shiftSession
         const isApoyo = ['KITCHEN', 'CLEANING', 'MAINTENANCE', 'THERAPIST', 'BEAUTY_SPECIALIST', 'SOCIAL_WORKER'].includes(employee.role);
 

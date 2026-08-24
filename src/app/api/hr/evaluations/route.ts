@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 
 // Evaluar personal y mover complianceScore es operación de gestión.
-const EVAL_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
+const EVAL_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'HR_MANAGER'];
 
 export async function POST(req: Request) {
     try {

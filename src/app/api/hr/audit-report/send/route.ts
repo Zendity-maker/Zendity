@@ -6,7 +6,7 @@ import sgMail from '@sendgrid/mail';
 
 export const dynamic = 'force-dynamic';
 
-const SEND_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+const SEND_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
