@@ -37,6 +37,7 @@ import { ExpandableText } from "@/components/ui/ExpandableText";
 import { SupervisorRondaTile } from "@/components/SupervisorRondaTile";
 import { HandoverSignDrawer, type HandoverSummary } from "@/components/care/HandoverSignDrawer";
 import { QuickActionsHub } from "@/components/care/QuickActionsHub";
+import { estaDormida } from "@/lib/funciones-dormidas";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
@@ -916,6 +917,10 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>
+                    {/* Dormida — ver src/lib/funciones-dormidas.ts. El recorrido por zonas
+                        se probó y no llegó a imponerse; la pantalla y los 75 registros
+                        siguen ahí, solo se quitó la entrada. */}
+                    {!estaDormida('rondasDeInspeccion') && (
                     <Link href="/care/supervisor/rounds" className="bg-white rounded-[1.5rem] p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-teal-300 transition-all flex items-center gap-4 group">
                         <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center shrink-0">
                             <CalendarClock className="w-6 h-6 text-teal-600" />
@@ -930,6 +935,7 @@ export default function SupervisorMissionControlPage() {
                         </div>
                         <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-slate-700 group-hover:translate-x-1 transition-all" />
                     </Link>
+                    )}
                 </div>
 
                 {/* ============================================== */}
