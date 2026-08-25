@@ -67,10 +67,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // aquí, el link de invitación caería en /login y el onboarding
         // familiar autoservicio queda muerto (incidente mar-2026).
         const isPublicFamilyRegister = pathname === "/family/register";
+        // Verificacion de certificados — PUBLICA por definicion. Quien comprueba
+        // un certificado viene de FUERA: un inspector, un empleador, alguien con
+        // el QR impreso en la mano. No tiene cuenta y no debe necesitarla.
+        //
+        // La pagina se renderiza bien en el servidor, asi que el fallo era
+        // invisible por curl: el HTML llegaba correcto y el navegador expulsaba
+        // al hidratar. Mismo patron que el incidente de mar-2026 con el link de
+        // invitacion familiar.
+        const isPublicVerificacion = pathname.startsWith("/verificar");
 
         if (!user) {
             // Bloqueo Anónimo Global (excepto login, kiosko público y register familiar)
-            if (!isLoginRoute && !isPublicKioskRoute && !isPublicFamilyRegister) {
+            if (!isLoginRoute && !isPublicKioskRoute && !isPublicFamilyRegister && !isPublicVerificacion) {
                 router.replace("/login");
             }
         } else {
