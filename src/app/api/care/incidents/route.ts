@@ -114,6 +114,10 @@ export async function POST(req: Request) {
             const incident = await prisma.fallIncident.create({
                 data: {
                     patientId,
+                    // Quien reporta la caida. Antes solo quedaba la hora, y una
+                    // caida sin autor no se puede seguir: nadie a quien
+                    // preguntarle que paso.
+                    reportedById: auth.id,
                     location: finalLocation,
                     severity: derivedSeverity as any,
                     interventions,

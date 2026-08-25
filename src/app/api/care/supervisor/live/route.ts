@@ -18,6 +18,11 @@ export interface TriageTicket {
     description: string;
     patientId?: string | null;
     patientName: string;
+    /** Quien lo reporto. Sin esto el supervisor lee una alerta sin saber de
+     *  quien viene, y no puede preguntarle a nadie por ella. */
+    authorId?: string | null;
+    authorName?: string | null;
+    authorRole?: string | null;
     urgency: string;
     createdAt: Date;
     items?: TriageTicket[];
@@ -149,7 +154,7 @@ export async function GET(req: Request) {
             // 12. Alertas Clínicas del Action Hub (DailyLog isClinicalAlert, últimas 24h).
             //     isResolved:false — antes no se filtraba porque nada las resolvía.
             // Solo residentes ACTIVE — los que están en TEMPORARY_LEAVE no generan alertas de vulnerabilidad
-            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
             // 13. Caídas recientes (FallIncident — NO Incident genérico) — solo residentes presentes
             prisma.fallIncident.findMany({
                 where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo }, resolvedAt: null },
@@ -361,6 +366,12 @@ export async function GET(req: Request) {
                 description: log.notes || 'Alerta clínica sin descripción',
                 patientId: log.patient?.id || null,
                 patientName: log.patient?.name || 'N/A',
+                // Quien lo reporto. El dato ya se consultaba y no se pasaba al
+                // feed, asi que el supervisor leia una alerta sin saber de
+                // quien venia — y no podia preguntarle a nadie por ella.
+                authorId: log.author?.id || null,
+                authorName: log.author?.name || null,
+                authorRole: log.author?.role || null,
                 urgency: isUPP ? 'ATENCION' : 'ATENCION',
                 createdAt: log.createdAt,
             });

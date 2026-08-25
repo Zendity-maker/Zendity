@@ -997,6 +997,13 @@ model Incident {
   resolvedAt     DateTime?
   resolvedById   String?
   resolutionNote String?   @db.Text
+
+  /// Quien lo reporto. El modelo guardaba `reportedAt` — la hora — pero no la
+  /// persona. Un incidente o una caida sin autor no se puede seguir: nadie a
+  /// quien preguntarle que paso, y en un expediente clinico eso no se sostiene.
+  /// Nullable porque los registros anteriores no lo tienen y no se puede
+  /// inventar quien los escribio.
+  reportedById String?
 }
 
 enum IncidentType {
@@ -2127,6 +2134,13 @@ model FallIncident {
   resolvedAt     DateTime?
   resolvedById   String?
   resolutionNote String?   @db.Text
+
+  /// Quien lo reporto. El modelo guardaba `reportedAt` — la hora — pero no la
+  /// persona. Un incidente o una caida sin autor no se puede seguir: nadie a
+  /// quien preguntarle que paso, y en un expediente clinico eso no se sostiene.
+  /// Nullable porque los registros anteriores no lo tienen y no se puede
+  /// inventar quien los escribio.
+  reportedById String?
 }
 
 enum FallRiskLevel {

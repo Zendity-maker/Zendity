@@ -25,6 +25,11 @@ export interface TriageTicket {
     description: string;
     patientId?: string | null;
     patientName: string;
+    /** Quien lo reporto. Sin esto el supervisor lee una alerta sin saber de
+     *  quien viene, y no puede preguntarle a nadie por ella. */
+    authorId?: string | null;
+    authorName?: string | null;
+    authorRole?: string | null;
     urgency: string;
     createdAt: string;
     items?: TriageTicket[];

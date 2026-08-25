@@ -1415,6 +1415,23 @@ export default function SupervisorMissionControlPage() {
                                             <h3 className="text-base font-bold text-slate-800 leading-tight mb-1">{ticket.title}</h3>
                                             <p className="text-xs font-semibold text-slate-500 mb-2">
                                                 Sujeto: <span className="text-slate-800 ml-1">{ticket.patientName}</span>
+                                                {/* Quien lo reporto. El dato ya viajaba en la consulta y no
+                                                    se mostraba: el supervisor leia una alerta sin saber de
+                                                    quien venia, y no podia preguntarle a nadie por ella. */}
+                                                {ticket.authorName && (
+                                                    <>
+                                                        <span className="mx-2 text-slate-300">·</span>
+                                                        Reportó: <span className="text-slate-800 ml-1">{ticket.authorName}</span>
+                                                        {ticket.authorRole && (
+                                                            <span className="ml-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                                {ticket.authorRole === 'CAREGIVER' ? 'Cuidadora'
+                                                                    : ticket.authorRole === 'SUPERVISOR' ? 'Supervisora'
+                                                                    : ticket.authorRole === 'NURSE' ? 'Enfermera'
+                                                                    : ticket.authorRole}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
                                             </p>
                                             <ExpandableText
                                                 text={ticket.description}

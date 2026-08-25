@@ -61,6 +61,8 @@ export async function POST(request: Request) {
             data: {
                 headquartersId: hqId,
                 patientId,
+                // Quien reporta el incidente.
+                reportedById: (session.user as any).id,
                 type,
                 severity,
                 description,
