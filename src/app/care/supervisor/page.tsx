@@ -1454,7 +1454,9 @@ export default function SupervisorMissionControlPage() {
                                                 // Sprint R — acciones condicionales según tipo de ticket
                                                 const cat = ticket.category;
                                                 const isMaintenance = cat === 'MANTENIMIENTO';
-                                                const isIncident = ticket.sourceType === 'INCIDENT';
+                                                // FALL entra aqui tambien: visualmente es un incidente,
+                                                // aunque para cerrarlo vaya a otra tabla.
+                                                const isIncident = ticket.sourceType === 'INCIDENT' || ticket.sourceType === 'FALL';
                                                 const incidentSeverity = (ticket.description || '').toLowerCase();
                                                 const isCriticalIncident = isIncident && (incidentSeverity.includes('(critical)') || incidentSeverity.includes('(severe)') || ticket.urgency === 'INMINENTE');
                                                 const isFamilyComplaint = ticket.sourceType === 'COMPLAINT' && cat === 'FAMILY';

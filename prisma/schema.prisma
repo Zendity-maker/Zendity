@@ -986,6 +986,17 @@ model Incident {
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   patient      Patient      @relation(fields: [patientId], references: [id])
+
+  /// Cierre del incidente. Hasta hoy este modelo NO tenia estado: un incidente
+  /// aparecia 24 horas en el panel del supervisor y desaparecia por vejez, se
+  /// hubiera atendido o no. El boton "descartar" del panel devolvia exito y no
+  /// tocaba nada, porque no habia fila que cerrar.
+  ///
+  /// Resuelto = resolvedAt no nulo. Se guarda quien y por que: cerrar sin
+  /// decir que se hizo deja el historial inservible.
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?   @db.Text
 }
 
 enum IncidentType {
@@ -2105,6 +2116,17 @@ model FallIncident {
   reportedAt   DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  /// Cierre del incidente. Hasta hoy este modelo NO tenia estado: un incidente
+  /// aparecia 24 horas en el panel del supervisor y desaparecia por vejez, se
+  /// hubiera atendido o no. El boton "descartar" del panel devolvia exito y no
+  /// tocaba nada, porque no habia fila que cerrar.
+  ///
+  /// Resuelto = resolvedAt no nulo. Se guarda quien y por que: cerrar sin
+  /// decir que se hizo deja el historial inservible.
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?   @db.Text
 }
 
 enum FallRiskLevel {

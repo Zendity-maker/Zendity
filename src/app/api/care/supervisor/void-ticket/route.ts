@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         const hqId = invokerHqId;
         const reasonTrimmed = reason.trim();
 
-        let affected: 'triage' | 'complaint' | 'clinical_alert' | 'none' = 'none';
+        let affected: 'triage' | 'complaint' | 'clinical_alert' | 'incident' | 'fall' | 'none' = 'none';
 
         if (sourceType === 'TRIAGE_TICKET') {
             const ticketCheck = await prisma.triageTicket.findUnique({
@@ -113,8 +113,24 @@ export async function POST(req: Request) {
                 data: { isResolved: true },
             });
             affected = 'clinical_alert';
+        } else if (sourceType === 'INCIDENT') {
+            // INCIDENT sí tiene fila canónica. Antes se asumió que era
+            // sintético como los grupos de Zendi, así que el supervisor
+            // descartaba, recibía "listo", y el incidente seguía apareciendo
+            // hasta que se caía solo de la ventana de 24 horas.
+            const r = await prisma.incident.updateMany({
+                where: { id: sourceId, headquartersId: hqId, resolvedAt: null },
+                data: { resolvedAt: new Date(), resolvedById: invokerId, resolutionNote: reasonTrimmed },
+            });
+            if (r.count > 0) affected = 'incident';
+        } else if (sourceType === 'FALL') {
+            const r = await prisma.fallIncident.updateMany({
+                where: { id: sourceId, patient: { headquartersId: hqId }, resolvedAt: null },
+                data: { resolvedAt: new Date(), resolvedById: invokerId, resolutionNote: reasonTrimmed },
+            });
+            if (r.count > 0) affected = 'fall';
         }
-        // Los demás sourceType (INCIDENT, UPP_SLA, ZENDI_*) sí se regeneran por
+        // Los demás sourceType (UPP_SLA, ZENDI_*) sí se regeneran por
         // computación y no tienen fila que cerrar. Solo queda el audit log.
 
         // Espejo hacia el centro de triage. El mismo evento vive como ticket

@@ -60,7 +60,9 @@ export async function GET(req: Request) {
         // un senalamiento se resuelve en direccion, no en el turno. Ver la nota
         // larga en /api/care/supervisor/live.
         const [incidents, clinicalAlerts, conUlcera] = await Promise.all([
-            prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } } }),
+            // Sin los ya cerrados: antes un incidente sumaba al badge 24 horas
+            // aunque se hubiera atendido, porque no habia forma de cerrarlo.
+            prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo }, resolvedAt: null } }),
             prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
             // Antes esto contaba "residentes con úlcera activa", que no es una
             // tarea sino una condición: sumaba al badge todos los días durante

@@ -131,11 +131,13 @@ export async function GET(req: Request) {
             // 3. Progreso de Comidas
             prisma.mealLog.groupBy({ by: ['mealType'], where: { timeLogged: { gte: todayStart }, patient: { headquartersId: hqId } }, _count: { mealType: true } }),
             // 4. Incidentes (Hoy)
-            prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: todayStart } } }),
+            prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: todayStart }, resolvedAt: null } }),
             // 5. Quejas Triage Pendientes
             prisma.complaint.findMany({ where: { headquartersId: hqId, status: 'PENDING' }, include: { patient: true }, orderBy: { createdAt: 'asc' } }),
             // 6. Incidentes Recientes (24 hrs para feed)
-            prisma.incident.findMany({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } }, include: { patient: true } }),
+            // Un incidente cerrado deja de aparecer al instante, sin esperar
+            // a que se caiga de la ventana de 24 horas.
+            prisma.incident.findMany({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo }, resolvedAt: null }, include: { patient: true } }),
             // 7. Pacientes con UPP Activas — solo los que están en la sede (no TEMPORARY_LEAVE)
             prisma.patient.findMany({ where: { headquartersId: hqId, status: 'ACTIVE', pressureUlcers: { some: { status: 'ACTIVE' } } }, include: { posturalChanges: { orderBy: { performedAt: 'desc' }, take: 1 } } }),
             // 8. Zendi Morning Briefing — Sprint L: solo el prólogo del cron (isDailyPrologue=true)
@@ -150,7 +152,7 @@ export async function GET(req: Request) {
             prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
             // 13. Caídas recientes (FallIncident — NO Incident genérico) — solo residentes presentes
             prisma.fallIncident.findMany({
-                where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo } },
+                where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo }, resolvedAt: null },
                 include: { patient: { select: { id: true, name: true, colorGroup: true } } },
                 orderBy: { incidentDate: 'desc' },
                 take: 10,
@@ -312,7 +314,11 @@ export async function GET(req: Request) {
             triageFeed.push({
                 id: `fall_${fi.id}`,
                 sourceId: fi.id,
-                sourceType: 'INCIDENT',
+                // 'FALL', no 'INCIDENT': una caida vive en FallIncident, otra
+                // tabla. Marcadas ambas como INCIDENT, cerrar una caida habria
+                // hecho un updateMany sobre Incident con un id que no existe
+                // ahi — cero filas y ningun error. Fallo silencioso.
+                sourceType: 'FALL',
                 category: 'CLINICO_CRITICO',
                 title: `Caída Reportada (${fi.severity})`,
                 description: `${fi.location} — ${fi.interventions}${fi.notes ? ' · ' + fi.notes : ''}`,
