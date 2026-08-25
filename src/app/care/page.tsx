@@ -278,6 +278,12 @@ export default function ZendityCareTabletPage() {
     }, [modalType, activePatient]);
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
     const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | null>(null);
+    // Nota de turno o alerta. Antes todo lo clinico entraba como ALERTA porque
+    // solo habia un boton: de las ultimas 14, cinco eran reportes de algo ya
+    // hecho ("se realizo el corte de unas", "el pie ha mejorado") que no piden
+    // nada a nadie. Quien escribe sabe cual de las dos es; no se lo
+    // preguntabamos.
+    const [hubEsAlerta, setHubEsAlerta] = useState(true);
     const [pendingShiftType, setPendingShiftType] = useState<"MORNING" | "EVENING" | "NIGHT" | null>(null);
     const [pendingHandoverToAccept, setPendingHandoverToAccept] = useState<any>(null);
 
@@ -1804,12 +1810,23 @@ export default function ZendityCareTabletPage() {
                     data: { bathCompleted: false, foodIntake: null, notes: "[ALERTA UPP/PIEL] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
                 };
             } else if (hubAction === "CLINICAL") {
-                endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog pero con flag isAlert true
+                endpoint = "/api/care/vitals"; // Reciclamos el de dailyLog
+                // isAlert decide si esto levanta el panel del supervisor o solo
+                // queda en el expediente. Una nota de turno documenta; una
+                // alerta pide atencion. Meter las dos en la misma bandeja hacia
+                // que el supervisor recibiera de vuelta su propio trabajo — las
+                // supervisoras escriben el 45% de estas notas.
                 payload = {
                     patientId: hubPatientId,
                     authorId: user?.id,
                     type: 'LOG',
-                    data: { bathCompleted: false, foodIntake: null, notes: "[ALERTA CLÍNICA] " + hubDescription, isAlert: true, photoUrl: hubPhotoBase64 }
+                    data: {
+                        bathCompleted: false,
+                        foodIntake: null,
+                        notes: (hubEsAlerta ? "[ALERTA CLÍNICA] " : "[NOTA DE TURNO] ") + hubDescription,
+                        isAlert: hubEsAlerta,
+                        photoUrl: hubPhotoBase64,
+                    }
                 };
             } else if (hubAction === "MAINTENANCE") {
                 endpoint = "/api/care/incidents";
@@ -1837,6 +1854,9 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 avisoOk(` Reporte de tipo ${hubAction} enviado a Central.`);
                 setHubAction(null);
+                // Vuelve a 'alerta' por defecto: que una alerta real acabe
+                // archivada como nota es peor que lo contrario.
+                setHubEsAlerta(true);
                 setModalType(null);
                 setHubDescription("");
                 setHubPhotoBase64(null);
@@ -2321,7 +2341,7 @@ export default function ZendityCareTabletPage() {
 
     const sidebarLinks = [
         ...(user?.role === 'NURSE' ? [{ href: '/care/vitals', icon: '💉', label: 'Vitales' }] : []),
-        { href: '#', icon: '⚡', label: 'Acciones', onClick: () => { setHubAction(null); setModalType('HUB'); } },
+        { href: '#', icon: '⚡', label: 'Acciones', onClick: () => { setHubAction(null); setHubEsAlerta(true); setModalType('HUB'); } },
         // FASE 51: supervisoras con rol secundario CAREGIVER también pueden despachar
         ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' || isActingAsCaregiver ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
         { href: '/academy', icon: '🎓', label: 'Academy' },
@@ -4216,7 +4236,7 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                 ) : (
                                     <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-right-4">
-                                        <button onClick={() => setHubAction(null)} className="text-sm font-bold text-indigo-500 mb-2">← Cambiar Tipo de Reporte</button>
+                                        <button onClick={() => { setHubAction(null); setHubEsAlerta(true); }} className="text-sm font-bold text-indigo-500 mb-2">← Cambiar Tipo de Reporte</button>
 
                                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
                                             <label className="text-sm font-bold text-slate-500 block mb-2">
@@ -4248,6 +4268,30 @@ export default function ZendityCareTabletPage() {
                                                 </div>
                                             )}
                                             
+                                            {hubAction === 'CLINICAL' && (
+                                                <div className="mb-4">
+                                                    <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">¿Qué es esto?</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.preventDefault(); setHubEsAlerta(false); }}
+                                                            className={`p-3 rounded-xl border text-left transition-all ${!hubEsAlerta ? 'border-slate-700 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                                        >
+                                                            <p className={`font-black text-sm ${!hubEsAlerta ? 'text-slate-800' : 'text-slate-500'}`}>Nota de turno</p>
+                                                            <p className="text-[11px] text-slate-400 leading-snug mt-0.5">Algo que hiciste o notaste. Queda en el expediente.</p>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.preventDefault(); setHubEsAlerta(true); }}
+                                                            className={`p-3 rounded-xl border text-left transition-all ${hubEsAlerta ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-white hover:border-rose-200'}`}
+                                                        >
+                                                            <p className={`font-black text-sm ${hubEsAlerta ? 'text-rose-700' : 'text-slate-500'}`}>Alerta clínica</p>
+                                                            <p className="text-[11px] text-slate-400 leading-snug mt-0.5">Necesita que alguien lo atienda. Va al supervisor.</p>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {hubAction === 'CLINICAL' && (
                                                 <div className="flex flex-wrap gap-2 mb-4">
                                                     {['Agresividad', 'Fiebre Alta', 'Dolor Fuerte', 'Aislamiento Social', 'Rechazo a Medicamento', 'Cambio en Piel'].map(tag => (

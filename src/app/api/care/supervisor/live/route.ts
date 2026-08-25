@@ -362,7 +362,10 @@ export async function GET(req: Request) {
                 sourceId: log.id,
                 sourceType: 'CLINICAL_ALERT',
                 category: isUPP ? 'UPP_PIEL' : 'CLINICO_CRITICO',
-                title: isUPP ? 'Alerta UPP/Piel (Cuidador)' : 'Alerta Clínica (Cuidador)',
+                // El titulo ya no dice "(Cuidador)" fijo: lo escribe tanto una
+                // cuidadora como una supervisora, y el rol real va abajo con el
+                // nombre de quien reporto.
+                title: isUPP ? 'Alerta UPP / Piel' : 'Alerta Clínica',
                 description: log.notes || 'Alerta clínica sin descripción',
                 patientId: log.patient?.id || null,
                 patientName: log.patient?.name || 'N/A',
