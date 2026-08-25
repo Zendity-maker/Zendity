@@ -74,7 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 const [patient, familyMembers] = await Promise.all([
                     prisma.patient.findUnique({
                         where: { id: moment.patientId },
-                        select: { name: true },
+                        select: { name: true, status: true },
                     }),
                     prisma.familyMember.findMany({
                         where: { patientId: moment.patientId },
@@ -83,6 +83,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                         select: { id: true, name: true, email: true, isRegistered: true },
                     }),
                 ]);
+
+                // No se notifica a la familia de un residente que ya no esta.
+                // Habia 38 momentos en PENDING de residentes fallecidos o dados
+                // de baja: aprobar uno le habria mandado a la familia un aviso
+                // sobre su ser querido meses despues. El momento se guarda
+                // igual — queda en el expediente — pero no sale hacia fuera.
+                const residenteActivo = patient
+                    && ['ACTIVE', 'TEMPORARY_LEAVE'].includes(patient.status);
+                if (!residenteActivo) throw new Error('SIN_NOTIFICAR_RESIDENTE_INACTIVO');
 
                 const patientName = patient?.name || 'su ser querido';
 
@@ -128,8 +137,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     }
                 }
             } catch (notifErr) {
-                // Error en notificación no cancela el flujo principal
-                console.error('[FamilyMoment ACCEPT] Notification error (non-fatal):', notifErr);
+                // Omitir a la familia de un residente inactivo NO es un fallo:
+                // es la decision correcta. Se distingue para que no ensucie el
+                // log de errores ni parezca una notificacion que se perdio.
+                if ((notifErr as Error)?.message === 'SIN_NOTIFICAR_RESIDENTE_INACTIVO') {
+                    console.info('[FamilyMoment ACCEPT] Residente inactivo: no se notifica a la familia.');
+                } else {
+                    // Error real de notificación: no cancela el flujo principal
+                    console.error('[FamilyMoment ACCEPT] Notification error (non-fatal):', notifErr);
+                }
             }
 
             return NextResponse.json({ success: true, message: "¡Sugerencia enviada! (+3 Puntos)", action: 'ACCEPTED' });

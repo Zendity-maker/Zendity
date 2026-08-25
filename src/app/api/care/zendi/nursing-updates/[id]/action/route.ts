@@ -80,10 +80,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 const [patient, familyMembers] = await Promise.all([
                     prisma.patient.findUnique({
                         where: { id: update.patientId },
-                        select: { name: true }
+                        select: { name: true, status: true }
                     }),
                     prisma.familyMember.findMany({
-                        where: { patientId: update.patientId, isRegistered: true },
+                        where: {
+                            patientId: update.patientId,
+                            isRegistered: true,
+                            // Mismo criterio que el portal: si el residente ya
+                            // no esta, a su familia no le sale nada nuevo.
+                            patient: { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } },
+                        },
                         orderBy: { isPrimary: 'desc' },
                         take: 3,
                         select: { id: true, name: true, email: true }

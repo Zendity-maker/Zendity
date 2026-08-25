@@ -31,10 +31,20 @@ export async function POST(request: Request) {
         });
         const hqName = hq?.name || 'Zendity Care Center';
 
-        // Fetch all family members belonging to patients in this HQ
+        // Solo familiares de residentes que siguen en el hogar.
+        //
+        // Sin el filtro de status, un comunicado general llegaba tambien a las
+        // familias de residentes fallecidos o dados de baja. En Cupey eran 4
+        // cuentas, una de un residente fallecido en mayo. El portal familiar
+        // si les cierra el acceso (politica de duelo en src/lib/auth.ts), pero
+        // el correo seguia saliendo — que es la parte que la familia recibe
+        // sin haber ido a buscarla.
         const allFamilyMembers = await prisma.familyMember.findMany({
             where: {
-                patient: { headquartersId: hqId }
+                patient: {
+                    headquartersId: hqId,
+                    status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
+                },
             },
             select: { email: true, name: true }
         });
