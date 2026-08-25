@@ -31,17 +31,32 @@ async function main() {
     const filas: any[] = [];
 
     for (const sede of sedes) {
+        // Se excluyen los declarados expresamente sin familiar conocido: esos
+        // ya son una decision tomada, no un hueco pendiente. Lo que esta lista
+        // busca son los que nadie ha mirado.
         const sin = await prisma.patient.findMany({
-            where: { headquartersId: sede.id, status: 'ACTIVE', familyMembers: { none: {} } },
+            where: {
+                headquartersId: sede.id,
+                status: 'ACTIVE',
+                familyMembers: { none: {} },
+                sinFamiliarConocido: false,
+            },
             select: { name: true, roomNumber: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
+        });
+        const declarados = await prisma.patient.count({
+            where: { headquartersId: sede.id, status: 'ACTIVE', sinFamiliarConocido: true },
         });
         const total = await prisma.patient.count({
             where: { headquartersId: sede.id, status: 'ACTIVE' },
         });
 
         console.log(`\n${sede.name}`);
-        console.log(`   ${sin.length} de ${total} residentes activos sin familiar registrado (${Math.round(sin.length * 100 / total)}%)\n`);
+        console.log(`   ${sin.length} de ${total} residentes activos SIN mirar (${Math.round(sin.length * 100 / total)}%)`);
+        if (declarados > 0) {
+            console.log(`   ${declarados} declarados expresamente sin familiar conocido — fuera de esta lista`);
+        }
+        console.log('');
         console.log(`   HAB.    RESIDENTE                        EN EL HOGAR`);
         console.log(`   ─────   ──────────────────────────────   ───────────`);
 

@@ -219,7 +219,11 @@ export default function MasterPatientDirectory() {
     // cronicas en el badge del supervisor.
     const badgeFamilia = (p: any) => {
         if (!p.tieneFamilia) {
-            return <span className="text-xs font-bold text-slate-400" title="Este residente no tiene familiares registrados en Zéndity">Sin familia registrada</span>;
+            // Declarado y olvidado no son lo mismo. Uno es una decisión tomada;
+            // el otro es un hueco que alguien tiene que llenar.
+            return p.sinFamiliarConocido
+                ? <span className="text-xs font-bold text-slate-400" title="Se declaró expresamente que no tiene familiar conocido">Sin familia conocida</span>
+                : <span className="text-xs font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-300" title="Nadie ha registrado un familiar ni ha declarado que no lo tenga">Falta el familiar</span>;
         }
         if (!p.ultimaActualizacionFamilia) {
             return <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Nunca</span>;

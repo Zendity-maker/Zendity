@@ -74,6 +74,36 @@ export default function IntakeWizardPage() {
     isPrimary: false,
   });
   const [tab5Saving, setTab5Saving] = useState(false);
+  // Declarar que NO hay familiar. Sin esto, "no tiene familia" y "se nos
+  // olvido preguntarlo" se ven identicos en la base: los dos son cero
+  // FamilyMember. La admision ya no cierra sin una de las dos cosas.
+  const [sinFamiliar, setSinFamiliar] = useState(false);
+  const [sinFamiliarMotivo, setSinFamiliarMotivo] = useState("");
+  const [sinFamiliarGuardando, setSinFamiliarGuardando] = useState(false);
+  const [sinFamiliarOk, setSinFamiliarOk] = useState(false);
+
+  const declararSinFamiliar = async () => {
+    if (!formData.patientId || sinFamiliarMotivo.trim().length < 10) {
+      setTab5Error("Explica en una frase por qué no hay familiar (mínimo 10 caracteres).");
+      return;
+    }
+    setSinFamiliarGuardando(true);
+    setTab5Error(null);
+    try {
+      const res = await fetch(`/api/corporate/patients/${formData.patientId}/sin-familiar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: sinFamiliarMotivo.trim() }),
+      });
+      const d = await res.json();
+      if (!d.success) { setTab5Error(d.error || "No se pudo guardar."); return; }
+      setSinFamiliarOk(true);
+    } catch {
+      setTab5Error("No se pudo guardar. Intenta de nuevo.");
+    } finally {
+      setSinFamiliarGuardando(false);
+    }
+  };
   const [tab5Error, setTab5Error] = useState<string | null>(null);
 
   // Panel de revisiones pendientes (PENDIENTE_REVISION)
@@ -1236,6 +1266,59 @@ export default function IntakeWizardPage() {
                           >
                             {tab5Saving ? (<><Save className="w-4 h-4 animate-spin" /> Guardando...</>) : (<><CheckCircle className="w-4 h-4" /> {tab5Family.id ? "Actualizar familiar" : "Guardar familiar"}</>)}
                           </button>
+
+                          {/* La salida honesta cuando de verdad no hay familia.
+                              Pide motivo a proposito: un booleano suelto se
+                              marca por inercia para poder seguir. */}
+                          {!tab5Family.id && (
+                            <div className="mt-6 pt-5 border-t border-slate-200">
+                              {sinFamiliarOk ? (
+                                <p className="text-sm font-bold text-slate-600 bg-slate-100 rounded-xl px-4 py-3">
+                                  Registrado: este residente no tiene familiar conocido.
+                                </p>
+                              ) : !sinFamiliar ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSinFamiliar(true)}
+                                  className="text-sm font-bold text-slate-500 hover:text-slate-800 underline underline-offset-4"
+                                >
+                                  Este residente no tiene familiar conocido
+                                </button>
+                              ) : (
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                  <p className="text-sm font-bold text-slate-700 mb-1">¿Por qué no hay familiar?</p>
+                                  <p className="text-xs text-slate-500 mb-3">
+                                    Queda constancia de quién lo declaró y cuándo. Si aparece un familiar
+                                    más adelante, se puede registrar y esta marca se retira.
+                                  </p>
+                                  <textarea
+                                    value={sinFamiliarMotivo}
+                                    onChange={(e) => setSinFamiliarMotivo(e.target.value)}
+                                    rows={2}
+                                    placeholder="Ej. Referido por el hospital, sin familiares localizables. Trabajo social lo está investigando."
+                                    className="w-full p-3 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                  />
+                                  <div className="flex gap-2 mt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setSinFamiliar(false); setSinFamiliarMotivo(""); }}
+                                      className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={declararSinFamiliar}
+                                      disabled={sinFamiliarGuardando || sinFamiliarMotivo.trim().length < 10}
+                                      className="px-5 py-2 text-sm font-black text-white bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 rounded-lg transition-colors"
+                                    >
+                                      {sinFamiliarGuardando ? "Guardando…" : "Declarar"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </section>
 
                         {tab5Error && (

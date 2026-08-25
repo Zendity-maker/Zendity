@@ -865,6 +865,20 @@ model Patient {
   // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos con familiares
   // sobre este residente. Historial por-residente lee de aquí.
   familyContactLogs FamilyContactLog[]
+
+  /// Marca EXPLICITA de que este residente no tiene familiar conocido.
+  ///
+  /// Sin esto, "no tiene familia" y "se nos olvido preguntarlo" se ven
+  /// identicos en la base: ambos son cero FamilyMember. En Cupey eso dejo a 19
+  /// de 33 residentes activos (58%) sin nadie a quien avisar, y cinco de ellos
+  /// ingresaron DESPUES de la carga inicial — o sea que la fuga seguia abierta.
+  ///
+  /// La admision no se puede confirmar sin un familiar registrado O esta marca
+  /// puesta. Obliga a decidir, no a rellenar.
+  sinFamiliarConocido     Boolean   @default(false)
+  sinFamiliarMotivo       String?
+  sinFamiliarMarcadoPorId String?
+  sinFamiliarMarcadoAt    DateTime?
 }
 
 // =======================

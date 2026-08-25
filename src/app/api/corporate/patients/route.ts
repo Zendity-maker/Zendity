@@ -69,6 +69,7 @@ async function getPatientsListHandler(req: Request) {
             dischargeDate: p.dischargeDate || null,
             dischargeReason: p.dischargeReason || null,
             tieneFamilia: p._count.familyMembers > 0,
+            sinFamiliarConocido: p.sinFamiliarConocido,
             ultimaActualizacionFamilia: p.zendiNursingUpdates[0]?.createdAt ?? null
         }));
 

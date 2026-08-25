@@ -247,6 +247,24 @@ export async function confirmIntake(patientId: string) {
       return { success: false, error: "Intake no encontrado" };
     }
 
+    // Sin familiar registrado NI marca explicita, la admision no se cierra.
+    //
+    // El paso 5 del wizard si pide nombre y correo del familiar, pero tiene su
+    // propio boton de guardado y la admision se completaba igual sin pulsarlo.
+    // Resultado en Cupey: 5 de los 9 ingresos posteriores a la carga inicial
+    // entraron sin nadie a quien avisar, incluidos los tres mas recientes.
+    //
+    // El objetivo no es obligar a inventarse un familiar. Es que "no tiene
+    // familia" quede DICHO en vez de deducido de un campo vacio: hoy ambos
+    // casos se ven identicos y no hay forma de saber a quien hay que llamar.
+    const familiares = await prisma.familyMember.count({ where: { patientId } });
+    if (familiares === 0 && !intake.patient.sinFamiliarConocido) {
+      return {
+        success: false,
+        error: "Falta el familiar. Registra al menos uno en el paso 5, o marca expresamente que el residente no tiene familiar conocido.",
+      };
+    }
+
     // Snapshot v1.0 Generado
     const snapshotJson = JSON.stringify({
       version: "1.0",

@@ -46,6 +46,8 @@ export async function GET(req: Request) {
                     status: 'ACTIVE',
                     // Solo los que tienen a quien escribirle.
                     familyMembers: { some: {} },
+                    // (los declarados sin familiar quedan fuera por la misma
+                    //  condicion: no tienen FamilyMember que notificar)
                 },
                 select: {
                     id: true,
