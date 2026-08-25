@@ -73,7 +73,15 @@ export default function ZendiMomentsWidget() {
     if (loading) return null;
     if (moments.length === 0) return null;
 
-    const currentMoment = moments[0]; // Process one at a time
+    const currentMoment = moments[0]; // Se resuelve de uno en uno
+
+    // Un momento generado hace dias habla de como amanecio el residente ESE
+    // dia. Mandarselo hoy a la familia como si fuera de hoy seria falso, asi
+    // que si no es de hoy se dice en la tarjeta.
+    const diasDeAntiguedad = Math.floor(
+        (Date.now() - new Date(currentMoment.createdAt).getTime()) / 86400000,
+    );
+    const esDeHoy = diasDeAntiguedad < 1;
 
     return (
         <div className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl shadow-lg p-1 relative overflow-hidden mb-6 animate-in slide-in-from-bottom flex-shrink-0">
@@ -96,6 +104,21 @@ export default function ZendiMomentsWidget() {
                 <p className="text-slate-600 text-sm mt-1 sm:px-6">
                     Misión: Haz que la familia de <strong className="text-indigo-600">{currentMoment.patient.name}</strong> (Res. {currentMoment.patient.roomNumber || 'N/A'}) sonría hoy.
                 </p>
+
+                {/* Saber cuántos quedan evita que parezca una cola sin fondo:
+                    son como mucho los de la última semana. */}
+                <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+                    {moments.length > 1 && (
+                        <span className="text-xs font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">
+                            {moments.length} pendientes
+                        </span>
+                    )}
+                    {!esDeHoy && (
+                        <span className="text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+                            De hace {diasDeAntiguedad} {diasDeAntiguedad === 1 ? 'día' : 'días'}
+                        </span>
+                    )}
+                </div>
 
                 <div className="w-full mt-5 space-y-3">
                     <button
@@ -130,7 +153,7 @@ export default function ZendiMomentsWidget() {
                         className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-rose-200"
                     >
                         <FaTimes />
-                        <span>Declinar <span className="text-xs ml-1 bg-white px-1.5 py-0.5 rounded shadow-sm opacity-70">-3 Pts</span></span>
+                        <span>Hoy no</span>
                     </button>
 
                     <button

@@ -10,7 +10,10 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// Solo la enfermera del hogar, igual que el GET que las genera. Enviar es el
+// acto que pone datos clinicos delante de la familia; de nada sirve restringir
+// quien las ve si cualquiera puede mandarlas.
+const ALLOWED_ROLES = ['NURSE'];
 
 
 

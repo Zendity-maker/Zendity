@@ -47,6 +47,7 @@ test-results/
 playwright-report/
 scripts/*
 !scripts/db-push-guard.sh
+!scripts/declinar-momentos-viejos.ts
 !scripts/declinar-momentos-residentes-inactivos.ts
 !scripts/cerrar-alertas-ya-resueltas.ts
 !scripts/verificar-aislamiento-sedes.ts

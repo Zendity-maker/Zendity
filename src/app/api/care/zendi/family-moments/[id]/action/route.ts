@@ -38,10 +38,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         if (action === 'DECLINE') {
             await prisma.zendiFamilyMoment.update({ where: { id: momentId }, data: { status: 'DECLINED' } });
-            const fmUser = await prisma.user.findUnique({ where: { id: authorId }, select: { headquartersId: true } });
-            await applyScoreEvent(authorId, fmUser?.headquartersId ?? '', -3,
-                'Misión Zendi declinada', 'MISSION');
-            return NextResponse.json({ success: true, message: "Sugerencia declinada. (-3 Puntos)", action: 'DECLINED' });
+
+            // Declinar ya NO resta puntos.
+            //
+            // Costaba -3, asi que quien no queria mandar ese mensaje tenia tres
+            // salidas: enviarlo igual (+3), declinar (-3) o no tocar nada (0).
+            // La tercera era la unica racional, y los datos lo confirmaron:
+            // 62 declinados frente a 560 abandonados, nueve a uno. Hicimos
+            // declinar mas caro que ignorar y la gente aprendio a no tocar el
+            // boton — con lo que perdimos la informacion util, que es "a esta
+            // familia hoy no".
+            return NextResponse.json({ success: true, message: "Sugerencia declinada.", action: 'DECLINED' });
         }
 
         if (action === 'ACCEPT') {

@@ -22,8 +22,24 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, moments: [] });
         }
 
-        // 1. Check if there are pending moments for this user today
+        // 1. Pendientes de esta persona en los ULTIMOS 7 DIAS, no solo de hoy.
+        //
+        // Antes la ventana era `gte: todayStartAST()`, asi que el momento de
+        // ayer desaparecia de la pantalla pero seguia vivo en la base. Cada dia
+        // se generaba uno nuevo y el anterior quedaba huerfano: 560 acumulados
+        // en 96 dias, 5.8 diarios, repartidos parejo entre todo el personal y
+        // sin que nadie los viera crecer.
+        //
+        // Mostrando la semana, el trabajo sin terminar deja de esconderse solo.
+        // Y como abajo solo se genera uno nuevo cuando NO hay ninguno pendiente,
+        // la cola se limita sola: hay que resolver el que tienes antes de
+        // recibir otro. Declinar ya es gratis, asi que resolverlo cuesta un
+        // toque.
+        //
+        // Mas de 7 dias no se muestra: un mensaje sobre como amanecio alguien
+        // hace tres meses no se le manda hoy a su familia.
         const today = todayStartAST();
+        const haceSieteDias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
         const existingPendingMoments = await prisma.zendiFamilyMoment.findMany({
             where: {
@@ -31,9 +47,10 @@ export async function GET(req: Request) {
                 headquartersId: hqId,
                 status: 'PENDING',
                 createdAt: {
-                    gte: today
+                    gte: haceSieteDias
                 }
             },
+            orderBy: { createdAt: 'asc' },
             include: {
                 patient: {
                     select: { id: true, name: true, roomNumber: true }
@@ -45,10 +62,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: true, moments: existingPendingMoments });
         }
 
-        // 2. If no pending moments, let's see if we should generate one
-        // Logic: Find a patient assigned to this HQ that has not had a family moment sent in the last 7 days.
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        // 2. Sin nada pendiente, se genera uno.
+        // (Aqui vivia un `sevenDaysAgo` que se calculaba y no se usaba en
+        // ninguna consulta, con un comentario que prometia un filtro de 7 dias
+        // que no existia. La rotacion real es la de abajo: el residente cuyo
+        // ultimo momento sea mas antiguo.)
 
         // Elegir el residente con el "family moment" más antiguo (o sin ninguno).
         // Determinístico y justo: rota entre todos los residentes activos de la

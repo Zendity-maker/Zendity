@@ -3,7 +3,18 @@ import { getSessionUser } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 
-const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// Solo la enfermera del hogar. Decidido por Andres el 25-ago-2026.
+//
+// Estas actualizaciones llevan datos clinicos reales a la familia — presion,
+// frecuencia, temperatura, % de medicamentos administrados esa semana, notas
+// de turno — asi que quien las envia esta avalando contenido clinico. En la
+// cadena del hogar esa figura es la enfermera, no la supervisora de turno.
+//
+// El API permitia ademas SUPERVISOR, DIRECTOR y ADMIN mientras la pantalla
+// solo se le renderizaba a NURSE. Esa diferencia no protegia nada: la ruta se
+// puede llamar sin pasar por la pantalla. Se cierra el API a la politica real
+// en vez de abrir la pantalla.
+const ALLOWED_ROLES = ['NURSE'];
 
 
 
