@@ -267,9 +267,16 @@ export default function MasterPatientDirectory() {
                 </div>
 
                 {/* Filters & Search */}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+                {/* Dos filas, no una. Con cuatro bloques compitiendo en la
+                    misma fila (acciones, busqueda, filtros y vista) el quinto
+                    filtro ya no cabia: la barra tiene overflow-x-auto, asi que
+                    "Dados de baja" y "Fallecidos" quedaban cortados detras de
+                    los botones de vista. */}
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
 
-                    <div className="flex gap-3 w-full md:w-auto">
+                    {/* Fila 1 — acciones y busqueda */}
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div className="flex gap-3 w-full md:w-auto">
                         <SendFamilyEmailModal defaultMode="BROADCAST" />
                         <button
                             onClick={() => setShowBatchPai(true)}
@@ -290,12 +297,16 @@ export default function MasterPatientDirectory() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    </div>
+
+                    {/* Fila 2 — filtros y vista, con la anchura completa */}
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
 
                     {/* Cada filtro lleva su conteo. Antes no se veía cuántos
                         había detrás de cada uno, así que un filtro vacío se leía
                         igual que un filtro roto — y el de dados de baja estaba
                         roto de verdad: el servidor nunca los mandaba. */}
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl w-full md:w-auto overflow-x-auto">
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl w-full md:flex-1 md:min-w-0 overflow-x-auto">
                         {([
                             { valor: 'ALL',             etiqueta: 'Todos',              color: 'text-indigo-700' },
                             { valor: 'ACTIVE',          etiqueta: 'Activos',            color: 'text-emerald-700' },
@@ -319,13 +330,14 @@ export default function MasterPatientDirectory() {
                         })}
                     </div>
 
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl flex-shrink-0">
                         <button onClick={() => setView('list')} title="Vista lista" className={`px-3 py-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
                         </button>
                         <button onClick={() => setView('color')} title="Vista por grupo de color" className={`px-3 py-2 rounded-lg transition-colors ${view === 'color' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>
                             <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><circle cx="6" cy="6" r="3.5" className="fill-red-500" /><circle cx="14" cy="6" r="3.5" className="fill-yellow-400" /><circle cx="6" cy="14" r="3.5" className="fill-green-500" /><circle cx="14" cy="14" r="3.5" className="fill-blue-500" /></svg>
                         </button>
+                    </div>
                     </div>
                 </div>
 
