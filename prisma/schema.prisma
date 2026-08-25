@@ -2284,6 +2284,21 @@ model Complaint {
   headquarters Headquarters  @relation(fields: [headquartersId], references: [id])
   familyMember FamilyMember? @relation(fields: [familyMemberId], references: [id])
   patient      Patient       @relation(fields: [patientId], references: [id])
+
+  /// Quien planteo el senalamiento al supervisor.
+  ///
+  /// Antes familyMemberId se rellenaba solo con patient.familyMembers[0] — el
+  /// primero de la lista, tuviera o no algo que ver. De los 5 senalamientos
+  /// abiertos en Cupey, 2 tienen un familiar anclado por ese automatismo.
+  ///
+  /// Ahora lo elige el supervisor: o un familiar concreto, o el propio
+  /// residente. Son los dos casos reales — un residente puede plantear algo
+  /// por si mismo, y 19 de 33 residentes activos no tienen ningun familiar
+  /// registrado.
+  planteadoPorResidente Boolean @default(false)
+  /// Quien lo registro. El supervisor es el canal de entrada, no el dueno:
+  /// informa y direccion resuelve.
+  registradoPorId       String?
 }
 
 // =======================

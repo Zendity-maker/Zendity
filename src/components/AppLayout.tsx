@@ -92,6 +92,9 @@ const corporateNavigationSections = [
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
             { name: "Mensaje a Familias", href: "/corporate/family-broadcast", icon: MessageSquare },
+            // Señalamientos de familia. Solo dirección: el supervisor los
+            // registra, dirección decide qué se hace con ellos.
+            { name: "Señalamientos de Familia", href: "/corporate/senalamientos", icon: AlertTriangle, onlyRoles: ['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'] },
             { name: "Citas Familiares", href: "/corporate/family-appointments", icon: CalendarDays },
         ]
     },

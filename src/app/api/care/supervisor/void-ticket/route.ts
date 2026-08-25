@@ -85,7 +85,7 @@ export async function POST(req: Request) {
                 select: { headquartersId: true },
             });
             if (!complaintCheck || complaintCheck.headquartersId !== hqId) {
-                return NextResponse.json({ success: false, error: 'Queja fuera de tu sede' }, { status: 403 });
+                return NextResponse.json({ success: false, error: 'Señalamiento fuera de tu sede' }, { status: 403 });
             }
             await prisma.complaint.update({
                 where: { id: sourceId },

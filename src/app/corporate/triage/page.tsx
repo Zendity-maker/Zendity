@@ -48,7 +48,7 @@ const PRIORITY_CONFIG: Record<string, { bg: string; label: string; icon: string 
 const ORIGIN_CONFIG: Record<string, { bg: string; label: string; icon: string; targetRole: string; targetLabel: string }> = {
     DAILY_LOG: { bg: 'bg-purple-100 text-purple-700 border-purple-200', label: 'Clínico', icon: '🩺', targetRole: 'NURSE', targetLabel: 'Enfermería' },
     INCIDENT: { bg: 'bg-slate-200 text-slate-700 border-slate-300', label: 'Mantenimiento', icon: '🔧', targetRole: 'MAINTENANCE', targetLabel: 'Planta Física' },
-    COMPLAINT: { bg: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Queja Familiar', icon: '📋', targetRole: 'ADMIN', targetLabel: 'Administración' },
+    COMPLAINT: { bg: 'bg-orange-100 text-orange-700 border-orange-200', label: 'Señalamiento de Familia', icon: '📋', targetRole: 'ADMIN', targetLabel: 'Administración' },
     FALL: { bg: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Caída', icon: '🚨', targetRole: 'NURSE', targetLabel: 'Enfermería + Director' },
     EMAR_MISS: { bg: 'bg-indigo-100 text-indigo-700 border-indigo-200', label: 'eMAR', icon: '📊', targetRole: 'NURSE', targetLabel: 'Enfermería' },
     CRON_SYSTEM: { bg: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Sistema', icon: '⚙️', targetRole: 'ADMIN', targetLabel: 'Administración' },
@@ -284,7 +284,7 @@ export default function TriageCenterPage() {
                         <option value="FALL">Caídas ({counts.FALL ?? 0})</option>
                         <option value="INCIDENT">Incidentes ({counts.INCIDENT ?? 0})</option>
                         <option value="DAILY_LOG">UPP / Alertas clínicas ({counts.DAILY_LOG ?? 0})</option>
-                        <option value="COMPLAINT">Quejas familiares ({counts.COMPLAINT ?? 0})</option>
+                        <option value="COMPLAINT">Señalamientos de familia ({counts.COMPLAINT ?? 0})</option>
                         <option value="MEDICATION_ERROR">Errores de medicación ({counts.MEDICATION_ERROR ?? 0})</option>
                         <option value="MANUAL">Manuales ({counts.MANUAL ?? 0})</option>
                     </select>

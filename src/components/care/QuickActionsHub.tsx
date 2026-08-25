@@ -168,7 +168,7 @@ export function QuickActionsHub({ open, onClose, currentUserId, patients: patien
                         <button onClick={() => setAction("COMPLAINT")} className="flex items-center gap-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 p-5 rounded-2xl transition-all shadow-sm text-left active:scale-95">
                             <span className="text-4xl drop-shadow-sm">🤝</span>
                             <div>
-                                <p className="font-black text-orange-900 text-base leading-tight">Queja o Situación Familiar</p>
+                                <p className="font-black text-orange-900 text-base leading-tight">Señalamiento de Familia</p>
                                 <p className="font-bold text-orange-700/70 text-xs mt-1">Visitantes, Desacuerdos</p>
                             </div>
                         </button>

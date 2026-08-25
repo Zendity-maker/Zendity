@@ -548,6 +548,9 @@ export default function ZendityCareTabletPage() {
 
     // Action Hub States
     const [hubPatientId, setHubPatientId] = useState("");
+    // Quien planteo el senalamiento: id de familiar, "RESIDENTE", o vacio.
+    const [hubPlanteadoPor, setHubPlanteadoPor] = useState("");
+    const [hubFamiliares, setHubFamiliares] = useState<any[]>([]);
     const [hubDescription, setHubDescription] = useState("");
     const [hubPhotoBase64, setHubPhotoBase64] = useState<string | null>(null);
     const [hubLocation, setHubLocation] = useState(""); // Área/zona de mantenimiento
@@ -1746,6 +1749,18 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    // Al elegir residente en el Hub, se traen SUS familiares para poder decir
+    // quien planteo el senalamiento en vez de adivinarlo.
+    useEffect(() => {
+        if (!hubPatientId) { setHubFamiliares([]); setHubPlanteadoPor(""); return; }
+        let vivo = true;
+        fetch(`/api/corporate/patients/${hubPatientId}/family`)
+            .then(r => r.json())
+            .then(d => { if (vivo && d?.success) setHubFamiliares(d.familyMembers || []); })
+            .catch(() => { if (vivo) setHubFamiliares([]); });
+        return () => { vivo = false; };
+    }, [hubPatientId]);
+
     const handleLogoutAttempt = async () => {
         if (!activeSession) {
             router.push('/login');
@@ -1759,6 +1774,11 @@ export default function ZendityCareTabletPage() {
     const submitHubReport = async () => {
         if (hubAction !== 'MAINTENANCE' && !hubPatientId) return avisoOk("Seleccione un residente.");
         if (!hubDescription) return avisoOk("Agregue una descripción del incidente.");
+        // Antes de setSubmitting: un return dentro del try dejaria el boton
+        // deshabilitado si no hubiera finally.
+        if (hubAction === 'COMPLAINT' && !hubPlanteadoPor) {
+            return avisoOk("Indica quién te planteó el señalamiento.");
+        }
         setSubmitting(true);
         try {
             const hqId = user?.hqId || user?.headquartersId || "hq-demo-1";
@@ -1773,6 +1793,8 @@ export default function ZendityCareTabletPage() {
                 endpoint = "/api/care/reports/complaint";
                 payload.type = "COMPLAINT";
                 payload.photoUrl = hubPhotoBase64;
+                if (hubPlanteadoPor === 'RESIDENTE') payload.planteadoPorResidente = true;
+                else payload.planteadoPorFamiliarId = hubPlanteadoPor;
             } else if (hubAction === "UPP_ALERT") {
                 endpoint = "/api/care/vitals";
                 payload = {
@@ -4166,7 +4188,7 @@ export default function ZendityCareTabletPage() {
                                         <button onClick={() => setHubAction("COMPLAINT")} className="flex items-center gap-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 p-5 rounded-2xl transition-all shadow-sm">
                                             <span className="text-4xl drop-shadow-sm">🤝</span>
                                             <div className="text-left">
-                                                <p className="font-black text-orange-900 text-base leading-tight">Queja o Situación Familiar</p>
+                                                <p className="font-black text-orange-900 text-base leading-tight">Señalamiento de Familia</p>
                                                 <p className="font-bold text-orange-700/70 text-xs mt-1">Visitantes, Desacuerdos</p>
                                             </div>
                                         </button>
@@ -4233,6 +4255,36 @@ export default function ZendityCareTabletPage() {
                                                             + {tag}
                                                         </button>
                                                     ))}
+                                                </div>
+                                            )}
+
+                                            {hubAction === 'COMPLAINT' && (
+                                                <div className="mb-4 bg-white border border-indigo-100 rounded-2xl p-4">
+                                                    <p className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
+                                                        ¿Quién te lo planteó?
+                                                    </p>
+                                                    {/* Antes esto no se preguntaba: el codigo adjudicaba el
+                                                        primer familiar de la lista del residente, tuviera o no
+                                                        algo que ver. Dos de los cinco senalamientos abiertos
+                                                        arrastran un familiar anclado por ese automatismo. */}
+                                                    <select
+                                                        value={hubPlanteadoPor}
+                                                        onChange={(e) => setHubPlanteadoPor(e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    >
+                                                        <option value="">Selecciona…</option>
+                                                        <option value="RESIDENTE">El propio residente</option>
+                                                        {hubFamiliares.map((f: any) => (
+                                                            <option key={f.id} value={f.id}>
+                                                                {f.name}{f.relationship ? ` — ${f.relationship}` : ''}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {hubPatientId && hubFamiliares.length === 0 && (
+                                                        <p className="text-xs text-slate-400 mt-2">
+                                                            Este residente no tiene familiares registrados en Zéndity.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             )}
 

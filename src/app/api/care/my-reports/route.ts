@@ -94,7 +94,7 @@ export async function GET(req: Request) {
             reports.push({
                 id: c.id,
                 type: 'COMPLAINT',
-                label: 'Queja / Reporte Familiar',
+                label: 'Señalamiento de Familia',
                 description: c.description,
                 patientName: (c as any).patient?.name || 'N/A',
                 createdAt: c.createdAt,

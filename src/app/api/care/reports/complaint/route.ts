@@ -9,7 +9,11 @@ export async function POST(req: Request) {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
 
-        const { patientId, description, type, photoUrl } = await req.json();
+        const {
+            patientId, description, type, photoUrl,
+            // Quien planteo el senalamiento. Uno de los dos, no ambos.
+            planteadoPorFamiliarId, planteadoPorResidente,
+        } = await req.json();
         // HIPAA — el autor sale de la sesión (antes authorId del body).
         const authorId = auth.id;
 
@@ -28,8 +32,27 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
         }
 
-        // Buscamos un familiar para anclar la queja (o null si el residente no tiene)
-        const familyMemberId = patient.familyMembers.length > 0 ? patient.familyMembers[0].id : null;
+        // Quien lo planteo lo dice el supervisor, no lo adivina el codigo.
+        //
+        // Antes esto era patient.familyMembers[0] — el primero de la lista,
+        // tuviera o no algo que ver con lo que se estaba registrando. De los 5
+        // senalamientos abiertos en Cupey, 2 arrastran un familiar anclado por
+        // ese automatismo. Un senalamiento atribuido a quien no lo hizo es
+        // peor que uno sin atribuir.
+        let familyMemberId: string | null = null;
+        if (planteadoPorFamiliarId) {
+            const fm = await prisma.familyMember.findFirst({
+                where: { id: planteadoPorFamiliarId, patientId: patient.id },
+                select: { id: true },
+            });
+            if (!fm) {
+                return NextResponse.json(
+                    { success: false, error: 'Ese familiar no pertenece a este residente.' },
+                    { status: 400 },
+                );
+            }
+            familyMemberId = fm.id;
+        }
 
         // Saneo de prefijo: antes hardcoded "Cuidador ID" — ahora resolvemos
         // nombre+rol del autor para que SUPERVISOR/DIRECTOR/NURSE quede correcto.
@@ -50,6 +73,9 @@ export async function POST(req: Request) {
                 headquartersId: patient.headquartersId,
                 patientId: patient.id,
                 familyMemberId: familyMemberId,
+                planteadoPorResidente: !!planteadoPorResidente,
+                // El supervisor es el canal de entrada: informa y direccion resuelve.
+                registradoPorId: authorId,
                 description: `${prefix} - ${description}`,
                 status: "PENDING",
                 photoUrl: photoUrl || null // FASE 37

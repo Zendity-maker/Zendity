@@ -56,8 +56,10 @@ export async function GET(req: Request) {
         );
 
         // Contar fuentes del feed (queries ligeras)
-        const [complaints, incidents, clinicalAlerts, conUlcera] = await Promise.all([
-            prisma.complaint.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
+        // Sin senalamientos de familia: este badge cuenta operacion de piso, y
+        // un senalamiento se resuelve en direccion, no en el turno. Ver la nota
+        // larga en /api/care/supervisor/live.
+        const [incidents, clinicalAlerts, conUlcera] = await Promise.all([
             prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } } }),
             prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
             // Antes esto contaba "residentes con úlcera activa", que no es una
@@ -91,7 +93,7 @@ export async function GET(req: Request) {
         ).length;
 
         // Estimado conservador: suma bruta menos referidos
-        const rawCount = complaints + incidents + clinicalAlerts + uppVencidas;
+        const rawCount = incidents + clinicalAlerts + uppVencidas;
         const count = Math.max(0, rawCount - referredIds.size);
 
         return NextResponse.json({ success: true, count });

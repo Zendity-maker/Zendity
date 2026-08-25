@@ -75,17 +75,21 @@ export async function POST(req: Request) {
         });
 
         // 2. Mark the source as handled if possible — con tenant check
-        if (sourceType === 'COMPLAINT' && typeof sourceId === 'string' && sourceId) {
-            const c = await prisma.complaint.findUnique({
-                where: { id: sourceId },
-                select: { headquartersId: true },
-            });
-            if (c && c.headquartersId === hqId) {
-                await prisma.complaint.update({
-                    where: { id: sourceId },
-                    data: { status: 'ROUTED_NURSING' }
-                });
-            }
+        // Un senalamiento de familia YA NO se despacha a piso.
+        //
+        // Esto asignaba el senalamiento a una cuidadora y lo marcaba como
+        // enrutado a enfermeria. Medido: 8 despachos completados frente a 22
+        // vencidos sin atender — el 73% expiro. No es que no quisieran; es que
+        // se les asignaba algo que no esta en su mano resolver. De los 5
+        // senalamientos abiertos en Cupey, uno era la norma de visitas, otro un
+        // asunto clinico y otro una queja de conducta SOBRE una cuidadora.
+        //
+        // Quien decide que se hace es direccion, en /corporate/senalamientos.
+        if (sourceType === 'COMPLAINT') {
+            return NextResponse.json({
+                success: false,
+                error: 'Los señalamientos de familia los atiende dirección, no el piso. Ya quedó registrado y aparece en su bandeja.',
+            }, { status: 400 });
         }
 
         // ZENDI GROUP handling: if sourceId is an array of IDs

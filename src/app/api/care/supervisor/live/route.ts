@@ -285,21 +285,25 @@ export async function GET(req: Request) {
         const triageFeed: TriageTicket[] = [];
 
         // Integrar Quejas (Family/Mantenimiento)
-        pendingComplaintsList.forEach(c => {
-            const isMaint = c.description.toLowerCase().includes('mantenimiento') || c.description.toLowerCase().includes('roto') || c.description.toLowerCase().includes('foco') || c.description.toLowerCase().includes('agua');
-            triageFeed.push({
-                id: `cmp_${c.id}`,
-                sourceId: c.id,
-                sourceType: 'COMPLAINT',
-                category: isMaint ? 'MANTENIMIENTO' : 'FAMILY',
-                title: isMaint ? 'Reporte Operativo/Mantenimiento' : 'Preocupación Familiar',
-                description: c.description,
-                patientId: c.patientId || null,
-                patientName: c.patient?.name || 'Ámbito General',
-                urgency: isMaint ? 'RUTINA' : 'ATENCION',
-                createdAt: c.createdAt,
-            });
-        });
+        // Los senalamientos de familia YA NO entran al panel del supervisor.
+        //
+        // Este panel es operacion en tiempo real: lo que se resuelve en el piso
+        // en una o dos horas. Un senalamiento de familia no lo es — de los 5
+        // abiertos en Cupey, uno era la norma de visitas, otro un asunto
+        // clinico y otro una queja de conducta SOBRE una cuidadora. Ninguno se
+        // arregla en el turno.
+        //
+        // La unica accion que el panel ofrecia era despacharlo a una cuidadora,
+        // y eso esta medido: 8 completados frente a 22 vencidos sin atender.
+        // No se le asigna a alguien algo que no esta en su mano resolver.
+        //
+        // El supervisor sigue siendo el canal de ENTRADA: recibe a la familia
+        // y lo registra. Quien lo resuelve es direccion, en /corporate/senalamientos.
+        //
+        // (Aqui habia ademas una clasificacion por palabras clave —
+        // 'mantenimiento', 'roto', 'foco', 'agua' — que en 6 senalamientos no
+        // se activo ni una vez. Mantenimiento tiene su canal propio, con 110
+        // incidentes registrados.)
 
         // Integrar Caídas reales (FallIncident — NO el modelo Incident genérico)
         fallIncidents.forEach((fi: any) => {
