@@ -11,7 +11,6 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import EmergencyPdfButton from "@/components/medical/patient/EmergencyPdfButton";
 import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
-import ZendiNursingWidget from "@/components/care/ZendiNursingWidget";
 import MyObservationsWidget from "@/components/care/MyObservationsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
@@ -2870,10 +2869,11 @@ export default function ZendityCareTabletPage() {
                     <MyObservationsWidget />
                 </div>
                 <ZendiMomentsWidget />
-                {/* ZendiNursingWidget — solo visible para enfermeras y roles con acceso de enfermería */}
-                {(user?.role === 'NURSE' || (user?.secondaryRoles || []).includes('NURSE')) && (
-                    <ZendiNursingWidget />
-                )}
+                {/* El ZendiNursingWidget vivia aqui y se retiro el 25-ago-2026.
+                    Las actualizaciones clinicas a la familia ahora se piden
+                    desde el expediente del residente, que es donde trabaja la
+                    enfermera: 2 actualizaciones en 96 dias desde /care, con
+                    cero turnos abiertos suyos en esa pantalla. */}
 
                 {events.length > 0 && (
                     <div className="mb-8 flex flex-col gap-3">

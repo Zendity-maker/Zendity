@@ -35,6 +35,20 @@ async function getPatientsListHandler(req: Request) {
                 headquartersId: hqId,
                 status: { in: estados }
             },
+            include: {
+                // Ultima actualizacion enviada a la familia y si hay familia a
+                // quien escribirle. En Cupey 19 de 33 residentes activos no
+                // tienen ningun familiar en el sistema: para esos no existe
+                // deuda que reclamar, y marcarlos en rojo seria un numero que
+                // nadie puede bajar.
+                zendiNursingUpdates: {
+                    where: { status: 'SENT' },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { createdAt: true },
+                },
+                _count: { select: { familyMembers: true } },
+            },
             orderBy: [
                 { status: 'asc' }, // ACTIVE first
                 { name: 'asc' }
@@ -53,7 +67,9 @@ async function getPatientsListHandler(req: Request) {
             photoUrl: p.photoUrl || null,
             joinDate: p.createdAt,
             dischargeDate: p.dischargeDate || null,
-            dischargeReason: p.dischargeReason || null
+            dischargeReason: p.dischargeReason || null,
+            tieneFamilia: p._count.familyMembers > 0,
+            ultimaActualizacionFamilia: p.zendiNursingUpdates[0]?.createdAt ?? null
         }));
 
         return NextResponse.json({ success: true, patients: formattedPatients });

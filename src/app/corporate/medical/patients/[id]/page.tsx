@@ -20,6 +20,7 @@ import PatientSocialWorkTab from "@/components/medical/patient/PatientSocialWork
 import PatientEvaluationsTab from "@/components/medical/patient/PatientEvaluationsTab";
 import PatientCallsTab from "@/components/family-contact-logs/PatientCallsTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
+import ActualizarFamiliaButton from "@/components/medical/patient/ActualizarFamiliaButton";
 
 // Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
 // Si el usuario no tiene primary ni secondaryRole en esta lista, la pestaña
@@ -479,6 +480,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         </button>
                         {patientData?.status === 'ACTIVE' && (
                             <>
+                                {/* Zendi redacta con los datos clinicos de la
+                                    semana y la enfermera lo edita antes de
+                                    enviar. Va aqui y no en /care porque es
+                                    donde ella trabaja de verdad. */}
+                                <ActualizarFamiliaButton
+                                    patientId={patientData.id}
+                                    patientName={patientData.name}
+                                />
                                 <Link href={`/corporate/medical/patients/${patientData.id}/pai`} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Expediente PAI
                                 </Link>

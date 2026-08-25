@@ -10,10 +10,19 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
-// Solo la enfermera del hogar, igual que el GET que las genera. Enviar es el
-// acto que pone datos clinicos delante de la familia; de nada sirve restringir
-// quien las ve si cualquiera puede mandarlas.
-const ALLOWED_ROLES = ['NURSE'];
+// La enfermera del hogar, mas directores y admin.
+//
+// Estas actualizaciones llevan datos clinicos reales a la familia, asi que
+// quien las envia avala contenido clinico — por eso NO entra la supervisora de
+// turno ni el cuidador. Celia pidio mantener a direccion para que la funcion
+// no dependa de una sola persona: si ella falta, la familia sigue recibiendo
+// noticias.
+//
+// El texto llega en `selectedOption` y puede venir EDITADO por quien envia.
+// Eso es deliberado: Zendi propone, la enfermera decide. Como optionGen1 y
+// optionGen2 conservan lo que propuso Zendi, comparar basta para saber si una
+// persona cambio el mensaje antes de mandarlo.
+const ALLOWED_ROLES = ['NURSE', 'DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
 
 
@@ -47,6 +56,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         // ── ACCEPT ───────────────────────────────────────────────────────────
         if (action === 'ACCEPT') {
+            // Tope de longitud: es un mensaje corto a una familia, no un informe.
+            // Sin tope, un pegado accidental manda medio expediente por correo.
+            if (typeof selectedOption === 'string' && selectedOption.length > 1200) {
+                return NextResponse.json(
+                    { success: false, error: 'El mensaje es demasiado largo (máximo 1200 caracteres).' },
+                    { status: 400 },
+                );
+            }
             if (!selectedOption?.trim()) {
                 return NextResponse.json({ success: false, error: "Debe seleccionar una opción." }, { status: 400 });
             }

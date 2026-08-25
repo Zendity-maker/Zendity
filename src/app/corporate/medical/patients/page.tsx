@@ -212,6 +212,27 @@ export default function MasterPatientDirectory() {
             .sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' }));
     }, [patients, searchTerm, statusFilter]);
 
+    // Cadencia de comunicación con la familia. Umbrales pedidos por Celia:
+    // ideal cada 15 días, mínimo uno al mes. Un residente sin familiares en el
+    // sistema NO cuenta como deuda — son 19 de 33 en Cupey, y pintarlos en rojo
+    // seria un numero que nadie puede bajar. Eso ya nos paso con las ulceras
+    // cronicas en el badge del supervisor.
+    const badgeFamilia = (p: any) => {
+        if (!p.tieneFamilia) {
+            return <span className="text-xs font-bold text-slate-400" title="Este residente no tiene familiares registrados en Zéndity">Sin familia registrada</span>;
+        }
+        if (!p.ultimaActualizacionFamilia) {
+            return <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Nunca</span>;
+        }
+        const dias = Math.floor((Date.now() - new Date(p.ultimaActualizacionFamilia).getTime()) / 86400000);
+        const cls = dias <= 15
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            : dias <= 30
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200';
+        return <span className={`text-xs font-black px-2.5 py-1 rounded-full border ${cls}`}>Hace {dias} {dias === 1 ? 'día' : 'días'}</span>;
+    };
+
     const getStatusBadge = (status: string, leaveType?: string) => {
         switch (status) {
             case "ACTIVE":
@@ -351,13 +372,14 @@ export default function MasterPatientDirectory() {
                                         <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Residente</th>
                                         <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden md:table-cell">Habitacion</th>
                                         <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Estatus</th>
+                                        <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest hidden lg:table-cell">Familia</th>
                                         <th className="px-6 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Accion</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredPatients.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
                                                 No se encontraron residentes con esos criterios.
                                             </td>
                                         </tr>
@@ -393,6 +415,9 @@ export default function MasterPatientDirectory() {
                                                             {new Date(patient.dischargeDate).toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                         </p>
                                                     )}
+                                                </td>
+                                                <td className="px-6 py-4 hidden lg:table-cell">
+                                                    {patient.status === 'ACTIVE' ? badgeFamilia(patient) : <span className="text-xs text-slate-300">—</span>}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <Link
