@@ -217,7 +217,24 @@ export default function ZendityAcademyPage() {
                         </p>
                     </div>
                     <button
-                        onClick={() => generateZendityMasterCertificate(user?.name || 'Empleado', new Date().toLocaleDateString('es-PR'))}
+                        onClick={async () => {
+                            // El codigo lo emite el servidor tras comprobar que
+                            // estan TODOS los cursos aprobados. Antes bastaba
+                            // con que el boton apareciera.
+                            try {
+                                const res = await fetch('/api/academy/certificado-maestro');
+                                const d = await res.json();
+                                if (!d.success) { alert(d.error || 'No se pudo emitir.'); return; }
+                                await generateZendityMasterCertificate({
+                                    nombre: d.nombre,
+                                    aprobadoEl: d.aprobadoEl,
+                                    codigo: d.codigo,
+                                    sede: d.sede,
+                                });
+                            } catch {
+                                alert('No se pudo emitir el certificado. Intenta de nuevo.');
+                            }
+                        }}
                         className="shrink-0 px-7 py-3.5 bg-[#0F6E56] hover:bg-[#0B5642] text-white font-bold rounded-xl transition-colors text-sm"
                     >
                         Descargar certificado

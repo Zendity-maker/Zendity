@@ -1,5 +1,6 @@
 'use client';
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 
 const TEAL = '#1D9E75';
 const TEAL_DARK = '#0F6E56';
@@ -79,6 +80,61 @@ function drawSeal(doc: jsPDF, cx: number, cy: number, r: number, label: string, 
     doc.text('ZENDITY', cx, cy + 8, { align: 'center' });
 }
 
+const BASE_VERIFICACION = 'https://app.zendity.com/verificar';
+
+/**
+ * Pie del certificado: QR de verificacion, sello y UNA firma.
+ *
+ * Antes habia dos bloques de firma y el de la derecha no era una firma — era
+ * el nombre de la sede debajo de una linea de firma. Una sede no firma,
+ * certifica. Ese hueco es justo donde ahora va lo que hace el documento
+ * comprobable: el codigo y su QR.
+ *
+ * La firma que queda es institucional. No lleva nombre de persona a proposito:
+ * un certificado firmado por alguien que ya no trabaja aqui envejece mal, y
+ * quien responde por la formacion es la plataforma.
+ */
+async function drawPie(doc: jsPDF, W: number, codigo: string, sede: string, yBase: number) {
+    const url = `${BASE_VERIFICACION}/${codigo}`;
+
+    // ── Izquierda: QR + codigo ──
+    try {
+        const qr = await QRCode.toDataURL(url, {
+            margin: 0,
+            width: 320,
+            color: { dark: '#0F172A', light: '#FFFFFF' },
+        });
+        doc.addImage(qr, 'PNG', 36, yBase - 26, 24, 24);
+    } catch {
+        // Si el QR falla el certificado sigue siendo valido: el codigo se lee
+        // y se teclea a mano. No se aborta la emision por un dibujo.
+    }
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(SLATE);
+    doc.text(codigo, 48, yBase + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(GRAY);
+    doc.text('Verifica este certificado en', 48, yBase + 7, { align: 'center' });
+    doc.text('app.zendity.com/verificar', 48, yBase + 10.5, { align: 'center' });
+
+    // ── Derecha: la unica firma ──
+    doc.setDrawColor(SLATE2);
+    doc.setLineWidth(0.3);
+    doc.line(192, yBase, 262, yBase);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(SLATE2);
+    doc.text('Zendity Academy', 227, yBase + 5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(GRAY);
+    doc.text('Institucion certificadora', 227, yBase + 10, { align: 'center' });
+    doc.setFontSize(6);
+    doc.text(sede, 227, yBase + 14.5, { align: 'center' });
+}
+
 function drawDivider(doc: jsPDF, y: number, W: number) {
     const mx = W / 2;
     doc.setDrawColor(GOLD);
@@ -91,11 +147,25 @@ function drawDivider(doc: jsPDF, y: number, W: number) {
     doc.circle(mx + 12, y, 0.8, 'F');
 }
 
-export function generateZendityCertificate(
-    employeeName: string,
-    courseTitle: string,
-    completionDate: string
-) {
+export interface DatosCertificado {
+    nombre: string;
+    curso: string;
+    /** Fecha REAL de aprobacion. Antes se pasaba new Date() — la del dia en
+     *  que se pulsaba imprimir — asi que un curso aprobado en junio salia
+     *  fechado hoy. */
+    aprobadoEl: string | Date;
+    /** Codigo emitido por el servidor. Sin el no se dibuja el certificado. */
+    codigo: string;
+    sede: string;
+}
+
+const fechaLarga = (d: string | Date) =>
+    new Date(d).toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+export async function generateZendityCertificate(datos: DatosCertificado) {
+    const employeeName = datos.nombre;
+    const courseTitle = datos.curso;
+    const completionDate = fechaLarga(datos.aprobadoEl);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const W = 297;
     const H = 210;
@@ -162,32 +232,8 @@ export function generateZendityCertificate(
     doc.setTextColor(GRAY);
     doc.text(`Otorgado el ${completionDate}`, W / 2, 142, { align: 'center' });
 
-    // Signature line — left
-    doc.setDrawColor(SLATE2);
-    doc.setLineWidth(0.3);
-    doc.line(40, 165, 110, 165);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(SLATE2);
-    doc.text('Andrés Flores', 75, 170, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(GRAY);
-    doc.text('Director — Zendity', 75, 175, { align: 'center' });
-
-    // Seal — center
     drawSeal(doc, W / 2, 162, 18, 'CERTIFICADO', 'OFICIAL');
-
-    // Signature line — right
-    doc.setDrawColor(SLATE2);
-    doc.setLineWidth(0.3);
-    doc.line(187, 165, 257, 165);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(SLATE2);
-    doc.text('Sede Certificadora', 222, 170, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(GRAY);
-    doc.text('Vivid Senior Living Cupey', 222, 175, { align: 'center' });
+    await drawPie(doc, W, datos.codigo, datos.sede, 165);
 
     // Bottom band text
     doc.setTextColor(GOLD_LIGHT);
@@ -195,13 +241,14 @@ export function generateZendityCertificate(
     doc.setFontSize(7);
     doc.text('ZENDITY · Healthcare Management Platform · app.zendity.com · Puerto Rico', W / 2, H - 18, { align: 'center' });
 
-    doc.save(`Certificado_Zendity_${employeeName}_${courseTitle}.pdf`);
+    doc.save(`Certificado_Zendity_${employeeName}_${courseTitle}_${datos.codigo}.pdf`);
 }
 
-export function generateZendityMasterCertificate(
-    employeeName: string,
-    completionDate: string
+export async function generateZendityMasterCertificate(
+    datos: Omit<DatosCertificado, 'curso'>,
 ) {
+    const employeeName = datos.nombre;
+    const completionDate = fechaLarga(datos.aprobadoEl);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const W = 297;
     const H = 210;
@@ -310,30 +357,8 @@ export function generateZendityMasterCertificate(
     doc.setTextColor(GRAY);
     doc.text(`Certificación completada el ${completionDate}`, W / 2, 144, { align: 'center' });
 
-    // Signatures
-    doc.setDrawColor(SLATE2);
-    doc.setLineWidth(0.3);
-    doc.line(35, 168, 105, 168);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(SLATE2);
-    doc.text('Andrés Flores', 70, 173, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(GRAY);
-    doc.text('Director — Zendity', 70, 178, { align: 'center' });
-
     drawSeal(doc, W / 2, 163, 14, 'CERTIFICADO', 'GERIÁTRICO');
-
-    doc.setDrawColor(SLATE2);
-    doc.setLineWidth(0.3);
-    doc.line(192, 168, 262, 168);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(SLATE2);
-    doc.text('Sede Certificadora', 227, 173, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(GRAY);
-    doc.text('Vivid Senior Living Cupey', 227, 178, { align: 'center' });
+    await drawPie(doc, W, datos.codigo, datos.sede, 168);
 
     // Bottom band
     doc.setTextColor(GOLD_LIGHT);
@@ -341,5 +366,5 @@ export function generateZendityMasterCertificate(
     doc.setFontSize(7);
     doc.text('ZENDITY · Healthcare Management Platform · app.zendity.com · Puerto Rico', W / 2, H - 18, { align: 'center' });
 
-    doc.save(`Certificado_Maestro_Zendity_${employeeName}.pdf`);
+    doc.save(`Certificado_Maestro_Zendity_${employeeName}_${datos.codigo}.pdf`);
 }

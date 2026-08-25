@@ -372,6 +372,13 @@ model User {
   // Sprint Coordinador Paso 3 (jun-2026): contactos registrados por este staff.
   // Auditoría de "quién hizo cuántas llamadas".
   familyContactsLogged FamilyContactLog[] @relation("FamilyContactLogger")
+
+  /// Certificado MAESTRO de Academy — por completar el programa entero, no un
+  /// curso suelto. Por eso vive aqui y no en UserCourse. Mismo formato de
+  /// codigo y misma pagina de verificacion.
+  masterCertCode      String?   @unique
+  masterCertIssuedAt  DateTime?
+  masterCertRevokedAt DateTime?
 }
 
 model Account {
@@ -1189,6 +1196,18 @@ model UserCourse {
   lastAttemptAt  DateTime?
   completedAt    DateTime?
   certificateUrl String?
+
+  /// Codigo publico del certificado, formato ZEN-AAAA-XXXXXX. Se emite UNA vez
+  /// al aprobar y no cambia: es lo que se teclea en /verificar para comprobar
+  /// que el certificado es real. Aleatorio y no correlativo a proposito — un
+  /// numero secuencial revela cuantos se han emitido y deja adivinar el
+  /// siguiente.
+  certificateCode          String?   @unique
+  certificateIssuedAt      DateTime?
+  /// Para anular un certificado sin borrarlo. La pagina de verificacion debe
+  /// poder decir "existio y fue revocado", que no es lo mismo que "no existe".
+  certificateRevokedAt     DateTime?
+  certificateRevokedReason String?
 
   employee     User         @relation(fields: [employeeId], references: [id])
   course       Course       @relation(fields: [courseId], references: [id])

@@ -505,6 +505,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
         pathname.startsWith("/wall") ||
+        // Verificacion publica de certificados: quien comprueba uno viene de
+        // fuera y no tiene sesion. Sin esto AppLayout devuelve null cuando no
+        // hay usuario y el visitante no ve absolutamente nada.
+        pathname.startsWith("/verificar") ||
         // El kiosko de Servicios Externos opera con device-token, NO con sesión
         // NextAuth. No debe mostrar el chrome de Zendity (sidebar/topbar) — el
         // visitante externo no debe poder navegar a otras partes de la app.

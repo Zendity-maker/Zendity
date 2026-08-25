@@ -140,11 +140,47 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
     // Locks & strikes
     const [strikes, setStrikes] = useState(0);
     const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
+    // Id de la matricula: es lo que el servidor necesita para emitir el codigo
+    // del certificado contra el registro real de aprobacion.
+    const [ucId, setUcId] = useState<string | null>(null);
+    const [emitiendo, setEmitiendo] = useState(false);
     const [lockCountdown, setLockCountdown] = useState('');
 
     const hqId = (user as any)?.hqId || (user as any)?.headquartersId || '';
 
     // ── Effects ────────────────────────────────────────────────────────────────
+
+    /**
+     * Pide al servidor los datos del certificado y lo dibuja.
+     *
+     * Antes el PDF se armaba en el navegador con tres textos y `new Date()`,
+     * asi que la fecha era la del dia de impresion y no quedaba registro de
+     * nada. Ahora el codigo lo emite el servidor contra el registro de
+     * aprobacion y es el mismo en todas las copias.
+     */
+    const imprimirCertificado = async () => {
+        if (!ucId || emitiendo) return;
+        setEmitiendo(true);
+        try {
+            const res = await fetch(`/api/academy/certificado/${ucId}`);
+            const d = await res.json();
+            if (!d.success) {
+                alert(d.error || 'No se pudo emitir el certificado.');
+                return;
+            }
+            await generateZendityCertificate({
+                nombre: d.nombre,
+                curso: d.curso,
+                aprobadoEl: d.aprobadoEl,
+                codigo: d.codigo,
+                sede: d.sede,
+            });
+        } catch {
+            alert('No se pudo emitir el certificado. Intenta de nuevo.');
+        } finally {
+            setEmitiendo(false);
+        }
+    };
 
     useEffect(() => {
         if (!user?.id || !course?.id) return;
@@ -156,6 +192,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                     setLockedUntil(new Date(enrollment.lockedUntil));
                 }
                 if (enrollment?.attemptsCount) setStrikes(enrollment.attemptsCount % 3);
+                if (enrollment?.id) setUcId(enrollment.id);
             }).catch(() => null);
     }, [user?.id, course?.id, hqId]);
 
@@ -366,10 +403,11 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 </div>
             </div>
             <button
-                onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
+                onClick={imprimirCertificado}
+                disabled={!ucId || emitiendo}
                 className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold text-sm py-2.5 rounded-xl transition-all"
             >
-                Imprimir Certificado Zendity
+                {emitiendo ? 'Emitiendo…' : 'Imprimir Certificado Zendity'}
             </button>
         </div>
     );
@@ -424,10 +462,11 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 Has completado <span className="font-bold text-white">{course.title}</span>
             </p>
             <button
-                onClick={() => generateZendityCertificate(user.name || 'Empleado', course.title, new Date().toLocaleDateString('es-PR'))}
+                onClick={imprimirCertificado}
+                disabled={!ucId || emitiendo}
                 className="w-full max-w-sm bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl transition-all"
             >
-                Descargar mi Certificado
+                {emitiendo ? 'Emitiendo…' : 'Descargar mi Certificado'}
             </button>
             <button onClick={() => setStage('COMPLETED')} className="mt-3 text-slate-500 text-sm py-2 hover:text-slate-400">Cerrar</button>
         </div>
