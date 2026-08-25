@@ -177,7 +177,11 @@ export default function MasterPatientDirectory() {
     useEffect(() => {
         const fetchPatients = async () => {
             try {
-                const res = await fetch("/api/corporate/patients");
+                // incluirInactivos=1: este es el directorio GLOBAL y necesita
+                // llegar al expediente de quien ya no está. El calendario y la
+                // admisión llaman al mismo endpoint sin el parámetro y siguen
+                // viendo solo a los residentes activos.
+                const res = await fetch("/api/corporate/patients?incluirInactivos=1");
                 const data = await res.json();
                 if (data.success) {
                     setPatients(data.patients);
@@ -215,8 +219,11 @@ export default function MasterPatientDirectory() {
             case "TEMPORARY_LEAVE":
                 return <span className="bg-amber-100 text-amber-700 border border-amber-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1"><ExclamationTriangleIcon className="w-3 h-3" /> Ausente ({leaveType === 'HOSPITAL' ? 'Hospital' : 'Familia'})</span>;
             case "DISCHARGED":
-            case "DECEASED":
                 return <span className="bg-slate-100 text-slate-500 border border-slate-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">Dado de Baja</span>;
+            // Separado de DISCHARGED a propósito: compartían etiqueta y un
+            // residente fallecido no está "dado de baja".
+            case "DECEASED":
+                return <span className="bg-violet-50 text-violet-700 border border-violet-200 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">Fallecido</span>;
             default:
                 return <span className="bg-slate-100 text-slate-500 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">{status}</span>;
         }
@@ -284,11 +291,32 @@ export default function MasterPatientDirectory() {
                         />
                     </div>
 
+                    {/* Cada filtro lleva su conteo. Antes no se veía cuántos
+                        había detrás de cada uno, así que un filtro vacío se leía
+                        igual que un filtro roto — y el de dados de baja estaba
+                        roto de verdad: el servidor nunca los mandaba. */}
                     <div className="flex bg-slate-100 p-1.5 rounded-xl w-full md:w-auto overflow-x-auto">
-                        <button onClick={() => setStatusFilter('ALL')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'ALL' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>Todos</button>
-                        <button onClick={() => setStatusFilter('ACTIVE')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'ACTIVE' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}>Activos</button>
-                        <button onClick={() => setStatusFilter('TEMPORARY_LEAVE')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'TEMPORARY_LEAVE' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>Ausentes / Hospital</button>
-                        <button onClick={() => setStatusFilter('DISCHARGED')} className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === 'DISCHARGED' ? 'bg-white shadow-sm text-slate-700' : 'text-slate-500 hover:text-slate-700'}`}>Residentes dados de baja</button>
+                        {([
+                            { valor: 'ALL',             etiqueta: 'Todos',              color: 'text-indigo-700' },
+                            { valor: 'ACTIVE',          etiqueta: 'Activos',            color: 'text-emerald-700' },
+                            { valor: 'TEMPORARY_LEAVE', etiqueta: 'Ausentes / Hospital', color: 'text-amber-700' },
+                            { valor: 'DISCHARGED',      etiqueta: 'Dados de baja',      color: 'text-slate-700' },
+                            { valor: 'DECEASED',        etiqueta: 'Fallecidos',         color: 'text-violet-700' },
+                        ] as const).map(f => {
+                            const n = f.valor === 'ALL'
+                                ? patients.length
+                                : patients.filter(p => p.status === f.valor).length;
+                            return (
+                                <button
+                                    key={f.valor}
+                                    onClick={() => setStatusFilter(f.valor)}
+                                    className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${statusFilter === f.valor ? `bg-white shadow-sm ${f.color}` : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    {f.etiqueta}
+                                    <span className={`ml-2 text-xs font-black ${statusFilter === f.valor ? 'opacity-70' : 'opacity-50'}`}>{n}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div className="flex bg-slate-100 p-1.5 rounded-xl">
@@ -346,6 +374,13 @@ export default function MasterPatientDirectory() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {getStatusBadge(patient.status, patient.leaveType)}
+                                                    {/* Para quien ya no está, la fecha es el dato que se busca
+                                                        al abrir su expediente. Sin ella la fila no dice cuándo. */}
+                                                    {patient.dischargeDate && (patient.status === 'DISCHARGED' || patient.status === 'DECEASED') && (
+                                                        <p className="text-xs font-medium text-slate-400 mt-1.5">
+                                                            {new Date(patient.dischargeDate).toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <Link

@@ -16,11 +16,24 @@ async function getPatientsListHandler(req: Request) {
 
         const hqId = (session.user as any).headquartersId;
 
-        // Solo residentes activos y en licencia temporal. DISCHARGED y DECEASED se excluyen del directorio.
+        // Por defecto solo activos y en licencia temporal: el calendario y la
+        // admisión usan este mismo endpoint para elegir residente, y ahí un
+        // fallecido no debe aparecer.
+        //
+        // El Directorio Global sí los necesita — pide ?incluirInactivos=1.
+        // Tenía un botón "Residentes dados de baja" que filtraba sobre una
+        // lista de la que el servidor ya los había quitado, así que salía
+        // vacío siempre. En Cupey eso dejaba 11 expedientes inalcanzables:
+        // 6 fallecidos y 5 dados de baja.
+        const incluirInactivos = new URL(req.url).searchParams.get('incluirInactivos') === '1';
+        const estados: ('ACTIVE' | 'TEMPORARY_LEAVE' | 'DISCHARGED' | 'DECEASED')[] = incluirInactivos
+            ? ['ACTIVE', 'TEMPORARY_LEAVE', 'DISCHARGED', 'DECEASED']
+            : ['ACTIVE', 'TEMPORARY_LEAVE'];
+
         const patients = await prisma.patient.findMany({
             where: {
                 headquartersId: hqId,
-                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] }
+                status: { in: estados }
             },
             orderBy: [
                 { status: 'asc' }, // ACTIVE first
@@ -38,7 +51,9 @@ async function getPatientsListHandler(req: Request) {
             clinicalRisk: p.downtonRisk ? 'HIGH' : 'MODERATE',
             leaveType: p.leaveType || null,
             photoUrl: p.photoUrl || null,
-            joinDate: p.createdAt
+            joinDate: p.createdAt,
+            dischargeDate: p.dischargeDate || null,
+            dischargeReason: p.dischargeReason || null
         }));
 
         return NextResponse.json({ success: true, patients: formattedPatients });
