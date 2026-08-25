@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { rotacionVencida } from '@/lib/rotacion-upp';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
@@ -55,15 +56,42 @@ export async function GET(req: Request) {
         );
 
         // Contar fuentes del feed (queries ligeras)
-        const [complaints, incidents, clinicalAlerts, uppPatients] = await Promise.all([
+        const [complaints, incidents, clinicalAlerts, conUlcera] = await Promise.all([
             prisma.complaint.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
             prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo } } }),
             prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
-            prisma.patient.count({ where: { headquartersId: hqId, pressureUlcers: { some: { status: 'ACTIVE' } } } }),
+            // Antes esto contaba "residentes con úlcera activa", que no es una
+            // tarea sino una condición: sumaba al badge todos los días durante
+            // meses y el supervisor no podía quitarla haciendo nada. En Cupey
+            // llevaba 73, 65 y 48 días — y uno de los tres residentes estaba
+            // FALLECIDO, porque tampoco se miraba su estado.
+            //
+            // Ahora cuenta lo que sí es accionable: residente activo con úlcera
+            // activa cuya rotación está VENCIDA, con el umbral canónico
+            // compartido de src/lib/rotacion-upp.ts.
+            prisma.patient.findMany({
+                where: {
+                    headquartersId: hqId,
+                    status: 'ACTIVE',
+                    pressureUlcers: { some: { status: 'ACTIVE' } },
+                },
+                select: {
+                    posturalChanges: {
+                        orderBy: { performedAt: 'desc' },
+                        take: 1,
+                        select: { performedAt: true },
+                    },
+                },
+            }),
         ]);
 
+        // Sin ningún cambio registrado también cuenta: es el caso peor.
+        const uppVencidas = conUlcera.filter(
+            p => rotacionVencida(p.posturalChanges[0]?.performedAt),
+        ).length;
+
         // Estimado conservador: suma bruta menos referidos
-        const rawCount = complaints + incidents + clinicalAlerts + uppPatients;
+        const rawCount = complaints + incidents + clinicalAlerts + uppVencidas;
         const count = Math.max(0, rawCount - referredIds.size);
 
         return NextResponse.json({ success: true, count });

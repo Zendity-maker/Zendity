@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { rotacionVencida, horasDesdeRotacion } from '@/lib/rotacion-upp';
 import { NextResponse } from 'next/server';
 import { todayStartAST } from '@/lib/dates';
 import { getServerSession } from 'next-auth/next';
@@ -357,24 +358,30 @@ export async function GET(req: Request) {
 
         // Integrar Alertas SLA de UPP Activas
         pxWithUPP.forEach(px => {
-            const lastLog = px.posturalChanges[0];
-            if (lastLog) {
-                const hrsSince = (Date.now() - new Date(lastLog.performedAt).getTime()) / 3600000;
-                if (hrsSince >= 2.5) { // SLA Vulnerado
-                    triageFeed.push({
-                        id: `upp_sla_${px.id}`,
-                        sourceId: px.id,
-                        sourceType: 'UPP_SLA',
-                        category: 'UPP_PIEL',
-                        title: 'SLA Clínico Vencido (Rotación UPP)',
-                        description: `El paciente presenta UPP activa y lleva ${hrsSince.toFixed(1)} hrs sin registro táctil de rotación (Límite 2hrs). Requiere giro manual urgente.`,
-                        patientId: px.id,
-                        patientName: px.name,
-                        urgency: hrsSince > 4 ? 'INMINENTE' : 'ATENCION',
-                        createdAt: new Date(),
-                    });
-                }
-            }
+            const ultima = px.posturalChanges[0]?.performedAt ?? null;
+            if (!rotacionVencida(ultima)) return;
+
+            // El umbral sale de src/lib/rotacion-upp.ts para que el badge y
+            // esta lista digan lo mismo. Antes el feed usaba 2.5 h y el badge
+            // otra cosa, así que el número y la lista no cuadraban.
+            const hrs = horasDesdeRotacion(ultima);
+            triageFeed.push({
+                id: `upp_sla_${px.id}`,
+                sourceId: px.id,
+                sourceType: 'UPP_SLA',
+                category: 'UPP_PIEL',
+                title: 'SLA Clínico Vencido (Rotación UPP)',
+                description: hrs === null
+                    // Este caso antes desaparecía de la lista: el código exigía
+                    // un último registro para poder comparar, así que quien
+                    // nunca fue rotado no aparecía en ninguna parte.
+                    ? `El paciente presenta UPP activa y NO tiene ningún registro de rotación. Requiere giro manual urgente.`
+                    : `El paciente presenta UPP activa y lleva ${hrs.toFixed(1)} hrs sin registro táctil de rotación (Límite 2hrs). Requiere giro manual urgente.`,
+                patientId: px.id,
+                patientName: px.name,
+                urgency: hrs === null || hrs > 4 ? 'INMINENTE' : 'ATENCION',
+                createdAt: new Date(),
+            });
         });
 
         // SPRINT 4: Zendi ATC Poli-Incidente (Clustering Geográfico/Multidimensional)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { cerrarTicketDeOrigen } from '@/lib/triage-sync';
 import { logError, logWarn } from '@/lib/logger';
 import { SystemAuditAction } from '@prisma/client';
 
@@ -116,6 +117,21 @@ export async function POST(req: Request) {
         // Los demás sourceType (INCIDENT, UPP_SLA, ZENDI_*) sí se regeneran por
         // computación y no tienen fila que cerrar. Solo queda el audit log.
 
+        // Espejo hacia el centro de triage. El mismo evento vive como ticket
+        // allá; si no se cierra, dirección lo sigue viendo pendiente después
+        // de que el supervisor ya lo descartó. Best-effort: la acción
+        // principal ya se guardó y no se revierte por fallar el espejo.
+        let ticketsCerrados = 0;
+        if (affected === 'clinical_alert' || affected === 'complaint') {
+            try {
+                ticketsCerrados = await cerrarTicketDeOrigen(
+                    sourceId, hqId, reasonTrimmed, invokerId, invokerName,
+                );
+            } catch (e) {
+                logWarn('[void-ticket] no se pudo cerrar el ticket espejo', e as any);
+            }
+        }
+
         try {
             await prisma.systemAuditLog.create({
                 data: {
@@ -136,7 +152,7 @@ export async function POST(req: Request) {
             });
         } catch (e) { logWarn('care.supervisor.void_ticket.audit', e, { sourceType, sourceId }); }
 
-        return NextResponse.json({ success: true, affected });
+        return NextResponse.json({ success: true, affected, ticketsCerrados });
     } catch (error: any) {
         logError('care.supervisor.void_ticket.post', error);
         return NextResponse.json({

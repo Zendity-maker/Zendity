@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { cerrarOrigenDeTicket } from '@/lib/triage-sync';
 
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -88,7 +89,21 @@ export async function PATCH(req: Request) {
             }
         });
 
-        return NextResponse.json({ success: true, ticket });
+        // Cerrar también el registro del que nació el ticket. Sin esto, la
+        // alerta seguía viva en el inbox del supervisor después de haberse
+        // atendido aquí, y la misma cosa aparecía pendiente en dos pantallas.
+        let origenCerrado: string | null = null;
+        if (updateData.status === 'RESOLVED') {
+            try {
+                const r = await cerrarOrigenDeTicket(ticketId, invokerHqId);
+                if (r !== 'sin-origen-cerrable') origenCerrado = r;
+            } catch (e) {
+                // El ticket ya se cerró; no revertimos por no poder espejar.
+                console.error('[triage/resolve] no se pudo cerrar el origen:', e);
+            }
+        }
+
+        return NextResponse.json({ success: true, ticket, origenCerrado });
 
     } catch (e: any) {
         console.error("Triage Resolve Error:", e);

@@ -47,6 +47,7 @@ test-results/
 playwright-report/
 scripts/*
 !scripts/db-push-guard.sh
+!scripts/cerrar-alertas-ya-resueltas.ts
 !scripts/verificar-aislamiento-sedes.ts
 !scripts/limpiar-foodintake-alertas.ts
 !scripts/db-push-guard.sh.broken-bak
