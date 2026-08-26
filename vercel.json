@@ -13,10 +13,6 @@
       "schedule": "0 */2 * * *"
     },
     {
-      "path": "/api/care/briefing",
-      "schedule": "55 9 * * *"
-    },
-    {
       "path": "/api/cron/sync-compliance",
       "schedule": "30 3 * * *"
     },

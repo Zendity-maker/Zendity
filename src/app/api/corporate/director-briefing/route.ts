@@ -431,8 +431,57 @@ export async function GET(request: NextRequest) {
         const cached = await prisma.directorBriefing.findUnique({
             where: { scope_clinicalDay: { scope, clinicalDay } },
         });
+        // Si no existe el del dia, se GENERA aqui mismo.
+        //
+        // Antes solo se generaba pulsando un boton, y por eso existen TRES en
+        // toda la historia: se pulso tres veces. El briefing no estaba en el
+        // sitio equivocado —vive en el dashboard, donde el director si entra—
+        // sino que habia que pedirlo.
+        //
+        // Generar al abrir en vez de por cron tiene una ventaja: solo cuesta
+        // cuando alguien de verdad va a leerlo. Si nadie abre el dashboard un
+        // dia, no se gasta una llamada a gpt-4o por nada.
         if (!cached) {
-            return NextResponse.json({ success: true, briefing: null });
+            try {
+                const context = await buildContext(scope as any);
+                const { summary, bullets } = await generateBriefing(context);
+                const creado = await prisma.directorBriefing.create({
+                    data: {
+                        scope,
+                        clinicalDay,
+                        summary,
+                        bullets: bullets as any,
+                        generatedById: (session.user as any).id || null,
+                        model: process.env.OPENAI_API_KEY ? 'gpt-4o' : 'fallback',
+                    },
+                });
+                return NextResponse.json({
+                    success: true,
+                    briefing: {
+                        id: creado.id, scope: creado.scope, clinicalDay: creado.clinicalDay,
+                        generatedAt: creado.generatedAt, summary: creado.summary,
+                        bullets: creado.bullets, model: creado.model,
+                    },
+                });
+            } catch (e: any) {
+                // Dos pestañas abiertas a la vez chocan contra el @@unique.
+                // No es un error: la otra ya lo genero, se relee y se devuelve.
+                const otra = await prisma.directorBriefing.findUnique({
+                    where: { scope_clinicalDay: { scope, clinicalDay } },
+                });
+                if (otra) {
+                    return NextResponse.json({
+                        success: true,
+                        briefing: {
+                            id: otra.id, scope: otra.scope, clinicalDay: otra.clinicalDay,
+                            generatedAt: otra.generatedAt, summary: otra.summary,
+                            bullets: otra.bullets, model: otra.model,
+                        },
+                    });
+                }
+                console.error('[director-briefing GET] no se pudo generar:', e);
+                return NextResponse.json({ success: true, briefing: null });
+            }
         }
         return NextResponse.json({
             success: true,

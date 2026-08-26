@@ -5,6 +5,21 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
 
+/**
+ * POST /api/care/briefing
+ *
+ * Briefing de inicio de turno para UNA cuidadora, segun su grupo de color. Lo
+ * llama la tablet al abrir turno.
+ *
+ * NO ES UN CRON. Hasta el 26-ago-2026 vercel.json tenia programado
+ * "55 9 * * * /api/care/briefing", que llevaba disparandose cada mañana a las
+ * 5:55 AST contra este archivo — que solo exporta POST. Devolvia 405 todos los
+ * dias y nadie se entero, porque un cron que falla no avisa a nadie.
+ *
+ * Ademas era redundante: el prologo del dia lo genera /api/cron/
+ * clinical-day-start a las 6 AM, y aqui solo se LEE. Se retiro la entrada del
+ * cron; este endpoint sigue igual.
+ */
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);

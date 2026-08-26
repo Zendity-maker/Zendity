@@ -223,13 +223,46 @@ export async function buildZendiSummary(params: {
         ? Object.entries(justifications).map(([id, r]) => `  · ${id}: ${r}`).join('\n')
         : '  · ninguna';
 
-    const prompt = `Eres Zendi, el asistente de Zéndity. Genera el reporte de cierre de turno para ${caregiverName} en español profesional y claro. REGLAS ESTRICTAS: (1) Usa SOLO los datos que te doy — NO inventes nada. (2) Menciona a cada residente por su nombre completo y qué se hizo específicamente con él/ella. (3) NO uses frases genéricas como "se atendió a los residentes" — sé concreto/a. (4) Si no hubo actividad registrada para un residente, no lo menciones. (5) Máximo 4 párrafos. (6) Si hay situaciones que requieren atención del supervisor, resáltalas al final en un párrafo separado. (7) NUNCA uses placeholders ni corchetes como [Fecha], [Nombre], etc. — usa los datos exactos que te doy abajo. Si encabezas el reporte con fecha/turno/cuidador, usa los valores literales provistos; nunca dejes un campo sin rellenar.
+    // El relevo empieza por lo que hay que MIRAR, no por el recuento.
+    //
+    // El prompt anterior producia esto: "Se administraron un total de 63
+    // medicamentos. Se registraron 13 comidas y se completaron 12 banos..."
+    // seguido de la lista completa de residentes del grupo. Eso es un tally,
+    // no un relevo: a quien entra al turno no le sirve saber que se dieron 63
+    // medicamentos, le sirve saber a quien mirar. Y nombrarlos a todos no
+    // senala a nadie.
+    //
+    // Media anterior: 1.274 caracteres. En una tablet, a las diez de la noche,
+    // al cambio de turno. Un resumen que no se lee entero vale lo mismo que no
+    // tenerlo, asi que se recorta a la mitad y los numeros van al final en una
+    // sola linea.
+    const prompt = `Eres Zendi. Escribe el relevo de turno de ${caregiverName}, en español, para la persona que ENTRA al turno.
 
-Fecha del turno: ${fechaStr}
-Turno: ${shiftLabel}
-Cuidador(a): ${caregiverName}
+Tu trabajo es que quien entra sepa A QUIÉN MIRAR. No es un informe de productividad.
 
-Residentes asignados:
+ESTRUCTURA OBLIGATORIA, en este orden:
+
+1. **Atención** — Solo residentes con algo que requiera seguimiento: una caída,
+   una alerta clínica, un medicamento rehusado, un traslado, una úlcera, una
+   tarea que quedó pendiente. Un residente por línea, con su nombre completo y
+   QUÉ hay que vigilar. Si no hay ninguno, escribe "Sin novedades que requieran
+   seguimiento." y pasa al punto 3.
+
+2. **Pendiente del turno anterior** — Solo si hay justificaciones o tareas
+   trasladadas. Una línea cada una.
+
+3. **Cifras del turno** — UNA SOLA LÍNEA al final, con este formato exacto:
+   \`N medicamentos · N comidas · N baños · N vitales · N rotaciones\`
+
+REGLAS:
+- MÁXIMO 600 caracteres en total. Es un relevo, no un informe.
+- Solo los datos que te doy. No inventes nada.
+- NO listes residentes sin novedad. Nombrar a todos no señala a nadie.
+- NO abras con un párrafo de resumen general. Empieza directo por Atención.
+- Nunca uses corchetes ni marcadores como [Fecha] o [Nombre].
+
+DATOS:
+
 ${patientList}
 
 Actividad del turno:
@@ -247,13 +280,15 @@ ${alertLines}
 - Justificaciones del wizard (tareas pendientes/trasladadas):
 ${justLines}
 
-Genera el reporte ahora.`;
+Escribe el relevo ahora.`;
 
     try {
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 700,
+            // 700 tokens daban de sobra para el informe largo de antes. El
+            // relevo cabe en 600 caracteres; el tope evita que se alargue solo.
+            max_tokens: 320,
             temperature: 0.3,
         });
         const text = completion.choices?.[0]?.message?.content?.trim();
