@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
+import { estaDormida, FUNCIONES_DORMIDAS } from '@/lib/funciones-dormidas';
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
@@ -43,7 +44,9 @@ const clinicalNavigation = [
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
     { name: 'Mis Observaciones', href: '/my-observations', icon: FileWarning, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
     // Limpieza — dashboard de turno solo para personal CLEANING/MAINTENANCE
-    { name: 'Limpieza & Sanitización', href: '/cleaning', icon: SprayCan, onlyRoles: ['CLEANING', 'MAINTENANCE'] },
+    // CAREGIVER incluido: hoy son ellas quienes limpian, y sin el enlace
+    // la limpieza que hacen no queda registrada en ninguna parte.
+    { name: 'Limpieza & Sanitización', href: '/cleaning', icon: SprayCan, onlyRoles: ['CLEANING', 'MAINTENANCE', 'CAREGIVER'] },
 ];
 
 // Sprint Coordinador (jun-2026) — hub compartido. Roles que ven la sección:
@@ -69,8 +72,32 @@ const RRHH_RUTAS_EXCLUIDAS = [
 ];
 
 function seccionesParaRol(secciones: any[], role?: string | null) {
-    if (role !== 'HR_MANAGER') return secciones;
-    return secciones
+    // Las funciones dormidas desaparecen del menu para todos, antes de
+    // cualquier filtro de rol. No estan rotas: el hogar decidio no usarlas
+    // todavia, y dejarlas visibles ensena a ignorar la pantalla.
+    const despiertas = secciones.map(sec => ({
+        ...sec,
+        links: sec.links.filter((l: any) =>
+            !l.dormida || !estaDormida(l.dormida as keyof typeof FUNCIONES_DORMIDAS)),
+    })).filter(sec => sec.links.length > 0);
+
+    // Sin repetidos. La misma pantalla aparecia en dos secciones —
+    // "Citas Familiares" salia DOS VECES con el mismo nombre y la misma ruta, y
+    // /corporate/family-broadcast figuraba como "Mensaje a Familias" y como
+    // "Comunicado Global". Quien tiene los dos roles las veia duplicadas y no
+    // sabia cual abrir. Se queda la primera aparicion.
+    const vistos = new Set<string>();
+    const sinRepetir = despiertas.map(sec => ({
+        ...sec,
+        links: sec.links.filter((l: any) => {
+            if (vistos.has(l.href)) return false;
+            vistos.add(l.href);
+            return true;
+        }),
+    })).filter(sec => sec.links.length > 0);
+
+    if (role !== 'HR_MANAGER') return sinRepetir;
+    return sinRepetir
         .filter(sec => RRHH_SECCIONES.includes(sec.title))
         .map(sec => ({
             ...sec,
@@ -88,7 +115,9 @@ const corporateNavigationSections = [
             { name: "Runbook Operacional", href: "/corporate/runbook", icon: FileText },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
             { name: "Limpieza & Sanitización", href: "/corporate/cleaning", icon: SprayCan },
-            { name: "CRM & Ventas", href: "/corporate/crm", icon: Users },
+            // Dormida el 26-ago-2026: cero leads desde que existe el sistema.
+            // Ver src/lib/funciones-dormidas.ts — el codigo y los endpoints siguen ahi.
+            { name: "CRM & Ventas", href: "/corporate/crm", icon: Users, dormida: "crm" },
             { name: "Calendario", href: "/corporate/calendar", icon: Calendar },
             { name: "Concierge Fulfillment", href: "/corporate/concierge", icon: Package },
             { name: "Mensaje a Familias", href: "/corporate/family-broadcast", icon: MessageSquare },

@@ -4,8 +4,21 @@ import { prisma } from '@/lib/prisma';
 import { startOfDay, endOfDay } from 'date-fns';
 import { z } from 'zod';
 
-const ALLOWED_ROLES_WRITE = ['CLEANING', 'MAINTENANCE'];
-const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+// CAREGIVER entra aqui el 26-ago-2026.
+//
+// El modulo se diseno para un puesto de limpieza. Yaileen Soto (CLEANING) hizo
+// LOS 971 registros del historico ella sola; al darse de baja, el registro se
+// detuvo en seco. Hoy las cuidadoras hacen la limpieza pero no podian anotarla:
+// ni veian el menu ni la API les dejaba escribir.
+//
+// El resultado era un hueco en el expediente — la limpieza SI ocurre y no
+// quedaba constancia de ninguna, que en un hogar regulado es justo lo que una
+// inspeccion pide ver.
+//
+// Cuando se contrate a alguien de limpieza, esto no estorba: sigue pudiendo
+// escribir igual.
+const ALLOWED_ROLES_WRITE = ['CLEANING', 'MAINTENANCE', 'CAREGIVER'];
+const ALLOWED_ROLES_READ = ['CLEANING', 'MAINTENANCE', 'CAREGIVER', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 // ~1.5MB en base64 ≈ ~1.1MB de imagen real. La UI comprime a 500px JPEG 0.8
 // (~30-60KB), así que este cap es un techo de seguridad contra clientes

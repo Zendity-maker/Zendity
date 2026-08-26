@@ -25,6 +25,27 @@ export const FUNCIONES_DORMIDAS = {
      * endpoint y los 75 registros siguen donde estaban.
      */
     rondasDeInspeccion: false,
+
+    /**
+     * CRM y Ventas — captación y seguimiento de prospectos.
+     *
+     * Dormida el 26-ago-2026 por decisión de Andrés: "no se está usando,
+     * podemos dormirlo". CERO leads registrados desde que existe el sistema.
+     * No se probó y se abandonó: nunca se empezó.
+     *
+     * Para despertarla: `crm: true`. La pantalla, los endpoints y el webhook
+     * de VAPI siguen donde están.
+     */
+    crm: false,
+
+    /**
+     * Documentos Legales — repositorio de contratos y documentación del hogar.
+     *
+     * Dormida el 26-ago-2026 por decisión de Andrés. CERO documentos cargados.
+     *
+     * Para despertarla: `documentosLegales: true`.
+     */
+    documentosLegales: false,
 } as const;
 
 export function estaDormida(f: keyof typeof FUNCIONES_DORMIDAS): boolean {
