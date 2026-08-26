@@ -102,37 +102,26 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
         }),
     ]);
 
-    // Color que cubre cada quien hoy. Son DOS fuentes: la pauta del horario
-    // (ScheduledShift.colorGroup) y las coberturas puntuales
-    // (ShiftColorAssignment). Mirar solo la segunda dejaba a todo el mundo "sin
-    // color", porque la mayoria de los dias nadie necesita cobertura extra.
+    // El color de cada quien sale del resolutor CANONICO, el mismo que usan
+    // shift/preview y shift/end. No se reimplementa aqui.
     //
-    // Una pauta liberada (releasedAt) deja de contar como color de esa persona.
-    const [pautas, coberturas] = await Promise.all([
-        prisma.scheduledShift.findMany({
-            where: {
-                schedule: { headquartersId: hqId },
-                date: { gte: inicioDia },
-                isAbsent: false,
-                releasedAt: null,
-                colorGroup: { not: null },
-            },
-            select: { userId: true, colorGroup: true },
-        }),
-        prisma.shiftColorAssignment.findMany({
-            where: { headquartersId: hqId, assignedAt: { gte: inicioDia } },
-            select: { userId: true, color: true },
-        }),
-    ]);
+    // Su regla es que la cobertura REEMPLAZA a la pauta, no se le suma:
+    //
+    //     if (fromAssignments.length > 0) return fromAssignments;
+    //     if (fromLegacy.length > 0)      return fromLegacy;
+    //
+    // Una primera version de este archivo las sumaba, y el dashboard mostraba a
+    // Zuleyka cubriendo tres colores mientras el panel del supervisor mostraba
+    // uno. El propio schema llama a ese error "D1 aditivo" y documenta que ya
+    // se corrigio una vez —el campo ScheduledShift.releasedAt existe por eso—.
+    // Reimplementar una regla que ya vive en otro sitio es como se vuelve a
+    // caer en ella.
+    const { resolveColorGroupsForCaregiver } = await import('@/lib/shift-closure-report');
     const porUsuario = new Map<string, string[]>();
-    const anotar = (userId: string, color: string | null) => {
-        if (!color) return;
-        const l = porUsuario.get(userId) ?? [];
-        if (!l.includes(color)) l.push(color);
-        porUsuario.set(userId, l);
-    };
-    pautas.forEach(p => anotar(p.userId, p.colorGroup));
-    coberturas.forEach(c => anotar(c.userId, c.color));
+    await Promise.all(sesiones.map(async s => {
+        porUsuario.set(s.caregiverId,
+            await resolveColorGroupsForCaregiver(s.caregiverId, hqId, s.startTime));
+    }));
 
     // Ausencias del dia. El dato existia y no aparecia en ninguna pantalla del
     // director: habia que ir al constructor de horarios a buscarlo.
