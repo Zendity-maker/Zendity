@@ -79,6 +79,10 @@
     {
       "path": "/api/cron/certificaciones-por-vencer",
       "schedule": "30 11 * * 1"
+    },
+    {
+      "path": "/api/cron/recordatorio-formacion",
+      "schedule": "0 12 * * 1"
     }
   ]
 }

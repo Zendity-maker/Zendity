@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { formacionDe } from '@/lib/formacion';
 import { datosBaja } from '@/lib/staff-status';
 import { asignarRutaIngreso, asignarRutaCertificacion, requiereCertificacion } from '@/lib/academy-assign';
 import { getServerSession } from "next-auth/next";
@@ -88,14 +89,26 @@ export async function GET(request: Request) {
             }
         }
 
+        // Formacion continua de cada uno. Va aqui y no en una pantalla aparte
+        // porque este es el directorio donde la supervisora ya mira a su gente:
+        // una vista que hay que ir a buscar no se mira.
+        const formaciones = new Map<string, any>();
+        await Promise.all(staff.map(async s => {
+            formaciones.set(s.id, await formacionDe(s.id));
+        }));
+
         const staffWithLastEval = staff.map(s => {
             const { pinCode, ...safeFields } = s;
             const le = lastEvalByEmployee.get(s.id);
+            const f = formaciones.get(s.id);
             return {
                 ...safeFields,
                 hasPinCode: !!pinCode,   // booleano — nunca el hash
                 lastEvalDate: le?.createdAt || null,
                 lastEvalScore: le?.score ?? null,
+                formacionPct: f?.porcentaje ?? null,
+                formacionAprobados: f?.aprobados ?? null,
+                formacionMeta: f?.meta ?? null,
             };
         });
 

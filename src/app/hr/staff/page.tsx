@@ -144,6 +144,7 @@ export default function ZendityStaffDirectoryPage() {
                                 <th className="px-6 py-5">Empleado</th>
                                 <th className="px-6 py-5">Rol / Titulación</th>
                                 <th className="px-6 py-5 text-center">Metric Score</th>
+                                <th className="px-6 py-5 text-center">Formación</th>
                                 <th className="px-6 py-5 text-center">Estado (Turnos)</th>
                                 <th className="px-6 py-5 text-right flex justify-end">Acciones</th>
                             </tr>
@@ -187,6 +188,27 @@ export default function ZendityStaffDirectoryPage() {
                                                 / 100 PTA.
                                             </span>
                                         </div>
+                                    </td>
+                                    {/* Formacion continua — cursos aprobados frente a la meta
+                                        prorrateada. Va junto al Metric Score a proposito: los dos
+                                        miden cosas distintas y verlos uno al lado del otro es lo
+                                        que revela el hueco. Zuleyka tenia 100 de score con CERO
+                                        cursos, y ese contraste no se veia en ninguna pantalla. */}
+                                    <td className="px-6 py-4 text-center">
+                                        {emp.formacionMeta === null ? (
+                                            <span className="text-slate-300">—</span>
+                                        ) : emp.formacionMeta === 0 ? (
+                                            <span className="text-[11px] font-bold text-slate-400">recién entra</span>
+                                        ) : (
+                                            <div className="flex flex-col items-center">
+                                                <span className={`text-lg font-black ${emp.formacionPct >= 100 ? 'text-emerald-600' : emp.formacionPct >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                                    {emp.formacionAprobados}<span className="text-slate-300">/{emp.formacionMeta}</span>
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                                    cursos
+                                                </span>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         {emp.isShiftBlocked ? (
