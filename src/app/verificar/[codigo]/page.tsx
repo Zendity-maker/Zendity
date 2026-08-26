@@ -23,6 +23,7 @@ export default async function ResultadoVerificacion({
 
     const valido = r.valido;
     const revocado = r.motivo === 'REVOCADO';
+    const vencido = r.motivo === 'VENCIDO';
     const codigo = r.codigo;
 
     return (
@@ -32,17 +33,24 @@ export default async function ResultadoVerificacion({
                     Zéndity Academy
                 </p>
 
-                <div className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${valido ? 'border-emerald-200' : revocado ? 'border-amber-200' : 'border-slate-200'}`}>
-                    <div className={`px-6 py-5 ${valido ? 'bg-emerald-50' : revocado ? 'bg-amber-50' : 'bg-slate-100'}`}>
-                        <p className={`font-black text-lg ${valido ? 'text-emerald-800' : revocado ? 'text-amber-800' : 'text-slate-600'}`}>
-                            {valido ? 'Certificado auténtico' : revocado ? 'Certificado revocado' : 'No encontrado'}
+                <div className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${valido ? 'border-emerald-200' : (revocado || vencido) ? 'border-amber-200' : 'border-slate-200'}`}>
+                    <div className={`px-6 py-5 ${valido ? 'bg-emerald-50' : (revocado || vencido) ? 'bg-amber-50' : 'bg-slate-100'}`}>
+                        <p className={`font-black text-lg ${valido ? 'text-emerald-800' : (revocado || vencido) ? 'text-amber-800' : 'text-slate-600'}`}>
+                            {valido ? 'Certificado auténtico'
+                                : vencido ? 'Certificación vencida'
+                                : revocado ? 'Certificado revocado'
+                                : 'No encontrado'}
                         </p>
-                        <p className={`text-sm mt-1 ${valido ? 'text-emerald-700' : revocado ? 'text-amber-700' : 'text-slate-500'}`}>
+                        <p className={`text-sm mt-1 ${valido ? 'text-emerald-700' : (revocado || vencido) ? 'text-amber-700' : 'text-slate-500'}`}>
                             {valido
                                 ? 'Este código corresponde a una certificación emitida por Zéndity.'
-                                : revocado
-                                    ? 'Este certificado existió y fue anulado. Ya no acredita la formación.'
-                                    : 'Ningún certificado corresponde a este código.'}
+                                : vencido
+                                    // Vencido no es lo mismo que falso. Esta persona SI aprobo el
+                                    // curso ese dia; lo que caduco es la acreditacion.
+                                    ? 'Esta persona aprobó el curso, pero la certificación caducó y debe renovarse.'
+                                    : revocado
+                                        ? 'Este certificado existió y fue anulado. Ya no acredita la formación.'
+                                        : 'Ningún certificado corresponde a este código.'}
                         </p>
                     </div>
 
@@ -53,7 +61,12 @@ export default async function ResultadoVerificacion({
                                 [r.tipo === 'MAESTRO' ? 'Programa' : 'Curso', r.curso ?? '—'],
                                 ...(valido ? [
                                     ['Aprobado el', fecha(r.aprobadoEl ?? null)],
+                                    ...(r.venceEl ? [['Válido hasta', fecha(r.venceEl)] as [string, string]] : []),
                                     ...(r.duracionMin ? [['Duración', `${r.duracionMin} minutos`] as [string, string]] : []),
+                                    ['Sede certificadora', r.sede ?? '—'],
+                                ] : vencido ? [
+                                    ['Aprobado el', fecha(r.aprobadoEl ?? null)],
+                                    ['Venció el', fecha(r.venceEl ?? null)],
                                     ['Sede certificadora', r.sede ?? '—'],
                                 ] : [
                                     ['Revocado el', fecha(r.revocadoEl ?? null)],

@@ -26,6 +26,28 @@
 import { randomInt } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
+/**
+ * Una certificacion acredita durante UN ANO desde que se aprobo el curso.
+ *
+ * Decidido con Andres el 26-ago-2026. Vencer es informativo: se marca, se
+ * avisa y el curso vuelve a asignarse, pero no bloquea a nadie. Una
+ * certificacion al dia es una meta de cumplimiento, no un candado de acceso —
+ * un vencimiento un domingo por la noche no puede dejar el piso sin cuidadora.
+ */
+export const VIGENCIA_MESES = 12;
+
+/** Fecha de vencimiento a partir de la de aprobacion. */
+export function calcularVencimiento(aprobadoEl: Date): Date {
+    const v = new Date(aprobadoEl);
+    v.setMonth(v.getMonth() + VIGENCIA_MESES);
+    return v;
+}
+
+/** Dias que faltan para vencer. Negativo si ya vencio. */
+export function diasParaVencer(vence: Date): number {
+    return Math.ceil((vence.getTime() - Date.now()) / 86400000);
+}
+
 const ALFABETO = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
 const LARGO = 6;
 
@@ -80,7 +102,13 @@ export async function emitirCodigo(userCourseId: string): Promise<string | null>
             // dice si ganamos la carrera.
             const r = await prisma.userCourse.updateMany({
                 where: { id: userCourseId, certificateCode: null },
-                data: { certificateCode: codigo, certificateIssuedAt: new Date() },
+                data: {
+                    certificateCode: codigo,
+                    certificateIssuedAt: new Date(),
+                    // Se cuenta desde que APROBO, no desde que imprime: si
+                    // imprime seis meses despues, la vigencia no se estira.
+                    certificateExpiresAt: calcularVencimiento(uc.completedAt ?? new Date()),
+                },
             });
             if (r.count === 1) return codigo;
             const yaTiene = await prisma.userCourse.findUnique({
@@ -145,7 +173,7 @@ export async function emitirCodigoMaestro(userId: string): Promise<string | null
 
 export interface CertificadoVerificado {
     valido: boolean;
-    motivo?: 'FORMATO' | 'NO_EXISTE' | 'REVOCADO';
+    motivo?: 'FORMATO' | 'NO_EXISTE' | 'REVOCADO' | 'VENCIDO';
     codigo: string;
     tipo?: 'CURSO' | 'MAESTRO';
     nombre?: string;
@@ -154,6 +182,7 @@ export interface CertificadoVerificado {
     aprobadoEl?: Date | null;
     emitidoEl?: Date | null;
     revocadoEl?: Date | null;
+    venceEl?: Date | null;
     sede?: string;
 }
 
@@ -176,6 +205,7 @@ export async function buscarCertificado(entrada: string): Promise<CertificadoVer
             status: true,
             completedAt: true,
             certificateIssuedAt: true,
+            certificateExpiresAt: true,
             certificateRevokedAt: true,
             employee: { select: { name: true } },
             course: { select: { title: true, durationMins: true } },
@@ -192,15 +222,30 @@ export async function buscarCertificado(entrada: string): Promise<CertificadoVer
                 revocadoEl: uc.certificateRevokedAt,
             };
         }
-        return {
-            valido: true, codigo, tipo: 'CURSO',
+        // Vigencia: la guardada manda. El fallback a completedAt + 1 ano es
+        // para los certificados emitidos antes de esta funcion — esos se
+        // imprimieron sin fecha de vencimiento, asi que no hay papel que
+        // pueda contradecir lo que calculemos ahora.
+        const vence = uc.certificateExpiresAt
+            ?? (uc.completedAt ? calcularVencimiento(uc.completedAt) : null);
+        const vencido = !!vence && vence.getTime() < Date.now();
+
+        const base = {
+            codigo, tipo: 'CURSO' as const,
             nombre: uc.employee.name,
             curso: uc.course.title,
             duracionMin: uc.course.durationMins,
             aprobadoEl: uc.completedAt,
             emitidoEl: uc.certificateIssuedAt,
+            venceEl: vence,
             sede: uc.headquarters.name,
         };
+
+        // Vencido NO es lo mismo que inexistente. La persona SI aprobo ese
+        // curso ese dia; lo que caduco es la acreditacion. Quien verifica
+        // necesita distinguir "nunca lo tuvo" de "lo tuvo y se le paso".
+        if (vencido) return { ...base, valido: false, motivo: 'VENCIDO' };
+        return { ...base, valido: true };
     }
 
     const maestro = await prisma.user.findUnique({

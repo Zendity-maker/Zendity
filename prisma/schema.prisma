@@ -1236,6 +1236,15 @@ model UserCourse {
   /// siguiente.
   certificateCode          String?   @unique
   certificateIssuedAt      DateTime?
+  /// Hasta cuando acredita. Se GUARDA en vez de calcularse al vuelo porque el
+  /// PDF impreso dice "Valido hasta X": una vez que ese papel existe, el
+  /// sistema tiene que respetar esa fecha aunque manana cambie la politica.
+  /// Calcularla cada vez haria que el papel y la pantalla se contradijeran.
+  ///
+  /// Nulo en los certificados emitidos antes de esta funcion — para esos se
+  /// deduce de completedAt, y no hay papel que pueda contradecirlo porque se
+  /// imprimieron sin fecha de vencimiento.
+  certificateExpiresAt     DateTime?
   /// Para anular un certificado sin borrarlo. La pagina de verificacion debe
   /// poder decir "existio y fue revocado", que no es lo mismo que "no existe".
   certificateRevokedAt     DateTime?

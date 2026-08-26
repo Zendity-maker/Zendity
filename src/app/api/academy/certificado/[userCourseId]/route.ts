@@ -34,6 +34,7 @@ export async function GET(
                 id: true,
                 status: true,
                 completedAt: true,
+                certificateExpiresAt: true,
                 headquartersId: true,
                 employeeId: true,
                 certificateRevokedAt: true,
@@ -72,6 +73,11 @@ export async function GET(
             curso: uc.course.title,
             // La fecha real de aprobación, no la de hoy.
             aprobadoEl: uc.completedAt,
+            // Se relee tras emitir: emitirCodigo lo escribe, asi que el objeto
+            // de arriba puede traerlo nulo la primera vez.
+            venceEl: (await prisma.userCourse.findUnique({
+                where: { id: userCourseId }, select: { certificateExpiresAt: true },
+            }))?.certificateExpiresAt ?? null,
             sede: uc.headquarters.name,
         });
     } catch (e: any) {

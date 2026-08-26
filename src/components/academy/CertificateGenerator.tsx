@@ -94,7 +94,7 @@ const BASE_VERIFICACION = 'https://app.zendity.com/verificar';
  * un certificado firmado por alguien que ya no trabaja aqui envejece mal, y
  * quien responde por la formacion es la plataforma.
  */
-async function drawPie(doc: jsPDF, W: number, codigo: string, sede: string, yBase: number) {
+async function drawPie(doc: jsPDF, W: number, codigo: string, sede: string, yBase: number, venceEl?: string | Date | null) {
     const url = `${BASE_VERIFICACION}/${codigo}`;
 
     // ── Izquierda: QR + codigo ──
@@ -118,6 +118,18 @@ async function drawPie(doc: jsPDF, W: number, codigo: string, sede: string, yBas
     doc.setTextColor(GRAY);
     doc.text('Verifica este certificado en', 48, yBase + 7, { align: 'center' });
     doc.text('app.zendity.com/verificar', 48, yBase + 10.5, { align: 'center' });
+
+    // Vigencia, centrada bajo el sello. Va en el papel a proposito: quien lo
+    // recibe tiene que poder ver hasta cuando acredita sin escanear nada.
+    if (venceEl) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(SLATE2);
+        doc.text(
+            `Válido hasta ${new Date(venceEl).toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+            W / 2, yBase + 16, { align: 'center' },
+        );
+    }
 
     // ── Derecha: la unica firma ──
     doc.setDrawColor(SLATE2);
@@ -157,6 +169,9 @@ export interface DatosCertificado {
     /** Codigo emitido por el servidor. Sin el no se dibuja el certificado. */
     codigo: string;
     sede: string;
+    /** Hasta cuando acredita. Se imprime en el papel, asi que una vez impreso
+     *  el sistema tiene que respetar esta fecha. */
+    venceEl?: string | Date | null;
 }
 
 const fechaLarga = (d: string | Date) =>
@@ -233,7 +248,7 @@ export async function generateZendityCertificate(datos: DatosCertificado) {
     doc.text(`Otorgado el ${completionDate}`, W / 2, 142, { align: 'center' });
 
     drawSeal(doc, W / 2, 162, 18, 'CERTIFICADO', 'OFICIAL');
-    await drawPie(doc, W, datos.codigo, datos.sede, 165);
+    await drawPie(doc, W, datos.codigo, datos.sede, 165, datos.venceEl);
 
     // Bottom band text
     doc.setTextColor(GOLD_LIGHT);
@@ -358,7 +373,7 @@ export async function generateZendityMasterCertificate(
     doc.text(`Certificación completada el ${completionDate}`, W / 2, 144, { align: 'center' });
 
     drawSeal(doc, W / 2, 163, 14, 'CERTIFICADO', 'GERIÁTRICO');
-    await drawPie(doc, W, datos.codigo, datos.sede, 168);
+    await drawPie(doc, W, datos.codigo, datos.sede, 168, datos.venceEl);
 
     // Bottom band
     doc.setTextColor(GOLD_LIGHT);

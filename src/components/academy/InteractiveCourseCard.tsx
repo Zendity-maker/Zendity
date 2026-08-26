@@ -174,6 +174,7 @@ export default function InteractiveCourseCard({ course, user, initialStatus, onC
                 aprobadoEl: d.aprobadoEl,
                 codigo: d.codigo,
                 sede: d.sede,
+                venceEl: d.venceEl,
             });
         } catch {
             alert('No se pudo emitir el certificado. Intenta de nuevo.');
