@@ -60,11 +60,30 @@ export async function GET(request: Request) {
                 orderBy: { category: 'asc' }
             });
         }
+        // Un servicio sin especialista ACTIVO no se puede dar. Ofrecerlo igual
+        // es prometerle a la familia algo que alguien tendra que rechazar — y
+        // asi se perdio la unica cita que llegaron a pedir: se acepto una
+        // barberia y luego no habia quien la hiciera.
+        //
+        // Hoy los cuatro servicios del catalogo tienen CERO especialistas
+        // activos: los dos registrados (un terapista y una tecnica de unas)
+        // estan dados de baja.
+        const rolesConGente = new Set(
+            (await prisma.user.groupBy({
+                by: ['role'],
+                where: { headquartersId: familyMember.headquartersId, isActive: true, isDeleted: false },
+            })).map(g => g.role as string),
+        );
+        const serviciosConDisponibilidad = services.map(sv => ({
+            ...sv,
+            disponible: rolesConGente.has(sv.providerType as unknown as string),
+        }));
+
 
         return NextResponse.json({
             success: true,
             products,
-            services,
+            services: serviciosConDisponibilidad,
             // Sin prepago no hay saldo que mostrar. Se deja en 0 para no romper
             // el contrato de la pantalla mientras se limpia.
             balance: 0,
@@ -137,6 +156,24 @@ export async function POST(request: Request) {
             if (!serv) return NextResponse.json({ success: false, error: 'Servicio no encontrado' }, { status: 404 });
             itemName = serv.name;
             itemCategory = serv.category;
+
+            // Se comprueba EN EL SERVIDOR, no solo en la pantalla: aceptar una
+            // cita que nadie puede atender es como se perdio la unica que
+            // llegaron a pedir.
+            const disponibles = await prisma.user.count({
+                where: {
+                    headquartersId: familyMember.headquartersId,
+                    isActive: true,
+                    isDeleted: false,
+                    role: serv.providerType,
+                },
+            });
+            if (disponibles === 0) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Este servicio no está disponible por ahora. Habla con la administración del hogar.',
+                }, { status: 400 });
+            }
             // Los servicios se facturan en la cuenta mensual — no requieren saldo previo
         }
 
