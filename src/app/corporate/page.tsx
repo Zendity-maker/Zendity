@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake, X, ChevronRight } from 'lucide-react';
 import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
+import EstadoHoy from '@/components/corporate/EstadoHoy';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -506,7 +507,88 @@ export default function CorporateDashboardPage() {
                 <OnboardingChecklist hqId={selectedFacility} />
             )}
 
-            {/* 0. Zendi Director Briefing (solo DIRECTOR/ADMIN) */}
+            {/* 1. Header & Global Selector */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard Gerencial</h1>
+                    <p className="text-xs text-slate-500 mt-0.5">Visión consolidada y mando central de todas las dependencias.</p>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                    {canSelectFacility ? (
+                        /* Segmented chips — una por sede + "Todas" */
+                        <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl p-1 shadow-sm">
+                            {facilities.map(f => {
+                                const isActive = selectedFacility === f.id;
+                                const label = f.name.trim().replace('Consolidado Global (Todas las Sedes)', 'Todas').replace('Vivid Senior Living ', '');
+                                return (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => setSelectedFacility(f.id)}
+                                        className={`text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                                            isActive
+                                                ? 'bg-[#0F6B78] text-white shadow-sm'
+                                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                                        }`}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ) : facilities.length > 0 && (
+                        <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl font-bold px-4 py-2.5 inline-flex items-center gap-2 shadow-sm">
+                            <Building2 className="w-4 h-4 text-slate-500" />
+                            {facilities[0].name.trim()}
+                        </div>
+                    )}
+
+                    {/* Botón Bandeja Family Link */}
+                    <button
+                        onClick={() => { setShowInbox(true); setActiveThread(null); }}
+                        className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
+                    >
+                        <MessageSquare className="w-3.5 h-3.5" /> Chats Familiares
+                        {inboxThreads.some(t => t.unreadCount > 0) && (
+                            <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                                {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
+                            </span>
+                        )}
+                    </button>
+
+                    {/* Botón Chat Staff (Sprint G-C) */}
+                    <button
+                        onClick={() => window.dispatchEvent(new CustomEvent('zendity:open-staff-chat'))}
+                        className="relative bg-[#0F6B78] hover:bg-[#0d5a66] text-white border border-[#0F6B78] font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
+                        title="Chat interno del equipo"
+                    >
+                        <Radio className="w-3.5 h-3.5" /> Chat Staff
+                    </button>
+
+                    <Link href="/corporate/hr" className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        RRHH
+                    </Link>
+
+                    <Link href="/corporate/triage" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Triage
+                    </Link>
+                </div>
+            </div>
+
+            {/* HOY — lo primero despues del encabezado.
+                Andres lo describio asi: quien esta en turno, quien se ausento,
+                si hay una emergencia corriendo y como va el turno. Nada de eso
+                estaba junto, y las ausencias no aparecian en ninguna parte del
+                dashboard. */}
+            <EstadoHoy hqId={selectedFacility} />
+
+            {/* Zendi Director Briefing.
+                Estaba ENCIMA del encabezado: abrias el dashboard y lo primero
+                era un bloque de prosa, antes de saber en que pantalla y en que
+                sede estabas. Ahora va debajo, y despues de "Hoy" — porque el
+                estado real manda sobre su narracion. */}
             {isDirector && (
                 <div className="bg-gradient-to-br from-[#0F6B78]/5 via-white to-[#E5A93D]/5 border border-[#0F6B78]/20 rounded-xl p-4 shadow-sm">
                     <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -609,80 +691,14 @@ export default function CorporateDashboardPage() {
                 </div>
             )}
 
-            {/* 1. Header & Global Selector */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard Gerencial</h1>
-                    <p className="text-xs text-slate-500 mt-0.5">Visión consolidada y mando central de todas las dependencias.</p>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                    {canSelectFacility ? (
-                        /* Segmented chips — una por sede + "Todas" */
-                        <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-xl p-1 shadow-sm">
-                            {facilities.map(f => {
-                                const isActive = selectedFacility === f.id;
-                                const label = f.name.trim().replace('Consolidado Global (Todas las Sedes)', 'Todas').replace('Vivid Senior Living ', '');
-                                return (
-                                    <button
-                                        key={f.id}
-                                        onClick={() => setSelectedFacility(f.id)}
-                                        className={`text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
-                                            isActive
-                                                ? 'bg-[#0F6B78] text-white shadow-sm'
-                                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
-                                        }`}
-                                    >
-                                        {label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    ) : facilities.length > 0 && (
-                        <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl font-bold px-4 py-2.5 inline-flex items-center gap-2 shadow-sm">
-                            <Building2 className="w-4 h-4 text-slate-500" />
-                            {facilities[0].name.trim()}
-                        </div>
-                    )}
-
-                    {/* Botón Bandeja Family Link */}
-                    <button
-                        onClick={() => { setShowInbox(true); setActiveThread(null); }}
-                        className="relative bg-white text-slate-800 border border-slate-200 hover:border-teal-400 font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
-                    >
-                        <MessageSquare className="w-3.5 h-3.5" /> Chats Familiares
-                        {inboxThreads.some(t => t.unreadCount > 0) && (
-                            <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
-                                {inboxThreads.reduce((acc, t) => acc + t.unreadCount, 0)}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* Botón Chat Staff (Sprint G-C) */}
-                    <button
-                        onClick={() => window.dispatchEvent(new CustomEvent('zendity:open-staff-chat'))}
-                        className="relative bg-[#0F6B78] hover:bg-[#0d5a66] text-white border border-[#0F6B78] font-bold text-sm py-2 px-4 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-1.5"
-                        title="Chat interno del equipo"
-                    >
-                        <Radio className="w-3.5 h-3.5" /> Chat Staff
-                    </button>
-
-                    <Link href="/corporate/hr" className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        RRHH
-                    </Link>
-
-                    <Link href="/corporate/triage" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Triage
-                    </Link>
-                </div>
-            </div>
 
             {/* 2. Top-Level KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {[
-                    {
+                    // Con una sola sede esta tarjeta dice "1" y ocupa un tercio
+                    // de la fila principal. Solo aparece cuando hay mas de una
+                    // y por tanto el numero significa algo.
+                    ...(kpis.activeHqs > 1 ? [{
                         label: "Sedes Activas",
                         value: kpis.activeHqs.toString(),
                         sub: kpis.totalCapacity !== null ? `Capacidad Total: ${kpis.totalCapacity} camas` : "Capacidad no registrada",
@@ -690,7 +706,7 @@ export default function CorporateDashboardPage() {
                         delta: null as number | null,
                         deltaSuffix: '%',
                         deltaInverted: false,
-                    },
+                    }] : []),
                     {
                         label: "Residentes Actuales",
                         value: kpis.totalPatients.toString(),
@@ -781,7 +797,11 @@ export default function CorporateDashboardPage() {
                             { key: 'activeCaregivers',  label: 'Cuidadores activos',      value: live.chips.activeCaregivers,  icon: UserCheck,    tone: 'teal'   },
                             { key: 'bathsToday',        label: 'Baños hoy',               value: live.chips.bathsToday,        icon: Bath,         tone: 'sky'    },
                             { key: 'mealsToday',        label: 'Comidas hoy',             value: live.chips.mealsToday,        icon: UtensilsCrossed, tone: 'amber' },
-                            { key: 'incidentsWeek',     label: 'Incidentes (7d)',          value: live.chips.incidentsWeek,     icon: AlertOctagon, tone: live.chips.incidentsWeek > 3 ? 'red' : 'slate' },
+                    // 'Incidentes (7d)' vivia aqui, en la sala de "en este
+                    // momento". Es una metrica SEMANAL: mezclaba la escala del
+                    // dia con la de la semana y confundia la lectura. Su sitio
+                    // son las tendencias, que es donde se mira una vez por
+                    // semana.
                             { key: 'triageOpen',        label: 'Triage abierto',           value: live.chips.triageOpen,        icon: Siren,        tone: live.chips.triageOpen > 0 ? 'amber' : 'slate'  },
                             { key: 'handoversPending',  label: 'Handovers pend.',          value: live.chips.handoversPending,  icon: FileSignature,tone: live.chips.handoversPending > 0 ? 'amber' : 'slate' },
                             { key: 'zombiePatients',    label: 'Sin actividad hoy',        value: live.chips.zombiePatients,    icon: Activity,     tone: live.chips.zombiePatients > 0 ? 'red' : 'emerald' },
@@ -913,7 +933,9 @@ export default function CorporateDashboardPage() {
                                         </div>
                                     ))}
 
-                                    {/* incidentsWeek */}
+                                    {/* incidentsWeek — inalcanzable desde que el chip salio
+                                        de la sala de mando. Se conserva por si vuelve a las
+                                        tendencias, donde si tiene sentido. */}
                                     {activeChip === 'incidentsWeek' && list.map((r: any) => (
                                         <Link
                                             key={r.id}
