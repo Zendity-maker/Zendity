@@ -30,6 +30,10 @@ export interface TriageTicket {
     authorId?: string | null;
     authorName?: string | null;
     authorRole?: string | null;
+    /** Solo UPP_SLA: a quién hay que rotar. Es lo único que apaga esta alerta. */
+    patientIdParaRotar?: string | null;
+    /** Solo UPP_SLA: hora de la última rotación, para que la reaparición se explique. */
+    ultimaRotacion?: string | null;
     urgency: string;
     createdAt: string;
     items?: TriageTicket[];

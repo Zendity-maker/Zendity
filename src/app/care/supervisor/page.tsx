@@ -1438,6 +1438,16 @@ export default function SupervisorMissionControlPage() {
                                                 previewLines={2}
                                                 className="text-sm font-medium text-slate-600"
                                             />
+                                            {/* Por que sigue aqui. Sin esto, una alerta que vuelve
+                                                despues de "atenderla" parece que el sistema te ignora
+                                                — y una funcion que parece ignorarte se deja de usar. */}
+                                            {ticket.sourceType === 'UPP_SLA' && (
+                                                <p className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2 inline-block">
+                                                    {ticket.ultimaRotacion
+                                                        ? `Sigue vencida desde las ${ticket.ultimaRotacion}. Se apaga al registrar la rotación.`
+                                                        : 'Sin ninguna rotación registrada. Se apaga al registrar la primera.'}
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="w-full lg:w-56 shrink-0">
                                             {(() => {
@@ -1477,6 +1487,12 @@ export default function SupervisorMissionControlPage() {
                                                 const incidentSeverity = (ticket.description || '').toLowerCase();
                                                 const isCriticalIncident = isIncident && (incidentSeverity.includes('(critical)') || incidentSeverity.includes('(severe)') || ticket.urgency === 'INMINENTE');
                                                 const isFamilyComplaint = ticket.sourceType === 'COMPLAINT' && cat === 'FAMILY';
+                                                // Una rotacion vencida NO se apaga despachando una tarea:
+                                                // se apaga rotando al residente. Zuleyka completo la tarea
+                                                // a las 18:21 y la alerta volvio a las 19:06 — era correcto,
+                                                // no habia rotado a nadie entre medias, pero el boton decia
+                                                // "Despachar" y eso prometia algo que no puede cumplir.
+                                                const esRotacionUPP = ticket.sourceType === 'UPP_SLA';
 
                                                 return (
                                                     <div className="flex flex-col gap-2">
@@ -1503,6 +1519,15 @@ export default function SupervisorMissionControlPage() {
                                                                     <Send className="w-3 h-3" /> Despachar
                                                                 </button>
                                                             </>
+                                                        ) : esRotacionUPP ? (
+                                                            /* Lleva directo a registrar la rotacion, que es
+                                                               lo unico que apaga esta alerta. */
+                                                            <Link
+                                                                href={`/care/nursing?patientId=${ticket.patientIdParaRotar ?? ticket.sourceId}`}
+                                                                className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors"
+                                                            >
+                                                                <Siren className="w-4 h-4" /> Registrar rotación
+                                                            </Link>
                                                         ) : isFamilyComplaint ? (
                                                             <button
                                                                 onClick={() => setDispatchingTicket(ticket)}

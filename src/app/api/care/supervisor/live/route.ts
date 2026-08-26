@@ -23,6 +23,10 @@ export interface TriageTicket {
     authorId?: string | null;
     authorName?: string | null;
     authorRole?: string | null;
+    /** Solo UPP_SLA: a quién hay que rotar. Es lo único que apaga esta alerta. */
+    patientIdParaRotar?: string | null;
+    /** Solo UPP_SLA: hora de la última rotación, para que la reaparición se explique. */
+    ultimaRotacion?: string | null;
     urgency: string;
     createdAt: Date;
     items?: TriageTicket[];
@@ -389,18 +393,36 @@ export async function GET(req: Request) {
             // esta lista digan lo mismo. Antes el feed usaba 2.5 h y el badge
             // otra cosa, así que el número y la lista no cuadraban.
             const hrs = horasDesdeRotacion(ultima);
+            // La hora de la ULTIMA rotacion, no solo cuantas horas van.
+            //
+            // Zuleyka completo esta tarea a las 18:21 y volvio a las 19:06. Era
+            // correcto —no habia rotado a nadie entre medias— pero desde su
+            // lado parecia que el sistema la ignoraba. Decir "sigue vencida
+            // desde las 14:14" convierte la reaparicion en informacion en vez
+            // de en un fallo aparente.
+            const desde = ultima
+                ? new Intl.DateTimeFormat('es-PR', {
+                    hour: '2-digit', minute: '2-digit', hour12: false,
+                    timeZone: 'America/Puerto_Rico',
+                  }).format(ultima)
+                : null;
             triageFeed.push({
                 id: `upp_sla_${px.id}`,
                 sourceId: px.id,
                 sourceType: 'UPP_SLA',
                 category: 'UPP_PIEL',
                 title: 'SLA Clínico Vencido (Rotación UPP)',
+                // El sourceId es el patientId — lo necesita la UI para llevar
+                // directo a registrar la rotacion, que es lo unico que apaga
+                // esta alerta.
+                patientIdParaRotar: px.id,
+                ultimaRotacion: desde,
                 description: hrs === null
                     // Este caso antes desaparecía de la lista: el código exigía
                     // un último registro para poder comparar, así que quien
                     // nunca fue rotado no aparecía en ninguna parte.
                     ? `El paciente presenta UPP activa y NO tiene ningún registro de rotación. Requiere giro manual urgente.`
-                    : `El paciente presenta UPP activa y lleva ${hrs.toFixed(1)} hrs sin registro táctil de rotación (Límite 2hrs). Requiere giro manual urgente.`,
+                    : `Última rotación a las ${desde}. Lleva ${hrs.toFixed(1)} h sin girar y tiene úlcera activa.`,
                 patientId: px.id,
                 patientName: px.name,
                 urgency: hrs === null || hrs > 4 ? 'INMINENTE' : 'ATENCION',

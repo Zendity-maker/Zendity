@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
@@ -89,6 +89,12 @@ function fmtTime(iso: string | undefined | null): string {
 }
 
 export default function NursingRotationPage() {
+    // Se llega aqui desde el inbox del supervisor, que enlaza al residente
+    // concreto cuya rotacion esta vencida. Sin esto el enlace abriria la lista
+    // sin señalar a nadie — un parametro que la pantalla ignora es
+    // exactamente el tipo de promesa vacia que venimos retirando.
+    const paramsBusqueda = useSearchParams();
+    const residenteDestacado = paramsBusqueda.get('patientId');
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
 
@@ -298,7 +304,13 @@ export default function NursingRotationPage() {
                             const Icon = meta.icon;
                             const pulse = p.tier === 'OVERDUE';
                             return (
-                                <div key={p.patientId} className={`bg-white rounded-2xl border-2 ${meta.border} p-4 flex flex-col md:flex-row md:items-center gap-3 ${pulse ? 'shadow-md' : 'shadow-sm'}`}>
+                                <div
+                                    key={p.patientId}
+                                    ref={p.patientId === residenteDestacado
+                                        ? (el) => { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                                        : undefined}
+                                    className={`bg-white rounded-2xl border-2 ${meta.border} p-4 flex flex-col md:flex-row md:items-center gap-3 ${pulse ? 'shadow-md' : 'shadow-sm'} ${p.patientId === residenteDestacado ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`}
+                                >
                                     {/* Left: tier badge + name + room */}
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className={`w-12 h-12 rounded-xl ${meta.chipBg} ${meta.chipText} flex items-center justify-center shrink-0 ${pulse ? 'animate-pulse' : ''}`}>
