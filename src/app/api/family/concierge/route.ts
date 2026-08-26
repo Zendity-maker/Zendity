@@ -192,11 +192,10 @@ export async function POST(request: Request) {
 
             // ── CASO B: COMPRA DE PRODUCTO REGULAR ────────────────────────────
             else if (type === 'product') {
-                await tx.patient.update({
-                    where: { id: familyMember.patientId },
-                    data: { conciergeBalance: { decrement: price } }
-                });
-
+                // Ni se descuenta saldo ni se toca el stock todavia: el pedido
+                // queda PENDING hasta que alguien lo apruebe, y se cobra al
+                // ENTREGAR. Descontar aqui reservaria producto y dinero por algo
+                // que todavia puede rechazarse.
                 await tx.conciergeOrder.create({
                     data: {
                         patientId: familyMember.patientId,
@@ -206,70 +205,32 @@ export async function POST(request: Request) {
                         status: 'PENDING'
                     }
                 });
-
-                await tx.conciergeProduct.update({
-                    where: { id },
-                    data: { stock: { decrement: 1 } }
-                });
             }
 
             // ── CASO C: RESERVA DE SERVICIO CON FECHA → se carga a factura mensual ──
             else if (type === 'service') {
                 const scheduledDate = new Date(scheduledAt);
 
-                // Añadir a la factura mensual del residente
-                const startOfMonth = new Date();
-                startOfMonth.setDate(1);
-                startOfMonth.setHours(0, 0, 0, 0);
-
-                let currentInvoice = await tx.invoice.findFirst({
-                    where: {
-                        patientId: familyMember.patientId,
-                        status: 'PENDING',
-                        issueDate: { gte: startOfMonth }
-                    }
-                });
-
-                if (!currentInvoice) {
-                    currentInvoice = await tx.invoice.create({
-                        data: {
-                            headquartersId: familyMember.headquartersId,
-                            patientId: familyMember.patientId,
-                            invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
-                            issueDate: new Date(),
-                            dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5),
-                            status: 'PENDING',
-                            notes: 'Generada automáticamente por servicios Concierge Marketplace'
-                        }
-                    });
-                }
-
-                await tx.invoiceItem.create({
-                    data: {
-                        invoiceId: currentInvoice.id,
-                        description: `Servicio Concierge: ${itemName} — ${scheduledDate.toLocaleDateString('es-PR', { day: '2-digit', month: 'long' })}`,
-                        quantity: 1,
-                        unitPrice: price,
-                        totalPrice: price
-                    }
-                });
-
-                await tx.invoice.update({
-                    where: { id: currentInvoice.id },
-                    data: {
-                        subtotal: { increment: price },
-                        totalAmount: { increment: price }
-                    }
-                });
-
-                // Crear cita con fecha
+                // YA NO se factura al reservar.
+                //
+                // De las dos citas que llegaron a existir, una se cancelo sin
+                // especialista asignado. Con el cobro al reservar, esa familia
+                // habria pagado una barberia que nunca ocurrio y alguien habria
+                // tenido que explicarselo y devolverlo. Se cobra al COMPLETAR,
+                // en /api/corporate/concierge — asi la factura solo contiene
+                // cosas que de verdad pasaron.
                 await tx.conciergeAppointment.create({
                     data: {
                         patientId: familyMember.patientId,
                         serviceId: id,
                         scheduledAt: scheduledDate,
                         notes: notes?.trim() || null,
-                        status: 'SCHEDULED',
+                        // Pendiente de que direccion apruebe y asigne especialista.
+                        status: 'PENDING_APPROVAL',
+                        // Precio congelado: el del catalogo puede cambiar entre
+                        // que la familia pide y que se realiza, y se cobra lo
+                        // que se le dijo.
+                        agreedPrice: price,
                     }
                 });
 

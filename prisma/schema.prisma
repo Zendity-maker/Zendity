@@ -1586,11 +1586,29 @@ model ConciergeOrder {
 
   patient Patient          @relation(fields: [patientId], references: [id])
   product ConciergeProduct @relation(fields: [productId], references: [id])
+
+  /// Aprobacion y cobro.
+  ///
+  /// Se cobra al ENTREGAR, no al aprobar. De las dos citas que existian, una se
+  /// cancelo sin especialista asignado: cobrando al aprobar, esa familia habria
+  /// pagado una barberia que nunca ocurrio. Facturar al completar significa que
+  /// la factura solo contiene cosas que de verdad pasaron.
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  /// Cuando entro a una factura. Nulo = todavia no se ha cobrado.
+  invoicedAt     DateTime?
+  invoiceItemId  String?
 }
 
 enum OrderStatus {
+  /// La familia lo pidio. Todavia no se cobra nada.
   PENDING
+  /// Direccion lo aprobo. Sigue sin cobrarse: se cobra al entregar.
+  APPROVED
+  /// Entregado — ESTE es el momento en que entra a la factura del mes.
   DELIVERED
+  REJECTED
   CANCELLED
 }
 
@@ -1626,12 +1644,25 @@ model ConciergeAppointment {
   patient    Patient          @relation(fields: [patientId], references: [id])
   service    ConciergeService @relation(fields: [serviceId], references: [id])
   specialist User?            @relation("SpecialistAppointments", fields: [specialistId], references: [id])
+
+  /// Precio congelado al pedir. El del catalogo puede cambiar entre que la
+  /// familia pide y que se realiza; se cobra lo que se le dijo.
+  agreedPrice    Float?
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  invoicedAt     DateTime?
+  invoiceItemId  String?
 }
 
 enum AppointmentStatus {
+  /// La familia la pidio. Falta que direccion apruebe y asigne especialista.
+  PENDING_APPROVAL
   SCHEDULED
   IN_PROGRESS
+  /// Realizada — ESTE es el momento en que entra a la factura del mes.
   COMPLETED
+  REJECTED
   CANCELLED
 }
 
