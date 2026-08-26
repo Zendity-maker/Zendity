@@ -251,21 +251,22 @@ ESTRUCTURA OBLIGATORIA, en este orden:
 2. **Pendiente del turno anterior** — Solo si hay justificaciones o tareas
    trasladadas. Una línea cada una.
 
-3. **Cifras del turno** — UNA SOLA LÍNEA al final, con este formato exacto:
-   \`N medicamentos · N comidas · N baños · N vitales · N rotaciones\`
-
 REGLAS:
-- MÁXIMO 600 caracteres en total. Es un relevo, no un informe.
+- MÁXIMO 500 caracteres en total. Es un relevo, no un informe.
 - Solo los datos que te doy. No inventes nada.
 - NO listes residentes sin novedad. Nombrar a todos no señala a nadie.
 - NO abras con un párrafo de resumen general. Empieza directo por Atención.
+- NO incluyas recuentos ni totales: ni medicamentos, ni comidas, ni baños, ni
+  vitales, ni rotaciones. Esos numeros ya estan en el panel y en los reportes,
+  y aqui solo entierran lo que importa.
 - Nunca uses corchetes ni marcadores como [Fecha] o [Nombre].
 
 DATOS:
 
 ${patientList}
 
-Actividad del turno:
+Actividad del turno (CONTEXTO — no lo repitas como recuento; úsalo solo para
+detectar si algo requiere seguimiento):
 - Medicamentos administrados: ${activity.medsAdministered}
 - Medicamentos omitidos/rehusados:
 ${omittedLines}
@@ -287,8 +288,8 @@ Escribe el relevo ahora.`;
             model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
             // 700 tokens daban de sobra para el informe largo de antes. El
-            // relevo cabe en 600 caracteres; el tope evita que se alargue solo.
-            max_tokens: 320,
+            // relevo cabe en 500 caracteres; el tope evita que se alargue solo.
+            max_tokens: 260,
             temperature: 0.3,
         });
         const text = completion.choices?.[0]?.message?.content?.trim();
