@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { topeDelMes } from '@/lib/concierge';
 import { notifyRoles } from '@/lib/notifications';
 
 export async function GET(request: Request) {
@@ -64,7 +65,9 @@ export async function GET(request: Request) {
             success: true,
             products,
             services,
-            balance: familyMember.patient.conciergeBalance || 0.0,
+            // Sin prepago no hay saldo que mostrar. Se deja en 0 para no romper
+            // el contrato de la pantalla mientras se limpia.
+            balance: 0,
             myAppointments,
         });
 
@@ -122,10 +125,11 @@ export async function POST(request: Request) {
             itemCategory = prod.category;
             itemName = prod.name;
 
-            if (itemCategory !== 'GiftCards' && familyMember.patient.conciergeBalance < price) {
-                return NextResponse.json({ success: false, error: 'Saldo Insuficiente. Adquiere una Gift Card para recargar.' }, { status: 400 });
-            }
-            if (itemCategory !== 'GiftCards' && prod.stock <= 0) {
+            // Ya NO se exige saldo previo, ni existe la gift card. Antes habia
+            // que recargar antes de comprar: de 33 residentes activos UNO tenia
+            // saldo ($20, y era una prueba) y el producto mas barato costaba
+            // $32.50. Cero pedidos en toda la historia del modulo.
+            if (prod.stock <= 0) {
                 return NextResponse.json({ success: false, error: 'Producto agotado temporalmente.' }, { status: 400 });
             }
         } else {
@@ -136,62 +140,24 @@ export async function POST(request: Request) {
             // Los servicios se facturan en la cuenta mensual — no requieren saldo previo
         }
 
+        // Tope mensual por residente. Sin prepago desaparece el freno natural,
+        // y esto evita que una familia acumule sin darse cuenta.
+        const tope = await topeDelMes(familyMember.patientId);
+        if (price > tope.disponible) {
+            return NextResponse.json({
+                success: false,
+                error: `Este mes quedan $${tope.disponible.toFixed(2)} disponibles de un límite de $${tope.tope}. Habla con la administración si necesitas más.`,
+            }, { status: 400 });
+        }
+
         await prisma.$transaction(async (tx) => {
 
-            // ── CASO A: RECARGA DE SALDO (GIFT CARD) ─────────────────────────
-            if (type === 'product' && itemCategory === 'GiftCards') {
-                await tx.patient.update({
-                    where: { id: familyMember.patientId },
-                    data: { conciergeBalance: { increment: price } }
-                });
-
-                const startOfMonth = new Date();
-                startOfMonth.setDate(1);
-                startOfMonth.setHours(0, 0, 0, 0);
-
-                let currentInvoice = await tx.invoice.findFirst({
-                    where: {
-                        patientId: familyMember.patientId,
-                        status: 'PENDING',
-                        issueDate: { gte: startOfMonth }
-                    }
-                });
-
-                if (!currentInvoice) {
-                    currentInvoice = await tx.invoice.create({
-                        data: {
-                            headquartersId: familyMember.headquartersId,
-                            patientId: familyMember.patientId,
-                            invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
-                            issueDate: new Date(),
-                            dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5),
-                            status: 'PENDING',
-                            notes: 'Generada automáticamente por recargas de saldo (Concierge Marketplace)'
-                        }
-                    });
-                }
-
-                await tx.invoiceItem.create({
-                    data: {
-                        invoiceId: currentInvoice.id,
-                        description: `Recarga de Saldo Concierge: ${itemName}`,
-                        quantity: 1,
-                        unitPrice: price,
-                        totalPrice: price
-                    }
-                });
-
-                await tx.invoice.update({
-                    where: { id: currentInvoice.id },
-                    data: {
-                        subtotal: { increment: price },
-                        totalAmount: { increment: price }
-                    }
-                });
-            }
-
-            // ── CASO B: COMPRA DE PRODUCTO REGULAR ────────────────────────────
-            else if (type === 'product') {
+            // El CASO A era la recarga de saldo con gift card. Se retira con el
+            // paso a post-pago: sin prepago la recarga no tiene funcion y solo
+            // anade un concepto que la familia tiene que entender antes de
+            // poder pedir nada.
+            // ── COMPRA DE PRODUCTO ────────────────────────────────────────────
+            if (type === 'product') {
                 // Ni se descuenta saldo ni se toca el stock todavia: el pedido
                 // queda PENDING hasta que alguien lo apruebe, y se cobra al
                 // ENTREGAR. Descontar aqui reservaria producto y dinero por algo

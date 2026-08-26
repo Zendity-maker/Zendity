@@ -218,11 +218,12 @@ export default function ConciergePage() {
     };
 
     const handleProductPurchase = async (item: MarketplaceItem) => {
-        if (item.category !== 'GiftCards' && data && data.balance < item.price) {
-            alert("Saldo insuficiente. Adquiere una Gift Card para recargar.");
-            return;
-        }
-        if (!confirm(`¿Confirmas la compra de ${item.name} por $${item.price.toFixed(2)}?`)) return;
+        // Sin prepago no hay saldo que comprobar: se pide, dirección aprueba, y
+        // se cobra en la factura del mes cuando se entrega o se realiza.
+        if (!confirm(
+            `¿Pedir ${item.name} por $${item.price.toFixed(2)}?\n\n` +
+            `Se cobrará en tu factura del mes, y solo si se entrega.`
+        )) return;
 
         setBuying(item.id);
         try {
@@ -494,11 +495,11 @@ export default function ConciergePage() {
                                         </div>
                                         <button
                                             onClick={() => handleProductPurchase(product)}
-                                            disabled={buying === product.id || (product.category !== 'GiftCards' && data.balance < product.price)}
+                                            disabled={buying === product.id}
                                             className="bg-brand hover:bg-brand disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
                                         >
-                                            {product.category === 'GiftCards' ? <Gift size={14} /> : <ShoppingCart size={14} />}
-                                            {buying === product.id ? 'Procesando…' : product.category === 'GiftCards' ? 'Recargar Saldo' : 'Comprar'}
+                                            <ShoppingCart size={14} />
+                                            {buying === product.id ? 'Procesando…' : 'Pedir'}
                                         </button>
                                     </div>
                                 ))}
