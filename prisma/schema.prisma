@@ -1647,12 +1647,20 @@ model ConciergeAppointment {
 
   /// Precio congelado al pedir. El del catalogo puede cambiar entre que la
   /// familia pide y que se realiza; se cobra lo que se le dijo.
-  agreedPrice    Float?
-  approvedById   String?
-  approvedAt     DateTime?
-  rejectedReason String?
-  invoicedAt     DateTime?
-  invoiceItemId  String?
+  agreedPrice     Float?
+  /// Quien da el servicio cuando NO es alguien de la casa.
+  ///
+  /// Un servicio puede prestarse con un servicio externo aunque el hogar no
+  /// tenga especialista registrado — asi funciona hoy la barberia. Al aprobar
+  /// hay que decir quien lo dara: o un especialista interno (specialistId) o
+  /// esto. Aprobar sin ninguno de los dos es como se perdio la unica cita que
+  /// llegaron a pedir: quedo sin asignar y acabo cancelada.
+  servicioExterno String?
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedReason  String?
+  invoicedAt      DateTime?
+  invoiceItemId   String?
 }
 
 enum AppointmentStatus {

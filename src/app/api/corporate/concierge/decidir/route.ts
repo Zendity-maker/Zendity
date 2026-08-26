@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         const auth = await requireRole([...ROLES_APRUEBAN]);
         if (auth instanceof NextResponse) return auth;
 
-        const { tipo, id, accion, especialistaId, motivo } = await req.json();
+        const { tipo, id, accion, especialistaId, servicioExterno, motivo } = await req.json();
         if (!tipo || !id || !ACCIONES.includes(accion)) {
             return NextResponse.json({ success: false, error: 'Datos incompletos' }, { status: 400 });
         }
@@ -111,25 +111,35 @@ export async function POST(req: Request) {
                 if (cita.status !== 'PENDING_APPROVAL') {
                     return NextResponse.json({ success: false, error: 'Esta cita ya fue decidida.' }, { status: 400 });
                 }
-                // Aprobar SIN especialista es como se perdio la unica cita que
-                // llegaron a pedir: quedo sin asignar y acabo cancelada.
-                if (!especialistaId) {
-                    return NextResponse.json(
-                        { success: false, error: 'Asigna un especialista al aprobar. Una cita sin especialista termina cancelándose.' },
-                        { status: 400 },
-                    );
+                // Hay que decir QUIEN lo va a dar: alguien de la casa o un
+                // servicio externo. Aprobar sin ninguno de los dos es como se
+                // perdio la unica cita que llegaron a pedir — quedo sin asignar
+                // y acabo cancelada porque no habia quien la hiciera.
+                //
+                // El servicio externo es una via real, no un parche: la
+                // barberia se presta asi hoy, sin especialista registrado.
+                const externo = (servicioExterno || '').trim();
+                if (!especialistaId && !externo) {
+                    return NextResponse.json({
+                        success: false,
+                        error: 'Di quién va a dar el servicio: un especialista de la casa o un servicio externo. Una cita sin nadie asignado termina cancelándose.',
+                    }, { status: 400 });
                 }
-                const esp = await prisma.user.findFirst({
-                    where: { id: especialistaId, headquartersId: auth.headquartersId, isActive: true },
-                    select: { id: true },
-                });
-                if (!esp) return NextResponse.json({ success: false, error: 'Especialista no válido' }, { status: 400 });
+
+                if (especialistaId) {
+                    const esp = await prisma.user.findFirst({
+                        where: { id: especialistaId, headquartersId: auth.headquartersId, isActive: true },
+                        select: { id: true },
+                    });
+                    if (!esp) return NextResponse.json({ success: false, error: 'Especialista no válido' }, { status: 400 });
+                }
 
                 await prisma.conciergeAppointment.update({
                     where: { id },
                     data: {
                         status: 'SCHEDULED',
-                        specialistId: especialistaId,
+                        specialistId: especialistaId || null,
+                        servicioExterno: especialistaId ? null : externo,
                         approvedById: auth.id,
                         approvedAt: new Date(),
                     },

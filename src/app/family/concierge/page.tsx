@@ -440,16 +440,11 @@ export default function ConciergePage() {
                                                     openBookingModal(service);
                                                 }
                                             }}
-                                            disabled={buying === service.id || service.disponible === false}
+                                            disabled={buying === service.id}
                                             className="bg-brand hover:bg-brand disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-full py-2.5 px-5 font-semibold text-sm w-full transition-all flex items-center justify-center gap-2"
                                         >
                                             <CalendarIcon size={14} />
-                                            {/* Un servicio sin especialista activo no se puede pedir.
-                                                Dejarlo pedible y rechazarlo despues es como se perdio
-                                                la unica cita que llegaron a solicitar. */}
-                                            {service.disponible === false
-                                                ? 'No disponible por ahora'
-                                                : buying === service.id ? 'Reservando…' : 'Reservar'}
+                                            {buying === service.id ? 'Reservando…' : 'Reservar'}
                                         </button>
                                     </div>
                                     );

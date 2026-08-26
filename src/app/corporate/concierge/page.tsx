@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FaBoxOpen, FaUserNurse, FaCheckCircle, FaTimesCircle, FaClock, FaCheck, FaExclamationTriangle } from "react-icons/fa";
+import ColaConcierge from '@/components/corporate/ColaConcierge';
 
 interface GenericItem {
     id: string;
@@ -135,6 +136,12 @@ export default function ConciergeFulfillment() {
                     </button>
                 </div>
             </div>
+
+            {/* Lo que espera decision, arriba del todo. Antes no habia donde
+                aprobar: una familia pedia y el pedido se quedaba en PENDING sin
+                que nadie pudiera moverlo. Se oculta sola cuando la cola esta
+                vacia. */}
+            <ColaConcierge />
 
             {loading ? (
                 <div className="flex justify-center items-center h-40"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div></div>
