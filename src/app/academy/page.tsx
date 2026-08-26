@@ -85,6 +85,16 @@ export default function ZendityAcademyPage() {
     // Progreso de certificación: todos los 16 cursos oficiales
     const seriesCourses = courses.filter(c => ALL_COURSE_IDS.includes(c.id));
     const completedSeriesCourses = seriesCourses.filter(c => getCourseStatus(c.id) === 'COMPLETED');
+    // Recomendacion de Zendi y estado de formacion del ano.
+    const [reco, setReco] = useState<any>(null);
+    const [formacion, setFormacion] = useState<any>(null);
+    useEffect(() => {
+        fetch('/api/academy/recomendacion')
+            .then(r => r.json())
+            .then(d => { if (d.success) { setReco(d.recomendacion); setFormacion(d.formacion); } })
+            .catch(() => null);
+    }, []);
+
     const totalSeries = ALL_COURSE_IDS.length;
     const seriesComplete = seriesCourses.length === totalSeries && completedSeriesCourses.length === totalSeries;
 
@@ -154,6 +164,40 @@ export default function ZendityAcademyPage() {
                     </div>
                 )}
             </div>
+
+            {/* RECOMENDACIÓN DE ZENDI — con su motivo.
+                "Tienes 25 cursos sin tomar" no mueve a nadie; "este mes
+                registraste 5 situaciones con medicación, este curso dura 35
+                minutos" sí. El motivo es lo que convierte una obligación en
+                una respuesta a algo que le pasó. */}
+            {reco && (
+                <div className="mb-6 bg-white border border-[#0F6E56]/20 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex-1 min-w-[240px]">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0F6E56] mb-2">
+                                Zendi te recomienda
+                            </p>
+                            <h3 className="font-serif text-xl text-slate-900 mb-1.5">{reco.titulo}</h3>
+                            <p className="text-slate-600 text-sm leading-relaxed">
+                                {reco.motivo} <span className="text-slate-400">· {reco.minutos} minutos</span>
+                            </p>
+                        </div>
+                        {formacion && (
+                            <div className="text-right shrink-0">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                                    Tu formación
+                                </p>
+                                <p className="text-2xl font-black text-slate-800 leading-none">
+                                    {formacion.aprobados}<span className="text-base text-slate-400">/{formacion.meta}</span>
+                                </p>
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                    {formacion.meta === 0 ? 'recién empiezas' : 'cursos del año'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* FORMACIÓN ASIGNADA — arriba del catálogo a propósito.
                 Es la diferencia entre una biblioteca opcional y un plan de
