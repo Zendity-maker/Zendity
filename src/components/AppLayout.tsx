@@ -627,10 +627,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="h-20 flex items-center justify-between px-4 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
                         {isSidebarCollapsed ? (
-                            <img 
-                                src={isCorporateWorkspace ? "/brand/zendity_icon_white.svg" : "/brand/zendity_icon_primary.svg"} 
-                                alt="Zendity Icon" 
-                                className="w-11 h-11 object-contain drop-shadow-sm shrink-0" 
+                            /* Con el menu colapsado en corporate se pedia
+                               /brand/zendity_icon_white.svg, que NO EXISTE —
+                               404 en produccion y por eso salia la imagen rota.
+                               Solo fallaba en corporate (fondo oscuro) y solo
+                               colapsado, que es justo la combinacion que menos
+                               se mira.
+
+                               No se anade un archivo nuevo: los SVG de marca
+                               son PNG incrustados en base64, asi que no se
+                               pueden recolorear por vector. Se usa el icono que
+                               SI existe y se vuelve blanco con un filtro. Un
+                               filtro no puede dar 404. */
+                            <img
+                                src="/brand/zendity_icon_primary.svg"
+                                alt="Zendity"
+                                className={`w-11 h-11 object-contain drop-shadow-sm shrink-0 ${isCorporateWorkspace ? 'brightness-0 invert' : ''}`}
                             />
                         ) : (
                             <div className="flex flex-col whitespace-nowrap overflow-hidden min-w-0">

@@ -102,7 +102,10 @@ export default function WallOfCarePage() {
                         {data.hqInfo.logoUrl ? (
                             <img src={data.hqInfo.logoUrl} alt="HQ Logo" className="w-full h-full object-cover bg-white" />
                         ) : (
-                            <img src="/brand/zendity_icon_white.svg" className="w-10 h-10 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" alt="Zendity OS" />
+                            // zendity_icon_white.svg no existe (404). Se usa el que si existe,
+                            // blanqueado con filtro: los SVG de marca son PNG incrustados y no
+                            // se pueden recolorear por vector.
+                            <img src="/brand/zendity_icon_primary.svg" className="w-10 h-10 object-contain brightness-0 invert drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" alt="Zendity OS" />
                         )}
                     </div>
                     <div>
