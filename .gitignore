@@ -47,6 +47,7 @@ test-results/
 playwright-report/
 scripts/*
 !scripts/db-push-guard.sh
+!scripts/corregir-plantilla-sw.ts
 !scripts/limpiar-concierge-prepago.ts
 !scripts/residentes-sin-familia.ts
 !scripts/declinar-updates-enfermeria-viejas.ts

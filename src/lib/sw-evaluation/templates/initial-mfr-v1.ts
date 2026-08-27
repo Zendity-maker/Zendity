@@ -156,7 +156,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                 { key: 'diagnoses',   label: 'Diagnósticos (DX)', type: 'narrative',
                   prefillMode: 'READ_ONLY', prefillFrom: 'IntakeData.diagnoses',
                   notes: 'Display-only: muestra el texto libre de diagnoses del intake.' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_salud_mental_dx', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -169,7 +169,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                 { key: 'communication', label: 'Comunicación', type: 'checkbox_group',
                   options: ['Sordo', 'Mudo', 'No verbaliza', 'Dificultad para verbalizar'],
                   prefillMode: 'NONE' },
-                { key: 'observations',  label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_comunicacion',  label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -186,7 +186,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                   ],
                   prefillMode: 'NONE' },
                 { key: 'occupation',     label: 'Ocupación',     type: 'text',      prefillMode: 'NONE' },
-                { key: 'observations',   label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_educacion_ocupacion',   label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -275,7 +275,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                 },
                 { key: 'refusedToProvide', label: 'Rehusó brindar información', type: 'single_select',
                   options: ['Sí', 'No'], prefillMode: 'NONE' },
-                { key: 'observations',     label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_datos_economicos',     label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -294,7 +294,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                   ],
                   prefillMode: 'NONE', prefillFrom: 'patient.dependenceContext',
                   notes: 'D-5: NONE+hint. referenceData expone avdScore + mobilityLevel como contexto. Mapear AVD=3 → checkbox específico es inferencia clínica que hace la TS.' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_dependencia_fisica', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -308,7 +308,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                   options: ['Regular', 'Blanderizada', 'Líquida', 'Naso', 'Gastro'],
                   prefillMode: 'NONE', prefillFrom: 'patient.dietContext',
                   notes: 'D-5: NONE+hint por decisión de consistencia. El enum DietTexture (7 vals) NO mapea 1:1 al form (5 opciones): MAJADA, LICUADO, LIQUIDOS_CLAROS, PEG requieren inferencia (PEG = Naso o Gastro? depende del tubo real). referenceData expone dietTexture + 4 flags como contexto; la TS marca.' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_alimentacion', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -326,7 +326,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                   ],
                   prefillMode: 'NONE', prefillFrom: 'pressureUlcer.active',
                   notes: 'D-5: NONE+hint. UPP activa es UN dato; la TS valora todas las condiciones tópicas (incluyendo si hay hongos, alergias, etc. que no están en PressureUlcer). referenceData = lista de UPP activas como contexto.' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_condiciones_piel', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -338,7 +338,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
             fields: [
                 { key: 'skinTreatment', label: 'Tratamiento piel', type: 'checkbox_group',
                   options: ['Home Care', 'Referido a evaluación'], prefillMode: 'NONE' },
-                { key: 'observations',  label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_tratamiento_piel',  label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -355,7 +355,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                 { key: 'complianceFamily', label: 'Cumplimiento (Familiar)', type: 'checkbox_group',
                   options: ['Adeuda balance', 'Se opone', 'Refiere contraindicación'],
                   prefillMode: 'NONE' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_cumplimiento_tratamiento', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -374,7 +374,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
                   ],
                   prefillMode: 'NONE', prefillFrom: 'patient.servicesContext',
                   notes: 'D-4: NONE+hint. Cero "roles del HQ". referenceData expone solo data PER-RESIDENTE real: hasHospice (Patient.hospiceStartDate != null), externalServicesActiveCount (ExternalServiceVisitPatient activos). El resto de opciones (13 total) las marca la TS manualmente.' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_servicios_recibidos', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
 
@@ -386,7 +386,7 @@ export const INITIAL_MFR_TEMPLATE_V1: SWFormTemplateSchema = {
             fields: [
                 { key: 'referralMade', label: '¿Se realiza algún referido?', type: 'single_select',
                   options: ['Sí', 'No'], prefillMode: 'NONE' },
-                { key: 'observations', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
+                { key: 'observations_referidos', label: 'Observaciones', type: 'narrative', prefillMode: 'NONE' },
             ],
         },
     ],
