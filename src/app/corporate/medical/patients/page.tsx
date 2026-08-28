@@ -170,7 +170,12 @@ export default function MasterPatientDirectory() {
     const [patients, setPatients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
+    // Abre en ACTIVOS, no en TODOS. El censo vivo es lo que se consulta a
+    // diario; las bajas y los fallecidos son archivo historico y se buscan a
+    // proposito. Con "Todos" de entrada, los 11 expedientes cerrados se mezclan
+    // con los 22 vivos en la misma lista y hay que leer la columna de estatus
+    // para saber a quien estas mirando.
+    const [statusFilter, setStatusFilter] = useState("ACTIVE");
     const [view, setView] = useState<'list' | 'color'>('list');
     const [showBatchPai, setShowBatchPai] = useState(false);
 
@@ -210,6 +215,23 @@ export default function MasterPatientDirectory() {
                 return matchesSearch && matchesStatus;
             })
             .sort((a, b) => getLastName(a.name).localeCompare(getLastName(b.name), 'es', { sensitivity: 'base' }));
+    }, [patients, searchTerm, statusFilter]);
+
+    /**
+     * Cuantos coinciden con la busqueda PERO estan fuera del filtro puesto.
+     *
+     * Es el riesgo de abrir en Activos: buscas a alguien que ya se dio de baja,
+     * no sale, y la pantalla no distingue "no existe" de "existe pero esta
+     * filtrado". Eso es exactamente como se perdieron los 11 expedientes la
+     * vez pasada. Aqui se avisa en vez de callar.
+     */
+    const ocultosPorFiltro = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+        if (!q || statusFilter === 'ALL') return 0;
+        return patients.filter(p =>
+            p.status !== statusFilter &&
+            (p.name.toLowerCase().includes(q) || (p.roomNumber || '').toLowerCase().includes(q))
+        ).length;
     }, [patients, searchTerm, statusFilter]);
 
     // Cadencia de comunicación con la familia. Umbrales pedidos por Celia:
@@ -333,11 +355,11 @@ export default function MasterPatientDirectory() {
                         roto de verdad: el servidor nunca los mandaba. */}
                     <div className="flex bg-slate-100 p-1.5 rounded-xl w-full md:flex-1 md:min-w-0 overflow-x-auto">
                         {([
-                            { valor: 'ALL',             etiqueta: 'Todos',              color: 'text-indigo-700' },
                             { valor: 'ACTIVE',          etiqueta: 'Activos',            color: 'text-emerald-700' },
                             { valor: 'TEMPORARY_LEAVE', etiqueta: 'Ausentes / Hospital', color: 'text-amber-700' },
                             { valor: 'DISCHARGED',      etiqueta: 'Dados de baja',      color: 'text-slate-700' },
                             { valor: 'DECEASED',        etiqueta: 'Fallecidos',         color: 'text-violet-700' },
+                            { valor: 'ALL',             etiqueta: 'Todos',              color: 'text-indigo-700' },
                         ] as const).map(f => {
                             const n = f.valor === 'ALL'
                                 ? patients.length
@@ -365,6 +387,17 @@ export default function MasterPatientDirectory() {
                     </div>
                     </div>
                 </div>
+
+                {/* Si lo que buscas existe pero esta fuera del filtro, decirlo.
+                    Una lista vacia no puede significar dos cosas distintas. */}
+                {ocultosPorFiltro > 0 && (
+                    <button
+                        onClick={() => setStatusFilter('ALL')}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-sm font-bold text-amber-800 hover:bg-amber-100 transition-colors"
+                    >
+                        {ocultosPorFiltro} {ocultosPorFiltro === 1 ? 'residente coincide' : 'residentes coinciden'} con tu búsqueda en otro estatus — ver todos
+                    </button>
+                )}
 
                 {/* Patient Directory — List or Color View */}
                 {view === 'list' ? (
