@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { prisma } from '@/lib/prisma';
+import { satisfaccion } from '@/lib/encuesta-familia';
+import { formacionDeEquipo } from '@/lib/formacion';
 import { enrolledResidentsWhere } from '@/lib/billable-residents';
 import { todayStartAST } from '@/lib/dates';
 
@@ -150,6 +152,30 @@ export async function GET(req: Request) {
 
         const handoverPct = handoversAll > 0 ? Math.round((handoversCompleted / handoversAll) * 100) : 0;
 
+                // ── Familias: percepcion y comunicacion ──────────────────────────
+        // El resto del informe cuenta actividad. Esto cuenta lo que la familia
+        // siente y lo que se le conto.
+        const sat = await satisfaccion(hqId);
+
+        const equipo = await formacionDeEquipo(hqId);
+        const dePiso = equipo.filter(x => ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'SOCIAL_WORKER'].includes(x.role));
+        const formacionAlDiaPct = dePiso.length
+            ? Math.round((dePiso.filter(x => x.porcentaje >= 100).length / dePiso.length) * 100)
+            : null;
+
+        // Denominador honesto: solo residentes que TIENEN familia registrada.
+        // Contar sobre los 33 activos daria un porcentaje que nadie puede subir
+        // — 19 de ellos no tienen a quien avisar.
+        const conFamilia = await prisma.patient.count({
+            where: { headquartersId: hqId, status: 'ACTIVE', familyMembers: { some: {} } },
+        });
+        const actualizadas = await prisma.patient.count({
+            where: {
+                headquartersId: hqId, status: 'ACTIVE', familyMembers: { some: {} },
+                zendiNursingUpdates: { some: { status: 'SENT', createdAt: { gte: periodStart } } },
+            },
+        });
+
         return NextResponse.json({
             success: true,
             hqName: hq?.name || 'Sede',
@@ -183,6 +209,14 @@ export async function GET(req: Request) {
                 avgCompliance,
                 topStaff, bottomStaff,
                 hrIncidents: hrIncBySev,
+                formacionAlDiaPct,
+            },
+            familias: {
+                satisfaccion: sat.promedio,
+                encuestasRespondidas: sat.respondidas,
+                encuestasEnviadas: sat.enviadas,
+                actualizadas,
+                conFamilia,
             },
         });
     } catch (error: any) {

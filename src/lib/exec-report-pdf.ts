@@ -28,6 +28,26 @@ export type ExecReportData = {
         topStaff: Array<{ name: string; role: string; score: number }>;
         bottomStaff: Array<{ name: string; role: string; score: number }>;
         hrIncidents: Record<string, number>;
+        /** Formación continua: cuántos del equipo van al día con su meta de cursos. */
+        formacionAlDiaPct: number | null;
+    };
+    /**
+     * Lo que el hogar mira de sí mismo hacia fuera.
+     *
+     * Todo lo demás en este informe cuenta ACTIVIDAD — lo que el hogar hizo.
+     * Esto cuenta PERCEPCIÓN y COMUNICACIÓN: lo que la familia siente y lo que
+     * el hogar le contó. Un resumen ejecutivo sin esto describe una operación,
+     * no un servicio.
+     */
+    familias: {
+        /** Promedio 1-5 del trimestre. Nulo si nadie ha respondido. */
+        satisfaccion: number | null;
+        encuestasRespondidas: number;
+        encuestasEnviadas: number;
+        /** Residentes cuya familia recibió una actualización clínica en el periodo. */
+        actualizadas: number;
+        /** Residentes con familia registrada — el denominador honesto. */
+        conFamilia: number;
     };
 };
 
@@ -147,7 +167,11 @@ export function generateExecReportPDF(d: ExecReportData): void {
     // ─── Clínico ─────────────────────────────────────────────────────
     sectionHeader('CLÍNICO');
     kpiRow([
-        { label: 'Cumplimiento meds', value: `${d.clinico.meds.compliancePct}%`, sub: `${d.clinico.meds.administered}/${d.clinico.meds.total} administrados` },
+        // 'Cumplimiento meds' salia aqui, en primera posicion y siempre al 100%.
+        // Medido el 26-ago-2026: 22.211 administrados contra 1 omitido — es
+        // administrados dividido entre administrados. Un 100% que no puede bajar
+        // no informa, decora. Baja a la linea de detalle, con sus numeros
+        // crudos al lado para que se pueda juzgar.
         { label: 'Vitales tomados', value: d.clinico.vitals.total, sub: `${d.clinico.vitals.critical} críticos` },
         { label: 'Rotaciones UPP', value: d.clinico.rotations, sub: 'Posturales' },
         { label: 'Observaciones HR', value:
@@ -156,6 +180,7 @@ export function generateExecReportPDF(d: ExecReportData): void {
             sub: `OBS ${d.clinico.incidents.OBSERVATION || 0} · WARN ${d.clinico.incidents.WARNING || 0} · SUSP ${d.clinico.incidents.SUSPENSION || 0}` },
     ]);
     detailLine([
+        { label: 'Meds administrados', value: d.clinico.meds.administered },
         { label: 'Omitidos', value: d.clinico.meds.omitted },
         { label: 'Rehusados', value: d.clinico.meds.refused },
         { label: 'En espera', value: d.clinico.meds.held },
@@ -177,10 +202,38 @@ export function generateExecReportPDF(d: ExecReportData): void {
     kpiRow([
         { label: 'Equipo activo', value: d.personal.totalStaff, sub: 'CAREGIVER/NURSE/SUP' },
         { label: 'Compliance promedio', value: `${d.personal.avgCompliance}`, sub: 'Score 0-100' },
+        // La formacion no estaba en ningun resumen. Un hogar cuyo personal se
+        // forma es distinto de uno que no, y ese dato no salia por ninguna
+        // parte — el complianceScore no lo refleja: las dos personas con score
+        // 100 tenian CERO cursos.
+        { label: 'Formación al día', value: d.personal.formacionAlDiaPct == null ? '—' : `${d.personal.formacionAlDiaPct}%`, sub: 'Meta: 1 curso/mes' },
         { label: 'Observaciones aplicadas', value:
             (d.personal.hrIncidents.OBSERVATION || 0) + (d.personal.hrIncidents.WARNING || 0) +
             (d.personal.hrIncidents.SUSPENSION || 0) + (d.personal.hrIncidents.TERMINATION || 0),
             sub: 'Aplicadas + pendientes' },
+    ]);
+
+    // ─── Familias ────────────────────────────────────────────────────
+    // Todo lo anterior cuenta ACTIVIDAD: lo que el hogar hizo. Esta seccion
+    // cuenta PERCEPCION y COMUNICACION — lo que la familia siente y lo que se
+    // le contó. Un resumen ejecutivo sin esto describe una operacion, no un
+    // servicio.
+    pageBreakIfNeeded(30);
+    sectionHeader('FAMILIAS');
+    kpiRow([
+        {
+            label: 'Satisfacción',
+            value: d.familias.satisfaccion == null ? '—' : `${d.familias.satisfaccion}/5`,
+            // La tasa de respuesta va SIEMPRE al lado del promedio. Un 4.8 de
+            // dos respuestas sobre diecinueve no dice nada del hogar; dice que
+            // diecisiete no contestaron, y esa es la noticia.
+            sub: `${d.familias.encuestasRespondidas}/${d.familias.encuestasEnviadas} respondieron`,
+        },
+        {
+            label: 'Familias informadas',
+            value: d.familias.conFamilia === 0 ? '—' : `${d.familias.actualizadas}/${d.familias.conFamilia}`,
+            sub: 'Actualización clínica en el periodo',
+        },
     ]);
 
     // Top / Bottom staff
