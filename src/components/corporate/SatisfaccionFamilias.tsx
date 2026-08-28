@@ -45,7 +45,18 @@ export default function SatisfaccionFamilias({ hqId }: { hqId?: string }) {
         } finally { setEnviando(false); }
     };
 
-    if (!s) return null;
+    // Si la consulta falla NO se devuelve null. Antes si, y eso hacia
+    // desaparecer la tarjeta entera —boton incluido— sin decir por que: el
+    // director no encontraba la encuesta y no tenia forma de saber si existia.
+    // Una funcion que se esconde al fallar es indistinguible de una que no
+    // existe.
+    if (!s) {
+        return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+                <p className="text-sm text-slate-400">Cargando satisfacción de familias…</p>
+            </div>
+        );
+    }
 
     const color = s.promedio == null ? "text-slate-300"
         : s.promedio >= 4.5 ? "text-emerald-600"
@@ -59,19 +70,34 @@ export default function SatisfaccionFamilias({ hqId }: { hqId?: string }) {
                         <Star className="w-3.5 h-3.5" /> Satisfacción de familias · {s.periodo}
                     </p>
                 </div>
-                <button
-                    onClick={enviar}
-                    disabled={enviando}
-                    className="flex items-center gap-2 text-xs font-bold text-teal-700 hover:text-teal-800 disabled:opacity-50"
-                >
-                    <Send className="w-3.5 h-3.5" /> {enviando ? "Enviando…" : "Enviar encuesta del trimestre"}
-                </button>
+                {s.enviadas > 0 && (
+                    <button
+                        onClick={enviar}
+                        disabled={enviando}
+                        className="flex items-center gap-2 text-xs font-bold text-teal-700 hover:text-teal-800 disabled:opacity-50"
+                    >
+                        <Send className="w-3.5 h-3.5" /> {enviando ? "Enviando…" : "Enviar a quien falte"}
+                    </button>
+                )}
             </div>
 
             {s.enviadas === 0 ? (
-                <p className="text-sm text-slate-400">
-                    Todavía no se ha enviado la encuesta de este trimestre.
-                </p>
+                /* La primera vez, el boton es LA accion — no un enlace pequeño
+                   en una esquina. Si el director no lo encuentra, la encuesta
+                   no existe. */
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <p className="text-sm text-slate-500 max-w-md">
+                        Todavía no se ha enviado la encuesta de este trimestre.
+                        Son tres preguntas y llega por correo a las familias de residentes activos.
+                    </p>
+                    <button
+                        onClick={enviar}
+                        disabled={enviando}
+                        className="flex items-center gap-2 px-5 py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-black rounded-xl text-sm transition-colors shrink-0"
+                    >
+                        <Send className="w-4 h-4" /> {enviando ? "Enviando…" : "Enviar encuesta"}
+                    </button>
+                </div>
             ) : (
                 <>
                     <div className="flex items-baseline gap-6 flex-wrap">
