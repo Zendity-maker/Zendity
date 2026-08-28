@@ -379,6 +379,9 @@ model User {
   masterCertCode      String?   @unique
   masterCertIssuedAt  DateTime?
   masterCertRevokedAt DateTime?
+
+  /// Encuestas en las que una familia lo destaco.
+  encuestasComoFavorito FamilySurvey[] @relation("CuidadorFavorito")
 }
 
 model Account {
@@ -1102,15 +1105,29 @@ model FamilySurvey {
   /// Codigo del enlace que se manda por correo. Permite responder sin iniciar
   /// sesion: de 19 familiares en Cupey los 19 tienen correo, pero solo 15
   /// completaron su acceso al portal. Por correo se alcanza a los 19.
-  token       String?   @unique
+  token              String?   @unique
   /// Trimestre al que corresponde, formato "2026-Q3". Una familia recibe una
   /// encuesta por trimestre y no mas.
-  periodo     String?
-  sentAt      DateTime?
-  respondedAt DateTime?
-  /// Lo que la familia quiera contar. Tres estrellas dicen que algo va mal;
-  /// solo el texto dice que es.
-  comentario  String?   @db.Text
+  periodo            String?
+  sentAt             DateTime?
+  respondedAt        DateTime?
+  /// Un comentario por dimension, ademas del general. Tres estrellas dicen que
+  /// algo va mal; solo el texto dice QUE — y saber en cual de las tres es la
+  /// diferencia entre poder actuar y no.
+  comentarioCuidado  String?   @db.Text
+  comentarioLimpieza String?   @db.Text
+  comentarioSalud    String?   @db.Text
+  /// Lo que no cabe en ninguna de las tres.
+  comentario         String?   @db.Text
+
+  /// A quien destaca la familia. Es la unica via por la que un reconocimiento
+  /// llega desde FUERA y no desde la supervision: el compliance mide lo que el
+  /// sistema registra, esto mide como trata la persona a quien la visita.
+  ///
+  /// Opcional a proposito. Obligarlo convertiria la encuesta en un concurso y
+  /// forzaria a nombrar a alguien aunque no haya destacado nadie.
+  cuidadorFavoritoId String?
+  cuidadorFavorito   User?   @relation("CuidadorFavorito", fields: [cuidadorFavoritoId], references: [id])
 
   @@unique([familyMemberId, periodo])
   @@index([headquartersId, periodo])

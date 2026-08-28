@@ -112,6 +112,15 @@ export interface Satisfaccion {
     porDimension: { cuidado: number | null; limpieza: number | null; salud: number | null };
     /** Respuestas de 3 o menos en cualquier dimension. Son las que piden accion. */
     conAlerta: { nombre: string; residente: string; promedio: number; comentario: string | null }[];
+    /**
+     * A quien destacan las familias, de mas a menos menciones.
+     *
+     * Es la unica medida de trato que no viene de la supervision. El
+     * complianceScore mide lo que el sistema registra —turnos, tareas,
+     * incidentes—; esto mide como trata la persona a quien la visita, y eso no
+     * se deduce de ningun registro.
+     */
+    destacadas: { nombre: string; menciones: number }[];
 }
 
 /** Satisfaccion de una sede en un trimestre. */
@@ -121,7 +130,9 @@ export async function satisfaccion(hqId: string, periodo = periodoActual()): Pro
         select: {
             ratingCare: true, ratingClean: true, ratingHealth: true,
             respondedAt: true, comentario: true,
+            comentarioCuidado: true, comentarioLimpieza: true, comentarioSalud: true,
             familyMember: { select: { name: true, patient: { select: { name: true } } } },
+            cuidadorFavorito: { select: { name: true } },
         },
     });
 
@@ -143,13 +154,31 @@ export async function satisfaccion(hqId: string, periodo = periodoActual()): Pro
         tasaRespuesta: filas.length ? Math.round((respondidas.length / filas.length) * 100) : 0,
         promedio: todas.length ? Math.round((todas.reduce((a, b) => a + b, 0) / todas.length) * 10) / 10 : null,
         porDimension: { cuidado, limpieza, salud },
+        destacadas: (() => {
+            const cuenta = new Map<string, number>();
+            respondidas.forEach(f => {
+                const n = f.cuidadorFavorito?.name?.trim();
+                if (n) cuenta.set(n, (cuenta.get(n) ?? 0) + 1);
+            });
+            return [...cuenta]
+                .map(([nombre, menciones]) => ({ nombre, menciones }))
+                .sort((a, b) => b.menciones - a.menciones);
+        })(),
         conAlerta: respondidas
             .filter(f => [f.ratingCare, f.ratingClean, f.ratingHealth].some(r => r != null && r <= 3))
             .map(f => ({
                 nombre: f.familyMember.name.trim(),
                 residente: f.familyMember.patient.name.trim(),
                 promedio: media([f.ratingCare, f.ratingClean, f.ratingHealth]) ?? 0,
-                comentario: f.comentario,
+                // Se junta el comentario de la dimension floja con el general:
+                // el que explica el problema suele estar en la dimension, no al
+                // final.
+                comentario: [
+                    f.ratingCare != null && f.ratingCare <= 3 ? f.comentarioCuidado : null,
+                    f.ratingClean != null && f.ratingClean <= 3 ? f.comentarioLimpieza : null,
+                    f.ratingHealth != null && f.ratingHealth <= 3 ? f.comentarioSalud : null,
+                    f.comentario,
+                ].filter(Boolean).join(' · ') || null,
             }))
             .sort((a, b) => a.promedio - b.promedio),
     };

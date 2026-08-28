@@ -43,7 +43,11 @@ export default function EncuestaPage({ params }: { params: Promise<{ token: stri
     const { token } = use(params);
     const [info, setInfo] = useState<any>(null);
     const [notas, setNotas] = useState({ cuidado: 0, limpieza: 0, salud: 0 });
+    // Un comentario por dimensión. Saber en cuál de las tres está el problema
+    // es la diferencia entre poder actuar y solo enterarse.
+    const [textos, setTextos] = useState({ cuidado: "", limpieza: "", salud: "" });
     const [comentario, setComentario] = useState("");
+    const [favorito, setFavorito] = useState("");
     const [enviando, setEnviando] = useState(false);
     const [listo, setListo] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -65,7 +69,14 @@ export default function EncuestaPage({ params }: { params: Promise<{ token: stri
             const r = await fetch(`/api/encuesta/${token}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...notas, comentario }),
+                body: JSON.stringify({
+                    ...notas,
+                    comentarioCuidado: textos.cuidado,
+                    comentarioLimpieza: textos.limpieza,
+                    comentarioSalud: textos.salud,
+                    comentario,
+                    cuidadorFavoritoId: favorito || undefined,
+                }),
             });
             const d = await r.json();
             if (!d.success) { setError(d.error || "No se pudo enviar."); return; }
@@ -120,12 +131,47 @@ export default function EncuestaPage({ params }: { params: Promise<{ token: stri
                                 valor={notas[p.clave]}
                                 onChange={n => setNotas(s => ({ ...s, [p.clave]: n }))}
                             />
+                            {/* La caja aparece al puntuar: pedirla antes añade
+                                ruido a un formulario que se contesta en un
+                                minuto. Una vez puntuado, es el momento natural
+                                de explicar el porqué. */}
+                            {notas[p.clave] > 0 && (
+                                <textarea
+                                    value={textos[p.clave]}
+                                    onChange={e => setTextos(s => ({ ...s, [p.clave]: e.target.value }))}
+                                    rows={2}
+                                    placeholder={notas[p.clave] <= 3 ? "¿Qué pasó? (opcional)" : "¿Algo que destacar? (opcional)"}
+                                    className="w-full mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                />
+                            )}
                         </div>
                     ))}
 
+                    {/* Cuidadora destacada. Opcional a propósito: obligarlo
+                        convertiría la encuesta en un concurso y forzaría a
+                        nombrar a alguien aunque no haya destacado nadie. */}
+                    {info.cuidadoras?.length > 0 && (
+                        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                            <p className="font-black text-slate-800">¿Alguien del equipo a quien destacar?</p>
+                            <p className="text-sm text-slate-400 mb-3">
+                                Opcional. Si alguien ha tratado especialmente bien a {info.residente}, díganoslo.
+                            </p>
+                            <select
+                                value={favorito}
+                                onChange={e => setFavorito(e.target.value)}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            >
+                                <option value="">— Prefiero no señalar a nadie —</option>
+                                {info.cuidadoras.map((c: any) => (
+                                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="bg-white border border-slate-200 rounded-2xl p-5">
-                        <p className="font-black text-slate-800">¿Algo que quieras contarnos?</p>
-                        <p className="text-sm text-slate-400 mb-3">Opcional, pero es lo que más nos sirve.</p>
+                        <p className="font-black text-slate-800">¿Algo más?</p>
+                        <p className="text-sm text-slate-400 mb-3">Lo que no entre en las tres preguntas de arriba.</p>
                         <textarea
                             value={comentario}
                             onChange={e => setComentario(e.target.value)}

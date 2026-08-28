@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Star, MessageSquareWarning, Send } from "lucide-react";
+import { Star, MessageSquareWarning, Send, Heart } from "lucide-react";
 
 /**
  * Satisfacción de las familias — trimestral, por sede.
@@ -123,6 +123,25 @@ export default function SatisfaccionFamilias({ hqId }: { hqId?: string }) {
                             ))}
                         </div>
                     </div>
+
+                    {/* A quien destacan las familias. Va ANTES de las alertas
+                        a proposito: el reconocimiento no deberia leerse
+                        despues de los problemas, como una nota al pie. */}
+                    {s.destacadas?.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-100">
+                            <p className="flex items-center gap-2 text-xs font-black text-teal-700 mb-2">
+                                <Heart className="w-3.5 h-3.5" /> Destacadas por las familias
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {s.destacadas.map((d: any) => (
+                                    <span key={d.nombre} className="text-sm font-bold text-teal-800 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-full">
+                                        {d.nombre}
+                                        {d.menciones > 1 && <span className="ml-1.5 text-xs opacity-60">×{d.menciones}</span>}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {s.conAlerta.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-slate-100">

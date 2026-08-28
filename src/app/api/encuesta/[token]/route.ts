@@ -19,12 +19,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         const s = await prisma.familySurvey.findUnique({
             where: { token },
             select: {
-                respondedAt: true, periodo: true,
+                respondedAt: true, periodo: true, headquartersId: true,
                 familyMember: { select: { name: true, patient: { select: { name: true } } } },
                 headquarters: { select: { name: true } },
             },
         });
         if (!s) return NextResponse.json({ success: true, valido: false }, { status: 200 });
+
+        // Las cuidadoras de la sede, para que la familia pueda destacar a
+        // alguien por su nombre. Se manda solo nombre e id: nada mas de la
+        // ficha del empleado sale a una pagina publica.
+        const cuidadoras = await prisma.user.findMany({
+            where: {
+                headquartersId: s.headquartersId,
+                isActive: true, isDeleted: false,
+                role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
+            },
+            select: { id: true, name: true },
+            orderBy: { name: 'asc' },
+        });
 
         return NextResponse.json({
             success: true,
@@ -34,6 +47,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
             residente: s.familyMember.patient.name.trim(),
             sede: s.headquarters.name,
             periodo: s.periodo,
+            cuidadoras: cuidadoras.map(c => ({ id: c.id, nombre: c.name.trim() })),
         });
     } catch (e: any) {
         console.error('[encuesta GET]', e);
@@ -44,7 +58,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
     try {
         const { token } = await params;
-        const { cuidado, limpieza, salud, comentario } = await req.json();
+        const {
+            cuidado, limpieza, salud, comentario,
+            comentarioCuidado, comentarioLimpieza, comentarioSalud,
+            cuidadorFavoritoId,
+        } = await req.json();
 
         const valido = (n: any) => Number.isInteger(n) && n >= 1 && n <= 5;
         if (![cuidado, limpieza, salud].every(valido)) {
@@ -56,7 +74,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
         const existente = await prisma.familySurvey.findUnique({
             where: { token },
-            select: { id: true, respondedAt: true },
+            select: { id: true, respondedAt: true, headquartersId: true },
         });
         if (!existente) {
             return NextResponse.json({ success: false, error: 'Enlace no válido.' }, { status: 404 });
@@ -68,6 +86,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
             );
         }
 
+        // El favorito se valida contra la sede: un id cualquiera no puede
+        // colarse desde una pagina publica.
+        let favorito: string | null = null;
+        if (cuidadorFavoritoId) {
+            const c = await prisma.user.findFirst({
+                where: {
+                    id: cuidadorFavoritoId,
+                    headquartersId: existente.headquartersId,
+                    isActive: true,
+                    role: { in: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
+                },
+                select: { id: true },
+            });
+            favorito = c?.id ?? null;
+        }
+
+        const texto = (v: any) => (v || '').toString().trim().slice(0, 2000) || null;
+
         await prisma.familySurvey.update({
             where: { id: existente.id },
             data: {
@@ -76,7 +112,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
                 ratingHealth: salud,
                 // El texto es opcional pero es donde esta el valor: tres
                 // estrellas dicen que algo va mal, solo el comentario dice que.
-                comentario: (comentario || '').trim().slice(0, 2000) || null,
+                comentarioCuidado: texto(comentarioCuidado),
+                comentarioLimpieza: texto(comentarioLimpieza),
+                comentarioSalud: texto(comentarioSalud),
+                comentario: texto(comentario),
+                cuidadorFavoritoId: favorito,
                 respondedAt: new Date(),
             },
         });
