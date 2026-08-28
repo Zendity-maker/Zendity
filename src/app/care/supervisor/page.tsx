@@ -146,6 +146,10 @@ export default function SupervisorMissionControlPage() {
     const [processedMemo, setProcessedMemo] = useState("");
     const [isThinking, setIsThinking] = useState(false);
     const [liveData, setLiveData] = useState<LiveDataPayload | null>(null);
+    // Ver alertas anteriores a las últimas 24 h. Apagado por defecto: el panel
+    // es operación en tiempo real y no un archivo. Se enciende a propósito para
+    // vaciar lo que quedó atrás.
+    const [verAntiguas, setVerAntiguas] = useState(false);
 
     // Staff Chat — disponible también en esta vista full-screen
     const [staffChatOpen, setStaffChatOpen] = useState(false);
@@ -301,11 +305,20 @@ export default function SupervisorMissionControlPage() {
         return () => clearInterval(interval);
     }, [user]);
 
+    useEffect(() => {
+        if (user) fetchLiveData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [verAntiguas]);
+
     const fetchLiveData = async () => {
         if (!user || sessionExpiredRef.current) return;
         const hqId = (user as any).hqId || (user as any).headquartersId || "hq-demo-1";
         try {
-            const res = await fetch(`/api/care/supervisor/live?hqId=${hqId}`);
+            // dias solo amplía el feed de alertas clínicas. Ver la nota en
+            // /api/care/supervisor/live: lo que no se atendió el mismo día se
+            // volvía inalcanzable, y había alertas abiertas de hasta 80 días
+            // sin ninguna pantalla desde la que cerrarlas.
+            const res = await fetch(`/api/care/supervisor/live?hqId=${hqId}${verAntiguas ? '&dias=90' : ''}`);
             if (res.status === 401) { handleSessionExpiry(); return; }
             const data = await res.json();
             if (data.success) setLiveData(data);
@@ -1358,6 +1371,25 @@ export default function SupervisorMissionControlPage() {
                                         </button>
                                     );
                                 })}
+
+                                {/* Salida para lo que quedó atrás. El panel mira
+                                    24 h porque es operación en tiempo real, pero
+                                    eso volvía inalcanzable lo no atendido el
+                                    mismo día: había alertas abiertas de hasta 80
+                                    días y ninguna pantalla desde la que cerrarlas.
+                                    Amplía SOLO las alertas clínicas — incidentes
+                                    y caídas se quedan en 24 h. */}
+                                <button
+                                    onClick={() => setVerAntiguas(v => !v)}
+                                    title="Amplía solo las alertas clínicas a 90 días. Incidentes y caídas siguen en 24 horas."
+                                    className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
+                                        verAntiguas
+                                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                            : 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {verAntiguas ? 'Viendo hasta 90 días' : 'Ver alertas anteriores'}
+                                </button>
                             </div>
                         );
                     })()}

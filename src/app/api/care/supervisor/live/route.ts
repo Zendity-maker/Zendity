@@ -66,6 +66,27 @@ export async function GET(req: Request) {
         const twelveHrsAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
         const fourteenHrsAgo = new Date(Date.now() - 14 * 60 * 60 * 1000);
         const twentyFourHrsAgo = new Date(Date.now() - 24 * 3600000);
+
+        /**
+         * Ventana ampliable SOLO para las alertas clínicas.
+         *
+         * El panel mira 24 horas, que es lo correcto para operación en tiempo
+         * real. El efecto secundario es que lo que no se atendió el mismo día
+         * se vuelve inalcanzable: al 28-ago-2026 había 9 alertas preventivas
+         * abiertas de residentes activos —vómito, diarrea, poco apetito— la más
+         * vieja de hace 80 días, y no existía ninguna pantalla desde la que
+         * cerrarlas. No es que nadie quisiera: es que no se podían ver.
+         *
+         * Se amplía SOLO este feed y solo a petición. Incidentes y caídas se
+         * quedan en 24 h a propósito: hay 121 penalidades automáticas de
+         * rotación abiertas, y ampliar la ventana de incidentes inundaría el
+         * panel con ellas.
+         */
+        const diasRaw = parseInt(new URL(req.url).searchParams.get('dias') ?? '1', 10);
+        const dias = Number.isFinite(diasRaw) ? Math.min(90, Math.max(1, diasRaw)) : 1;
+        const desdeAlertas = dias > 1
+            ? new Date(Date.now() - dias * 86400000)
+            : twentyFourHrsAgo;
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600000);
         // Ventana de zombies: sesiones sin cerrar de los últimos 7 días.
         // Independiente de la ventana de 14h de activeSessions para asegurar
@@ -158,7 +179,7 @@ export async function GET(req: Request) {
             // 12. Alertas Clínicas del Action Hub (DailyLog isClinicalAlert, últimas 24h).
             //     isResolved:false — antes no se filtraba porque nada las resolvía.
             // Solo residentes ACTIVE — los que están en TEMPORARY_LEAVE no generan alertas de vulnerabilidad
-            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            prisma.dailyLog.findMany({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: desdeAlertas } }, include: { patient: { select: { id: true, name: true, colorGroup: true } }, author: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 20 }),
             // 13. Caídas recientes (FallIncident — NO Incident genérico) — solo residentes presentes
             prisma.fallIncident.findMany({
                 where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, incidentDate: { gte: twentyFourHrsAgo }, resolvedAt: null },
