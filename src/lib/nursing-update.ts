@@ -131,9 +131,10 @@ export const BLOQUEADO_NOTAS =
     + 'Revisa el expediente antes de enviarlo.';
 
 export const BLOQUEADO_TOTAL =
-    'Zendi no va a redactar este mensaje. El cuadro de este residente esta semana '
-    + 'no es material para una actualización automática. Escríbelo tú, o considera '
-    + 'si esto amerita una llamada a la familia en vez de un mensaje.';
+    'Zendi no redactó este mensaje: el cuadro clínico de este residente esta semana '
+    + 'no es material para una redacción automática. La caja de abajo está vacía a '
+    + 'propósito — escríbelo tú, o valora si esto amerita una llamada a la familia '
+    + 'en vez de un mensaje.';
 
 /**
  * Pide las dos opciones a Zendi, con una segunda pasada sin las notas de turno.
@@ -207,6 +208,18 @@ Responde SOLO en JSON sin markdown:
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
         generationConfig: { responseMimeType: 'application/json' },
+        // Notas de enfermeria de un hogar de envejecientes: sangrado,
+        // alucinaciones, agitacion, autoagresion. Es material clinico
+        // legitimo, no contenido dañino, y con el umbral por defecto el
+        // modelo se planta en casos que la enfermera necesita comunicar.
+        // BLOCK_ONLY_HIGH es lo mas permisivo que ofrece la API; no
+        // desactiva nada, asi que el fallback de abajo sigue haciendo falta.
+        safetySettings: [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+        ].map(category => ({ category, threshold: 'BLOCK_ONLY_HIGH' })),
     });
 
     const result = await model.generateContent(prompt);

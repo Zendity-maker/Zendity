@@ -38,14 +38,11 @@ export async function POST(req: Request) {
         // Se guarda en PENDING para que el envio quede trazado igual que antes:
         // optionGen1/2 conservan lo que propuso Zendi y selectedOption guardara
         // lo que realmente salio, aunque la enfermera lo edite.
-        // Zendi se planto incluso sin las notas. No se crea fila: no hay
-        // borrador que aprobar, y una fila PENDING vacia solo ensucia el
-        // historial. Se devuelve el motivo tal cual para que la enfermera sepa
-        // que hacer.
-        if (!r.borrador.opcion1) {
-            return NextResponse.json({ success: false, error: r.aviso }, { status: 200 });
-        }
-
+        // Si Zendi se planto incluso sin las notas, la fila SE CREA IGUAL con
+        // las opciones vacias. Devolver un error aqui —como se hacia— dejaba a
+        // la enfermera con una caja roja y nada que hacer, cuando el trato
+        // siempre fue "Zendi propone, ella edita y envia". Si Zendi no propone,
+        // ella escribe: la funcion no puede depender de que el modelo coopere.
         const update = await prisma.zendiNursingUpdate.create({
             data: {
                 patientId,
@@ -67,6 +64,11 @@ export async function POST(req: Request) {
         });
     } catch (e: any) {
         console.error('[nursing-updates/borrador] error:', e);
-        return NextResponse.json({ success: false, error: 'No se pudo generar el borrador.' }, { status: 500 });
+        // Con codigo: un rojo sin codigo no se distingue de una negativa de
+        // Zendi, y eso costo una ronda entera de diagnostico.
+        return NextResponse.json(
+            { success: false, error: 'No se pudo generar el borrador (error del sistema, no de Zendi).' },
+            { status: 500 },
+        );
     }
 }

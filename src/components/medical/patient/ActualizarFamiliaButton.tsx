@@ -159,6 +159,10 @@ export default function ActualizarFamiliaButton({
                                         </div>
                                     )}
 
+                                    {/* Sin opciones no se pinta el selector vacio:
+                                        Zendi no redacto y la caja de abajo queda
+                                        para que la escriba la enfermera. */}
+                                    {(opciones.a || opciones.b) && (
                                     <div>
                                         <p className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
                                             Empezar desde
@@ -176,6 +180,7 @@ export default function ActualizarFamiliaButton({
                                             ))}
                                         </div>
                                     </div>
+                                    )}
 
                                     <div>
                                         <div className="flex items-baseline justify-between mb-2">
@@ -190,6 +195,7 @@ export default function ActualizarFamiliaButton({
                                             value={texto}
                                             onChange={(e) => setTexto(e.target.value)}
                                             rows={6}
+                                            placeholder={opciones.a ? undefined : "Escribe aquí el mensaje para la familia."}
                                             className="w-full p-4 bg-white border border-slate-200 rounded-xl text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y"
                                         />
                                         <p className="text-xs text-slate-400 mt-2">
