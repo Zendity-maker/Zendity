@@ -31,7 +31,11 @@ export async function POST(req: Request) {
         // Tenant check: el paciente debe pertenecer a la sede del invocador
         const patient = await prisma.patient.findFirst({
             where: { id: patientId, headquartersId: invokerHqId },
-            select: { id: true, headquartersId: true },
+            select: {
+                id: true, headquartersId: true, status: true,
+                requiresPosturalChanges: true, nortonRisk: true,
+                pressureUlcers: { where: { status: { not: 'RESOLVED' } }, select: { id: true } },
+            },
         });
         if (!patient) {
             return NextResponse.json({ success: false, error: 'Residente no encontrado en tu sede' }, { status: 404 });
@@ -67,6 +71,30 @@ export async function POST(req: Request) {
         } else {
             // Primera rotación registrada de este paciente (Bonus inicial)
             pointsDelta = 2;
+        }
+
+        /**
+         * ¿Se puede castigar por esta rotación?
+         *
+         * Solo si el residente REQUIERE rotación y estaba en el edificio.
+         *
+         * Antes no se preguntaba: se castigaba por el reloj y nada más. De las
+         * 121 penalidades acumuladas, 9 son de José A. Troche mientras estaba
+         * ingresado — a alguien le descontaron puntos por no girar a un señor
+         * que estaba en el hospital.
+         *
+         * Norton por si solo NO alcanza. Es una escala de riesgo, no una orden
+         * de rotación: Teresa Rivera se moviliza sola en silla de ruedas.
+         * Misma regla que /api/care/nursing/rotation.
+         *
+         * El premio se conserva sin condición. Registrar una rotación a tiempo
+         * es bueno aunque no fuera obligatoria; lo que no se puede es castigar
+         * por incumplir algo que nadie mandó.
+         */
+        const requiereRotacion = patient.requiresPosturalChanges || patient.pressureUlcers.length > 0;
+        const enElEdificio = patient.status === 'ACTIVE';
+        if (pointsDelta < 0 && (!requiereRotacion || !enElEdificio)) {
+            pointsDelta = 0;
         }
 
         // Gamificación HR (Deducción o Ganancia)
