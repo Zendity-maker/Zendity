@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { estaDormida, FUNCIONES_DORMIDAS } from '@/lib/funciones-dormidas';
+import { esRutaPublica } from '@/lib/rutas-publicas';
 import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
@@ -537,17 +538,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||
         pathname.startsWith("/wall") ||
-        // Verificacion publica de certificados: quien comprueba uno viene de
-        // fuera y no tiene sesion. Sin esto AppLayout devuelve null cuando no
-        // hay usuario y el visitante no ve absolutamente nada.
-        pathname.startsWith("/verificar") ||
-        // Encuesta de servicio a familias: llega por correo y se responde sin
-        // sesion, igual que la verificacion de certificados.
-        pathname.startsWith("/encuesta") ||
-        // El kiosko de Servicios Externos opera con device-token, NO con sesión
-        // NextAuth. No debe mostrar el chrome de Zendity (sidebar/topbar) — el
-        // visitante externo no debe poder navegar a otras partes de la app.
-        pathname.startsWith("/external-kiosk");
+        // Las rutas SIN sesion salen de src/lib/rutas-publicas.ts, la misma
+        // lista que usa AuthContext para no rebotarlas al login. Antes cada
+        // archivo tenia la suya y anadir una ruta publica exigia acordarse de
+        // los dos sitios; se olvido dos veces seguidas y en ambas la pagina se
+        // renderizaba bien y el navegador la expulsaba al hidratar.
+        esRutaPublica(pathname);
 
     if (isFullScreenRoute) {
         const showBackButton = pathname.startsWith('/care') && pathname !== '/care';

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { esRutaPublica } from '@/lib/rutas-publicas';
 
 export type Role = "ADMIN" | "DIRECTOR" | "NURSE" | "FAMILY" | "CAREGIVER" | "THERAPIST" | "BEAUTY_SPECIALIST" | "SUPERVISOR" | "MAINTENANCE" | "KITCHEN" | "CLEANING" | "INVESTOR" | "SOCIAL_WORKER"
     // Recursos Humanos (24-ago-2026): gestión de personal sin acceso clínico.
@@ -54,32 +55,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (loading) return;
 
         const isLoginRoute = pathname === "/login";
-        // El kiosko de Servicios Externos es PÚBLICO — autentica por device-token
-        // en el localStorage de la tablet, no por NextAuth. Si bloqueáramos
-        // anónimos aquí, la tablet del piso (que no tiene sesión NextAuth)
-        // rebotaría a /login y nunca funcionaría. También el setup acepta el
-        // token via URL antes de tener sesión alguna.
-        const isPublicKioskRoute = pathname.startsWith("/external-kiosk");
-        // Activación de Portal Familiar — el familiar abre el link del email
-        // sin tener cuenta aún. El token de invitación es el gate server-side
-        // (verify-token + activate validan inviteToken + inviteExpiry +
-        // isRegistered=false antes de hashear el PIN). Si bloqueáramos anónimos
-        // aquí, el link de invitación caería en /login y el onboarding
-        // familiar autoservicio queda muerto (incidente mar-2026).
-        const isPublicFamilyRegister = pathname === "/family/register";
-        // Verificacion de certificados — PUBLICA por definicion. Quien comprueba
-        // un certificado viene de FUERA: un inspector, un empleador, alguien con
-        // el QR impreso en la mano. No tiene cuenta y no debe necesitarla.
+
+        // Las demas rutas publicas viven en src/lib/rutas-publicas.ts, que es
+        // la MISMA lista que usa AppLayout para no envolverlas en el marco de
+        // la app.
         //
-        // La pagina se renderiza bien en el servidor, asi que el fallo era
-        // invisible por curl: el HTML llegaba correcto y el navegador expulsaba
-        // al hidratar. Mismo patron que el incidente de mar-2026 con el link de
-        // invitacion familiar.
-        const isPublicVerificacion = pathname.startsWith("/verificar");
+        // Antes esto era una cadena de banderas aqui y otra lista alla, y
+        // anadir una ruta publica exigia acordarse de los dos sitios. No me
+        // acorde dos veces seguidas: con /verificar y con /encuesta. En ambos
+        // casos la pagina se renderizaba bien en el servidor —invisible por
+        // curl— y el navegador la echaba al login al hidratar. Mismo patron que
+        // el incidente de mar-2026 con el link de invitacion familiar.
+        //
+        // Dos veces el mismo error no es descuido: la lista estaba en el sitio
+        // equivocado.
+        const esPublica = esRutaPublica(pathname);
 
         if (!user) {
-            // Bloqueo Anónimo Global (excepto login, kiosko público y register familiar)
-            if (!isLoginRoute && !isPublicKioskRoute && !isPublicFamilyRegister && !isPublicVerificacion) {
+            if (!esPublica) {
                 router.replace("/login");
             }
         } else {
