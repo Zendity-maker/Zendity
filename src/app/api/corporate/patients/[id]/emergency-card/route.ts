@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lineaModalidad } from '@/lib/cuidado-final';
 import { requireRole } from '@/lib/api-auth';
 
 export async function GET(
@@ -54,6 +55,11 @@ export async function GET(
             diagnoses: diagnosesText,
             diet: patient.diet,
             needsDialysis: patient.needsDialysis,
+            // Objetivos de cuidado. Es lo que decide que le hacen a esta
+            // persona en las primeras dos horas de una sala de emergencias, y
+            // el papel que iba con ella no lo decia. Con el proveedor al lado:
+            // en el hospital ese nombre es a quien llamar.
+            modalidadCuidado: lineaModalidad(patient.careModality, patient.hospiceProvider),
             preferredHospital: patient.preferredHospital,
             insurancePlanName: patient.insurancePlanName,
             insurancePolicyNumber: patient.insurancePolicyNumber,

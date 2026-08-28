@@ -19,6 +19,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { logWarn } from '@/lib/logger';
+import { esCuidadoDeFinal, etiquetaModalidad } from '@/lib/cuidado-final';
 
 export interface BorradorClinico {
     opcion1: string;
@@ -81,11 +82,12 @@ export async function generarBorrador(
     // pide el prompt es exactamente el tono equivocado para una familia que
     // esta acompañando un final, y ningun ajuste de prompt arregla eso — la
     // decision de que decir y como es de la enfermera, no de un modelo.
-    if (patient.careModality === 'HOSPICE') {
+    // Paliativo entra igual que hospicio. Ver src/lib/cuidado-final.ts.
+    if (esCuidadoDeFinal(patient.careModality)) {
         return {
             nombre: patient.name,
             borrador: { opcion1: '', opcion2: '', contexto: '' },
-            aviso: HOSPICIO,
+            aviso: HOSPICIO(etiquetaModalidad(patient.careModality) ?? 'Hospicio'),
         };
     }
 
@@ -137,10 +139,10 @@ export async function generarBorrador(
     };
 }
 
-export const HOSPICIO =
-    'Este residente está en hospicio. Zendi no redacta estos mensajes: el tono '
-    + 'de una actualización automática es el equivocado para una familia que está '
-    + 'acompañando un final. Escríbelo tú, con lo que sepas de esa familia.';
+export const HOSPICIO = (modalidad: string) =>
+    `Este residente está en ${modalidad.toLowerCase()}. Zendi no redacta estos `
+    + 'mensajes: el tono de una actualización automática es el equivocado para una '
+    + 'familia que está acompañando un final. Escríbelo tú, con lo que sepas de esa familia.';
 
 export const BLOQUEADO_NOTAS =
     'Zendi no pudo redactar a partir de las notas de turno de este residente — '

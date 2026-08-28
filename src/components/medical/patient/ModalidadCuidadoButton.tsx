@@ -19,8 +19,8 @@ type Modalidad = "NONE" | "PALLIATIVE" | "HOSPICE";
 
 const META: Record<Modalidad, { titulo: string; detalle: string; color: string }> = {
     NONE:       { titulo: "Cuidado regular",  detalle: "Sin modalidad especial.",                                  color: "border-slate-300 bg-slate-50 text-slate-700" },
-    PALLIATIVE: { titulo: "Paliativo",        detalle: "Enfoque en confort, sin certificacion de hospicio.",       color: "border-amber-300 bg-amber-50 text-amber-800" },
-    HOSPICE:    { titulo: "Hospicio",         detalle: "Con proveedor de hospicio certificado.",                   color: "border-violet-300 bg-violet-50 text-violet-800" },
+    PALLIATIVE: { titulo: "Paliativo",        detalle: "Mismas protecciones que hospicio.",                       color: "border-amber-300 bg-amber-50 text-amber-800" },
+    HOSPICE:    { titulo: "Hospicio",         detalle: "Mismas protecciones que paliativo.",                       color: "border-violet-300 bg-violet-50 text-violet-800" },
 };
 
 export default function ModalidadCuidadoButton({
@@ -121,27 +121,27 @@ export default function ModalidadCuidadoButton({
                                             className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
                                         />
                                     </div>
-                                    {modalidad === "HOSPICE" && (
-                                        <div>
-                                            <label className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5">Proveedor</label>
-                                            <input
-                                                type="text"
-                                                value={proveedor}
-                                                onChange={e => setProveedor(e.target.value)}
-                                                placeholder="Nombre del hospicio"
-                                                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                            />
-                                        </div>
-                                    )}
+                                    <div>
+                                        <label className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1.5">Proveedor</label>
+                                        <input
+                                            type="text"
+                                            value={proveedor}
+                                            onChange={e => setProveedor(e.target.value)}
+                                            placeholder="Nombre del hospicio o agencia"
+                                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    </div>
                                 </div>
                             )}
 
                             {/* Se dice en voz alta lo que se apaga. Marcar hospicio
                                 sin saber esto seria enterarse por un correo que ya
-                                salio. */}
-                            {modalidad === "HOSPICE" && (
+                                salio. Aplica igual a paliativo: aqui son lo mismo. */}
+                            {modalidad !== "NONE" && (
                                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-900 leading-relaxed">
-                                    <p className="font-black mb-1">Al marcar hospicio, Zéndity deja de:</p>
+                                    <p className="font-black mb-1">
+                                        Paliativo y hospicio se tratan igual. Zéndity deja de:
+                                    </p>
                                     <ul className="list-disc list-inside space-y-0.5 text-violet-800">
                                         <li>Invitar a esta familia a la encuesta de satisfacción</li>
                                         <li>Redactar solo las actualizaciones a la familia</li>

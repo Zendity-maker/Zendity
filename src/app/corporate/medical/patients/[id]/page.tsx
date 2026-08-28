@@ -424,6 +424,19 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 {patientData?.status === 'ACTIVE' && <span className="bg-emerald-100 text-emerald-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">ACTIVO</span>}
                                 {patientData?.status === 'TEMPORARY_LEAVE' && <span className="bg-amber-100 text-amber-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">PERMISO ({patientData.leaveType})</span>}
                                 {patientData?.needsDialysis && <span className="bg-blue-100 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">🩺 Diálisis</span>}
+                                {/* El diferenciador que pidio Andres: junto al
+                                    nombre, no escondido en una pestaña. Quien
+                                    abre este expediente tiene que saberlo antes
+                                    de leer nada mas. Lleva el proveedor porque
+                                    ese nombre es a quien se llama. */}
+                                {(patientData as any)?.careModality && (patientData as any).careModality !== 'NONE' && (
+                                    <span className="bg-violet-100 text-violet-800 border border-violet-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
+                                        🕊️ {(patientData as any).careModality === 'HOSPICE' ? 'Hospicio' : 'Paliativo'}
+                                        {(patientData as any).hospiceProvider && (
+                                            <span className="font-bold normal-case opacity-75">· {(patientData as any).hospiceProvider}</span>
+                                        )}
+                                    </span>
+                                )}
                                 {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && <span className="bg-slate-200 text-slate-600 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">EGRESADO / INACTIVO</span>}
                             </div>
                             <div className="text-slate-500 mt-1 font-medium flex-wrap flex items-center gap-2">

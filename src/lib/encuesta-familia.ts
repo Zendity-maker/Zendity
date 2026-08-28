@@ -25,6 +25,7 @@
  */
 import { randomInt } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { MODALIDADES_FINALES } from '@/lib/cuidado-final';
 
 const ALFABETO = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
 
@@ -69,11 +70,14 @@ export async function prepararEnvio(hqId: string, periodo = periodoActual()): Pr
             // encuesta, es una torpeza.
             patient: {
                 status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
-                // Ni a familias de residentes en hospicio. Preguntar "¿cómo lo
-                // estamos haciendo?" a quien esta acompañando un final no es
+                // Ni a familias en cuidado de final de vida. Preguntar "¿cómo
+                // lo estamos haciendo?" a quien esta acompañando un final no es
                 // medir servicio, es la misma torpeza de arriba con otra cara.
                 // Si esa familia quiere decir algo, lo dice por trabajo social.
-                careModality: { not: 'HOSPICE' },
+                //
+                // Paliativo cuenta igual que hospicio: aqui son lo mismo.
+                // Ver src/lib/cuidado-final.ts.
+                careModality: { notIn: MODALIDADES_FINALES },
             },
         },
         select: { id: true, name: true, email: true },

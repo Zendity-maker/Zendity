@@ -23,6 +23,7 @@ interface EmergencyCard {
   diagnoses: string | null;
   diet: string | null;
   needsDialysis: boolean;
+  modalidadCuidado?: string | null;
   preferredHospital: string | null;
   insurancePlanName: string | null;
   insurancePolicyNumber: string | null;
@@ -269,6 +270,18 @@ export default async function EmergencyPrintPage({
         </h3>
         <p className="text-sm text-slate-800">{card.diagnoses || 'No especificado'}</p>
       </section>
+
+      {/* Objetivos de cuidado. Va ARRIBA de dieta y dialisis, y en violeta
+          fuerte: si esta persona esta en hospicio o paliativo, eso cambia lo
+          que se hace en emergencias antes que cualquier otro dato de aqui. */}
+      {card.modalidadCuidado && (
+        <section className="mb-5 rounded-lg p-3 border-2 border-violet-400 bg-violet-50">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-violet-700 mb-1">
+            Modalidad de cuidado
+          </h3>
+          <p className="text-base font-black text-violet-900">{card.modalidadCuidado}</p>
+        </section>
+      )}
 
       {/* Dieta + Diálisis */}
       <div className="grid grid-cols-2 gap-4 mb-5">

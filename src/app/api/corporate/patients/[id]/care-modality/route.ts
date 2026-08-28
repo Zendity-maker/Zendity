@@ -73,7 +73,11 @@ async function patchHandler(req: Request, { params }: { params: Promise<{ id: st
             inicio = parsed;
         }
 
-        const prov = nueva === 'HOSPICE' && typeof proveedor === 'string' && proveedor.trim()
+        // El proveedor se guarda para las DOS modalidades. Andres: "para
+        // efectos de la comunicacion en el hogar y en Puerto Rico paliativo es
+        // hospicio". Un residente en paliativo tambien tiene una agencia
+        // detras, y ese nombre es a quien se llama.
+        const prov = nueva !== 'NONE' && typeof proveedor === 'string' && proveedor.trim()
             ? proveedor.trim().slice(0, 200)
             : null;
 

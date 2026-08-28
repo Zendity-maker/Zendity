@@ -4,6 +4,7 @@ import { requireSuperAdmin } from '@/lib/admin-auth';
 import { logAudit } from '@/lib/audit';
 import { logError } from '@/lib/logger';
 import { generateContinuityPDF, ContinuityResident } from '@/lib/continuity-pdf';
+import { lineaModalidad } from '@/lib/cuidado-final';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             select: {
                 name: true, roomNumber: true, status: true, diet: true,
                 needsDialysis: true, requiresPosturalChanges: true, nortonRisk: true,
+                careModality: true, hospiceProvider: true,
                 intakeData: { select: { allergies: true } },
                 pressureUlcers: {
                     where: { status: { not: 'RESOLVED' } },
@@ -59,6 +61,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             if (p.requiresPosturalChanges) alerts.push('Rotación postural c/2h');
             else if (p.nortonRisk) alerts.push('Riesgo Norton — vigilar piel');
             if (p.needsDialysis) alerts.push('Diálisis periódica');
+            // Objetivos de cuidado en el papel de continuidad de la sede.
+            const mod = lineaModalidad(p.careModality, p.hospiceProvider);
+            if (mod) alerts.push(mod);
 
             return {
                 name: p.name.trim(),
