@@ -464,6 +464,18 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                     >
                                         🩺 {patientData?.needsDialysis ? 'Diálisis ✓' : 'Diálisis'}
                                     </button>
+                                    {/* Va aqui, con Dieta y Dialisis, y no en la
+                                        fila de acciones grandes: es una marca
+                                        clinica del residente, no una accion que
+                                        se ejecuta. Andres lo busco justo aqui. */}
+                                    <ModalidadCuidadoButton
+                                        patientId={patientData.id}
+                                        patientName={patientData.name}
+                                        actual={(patientData as any).careModality ?? 'NONE'}
+                                        proveedorActual={(patientData as any).hospiceProvider ?? null}
+                                        inicioActual={(patientData as any).hospiceStartDate ?? null}
+                                        onSaved={() => fetchPatientData()}
+                                    />
                                     </>
                                 )}
                             </div>
@@ -488,17 +500,6 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <ActualizarFamiliaButton
                                     patientId={patientData.id}
                                     patientName={patientData.name}
-                                />
-                                {/* Va junto a la actualizacion familiar a
-                                    proposito: es el boton que decide si esa
-                                    actualizacion se redacta sola o no. */}
-                                <ModalidadCuidadoButton
-                                    patientId={patientData.id}
-                                    patientName={patientData.name}
-                                    actual={(patientData as any).careModality ?? 'NONE'}
-                                    proveedorActual={(patientData as any).hospiceProvider ?? null}
-                                    inicioActual={(patientData as any).hospiceStartDate ?? null}
-                                    onSaved={() => window.location.reload()}
                                 />
                                 <Link href={`/corporate/medical/patients/${patientData.id}/pai`} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Expediente PAI

@@ -71,14 +71,15 @@ export default function ModalidadCuidadoButton({
         <>
             <button
                 onClick={() => setAbierto(true)}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm border ${
-                    vigente === "HOSPICE" ? "bg-violet-600 border-violet-600 text-white hover:bg-violet-700"
-                    : vigente === "PALLIATIVE" ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-600"
-                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                title="Marcar hospicio o cuidado paliativo"
+                className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${
+                    vigente === "HOSPICE" ? "bg-violet-100 text-violet-700 border-violet-300 hover:bg-violet-200"
+                    : vigente === "PALLIATIVE" ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200"
+                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                 }`}
             >
-                <HeartHandshake className="w-5 h-5" />
-                {vigente === "HOSPICE" ? "Hospicio" : vigente === "PALLIATIVE" ? "Paliativo" : "Modalidad de cuidado"}
+                <HeartHandshake className="w-3.5 h-3.5 stroke-2" />
+                {vigente === "HOSPICE" ? "Hospicio ✓" : vigente === "PALLIATIVE" ? "Paliativo ✓" : "Modalidad"}
             </button>
 
             {abierto && (
