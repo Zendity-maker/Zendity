@@ -49,7 +49,7 @@ const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 const TARGET_MIN = 120;
 const BREACH_MIN = 135;
 
-type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA';
+type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA' | 'SIN_ORDEN';
 
 /**
  * FUERA: el residente no esta en el edificio.
@@ -64,8 +64,27 @@ type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA';
  * Al volver a ACTIVE reentra al conteo y —como su ultima rotacion es vieja—
  * sale como pendiente de inmediato, que es justo lo correcto.
  */
-function classify(minutesSince: number | null, fuera: boolean): Tier {
+/**
+ * SIN_ORDEN: enrolado UNICAMENTE por nortonRisk.
+ *
+ * Norton es una ESCALA DE RIESGO, no una orden de rotacion. Dice que la
+ * persona tiene riesgo de ulcera; no dice que haya que girarla cada dos horas.
+ * Teresa Rivera esta en silla de ruedas y se moviliza sola: su alivio de
+ * presion lo hace ella, la intervencion es un cojin, no una cuidadora
+ * volteandola. Aun asi el OR del enrolamiento la metia como tarea vencida.
+ *
+ * Peor: no habia forma de sacarla. El toggle de rotation-protocol pone
+ * requiresPosturalChanges en false, pero nortonRisk sigue en true y el OR la
+ * vuelve a meter. Otro contador que no puede bajar.
+ *
+ * Ahora sale visible pero fuera del conteo, esperando que enfermeria confirme
+ * con el toggle quien necesita rotacion de verdad. No se borra a nadie: quitar
+ * Norton del enrolamiento sacaria a cinco residentes de golpe, y esa es
+ * decision clinica, no de este endpoint.
+ */
+function classify(minutesSince: number | null, fuera: boolean, sinOrden: boolean): Tier {
     if (fuera) return 'FUERA';
+    if (sinOrden) return 'SIN_ORDEN';
     if (minutesSince === null) return 'NEVER';
     if (minutesSince <= TARGET_MIN) return 'OK';
     if (minutesSince <= BREACH_MIN) return 'DUE';
@@ -133,7 +152,11 @@ export async function GET(_req: Request) {
                 ? Math.floor((now.getTime() - last.performedAt.getTime()) / 60000)
                 : null;
             const fuera = p.status === 'TEMPORARY_LEAVE';
-            const tier = classify(minutesSince, fuera);
+            // Solo Norton: ni orden clinica explicita ni ulcera activa.
+            const sinOrden = p.nortonRisk
+                && !p.requiresPosturalChanges
+                && p.pressureUlcers.length === 0;
+            const tier = classify(minutesSince, fuera, sinOrden);
             // Por qué entró al set (útil para tooltip "enrolled by:" en UI)
             const enrolledBy = {
                 flag: p.requiresPosturalChanges,
@@ -160,15 +183,16 @@ export async function GET(_req: Request) {
                 // Fuera del edificio no se reportan minutos acumulados: el
                 // numero solo servia para pintar de rojo una espera que nadie
                 // puede atender.
-                minutesSince: fuera ? null : minutesSince,
+                minutesSince: (fuera || sinOrden) ? null : minutesSince,
                 tier,
                 fuera,
+                sinOrden,
                 motivoFuera: fuera ? (p.leaveType ?? 'AUSENTE') : null,
             };
         });
 
         // Counts por tier (útil para chips agregados en el header del dashboard).
-        const counts: Record<Tier, number> = { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0 };
+        const counts: Record<Tier, number> = { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0, SIN_ORDEN: 0 };
         for (const p of patients) counts[p.tier]++;
 
         return NextResponse.json({

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
-    Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2,
+    Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
 } from "lucide-react";
 
 /**
@@ -29,7 +29,7 @@ import {
  * arde.
  */
 
-type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA';
+type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA' | 'SIN_ORDEN';
 
 interface ActiveUlcer {
     id: string;
@@ -67,7 +67,7 @@ interface ApiResponse {
     patients?: PatientRow[];
 }
 
-const TIER_ORDER: Tier[] = ['OVERDUE', 'DUE', 'NEVER', 'OK', 'FUERA'];
+const TIER_ORDER: Tier[] = ['OVERDUE', 'DUE', 'NEVER', 'OK', 'SIN_ORDEN', 'FUERA'];
 
 const TIER_META: Record<Tier, { label: string; icon: any; bg: string; border: string; text: string; ring: string; chipBg: string; chipText: string }> = {
     OVERDUE: { label: 'Vencido',       icon: AlertOctagon, bg: 'bg-red-50',     border: 'border-red-300',     text: 'text-red-800',     ring: 'ring-red-400',     chipBg: 'bg-red-600',     chipText: 'text-white' },
@@ -75,6 +75,8 @@ const TIER_META: Record<Tier, { label: string; icon: any; bg: string; border: st
     NEVER:   { label: 'Sin registro',  icon: AlertTriangle,bg: 'bg-rose-50',    border: 'border-rose-300',    text: 'text-rose-800',    ring: 'ring-rose-300',    chipBg: 'bg-rose-700',    chipText: 'text-white' },
     OK:      { label: 'A tiempo',      icon: CheckCircle2, bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', ring: 'ring-emerald-300', chipBg: 'bg-emerald-600', chipText: 'text-white' },
     // Gris a proposito: no es una tarea ni una falta, es que no esta aqui.
+    // Indigo, no rojo ni gris: pide una decision de enfermeria, no una tarea.
+    SIN_ORDEN: { label: 'Riesgo Norton — sin orden', icon: HelpCircle, bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', ring: 'ring-indigo-300', chipBg: 'bg-indigo-500', chipText: 'text-white' },
     FUERA:   { label: 'En hospital',   icon: Building2,    bg: 'bg-slate-50',   border: 'border-slate-200',   text: 'text-slate-600',   ring: 'ring-slate-300',   chipBg: 'bg-slate-500',   chipText: 'text-white' },
 };
 
@@ -173,7 +175,7 @@ export default function NursingRotationPage() {
         );
     }
 
-    const counts = data?.counts ?? { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0 };
+    const counts = data?.counts ?? { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0, SIN_ORDEN: 0 };
     const patients = data?.patients ?? [];
     const total = data?.total ?? 0;
 
@@ -222,7 +224,7 @@ export default function NursingRotationPage() {
                     </div>
 
                     {/* Chips de counts por tier */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                         {TIER_ORDER.map((t) => {
                             const meta = TIER_META[t];
                             const Icon = meta.icon;

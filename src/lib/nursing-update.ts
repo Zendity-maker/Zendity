@@ -38,6 +38,7 @@ async function contextoClinico(patientId: string) {
             name: true,
             status: true,
             headquartersId: true,
+            careModality: true,
             vitalSigns: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
@@ -75,6 +76,18 @@ export async function generarBorrador(
     const patient = await contextoClinico(patientId);
     if (!patient || patient.headquartersId !== hqId) return null;
     if (!['ACTIVE', 'TEMPORARY_LEAVE'].includes(patient.status)) return null;
+
+    // Hospicio: no se redacta solo. El mensaje "positivo y tranquilizador" que
+    // pide el prompt es exactamente el tono equivocado para una familia que
+    // esta acompañando un final, y ningun ajuste de prompt arregla eso — la
+    // decision de que decir y como es de la enfermera, no de un modelo.
+    if (patient.careModality === 'HOSPICE') {
+        return {
+            nombre: patient.name,
+            borrador: { opcion1: '', opcion2: '', contexto: '' },
+            aviso: HOSPICIO,
+        };
+    }
 
     const familia = await prisma.familyMember.count({ where: { patientId } });
     if (familia === 0) return null;
@@ -123,6 +136,11 @@ export async function generarBorrador(
         aviso: opciones.sinNotas ? BLOQUEADO_NOTAS : null,
     };
 }
+
+export const HOSPICIO =
+    'Este residente está en hospicio. Zendi no redacta estos mensajes: el tono '
+    + 'de una actualización automática es el equivocado para una familia que está '
+    + 'acompañando un final. Escríbelo tú, con lo que sepas de esa familia.';
 
 export const BLOQUEADO_NOTAS =
     'Zendi no pudo redactar a partir de las notas de turno de este residente — '

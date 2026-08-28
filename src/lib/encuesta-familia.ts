@@ -67,7 +67,14 @@ export async function prepararEnvio(hqId: string, periodo = periodoActual()): Pr
             // Solo familias de residentes que siguen en el hogar. Preguntarle
             // por el servicio a quien perdio a su madre en junio no es una
             // encuesta, es una torpeza.
-            patient: { status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] } },
+            patient: {
+                status: { in: ['ACTIVE', 'TEMPORARY_LEAVE'] },
+                // Ni a familias de residentes en hospicio. Preguntar "¿cómo lo
+                // estamos haciendo?" a quien esta acompañando un final no es
+                // medir servicio, es la misma torpeza de arriba con otra cara.
+                // Si esa familia quiere decir algo, lo dice por trabajo social.
+                careModality: { not: 'HOSPICE' },
+            },
         },
         select: { id: true, name: true, email: true },
     });

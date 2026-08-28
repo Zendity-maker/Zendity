@@ -21,6 +21,7 @@ import PatientEvaluationsTab from "@/components/medical/patient/PatientEvaluatio
 import PatientCallsTab from "@/components/family-contact-logs/PatientCallsTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
 import ActualizarFamiliaButton from "@/components/medical/patient/ActualizarFamiliaButton";
+import ModalidadCuidadoButton from "@/components/medical/patient/ModalidadCuidadoButton";
 
 // Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
 // Si el usuario no tiene primary ni secondaryRole en esta lista, la pestaña
@@ -487,6 +488,17 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <ActualizarFamiliaButton
                                     patientId={patientData.id}
                                     patientName={patientData.name}
+                                />
+                                {/* Va junto a la actualizacion familiar a
+                                    proposito: es el boton que decide si esa
+                                    actualizacion se redacta sola o no. */}
+                                <ModalidadCuidadoButton
+                                    patientId={patientData.id}
+                                    patientName={patientData.name}
+                                    actual={(patientData as any).careModality ?? 'NONE'}
+                                    proveedorActual={(patientData as any).hospiceProvider ?? null}
+                                    inicioActual={(patientData as any).hospiceStartDate ?? null}
+                                    onSaved={() => window.location.reload()}
                                 />
                                 <Link href={`/corporate/medical/patients/${patientData.id}/pai`} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Expediente PAI
