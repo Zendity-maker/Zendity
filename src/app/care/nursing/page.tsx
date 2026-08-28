@@ -106,6 +106,45 @@ export default function NursingRotationPage() {
 
     const [data, setData] = useState<ApiResponse | null>(null);
     const [loading, setLoading] = useState(true);
+    const [decidiendo, setDecidiendo] = useState<string | null>(null);
+
+    /**
+     * Enfermería decide si un residente enrolado SOLO por Norton necesita
+     * rotación de verdad, o no.
+     *
+     * Usa /api/corporate/patients/[id]/rotation-protocol, que existía con
+     * auditoría y confirmación explícita desde hace meses y al que NO llamaba
+     * ninguna pantalla. Por eso Teresa Rivera —silla de ruedas, se moviliza
+     * sola— llevaba semanas apareciendo en cambios posturales sin que nadie
+     * pudiera sacarla.
+     *
+     * "No hace falta" pone requiresPosturalChanges en false. El residente
+     * SIGUE en la lista mientras tenga Norton positivo, pero como
+     * "Riesgo Norton — sin orden": visible, sin contar como vencido y sin
+     * generar penalidades. No se le quita el riesgo; se le quita la tarea que
+     * nadie mandó.
+     */
+    const decidirRotacion = async (patientId: string, nombre: string, requiere: boolean) => {
+        const msg = requiere
+            ? `¿Confirmar que ${nombre.trim()} necesita rotación postural cada 2 horas?`
+            : `¿Confirmar que ${nombre.trim()} NO necesita rotación programada? Seguirá visible por su riesgo Norton, pero dejará de contar como vencido.`;
+        if (!confirm(msg)) return;
+        setDecidiendo(patientId);
+        try {
+            const res = await fetch(`/api/corporate/patients/${patientId}/rotation-protocol`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requiresPosturalChanges: requiere, confirmed: true }),
+            });
+            const d = await res.json();
+            if (!d.success) { alert(d.error || 'No se pudo guardar.'); return; }
+            await fetchData();
+        } catch {
+            alert('Error de conexión.');
+        } finally {
+            setDecidiendo(null);
+        }
+    };
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [lastFetched, setLastFetched] = useState<Date | null>(null);
@@ -370,6 +409,35 @@ export default function NursingRotationPage() {
                                             </span>
                                         )}
                                     </div>
+
+                                    {/* Salida del estado "Riesgo Norton — sin orden".
+                                        Sin esto el tier era un callejon: Norton
+                                        metia al residente en la lista y el toggle
+                                        de rotation-protocol no lo llamaba ninguna
+                                        pantalla, asi que no habia forma de decidir. */}
+                                    {p.tier === 'SIN_ORDEN' && (
+                                        <div className="w-full md:w-auto md:border-l md:pl-3 border-indigo-100 flex flex-col gap-1.5 shrink-0">
+                                            <p className="text-[10px] font-bold text-indigo-700 leading-snug md:max-w-[15rem]">
+                                                Norton dice que hay riesgo. ¿Necesita rotación cada 2 h?
+                                            </p>
+                                            <div className="flex gap-1.5">
+                                                <button
+                                                    onClick={() => decidirRotacion(p.patientId, p.name, true)}
+                                                    disabled={decidiendo === p.patientId}
+                                                    className="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wide bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white transition-colors"
+                                                >
+                                                    Sí, rotarlo
+                                                </button>
+                                                <button
+                                                    onClick={() => decidirRotacion(p.patientId, p.name, false)}
+                                                    disabled={decidiendo === p.patientId}
+                                                    className="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wide bg-white hover:bg-slate-50 border border-slate-300 text-slate-600 transition-colors"
+                                                >
+                                                    No hace falta
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

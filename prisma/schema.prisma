@@ -1013,6 +1013,12 @@ enum IncidentType {
   FALL
   ULCER
   BEHAVIOR
+  // La pantalla de direccion ofrecia este tipo desde siempre y el runbook manda
+  // usarlo — "Incidentes → Nuevo Incidente → tipo Error de Medicacion"— pero el
+  // enum no lo tenia y el endpoint lo rechazaba con 400. Cualquiera que lo
+  // intentara recibia un error rojo. Cero errores de medicacion registrados en
+  // toda la historia, y no por ausencia de errores.
+  MEDICATION_ERROR
   OTHER
 }
 

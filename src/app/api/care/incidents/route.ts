@@ -35,7 +35,28 @@ const IncidentOtherSchema = z.object({
     severity:    z.string().optional(),
 });
 
-const IncidentPostBody = z.discriminatedUnion('type', [IncidentFallSchema, IncidentOtherSchema]);
+/**
+ * Error de medicacion — dosis equivocada, residente equivocado, hora
+ * equivocada, medicamento equivocado.
+ *
+ * Es distinto del hallazgo de "[MEDICAMENTO SIN ADMINISTRAR]" que reporta la
+ * cuidadora desde el hub: aquel dice "encontre esto y aviso"; este dice "ocurrio
+ * un error y queda en el expediente de incidentes". Por eso lo levanta
+ * direccion o enfermeria, no el piso.
+ */
+const IncidentMedErrorSchema = z.object({
+    type:        z.literal('MEDICATION_ERROR'),
+    patientId:   z.string().min(1, 'patientId requerido'),
+    description: z.string().min(1, 'descripción requerida').max(2000),
+    photoUrl:    z.string().max(2_000_000).optional().nullable(),
+    severity:    z.string().optional(),
+});
+
+const IncidentPostBody = z.discriminatedUnion('type', [
+    IncidentFallSchema,
+    IncidentMedErrorSchema,
+    IncidentOtherSchema,
+]);
 
 /**
  * Deriva IncidentSeverity a partir del nivel de dolor reportado.
@@ -170,6 +191,55 @@ export async function POST(req: Request) {
                 derivedSeverity,
                 derivedRiskLevel,
             });
+        }
+
+        // ─── FLUJO ERROR DE MEDICACIÓN ───
+        // Va a Incident, no a HeadquartersEvent: es un evento clínico del
+        // expediente del residente, no una incidencia de infraestructura. Y a
+        // triage con prioridad ALTA — un error de medicación se mira el mismo
+        // turno, no cuando alguien pase por ahí.
+        if (parsed.data.type === 'MEDICATION_ERROR') {
+            const { patientId, description } = parsed.data;
+
+            const px = await prisma.patient.findFirst({
+                where: { id: patientId, headquartersId: hqId },
+                select: { id: true, name: true },
+            });
+            if (!px) {
+                return NextResponse.json({ success: false, error: 'Residente fuera de tu sede' }, { status: 403 });
+            }
+
+            const incident = await prisma.incident.create({
+                data: {
+                    patientId,
+                    headquartersId: hqId,
+                    type: 'MEDICATION_ERROR',
+                    severity: 'HIGH',
+                    description,
+                    reportedById: invokerId,
+                    // Obligatorio en el modelo. Aqui la firma es la sesion de
+                    // quien lo reporta, no una biometrica de piso.
+                    biometricSignature: `sesion:${invokerId}`,
+                },
+            });
+
+            await prisma.triageTicket.create({
+                data: {
+                    headquartersId: hqId,
+                    patientId,
+                    // INCIDENT, no MEDICATION_ERROR: el enum TicketOriginType
+                    // no tiene ese valor, aunque el filtro de la pantalla de
+                    // triage lo ofrezca — ese filtro no puede casar nunca y
+                    // queda anotado aparte. El tipo real va en Incident.type.
+                    originType: 'INCIDENT',
+                    originReferenceId: incident.id,
+                    priority: 'HIGH',
+                    status: 'OPEN',
+                    description: `Error de medicación — ${px.name.trim()}: ${description}`,
+                },
+            });
+
+            return NextResponse.json({ success: true, incidentId: incident.id });
         }
 
         // ─── FLUJO OTHER (mantenimiento) ───
