@@ -1087,13 +1087,33 @@ model FamilySurvey {
   id             String   @id @default(uuid())
   headquartersId String
   familyMemberId String
-  ratingCare     Int // 1-5 Estrellas
-  ratingClean    Int // 1-5 Estrellas
-  ratingHealth   Int // 1-5 Estrellas
+  /// Nulos mientras la encuesta esta ENVIADA y sin responder. La fila se crea
+  /// al invitar, no al responder, para poder medir la tasa de respuesta — que
+  /// es tan informativa como las notas: si nadie contesta, el problema no son
+  /// las estrellas.
+  ratingCare     Int? // 1-5 Estrellas
+  ratingClean    Int? // 1-5 Estrellas
+  ratingHealth   Int? // 1-5 Estrellas
   createdAt      DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id])
+
+  /// Codigo del enlace que se manda por correo. Permite responder sin iniciar
+  /// sesion: de 19 familiares en Cupey los 19 tienen correo, pero solo 15
+  /// completaron su acceso al portal. Por correo se alcanza a los 19.
+  token       String?   @unique
+  /// Trimestre al que corresponde, formato "2026-Q3". Una familia recibe una
+  /// encuesta por trimestre y no mas.
+  periodo     String?
+  sentAt      DateTime?
+  respondedAt DateTime?
+  /// Lo que la familia quiera contar. Tres estrellas dicen que algo va mal;
+  /// solo el texto dice que es.
+  comentario  String?   @db.Text
+
+  @@unique([familyMemberId, periodo])
+  @@index([headquartersId, periodo])
 }
 
 // =======================

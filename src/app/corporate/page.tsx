@@ -8,6 +8,7 @@ import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { ShieldAlert, MessageSquare, CalendarDays, ArrowRight, Building2, Users, ClipboardList, TrendingUp, TrendingDown, Minus, Activity, HeartPulse, Bath, UtensilsCrossed, FileSignature, Siren, Sparkles, RefreshCw, AlertOctagon, UserCheck, Stethoscope, Radio, BedDouble, HeartHandshake, X, ChevronRight } from 'lucide-react';
 import OnboardingChecklist from '@/components/corporate/OnboardingChecklist';
 import EstadoHoy from '@/components/corporate/EstadoHoy';
+import SatisfaccionFamilias from '@/components/corporate/SatisfaccionFamilias';
 import {
     ResponsiveContainer,
     LineChart, Line,
@@ -583,6 +584,11 @@ export default function CorporateDashboardPage() {
                 estaba junto, y las ausencias no aparecian en ninguna parte del
                 dashboard. */}
             <EstadoHoy hqId={selectedFacility} />
+
+            {/* Satisfaccion de familias — trimestral. Va aqui, con el resto del
+                estado, no en una pantalla aparte: una metrica que hay que ir a
+                buscar no se mira. */}
+            {isDirector && <SatisfaccionFamilias hqId={selectedFacility} />}
 
             {/* Zendi Director Briefing.
                 Estaba ENCIMA del encabezado: abrias el dashboard y lo primero

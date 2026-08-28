@@ -541,6 +541,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         // fuera y no tiene sesion. Sin esto AppLayout devuelve null cuando no
         // hay usuario y el visitante no ve absolutamente nada.
         pathname.startsWith("/verificar") ||
+        // Encuesta de servicio a familias: llega por correo y se responde sin
+        // sesion, igual que la verificacion de certificados.
+        pathname.startsWith("/encuesta") ||
         // El kiosko de Servicios Externos opera con device-token, NO con sesión
         // NextAuth. No debe mostrar el chrome de Zendity (sidebar/topbar) — el
         // visitante externo no debe poder navegar a otras partes de la app.

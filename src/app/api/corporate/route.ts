@@ -157,10 +157,16 @@ export async function GET(request: NextRequest) {
             ? Math.round(evalAgg._avg.score)
             : null;
 
-        const famSatisfaction: number | null = surveys.length > 0
+        // Solo las RESPONDIDAS. Desde que la encuesta se envia por correo, la
+        // fila se crea al invitar y las notas quedan nulas hasta que la familia
+        // contesta — promediar invitaciones sin responder daria cero.
+        const respondidas = surveys.filter(
+            sv => sv.ratingCare != null && sv.ratingClean != null && sv.ratingHealth != null,
+        );
+        const famSatisfaction: number | null = respondidas.length > 0
             ? Math.round(
-                (surveys.reduce((acc, sv) => acc + sv.ratingCare + sv.ratingClean + sv.ratingHealth, 0) /
-                    (surveys.length * 3)) * 20
+                (respondidas.reduce((acc, sv) => acc + sv.ratingCare! + sv.ratingClean! + sv.ratingHealth!, 0) /
+                    (respondidas.length * 3)) * 20
             )
             : null;
 
