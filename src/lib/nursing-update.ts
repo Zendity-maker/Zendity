@@ -18,6 +18,7 @@
  * saber si una persona lo cambió.
  */
 import { prisma } from '@/lib/prisma';
+import { logWarn } from '@/lib/logger';
 
 export interface BorradorClinico {
     opcion1: string;
@@ -70,7 +71,7 @@ async function contextoClinico(patientId: string) {
 export async function generarBorrador(
     patientId: string,
     hqId: string,
-): Promise<{ borrador: BorradorClinico; nombre: string } | null> {
+): Promise<{ borrador: BorradorClinico; nombre: string; aviso: string | null } | null> {
     const patient = await contextoClinico(patientId);
     if (!patient || patient.headquartersId !== hqId) return null;
     if (!['ACTIVE', 'TEMPORARY_LEAVE'].includes(patient.status)) return null;
@@ -105,8 +106,85 @@ export async function generarBorrador(
         uppText ? `Estado clínico: ${uppText}` : '',
     ].filter(Boolean).join('\n');
 
+    const opciones = await pedirOpciones(patient.name, contexto);
+    if (!opciones) {
+        // La redaccion se bloqueo incluso sin las notas. No se inventa un
+        // mensaje: se devuelve el caso para que la enfermera escriba.
+        return {
+            nombre: patient.name,
+            borrador: { opcion1: '', opcion2: '', contexto },
+            aviso: BLOQUEADO_TOTAL,
+        };
+    }
+
+    return {
+        nombre: patient.name,
+        borrador: { opcion1: opciones.a, opcion2: opciones.b, contexto },
+        aviso: opciones.sinNotas ? BLOQUEADO_NOTAS : null,
+    };
+}
+
+export const BLOQUEADO_NOTAS =
+    'Zendi no pudo redactar a partir de las notas de turno de este residente — '
+    + 'hay contenido clínico delicado que no debe salir en un mensaje a la familia. '
+    + 'El borrador de abajo se armó solo con los datos objetivos (vitales y medicación). '
+    + 'Revisa el expediente antes de enviarlo.';
+
+export const BLOQUEADO_TOTAL =
+    'Zendi no va a redactar este mensaje. El cuadro de este residente esta semana '
+    + 'no es material para una actualización automática. Escríbelo tú, o considera '
+    + 'si esto amerita una llamada a la familia en vez de un mensaje.';
+
+/**
+ * Pide las dos opciones a Zendi, con una segunda pasada sin las notas de turno.
+ *
+ * POR QUE EXISTE ESTA SEGUNDA PASADA: el 28-ago-2026 el borrador de una
+ * residente fallo con "no se pudo generar el borrador" mientras los otros 11 de
+ * esa misma tanda salieron bien. Diez de esos once llevaban alertas clinicas
+ * fuertes —sangrado, alucinaciones, dolor intenso, rechazo a medicamento— y
+ * pasaron sin problema. La unica diferencia de la que fallo era una nota de
+ * autoagresion, que el filtro de seguridad del modelo trata aparte de todo lo
+ * demas y bloquea.
+ *
+ * Asi que NO se filtran las alertas por adelantado: son justo el contenido
+ * clinico que hace util el mensaje, y quitarlas empobreceria los diez casos que
+ * funcionan para arreglar uno. Se intenta con todo; si el modelo se planta, se
+ * reintenta con vitales y medicacion —datos objetivos que nunca se bloquean— y
+ * se le dice a la enfermera por que el borrador viene mas pobre.
+ *
+ * Si tambien se bloquea sin notas, se devuelve null: eso ya no es un fallo
+ * tecnico que haya que sortear, es una señal de que el caso no es material para
+ * un mensaje automatico.
+ */
+async function pedirOpciones(
+    nombre: string,
+    contexto: string,
+): Promise<{ a: string; b: string; sinNotas: boolean } | null> {
+    const sinNotas = contexto
+        .split('\n')
+        .filter(l => !l.startsWith('Notas de turno:') && !l.startsWith('Estado clínico:'))
+        .join('\n');
+
+    for (const [ctx, esFallback] of [[contexto, false], [sinNotas, true]] as const) {
+        try {
+            const r = await generar(nombre, ctx);
+            if (r) return { ...r, sinNotas: esFallback };
+        } catch (e: any) {
+            // Un bloqueo de seguridad no es un error del sistema: es una
+            // respuesta. Se registra sin el texto clinico —eso es PHI y no va
+            // a los logs— y se pasa al intento siguiente.
+            logWarn('[nursing-update] redaccion bloqueada o invalida', {
+                intento: esFallback ? 'sin-notas' : 'completo',
+                motivo: e?.message?.slice(0, 120),
+            });
+        }
+    }
+    return null;
+}
+
+async function generar(nombre: string, contexto: string): Promise<{ a: string; b: string } | null> {
     const prompt = `Eres Zendi, asistente clínico de un hogar de envejecientes.
-Genera 2 opciones de mensaje corto, cálido y positivo para que la enfermera del hogar envíe a la familia de ${patient.name}.
+Genera 2 opciones de mensaje corto, cálido y positivo para que la enfermera del hogar envíe a la familia de ${nombre}.
 
 Datos clínicos reales de esta semana:
 ${contexto}
@@ -132,14 +210,19 @@ Responde SOLO en JSON sin markdown:
     });
 
     const result = await model.generateContent(prompt);
+
+    // .text() LANZA cuando el candidato viene con finishReason SAFETY, y el
+    // prompt entero puede venir bloqueado en promptFeedback. Antes ambos casos
+    // subian como excepcion hasta el endpoint y salian como "no se pudo generar
+    // el borrador", sin decir nada de por que.
+    const bloqueo = result.response?.promptFeedback?.blockReason;
+    if (bloqueo) throw new Error(`prompt bloqueado: ${bloqueo}`);
+
     const raw = (result.response.text() || '{}').replace(/```json/g, '').replace(/```/g, '').trim();
     const ai = JSON.parse(raw);
-    if (!ai.optionGen1 || !ai.optionGen2) throw new Error('Zendi no devolvió opciones válidas.');
+    if (!ai.optionGen1 || !ai.optionGen2) throw new Error('respuesta sin las dos opciones');
 
-    return {
-        nombre: patient.name,
-        borrador: { opcion1: ai.optionGen1, opcion2: ai.optionGen2, contexto },
-    };
+    return { a: ai.optionGen1, b: ai.optionGen2 };
 }
 
 /** Días desde la última actualización enviada. null si nunca hubo una. */

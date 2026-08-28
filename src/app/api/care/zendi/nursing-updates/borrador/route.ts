@@ -38,6 +38,14 @@ export async function POST(req: Request) {
         // Se guarda en PENDING para que el envio quede trazado igual que antes:
         // optionGen1/2 conservan lo que propuso Zendi y selectedOption guardara
         // lo que realmente salio, aunque la enfermera lo edite.
+        // Zendi se planto incluso sin las notas. No se crea fila: no hay
+        // borrador que aprobar, y una fila PENDING vacia solo ensucia el
+        // historial. Se devuelve el motivo tal cual para que la enfermera sepa
+        // que hacer.
+        if (!r.borrador.opcion1) {
+            return NextResponse.json({ success: false, error: r.aviso }, { status: 200 });
+        }
+
         const update = await prisma.zendiNursingUpdate.create({
             data: {
                 patientId,
@@ -55,6 +63,7 @@ export async function POST(req: Request) {
             update,
             nombre: r.nombre,
             contexto: r.borrador.contexto,
+            aviso: r.aviso,
         });
     } catch (e: any) {
         console.error('[nursing-updates/borrador] error:', e);

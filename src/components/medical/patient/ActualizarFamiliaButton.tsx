@@ -32,10 +32,14 @@ export default function ActualizarFamiliaButton({
     const [texto, setTexto] = useState("");
     const [contexto, setContexto] = useState("");
     const [error, setError] = useState<string | null>(null);
+    // Aviso ≠ error. El borrador SI se generó, pero mas pobre y por un motivo
+    // que la enfermera necesita saber antes de mandarlo.
+    const [aviso, setAviso] = useState<string | null>(null);
 
     const abrir = async () => {
         setAbierto(true);
         setError(null);
+        setAviso(null);
         setOpciones(null);
         setTexto("");
         setGenerando(true);
@@ -54,6 +58,7 @@ export default function ActualizarFamiliaButton({
             setOpciones({ a: d.update.optionGen1, b: d.update.optionGen2 });
             setTexto(d.update.optionGen1);
             setContexto(d.contexto || "");
+            setAviso(d.aviso || null);
         } catch {
             setError("No se pudo generar el borrador. Intenta de nuevo.");
         } finally {
@@ -131,6 +136,15 @@ export default function ActualizarFamiliaButton({
                             {error && (
                                 <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-sm font-medium">
                                     {error}
+                                </div>
+                            )}
+
+                            {/* Ambar, no rojo: el borrador esta ahi y sirve, pero
+                                viene sin las notas de turno y quien lo manda
+                                tiene que saberlo antes de darle a enviar. */}
+                            {aviso && !generando && (
+                                <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-sm font-medium leading-relaxed">
+                                    {aviso}
                                 </div>
                             )}
 
