@@ -361,15 +361,19 @@ export async function GET(req: Request) {
         // Integrar Alertas Clínicas del Action Hub (DailyLog isClinicalAlert)
         clinicalAlerts.forEach((log: any) => {
             const isUPP = (log.notes || '').includes('[ALERTA UPP');
+            // El prefijo es lo que le da nombre propio al hallazgo. Sin esto
+            // sale como "Alerta Clínica" y se pierde entre fiebres y caidas,
+            // que es justo lo que el reporte venia a evitar.
+            const isMed = (log.notes || '').includes('[MEDICAMENTO SIN ADMINISTRAR]');
             triageFeed.push({
                 id: `clinical_${log.id}`,
                 sourceId: log.id,
                 sourceType: 'CLINICAL_ALERT',
-                category: isUPP ? 'UPP_PIEL' : 'CLINICO_CRITICO',
+                category: isMed ? 'MEDICAMENTO' : isUPP ? 'UPP_PIEL' : 'CLINICO_CRITICO',
                 // El titulo ya no dice "(Cuidador)" fijo: lo escribe tanto una
                 // cuidadora como una supervisora, y el rol real va abajo con el
                 // nombre de quien reporto.
-                title: isUPP ? 'Alerta UPP / Piel' : 'Alerta Clínica',
+                title: isMed ? 'Medicamento sin administrar' : isUPP ? 'Alerta UPP / Piel' : 'Alerta Clínica',
                 description: log.notes || 'Alerta clínica sin descripción',
                 patientId: log.patient?.id || null,
                 patientName: log.patient?.name || 'N/A',

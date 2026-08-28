@@ -1312,7 +1312,13 @@ export default function SupervisorMissionControlPage() {
                     {(() => {
                         const tabMatchesCategory = (tab: TriageTab, cat: string): boolean => {
                             if (tab === 'TODOS') return true;
-                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE';
+                            // MEDICAMENTO entra en CLINICO a proposito. Con
+                            // categoria propia y sin pestaña, filtrar por
+                            // "Clínico" lo haria desaparecer — y un reporte que
+                            // se esconde al filtrar es peor que no tenerlo.
+                            // Conserva su titulo propio en la tarjeta, asi que
+                            // se distingue igual y se puede contar.
+                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE' || cat === 'MEDICAMENTO';
                             if (tab === 'UPP') return cat === 'UPP_PIEL';
                             if (tab === 'FAMILIA') return cat === 'FAMILY';
                             if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';
@@ -1361,7 +1367,7 @@ export default function SupervisorMissionControlPage() {
                     ) : (() => {
                         const tabMatchesCategory = (tab: TriageTab, cat: string): boolean => {
                             if (tab === 'TODOS') return true;
-                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE';
+                            if (tab === 'CLINICO') return cat === 'CLINICO_CRITICO' || cat === 'INCIDENTE' || cat === 'MEDICAMENTO';
                             if (tab === 'UPP') return cat === 'UPP_PIEL';
                             if (tab === 'FAMILIA') return cat === 'FAMILY';
                             if (tab === 'MANTENIMIENTO') return cat === 'MANTENIMIENTO';

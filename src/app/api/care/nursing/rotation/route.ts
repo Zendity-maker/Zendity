@@ -49,9 +49,23 @@ const ALLOWED_ROLES = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 const TARGET_MIN = 120;
 const BREACH_MIN = 135;
 
-type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER';
+type Tier = 'OK' | 'DUE' | 'OVERDUE' | 'NEVER' | 'FUERA';
 
-function classify(minutesSince: number | null): Tier {
+/**
+ * FUERA: el residente no esta en el edificio.
+ *
+ * Estaba contando las horas de hospital como rotaciones vencidas. Jose A.
+ * Troche llevaba 41 h "sin girar" ingresado desde el 26-ago: el panel pedia
+ * girar a alguien que no esta aqui, y esa alerta no se puede bajar haciendo
+ * nada. Un contador que no puede bajar deja de mirarse, y con el se dejan de
+ * mirar los que si son reales.
+ *
+ * No se le quita el enrolamiento: sigue en la lista, visible, con su motivo.
+ * Al volver a ACTIVE reentra al conteo y —como su ultima rotacion es vieja—
+ * sale como pendiente de inmediato, que es justo lo correcto.
+ */
+function classify(minutesSince: number | null, fuera: boolean): Tier {
+    if (fuera) return 'FUERA';
     if (minutesSince === null) return 'NEVER';
     if (minutesSince <= TARGET_MIN) return 'OK';
     if (minutesSince <= BREACH_MIN) return 'DUE';
@@ -88,6 +102,7 @@ export async function GET(_req: Request) {
                 requiresPosturalChanges: true,
                 nortonRisk: true,
                 status: true,
+                leaveType: true,
                 posturalChanges: {
                     orderBy: { performedAt: 'desc' },
                     take: 1,
@@ -117,7 +132,8 @@ export async function GET(_req: Request) {
             const minutesSince = last
                 ? Math.floor((now.getTime() - last.performedAt.getTime()) / 60000)
                 : null;
-            const tier = classify(minutesSince);
+            const fuera = p.status === 'TEMPORARY_LEAVE';
+            const tier = classify(minutesSince, fuera);
             // Por qué entró al set (útil para tooltip "enrolled by:" en UI)
             const enrolledBy = {
                 flag: p.requiresPosturalChanges,
@@ -141,13 +157,18 @@ export async function GET(_req: Request) {
                           nurseName: last.nurse?.name ?? null,
                       }
                     : null,
-                minutesSince,
+                // Fuera del edificio no se reportan minutos acumulados: el
+                // numero solo servia para pintar de rojo una espera que nadie
+                // puede atender.
+                minutesSince: fuera ? null : minutesSince,
                 tier,
+                fuera,
+                motivoFuera: fuera ? (p.leaveType ?? 'AUSENTE') : null,
             };
         });
 
         // Counts por tier (útil para chips agregados en el header del dashboard).
-        const counts: Record<Tier, number> = { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0 };
+        const counts: Record<Tier, number> = { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0 };
         for (const p of patients) counts[p.tier]++;
 
         return NextResponse.json({

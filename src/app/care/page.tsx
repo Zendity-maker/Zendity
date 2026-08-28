@@ -277,7 +277,7 @@ export default function ZendityCareTabletPage() {
         }
     }, [modalType, activePatient]);
     const [pdfNoteData, setPdfNoteData] = useState<any>(null);
-    const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | null>(null);
+    const [hubAction, setHubAction] = useState<"COMPLAINT" | "CLINICAL" | "MAINTENANCE" | "UPP_ALERT" | "MED_NO_ADMIN" | null>(null);
     // Nota de turno o alerta. Antes todo lo clinico entraba como ALERTA porque
     // solo habia un boton: de las ultimas 14, cinco eran reportes de algo ya
     // hecho ("se realizo el corte de unas", "el pie ha mejorado") que no piden
@@ -1825,6 +1825,34 @@ export default function ZendityCareTabletPage() {
                         foodIntake: null,
                         notes: (hubEsAlerta ? "[ALERTA CLÍNICA] " : "[NOTA DE TURNO] ") + hubDescription,
                         isAlert: hubEsAlerta,
+                        photoUrl: hubPhotoBase64,
+                    }
+                };
+            } else if (hubAction === "MED_NO_ADMIN") {
+                // Mismo tubo que la alerta de UPP: un DailyLog con isAlert. No
+                // es un incidente —eso arrastra severidad, investigacion y
+                // cadena de firmas, y convierte un hallazgo en una acusacion—
+                // sino una observacion con nombre.
+                //
+                // El prefijo fijo es TODO el valor añadido: en texto libre esto
+                // queda enterrado entre fiebres y caidas, y dentro de tres meses
+                // nadie sabe si paso dos veces o veinte.
+                //
+                // Llega al inbox del supervisor, lo ve enfermeria y lo ve
+                // direccion en triage. A la familia NO: el portal anula el texto
+                // de toda alerta clinica. No nombra a nadie: dice que se
+                // encontro y donde. Quien estaba en ese turno lo sabe el
+                // sistema, y esa lectura es de supervision.
+                endpoint = "/api/care/vitals";
+                payload = {
+                    patientId: hubPatientId,
+                    authorId: user?.id,
+                    type: 'LOG',
+                    data: {
+                        bathCompleted: false,
+                        foodIntake: null,
+                        notes: "[MEDICAMENTO SIN ADMINISTRAR] " + hubDescription,
+                        isAlert: true,
                         photoUrl: hubPhotoBase64,
                     }
                 };
@@ -4226,6 +4254,13 @@ export default function ZendityCareTabletPage() {
                                                 <p className="font-bold text-fuchsia-700/70 text-xs mt-1 text-ellipsis overflow-hidden whitespace-nowrap">Enrojecimiento, Herida Nueva</p>
                                             </div>
                                         </button>
+                                        <button onClick={() => setHubAction("MED_NO_ADMIN")} className="flex items-center gap-4 bg-teal-50 hover:bg-teal-100 border border-teal-200 p-5 rounded-2xl transition-all shadow-sm">
+                                            <span className="text-4xl drop-shadow-sm">💊</span>
+                                            <div className="text-left">
+                                                <p className="font-black text-teal-900 text-base leading-tight">Medicamento sin administrar</p>
+                                                <p className="font-bold text-teal-700/70 text-xs mt-1">Encontrado en cama, mesa o carrito</p>
+                                            </div>
+                                        </button>
                                         <button onClick={() => { setModalType('FALL'); setHubAction(null); }} className="flex items-center gap-4 bg-rose-50 hover:bg-rose-100 border border-rose-300 p-5 rounded-2xl transition-all shadow-md active:scale-95 group">
                                             <span className="text-4xl drop-shadow-sm group-hover:scale-110 transition-transform">🚨</span>
                                             <div className="text-left">
@@ -4297,6 +4332,19 @@ export default function ZendityCareTabletPage() {
                                                     {['Agresividad', 'Fiebre Alta', 'Dolor Fuerte', 'Aislamiento Social', 'Rechazo a Medicamento', 'Cambio en Piel'].map(tag => (
                                                         <button key={tag} onClick={(e) => { e.preventDefault(); setHubDescription(prev => prev ? `${prev}, ${tag}` : `Residente presenta ${tag}`); }} className="bg-white border border-indigo-200 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-indigo-600 hover:text-white transition-colors shadow-sm active:scale-95">
                                                             + {tag}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Etiquetas que arman la frase sola. El
+                                                reporte es informativo: dice que se
+                                                encontro y donde, nada mas. */}
+                                            {hubAction === 'MED_NO_ADMIN' && (
+                                                <div className="flex flex-wrap gap-2 mb-4">
+                                                    {['en su cama', 'en la mesa de noche', 'en el piso', 'en el carrito', 'en el vaso de pastillas', 'en el baño'].map(donde => (
+                                                        <button key={donde} onClick={(e) => { e.preventDefault(); setHubDescription(`Se encontraron sus medicamentos ${donde}, sin administrar.`); }} className="bg-white border border-teal-200 text-teal-700 font-bold text-xs px-3 py-2 rounded-xl hover:bg-teal-600 hover:text-white transition-colors shadow-sm active:scale-95">
+                                                            + {donde}
                                                         </button>
                                                     ))}
                                                 </div>
