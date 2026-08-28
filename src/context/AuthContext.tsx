@@ -71,10 +71,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // equivocado.
         const esPublica = esRutaPublica(pathname);
 
+        // Publica es publica PARA TODOS, con sesion o sin ella.
+        //
+        // Tercera vez con este mismo error, y las tres por mirar la lista en el
+        // sitio equivocado. La ultima: esPublica solo se consultaba en la rama
+        // de "no hay usuario". Un familiar CON sesion abria el enlace de la
+        // encuesta, /encuesta/TOKEN no empieza por /family, y la regla de rol
+        // lo rebotaba a su perfil. Reportado por una familia el 28-ago-2026:
+        // "al entrar a la encuesta le pide login, y al entrar abre perfil".
+        //
+        // Por eso la salida es ANTES de todo lo demas y no dentro de una rama:
+        // una ruta publica no tiene ninguna regla de navegacion que aplicarle.
+        if (esPublica) return;
+
         if (!user) {
-            if (!esPublica) {
-                router.replace("/login");
-            }
+            router.replace("/login");
         } else {
             // Reglas de Navegación por Rol Estricto
             if (isLoginRoute) {
