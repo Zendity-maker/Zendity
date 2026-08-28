@@ -1326,7 +1326,19 @@ export default function ZendityCareTabletPage() {
             return avisoError("Es mandatorio plasmar tu firma para administrar el pack.");
         }
         const signatureBase64 = packSigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
-        const medicationIds = pack.meds.map((m: any) => m.id);
+
+        // Solo lo PENDIENTE. Antes iba pack.meds entero, incluido lo que se
+        // acababa de omitir, y el servidor abortaba el pack completo con un
+        // "ya fue procesado hoy" que era falso. La firma tampoco puede cubrir
+        // un medicamento que no se dio: se firma lo que se administra.
+        const medicationIds = pack.meds
+            .filter((m: any) => !slotStatusToday(m, pack.label))
+            .map((m: any) => m.id);
+
+        if (medicationIds.length === 0) {
+            avisoOk("Este pack ya está completo.");
+            return;
+        }
 
         setSubmitting(true);
         try {

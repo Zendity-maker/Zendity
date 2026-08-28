@@ -69,20 +69,56 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Razón de omisión requerida (mínimo 10 caracteres)' }, { status: 400 });
         }
 
-        // Dup-check hoy: si cualquier med del pack ya tiene registro resolvido HOY para
-        // este scheduleTime, abortamos para prevenir doble administración.
+        /**
+         * Se salta lo que YA está resuelto hoy, en vez de abortar el pack entero.
+         *
+         * ESTO ERA EL AGUJERO DEL eMAR. La comprobación anterior buscaba si
+         * CUALQUIERA de los medicamentos enviados tenía registro hoy y, si lo
+         * encontraba, devolvía 409 para todos. Y el cliente manda el pack
+         * COMPLETO, incluido lo que se acaba de omitir. La secuencia real era:
+         *
+         *   1. La cuidadora omite un medicamento — "el residente lo rechazó".
+         *   2. Firma para administrar el resto del pack.
+         *   3. El pack lleva el omitido → la comprobación lo encuentra → 409.
+         *   4. TODO el pack falla. Los demás medicamentos no se registran.
+         *
+         * Omitir uno rompía el pack entero, con un mensaje —"ya fue procesado
+         * hoy"— que además era falso. La respuesta racional de quien está en el
+         * piso es no omitir nunca, y eso es exactamente lo que dicen los datos:
+         * 22 668 administrados contra 2 omitidos en tres meses. No es un hogar
+         * con 99.99 % de cumplimiento; es que registrar la verdad rompía el
+         * turno.
+         *
+         * Peor que el número: cuando el pack fallaba, administraciones REALES
+         * se quedaban sin registrar. El expediente perdía dosis que sí se dieron.
+         *
+         * Ahora se filtra y se procesa el resto. La protección contra doble
+         * administración se conserva —lo ya resuelto no se vuelve a escribir—
+         * pero deja de castigar a quien registra lo que de verdad pasó.
+         */
+        let idsAProcesar: string[] = medicationIds;
+        let yaResueltos = 0;
         if ((isPack || isOmit) && scheduleTime) {
-            const dup = await prisma.medicationAdministration.findFirst({
+            const resueltos = await prisma.medicationAdministration.findMany({
                 where: {
                     patientMedicationId: { in: medicationIds },
                     scheduleTime,
                     createdAt: { gte: todayStartAST() },
                     status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED'] }
                 },
-                select: { id: true }
+                select: { patientMedicationId: true }
             });
-            if (dup) {
-                return NextResponse.json({ success: false, error: 'Este pack ya fue procesado hoy' }, { status: 409 });
+            const yaHechos = new Set(resueltos.map(r => r.patientMedicationId));
+            yaResueltos = yaHechos.size;
+            idsAProcesar = medicationIds.filter((id: string) => !yaHechos.has(id));
+
+            // Solo si NO queda nada por hacer es un duplicado de verdad — la
+            // doble pulsación del botón, que es lo que esta guarda protegía.
+            if (idsAProcesar.length === 0) {
+                return NextResponse.json(
+                    { success: false, error: 'Este pack ya fue procesado hoy' },
+                    { status: 409 },
+                );
             }
         }
 
@@ -93,7 +129,7 @@ export async function POST(req: Request) {
         if (isOmit) adminStatus = 'OMITTED';
 
         const now = new Date();
-        const dataToInsert = medicationIds.map((medId: string) => ({
+        const dataToInsert = idsAProcesar.map((medId: string) => ({
             patientMedicationId: medId,
             administeredById: invokerId,
             status: adminStatus,
@@ -112,7 +148,9 @@ export async function POST(req: Request) {
             try {
                 // Agrupar por residente para emitir un solo mensaje por residente
                 const byPatient = new Map<string, { patientName: string; medNames: string[] }>();
+                const escritos = new Set(idsAProcesar);
                 for (const m of validMeds) {
+                    if (!escritos.has(m.id)) continue;
                     const pid = m.patient?.id;
                     if (!pid) continue;
                     if (!byPatient.has(pid)) byPatient.set(pid, { patientName: m.patient!.name, medNames: [] });
@@ -132,7 +170,14 @@ export async function POST(req: Request) {
             }
         }
 
-        return NextResponse.json({ success: true, count: result.count, statusApplied: adminStatus });
+        // yaResueltos viaja al cliente para que pueda decir la verdad: "8 de 9
+        // administrados, 1 ya estaba omitido" en vez de callarse la diferencia.
+        return NextResponse.json({
+            success: true,
+            count: result.count,
+            statusApplied: adminStatus,
+            yaResueltos,
+        });
 
     } catch (error) {
         console.error("Bulk Meds Error:", error);
