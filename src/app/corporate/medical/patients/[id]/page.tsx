@@ -22,6 +22,7 @@ import PatientCallsTab from "@/components/family-contact-logs/PatientCallsTab";
 import ResidentSummaryPrint from "@/components/medical/patient/ResidentSummaryPrint";
 import ActualizarFamiliaButton from "@/components/medical/patient/ActualizarFamiliaButton";
 import ModalidadCuidadoButton from "@/components/medical/patient/ModalidadCuidadoButton";
+import AvisoSinFamiliar from "@/components/medical/patient/AvisoSinFamiliar";
 
 // Role-gate de Trabajo Social: mismo set que los endpoints /api/social/*.
 // Si el usuario no tiene primary ni secondaryRole en esta lista, la pestaña
@@ -554,6 +555,20 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         )}
                     </div>
                 </div>
+
+                {/* Expediente sin contacto de familia. Va ANTES de las pestañas
+                    porque no es un detalle de una pestaña: es un hueco del
+                    expediente entero, y llevaba meses invisible en 19 de 32
+                    residentes. Ver src/components/medical/patient/AvisoSinFamiliar.tsx */}
+                {patientData?.status === 'ACTIVE'
+                    && ((patientData as any).familyMembers?.length ?? 0) === 0
+                    && !(patientData as any).sinFamiliarConocido && (
+                    <AvisoSinFamiliar
+                        patientId={patientData.id}
+                        patientName={patientData.name}
+                        onResuelto={() => { setActiveTab("family"); fetchPatientData(); }}
+                    />
+                )}
 
                 {/* Simulador de Pestañas de Historial */}
                 <div className="border-b border-neutral-200">

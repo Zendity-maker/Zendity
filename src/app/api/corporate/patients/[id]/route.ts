@@ -32,6 +32,10 @@ async function getPatientHandler(req: Request, { params }: { params: Promise<{ i
             include: {
                 headquarters: true,
                 lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
+                // Solo los ids: el perfil necesita saber SI hay familiares para
+                // el aviso de expediente sin contacto, no quienes son. Esos los
+                // trae la pestaña de familia cuando se abre.
+                familyMembers: { select: { id: true } },
                 medications: {
                     include: {
                         medication: true,

@@ -58,6 +58,15 @@ export interface EstadoOperativo {
     };
     /** Residentes sin ningun registro hoy. Lo mas util que ya tenia el panel. */
     sinActividad: { id: string; nombre: string; habitacion: string | null }[];
+
+    /**
+     * Expedientes activos sin familiar registrado NI declaracion de que no lo
+     * hay. No es una tarea del turno: es a quien no llamas de madrugada.
+     *
+     * Iba invisible. El 28-ago-2026 eran 19 de 32, con cero declaraciones, y
+     * trece llevaban asi desde el restore del 21-may sin que nadie lo supiera.
+     */
+    sinContactoFamilia: { id: string; nombre: string }[];
 }
 
 export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
@@ -75,7 +84,11 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
         }),
         prisma.patient.findMany({
             where: { headquartersId: hqId, status: 'ACTIVE' },
-            select: { id: true, name: true, roomNumber: true },
+            select: {
+                id: true, name: true, roomNumber: true,
+                sinFamiliarConocido: true,
+                familyMembers: { select: { id: true } },
+            },
         }),
         prisma.bathLog.findMany({
             where: { patient: { headquartersId: hqId }, timeLogged: { gte: inicioDia } },
@@ -186,6 +199,11 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
             comidas: { hecho: conComida.size, total: activos.length },
             vitales: { hecho: conVital.size, total: activos.length },
         },
+
+        sinContactoFamilia: activos
+            .filter((p: any) => (p.familyMembers?.length ?? 0) === 0 && !p.sinFamiliarConocido)
+            .map((p: any) => ({ id: p.id, nombre: p.name.trim() }))
+            .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre, 'es')),
 
         sinActividad: activos
             .filter(p => !conAlgo.has(p.id))

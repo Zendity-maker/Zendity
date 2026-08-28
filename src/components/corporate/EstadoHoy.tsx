@@ -176,6 +176,26 @@ export default function EstadoHoy({ hqId }: { hqId?: string }) {
                     </div>
                 )}
             </div>
+
+            {/* Expedientes sin contacto de familia. No es del turno —por eso va
+                aparte, debajo— pero tampoco puede seguir invisible: llevaba
+                meses sin que nadie supiera que eran 19 de 32. */}
+            {e.sinContactoFamilia?.length > 0 && (
+                <div className="sm:col-span-2 lg:col-span-3 bg-white rounded-2xl border border-rose-200 p-4">
+                    <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-rose-600 mb-2">
+                        <UserX className="w-3.5 h-3.5" />
+                        {e.sinContactoFamilia.length} expedientes sin contacto de familia
+                    </p>
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                        Ni familiar registrado ni declaración de que no lo hay. Es a quién no
+                        llamas de madrugada. Se resuelve en el expediente de cada uno.
+                    </p>
+                    <p className="text-xs text-slate-400 mt-2">
+                        {e.sinContactoFamilia.slice(0, 4).map((x: any) => x.nombre).join(" · ")}
+                        {e.sinContactoFamilia.length > 4 && ` y ${e.sinContactoFamilia.length - 4} más`}
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
