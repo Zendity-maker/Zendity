@@ -63,7 +63,12 @@ export async function GET(req: Request) {
             // Sin los ya cerrados: antes un incidente sumaba al badge 24 horas
             // aunque se hubiera atendido, porque no habia forma de cerrarlo.
             prisma.incident.count({ where: { headquartersId: hqId, reportedAt: { gte: twentyFourHrsAgo }, resolvedAt: null } }),
-            prisma.dailyLog.count({ where: { patient: { headquartersId: hqId }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
+            // El badge y la LISTA tienen que mirar lo mismo. La lista de
+            // /api/care/supervisor/live filtra patient.status ACTIVE; este
+            // conteo no lo hacia, asi que una alerta de alguien trasladado al
+            // hospital sumaba al badge y no aparecia en ninguna parte al abrirlo.
+            // Un numero que no se puede abrir es peor que no tenerlo.
+            prisma.dailyLog.count({ where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isClinicalAlert: true, isResolved: false, createdAt: { gte: twentyFourHrsAgo } } }),
             // Antes esto contaba "residentes con úlcera activa", que no es una
             // tarea sino una condición: sumaba al badge todos los días durante
             // meses y el supervisor no podía quitarla haciendo nada. En Cupey

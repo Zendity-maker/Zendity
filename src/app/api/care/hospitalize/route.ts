@@ -86,7 +86,23 @@ export async function PATCH(req: Request) {
                 // se lee como "no comió nada".
                 foodIntake: null,
                 notes: `[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: ${reason}`,
-                isClinicalAlert: true // Esto lo manda a triage
+                isClinicalAlert: true, // Esto lo manda a triage
+                /**
+                 * Nace RESUELTA. El traslado no es una tarea pendiente: ya
+                 * ocurrio y ya se atendio — el residente esta camino al
+                 * hospital. Va a triage para que el supervisor lo vea en su
+                 * turno, y para eso basta la ventana de 24 horas del panel.
+                 *
+                 * Como isResolved quedaba en false y nadie cierra un traslado,
+                 * cada uno se quedaba abierto para siempre: al 28-ago-2026 eran
+                 * 35 de las 51 "alertas clinicas sin resolver", la mas vieja de
+                 * hace 88 dias y 14 de residentes ya fallecidos o dados de baja.
+                 *
+                 * Un contador que no puede bajar deja de mirarse, y con el se
+                 * dejan de mirar las alertas que si piden algo. Es la misma
+                 * leccion de las ulceras cronicas.
+                 */
+                isResolved: true,
             }
         });
 

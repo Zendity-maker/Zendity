@@ -20,6 +20,7 @@ interface Handover {
     status: string;
     createdAt: string;
     acceptedAt?: string;
+    isDailyPrologue?: boolean;
     notes: PatientNote[];
 }
 
@@ -249,7 +250,20 @@ export default function HandoversPage() {
     }
 
     // -- KPIs DE AUDITORIA CORPORATIVA --
-    const pendingHandovers = handovers.filter(h => h.status === 'PENDING').length;
+    /**
+     * "Pendientes de firma" cuenta SOLO relevos de verdad.
+     *
+     * El cron de las 6:00 AM crea cada dia un prologo del dia clinico como
+     * ShiftHandover con status PENDING. Es un documento, no una tarea: nadie
+     * tiene que aceptarlo, y su enfermera saliente es quien resulte ser
+     * ADMIN/DIRECTOR de la sede, no alguien que entrego nada.
+     *
+     * Este contador los sumaba. Al 28-ago-2026 decia 63 pendientes de firma
+     * cuando los relevos reales pendientes eran CERO — los 833 que ha habido
+     * estan todos aceptados. El numero acusaba de una deuda que no existe.
+     */
+    const pendingHandovers = handovers.filter(h => h.status === 'PENDING' && !h.isDailyPrologue).length;
+    const prologosPendientes = handovers.filter(h => h.status === 'PENDING' && h.isDailyPrologue).length;
     const criticalNotesCount = handovers.reduce((acc, h) => acc + h.notes.filter(n => n.isCritical).length, 0);
     const uniqueStaff = new Set();
     handovers.forEach(h => {
@@ -312,6 +326,12 @@ export default function HandoversPage() {
                             <span className="text-4xl font-black text-slate-800">{pendingHandovers}</span>
                             <span className="text-sm font-bold text-amber-500 uppercase">Sin Autorizar</span>
                         </div>
+                        {prologosPendientes > 0 && (
+                            <p className="text-[11px] text-slate-400 font-medium mt-2 leading-snug">
+                                No cuenta {prologosPendientes} prólogo{prologosPendientes !== 1 ? 's' : ''} diario
+                                {prologosPendientes !== 1 ? 's' : ''} de Zendi: son documentos, no relevos por firmar.
+                            </p>
+                        )}
                     </div>
 
                     <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200/80 hover:border-rose-300 transition-colors">
@@ -356,10 +376,10 @@ export default function HandoversPage() {
                         </div>
                     ) : (
                         handovers.map((handover) => (
-                            <div key={handover.id} className={`bg-white border rounded-3xl p-6 shadow-sm overflow-hidden relative ${handover.status === 'PENDING' ? 'border-amber-300 ring-4 ring-amber-50' : 'border-slate-200'}`}>
+                            <div key={handover.id} className={`bg-white border rounded-3xl p-6 shadow-sm overflow-hidden relative ${handover.status === 'PENDING' && !handover.isDailyPrologue ? 'border-amber-300 ring-4 ring-amber-50' : 'border-slate-200'}`}>
 
                                 {/* Cinta Superior Decorativa */}
-                                <div className={`absolute top-0 left-0 w-full h-2 ${handover.status === 'PENDING' ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`} />
+                                <div className={`absolute top-0 left-0 w-full h-2 ${handover.status === 'PENDING' && !handover.isDailyPrologue ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`} />
 
                                 <div className="flex justify-between items-start mb-6">
                                     <div>
