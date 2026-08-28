@@ -34,13 +34,29 @@ export async function GET() {
             },
             include: {
                 patient: {
-                    select: { id: true, name: true },
+                    select: {
+                        id: true, name: true,
+                        // Que bloquea la confirmacion. El panel tenia un solo
+                        // boton "Confirmar" y ninguna forma de saber por que
+                        // fallaba ni de arreglarlo: confirmIntake exige familiar
+                        // o declaracion, devolvia el error, y ahi se acababa el
+                        // camino. Ahora el panel lo dice y lo resuelve.
+                        sinFamiliarConocido: true,
+                        familyMembers: { select: { id: true } },
+                    },
                 },
             },
             orderBy: { updatedAt: 'asc' },
         });
 
-        return NextResponse.json({ success: true, intakes });
+        return NextResponse.json({
+            success: true,
+            intakes: intakes.map(i => ({
+                ...i,
+                faltaFamiliar: (i.patient?.familyMembers.length ?? 0) === 0
+                    && !i.patient?.sinFamiliarConocido,
+            })),
+        });
     } catch (error) {
         console.error('[pending-list] Error:', error);
         return NextResponse.json({ success: false, error: 'Error interno' }, { status: 500 });

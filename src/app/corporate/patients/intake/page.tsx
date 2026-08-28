@@ -110,6 +110,39 @@ export default function IntakeWizardPage() {
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  // Declarar "sin familiar" desde el propio panel, sin viajar al expediente.
+  const [declarandoId, setDeclarandoId] = useState<string | null>(null);
+  const [declararMotivo, setDeclararMotivo] = useState("");
+  const [declarando, setDeclarando] = useState(false);
+  const [declararError, setDeclararError] = useState<string | null>(null);
+
+  const declararSinFamiliarDesdePanel = async (patientId: string) => {
+    if (declararMotivo.trim().length < 10) {
+      setDeclararError("Explica en una frase por qué no hay familiar (mínimo 10 caracteres).");
+      return;
+    }
+    setDeclarando(true);
+    setDeclararError(null);
+    try {
+      const res = await fetch(`/api/corporate/patients/${patientId}/sin-familiar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo: declararMotivo.trim() }),
+      });
+      const d = await res.json();
+      if (!d.success) { setDeclararError(d.error || "No se pudo guardar."); return; }
+      // El bloqueo desaparece en el sitio: el boton Confirmar queda usable sin
+      // recargar ni volver a buscar el residente.
+      setPendingReviews(prev => prev.map(r =>
+        r.patientId === patientId ? { ...r, faltaFamiliar: false } : r));
+      setDeclarandoId(null);
+      setDeclararMotivo("");
+    } catch {
+      setDeclararError("Error de conexión.");
+    } finally {
+      setDeclarando(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -542,7 +575,8 @@ export default function IntakeWizardPage() {
                   const days = daysSince(intake.updatedAt);
                   const isConfirming = confirmingId === intake.patientId;
                   return (
-                    <div key={intake.patientId} className="flex items-center justify-between bg-white rounded-2xl px-5 py-4 border border-rose-100 shadow-sm gap-4">
+                    <div key={intake.patientId} className="bg-white rounded-2xl px-5 py-4 border border-rose-100 shadow-sm">
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
                           <User className="w-4 h-4 text-rose-500" strokeWidth={2.5} />
@@ -569,6 +603,66 @@ export default function IntakeWizardPage() {
                         )}
                         {isConfirming ? 'Confirmando...' : 'Confirmar ingreso'}
                       </button>
+                    </div>
+
+                    {/* Que bloquea la confirmacion, y como resolverlo SIN salir
+                        de aqui. Antes habia un solo boton "Confirmar": lo
+                        pulsabas, confirmIntake devolvia "falta el familiar", y
+                        ahi se acababa el camino — ni decia donde arreglarlo ni
+                        llevaba al expediente. */}
+                    {intake.faltaFamiliar && (
+                      <div className="mt-3 pt-3 border-t border-rose-100">
+                        <p className="text-xs font-black text-rose-700 mb-1">
+                          No se puede confirmar: falta el familiar
+                        </p>
+                        <p className="text-xs text-slate-500 leading-relaxed mb-3">
+                          Registra al menos un familiar, o declara expresamente que este
+                          residente no tiene familiar conocido. Las dos son válidas.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={`/corporate/medical/patients/${intake.patientId}`}
+                            className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black rounded-xl transition-colors"
+                          >
+                            Abrir expediente
+                          </a>
+                          <button
+                            onClick={() => setDeclarandoId(intake.patientId)}
+                            className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-black rounded-xl transition-colors"
+                          >
+                            No tiene familiar conocido
+                          </button>
+                        </div>
+
+                        {declarandoId === intake.patientId && (
+                          <div className="mt-3 space-y-2">
+                            <textarea
+                              value={declararMotivo}
+                              onChange={e => setDeclararMotivo(e.target.value)}
+                              rows={2}
+                              placeholder="Ej. Referido por el hospital, sin familiares localizables. Trabajo social lo está investigando."
+                              className="w-full p-3 bg-white border border-rose-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                            />
+                            {declararError && <p className="text-xs font-bold text-rose-700">{declararError}</p>}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => declararSinFamiliarDesdePanel(intake.patientId)}
+                                disabled={declarando}
+                                className="px-3 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white text-xs font-black rounded-xl"
+                              >
+                                {declarando ? 'Guardando…' : 'Declarar'}
+                              </button>
+                              <button
+                                onClick={() => { setDeclarandoId(null); setDeclararError(null); }}
+                                className="px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-black rounded-xl"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     </div>
                   );
                 })}
