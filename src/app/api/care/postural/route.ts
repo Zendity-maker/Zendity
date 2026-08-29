@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { applyScoreEvent } from '@/lib/score-event';
+import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,6 +95,22 @@ export async function POST(req: Request) {
         const requiereRotacion = patient.requiresPosturalChanges || patient.pressureUlcers.length > 0;
         const enElEdificio = patient.status === 'ACTIVE';
         if (pointsDelta < 0 && (!requiereRotacion || !enElEdificio)) {
+            pointsDelta = 0;
+        }
+
+        /**
+         * Tampoco se castiga si el hueco atraviesa una caída del sistema.
+         *
+         * La penalidad mira el tiempo desde la ultima rotacion. Tras la caida
+         * del 28-ago —casi ocho horas sin que el personal pudiera entrar— la
+         * PRIMERA rotacion que alguien registrara arrastraba el hueco entero y
+         * se llevaba los -5. Es decir: se castigaba justo a quien estaba
+         * cerrando el hueco, por un fallo que no era suyo.
+         *
+         * Ver src/lib/ventanas-sin-servicio.ts.
+         */
+        if (pointsDelta < 0 && lastRotation
+            && solapaConSinServicio(new Date(lastRotation.performedAt), new Date())) {
             pointsDelta = 0;
         }
 

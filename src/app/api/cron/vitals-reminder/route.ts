@@ -4,6 +4,7 @@ import { notifyUser, notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
 import { applyScoreEvent } from '@/lib/score-event';
 import { PENALTY_GRACE_MS } from '@/lib/vitals-window';
+import { sinServicio } from '@/lib/ventanas-sin-servicio';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
 
         // ── C. Sprint J: penalizar autoCreate expirados sin vitales ──
         const limitePenalidad = new Date(now.getTime() - PENALTY_GRACE_MS);
-        const toPenalize = await prisma.vitalsOrder.findMany({
+        let toPenalize = await prisma.vitalsOrder.findMany({
             where: {
                 status: 'EXPIRED',
                 autoCreated: true,
@@ -85,6 +86,25 @@ export async function GET(req: Request) {
                 caregiver: { select: { id: true, name: true, complianceScore: true } }
             }
         });
+
+        /**
+         * Las que vencieron mientras Zéndity no era accesible NO se penalizan.
+         *
+         * Se marcan como ya penalizadas —sin descontar nada— para que no vuelvan
+         * a entrar en este barrido mañana. Castigar por no completar una orden
+         * en un sistema al que no se podía entrar es cobrarle a la persona
+         * equivocada. Ver src/lib/ventanas-sin-servicio.ts.
+         */
+        const exentas = toPenalize.filter(o => o.expiresAt && sinServicio(o.expiresAt));
+        if (exentas.length > 0) {
+            await prisma.vitalsOrder.updateMany({
+                where: { id: { in: exentas.map(o => o.id) } },
+                data: { penaltyApplied: true },
+            });
+            console.log(`[vitals-reminder] ${exentas.length} órdenes exentas: vencieron sin servicio.`);
+        }
+        const exentasIds = new Set(exentas.map(o => o.id));
+        toPenalize = toPenalize.filter(o => !exentasIds.has(o.id));
 
         // ── Agrupar por cuidador para aplicar cap diario + 1 sola notificación ──
         const byCaregiver = new Map<string, typeof toPenalize>();
