@@ -22,32 +22,11 @@ import { UserCheck, UserX, Activity, AlertTriangle } from "lucide-react";
  * a distinta altura.
  */
 
-/**
- * El grupo de color se muestra como PUNTO + NOMBRE, en una pastilla neutra.
- *
- * Antes era una pildora tintada con la inicial: una pildora rosada con una "R".
- * Andres lo leyo como alarma —"Krystal y Mariangelie estan en rojo"— y lo
- * comparo con el panel del supervisor, donde el rojo SI significa puntaje
- * critico. Las dos tenian complianceScore 100: no habia contradiccion de datos,
- * habia una colision de significado. El mismo rosado decia "cubre el grupo
- * ROJO" en una pantalla y "esta mal" en la otra.
- *
- * El color se conserva en el punto —es informacion real— pero el fondo queda
- * neutro para que la pastilla no pueda leerse como severidad, y el nombre va
- * escrito en vez de una inicial.
- */
-const COLOR_PUNTO: Record<string, string> = {
-    RED: "bg-rose-500",
-    YELLOW: "bg-amber-400",
-    BLUE: "bg-sky-500",
-    GREEN: "bg-emerald-500",
-};
-
-const COLOR_NOMBRE: Record<string, string> = {
-    RED: "Rojo",
-    YELLOW: "Amarillo",
-    BLUE: "Azul",
-    GREEN: "Verde",
+const COLOR_CHIP: Record<string, string> = {
+    RED: "bg-rose-100 text-rose-700",
+    YELLOW: "bg-amber-100 text-amber-700",
+    BLUE: "bg-sky-100 text-sky-700",
+    GREEN: "bg-emerald-100 text-emerald-700",
 };
 
 function Barra({ etiqueta, hecho, total }: { etiqueta: string; hecho: number; total: number }) {
@@ -104,24 +83,14 @@ export default function EstadoHoy({ hqId }: { hqId?: string }) {
                         {e.enTurno.map((p: any) => (
                             <li key={p.caregiverId} className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-bold text-slate-700 truncate">{p.nombre}</span>
-                                <span className="flex items-center gap-1.5 shrink-0">
+                                <span className="flex gap-1 shrink-0">
                                     {p.colores.length === 0
-                                        ? <span className="text-[10px] text-slate-300">sin grupo</span>
-                                        : (
-                                            <>
-                                                <span className="text-[10px] font-medium text-slate-400">cubre</span>
-                                                {p.colores.map((c: string) => (
-                                                    <span
-                                                        key={c}
-                                                        title={`Grupo de residentes ${COLOR_NOMBRE[c] ?? c}`}
-                                                        className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded"
-                                                    >
-                                                        <span className={`w-2 h-2 rounded-full ${COLOR_PUNTO[c] ?? "bg-slate-400"}`} />
-                                                        {COLOR_NOMBRE[c] ?? c}
-                                                    </span>
-                                                ))}
-                                            </>
-                                        )}
+                                        ? <span className="text-[10px] text-slate-300">sin color</span>
+                                        : p.colores.map((c: string) => (
+                                            <span key={c} className={`text-[10px] font-black px-1.5 py-0.5 rounded ${COLOR_CHIP[c] ?? "bg-slate-100 text-slate-500"}`}>
+                                                {c[0]}
+                                            </span>
+                                        ))}
                                 </span>
                             </li>
                         ))}
