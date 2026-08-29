@@ -92,6 +92,21 @@ async function getHistoryReportHandler(
                 incidents: true,
                 fallIncidents: true,
                 intakeData: true,
+                /**
+                 * Solo los ids — pesa nada y decide si sale el aviso de
+                 * "expediente sin contacto de familia".
+                 *
+                 * Lo habia anadido al endpoint equivocado. El perfil se llena
+                 * desde AQUI, no desde /patients/[id], asi que familyMembers
+                 * llegaba undefined, el aviso leia 0 familiares y salia en LOS
+                 * 32 residentes — falso en los 14 que si tienen familia. Andres
+                 * registro a Encarnacion Montes para Fernando Gonzalez y el
+                 * aviso siguio ahi.
+                 *
+                 * sinFamiliarConocido ya viaja: es escalar y el include los trae
+                 * todos.
+                 */
+                familyMembers: { select: { id: true } },
                 lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 TriageTicket: {
                     orderBy: { createdAt: 'desc' },
