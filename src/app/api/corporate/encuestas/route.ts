@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
-import { prepararEnvio, satisfaccion, periodoActual } from '@/lib/encuesta-familia';
+import { prepararEnvio, satisfaccion, periodoActual, respuestas, pendientesDeResponder } from '@/lib/encuesta-familia';
 import sgMail from '@sendgrid/mail';
 
 /**
@@ -24,6 +24,12 @@ export async function GET(req: Request) {
         if (auth instanceof NextResponse) return auth;
         const session = await getServerSession(authOptions);
         const hqId = await resolveEffectiveHqId(session!, new URL(req.url).searchParams.get('hqId'));
+        // ?vista=respuestas trae las respuestas una por una. Va aparte del
+        // resumen porque el panel no debe llenarse de texto: se consulta cuando
+        // se abre la pestaña.
+        if (new URL(req.url).searchParams.get('vista') === 'respuestas') {
+            return NextResponse.json({ success: true, respuestas: await respuestas(hqId) });
+        }
         return NextResponse.json({ success: true, satisfaccion: await satisfaccion(hqId) });
     } catch (e: any) {
         console.error('[encuestas GET]', e);
@@ -82,6 +88,69 @@ export async function POST(req: Request) {
         });
     } catch (e: any) {
         console.error('[encuestas POST]', e);
+        return NextResponse.json({ success: false, error: 'Error interno' }, { status: 500 });
+    }
+}
+
+
+/**
+ * PUT /api/corporate/encuestas — recordatorio a quien NO ha respondido.
+ *
+ * Distinto del POST a proposito. El POST crea invitaciones nuevas y salta a
+ * cualquiera que ya tenga fila del periodo, haya contestado o no: por eso
+ * "Enviar a quien falte" en realidad significa "a quien falte por RECIBIRLA".
+ * A los que la recibieron y no la contestaron no les llegaba nada nunca.
+ *
+ * Este reenvia el MISMO enlace —el token no cambia, asi que el correo viejo
+ * sigue sirviendo— solo a quien tiene respondedAt en null.
+ */
+export async function PUT(req: Request) {
+    try {
+        const auth = await requireRole(ROLES);
+        if (auth instanceof NextResponse) return auth;
+        const session = await getServerSession(authOptions);
+        const body = await req.json().catch(() => ({}));
+        const hqId = await resolveEffectiveHqId(session!, body.hqId ?? null);
+        const periodo = body.periodo || periodoActual();
+
+        const pendientes = await pendientesDeResponder(hqId, periodo);
+        const base = process.env.NEXTAUTH_URL || 'https://app.zendity.com';
+        const remitente = process.env.SENDGRID_FROM_EMAIL;
+
+        let enviados = 0, sinCorreo = 0, fallaron = 0;
+        for (const p of pendientes) {
+            const email = p.familyMember.email;
+            if (!email || !email.includes('@')) { sinCorreo++; continue; }
+            const enlace = `${base}/encuesta/${p.token}`;
+            try {
+                if (!process.env.SENDGRID_API_KEY || !remitente) throw new Error('SendGrid no configurado');
+                await sgMail.send({
+                    to: email,
+                    from: remitente,
+                    subject: `¿Cómo lo estamos haciendo? — un minuto sobre ${p.familyMember.patient.name.trim()}`,
+                    html: `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:520px;margin:0 auto;color:#12211D;">
+<p style="font-size:16px;line-height:1.6;">Hola ${p.familyMember.name.trim()},</p>
+<p style="font-size:16px;line-height:1.6;">Le enviamos hace unos días tres preguntas cortas sobre el cuidado de
+<strong>${p.familyMember.patient.name.trim()}</strong>. Si no ha tenido oportunidad, aquí está el enlace de nuevo —
+toma menos de un minuto y nos ayuda de verdad.</p>
+<p style="margin:24px 0;"><a href="${enlace}" style="background:#0F6E56;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Responder la encuesta</a></p>
+<p style="font-size:13px;color:#66766F;line-height:1.6;">Si ya la contestó, ignore este mensaje. Es el mismo enlace de antes.</p>
+</div>`,
+                });
+                enviados++;
+            } catch (e) {
+                console.error('[encuestas PUT] fallo enviando a', email, e);
+                fallaron++;
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            pendientes: pendientes.length,
+            enviados, sinCorreo, fallaron,
+        });
+    } catch (e: any) {
+        console.error('[encuestas PUT]', e);
         return NextResponse.json({ success: false, error: 'Error interno' }, { status: 500 });
     }
 }

@@ -194,3 +194,79 @@ export async function satisfaccion(hqId: string, periodo = periodoActual()): Pro
             .sort((a, b) => a.promedio - b.promedio),
     };
 }
+
+
+/**
+ * Las respuestas, una por una, con lo que escribieron.
+ *
+ * El panel solo mostraba el promedio, las destacadas y las de 3 estrellas o
+ * menos. Andres pidio comentarios por pregunta justamente para leerlos, y una
+ * respuesta de 5 estrellas con un comentario largo no aparecia en ninguna
+ * parte: habia que ir a la base de datos. Una encuesta que no se puede leer no
+ * es una encuesta.
+ *
+ * Va aparte del resumen a proposito —el panel no debe llenarse de texto— y se
+ * consulta cuando se abre la pestaña.
+ */
+export interface RespuestaEncuesta {
+    familiar: string;
+    residente: string;
+    respondedAt: Date;
+    cuidado: number | null;
+    limpieza: number | null;
+    salud: number | null;
+    comentarios: { etiqueta: string; texto: string }[];
+    destacada: string | null;
+}
+
+export async function respuestas(
+    hqId: string,
+    periodo = periodoActual(),
+): Promise<RespuestaEncuesta[]> {
+    const filas = await prisma.familySurvey.findMany({
+        where: { headquartersId: hqId, periodo, respondedAt: { not: null } },
+        orderBy: { respondedAt: 'desc' },
+        select: {
+            respondedAt: true,
+            ratingCare: true, ratingClean: true, ratingHealth: true,
+            comentario: true, comentarioCuidado: true, comentarioLimpieza: true, comentarioSalud: true,
+            familyMember: { select: { name: true, patient: { select: { name: true } } } },
+            cuidadorFavorito: { select: { name: true } },
+        },
+    });
+
+    return filas.map(f => ({
+        familiar: f.familyMember.name.trim(),
+        residente: f.familyMember.patient.name.trim(),
+        respondedAt: f.respondedAt!,
+        cuidado: f.ratingCare,
+        limpieza: f.ratingClean,
+        salud: f.ratingHealth,
+        comentarios: [
+            { etiqueta: 'Cuidado', texto: f.comentarioCuidado },
+            { etiqueta: 'Limpieza', texto: f.comentarioLimpieza },
+            { etiqueta: 'Salud', texto: f.comentarioSalud },
+            { etiqueta: 'General', texto: f.comentario },
+        ].filter((c): c is { etiqueta: string; texto: string } => !!c.texto?.trim()),
+        destacada: f.cuidadorFavorito?.name?.trim() ?? null,
+    }));
+}
+
+/**
+ * Quien recibio la encuesta y NO la ha contestado.
+ *
+ * prepararEnvio() salta a cualquiera que YA tenga fila del periodo, haya
+ * respondido o no — es su trabajo, evita mandar dos veces la misma encuesta.
+ * El efecto secundario es que el boton "Enviar a quien falte" en realidad
+ * significa "a quien falte por RECIBIRLA", y a los 13 que no han contestado no
+ * les llega nada nunca. Esto es el recordatorio de verdad.
+ */
+export async function pendientesDeResponder(hqId: string, periodo = periodoActual()) {
+    return prisma.familySurvey.findMany({
+        where: { headquartersId: hqId, periodo, respondedAt: null },
+        select: {
+            token: true,
+            familyMember: { select: { name: true, email: true, patient: { select: { name: true } } } },
+        },
+    });
+}
