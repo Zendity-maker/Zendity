@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/api-auth";
 import { withPhiAccessLog } from "@/lib/phi-audit";
 
+// Nunca cacheado: lee la sesion y devuelve el expediente vivo de un
+// residente. El resto de rutas equivalentes de la casa ya lo declaran.
+export const dynamic = 'force-dynamic';
+
 /**
  * HIPAA — Devuelve el historial clínico COMPLETO del residente (meds,
  * administraciones, incidentes, caídas, bath/meal logs, intake, life plan,
