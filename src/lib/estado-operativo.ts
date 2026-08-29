@@ -129,12 +129,32 @@ export async function estadoOperativo(hqId: string): Promise<EstadoOperativo> {
     // se corrigio una vez —el campo ScheduledShift.releasedAt existe por eso—.
     // Reimplementar una regla que ya vive en otro sitio es como se vuelve a
     // caer en ella.
-    const { resolveColorGroupsForCaregiver } = await import('@/lib/shift-closure-report');
-    const porUsuario = new Map<string, string[]>();
-    await Promise.all(sesiones.map(async s => {
-        porUsuario.set(s.caregiverId,
-            await resolveColorGroupsForCaregiver(s.caregiverId, hqId, s.startTime));
-    }));
+    /**
+     * El MISMO resolvedor que el panel del supervisor, no otro parecido.
+     *
+     * Andres, 29-ago-2026: "mariangeliz esta en rojo y kristal en azul, a esa
+     * incongruencia me refiero." Medido: el dashboard decia RED para las dos.
+     *
+     * Cuando arregle esta discrepancia la primera vez importe
+     * resolveColorGroupsForCaregiver de shift-closure-report, dando por hecho
+     * que era la fuente compartida. No lo era. El canonico es
+     * resolveCaregiverColors de shift-coverage, que el panel del supervisor usa
+     * con reglas escritas: D1 union de pauta y cobertura, D2 ventana por
+     * compatibleShiftTypesAt, D3 limites del dia clinico, D4 fallback de
+     * overtime. El otro tiene su propia ventana de medianoche UTC —que en AST
+     * cae cuatro horas antes— y sin filtro de tipo de turno, asi que para
+     * Krystal devolvia la pauta RED en vez de su cobertura BLUE.
+     *
+     * Dos funciones respondiendo la misma pregunta con reglas distintas no es
+     * duplicacion: es que las pantallas se contradigan delante del director.
+     */
+    const { resolveCaregiverColors } = await import('@/lib/shift-coverage');
+    const porUsuario = await resolveCaregiverColors({
+        mode: 'batch',
+        caregiverIds: sesiones.map(s => s.caregiverId),
+        hqId,
+        overtimeFallback: true,
+    });
 
     // Ausencias del dia. El dato existia y no aparecia en ninguna pantalla del
     // director: habia que ir al constructor de horarios a buscarlo.
