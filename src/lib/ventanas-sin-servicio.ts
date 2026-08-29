@@ -39,11 +39,16 @@ export const VENTANAS_SIN_SERVICIO: VentanaSinServicio[] = [
     {
         // 14:24 AST — se despliega el cambio que rompe el login.
         desde: new Date('2026-08-28T18:24:00Z'),
-        // 22:20 AST — se despliega el arreglo y Andrés confirma que entra.
-        // Se deja hasta las 23:00 AST: entre el despliegue y que cada tableta
-        // recargue el JavaScript viejo pasa un rato.
-        hasta: new Date('2026-08-29T03:00:00Z'),
-        motivo: 'Login sin redirección tras autenticar (despliegue c57a123). El personal no podía entrar.',
+        // Sábado 29-ago 18:01 AST — se despliega el arreglo y Andrés confirma
+        // que entra. Se deja hasta las 20:00 AST: entre el despliegue y que
+        // cada tableta recargue el JavaScript viejo pasa un rato.
+        //
+        // La primera versión de esta ventana cerraba el viernes a las 23:00,
+        // porque di por hecho que la caída había sido de una tarde. Fueron 28
+        // HORAS: viernes 14:24 → sábado 18:01. Comprobado contra las fechas de
+        // los commits, no de memoria.
+        hasta: new Date('2026-08-30T00:00:00Z'),
+        motivo: 'Login sin redirección tras autenticar (despliegue c57a123). 28 horas — viernes 14:24 a sábado 18:01. El personal que tenía que entrar de nuevo no podía.',
     },
 ];
 
