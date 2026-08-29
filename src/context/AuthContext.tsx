@@ -82,7 +82,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //
         // Por eso la salida es ANTES de todo lo demas y no dentro de una rama:
         // una ruta publica no tiene ninguna regla de navegacion que aplicarle.
-        if (esPublica) return;
+        // /login es publica —se ve sin sesion— pero NO puede salirse aqui: es
+        // la unica ruta publica que ademas necesita la logica de abajo, la que
+        // manda a cada rol a su pantalla DESPUES de autenticarse.
+        //
+        // Sin esta excepcion, la cuidadora escribia sus credenciales, NextAuth
+        // las validaba bien, y nadie la redirigia: se quedaba en "verificando
+        // credenciales" para siempre. Roto el 28-ago a las 14:24 por mi, al
+        // arreglar el rebote de la encuesta. Afectaba a TODOS los roles.
+        if (esPublica && !isLoginRoute) return;
 
         if (!user) {
             router.replace("/login");
