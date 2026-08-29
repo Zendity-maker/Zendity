@@ -44,6 +44,29 @@ async function getHistoryReportHandler(
             return NextResponse.json({ success: false, error: "Residente fuera de tu sede" }, { status: 403 });
         }
 
+        /**
+         * ESTA es la consulta que abre el expediente. La otra —/patients/[id]—
+         * la usa la auditoria eMAR.
+         *
+         * Medido el 28-ago-2026 sobre Milagros J. Ortiz, el peor de la sede:
+         * 6 329 ms y **19.31 MB de JSON** en una sola apertura. Andres lo
+         * reportaba como "5 segundos".
+         *
+         * 18 de esos 19 MB eran FIRMAS: cada MedicationAdministration guarda un
+         * signatureBase64 de ~10 KB, y se traian las 1 843. El perfil no dibuja
+         * ni una — la unica pantalla que las usa es la auditoria eMAR, que va
+         * por el otro endpoint. Se descargaban para nada.
+         *
+         * Ademas se traian enteros bathLogs (100), mealLogs (296),
+         * wellnessNotes (60) y auditLogs (31): 487 filas que NINGUNA pantalla
+         * de /corporate lee. Verificado buscando cada nombre en src/app/corporate
+         * y src/components antes de tocarlo.
+         *
+         * De los tres consumidores de este endpoint, uno usa TriageTicket y los
+         * otros dos el paciente base. Ninguno toca lo recortado.
+         */
+        const desde30 = new Date(Date.now() - 30 * 86400000);
+
         const patientHistory = await prisma.patient.findUnique({
             where: { id: patientId },
             include: {
@@ -51,16 +74,23 @@ async function getHistoryReportHandler(
                 medications: {
                     include: {
                         medication: true,
-                        administrations: true,
-                        auditLogs: true
+                        // select explicito, no include: Prisma 5.22 no tiene
+                        // omit, y la firma NO puede viajar aqui. Estos cuatro
+                        // campos son exactamente los que dibuja PatientEMARTab.
+                        administrations: {
+                            where: { createdAt: { gte: desde30 } },
+                            orderBy: { administeredAt: 'desc' },
+                            select: {
+                                id: true,
+                                administeredAt: true,
+                                status: true,
+                                notes: true,
+                            },
+                        },
                     }
                 },
                 incidents: true,
-                wellnessNotes: true,
                 fallIncidents: true,
-                bathLogs: true,
-                mealLogs: true,
-                serviceVisits: true,
                 intakeData: true,
                 lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
                 TriageTicket: {
