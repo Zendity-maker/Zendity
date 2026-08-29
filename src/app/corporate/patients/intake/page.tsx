@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { saveIntakeDraft, submitIntake } from "@/actions/intake/intake.actions";
 import { User, Stethoscope, Activity, Pill, CheckCircle, Save, AlertCircle, ChevronRight, Check, ActivitySquare, FileText, Upload, Phone, CreditCard, ShieldCheck, Hospital, X as XIcon, ClipboardCheck } from "lucide-react";
 import { confirmIntake } from "@/actions/intake/intake.actions";
+import { PARENTESCOS } from '@/lib/parentesco';
 
 export default function IntakeWizardPage() {
   const router = useRouter();
@@ -67,8 +68,8 @@ export default function IntakeWizardPage() {
     name: "",
     email: "",
     phone: "",
-    accessLevel: "Full",
     relationship: "",
+    accessLevel: "Full",
     address: "",
     idCardUrl: "",
     isPrimary: false,
@@ -319,8 +320,8 @@ export default function IntakeWizardPage() {
             name: primary.name || "",
             email: primary.email || "",
             phone: primary.phone || "",
-            accessLevel: primary.accessLevel || "Full",
             relationship: primary.relationship || "",
+            accessLevel: primary.accessLevel || "Full",
             address: primary.address || "",
             idCardUrl: primary.idCardUrl || "",
             isPrimary: !!primary.isPrimary,
@@ -382,8 +383,8 @@ export default function IntakeWizardPage() {
           name: tab5Family.name,
           email: tab5Family.email,
           phone: tab5Family.phone || null,
-          accessLevel: tab5Family.accessLevel,
           relationship: tab5Family.relationship || null,
+          accessLevel: tab5Family.accessLevel,
           address: tab5Family.address || null,
           idCardUrl: tab5Family.idCardUrl || null,
           isPrimary: tab5Family.isPrimary,
@@ -1307,6 +1308,17 @@ export default function IntakeWizardPage() {
                                 placeholder="Ej: 787-555-1234"
                                 className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
                               />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Relación con el residente</label>
+                              <select
+                                value={tab5Family.relationship}
+                                onChange={(e) => setTab5Family(p => ({ ...p, relationship: e.target.value }))}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              >
+                                <option value="">— Sin especificar —</option>
+                                {PARENTESCOS.map(r => (<option key={r} value={r}>{r}</option>))}
+                              </select>
                             </div>
                             <div>
                               <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Nivel de acceso</label>

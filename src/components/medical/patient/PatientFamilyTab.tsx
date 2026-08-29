@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { UserPlus, Mail, Trash2, Send, X, Loader2, UserCircle, Pencil, Phone, ExternalLink } from "lucide-react";
+import { PARENTESCOS } from '@/lib/parentesco';
 
 interface FamilyMember {
     id: string;
@@ -16,7 +17,7 @@ interface FamilyMember {
     inviteExpiry: string | null;
 }
 
-const RELATIONSHIP_OPTIONS = ["Hijo/a", "Esposo/a", "Nieto/a", "Hermano/a", "Otro"];
+const RELATIONSHIP_OPTIONS = PARENTESCOS;
 
 interface Toast {
     msg: string;
@@ -37,7 +38,16 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
 
     // Modal
     const [modalOpen, setModalOpen] = useState(false);
-    const [form, setForm] = useState({ name: "", email: "", accessLevel: "Full" });
+    // Telefono y parentesco se piden DESDE EL ALTA, no despues.
+    //
+    // Antes el alta pedia solo nombre, correo y nivel de acceso: habia que
+    // guardar, buscar la tarjeta y entrar a Editar para poner el telefono. El
+    // resultado medido el 28-ago-2026: 12 de 23 familiares registrados sin
+    // numero. Y ese numero sale en la Tarjeta de Emergencia, el papel que va
+    // con el residente en la ambulancia.
+    //
+    // El endpoint ya aceptaba los dos campos al crear; solo faltaban en pantalla.
+    const [form, setForm] = useState({ name: "", email: "", phone: "", relationship: "", accessLevel: "Full" });
     const [sending, setSending] = useState(false);
     const [modalError, setModalError] = useState<string | null>(null);
     // Conflicto: cuando el endpoint devuelve 409 porque el email ya existe.
@@ -93,7 +103,7 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     };
 
     const openModal = () => {
-        setForm({ name: "", email: "", accessLevel: "Full" });
+        setForm({ name: "", email: "", phone: "", relationship: "", accessLevel: "Full" });
         setModalError(null);
         setModalConflict(null);
         setModalOpen(true);
@@ -112,6 +122,8 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                     patientId,
                     name: form.name.trim(),
                     email: form.email.trim().toLowerCase(),
+                    phone: form.phone.trim() || null,
+                    relationship: form.relationship || null,
                     accessLevel: form.accessLevel,
                 }),
             });
@@ -441,6 +453,41 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                     placeholder="maria@email.com"
                                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Teléfono
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={form.phone}
+                                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                                    placeholder="787-555-1234"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                />
+                                {/* Se dice para qué sirve. Un campo opcional sin
+                                    motivo se salta; con el motivo, se llena. */}
+                                <p className="text-[11px] text-slate-400 font-medium mt-1.5 leading-relaxed">
+                                    Sale en la Tarjeta de Emergencia — es el número al que se llama
+                                    si el residente sale en ambulancia.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                    Relación con el residente
+                                </label>
+                                <select
+                                    value={form.relationship}
+                                    onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                                >
+                                    <option value="">— Sin especificar —</option>
+                                    {RELATIONSHIP_OPTIONS.map(r => (
+                                        <option key={r} value={r}>{r}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div>
