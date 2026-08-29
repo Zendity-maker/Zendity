@@ -27,6 +27,29 @@ async function getPatientHandler(req: Request, { params }: { params: Promise<{ i
 
         const { id } = await params;
 
+        /**
+         * Ventana del historial de medicación.
+         *
+         * NADA SE BORRA: esto limita lo que se LEE en esta respuesta, no lo que
+         * está guardado. Las filas de MedicationAdministration se conservan
+         * enteras y para siempre — nada en el código las elimina.
+         *
+         * POR QUE. El perfil traía TODAS las administraciones de TODOS los
+         * medicamentos desde el ingreso. Medido el 28-ago-2026: el expediente
+         * de Milagros J. Ortiz arrastraba 1 843 filas en una sola apertura, con
+         * una media de 642 por residente, y la consulta tardaba 3.8 segundos.
+         * Crece ~150 filas al día, así que cada mes abría más lento.
+         *
+         * Por defecto 30 días, que es lo que Andrés necesita ver al abrir un
+         * expediente. La auditoría eMAR —que existe justamente para revisar el
+         * histórico completo— pide ?historialCompleto=1 y lo recibe entero.
+         */
+        const url = new URL(req.url);
+        const historialCompleto = url.searchParams.get('historialCompleto') === '1';
+        const diasRaw = parseInt(url.searchParams.get('dias') ?? '30', 10);
+        const diasHistorial = Number.isFinite(diasRaw) ? Math.min(3650, Math.max(1, diasRaw)) : 30;
+        const desdeAdmins = new Date(Date.now() - diasHistorial * 86400000);
+
         const patient = await prisma.patient.findUnique({
             where: { id },
             include: {
@@ -40,6 +63,7 @@ async function getPatientHandler(req: Request, { params }: { params: Promise<{ i
                     include: {
                         medication: true,
                         administrations: {
+                            ...(historialCompleto ? {} : { where: { createdAt: { gte: desdeAdmins } } }),
                             orderBy: { administeredAt: 'desc' },
                             include: {
                                 administeredBy: { select: { id: true, name: true } }

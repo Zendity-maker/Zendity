@@ -27,7 +27,9 @@ function EmarPrintContent() {
         const fetchData = async () => {
             try {
                 // Endpoint existnete que retorna el expediente del paciente
-                const res = await fetch(`/api/corporate/patients/${patientId}`);
+                // historialCompleto: esta pantalla ES la auditoría. El perfil
+                // trae 30 días por rendimiento; aquí hace falta todo.
+                const res = await fetch(`/api/corporate/patients/${patientId}?historialCompleto=1`);
                 const data = await res.json();
                 
                 if (data.patient) {
