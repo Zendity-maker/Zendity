@@ -47,7 +47,15 @@ const WARN_BG: [number, number, number] = [254, 243, 199];
 const M = 12;
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-export function generateContinuityPDF(meta: ContinuityMeta): ArrayBuffer {
+/**
+ * @param soloEnBlanco  Solo las hojas que NO caducan: turno, vitales e
+ *   incidente. Son las que se tienen impresas de forma permanente en el hogar,
+ *   porque son las que se usan en los primeros cinco minutos de una caída —
+ *   mientras alguien busca e imprime las que llevan los datos clínicos. Esas
+ *   otras llegan por correo cada lunes y solo se imprimen si hacen falta:
+ *   imprimirlas cada semana sin necesidad es papel tirado.
+ */
+export function generateContinuityPDF(meta: ContinuityMeta, soloEnBlanco = false): ArrayBuffer {
     const doc = new jsPDF({ unit: 'mm', format: 'letter' });
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
@@ -120,6 +128,59 @@ export function generateContinuityPDF(meta: ContinuityMeta): ArrayBuffer {
         doc.text('CONTINUIDAD OPERATIVA', W - M, 8, { align: 'right' });
         pageFooter(enBlanco);
         return 24;
+    }
+
+    if (soloEnBlanco) {
+        // Portada corta y honesta: estas hojas no llevan datos, y quien las
+        // agarre tiene que saber que le falta la otra mitad y dónde está.
+        setFill(TEAL);
+        doc.rect(0, 0, W, 52, 'F');
+        setText([255, 255, 255]);
+        doc.setFont('helvetica', 'bold').setFontSize(20);
+        doc.text('Hojas de registro en blanco', M, 24);
+        doc.setFont('helvetica', 'normal').setFontSize(9.5);
+        doc.text('Paquete de continuidad · ' + meta.hqName, M, 33);
+        doc.setFontSize(8.5);
+        doc.text('Para usar cuando Zendity no este disponible', M, 41);
+
+        setText(INK);
+        doc.setFont('helvetica', 'bold').setFontSize(11);
+        doc.text('Estas hojas NO caducan', M, 68);
+        setText(MUTED);
+        doc.setFont('helvetica', 'normal').setFontSize(9);
+        const intro = [
+            'Fotocopialas y ten siempre un fajo en el hogar. No llevan datos de residentes,',
+            'asi que no se vencen: sirven igual hoy que dentro de un ano.',
+            '',
+            'Son las que se usan en los PRIMEROS MINUTOS de una caida. Empieza a anotar aqui',
+            'de inmediato — no esperes a tener nada mas.',
+            '',
+            'LO QUE FALTA: el censo, las alergias y el MAR de cada residente. Eso llega por',
+            'correo a direccion y enfermeria todos los lunes, y se imprime solo si hace falta.',
+            'Si necesitas esos datos ahora, buscalos en ese correo.',
+        ];
+        let yi = 76;
+        intro.forEach(l => { doc.text(l, M, yi); yi += 5.2; });
+
+        setDraw(LINE); doc.setLineWidth(0.3);
+        doc.line(M, yi + 4, W - M, yi + 4);
+        setText(TEAL);
+        doc.setFont('helvetica', 'bold').setFontSize(9);
+        doc.text('Contiene', M, yi + 12);
+        setText(MUTED);
+        doc.setFont('helvetica', 'normal').setFontSize(8.5);
+        [
+            '1. Registro diario de turno — banos, comidas y cambios posturales.',
+            '2. Registro de signos vitales.',
+            '3. Reporte de incidente — caidas u otros eventos.',
+        ].forEach((l, i) => doc.text(l, M + 2, yi + 20 + i * 5.5));
+
+        pageFooter(true);
+
+        plantillaTurno(doc, W, H, pageHeader);
+        plantillaVitales(doc, W, H, pageHeader);
+        plantillaIncidente(doc, W, H, pageHeader);
+        return doc.output('arraybuffer');
     }
 
     // ══ PÁGINA 1 — Portada e instrucciones ═════════════════════════════

@@ -117,11 +117,11 @@ export async function GET(req: Request) {
                 subject: `Paquete de continuidad — ${sede.name} — semana del ${new Date().toLocaleDateString('es-PR', { day: '2-digit', month: 'long', timeZone: 'America/Puerto_Rico' })}`,
                 html: `<meta charset="utf-8"><div style="background:#ffffff;color:#12211D;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;padding:28px;max-width:560px;margin:0 auto;">
 <p style="margin:0 0 16px;font-size:18px;font-weight:800;color:#12211D;">Paquete de continuidad de esta semana</p>
-<p style="margin:0 0 16px;font-size:15px;color:#12211D;">Adjunto va el paquete con el que ${sede.name} puede operar en papel si Zéndity no está disponible: censo, ficha y MAR de cada residente, y las hojas de registro.</p>
-<div style="background:#FAF0E2;border-left:4px solid #B0731E;padding:14px 16px;margin:0 0 16px;">
-<p style="margin:0;font-size:14px;color:#5C4210;"><strong>Imprímelo y reemplaza el del sitio de siempre.</strong> Destruye el de la semana pasada — un MAR viejo es peor que no tener ninguno, porque quien lo lee se fía de él.</p>
+<p style="margin:0 0 16px;font-size:15px;color:#12211D;">Adjunto va el paquete actualizado con el que ${sede.name} puede operar en papel si Zéndity no está disponible: censo, ficha y MAR de cada residente, y las hojas de registro.</p>
+<div style="background:#F1F7F4;border-left:4px solid #0F6E56;padding:14px 16px;margin:0 0 16px;">
+<p style="margin:0;font-size:14px;color:#12211D;"><strong>No hace falta imprimirlo.</strong> Guárdalo en el correo. El día que Zéndity no esté disponible, lo imprimes desde aquí — y será el del lunes más reciente, no uno de hace meses.</p>
 </div>
-<p style="margin:0 0 16px;font-size:14px;color:#66766F;">Las hojas en blanco —turno, vitales, incidente— no caducan. Esas se fotocopian y se quedan.</p>
+<p style="margin:0 0 16px;font-size:14px;color:#66766F;">Lo que sí debe estar impreso siempre son las hojas en blanco —turno, vitales e incidente— porque son las que se usan en los primeros minutos, mientras se imprime este. Esas no caducan.</p>
 <p style="margin:0;font-size:13px;color:#66766F;">${patients.length} residentes · generado automáticamente cada lunes.</p>
 </div>`,
                 attachments: [{
