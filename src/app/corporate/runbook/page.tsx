@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useActiveHq } from "@/contexts/ActiveHqContext";
 import {
     AlertTriangle, CheckCircle2, Phone, Wifi, WifiOff, Pill,
     Users, ShieldAlert, ClipboardList, FileText, ExternalLink,
-    ChevronDown, ChevronRight, Activity, Building2
+    ChevronDown, ChevronRight, Activity, Building2, Download, Printer
 } from "lucide-react";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -31,12 +33,12 @@ const RUNBOOK_SECTIONS: Section[] = [
         steps: [
             "Acceder al directorio de residentes desde el último caché del navegador (disponible sin internet en la mayoría de dispositivos).",
             "Imprimir las tarjetas de emergencia antes de perder acceso: ir a Directorio Global → seleccionar residente → botón 'Tarjeta de Emergencia'.",
-            "Continuar el eMAR en papel usando los formularios impresos del turno anterior.",
+            "Continuar el eMAR en papel con las hojas en blanco del paquete de continuidad (arriba en esta pantalla, o el fajo impreso del hogar).",
             "Documentar cada administración de medicamento en papel con hora y firma.",
             "Al restaurarse la conexión, registrar retroactivamente en el sistema con nota 'Registro retroactivo — falla de conectividad'.",
             "Notificar al Director de turno en los primeros 15 minutos de la interrupción.",
         ],
-        note: "Mantener una copia impresa de la lista de medicamentos activos en el puesto de enfermería.",
+        note: "Tener siempre impresas las hojas en blanco del paquete de continuidad. El paquete completo —censo, alergias y MAR— llega por correo a dirección cada lunes y se imprime solo si hace falta.",
     },
     {
         id: "medication-error",
@@ -178,6 +180,14 @@ function RunbookSection({ section }: { section: Section }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function RunbookPage() {
+    const { user } = useAuth();
+    const { activeHqId } = useActiveHq();
+    // La sede del selector si hay una concreta; si no, la del propio usuario.
+    // "ALL" no sirve aqui: el paquete es de UNA sede, con sus residentes.
+    const hqActiva = (activeHqId && activeHqId !== "ALL")
+        ? activeHqId
+        : ((user as any)?.headquartersId || (user as any)?.hqId || null);
+
     return (
         <div className="max-w-3xl mx-auto pb-16">
 
@@ -192,6 +202,55 @@ export default function RunbookPage() {
                         <p className="text-sm text-slate-500">Procedimientos de emergencia y operación estándar</p>
                     </div>
                 </div>
+                {/* Paquete de continuidad — ARRIBA del todo.
+                    Es lo primero que hace falta cuando algo se cae, y el
+                    runbook es la pantalla a la que se acude en ese momento.
+                    Antes solo se podia sacar desde /admin y solo SUPER_ADMIN. */}
+                <div className="mt-4 border-2 border-slate-800 rounded-2xl overflow-hidden">
+                    <div className="bg-slate-800 px-5 py-3">
+                        <p className="text-white font-black text-sm flex items-center gap-2">
+                            <Printer className="w-4 h-4" /> Paquete de continuidad
+                        </p>
+                        <p className="text-slate-300 text-xs mt-0.5">
+                            Para operar en papel cuando Zéndity no esté disponible.
+                        </p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-white">
+                        <div className="p-5">
+                            <p className="font-black text-slate-800 text-sm">Hojas en blanco</p>
+                            <p className="text-xs text-slate-500 leading-relaxed mt-1 mb-3">
+                                Turno, vitales e incidente. <strong>No caducan.</strong> Imprime un fajo
+                                y déjalo en el hogar — son las que se usan en los primeros minutos,
+                                mientras se consigue lo demás.
+                            </p>
+                            <a
+                                href={hqActiva ? `/api/admin/sedes/${hqActiva}/continuity-pdf?enBlanco=1` : undefined}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${hqActiva ? 'bg-slate-800 hover:bg-slate-700 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                            >
+                                <Download className="w-4 h-4" /> Descargar hojas en blanco
+                            </a>
+                        </div>
+                        <div className="p-5">
+                            <p className="font-black text-slate-800 text-sm">Paquete completo</p>
+                            <p className="text-xs text-slate-500 leading-relaxed mt-1 mb-3">
+                                Censo, alergias y el MAR de cada residente. <strong>Caduca:</strong> se
+                                genera con los datos de este momento. No lo archives impreso — sácalo
+                                el día que lo necesites.
+                            </p>
+                            <a
+                                href={hqActiva ? `/api/admin/sedes/${hqActiva}/continuity-pdf` : undefined}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors ${hqActiva ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                            >
+                                <Download className="w-4 h-4" /> Descargar paquete completo
+                            </a>
+                        </div>
+                    </div>
+                    <p className="bg-slate-50 border-t border-slate-200 px-5 py-2.5 text-[11px] text-slate-500">
+                        El paquete completo también llega por correo a dirección todos los lunes.
+                        Contiene datos clínicos de todos los residentes: trátalo como el expediente.
+                    </p>
+                </div>
+
                 <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 text-sm text-amber-800">
                     <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <span>

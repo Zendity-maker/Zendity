@@ -45,6 +45,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         const invokerId = auth.id;
 
         const { id } = await params;
+        // ?enBlanco=1 → solo las hojas que no caducan. Son las que se tienen
+        // impresas de forma permanente y se usan en los primeros minutos.
+        const soloEnBlanco = new URL(req.url).searchParams.get('enBlanco') === '1';
         if (auth.role !== 'SUPER_ADMIN' && id !== auth.headquartersId) {
             return NextResponse.json(
                 { success: false, error: 'Solo puedes generar el paquete de tu propia sede' },
@@ -109,7 +112,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             hqName: hq.name,
             generatedAt: new Date(),
             residents,
-        });
+        }, soloEnBlanco);
 
         await logAudit({
             headquartersId: id,
@@ -131,7 +134,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="Continuidad_${safe}_${fileDate}.pdf"`,
+                'Content-Disposition': `attachment; filename="${soloEnBlanco ? 'Hojas_en_blanco' : 'Continuidad'}_${safe}_${fileDate}.pdf"`,
                 'Cache-Control': 'no-store',
             },
         });
