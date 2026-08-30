@@ -17,7 +17,14 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { subject, html } = body;
+        // remitente: quien FIRMA el aviso.
+        //   'HOGAR' (por defecto) — dirección del hogar hablando a su personal.
+        //   'ZENDITY'             — la plataforma hablando a los usuarios.
+        // La distinción no es cosmética. Cuando Zéndity se cae, quien debe
+        // responder al personal es Zéndity, no la dirección del hogar
+        // disculpándose por algo que no causó.
+        const { subject, html, remitente } = body;
+        const deZendity = remitente === 'ZENDITY';
         const hqId = session.user.headquartersId || (session.user as any).hqId;
 
         // Validaciones básicas
@@ -59,21 +66,46 @@ export async function POST(request: Request) {
         }
 
         // Diseño básico de correo corporativo inyectando el cuerpo HTML
+        /**
+         * Dos arreglos de la plantilla, los dos con consecuencia real:
+         *
+         * 1. FUERA white-space: pre-wrap. Hacía visibles todos los saltos de
+         *    línea y la indentación del HTML que le pasan, así que cualquier
+         *    correo con formato llegaba con huecos enormes y márgenes rotos.
+         *    Solo servía para texto plano — y el campo se llama html.
+         *
+         * 2. Indigo #4f46e5 → teal #0F6E56. La paleta de la casa es teal; un
+         *    aviso oficial que llega con otros colores no parece del hogar.
+         *
+         * Y se quita la caja gris interior: encajonaba el contenido dentro de
+         * otra caja, de modo que un correo bien maquetado quedaba metido en un
+         * recuadro ajeno.
+         */
+        const cabecera = deZendity
+            ? `<div style="background-color:#12211D;padding:26px 30px;">
+                   <p style="margin:0;color:#ffffff;font-size:19px;font-weight:800;">Zéndity</p>
+                   <p style="margin:4px 0 0;color:#6FDDB1;font-size:13px;font-weight:600;">Comunicado de la plataforma · ${hqName}</p>
+               </div>`
+            : `<div style="background-color:#0F6E56;padding:24px;text-align:center;">
+                   ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-height:50px;margin-bottom:12px;border-radius:8px;" />` : `<h2 style="color:white;margin:0;font-size:24px;">${hqName}</h2>`}
+                   <p style="color:#A8DCC6;margin:5px 0 0 0;font-size:14px;">Aviso oficial · A todo el personal</p>
+               </div>`;
+
+        const pie = deZendity
+            ? `<p style="margin:0;">Enviado por Zéndity, la plataforma que usa ${hqName}.</p>
+               <p style="margin:4px 0 0 0;">Si tienes dudas sobre este mensaje, habla con tu supervisora.</p>`
+            : `<p style="margin:0;">Mensaje de la dirección de ${hqName}.</p>
+               <p style="margin:4px 0 0 0;">Por favor no responda directamente a este correo.</p>
+               <p style="margin:12px 0 0 0;font-size:10px;color:#94a3b8;">Tecnología impulsada por Zéndity</p>`;
+
         const corporateTemplate = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-            <div style="background-color: #4f46e5; padding: 24px; text-align: center;">
-                ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-height: 50px; margin-bottom: 12px; border-radius: 8px;" />` : `<h2 style="color: white; margin: 0; font-size: 24px;">${hqName}</h2>`}
-                <p style="color: #c7d2fe; margin: 5px 0 0 0; font-size: 14px;">Aviso Oficial (A todo el Staff)</p>
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #DDE4DF;border-radius:12px;overflow:hidden;">
+            ${cabecera}
+            <div style="background-color:#ffffff;color:#12211D;line-height:1.65;">
+                ${html}
             </div>
-            <div style="padding: 32px; background-color: #ffffff; color: #334155; line-height: 1.6;">
-                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #4f46e5; white-space: pre-wrap;">
-                    ${html}
-                </div>
-            </div>
-            <div style="background-color: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b;">
-                <p style="margin: 0;">Este es un mensaje general autogenerado por la gerencia de ${hqName}.</p>
-                <p style="margin: 4px 0 0 0;">Por favor no responda directamente a este correo.</p>
-                <p style="margin: 12px 0 0 0; font-size: 10px; color: #94a3b8;">Tecnología Impulsada por Zendity OS</p>
+            <div style="background-color:#F1F4F1;padding:16px 24px;text-align:center;font-size:12px;color:#66766F;line-height:1.6;">
+                ${pie}
             </div>
         </div>
         `;
@@ -81,7 +113,7 @@ export async function POST(request: Request) {
         const msg = {
             to: targetEmails,
             from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
-            subject: `${hqName} · ${subject}`,
+            subject: deZendity ? `Zéndity · ${subject}` : `${hqName} · ${subject}`,
             html: corporateTemplate,
             isMultiple: true, // Crucial para que no se vean las direcciones de los demás (BCC implícito)
         };

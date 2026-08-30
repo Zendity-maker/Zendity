@@ -14,6 +14,10 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
     const [targetEmployeeId, setTargetEmployeeId] = useState("");
     const [subject, setSubject] = useState("");
     const [message, setMessage] = useState("");
+    // Quién firma el aviso. Por defecto el hogar, que es lo normal. ZENDITY es
+    // para cuando quien tiene que responder al personal es la plataforma —una
+    // caída, un cambio del sistema— y no la dirección por algo que no causó.
+    const [remitente, setRemitente] = useState<'HOGAR' | 'ZENDITY'>('HOGAR');
 
     // Status visual
     const [status, setStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null);
@@ -38,7 +42,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
             const endpoint = sendMode === 'BROADCAST' ? '/api/hr/comms/send-broadcast' : '/api/hr/comms/send';
 
             const payload = sendMode === 'BROADCAST'
-                ? { subject, html: message }
+                ? { subject, html: message, remitente }
                 : { employeeId: targetEmployeeId, subject, html: message };
 
             const response = await fetch(endpoint, {
@@ -173,6 +177,29 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                     </div>
                                 )}
 
+                                {sendMode === 'BROADCAST' && (
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Quién firma</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setRemitente('HOGAR')}
+                                                className={`p-3 rounded-xl border-2 text-left transition-all ${remitente === 'HOGAR' ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                            >
+                                                <p className={`font-black text-sm ${remitente === 'HOGAR' ? 'text-teal-800' : 'text-slate-600'}`}>El hogar</p>
+                                                <p className="text-[11px] text-slate-500 leading-snug mt-0.5">Aviso de la dirección a su personal.</p>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setRemitente('ZENDITY')}
+                                                className={`p-3 rounded-xl border-2 text-left transition-all ${remitente === 'ZENDITY' ? 'border-slate-800 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                            >
+                                                <p className={`font-black text-sm ${remitente === 'ZENDITY' ? 'text-slate-900' : 'text-slate-600'}`}>Zéndity</p>
+                                                <p className="text-[11px] text-slate-500 leading-snug mt-0.5">La plataforma respondiendo — una caída, un cambio del sistema.</p>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1.5">Asunto Central (Subject)</label>
                                     <input
