@@ -98,7 +98,19 @@ export async function POST(request: Request) {
                <p style="margin:4px 0 0 0;">Por favor no responda directamente a este correo.</p>
                <p style="margin:12px 0 0 0;font-size:10px;color:#94a3b8;">Tecnología impulsada por Zéndity</p>`;
 
+        /**
+         * <meta charset="utf-8"> antes de nada.
+         *
+         * Sin esto, un cliente que no asuma UTF-8 pinta las tildes y la é de
+         * Zéndity como signos raros. Andres lo vio en el primer envío: el
+         * correo llegaba con caracteres rotos por todo el texto.
+         *
+         * Va DENTRO del html del mensaje a propósito: SendGrid manda el cuerpo
+         * tal cual y no todos los clientes heredan la codificación de la
+         * cabecera del correo.
+         */
         const corporateTemplate = `
+        <meta charset="utf-8">
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #DDE4DF;border-radius:12px;overflow:hidden;">
             ${cabecera}
             <div style="background-color:#ffffff;color:#12211D;line-height:1.65;">
