@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit';
 import { logError } from '@/lib/logger';
 import { generateContinuityPDF, ContinuityResident } from '@/lib/continuity-pdf';
 import { lineaModalidad } from '@/lib/cuidado-final';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +23,34 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const guard = await requireSuperAdmin();
-        if (!guard.ok) return guard.response;
-        const invokerId = (guard.session.user as any).id as string;
+        /**
+         * SUPER_ADMIN para cualquier sede; enfermeria y direccion para la suya.
+         *
+         * Nacio solo para SUPER_ADMIN porque su escenario era una suspension por
+         * facturacion: Zendity corta el servicio y le entrega el paquete al
+         * hogar desde fuera. Pero el 29-ago-2026 el escenario real fue otro —el
+         * login caido— y quien necesitaba el paquete estaba DENTRO, sin poder
+         * pedirselo a nadie.
+         *
+         * Andres aporto el dato que decide esto: durante la caida el si pudo
+         * entrar desde su telefono. El acceso no se cae parejo, asi que cuanta
+         * mas gente pueda generarlo, mas probable que alguien lo consiga cuando
+         * empiece a fallar.
+         *
+         * Cada quien solo la SUYA. Esto lleva PHI de todos los residentes de una
+         * sede: un supervisor de Cupey no descarga el censo de Mayaguez.
+         */
+        const auth = await requireRole(['SUPER_ADMIN', 'ADMIN', 'DIRECTOR', 'NURSE', 'SUPERVISOR']);
+        if (auth instanceof NextResponse) return auth;
+        const invokerId = auth.id;
 
         const { id } = await params;
+        if (auth.role !== 'SUPER_ADMIN' && id !== auth.headquartersId) {
+            return NextResponse.json(
+                { success: false, error: 'Solo puedes generar el paquete de tu propia sede' },
+                { status: 403 },
+            );
+        }
         const hq = await prisma.headquarters.findUnique({ where: { id }, select: { name: true } });
         if (!hq) return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
 

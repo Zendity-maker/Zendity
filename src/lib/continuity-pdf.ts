@@ -64,8 +64,51 @@ export function generateContinuityPDF(meta: ContinuityMeta): ArrayBuffer {
     const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
     const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
 
+    // Fecha corta para el pie de cada página. La larga va en la portada.
+    const fechaCorta = meta.generatedAt.toLocaleDateString('es-PR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Puerto_Rico',
+    });
+
+    /**
+     * Pie con la FECHA en cada página, y el aviso de caducidad.
+     *
+     * La fecha aparecía una sola vez, pequeña, en la esquina de la portada. Y
+     * lo que se fotocopia no es la portada: es la hoja de un residente. Sin
+     * fecha en esa hoja, nadie puede saber si el MAR que tiene delante es de
+     * esta semana o de hace tres meses — y un MAR viejo es peor que no tener
+     * ninguno, porque uno se fía de él. Puede decir que administre algo que se
+     * suspendió, o callar una alergia nueva.
+     *
+     * Va en TODAS las páginas, incluidas las plantillas en blanco: si alguien
+     * fotocopia una hoja suelta, la fecha viaja con ella.
+     */
+    function pageFooter(enBlanco = false) {
+        const y = H - 8;
+        setDraw(LINE);
+        doc.setLineWidth(0.2);
+        doc.line(M, y - 4, W - M, y - 4);
+        setText(MUTED);
+        doc.setFont('helvetica', 'bold').setFontSize(7.5);
+        doc.setFont('helvetica', 'normal').setFontSize(6.5);
+        // Una hoja EN BLANCO no caduca — poner el aviso de vigencia sobre un
+        // formulario vacio haria que lo tiraran cada semana sin motivo. Las que
+        // llevan datos clinicos si lo llevan, y en negrita.
+        if (enBlanco) {
+            doc.text('Hoja en blanco — no caduca. Fotocopiar libremente.', M, y);
+        } else {
+            doc.setFont('helvetica', 'bold').setFontSize(7.5);
+            doc.text(`GENERADO ${fechaCorta}`, M, y);
+            doc.setFont('helvetica', 'normal').setFontSize(6.5);
+            doc.text(
+                'Si esta hoja tiene mas de 7 dias, verifica contra el expediente antes de administrar.',
+                M + 34, y,
+            );
+        }
+        doc.text(meta.hqName, W - M, y, { align: 'right' });
+    }
+
     /** Encabezado de sección — se repite en cada página nueva. */
-    function pageHeader(titulo: string, subtitulo?: string) {
+    function pageHeader(titulo: string, subtitulo?: string, enBlanco = false) {
         setFill(TEAL);
         doc.rect(0, 0, W, 17, 'F');
         setText([255, 255, 255]);
@@ -75,6 +118,7 @@ export function generateContinuityPDF(meta: ContinuityMeta): ArrayBuffer {
         doc.text(meta.hqName, M, 13);
         if (subtitulo) doc.text(subtitulo, W - M, 13, { align: 'right' });
         doc.text('CONTINUIDAD OPERATIVA', W - M, 8, { align: 'right' });
+        pageFooter(enBlanco);
         return 24;
     }
 
@@ -365,7 +409,7 @@ export function generateContinuityPDF(meta: ContinuityMeta): ArrayBuffer {
 
 // ── Plantillas en blanco ──────────────────────────────────────────────
 
-type HeaderFn = (t: string, s?: string) => number;
+type HeaderFn = (t: string, s?: string, enBlanco?: boolean) => number;
 
 function campoFecha(doc: jsPDF, W: number, y: number): number {
     doc.setDrawColor(LINE[0], LINE[1], LINE[2]); doc.setLineWidth(0.3);
@@ -405,7 +449,7 @@ function tablaBlanco(doc: jsPDF, W: number, H: number, y: number, headers: { t: 
 
 function plantillaTurno(doc: jsPDF, W: number, H: number, header: HeaderFn) {
     doc.addPage();
-    let y = header('Registro Diario de Turno', 'Fotocopiar una por turno');
+    let y = header('Registro Diario de Turno', 'Fotocopiar una por turno', true);
     y = campoFecha(doc, W, y);
     const wRes = 46, rest = (W - M * 2 - wRes) / 5;
     y = tablaBlanco(doc, W, H, y, [
@@ -420,7 +464,7 @@ function plantillaTurno(doc: jsPDF, W: number, H: number, header: HeaderFn) {
 
 function plantillaVitales(doc: jsPDF, W: number, H: number, header: HeaderFn) {
     doc.addPage();
-    let y = header('Registro de Signos Vitales', 'Fotocopiar según necesidad');
+    let y = header('Registro de Signos Vitales', 'Fotocopiar según necesidad', true);
     y = campoFecha(doc, W, y);
     const wRes = 44, rest = (W - M * 2 - wRes) / 7;
     y = tablaBlanco(doc, W, H, y, [
@@ -437,7 +481,7 @@ function plantillaVitales(doc: jsPDF, W: number, H: number, header: HeaderFn) {
 
 function plantillaIncidente(doc: jsPDF, W: number, H: number, header: HeaderFn) {
     doc.addPage();
-    let y = header('Reporte de Incidente', 'Una hoja por evento');
+    let y = header('Reporte de Incidente', 'Una hoja por evento', true);
     y = campoFecha(doc, W, y);
 
     const bloques: [string, number][] = [
@@ -450,7 +494,7 @@ function plantillaIncidente(doc: jsPDF, W: number, H: number, header: HeaderFn) 
     ];
     doc.setLineWidth(0.25);
     bloques.forEach(([t, lineas]) => {
-        if (y > H - 30) { doc.addPage(); y = header('Reporte de Incidente', 'continuación'); }
+        if (y > H - 30) { doc.addPage(); y = header('Reporte de Incidente', 'continuación', true); }
         doc.setTextColor(TEAL[0], TEAL[1], TEAL[2]);
         doc.setFont('helvetica', 'bold').setFontSize(7.5);
         doc.text(t.toUpperCase(), M, y);
