@@ -106,6 +106,40 @@ export async function POST(req: Request) {
                 where: { id: patientId, headquartersId: hqId },
                 select: { id: true, headquartersId: true, name: true }
             });
+            /**
+             * Guarda contra doble envio.
+             *
+             * El 30-ago-2026 una caida de Pura Hornedo entro DOS VECES con 6
+             * segundos de diferencia: mismos datos, misma gravedad, y cada una
+             * creo su propio ticket de triage. Contaba doble en el panel, en el
+             * historial del residente y en las metricas de caidas.
+             *
+             * El boton del cliente ya se deshabilita mientras envia, asi que
+             * esto no fue un doble toque en la misma pantalla — se reintento al
+             * verlo lento, o llego dos veces por reintento de red. Eso solo lo
+             * puede parar el servidor.
+             *
+             * Cinco minutos: dos caidas REALES del mismo residente en ese lapso
+             * son practicamente imposibles, y si ocurrieran serian el mismo
+             * evento. Se devuelve EXITO con el id de la que ya existe, no un
+             * error: la cuidadora hizo lo correcto, y un error rojo la haria
+             * intentarlo otra vez — que es justo lo que causo el duplicado.
+             */
+            const haceCinco = new Date(Date.now() - 5 * 60000);
+            const yaRegistrada = await prisma.fallIncident.findFirst({
+                where: { patientId, reportedAt: { gte: haceCinco } },
+                select: { id: true, reportedAt: true },
+                orderBy: { reportedAt: 'desc' },
+            });
+            if (yaRegistrada) {
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    incidentId: yaRegistrada.id,
+                    mensaje: 'Esta caída ya estaba registrada hace un momento. No se duplicó.',
+                });
+            }
+
             if (!fallPatient) {
                 return NextResponse.json({ success: false, error: 'Residente no encontrado en tu sede' }, { status: 404 });
             }

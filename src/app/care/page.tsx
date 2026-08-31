@@ -1717,6 +1717,14 @@ export default function ZendityCareTabletPage() {
             if (data.success) {
                 setFallProtocol({ consciousness: true, bleeding: false, painLevel: 5 });
                 setModalType(null);
+                // El servidor detectó que esta caída ya estaba registrada hace
+                // menos de cinco minutos. No es un error: la cuidadora hizo lo
+                // correcto y solo hay que decirle que no se duplicó, sin
+                // ofrecerle imprimir un reporte por segunda vez.
+                if (data.duplicada) {
+                    avisoOk(data.mensaje || 'Esta caída ya estaba registrada. No se duplicó.');
+                    return;
+                }
                 // Si el cuidador acepta, abrimos el PDF de Reporte de Incidente
                 const wantsPrint = confirm(`Alerta Roja enviada (Severidad: ${data.derivedSeverity || 'reportada'}). ¿Imprimir Reporte de Incidente ahora?`);
                 if (wantsPrint && data.incident?.id) {
