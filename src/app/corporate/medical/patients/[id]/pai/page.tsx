@@ -71,7 +71,14 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                 setStatus(p.status || "DRAFT");
                 setPaiType(p.type || "INITIAL");
                 setFamilyVersion(p.familyVersion || "");
-                setSupportSource(p.supportSource || "");
+                // Fuente de apoyo: lo guardado manda; si esta vacio se prellena con
+                // los familiares REALES del expediente. Nunca lo produce la IA —
+                // un nombre inventado en un documento que se firma es peor que un
+                // campo en blanco.
+                const deFamilia = (data.familiares || [])
+                    .map((f: any) => `${f.relationship || 'Familiar'}: ${String(f.name).trim()}`)
+                    .join(' · ');
+                setSupportSource(p.supportSource || deFamilia || "");
                 setClinicalSummary(p.clinicalSummary || "");
                 setContinence(p.continence || "");
                 setCognitiveLevel(p.cognitiveLevel || "");
@@ -88,9 +95,31 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                 setMonitoringMethod(p.monitoringMethod || "");
                 setRevisionCriteria(p.revisionCriteria || "");
 
-                if (p.startDate) setStartDate(new Date(p.startDate).toISOString().split('T')[0]);
-                if (p.nextReview) setNextReview(new Date(p.nextReview).toISOString().split('T')[0]);
+                // Fechas: lo guardado manda. Vacias se proponen — hoy como inicio y
+                // 90 dias como proxima revision, que es la cadencia trimestral del
+                // PAI. Venian siempre en blanco porque nadie las escribia a mano y
+                // `nextReview` se guardaba como null, asi que ningun plan tenia
+                // fecha de revision: 0 de 67 al 01-sep-2026. La enfermera puede
+                // cambiarlas; la propuesta solo evita el campo vacio por olvido.
+                const hoy = new Date();
+                const enNoventa = new Date(hoy.getTime() + 90 * 86400000);
+                setStartDate(p.startDate
+                    ? new Date(p.startDate).toISOString().split('T')[0]
+                    : hoy.toISOString().split('T')[0]);
+                setNextReview(p.nextReview
+                    ? new Date(p.nextReview).toISOString().split('T')[0]
+                    : enNoventa.toISOString().split('T')[0]);
                 setSignedById(p.signedById);
+            } else {
+                // Residente sin PAI todavia: el formulario nace con la fuente de
+                // apoyo del expediente y las fechas propuestas, igual que uno
+                // existente. Sin esto el caso nuevo volvia a los campos vacios.
+                const hoy = new Date();
+                setSupportSource((data.familiares || [])
+                    .map((f: any) => `${f.relationship || 'Familiar'}: ${String(f.name).trim()}`)
+                    .join(' · '));
+                setStartDate(hoy.toISOString().split('T')[0]);
+                setNextReview(new Date(hoy.getTime() + 90 * 86400000).toISOString().split('T')[0]);
             }
         } catch (e) {
             console.error(e);

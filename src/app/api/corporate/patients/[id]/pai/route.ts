@@ -45,7 +45,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             }
         });
 
-        return NextResponse.json({ success: true, lifePlan });
+        // Familiares reales del residente. La "fuente de apoyo principal" venia
+        // siempre vacia porque nadie la prellenaba y la IA no la produce — y no
+        // debe producirla: un nombre de familiar inventado en un documento que
+        // se firma es peor que un campo en blanco. Sale del expediente o no sale.
+        const familiares = await prisma.familyMember.findMany({
+            where: { patientId, headquartersId: hqId },
+            orderBy: { isPrimary: 'desc' },
+            select: { name: true, relationship: true, isPrimary: true },
+        });
+
+        return NextResponse.json({ success: true, lifePlan, familiares });
     } catch (error) {
         console.error("GET PAI Error:", error);
         return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
