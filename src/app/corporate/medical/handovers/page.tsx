@@ -32,6 +32,7 @@ export default function HandoversPage() {
         ? contextHqId
         : (user?.headquartersId || user?.hqId);
     const [handovers, setHandovers] = useState<Handover[]>([]);
+    const [totalVentana, setTotalVentana] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
     // -- ESTADO DEL MODAL --
@@ -71,6 +72,11 @@ export default function HandoversPage() {
             if (handoverRes.ok) {
                 const data = await handoverRes.json();
                 setHandovers(data);
+                // Cuantos hay DE VERDAD en la ventana de 30 dias. Si el tope
+                // recorta, la pantalla lo dice en vez de callarlo: antes el
+                // corte caia en el dia 22 y 73 reportes eran invisibles.
+                const t = parseInt(handoverRes.headers.get('X-Total-Ventana') ?? '0', 10);
+                setTotalVentana(Number.isFinite(t) ? t : 0);
             }
 
             // Caídas reales de las últimas 8 horas — alimentan el FALL RISK LOCK
@@ -262,6 +268,26 @@ export default function HandoversPage() {
      * cuando los relevos reales pendientes eran CERO — los 833 que ha habido
      * estan todos aceptados. El numero acusaba de una deuda que no existe.
      */
+    /**
+     * Agrupados por dia, del mas reciente al mas viejo.
+     *
+     * Andres: "hay una cantidad que no tiene sentido, es demasiado". El numero
+     * en si esta bien —8.3 reportes al dia son uno por cuidadora y turno, que es
+     * el diseño— pero 273 tarjetas seguidas no se leen. En bloques por fecha son
+     * unos 30, y se encuentra el dia que uno busca.
+     */
+    const agrupadosPorDia = (() => {
+        const mapa = new Map<string, Handover[]>();
+        handovers.forEach(h => {
+            const dia = new Date(h.createdAt).toLocaleDateString('es-PR', {
+                weekday: 'long', day: '2-digit', month: 'long',
+            });
+            if (!mapa.has(dia)) mapa.set(dia, []);
+            mapa.get(dia)!.push(h);
+        });
+        return [...mapa.entries()];
+    })();
+
     const pendingHandovers = handovers.filter(h => h.status === 'PENDING' && !h.isDailyPrologue).length;
     const prologosPendientes = handovers.filter(h => h.status === 'PENDING' && h.isDailyPrologue).length;
     const criticalNotesCount = handovers.reduce((acc, h) => acc + h.notes.filter(n => n.isCritical).length, 0);
@@ -369,13 +395,33 @@ export default function HandoversPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-6">
+                    {/* Cuantos hay de verdad frente a cuantos se muestran.
+                        Una lista que anuncia 30 dias y entrega 22 miente en
+                        silencio — que es lo que hacia el tope de 200. */}
+                    {totalVentana > handovers.length && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm font-medium text-amber-800">
+                            Mostrando los <strong>{handovers.length}</strong> más recientes de{' '}
+                            <strong>{totalVentana}</strong> reportes de los últimos 30 días.
+                        </div>
+                    )}
                     {handovers.length === 0 ? (
                         <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
                             <h3 className="text-slate-500 font-bold mb-2">No hay Handovers Existentes.</h3>
                             <p className="text-slate-500 text-sm">Empieza tu cultura operativa libre de papeles creando el primero.</p>
                         </div>
                     ) : (
-                        handovers.map((handover) => (
+                        agrupadosPorDia.map(([dia, delDia]) => (
+                        <div key={dia}>
+                            {/* Cabecera de dia: 273 tarjetas seguidas no se leen;
+                                30 bloques con su fecha, si. */}
+                            <div className="flex items-baseline gap-3 mb-3 pb-2 border-b border-slate-200">
+                                <h3 className="text-sm font-black text-slate-700 capitalize">{dia}</h3>
+                                <span className="text-xs font-bold text-slate-400">
+                                    {delDia.length} reporte{delDia.length === 1 ? '' : 's'}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-6 mb-8">
+                        {delDia.map((handover) => (
                             <div key={handover.id} className={`bg-white border rounded-3xl p-6 shadow-sm overflow-hidden relative ${handover.status === 'PENDING' && !handover.isDailyPrologue ? 'border-amber-300 ring-4 ring-amber-50' : 'border-slate-200'}`}>
 
                                 {/* Cinta Superior Decorativa */}
@@ -459,6 +505,9 @@ export default function HandoversPage() {
                                 </div>
 
                             </div>
+                        ))}
+                            </div>
+                        </div>
                         ))
                     )}
                 </div>

@@ -53,10 +53,31 @@ export async function GET(request: Request) {
                 }
             },
             orderBy: { createdAt: 'desc' },
-            take: 200,
+            /**
+             * 400 para que los 30 dias QUEPAN de verdad.
+             *
+             * Con take 200 el corte real caia en el dia 22: al 30-ago-2026 habia
+             * 273 filas en la ventana y se devolvian 200, asi que 73 reportes de
+             * turno eran invisibles y la pantalla no decia nada. Una lista que
+             * anuncia 30 dias y entrega 22 miente en silencio.
+             *
+             * El tope se queda porque un findMany sin limite en produccion es el
+             * anti-patron de la casa. Pero ahora viaja el total: si algun dia se
+             * vuelve a quedar corto, la pantalla lo dice en vez de callarlo.
+             */
+            take: 400,
         });
 
-        return NextResponse.json(handovers);
+        const totalEnVentana = await prisma.shiftHandover.count({
+            where: { headquartersId: hqId, createdAt: { gte: thirtyDaysAgo } },
+        });
+
+        // Se conserva el array como cuerpo —el cliente lo consume asi— y el
+        // total viaja en cabecera. Cambiar la forma obligaria a tocar los tres
+        // consumidores por un dato informativo.
+        return NextResponse.json(handovers, {
+            headers: { 'X-Total-Ventana': String(totalEnVentana) },
+        });
     } catch (error) {
         console.error("GET Handover Error:", error);
         return NextResponse.json({ error: "Failed to fetch handovers" }, { status: 500 });
