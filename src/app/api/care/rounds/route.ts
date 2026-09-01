@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { resolverHoraReal } from '@/lib/hora-real';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -19,7 +20,14 @@ export async function POST(req: Request) {
         }
 
         const data = await req.json();
-        const { patientId, type, position } = data; // type: 'SECO' | 'HUMEDO' | 'EVACUACION' | 'ROTACION'
+        const { patientId, type, position, performedAt: horaDeclarada } = data; // type: 'SECO' | 'HUMEDO' | 'EVACUACION' | 'ROTACION'
+
+        // Hora real del cuido. Este es el camino que usa la tableta de verdad
+        // (logNightRound), no /api/care/postural. Ver src/lib/hora-real.ts.
+        const hora = resolverHoraReal(horaDeclarada);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
 
         if (!patientId || !type) {
             return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
@@ -73,6 +81,7 @@ export async function POST(req: Request) {
                     patientId,
                     nurseId: authorId,
                     position: position || "Rotación General (Pre-programada Zendi)",
+                    performedAt: hora.hora,
                     isComplianceAlert: false
                 }
             });

@@ -14,6 +14,7 @@ import ZendiMomentsWidget from "@/components/care/zendi/ZendiMomentsWidget";
 import MyObservationsWidget from "@/components/care/MyObservationsWidget";
 import ZendiCameraEnhancer from "@/components/care/ZendiCameraEnhancer";
 import SignatureCanvas from "react-signature-canvas";
+import HoraDelRegistro from '@/components/care/HoraDelRegistro';
 import ShiftClosureWizard from "@/components/care/ShiftClosureWizard";
 import FallIncidentPrint from "@/components/medical/fall-risk/FallIncidentPrint";
 import ZendiAssist from "@/components/ZendiAssist";
@@ -471,6 +472,15 @@ export default function ZendityCareTabletPage() {
     const [activeMedAction, setActiveMedAction] = useState<'PRN' | 'OMISSION' | null>(null);
     const sigCanvas = useRef<any>(null); // FASE 60: eMAR Digital Signature
     const packSigCanvas = useRef<any>(null); // Firma del pack (flujo secuencial por slot)
+
+    // Hora real del cuido, compartida por baño/comida/rotación/pack. null =
+    // ahora, que es el caso normal. Se reinicia al cambiar de residente para
+    // que no se arrastre sin querer. Ver components/care/HoraDelRegistro.tsx.
+    const [horaRegistro, setHoraRegistro] = useState<Date | null>(null);
+
+    // Se reinicia al cambiar de residente o de modal: dejar fijado "hace 2 h" y
+    // seguir registrando a otra persona seria peor que el problema original.
+    useEffect(() => { setHoraRegistro(null); }, [activePatient?.id, modalType]);
     // Flujo por pack — omisión individual
     const [omittingMed, setOmittingMed] = useState<{ id: string; name: string; slotLabel: string } | null>(null);
     const OMIT_REASONS = [
@@ -500,7 +510,7 @@ export default function ZendityCareTabletPage() {
             const res = await fetch("/api/care/rounds", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientId, authorId: user?.id, hqId, type, position })
+                body: JSON.stringify({ performedAt: horaRegistro?.toISOString(), patientId, authorId: user?.id, hqId, type, position })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.success) {
@@ -1368,7 +1378,8 @@ export default function ZendityCareTabletPage() {
                     action: 'ADMINISTER_PACK',
                     medicationIds,
                     scheduleTime: pack.label,
-                    signatureBase64
+                    signatureBase64,
+                    administeredAt: horaRegistro?.toISOString()
                 })
             });
             const data = await res.json();
@@ -1528,7 +1539,7 @@ export default function ZendityCareTabletPage() {
         try {
             const res = await fetch("/api/care/adls/bath", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id })
+                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id, timeLogged: horaRegistro?.toISOString() })
             });
             const data = await res.json();
             if (data.success) {
@@ -1552,7 +1563,7 @@ export default function ZendityCareTabletPage() {
         try {
             const res = await fetch("/api/care/adls/meal", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id, mealType, quality })
+                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id, mealType, quality, timeLogged: horaRegistro?.toISOString() })
             });
             const data = await res.json();
             if (data.success) {
@@ -1654,7 +1665,8 @@ export default function ZendityCareTabletPage() {
                     patientId: activePatient.id,
                     caregiverId: user?.id,
                     shiftSessionId: activeSession?.id,
-                    position
+                    position,
+                    performedAt: horaRegistro?.toISOString()
                 })
             });
             const data = await res.json();
@@ -3745,6 +3757,9 @@ export default function ZendityCareTabletPage() {
                             <div className="space-y-4">
                                 <p className="font-bold text-slate-500 uppercase text-xs border-b pb-2 sticky top-0 bg-white z-10 pt-1">Actividades Diarias y Comidas</p>
 
+                                {/* Hora real del cuido — aplica al baño y a la comida de este modal */}
+                                <HoraDelRegistro valor={horaRegistro} onChange={setHoraRegistro} />
+
                                 {/* Tareas de Cuidado Personal (AM) */}
                                 {selectedColor && (
                                     <div className="bg-sky-50 border border-sky-100 p-3 rounded-2xl">
@@ -4048,6 +4063,8 @@ export default function ZendityCareTabletPage() {
                                                 {/* Firma única del pack — solo si quedan pendientes */}
                                                 {pendingInActivePack.length > 0 && (
                                                     <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3">
+                                                        <HoraDelRegistro valor={horaRegistro} onChange={setHoraRegistro} />
+
                                                         <div className="flex justify-between items-end">
                                                             <div>
                                                                 <p className="text-xs font-black text-slate-700 uppercase tracking-wide">Firma clínica</p>
