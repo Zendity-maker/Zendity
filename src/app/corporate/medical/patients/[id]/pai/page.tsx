@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { generatePaiPDF } from '@/lib/pai-pdf';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -173,6 +174,29 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
         }
     };
 
+    // Descarga un PDF de verdad con lo que hay EN PANTALLA — incluido lo que
+    // aun no se ha guardado. Antes esto era un <Link> a /pai/print que llamaba a
+    // window.print(): el navegador imprimia la pantalla y habia que escoger
+    // "Guardar como PDF" a mano. Ademas varias clases print: estaban rotas
+    // (`print:border-blacklack`), asi que los bordes se perdian al imprimir.
+    const handleDescargarPDF = () => {
+        generatePaiPDF({
+            hqName: patientInfo?.headquarters?.name || 'Zéndity',
+            patientName: patientInfo?.name || 'Residente',
+            roomNumber: patientInfo?.roomNumber,
+            dateOfBirth: patientInfo?.dateOfBirth,
+            supportSource, type: paiType, status,
+            startDate: startDate || null,
+            nextReview: nextReview || null,
+            clinicalSummary, cognitiveLevel, mobility, continence, dietDetails,
+            interdisciplinarySummary, risks, goals, recommendedServices,
+            familyEducation, preferences, monitoringMethod, revisionCriteria,
+            signedByName: patientInfo?.lifePlans?.[0]?.signedBy?.name ?? null,
+            signedAt: null,
+            signatureBase64: null,
+        });
+    };
+
     const handleZendiAutoGen = async () => {
         if (!confirm("Esto utilizará IA para reescribir y estructurar el PAI en blanco utilizando el Historial Clínico de Ingreso del Residente. ¿Deseas continuar?")) return;
         setIsGeneratingAI(true);
@@ -227,9 +251,9 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                         <ArrowLeftIcon className="w-4 h-4" /> Volver al Expediente
                     </Link>
                     <div className="flex items-center gap-3">
-                        <Link href={`/corporate/medical/patients/${params.id}/pai/print`} target="_blank" className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition flex items-center gap-2">
-                            <PrinterIcon className="w-5 h-5" /> Imprimir PAI
-                        </Link>
+                        <button onClick={handleDescargarPDF} className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition flex items-center gap-2">
+                            <PrinterIcon className="w-5 h-5" /> Descargar PDF
+                        </button>
                         <button onClick={() => handleSave(false)} disabled={isSaving} className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold px-4 py-2.5 rounded-xl transition">
                             {isSaving ? "Guardando..." : "Guardar Borrador"}
                         </button>
