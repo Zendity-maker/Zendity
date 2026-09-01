@@ -51,6 +51,7 @@ export default function IntakeWizardPage() {
     dateOfBirth: "",
     roomNumber: "",
     ssnLastFour: "",
+    monthlyFee: "",
     insurancePlanName: "",
     insurancePolicyNumber: "",
     preferredHospital: "",
@@ -300,6 +301,7 @@ export default function IntakeWizardPage() {
             dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().split("T")[0] : "",
             roomNumber: p.roomNumber || "",
             ssnLastFour: p.ssnLastFour || "",
+            monthlyFee: p.monthlyFee != null ? String(p.monthlyFee) : "",
             insurancePlanName: p.insurancePlanName || "",
             insurancePolicyNumber: p.insurancePolicyNumber || "",
             preferredHospital: p.preferredHospital || "",
@@ -346,6 +348,10 @@ export default function IntakeWizardPage() {
           dateOfBirth: tab5Data.dateOfBirth || null,
           roomNumber: tab5Data.roomNumber || null,
           ssnLastFour: tab5Data.ssnLastFour || null,
+          // Number(): el campo es texto y la cuota es Float en el schema.
+          // Vacío queda en null, no en 0 — "sin definir" y "gratis" no son
+          // lo mismo, y la generación mensual exige monthlyFee > 0.
+          monthlyFee: tab5Data.monthlyFee.trim() === '' ? null : Number(tab5Data.monthlyFee),
           insurancePlanName: tab5Data.insurancePlanName || null,
           insurancePolicyNumber: tab5Data.insurancePolicyNumber || null,
           preferredHospital: tab5Data.preferredHospital || null,
@@ -1141,6 +1147,25 @@ export default function IntakeWizardPage() {
                             <ShieldCheck className="w-5 h-5 text-teal-600" /> Plan médico y traslados
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                              <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Cuota mensual</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={tab5Data.monthlyFee}
+                                onChange={(e) => setTab5Data(p => ({ ...p, monthlyFee: e.target.value }))}
+                                placeholder="Ej: 2500"
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-teal-400"
+                              />
+                              {/* Se dice la consecuencia, no la regla. Un campo
+                                  opcional sin motivo se salta; con el motivo se
+                                  llena. Cuatro ingresos de agosto entraron sin
+                                  cuota y no se les factura nada. */}
+                              <p className="text-[11px] text-slate-500 font-medium mt-1.5 leading-relaxed">
+                                Sin cuota, este residente <strong>no entra en la facturación del mes</strong>.
+                              </p>
+                            </div>
                             <div>
                               <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Nombre del plan</label>
                               <input

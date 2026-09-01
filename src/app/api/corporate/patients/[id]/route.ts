@@ -117,7 +117,7 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
             allergies, diagnoses, diet, colorGroup,
             idCardUrl, medicalPlanUrl, medicareCardUrl, photoUrl,
             // FASE 82 — datos legales y de seguro
-            ssnLastFour, insurancePlanName, insurancePolicyNumber, preferredHospital,
+            ssnLastFour, insurancePlanName, insurancePolicyNumber, preferredHospital, monthlyFee,
             // FASE 84 — dirección previa
             address,
             // Sprint P — identificadores separados + encargado primario
@@ -135,6 +135,22 @@ async function putPatientHandler(req: Request, { params }: { params: Promise<{ i
         // Solo actualizar campos que vienen definidos (no sobrescribir con undefined)
         if (name !== undefined) updateData.name = name;
         if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+        /**
+         * Cuota mensual. Sin ella el residente NO entra en la generación de
+         * facturas — generate-month exige monthlyFee > 0.
+         *
+         * Medido el 01-sep-2026: cuatro ingresos de agosto sin cuota. El censo
+         * de facturación imprimía 30 de 34 residentes y nadie sabía por qué:
+         * los 4 que faltaban no tenían factura porque no tenían cuota, y el
+         * asistente de admisión nunca la pedía. Son ~$10 499 al mes sin facturar.
+         *
+         * null y 0 se distinguen a propósito: "sin definir" no es "gratis".
+         */
+        if (monthlyFee !== undefined) {
+            updateData.monthlyFee = monthlyFee === null || monthlyFee === ''
+                ? null
+                : Number(monthlyFee);
+        }
         if (diet !== undefined) updateData.diet = diet;
         if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
         if (colorGroup) updateData.colorGroup = colorGroup;

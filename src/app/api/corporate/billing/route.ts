@@ -36,7 +36,10 @@ export async function GET(req: Request) {
         // y por eso no había forma —ni automática ni manual— de facturarle.
         const patients = await prisma.patient.findMany({
             where: billableResidentsWhere(headquartersId),
-            select: { id: true, name: true, roomNumber: true, status: true },
+            // monthlyFee: sin ella el residente NO entra en la generacion del
+            // mes, y hasta hoy eso no se veia en ninguna parte. El censo salia
+            // con 30 de 34 y nadie sabia por que faltaban cuatro.
+            select: { id: true, name: true, roomNumber: true, status: true, monthlyFee: true },
             orderBy: { name: 'asc' }
         });
 

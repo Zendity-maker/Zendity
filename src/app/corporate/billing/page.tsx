@@ -13,6 +13,7 @@ type Patient = {
     id: string;
     name: string;
     roomNumber: string | null;
+    monthlyFee?: number | null;
 };
 
 type InvoiceItem = {
@@ -297,6 +298,39 @@ export default function BillingDashboard() {
                     </h1>
                     <p className="text-slate-500 mt-2">Control de ingresos, emisión de recibos y conciliación.</p>
                 </div>
+                {/* Residentes que NO entran en la facturacion del mes.
+                    generate-month exige monthlyFee > 0, y hasta hoy quien no la
+                    tenia desaparecia del censo sin que nada lo dijera: 30 de 34
+                    impresos y cuatro ingresos de agosto sin cobrar, unos $10 499
+                    al mes. El asistente ya la pide; esto es para los que ya
+                    estaban dentro. */}
+                {(() => {
+                    const sinCuota = patients.filter(p => p.monthlyFee == null || p.monthlyFee <= 0);
+                    if (sinCuota.length === 0) return null;
+                    return (
+                        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-4">
+                            <p className="font-black text-amber-900 text-sm">
+                                {sinCuota.length} residente{sinCuota.length === 1 ? '' : 's'} sin cuota mensual — no entra{sinCuota.length === 1 ? '' : 'n'} en la facturación
+                            </p>
+                            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                                No aparecen en el censo del mes ni se les genera factura. Ponles la cuota
+                                en su expediente, o déjala en 0 si su pago no pasa por Zéndity.
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                {sinCuota.map(p => (
+                                    <a
+                                        key={p.id}
+                                        href={`/corporate/medical/patients/${p.id}`}
+                                        className="text-xs font-bold text-amber-900 bg-white border border-amber-300 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
+                                    >
+                                        {p.name.trim()}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 <div className="flex flex-wrap gap-2">
                     {/* Censo Director — descarga PDF. Visible SOLO para DIRECTOR.
                        El endpoint gatea estrictamente y registra cada descarga en

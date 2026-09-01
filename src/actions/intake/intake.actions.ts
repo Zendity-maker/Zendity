@@ -257,6 +257,29 @@ export async function confirmIntake(patientId: string) {
     // El objetivo no es obligar a inventarse un familiar. Es que "no tiene
     // familia" quede DICHO en vez de deducido de un campo vacio: hoy ambos
     // casos se ven identicos y no hay forma de saber a quien hay que llamar.
+    /**
+     * Sin cuota mensual definida, la admision tampoco se cierra.
+     *
+     * Andres: "debieramos agregar esa informacion en intake para que ingrese al
+     * file completo sin tener que hacer cosas adicionales, igual que con lo de
+     * los familiares."
+     *
+     * Lo que pasaba sin esto, medido el 01-sep-2026: el censo de facturacion
+     * imprimia 30 de 34 residentes y nadie sabia por que. Los 4 que faltaban
+     * eran los ingresos de agosto — generate-month exige monthlyFee > 0 y el
+     * asistente nunca la pedia. Unos $10 499 al mes sin facturar, en silencio.
+     *
+     * null es "sin definir" y bloquea. 0 es una decision explicita —un residente
+     * cuyo pago no pasa por aqui— y se permite, pero el mensaje avisa de que
+     * significa, para que nadie ponga 0 solo por salir del paso.
+     */
+    if (intake.patient.monthlyFee == null) {
+      return {
+        success: false,
+        error: 'Falta la cuota mensual. Sin ella este residente no entra en la facturación del mes. Ponla en el paso 5; si su pago no pasa por Zéndity, escribe 0.',
+      };
+    }
+
     const familiares = await prisma.familyMember.count({ where: { patientId } });
     if (familiares === 0 && !intake.patient.sinFamiliarConocido) {
       return {
