@@ -3315,7 +3315,7 @@ export default function ZendityCareTabletPage() {
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-display text-[17px] font-semibold text-[#1F2D3A] leading-tight truncate">{p.name}</h3>
                                             <p className="text-[12px] text-[#78716c] font-medium leading-snug truncate mt-0.5">
-                                                Hab {p.roomNumber || '—'}{(p.lifePlan?.dietDetails || p.diet) ? ` · ${p.lifePlan?.dietDetails || p.diet}` : ''}
+                                                Hab {p.roomNumber || '—'}{(p.lifePlans?.[0]?.dietDetails || p.diet) ? ` · ${p.lifePlans?.[0]?.dietDetails || p.diet}` : ''}
                                             </p>
                                             {(p.nortonRisk || p.pressureUlcers?.length > 0 || p.overrideInfo) && (
                                                 <div className="flex gap-1.5 mt-1.5 flex-wrap">
