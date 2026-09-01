@@ -162,7 +162,10 @@ export default function ZendiMomentsWidget() {
                         className="flex-[2] py-3 px-4 rounded-xl font-black text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         <FaStar className="text-yellow-300" />
-                        <span>Cumplir Misión <span className="text-xs ml-1 bg-white/20 px-1.5 py-0.5 rounded font-bold">+3 Pts</span></span>
+                        {/* Sin "+3 Pts": las misiones entran al score por `extraDelta`, topado en
+                            +15, y casi todo el personal lleva meses en ese tope — la promesa de
+                            puntos era falsa para ellas. La mision vale por lo que es. */}
+                        <span>Cumplir Misión <span className="text-xs ml-1 bg-white/20 px-1.5 py-0.5 rounded font-bold">para la familia</span></span>
                     </button>
                 </div>
             </div>

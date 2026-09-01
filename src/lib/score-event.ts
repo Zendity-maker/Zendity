@@ -64,8 +64,21 @@ export async function applyScoreEvent(
 
         const scoreBefore = user.complianceScore;
 
+        // Categorias que NO mueven complianceScore directamente.
+        // Ya entran a la formula por `extraDelta` (ver calculateDynamicScore),
+        // topado en +/-15. Escribirlas aqui ademas las contaba dos veces
+        // durante el dia y el recalculo de las 03:30 las borraba esa misma
+        // noche: la persona veia "+3 Mision" y a la manana siguiente el
+        // numero estaba igual o mas bajo. El evento se sigue guardando —es
+        // lo que alimenta extraDelta— pero ya no mueve un numero que se va
+        // a sobrescribir.
+        const SOLO_REGISTRO: ScoreCategory[] = ['MISSION', 'ACADEMY', 'PHOTO', 'VITALS'];
+        const mueveScore = !SOLO_REGISTRO.includes(category);
+
         // 2. Aplicar delta
-        if (delta > 0) {
+        if (!mueveScore) {
+            // no se toca el score
+        } else if (delta > 0) {
             await prisma.user.update({
                 where: { id: userId },
                 data:  { complianceScore: { increment: delta } },
@@ -79,7 +92,7 @@ export async function applyScoreEvent(
         // delta === 0 → solo registrar el evento, sin tocar el score
 
         // 3. Clamp [0, 100]
-        await clampComplianceScore(userId);
+        if (mueveScore) await clampComplianceScore(userId);
 
         // 4. Leer score final real
         const updated = await prisma.user.findUnique({
