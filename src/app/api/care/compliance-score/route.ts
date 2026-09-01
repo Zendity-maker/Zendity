@@ -210,10 +210,15 @@ export async function calculateDynamicScore(userId: string) {
         select: { pointsDeducted: true },
     });
 
-    const observationPenalty = appliedObservations.reduce(
+    const rawObservationPenalty = appliedObservations.reduce(
         (sum, obs) => sum + (obs.pointsDeducted ?? 5), // default -5 si no tiene valor
         0
     );
+    // Tope 20: las observaciones son señal de supervision, no una cuenta que
+    // se acumula sin fondo. Sin tope, 18 observaciones valian -33 y por si
+    // solas empujaban a una persona por debajo de 0, donde ninguna mejora
+    // posterior se ve. Ver TOPE_NEGATIVOS abajo.
+    const observationPenalty = Math.min(rawObservationPenalty, 20);
 
     // ── Evaluaciones del supervisor (últimos 90 días) ──
     const evaluations = await prisma.employeeEvaluation.findMany({
@@ -271,13 +276,20 @@ export async function calculateDynamicScore(userId: string) {
     const rawPositives = (rotationsOnTime * 1.5) + (medsAdministered * 0.5) + (preventiveAlerts * 5);
     const positives    = Math.min(rawPositives, 15); // cap para evitar techo por volumen
 
-    const negatives =
+    // TOPE_NEGATIVOS — los positivos siempre estuvieron topados en 15 y los
+    // negativos no tenian tope. Eso hacia que una sola rotacion tardia (-8)
+    // pesara mas que 190 rotaciones a tiempo, y que alguien cayera decenas de
+    // puntos por debajo de 0 — donde el clamp lo esconde todo y ninguna mejora
+    // vuelve a ser visible. El tope mantiene la penalizacion severa (puede
+    // llevar de 75 a 40 por si sola) pero deja siempre camino de regreso.
+    const rawNegatives =
         (medsOmitted * 8) +
         (rotationsLate * 8) +
         (fastActionsFailed * 8) +
         (unclosedSessions * 10) +
         (incompleteHandovers * 10) +
         (blankShifts * 10);
+    const negatives = Math.min(rawNegatives, 35);
 
     // Base 75 — score de 100 debe ganarse: eval alta + actividad + ronda completa + cero incidentes
     const raw   = 75 + positives - negatives - observationPenalty + evaluationDelta + extraDelta + roundBonus;
@@ -289,6 +301,10 @@ export async function calculateDynamicScore(userId: string) {
             base: 75,
             positives: Math.round(positives),
             negatives,
+            // Crudos sin tope: el score se topa para que siempre haya camino de
+            // regreso, pero el supervisor tiene que poder ver la severidad real.
+            rawNegatives,
+            rawObservationPenalty,
             observationPenalty,
             evaluationDelta,
             extraDelta,
