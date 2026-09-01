@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { resolverHoraReal } from '@/lib/hora-real';
 import { NextResponse } from 'next/server';
 import { MedStatus } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Rol no autorizado para administración masiva de medicamentos' }, { status: 403 });
         }
 
-        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason } = await req.json();
+        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, administeredAt: horaDeclarada } = await req.json();
 
         if (!action || !medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
             return NextResponse.json({ success: false, error: "Datos incompletos para la acción masiva" }, { status: 400 });
@@ -129,12 +130,36 @@ export async function POST(req: Request) {
         if (isOmit) adminStatus = 'OMITTED';
 
         const now = new Date();
+
+        // ── HORA REAL vs HORA DE TECLEO ──
+        // Hasta hoy `administeredAt` se sellaba con `now` para todo el pack, o
+        // sea que era identico a `createdAt`: el expediente guardaba la hora en
+        // que se toco el boton y la llamaba hora de administracion. En 5,070
+        // registros de 21 dias la diferencia era de CERO minutos en el 100%.
+        // Por eso baños y medicamentos salian a la misma hora en la auditoria.
+        //
+        // Ahora la cuidadora declara cuando administro de verdad. `createdAt`
+        // sigue siendo automatico e inalterable, asi que el expediente conserva
+        // las dos horas y se puede leer "administrado 8:00, registrado 11:30".
+        //
+        // Limites: no se acepta futuro (mas de 5 min de reloj desfasado) ni mas
+        // de 12 horas atras — una hora declarada sin limites es peor que ninguna,
+        // porque vuelve el campo inauditable.
+        // La cuidadora declara cuando administro de verdad; `createdAt` sigue
+        // siendo automatico, asi que el expediente conserva las dos horas.
+        // Ver src/lib/hora-real.ts para los limites y el porque.
+        const hora = resolverHoraReal(adminStatus === 'ADMINISTERED' ? horaDeclarada : undefined, now);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+        const administeredAt = hora.hora;
+
         const dataToInsert = idsAProcesar.map((medId: string) => ({
             patientMedicationId: medId,
             administeredById: invokerId,
             status: adminStatus,
             scheduleTime: scheduleTime || null,
-            administeredAt: adminStatus === 'ADMINISTERED' ? now : null,
+            administeredAt: adminStatus === 'ADMINISTERED' ? administeredAt : null,
             notes: isOmit
                 ? `Omitido: ${reason.trim()}`
                 : (notes || (isPRN ? 'Administración PRN de emergencia' : undefined)),

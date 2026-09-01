@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
 import { MealType, MealQuality } from '@prisma/client';
+import { resolverHoraReal } from '@/lib/hora-real';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -13,6 +14,8 @@ const MealBody = z.object({
     shiftSessionId: z.string().min(1, 'shiftSessionId requerido'),
     mealType:       z.nativeEnum(MealType),
     quality:        z.nativeEnum(MealQuality),
+    // Hora real de la comida. Opcional: sin ella se usa `now()` como siempre.
+    timeLogged:     z.string().datetime().optional(),
 });
 
 export async function POST(req: Request) {
@@ -32,7 +35,7 @@ export async function POST(req: Request) {
                 error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
             }, { status: 400 });
         }
-        const { patientId, caregiverId, shiftSessionId, mealType, quality } = parsed.data;
+        const { patientId, caregiverId, shiftSessionId, mealType, quality, timeLogged } = parsed.data;
 
         // Tenant check — el residente DEBE pertenecer a la sede del invocador
         const patient = await prisma.patient.findUnique({
@@ -98,6 +101,11 @@ export async function POST(req: Request) {
             }, { status: 429 });
         }
 
+        const hora = resolverHoraReal(timeLogged);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+
         const newMeal = await prisma.mealLog.create({
             data: {
                 patientId,
@@ -105,6 +113,7 @@ export async function POST(req: Request) {
                 shiftSessionId,
                 mealType,
                 quality,
+                timeLogged: hora.hora,
             }
         });
 

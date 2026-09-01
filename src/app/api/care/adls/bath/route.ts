@@ -3,11 +3,15 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
+import { resolverHoraReal } from '@/lib/hora-real';
 
 const BathBody = z.object({
     patientId:      z.string().min(1, 'patientId requerido'),
     caregiverId:    z.string().min(1, 'caregiverId requerido'),
     shiftSessionId: z.string().min(1, 'shiftSessionId requerido'),
+    // Hora real en que se dio el baño. Opcional: si no viene, se usa `now()`
+    // como siempre. Ver src/lib/hora-real.ts.
+    timeLogged:     z.string().datetime().optional(),
 });
 
 export async function POST(req: Request) {
@@ -25,7 +29,7 @@ export async function POST(req: Request) {
                 error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
             }, { status: 400 });
         }
-        const { patientId, caregiverId, shiftSessionId } = parsed.data;
+        const { patientId, caregiverId, shiftSessionId, timeLogged } = parsed.data;
 
         // Tenant check — el residente DEBE pertenecer a la sede de la sesión
         const patient = await prisma.patient.findUnique({
@@ -59,11 +63,17 @@ export async function POST(req: Request) {
             }, { status: 429 });
         }
 
+        const hora = resolverHoraReal(timeLogged);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+
         const newBath = await prisma.bathLog.create({
             data: {
                 patientId,
                 caregiverId,
                 shiftSessionId,
+                timeLogged: hora.hora,
                 status: "COMPLETED"
             }
         });

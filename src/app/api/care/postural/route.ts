@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { applyScoreEvent } from '@/lib/score-event';
 import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
+import { resolverHoraReal } from '@/lib/hora-real';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Rol no autorizado para rotaciones posturales' }, { status: 403 });
         }
 
-        const { patientId, caregiverId, position } = await req.json();
+        const { patientId, caregiverId, position, performedAt: horaDeclarada } = await req.json();
+
+        // Hora real del cambio de posicion. Sin ella se usa `now()`, el
+        // comportamiento de siempre. Ver src/lib/hora-real.ts.
+        const hora = resolverHoraReal(horaDeclarada);
+        if (!hora.ok) {
+            return NextResponse.json({ success: false, error: hora.error }, { status: 400 });
+        }
+        const momento = hora.hora;
 
         if (!patientId || !caregiverId || !position) {
             return NextResponse.json({ success: false, error: "Faltan parámetros obligatorios para el cambio postural." }, { status: 400 });
@@ -59,7 +68,11 @@ export async function POST(req: Request) {
         let isLate = false;
 
         if (lastRotation) {
-            const diffMs = Date.now() - new Date(lastRotation.performedAt).getTime();
+            // Contra el momento REAL de esta rotacion, no contra el reloj: si
+            // ella la hizo a las 7:00 y la registra a las 8:47, la tardanza se
+            // mide desde las 7:00. De lo contrario el sistema la castigaria por
+            // el rato que tardo en sentarse con la tableta.
+            const diffMs = momento.getTime() - new Date(lastRotation.performedAt).getTime();
             const diffMins = diffMs / (1000 * 60);
 
             // Objetivo 120 min. Tolerancia legal 15 mins (135 min max).
@@ -141,7 +154,7 @@ export async function POST(req: Request) {
                 patientId,
                 nurseId: caregiverId,
                 position,
-                performedAt: new Date(),
+                performedAt: momento,
                 isComplianceAlert: isLate
             }
         });
