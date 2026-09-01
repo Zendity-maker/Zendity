@@ -305,28 +305,60 @@ export default function BillingDashboard() {
                     al mes. El asistente ya la pide; esto es para los que ya
                     estaban dentro. */}
                 {(() => {
-                    const sinCuota = patients.filter(p => p.monthlyFee == null || p.monthlyFee <= 0);
-                    if (sinCuota.length === 0) return null;
+                    /**
+                     * Quien NO tiene factura de este mes — que es la pregunta
+                     * real, no si tiene cuota.
+                     *
+                     * Andres puso las cuatro cuotas y siguieron sin salir en el
+                     * PDF: poner la cuota NO crea la factura, hay que regenerar
+                     * el mes. Nada se lo decia. Por eso la banda distingue los
+                     * dos casos y trae la accion que resuelve cada uno.
+                     */
+                    const conFactura = new Set(invoices.map(i => (i as any).patientId ?? (i as any).patient?.id));
+                    const sinFactura = patients.filter(p => !conFactura.has(p.id));
+                    if (sinFactura.length === 0) return null;
+                    const sinCuota = sinFactura.filter(p => p.monthlyFee == null || p.monthlyFee <= 0);
+                    const listos = sinFactura.filter(p => (p.monthlyFee ?? 0) > 0);
                     return (
                         <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-4">
                             <p className="font-black text-amber-900 text-sm">
-                                {sinCuota.length} residente{sinCuota.length === 1 ? '' : 's'} sin cuota mensual — no entra{sinCuota.length === 1 ? '' : 'n'} en la facturación
+                                {sinFactura.length} residente{sinFactura.length === 1 ? '' : 's'} sin factura este mes
                             </p>
-                            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
-                                No aparecen en el censo del mes ni se les genera factura. Ponles la cuota
-                                en su expediente, o déjala en 0 si su pago no pasa por Zéndity.
-                            </p>
-                            <div className="flex flex-wrap gap-2 mt-3">
-                                {sinCuota.map(p => (
-                                    <a
-                                        key={p.id}
-                                        href={`/corporate/medical/patients/${p.id}`}
-                                        className="text-xs font-bold text-amber-900 bg-white border border-amber-300 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
-                                    >
-                                        {p.name.trim()}
-                                    </a>
-                                ))}
-                            </div>
+                            {listos.length > 0 && (
+                                <div className="mt-2.5">
+                                    <p className="text-xs text-amber-800 leading-relaxed">
+                                        <strong>{listos.length} tiene{listos.length === 1 ? '' : 'n'} cuota y solo falta generar.</strong>{' '}
+                                        Poner la cuota no crea la factura — pulsa <strong>Generar mes</strong>.
+                                        No duplica las que ya existen.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {listos.map(p => (
+                                            <span key={p.id} className="text-xs font-bold text-amber-900 bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
+                                                {p.name.trim()} · ${p.monthlyFee}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {sinCuota.length > 0 && (
+                                <div className="mt-3">
+                                    <p className="text-xs text-amber-800 leading-relaxed">
+                                        <strong>{sinCuota.length} sin cuota mensual.</strong> Ponla en su expediente,
+                                        o déjala en 0 si su pago no pasa por Zéndity.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        {sinCuota.map(p => (
+                                            <a
+                                                key={p.id}
+                                                href={`/corporate/medical/patients/${p.id}`}
+                                                className="text-xs font-bold text-amber-900 bg-white border border-amber-300 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
+                                            >
+                                                {p.name.trim()}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     );
                 })()}
