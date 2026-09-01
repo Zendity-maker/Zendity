@@ -1919,7 +1919,11 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
 
             if (data.success) {
-                avisoOk(` Reporte de tipo ${hubAction} enviado a Central.`);
+                // El servidor detectó que ya estaba registrado. No es error, y
+                // decirlo evita que se vuelva a pulsar "por si acaso".
+                avisoOk(data.duplicada
+                    ? (data.message || 'Ese reporte ya estaba registrado. No se duplicó.')
+                    : ` Reporte de tipo ${hubAction} enviado a Central.`);
                 setHubAction(null);
                 // Vuelve a 'alerta' por defecto: que una alerta real acabe
                 // archivada como nota es peor que lo contrario.

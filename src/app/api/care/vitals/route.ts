@@ -357,6 +357,41 @@ export async function POST(req: Request) {
             const foodIntakeNum = typeof data.foodIntake === 'number'
                 ? data.foodIntake
                 : (data.foodIntake != null ? (parseInt(String(data.foodIntake), 10) || 0) : null);
+            /**
+             * Guarda contra doble envio — ultima ruta de creacion que quedaba
+             * sin ella, y volvio a morder: 01-sep-2026, dos alertas identicas de
+             * Maria M. Melendez con DOS SEGUNDOS de diferencia, misma autora,
+             * mismo texto.
+             *
+             * Aqui NO es falta de señal: el hub si avisa al guardar. Es doble
+             * toque, o un reintento sobre una respuesta lenta. Por eso la guarda
+             * va en el servidor, que es el unico sitio donde se puede parar.
+             *
+             * Se compara el TEXTO ademas del residente: dos notas distintas
+             * seguidas son trabajo real —una alerta y luego una observacion—;
+             * la misma nota dos veces no.
+             */
+            const notasNuevas = data.notes ?? null;
+            const yaRegistrada = await prisma.dailyLog.findFirst({
+                where: {
+                    patientId,
+                    authorId: invokerId,
+                    notes: notasNuevas,
+                    createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) },
+                },
+                select: { id: true },
+            });
+            if (yaRegistrada) {
+                // Exito, no error: quien reporta hizo lo correcto, y un rojo la
+                // haria repetirlo — que es lo que produce el duplicado.
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    logId: yaRegistrada.id,
+                    message: 'Ese reporte ya estaba registrado hace un momento. No se duplicó.',
+                });
+            }
+
             const dailyLog = await prisma.dailyLog.create({
                 data: {
                     patientId,
