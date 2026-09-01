@@ -502,12 +502,31 @@ export default function ZendityCareTabletPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ patientId, authorId: user?.id, hqId, type, position })
             });
-            if (res.ok) {
-                // Notificación visual de éxito (Silent refresh)
-                const updatedPatients = [...patients]; // Mock local optimista no es necesario, UI UX is fast
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) {
+                // AVISO DE VERDAD. Aqui antes no habia nada: el comentario decia
+                // "Notificacion visual de exito" y el codigo creaba una variable
+                // que no se usaba. Cero senal.
+                //
+                // Lo que eso produjo, medido el 30-ago-2026: 3 325 rotaciones
+                // duplicadas, y de una sola cuidadora 1 831 — el 67% de las
+                // suyas. Con rachas de 3, 5, 8 y hasta 15 registros seguidos del
+                // mismo residente. Eso no es un doble toque accidental: es
+                // alguien pulsando hasta ver que pasa algo, y no pasaba nada.
+                //
+                // Es el mismo fallo que ya se reporto el 07-jun-2026 en el panal
+                // diurno —"aprieto y no pasa nada"— y que ahi si se arreglo.
+                if (data.duplicada) {
+                    avisoOk(data.message || 'Esa rotación ya estaba registrada.');
+                } else {
+                    avisoOk(position ? `Rotación registrada: ${position}` : 'Rotación registrada');
+                }
+            } else {
+                avisoError(data.error || 'No se pudo registrar. Intenta de nuevo.');
             }
         } catch (error) {
             console.error(error);
+            avisoError('Error de conexión. No se registró.');
         } finally {
             setIsSavingFastAction(false);
         }
