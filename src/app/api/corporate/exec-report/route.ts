@@ -50,6 +50,74 @@ export async function GET(req: Request) {
 
         const hq = await prisma.headquarters.findUnique({ where: { id: hqId }, select: { name: true } });
 
+        /**
+         * Cierre financiero — SOLO en el periodo mensual.
+         *
+         * Andres pidio sumar gastos operativos e ingreso comercial. La data ya
+         * existe y comparte anclaje: MonthlyExpense.periodMonth e
+         * Invoice.issueDate apuntan los dos al primer dia del mes, con esa nota
+         * escrita en el schema.
+         *
+         * Se calcula SOLO si el periodo es 'month'. En la vista de dia o semana,
+         * mostrar los gastos del mes seria comparar un numero mensual contra
+         * actividad de siete dias — el margen saldria absurdo y nadie lo notaria
+         * hasta tomar una decision con el.
+         */
+        let cierre: null | {
+            mes: string;
+            facturado: number; cobrado: number; pendiente: number; vencido: number;
+            gastos: { categoria: string; monto: number }[];
+            totalGastos: number;
+            margen: number;
+        } = null;
+
+        if (periodParam === 'month') {
+            /**
+             * El ULTIMO MES COMPLETO, no el que va corriendo.
+             *
+             * Un cierre del mes en curso no es un cierre: es una foto a mitad.
+             * Comprobado el 01-sep-2026 antes de publicar esta seccion — el mes
+             * corriente daba margen de $67 079 con SOLO 2 partidas de gasto
+             * cargadas y $0 cobrado de $78 746 facturados. Un numero excelente
+             * y falso, del tipo con el que alguien decide gastar.
+             *
+             * Los gastos se cargan a mano y llegan tarde en el mes; las facturas
+             * se emiten al principio. Comparar los dos a mitad de mes siempre
+             * favorece, y siempre miente.
+             */
+            const inicioMes = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+            const finMes = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+            const [facturas, gastos] = await Promise.all([
+                prisma.invoice.findMany({
+                    where: { headquartersId: hqId, issueDate: { gte: inicioMes, lt: finMes } },
+                    select: { totalAmount: true, status: true },
+                }),
+                prisma.monthlyExpense.findMany({
+                    where: { headquartersId: hqId, periodMonth: { gte: inicioMes, lt: finMes } },
+                    select: { category: true, amount: true },
+                }),
+            ]);
+
+            const suma = (f: typeof facturas) => f.reduce((s, x) => s + (x.totalAmount ?? 0), 0);
+            const porCategoria = new Map<string, number>();
+            gastos.forEach(g => porCategoria.set(g.category, (porCategoria.get(g.category) ?? 0) + (g.amount ?? 0)));
+            const totalGastos = gastos.reduce((s, g) => s + (g.amount ?? 0), 0);
+            const facturado = suma(facturas);
+
+            cierre = {
+                mes: inicioMes.toLocaleDateString('es-PR', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+                facturado,
+                cobrado:   suma(facturas.filter(f => f.status === 'PAID')),
+                pendiente: suma(facturas.filter(f => f.status === 'PENDING')),
+                vencido:   suma(facturas.filter(f => f.status === 'OVERDUE')),
+                gastos: [...porCategoria].map(([categoria, monto]) => ({ categoria, monto }))
+                    .sort((a, b) => b.monto - a.monto),
+                totalGastos,
+                margen: facturado - totalGastos,
+            };
+        }
+
         // Batch en paralelo — todas las agregaciones del período.
         const [
             activeNow, leaveNow,
@@ -218,6 +286,7 @@ export async function GET(req: Request) {
                 actualizadas,
                 conFamilia,
             },
+            cierre,
         });
     } catch (error: any) {
         console.error('[corporate/exec-report] error:', error);
