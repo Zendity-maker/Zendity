@@ -4231,9 +4231,10 @@ export default function ZendityCareTabletPage() {
                                                     <p className="text-3xl font-black text-slate-900 leading-tight mb-2">{pdfNoteData.name}</p>
                                                     <div className="space-y-1 text-slate-700 font-medium">
                                                         <p><span className="font-bold text-slate-500 w-24 inline-block">Habitación:</span> {pdfNoteData.roomNumber || 'N/A'}</p>
-                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {pdfNoteData.lifePlan?.medicalCondition || 'No especificada en PAI'}</p>
-                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Dieta / TR:</span> {pdfNoteData.diet || pdfNoteData.lifePlan?.feeding || 'Normal'}</p>
-                                                        <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {pdfNoteData.lifePlan?.allergies || 'NKA (No Known Allergies)'}</p>
+                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Condición:</span> {pdfNoteData.intakeData?.diagnoses || pdfNoteData.lifePlans?.[0]?.clinicalSummary || 'No especificada'}</p>
+                                                        <p><span className="font-bold text-slate-500 w-24 inline-block">Dieta / TR:</span> {pdfNoteData.diet || pdfNoteData.intakeData?.dietSpecifics || pdfNoteData.lifePlans?.[0]?.dietDetails || 'Normal'}</p>
+                                                        <p className="text-rose-600"><span className="font-bold text-rose-300 w-24 inline-block">Alergias:</span> {pdfNoteData.intakeData?.allergies?.trim()
+                                                                || 'NO DOCUMENTADO — verificar con el hogar antes de medicar'}</p>
                                                     </div>
                                                 </div>
                                                 <div className="bg-rose-50 border-2 border-rose-200 p-5 rounded-2xl">
