@@ -73,6 +73,31 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
+        /**
+         * Guarda contra doble envio — la misma que /adls/bath, que por tenerla
+         * lleva CERO duplicados en 2 972 registros.
+         *
+         * Aqui no existia, y el resultado medido el 30-ago-2026: 1 149 comidas
+         * duplicadas de 8 687. Mismo residente, misma comida, misma calidad,
+         * misma cuidadora, segundos aparte — hasta pares con 0 y 1 segundo de
+         * diferencia. Eso inflaba la nutricion registrada de cada residente y
+         * el progreso del turno.
+         *
+         * Se compara tambien mealType: registrar el almuerzo y despues la cena
+         * seguidas es legitimo; registrar el almuerzo dos veces no.
+         */
+        const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+        const comidaReciente = await prisma.mealLog.findFirst({
+            where: { patientId, mealType, timeLogged: { gte: dosMinutosAtras } },
+        });
+        if (comidaReciente) {
+            return NextResponse.json({
+                success: false,
+                error: 'COOLDOWN_ACTIVE',
+                message: 'Esta comida ya fue registrada para este residente hace un momento.',
+            }, { status: 429 });
+        }
+
         const newMeal = await prisma.mealLog.create({
             data: {
                 patientId,

@@ -258,6 +258,35 @@ export async function POST(req: Request) {
             const isCritical = nivel === 'LLAMAR';
             const criticalMessage = hallazgos.filter(x => x.nivel === 'LLAMAR').map(x => x.mensaje).join(' ');
 
+            /**
+             * Guarda contra doble envio — misma que /adls/bath.
+             *
+             * Medido el 30-ago-2026: 30 tomas duplicadas de 5 483. Pocas, pero
+             * en vitales un duplicado no es solo ruido: dos lecturas identicas
+             * seguidas pueden leerse como "se confirmo el valor", cuando lo que
+             * hubo fue un solo aparato y un boton pulsado dos veces.
+             *
+             * Se comparan los valores: volver a tomar vitales al mismo residente
+             * porque salieron alterados es legitimo y da numeros DISTINTOS. Lo
+             * que se bloquea es la lectura identica.
+             */
+            const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+            const tomaReciente = await prisma.vitalSigns.findFirst({
+                where: {
+                    patientId,
+                    createdAt: { gte: dosMinutosAtras },
+                    systolic: sys, diastolic: dia, heartRate: hr,
+                },
+                select: { id: true },
+            });
+            if (tomaReciente) {
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    message: 'Estos vitales ya estaban registrados hace un momento.',
+                });
+            }
+
             // measuredById: SIEMPRE session.user.id (no confiamos en body)
             await prisma.vitalSigns.create({
                 data: {

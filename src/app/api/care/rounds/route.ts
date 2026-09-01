@@ -40,6 +40,34 @@ export async function POST(req: Request) {
         const isDayShift = data.dayShift === true;
 
         if (type === 'ROTACION') {
+            /**
+             * Guarda contra doble envio — misma que /adls/bath.
+             *
+             * Medido el 30-ago-2026: 3 325 rotaciones duplicadas de 17 958.
+             * Mismo residente, misma posicion, misma cuidadora, con pares de UN
+             * SEGUNDO de diferencia. No es solo ruido: la rotacion tardia
+             * genera penalidad de -5 y un incidente HR, asi que un registro
+             * doble tambien falsea el cumplimiento de UPP en la direccion
+             * contraria — parece que se rota mas de lo que se rota.
+             *
+             * Dos minutos. Una rotacion real del mismo residente en ese lapso
+             * no existe: el objetivo son 120 minutos.
+             */
+            const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+            const rotacionReciente = await prisma.posturalChangeLog.findFirst({
+                where: { patientId, performedAt: { gte: dosMinutosAtras } },
+                select: { id: true },
+            });
+            if (rotacionReciente) {
+                // Exito, no error: la cuidadora hizo lo correcto y un rojo la
+                // haria repetirlo, que es lo que causa el duplicado.
+                return NextResponse.json({
+                    success: true,
+                    duplicada: true,
+                    message: 'Esta rotación ya estaba registrada hace un momento.',
+                });
+            }
+
             await prisma.posturalChangeLog.create({
                 data: {
                     patientId,
