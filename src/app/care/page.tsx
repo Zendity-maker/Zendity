@@ -158,6 +158,14 @@ export default function ZendityCareTabletPage() {
         CLINICAL_ROLES.includes(user?.role as string) ||
         (user?.secondaryRoles || []).some(r => CLINICAL_ROLES.includes(r));
 
+    // Quien puede abrir el PAI. Coincide con ALLOWED_ROLES de
+    // /api/corporate/patients/[id]/pai — una cuidadora que entrara ahi solo
+    // recibiria un 403, asi que no se le muestra el camino.
+    const ROLES_PAI = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+    const puedeVerPAI =
+        ROLES_PAI.includes(user?.role as string) ||
+        (user?.secondaryRoles || []).some(r => ROLES_PAI.includes(r));
+
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
     const [patients, setPatients] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
@@ -3518,6 +3526,44 @@ export default function ZendityCareTabletPage() {
                                                 <span className="text-base leading-none">🩺</span> Salida a Diálisis
                                             </button>
                                         )}
+
+                                        {/* ── PLAN DE CUIDO ──
+                                            El PAI vivia en /corporate/medical y solo se llegaba desde el
+                                            detalle del expediente. Las enfermeras trabajan aqui, en la
+                                            tableta, y nunca pasaban por alli: 67 planes, 0 con objetivos
+                                            o riesgos. Aqui se ve lo que sirve en el turno —riesgos altos
+                                            y preferencias— y se llega al plan en un toque. */}
+                                        {puedeVerPAI && p.status === 'ACTIVE' && (() => {
+                                            const plan = p.lifePlans?.[0];
+                                            const riesgos: any[] = Array.isArray(plan?.risks) ? plan.risks : [];
+                                            const altos = riesgos.filter((r: any) => r?.priority === 'Alta');
+                                            const prefs = (plan?.preferences || '').trim();
+                                            const vacio = altos.length === 0 && !prefs;
+                                            return (
+                                                <div className="mt-1.5 rounded-[12px] border border-[#e7e5e4] bg-[#fafaf9] p-2.5 space-y-2">
+                                                    {altos.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {altos.slice(0, 3).map((r: any, i: number) => (
+                                                                <span key={i} className="text-[11px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg">
+                                                                    {r.area}: {String(r.finding).slice(0, 40)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {prefs && (
+                                                        <p className="text-[11px] font-medium text-[#1F2D3A] leading-snug">
+                                                            <span className="font-bold text-[#0F6B78]">Prefiere:</span> {prefs.slice(0, 120)}
+                                                        </p>
+                                                    )}
+                                                    <button
+                                                        onClick={() => router.push(`/corporate/medical/patients/${p.id}/pai`)}
+                                                        className="w-full min-h-[40px] bg-white border border-[#e7e5e4] rounded-[10px] text-[12px] font-bold text-[#0F6B78] hover:bg-[#e1f5ee] transition-colors"
+                                                    >
+                                                        {vacio ? 'Plan de cuido — sin redactar' : 'Ver plan de cuido'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             );

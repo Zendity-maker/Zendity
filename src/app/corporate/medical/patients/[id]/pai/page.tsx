@@ -223,6 +223,45 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     </div>
                 </div>
 
+                {/* ── PLAN EN BLANCO ──
+                    Al 01-sep-2026: 67 planes creados, 0 con objetivos, riesgos o
+                    preferencias. Ni uno aprobado, firmado ni enviado a familia.
+                    La causa no era falta de ganas — era abrir la pantalla y ver
+                    veinte campos vacíos sin nada que empuje. El boton de Zendi
+                    existia, pero era un chip mas en el encabezado.
+                    Aqui el camino se vuelve la accion principal. */}
+                {status === 'DRAFT' && risks.length === 0 && goals.length === 0 && (
+                    <div className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-200 rounded-3xl p-6 md:p-8">
+                        <div className="flex flex-col md:flex-row md:items-center gap-6">
+                            <div className="flex-1">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-amber-600 mb-2">
+                                    Este plan está en blanco
+                                </p>
+                                <h2 className="text-2xl font-black text-slate-800 leading-tight">
+                                    Zendi puede redactarlo con el historial real de{' '}
+                                    <span className="text-amber-700">{patientInfo?.name?.split(' ')[0] ?? 'el residente'}</span>
+                                </h2>
+                                <p className="text-slate-600 font-medium mt-3 leading-relaxed">
+                                    Lee sus signos vitales, medicamentos activos, úlceras por presión,
+                                    caídas registradas y alertas clínicas — y propone el resumen, la
+                                    matriz de riesgos y los objetivos. <strong>Tú revisas, corriges y firmas.</strong>
+                                </p>
+                                <p className="text-[13px] text-slate-500 font-bold mt-2">
+                                    No guarda nada por su cuenta: queda en pantalla hasta que le des a Guardar.
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleZendiAutoGen}
+                                disabled={isGeneratingAI}
+                                className="shrink-0 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-black text-lg px-8 py-5 rounded-2xl shadow-lg shadow-amber-500/30 transition-all active:scale-95 flex items-center gap-3"
+                            >
+                                <SparklesIcon className="w-6 h-6" />
+                                {isGeneratingAI ? 'Leyendo el historial…' : 'Redactar con Zendi'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Tipo de PAI + Versión Familiar */}
                 <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6">
                     <div className="w-full md:w-1/3">

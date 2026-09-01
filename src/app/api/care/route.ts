@@ -129,7 +129,15 @@ export async function GET(req: Request) {
                         }
                     }
                 },
-                lifePlans: { orderBy: { createdAt: 'desc' }, take: 1 },
+                lifePlans: {
+                    orderBy: { createdAt: 'desc' }, take: 1,
+                    // Solo lo que la tableta usa. Sin `select` venia el modelo
+                    // entero, incluido signatureBase64 (@db.Text) y familyVersion:
+                    // hoy estan vacios, pero en cuanto se firmen planes eso viaja
+                    // completo a cada tableta en cada carga. Mismo patron que costo
+                    // 19 MB en history-report.
+                    select: { id: true, risks: true, preferences: true, dietDetails: true, clinicalSummary: true, status: true },
+                },
                 mealLogs: {
                     where: { timeLogged: { gte: todayStart, lte: todayEnd } },
                     distinct: ['mealType'],
