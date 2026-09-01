@@ -123,6 +123,38 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             ? clinicalAlerts.slice(0, 5).map(a => `• ${a.notes?.slice(0, 100)}`).join('\n')
             : 'Sin alertas clínicas recientes';
 
+        // ── ESTADO FUNCIONAL ──────────────────────────────────────────────────
+        // Esto NO se le enviaba al modelo, y sin embargo el schema le exigia
+        // producir `mobility`, `continence` y `dietDetails`. Sin dato y con la
+        // obligacion de rellenar, invento: a Rosa M. Solis De Arce —encamada,
+        // con tubo PEG, Norton positivo y Braden 12— le escribio "Movilidad
+        // independiente, sin restricciones aparentes" y "Dieta equilibrada".
+        // Los datos correctos estaban en la base y ya venian en esta consulta.
+        const GLOSARIO: Record<string, string> = {
+            BEDRIDDEN: 'ENCAMADO/A — no se moviliza por si mismo/a',
+            WHEELCHAIR: 'En silla de ruedas',
+            ASSISTED: 'Deambula con asistencia',
+            INDEPENDENT: 'Deambula de forma independiente',
+            CONTINENT: 'Continente',
+            INCONTINENT: 'Incontinente',
+            PARTIAL: 'Continencia parcial',
+        };
+        const glosa = (v?: string | null) =>
+            !v ? 'No registrado' : (GLOSARIO[v.toUpperCase()] ?? v);
+
+        const estadoFuncional = [
+            `Movilidad: ${glosa(patient.intakeData?.mobilityLevel)}`,
+            `Continencia: ${glosa(patient.intakeData?.continenceLevel)}`,
+            `Dieta / via de alimentacion: ${patient.diet || patient.intakeData?.dietSpecifics || 'No registrada'}`,
+            `Requiere cambios posturales: ${patient.requiresPosturalChanges ? 'SI' : 'No'}`,
+            `Riesgo Norton de ulceras: ${patient.nortonRisk ? 'SI — positivo' : 'No'}`,
+            `Escala Braden: ${patient.intakeData?.bradenScore ?? 'No registrada'}${
+                typeof patient.intakeData?.bradenScore === 'number' && patient.intakeData.bradenScore <= 14
+                    ? ' (ALTO RIESGO de ulceras por presion)' : ''}`,
+            `Escala Downton (caidas): ${patient.intakeData?.downtonScore ?? 'No registrada'}`,
+            `Modalidad de cuido: ${patient.careModality ?? 'NONE'}`,
+        ].join('\n');
+
         const clinicalContext = `
 Nombre: ${patient.name}
 Habitación: ${patient.roomNumber || 'No asignada'}
@@ -131,6 +163,9 @@ Diagnósticos: ${patient.intakeData?.diagnoses || 'No registrados'}
 Historial Médico: ${patient.intakeData?.medicalHistory || 'No registrado'}
 Alergias: ${patient.intakeData?.allergies || 'Ninguna'}
 Medicamentos activos: ${patient.medications.map(m => m.medication.name).join(', ') || 'Ninguno'}
+
+── ESTADO FUNCIONAL (dato del expediente — NO lo contradigas) ──
+${estadoFuncional}
 
 ── DATOS CLÍNICOS RECIENTES ──
 Adherencia medicamentos (30d): ${adherenceLines.length > 0 ? adherenceLines.join(' | ') : 'Sin datos'}
@@ -177,6 +212,19 @@ ${previousPai
         const { object } = await generateObject({
             model: openai('gpt-4o-mini'),
             system: `Eres el Director Médico de una residencia geriátrica. Redactas Planes Asistenciales Individualizados (PAI) de altísima calidad clínica y compasiva. Analiza todos los datos clínicos proporcionados — incluyendo signos vitales, adherencia, UPPs, caídas y alertas — para generar un PAI preciso y actualizado. Sé específico y basa CADA riesgo y objetivo en los datos reales provistos.
+
+REGLA INVIOLABLE SOBRE LO QUE NO SABES.
+El bloque ESTADO FUNCIONAL es el expediente. NUNCA lo contradigas: si dice
+ENCAMADO/A, la persona no deambula y no puede tener "movilidad independiente".
+Si dice tubo PEG, no se alimenta por boca y su dieta NO es "equilibrada" ni
+"blanda": es alimentación enteral por sonda, y eso manda en dieta, en riesgo de
+broncoaspiración y en la posición de la cama.
+Cuando un dato diga "No registrado", escribe exactamente "No registrado —
+verificar con enfermería". Está prohibido rellenar por completar el formulario:
+un PAI que afirma algo que nadie midió es peor que uno incompleto, porque se
+firma y se archiva como si fuera cierto.
+Braden ≤ 14, Norton positivo o "requiere cambios posturales: SI" obligan a un
+riesgo dermatológico de prevención de úlceras en la matriz.
 
 REGLA INVIOLABLE SOBRE QUIÉN HACE EL TRABAJO.
 El personal que existe en esta residencia es EXACTAMENTE: ${equipoDisponible}.
