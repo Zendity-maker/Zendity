@@ -1482,6 +1482,17 @@ model DailyLog {
   isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
   isResolved      Boolean  @default(false) // FASE 33: Triage Flag
   photoUrl        String? // FASE 37: Image Uploads
+  /// Hora REAL en que ocurrio el cuido, cuando la cuidadora la declara.
+  ///
+  /// `createdAt` es la hora del tecleo y siempre lo fue: hasta sep-2026 era la
+  /// unica que existia, asi que en la auditoria de turno el baño, el desayuno y
+  /// la ronda de pañal salian todos a la misma hora — la hora en que ella se
+  /// sento con la tableta. Ver src/lib/hora-real.ts.
+  ///
+  /// NULLABLE a proposito: en las filas viejas nadie sabe cuando ocurrio de
+  /// verdad, y null dice exactamente eso. Quien lea, que use
+  /// `occurredAt ?? createdAt`.
+  occurredAt      DateTime?
   createdAt       DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
@@ -2717,6 +2728,11 @@ model ClinicalNote {
   title     String
   content   String   @db.Text
   type      String   @default("GENERAL") // Ej: TRIAGE_RESOLUTION, GENERAL
+  /// Hora REAL del cuido cuando la cuidadora la declara. Las rondas de pañal
+  /// (seco/humedo/evacuacion) entran por aqui desde /api/care/rounds, y hasta
+  /// sep-2026 su unica hora era `createdAt` — la del tecleo. Nullable: en las
+  /// filas viejas nadie sabe cuando ocurrio. Usar `occurredAt ?? createdAt`.
+  occurredAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

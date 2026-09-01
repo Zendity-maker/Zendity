@@ -100,7 +100,9 @@ export async function POST(req: Request) {
                     authorId,
                     title: isDayShift ? `Continencia Diurna (${type})` : `Ronda de Cuidado (${type})`,
                     content: notes,
-                    type: "PROGRESS_NOTE"
+                    type: "PROGRESS_NOTE",
+                    // Hora real de la ronda. `createdAt` sigue siendo el tecleo.
+                    occurredAt: hora.hora,
                 }
             });
             return NextResponse.json({ success: true, message: isDayShift ? 'Cambio de pañal registrado' : 'Nota clínica de ronda guardada' });

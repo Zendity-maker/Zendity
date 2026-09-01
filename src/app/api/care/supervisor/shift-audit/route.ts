@@ -205,7 +205,7 @@ export async function GET(req: Request) {
                     createdAt: { gte: shiftStart, lte: shiftEnd },
                     content: { contains: '[RONDA NOCTURNA ZENDI]' }
                 },
-                select: { patientId: true, createdAt: true, content: true },
+                select: { patientId: true, createdAt: true, occurredAt: true, content: true },
                 orderBy: { createdAt: 'asc' }
             }),
             // Pañal diurno (clinicalNote con [CAMBIO PAÑAL DIURNO ZENDI])
@@ -216,7 +216,7 @@ export async function GET(req: Request) {
                     createdAt: { gte: shiftStart, lte: shiftEnd },
                     content: { contains: '[CAMBIO PAÑAL DIURNO ZENDI]' }
                 },
-                select: { patientId: true, createdAt: true, content: true },
+                select: { patientId: true, createdAt: true, occurredAt: true, content: true },
                 orderBy: { createdAt: 'asc' }
             }),
             // Handover asociado
@@ -359,7 +359,8 @@ export async function GET(req: Request) {
             // Pañal nocturno
             nightDiapers.filter(d => d.patientId === pid).forEach(d => {
                 entries.push({
-                    time: d.createdAt,
+                    // La hora real si la declaro; si no, la del tecleo.
+                    time: d.occurredAt ?? d.createdAt,
                     type: 'DIAPER_NIGHT',
                     label: '🌙 Control de pañal nocturno',
                     detail: parseDiaperType(d.content),
@@ -370,7 +371,8 @@ export async function GET(req: Request) {
             // Pañal diurno
             dayDiapers.filter(d => d.patientId === pid).forEach(d => {
                 entries.push({
-                    time: d.createdAt,
+                    // La hora real si la declaro; si no, la del tecleo.
+                    time: d.occurredAt ?? d.createdAt,
                     type: 'DIAPER_DAY',
                     label: '🩺 Control de continencia',
                     detail: parseDiaperType(d.content),
