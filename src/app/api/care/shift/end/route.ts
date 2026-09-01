@@ -101,6 +101,41 @@ export async function POST(req: Request) {
                 zendiSummary = built.summary;
             }
 
+            /**
+             * Guarda contra doble envio del cierre de turno.
+             *
+             * Medido el 30-ago-2026: 11 relevos duplicados de 860. Misma
+             * cuidadora, mismo tipo de turno, menos de dos minutos aparte. Un
+             * relevo duplicado no es cosmetico: cada uno arrastra su reporte de
+             * Zendi, sus notas y su firma, y en el historial parece que el turno
+             * se entrego dos veces.
+             *
+             * Va FUERA de la transaccion a proposito: si ya existe, no hay nada
+             * que abrir. Y devuelve exito con el id del que ya esta, porque un
+             * error rojo al final de un turno hace que la cuidadora lo repita —
+             * que es exactamente lo que produce el duplicado.
+             */
+            const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
+            const relevoReciente = await prisma.shiftHandover.findFirst({
+                where: {
+                    headquartersId: session.headquartersId,
+                    outgoingNurseId: session.caregiverId,
+                    shiftType: shiftTypeDraft,
+                    isDailyPrologue: false,
+                    createdAt: { gte: dosMinutosAtras },
+                },
+                select: { id: true },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (relevoReciente) {
+                return NextResponse.json({
+                    success: true,
+                    duplicado: true,
+                    handoverId: relevoReciente.id,
+                    message: 'Tu turno ya fue cerrado hace un momento. No se duplicó.',
+                });
+            }
+
             const [handover, closedSession] = await prisma.$transaction(async (tx) => {
                 // Flujo nuevo: cuidador firma → supervisor firma directo.
                 // Sin paso de "senior confirma" (eliminado).
@@ -233,6 +268,29 @@ export async function POST(req: Request) {
         }
 
         const forcedSummary = `Cierre forzado por supervisor ${invokerName}. Sin reporte clínico del cuidador.`;
+
+        // Misma guarda en el cierre forzado. Aqui la clave es el CUIDADOR cuyo
+        // turno se cierra, no el supervisor que lo fuerza: dos supervisores
+        // forzando el mismo turno producirian dos relevos de la misma persona.
+        const relevoForzadoReciente = await prisma.shiftHandover.findFirst({
+            where: {
+                headquartersId: session.headquartersId,
+                outgoingNurseId: session.caregiverId,
+                shiftType: shiftTypeDraft,
+                isDailyPrologue: false,
+                createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) },
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (relevoForzadoReciente) {
+            return NextResponse.json({
+                success: true,
+                duplicado: true,
+                handoverId: relevoForzadoReciente.id,
+                message: 'Este turno ya fue cerrado hace un momento. No se duplicó.',
+            });
+        }
 
         const [forcedHandover, forcedSession] = await prisma.$transaction(async (tx) => {
             const handover = await tx.shiftHandover.create({
