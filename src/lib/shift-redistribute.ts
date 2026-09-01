@@ -26,7 +26,23 @@ import { todayStartAST } from './dates';
 import { notifyUser, notifyRoles } from './notifications';
 import { logWarn } from './logger';
 
-const VITALS_WINDOW_MS = 4 * 60 * 60 * 1000;
+/**
+ * La ventana sale de src/lib/vitals-window.ts, no de una copia local.
+ *
+ * Aqui habia un `const VITALS_WINDOW_MS = 4h` propio. Cuando la enfermera bajo
+ * la ventana a 3 horas el 19-ago-2026, este archivo no se entero: siguio
+ * abriendo ordenes de 4 horas.
+ *
+ * Medido el 01-sep-2026: de las 1 302 ordenes creadas desde el cambio, 928 con
+ * 3h y 357 con 4h. Dos cuidadoras haciendo el mismo trabajo tenian plazos
+ * distintos segun como se hubiera creado su turno — normal o por
+ * redistribucion de una ausencia. Y la que cubria a alguien tenia MAS tiempo,
+ * que es justo al reves de lo razonable.
+ *
+ * Mismo nombre de constante en dos archivos con valores distintos: la copia no
+ * se ve desde el archivo canonico, y por eso sobrevivio doce dias.
+ */
+import { VITALS_WINDOW_MS } from './vitals-window';
 
 export type RedistributionTrigger = 'AUTO' | 'MANUAL' | 'ABSENCE';
 
