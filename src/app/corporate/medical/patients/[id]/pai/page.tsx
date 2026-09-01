@@ -162,6 +162,9 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                 if (ai.revisionCriteria) setRevisionCriteria(ai.revisionCriteria);
                 if (ai.risks?.length) setRisks(ai.risks);
                 if (ai.goals?.length) setGoals(ai.goals);
+                // Lo que el hogar no puede dar con su personal actual llega aqui
+                // como sugerencia para la familia, no como objetivo asignado.
+                if (ai.recommendedServices?.length) setRecommendedServices(ai.recommendedServices);
                 if (data.familyVersion) setFamilyVersion(data.familyVersion);
                 showToast("✅ Zendi completó el PAI con datos clínicos reales. Revisa y ajusta antes de firmar.");
             } else {

@@ -146,11 +146,52 @@ ${previousPai
     : 'No existe PAI previo aprobado — este es el INICIAL'}
         `.trim();
 
+        // ── 8b. QUIEN EXISTE DE VERDAD EN ESTA SEDE ──────────────────────────
+        // Sin esto la IA repartia trabajo a fisioterapeutas, nutricionistas y
+        // farmaceuticos que no existen: 8 objetivos a "Terapeuta ocupacional",
+        // 6 a "Fisioterapeuta", 4 a "Nutricionista" en una sede que solo tiene
+        // cuidadoras, supervisoras, trabajo social y UNA enfermera. Un plan
+        // firmado que asigna un servicio inexistente no defiende al hogar en
+        // una inspeccion: lo acusa.
+        //
+        // Se resuelve dinamicamente — nunca hardcodear roles por sede.
+        const personal = await prisma.user.findMany({
+            where: { headquartersId: invokerHqId, isActive: true },
+            select: { role: true, secondaryRoles: true },
+        });
+        const ROLES_LEGIBLES: Record<string, string> = {
+            CAREGIVER: 'Cuidadora', NURSE: 'Enfermera', SUPERVISOR: 'Supervisora',
+            DIRECTOR: 'Directora', SOCIAL_WORKER: 'Trabajo Social',
+            KITCHEN: 'Cocina', MAINTENANCE: 'Mantenimiento', ADMIN: 'Administracion',
+        };
+        const rolesPresentes = new Set<string>();
+        personal.forEach(u => {
+            [u.role, ...(u.secondaryRoles || [])].forEach(r => {
+                const legible = ROLES_LEGIBLES[r as string];
+                if (legible) rolesPresentes.add(legible);
+            });
+        });
+        const equipoDisponible = [...rolesPresentes].sort().join(', ') || 'Cuidadora';
+
         // ── 9. Generar PAI clínico estructurado con Zendi AI ─────────────────
         const { object } = await generateObject({
             model: openai('gpt-4o-mini'),
-            system: 'Eres el Director Médico de una residencia geriátrica. Redactas Planes Asistenciales Individualizados (PAI) de altísima calidad clínica y compasiva. Analiza todos los datos clínicos proporcionados — incluyendo signos vitales, adherencia, UPPs, caídas y alertas — para generar un PAI preciso y actualizado. Sé específico y basa CADA riesgo y objetivo en los datos reales provistos.',
-            prompt: `Analiza el siguiente historial clínico COMPLETO con datos reales recientes y genera un PAI estructurado. Basa cada riesgo y objetivo en los datos reales provistos (vitales, caídas, UPPs, adherencia, alertas).\n\n${clinicalContext}`,
+            system: `Eres el Director Médico de una residencia geriátrica. Redactas Planes Asistenciales Individualizados (PAI) de altísima calidad clínica y compasiva. Analiza todos los datos clínicos proporcionados — incluyendo signos vitales, adherencia, UPPs, caídas y alertas — para generar un PAI preciso y actualizado. Sé específico y basa CADA riesgo y objetivo en los datos reales provistos.
+
+REGLA INVIOLABLE SOBRE QUIÉN HACE EL TRABAJO.
+El personal que existe en esta residencia es EXACTAMENTE: ${equipoDisponible}.
+El campo "responsible" de cada objetivo debe ser uno de esos, y ninguno más.
+Nunca asignes trabajo a fisioterapeuta, terapeuta ocupacional, nutricionista,
+farmacéutico, psicólogo ni médico de cabecera: no trabajan aquí, y un plan
+firmado que les asigna tareas documenta un servicio que no se presta.
+
+Si el residente clínicamente se beneficiaría de algo que este equipo NO puede
+dar, NO lo escondas ni lo conviertas en un objetivo imposible: ponlo en
+"recommendedServices" como una sugerencia para la familia. Ahí sí puedes
+nombrar terapia física, terapia ocupacional, nutrición, podología o
+acompañamiento. Es una posibilidad de mejorar su calidad de vida, no una
+tarea asignada al hogar.`,
+            prompt: `Analiza el siguiente historial clínico COMPLETO con datos reales recientes y genera un PAI estructurado. Basa cada riesgo y objetivo en los datos reales provistos (vitales, caídas, UPPs, adherencia, alertas).\n\nEquipo disponible en esta sede para el campo "responsible": ${equipoDisponible}. Lo que haga falta y no esté en esa lista va en recommendedServices como sugerencia, no como objetivo.\n\n${clinicalContext}`,
             schema: z.object({
                 clinicalSummary: z.string().describe("Párrafo resumen compasivo de su condición actual, incluyendo datos clínicos recientes relevantes."),
                 cognitiveLevel: z.string().describe("Estado cognitivo actual (Ej: 'Orientado en 3 esferas', 'Demencia moderada con desorientación temporal')."),
@@ -171,7 +212,13 @@ ${previousPai
                     responsible: z.string(),
                     frequency: z.string(),
                     indicator: z.string()
-                })).min(3).max(6).describe("Matriz de objetivos/intervenciones para mitigar los riesgos identificados.")
+                })).min(3).max(6).describe("Matriz de objetivos/intervenciones para mitigar los riesgos identificados. El campo 'responsible' SOLO puede ser uno del equipo que existe en la sede."),
+                recommendedServices: z.array(z.object({
+                    serviceName: z.string(),
+                    description: z.string(),
+                    price: z.string(),
+                    category: z.string(),
+                })).max(4).describe("Servicios que este residente se beneficiaría de recibir pero que el hogar NO presta con su personal actual (terapia física, terapia ocupacional, nutrición, podología, acompañamiento). Se redactan como SUGERENCIA para la familia — 'se sugiere evaluación de terapia física' — nunca como tarea asignada al hogar. Explica en 'description' qué mejoraría en su calidad de vida y por qué, basado en sus datos reales. En 'price' pon 'A Convenir'. Vacío si no aplica ninguno.")
             })
         });
 
