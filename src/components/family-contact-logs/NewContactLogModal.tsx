@@ -214,6 +214,43 @@ export default function NewContactLogModal({
                             </option>
                         ))}
                     </select>
+
+                    {/* El TELÉFONO a la vista, pulsable.
+                        Estaba dentro de la opción del desplegable: había que
+                        abrirlo para verlo, no se podía copiar, y para llamar
+                        tocaba salir de esta pantalla a buscarlo al expediente y
+                        volver a escribir la nota. Andrés: "que no se tenga que
+                        mover de pantalla para buscar el numero del otro lado y
+                        volver al otro para hacer la nota."
+                        En la tableta, tel: marca directamente. */}
+                    {(() => {
+                        const sel = family.find(f => f.id === familyMemberId);
+                        if (!sel) return null;
+                        return (
+                            <div className="mt-2 flex items-center justify-between gap-3 bg-teal-50 border border-teal-200 rounded-2xl px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-black text-teal-900 truncate">{sel.name}</p>
+                                    {sel.relationship && (
+                                        <p className="text-[11px] font-bold text-teal-700/70">{sel.relationship}</p>
+                                    )}
+                                </div>
+                                {sel.phone ? (
+                                    <a
+                                        href={`tel:${sel.phone.replace(/[^0-9+]/g, '')}`}
+                                        className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-black text-sm px-4 py-2.5 rounded-xl transition-colors"
+                                    >
+                                        📞 {sel.phone}
+                                    </a>
+                                ) : (
+                                    // No se calla: sin numero, quien llama no
+                                    // puede llamar, y hay que decirle donde se pone.
+                                    <span className="shrink-0 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-xl">
+                                        Sin teléfono · ponlo en Familiares
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Canal */}

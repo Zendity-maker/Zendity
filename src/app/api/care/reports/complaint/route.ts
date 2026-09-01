@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         const {
             patientId, description, type, photoUrl,
             // Quien planteo el senalamiento. Uno de los dos, no ambos.
-            planteadoPorFamiliarId, planteadoPorResidente,
+            planteadoPorFamiliarId, planteadoPorResidente, planteadoPorNombre,
         } = await req.json();
         // HIPAA — el autor sale de la sesión (antes authorId del body).
         const authorId = auth.id;
@@ -74,6 +74,11 @@ export async function POST(req: Request) {
                 patientId: patient.id,
                 familyMemberId: familyMemberId,
                 planteadoPorResidente: !!planteadoPorResidente,
+                // Nombre a mano cuando quien plantea no esta registrado. Se
+                // recorta y se guarda null si viene vacio: "" no es un nombre.
+                planteadoPorNombre: typeof planteadoPorNombre === 'string' && planteadoPorNombre.trim()
+                    ? planteadoPorNombre.trim().slice(0, 120)
+                    : null,
                 // El supervisor es el canal de entrada: informa y direccion resuelve.
                 registradoPorId: authorId,
                 description: `${prefix} - ${description}`,

@@ -2423,6 +2423,18 @@ model Complaint {
   /// por si mismo, y 19 de 33 residentes activos no tienen ningun familiar
   /// registrado.
   planteadoPorResidente Boolean @default(false)
+  /// Nombre escrito a mano cuando quien plantea NO está en la lista.
+  ///
+  /// Hasta hoy solo había dos opciones: un familiar registrado, o el propio
+  /// residente. Con 19 de 34 residentes sin familiar en el sistema, la lista
+  /// sale vacía y "el residente" queda como única salida — aunque quien haya
+  /// llamado sea una hija que nunca se registró. Medido el 01-sep-2026: de los
+  /// 3 señalamientos marcados como "el residente", 2 son de alguien con CERO
+  /// familiares registrados.
+  ///
+  /// Marcar al residente cuando fue otra persona no es un detalle: cambia a
+  /// quién se le responde.
+  planteadoPorNombre    String?
   /// Quien lo registro. El supervisor es el canal de entrada, no el dueno:
   /// informa y direccion resuelve.
   registradoPorId       String?

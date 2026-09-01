@@ -575,6 +575,7 @@ export default function ZendityCareTabletPage() {
     const [hubPatientId, setHubPatientId] = useState("");
     // Quien planteo el senalamiento: id de familiar, "RESIDENTE", o vacio.
     const [hubPlanteadoPor, setHubPlanteadoPor] = useState("");
+    const [hubPlanteadoNombre, setHubPlanteadoNombre] = useState("");
     const [hubFamiliares, setHubFamiliares] = useState<any[]>([]);
     const [hubDescription, setHubDescription] = useState("");
     const [hubPhotoBase64, setHubPhotoBase64] = useState<string | null>(null);
@@ -1821,6 +1822,9 @@ export default function ZendityCareTabletPage() {
         if (!hubDescription) return avisoOk("Agregue una descripción del incidente.");
         // Antes de setSubmitting: un return dentro del try dejaria el boton
         // deshabilitado si no hubiera finally.
+        if (hubAction === 'COMPLAINT' && hubPlanteadoPor === 'OTRO' && !hubPlanteadoNombre.trim()) {
+            return avisoError('Escribe quién te lo planteó.');
+        }
         if (hubAction === 'COMPLAINT' && !hubPlanteadoPor) {
             return avisoOk("Indica quién te planteó el señalamiento.");
         }
@@ -1839,6 +1843,7 @@ export default function ZendityCareTabletPage() {
                 payload.type = "COMPLAINT";
                 payload.photoUrl = hubPhotoBase64;
                 if (hubPlanteadoPor === 'RESIDENTE') payload.planteadoPorResidente = true;
+                else if (hubPlanteadoPor === 'OTRO') payload.planteadoPorNombre = hubPlanteadoNombre.trim();
                 else payload.planteadoPorFamiliarId = hubPlanteadoPor;
             } else if (hubAction === "UPP_ALERT") {
                 endpoint = "/api/care/vitals";
@@ -4414,10 +4419,27 @@ export default function ZendityCareTabletPage() {
                                                                 {f.name}{f.relationship ? ` — ${f.relationship}` : ''}
                                                             </option>
                                                         ))}
+                                                        {/* Salida para quien NO esta en la lista.
+                                                            Con 19 de 34 residentes sin familiar registrado, el
+                                                            desplegable sale vacio y "el propio residente" queda
+                                                            como unica opcion — aunque haya llamado una hija que
+                                                            nunca se registro. Marcar al residente cuando fue otra
+                                                            persona cambia a quien se le responde. */}
+                                                        <option value="OTRO">Otra persona — escribir nombre</option>
                                                     </select>
+                                                    {hubPlanteadoPor === 'OTRO' && (
+                                                        <input
+                                                            type="text"
+                                                            value={hubPlanteadoNombre}
+                                                            onChange={(e) => setHubPlanteadoNombre(e.target.value)}
+                                                            placeholder="¿Quién? Ej: Su hija Marta, un vecino, el médico"
+                                                            className="w-full mt-2 px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        />
+                                                    )}
                                                     {hubPatientId && hubFamiliares.length === 0 && (
                                                         <p className="text-xs text-slate-400 mt-2">
-                                                            Este residente no tiene familiares registrados en Zéndity.
+                                                            Este residente no tiene familiares registrados. Si quien te lo
+                                                            planteó no es él mismo, usa <strong>Otra persona</strong>.
                                                         </p>
                                                     )}
                                                 </div>
