@@ -47,6 +47,17 @@ export default function BillingDashboard() {
     const [totalPending, setTotalPending] = useState(0);
     const [totalPaid, setTotalPaid] = useState(0);
     const [loading, setLoading] = useState(true);
+    /**
+     * Tres pestañas, y el corte NO es pagada/no pagada.
+     *
+     * Andres propuso mover las pagadas a otro botón. La idea es correcta —dos
+     * tercios de la pantalla eran trabajo terminado— pero cortar ahí dejaba la
+     * única factura VENCIDA mezclada entre 30 pendientes que se ven igual. Lo
+     * que decide no es si está pagada: es tarde / al día / cerrada.
+     */
+    const [pestana, setPestana] = useState<'VENCIDAS' | 'POR_COBRAR' | 'CERRADAS'>('POR_COBRAR');
+    const [mesCerradas, setMesCerradas] = useState<string>('');
+    const [mesesCerradas, setMesesCerradas] = useState<{ mes: string; n: number; total: number }[]>([]);
     const router = useRouter();
     const { data: session } = useSession();
     const hqName = (session?.user as any)?.headquartersName || "Zendity HQ";
@@ -89,6 +100,9 @@ export default function BillingDashboard() {
         { description: "Mensualidad Base", quantity: 1, unitPrice: 0 }
     ]);
 
+    // Al cambiar el mes de cerradas se vuelve a pedir: esas no viajan enteras.
+    useEffect(() => { if (mesCerradas) fetchData(); /* eslint-disable-next-line */ }, [mesCerradas]);
+
     useEffect(() => {
         fetchData();
         // Set default due date to 5 days from now
@@ -97,11 +111,29 @@ export default function BillingDashboard() {
         setDueDate(defaultDue.toISOString().split('T')[0]);
     }, []);
 
+    /**
+     * Lo que se ve segun la pestaña. Las vencidas primero por fecha de
+     * vencimiento —la mas atrasada arriba—; las por cobrar por la mas proxima a
+     * vencer; las cerradas por emision descendente, que es como se buscan.
+     */
+    const visibles = (() => {
+        if (pestana === 'VENCIDAS') {
+            return invoices.filter(i => i.status === 'OVERDUE')
+                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        }
+        if (pestana === 'POR_COBRAR') {
+            return invoices.filter(i => i.status === 'PENDING')
+                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        }
+        return invoices.filter(i => i.status === 'PAID')
+            .sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime());
+    })();
+
     const fetchData = async () => {
         try {
             const timestamp = new Date().getTime();
             const [resBill, resStats] = await Promise.all([
-                fetch(`/api/corporate/billing?t=${timestamp}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } }),
+                fetch(`/api/corporate/billing?t=${timestamp}${mesCerradas ? `&cerradasDe=${mesCerradas}` : ''}`, { cache: "no-store", headers: { 'Cache-Control': 'no-cache' } }),
                 fetch('/api/corporate/billing/stats', { cache: 'no-store' }),
             ]);
             if (resBill.ok) {
@@ -110,6 +142,7 @@ export default function BillingDashboard() {
                 setPatients(data.patients || []);
                 setTotalPending(data.totalPending || 0);
                 setTotalPaid(data.totalPaid || 0);
+                setMesesCerradas(data.mesesCerradas || []);
             }
             if (resStats.ok) {
                 const s = await resStats.json();
@@ -447,6 +480,58 @@ export default function BillingDashboard() {
 
             {/* Tabla de Facturas */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                {/* Pestañas: tarde / al día / cerrada.
+                    Las vencidas van SOLAS y primero. Que una unica factura
+                    vencida tenga su propio espacio no es desperdicio: es lo que
+                    hace que no se pierda entre treinta que se ven igual. */}
+                {(() => {
+                    const vencidas = invoices.filter(i => i.status === 'OVERDUE');
+                    const porCobrar = invoices.filter(i => i.status === 'PENDING');
+                    const tabs = [
+                        { id: 'VENCIDAS' as const, label: 'Vencidas', n: vencidas.length, tono: 'rose' },
+                        { id: 'POR_COBRAR' as const, label: 'Por cobrar', n: porCobrar.length, tono: 'amber' },
+                        { id: 'CERRADAS' as const, label: 'Cerradas', n: mesesCerradas.reduce((a, m) => a + m.n, 0), tono: 'slate' },
+                    ];
+                    return (
+                        <div className="flex flex-wrap items-center gap-1 px-4 pt-3 border-b border-slate-100">
+                            {tabs.map(t => {
+                                const activa = pestana === t.id;
+                                const urgente = t.id === 'VENCIDAS' && t.n > 0;
+                                return (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setPestana(t.id)}
+                                        className={`px-4 py-2.5 text-sm font-black border-b-2 -mb-px transition-colors flex items-center gap-2 ${
+                                            activa
+                                                ? urgente ? 'border-rose-500 text-rose-700' : 'border-teal-600 text-teal-700'
+                                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        {t.label}
+                                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
+                                            urgente ? 'bg-rose-600 text-white'
+                                            : activa ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'
+                                        }`}>{t.n}</span>
+                                    </button>
+                                );
+                            })}
+                            {pestana === 'CERRADAS' && mesesCerradas.length > 0 && (
+                                <select
+                                    value={mesCerradas || mesesCerradas[0]?.mes || ''}
+                                    onChange={e => setMesCerradas(e.target.value)}
+                                    className="ml-auto mb-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-700"
+                                >
+                                    {mesesCerradas.map(m => (
+                                        <option key={m.mes} value={m.mes}>
+                                            {new Date(m.mes + '-01T00:00:00Z').toLocaleDateString('es-PR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                                            {' · '}{m.n} · ${m.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                    );
+                })()}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -467,14 +552,18 @@ export default function BillingDashboard() {
                                         Calculando contabilidad...
                                     </td>
                                 </tr>
-                            ) : invoices.length === 0 ? (
+                            ) : visibles.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="p-8 text-center text-slate-500 font-medium">
-                                        No hay recibos generados aún. Haz clic en "Emitir Recibo" para comenzar.
+                                        {pestana === 'VENCIDAS'
+                                            ? 'Ninguna factura vencida. Nada que perseguir hoy.'
+                                            : pestana === 'POR_COBRAR'
+                                                ? 'Nada por cobrar. Todo lo emitido está pagado.'
+                                                : 'No hay facturas cerradas en el mes seleccionado.'}
                                     </td>
                                 </tr>
                             ) : (
-                                invoices.map((invoice) => (
+                                visibles.map((invoice) => (
                                     <tr key={invoice.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                                         <td className="p-5">
                                             <p className="font-bold text-slate-900">{invoice.invoiceNumber}</p>

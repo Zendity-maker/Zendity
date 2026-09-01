@@ -14,8 +14,42 @@ export async function GET(req: Request) {
 
         const headquartersId = auth.headquartersId;
 
+        /**
+         * Abiertas SIEMPRE; cerradas solo del mes que se pida.
+         *
+         * Antes traia las 90 sin filtro ni limite. A ~30 facturas al mes eso son
+         * 360 en un año y 720 en dos — mismo anti-patron que ya arreglamos en
+         * los relevos de turno. Y dos tercios de lo cargado (59 de 90) eran
+         * trabajo terminado.
+         *
+         * Las PENDING y OVERDUE viajan enteras porque son el trabajo del dia y
+         * nunca van a ser muchas: son las del mes corriente mas lo que se quedo
+         * sin cobrar. Las PAID se piden por mes con ?cerradasDe=YYYY-MM, que es
+         * como se buscan: "la de agosto de Fulano".
+         */
+        const url = new URL(req.url);
+        const cerradasDe = url.searchParams.get('cerradasDe');   // YYYY-MM
+        let rangoCerradas: { gte: Date; lt: Date } | undefined;
+        if (cerradasDe && /^\d{4}-\d{2}$/.test(cerradasDe)) {
+            const [a, m] = cerradasDe.split('-').map(Number);
+            rangoCerradas = {
+                gte: new Date(Date.UTC(a, m - 1, 1)),
+                lt: new Date(Date.UTC(a, m, 1)),
+            };
+        }
+
         const invoices = await prisma.invoice.findMany({
-            where: { headquartersId },
+            where: {
+                headquartersId,
+                OR: [
+                    { status: { in: ['PENDING', 'OVERDUE'] } },
+                    rangoCerradas
+                        ? { status: 'PAID', issueDate: rangoCerradas }
+                        // Sin mes pedido, las cerradas del mes en curso: la
+                        // pantalla abre util sin traerse dos años de historia.
+                        : { status: 'PAID', issueDate: { gte: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)) } },
+                ],
+            },
             include: {
                 patient: true,
                 items: true,
@@ -25,6 +59,23 @@ export async function GET(req: Request) {
                 issueDate: 'desc'
             }
         });
+
+        /**
+         * Meses que TIENEN cerradas, para el selector. Se cuenta aparte porque
+         * la lista de arriba ya no las trae todas — y sin esto el selector no
+         * sabria que meses ofrecer.
+         */
+        const cerradas = await prisma.invoice.findMany({
+            where: { headquartersId, status: 'PAID' },
+            select: { issueDate: true, totalAmount: true },
+        });
+        const mesesCerradas = [...cerradas.reduce((m, c) => {
+            const k = c.issueDate.toISOString().slice(0, 7);
+            const v = m.get(k) ?? { mes: k, n: 0, total: 0 };
+            v.n++; v.total += c.totalAmount ?? 0;
+            return m.set(k, v);
+        }, new Map<string, { mes: string; n: number; total: number }>()).values()]
+            .sort((a, b) => b.mes.localeCompare(a.mes));
 
         // Calculamos resumen gerencial
         const totalPending = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').reduce((acc, curr) => acc + curr.totalAmount, 0);
@@ -43,7 +94,7 @@ export async function GET(req: Request) {
             orderBy: { name: 'asc' }
         });
 
-        return NextResponse.json({ success: true, invoices, totalPending, totalPaid, patients });
+        return NextResponse.json({ success: true, invoices, totalPending, totalPaid, patients, mesesCerradas });
     } catch (e: any) {
         console.error("DEBUG BILLING GET:", e);
         return NextResponse.json({ success: false, error: "Error al cargar facturación", msg: e.message }, { status: 500 });
