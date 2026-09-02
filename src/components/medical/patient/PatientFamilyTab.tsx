@@ -15,6 +15,7 @@ interface FamilyMember {
     accessLevel: string;
     isRegistered: boolean;
     inviteExpiry: string | null;
+    isPrimary?: boolean;
 }
 
 const RELATIONSHIP_OPTIONS = PARENTESCOS;
@@ -33,6 +34,7 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
     const { user } = useAuth();
     const canWrite = FAMILY_WRITE_ROLES.includes(user?.role || '');
     const [members, setMembers] = useState<FamilyMember[]>([]);
+    const [marcandoId, setMarcandoId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<Toast | null>(null);
 
@@ -235,6 +237,33 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
         }
     };
 
+    // Marcar familiar principal. Hasta hoy esto solo se podia hacer en el
+    // asistente de admision — para un residente ya admitido no habia forma, y
+    // por eso solo 4 de 19 con contacto lo tenian. El correo del PAI aprobado
+    // sale unicamente al principal: sin el, aprobar un plan queda en silencio.
+    const marcarPrincipal = async (m: FamilyMember) => {
+        if (m.isPrimary) return;
+        setMarcandoId(m.id);
+        try {
+            const res = await fetch(`/api/corporate/family/${m.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isPrimary: true }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setToast({ msg: `${m.name} es ahora el contacto principal`, type: "ok" });
+                fetchMembers();
+            } else {
+                setToast({ msg: data.error || "No se pudo marcar", type: "err" });
+            }
+        } catch {
+            setToast({ msg: "Error de conexión", type: "err" });
+        } finally {
+            setMarcandoId(null);
+        }
+    };
+
     const openEdit = (m: FamilyMember) => {
         setEditTarget(m);
         setEditForm({
@@ -336,6 +365,11 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap mb-1">
                                         <h3 className="font-bold text-slate-800 truncate">{m.name}</h3>
+                                        {m.isPrimary && (
+                                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                                                Principal
+                                            </span>
+                                        )}
                                         {m.isRegistered ? (
                                             <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
                                                 Activo
@@ -367,6 +401,16 @@ export default function PatientFamilyTab({ patientId }: { patientId: string }) {
 
                                 {/* Actions */}
                                 <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                                    {canEdit && !m.isPrimary && (
+                                        <button
+                                            onClick={() => marcarPrincipal(m)}
+                                            disabled={marcandoId === m.id}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-white hover:bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                            title="Recibirá el PAI y los avisos de este residente"
+                                        >
+                                            {marcandoId === m.id ? '…' : 'Hacer principal'}
+                                        </button>
+                                    )}
                                     {canEdit && (
                                         <button
                                             onClick={() => openEdit(m)}

@@ -38,8 +38,10 @@ export async function GET(req: Request) {
                 accessLevel: true,
                 isRegistered: true,
                 inviteExpiry: true,
+                isPrimary: true,
             },
-            orderBy: [{ isRegistered: 'desc' }, { name: 'asc' }],
+            // El principal primero: es a quien le llega el PAI y los avisos.
+            orderBy: [{ isPrimary: 'desc' }, { isRegistered: 'desc' }, { name: 'asc' }],
         });
 
         return NextResponse.json({ success: true, familyMembers });

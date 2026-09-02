@@ -65,11 +65,11 @@ export async function PUT(
         const hqId = (session.user as any).headquartersId;
         const { memberId } = await params;
         const body = await req.json();
-        const { name, phone, accessLevel, relationship } = body;
+        const { name, phone, accessLevel, relationship, isPrimary } = body;
 
         const member = await prisma.familyMember.findUnique({
             where: { id: memberId },
-            select: { id: true, headquartersId: true },
+            select: { id: true, headquartersId: true, patientId: true },
         });
         if (!member) return NextResponse.json({ success: false, error: 'Familiar no encontrado' }, { status: 404 });
         if (member.headquartersId !== hqId) {
@@ -81,6 +81,32 @@ export async function PUT(
         if (phone !== undefined) updateData.phone = phone || null;
         if (accessLevel !== undefined) updateData.accessLevel = accessLevel || 'Full';
         if (relationship !== undefined) updateData.relationship = relationship || null;
+
+        // FAMILIAR PRINCIPAL — hasta hoy solo se podia marcar en el asistente de
+        // admision, o sea unicamente al ingresar al residente. Para alguien ya
+        // admitido no habia forma de cambiarlo: por eso solo 4 de 19 residentes
+        // con contacto lo tenian. El correo del PAI aprobado sale UNICAMENTE al
+        // principal, asi que aprobar el plan de los demas lo dejaba en silencio.
+        //
+        // Es unico por residente: marcar uno desmarca a los demas y sincroniza
+        // Patient.primaryFamilyMemberId, que es el campo que lee el envio.
+        if (isPrimary === true) {
+            const [, , updated] = await prisma.$transaction([
+                prisma.familyMember.updateMany({
+                    where: { patientId: member.patientId, id: { not: memberId }, isPrimary: true },
+                    data: { isPrimary: false },
+                }),
+                prisma.patient.update({
+                    where: { id: member.patientId },
+                    data: { primaryFamilyMemberId: memberId },
+                }),
+                prisma.familyMember.update({
+                    where: { id: memberId },
+                    data: { ...updateData, isPrimary: true },
+                }),
+            ]);
+            return NextResponse.json({ success: true, member: updated });
+        }
 
         const updated = await prisma.familyMember.update({
             where: { id: memberId },
