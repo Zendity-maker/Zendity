@@ -8,6 +8,59 @@ import { SystemAuditAction, ColorGroup } from '@prisma/client';
 // SOLO ALERTA: ShiftSessions zombi, Patients sin color, VitalsOrders vencidas,
 //              FamilyMember huérfanos, Intake estancado, Meds sin horario.
 
+import { verificarSede, type Hallazgo } from '@/lib/verificaciones';
+import sgMail from '@sendgrid/mail';
+
+if (process.env.SENDGRID_API_KEY) sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+const COLOR_SEVERIDAD: Record<string, string> = {
+    CRITICA: '#b91c1c',
+    ALTA:    '#b45309',
+    MEDIA:   '#0F6E56',
+};
+
+/** Correo a dirección. Solo sale si hay algo que decir. */
+async function enviarResumen(hqNombre: string, destinatarios: string[], hallazgos: Hallazgo[]) {
+    if (!hallazgos.length || !destinatarios.length) return false;
+    if (!process.env.SENDGRID_API_KEY) return false;
+
+    const bloques = hallazgos.map(h => `
+        <div style="border-left:4px solid ${COLOR_SEVERIDAD[h.severidad]};padding:12px 16px;margin:0 0 16px;background:#fafaf9;">
+            <p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:${COLOR_SEVERIDAD[h.severidad]};">
+                ${h.severidad} · ${h.total} caso${h.total === 1 ? '' : 's'}
+            </p>
+            <p style="margin:0 0 8px;font-size:16px;font-weight:800;color:#12211D;">${h.titulo}</p>
+            <ul style="margin:0 0 10px;padding-left:18px;color:#3f3f46;font-size:14px;line-height:1.6;">
+                ${h.ejemplos.map(e => `<li>${e}</li>`).join('')}
+                ${h.total > h.ejemplos.length ? `<li style="color:#78716c;">y ${h.total - h.ejemplos.length} más</li>` : ''}
+            </ul>
+            <p style="margin:0;font-size:13px;color:#57534e;"><strong>Qué hacer:</strong> ${h.accion}</p>
+        </div>`).join('');
+
+    await sgMail.send({
+        to: destinatarios,
+        from: {
+            email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
+            name: 'Zéndity',
+        },
+        subject: `Revisión diaria — ${hallazgos.length} cosa${hallazgos.length === 1 ? '' : 's'} que revisar en ${hqNombre}`,
+        html: `<div style="background:#ffffff;padding:28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#12211D;">
+            <p style="margin:0 0 6px;font-size:20px;font-weight:800;">Revisión diaria de Zéndity</p>
+            <p style="margin:0 0 22px;font-size:14px;color:#57534e;">
+                ${hqNombre} · Esto lo encontró el sistema revisándose a sí mismo. No es una lista de tareas
+                pendientes: es lo que hoy está diciendo algo distinto de la verdad, o algo que se marcó
+                como hecho y no ocurrió.
+            </p>
+            ${bloques}
+            <p style="margin:22px 0 0;font-size:12px;color:#78716c;">
+                Si alguno de estos avisos aparece todos los días sin que nadie lo pueda resolver, avísanos:
+                una alerta que nadie puede apagar deja de servir y hay que arreglarla de raíz o retirarla.
+            </p>
+        </div>`,
+    });
+    return true;
+}
+
 interface AnomalyItem {
     check: string;
     count: number;
@@ -325,9 +378,40 @@ export async function GET(req: Request) {
 
         const dupCount = dupeEmails.status === 'fulfilled' ? (dupeEmails.value as any[]).length : 0;
 
+        // ── VERIFICACIONES DE VERACIDAD ──────────────────────────────────
+        // El health-monitor llevaba meses encontrando anomalias y devolviendolas
+        // en un JSON que solo leia Vercel. Aqui es donde el sistema deja de
+        // hablar consigo mismo: corre los checks de veracidad y le escribe a
+        // direccion. Ver src/lib/verificaciones.ts.
+        const veracidad: Record<string, { hallazgos: number; correoEnviado: boolean }> = {};
+        for (const hq of headquarters) {
+            try {
+                const hallazgos = await verificarSede(hq.id);
+                let enviado = false;
+                if (hallazgos.length) {
+                    const directores = await prisma.user.findMany({
+                        where: { headquartersId: hq.id, role: { in: ['DIRECTOR', 'ADMIN'] }, isActive: true },
+                        select: { email: true },
+                    });
+                    enviado = await enviarResumen(
+                        hq.name,
+                        directores.map(d => d.email).filter(Boolean),
+                        hallazgos,
+                    );
+                }
+                veracidad[hq.name] = { hallazgos: hallazgos.length, correoEnviado: enviado };
+                totalAnomalies += hallazgos.reduce((a, h) => a + h.total, 0);
+            } catch (e) {
+                // Una verificacion rota no puede tumbar el monitor entero.
+                console.error(`[health-monitor] verificaciones ${hq.name}:`, e);
+                veracidad[hq.name] = { hallazgos: -1, correoEnviado: false };
+            }
+        }
+
         return NextResponse.json({
             ok: true,
             message: 'Health Monitor completado.',
+            veracidad,
             runAt: now.toISOString(),
             headquartersScanned: headquarters.length,
             totalAnomalies,
