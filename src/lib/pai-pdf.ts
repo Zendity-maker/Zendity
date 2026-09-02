@@ -255,18 +255,33 @@ export function buildPaiPDF(d: PaiPDFData): jsPDF {
     pageBreakIfNeeded(46);
     y += 6;
     sectionHeader('Firma clínica');
-    if (d.signatureBase64) {
-        try {
-            doc.addImage(d.signatureBase64, 'PNG', marginX, y, 55, 22);
-        } catch {
-            doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(148, 163, 184);
-            doc.text('[firma registrada]', marginX, y + 12);
+    // Un plan esta firmado cuando su estado lo dice o cuando tiene fecha de
+    // firma. NO se decide por la firma grafica: la pantalla del PAI no captura
+    // trazo, asi que `signatureBase64` es null incluso en planes aprobados y el
+    // PDF imprimia "pendiente de firma clinica" sobre un plan vigente.
+    const estaFirmado = d.status === 'APPROVED' || !!d.signedAt;
+
+    if (estaFirmado) {
+        if (d.signatureBase64) {
+            try {
+                doc.addImage(d.signatureBase64, 'PNG', marginX, y, 55, 22);
+            } catch {
+                doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(148, 163, 184);
+                doc.text('[firma registrada]', marginX, y + 12);
+            }
+            y += 24;
+        } else {
+            // Sin trazo: la firma es la aprobacion registrada en el sistema, con
+            // nombre y fecha. Se dice tal cual en vez de fingir una rubrica.
+            y += 10;
         }
         doc.setDrawColor(203, 213, 225);
-        doc.line(marginX, y + 24, marginX + 65, y + 24);
+        doc.line(marginX, y, marginX + 75, y);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(15, 110, 86);
+        doc.text(d.signedByName || 'Aprobado', marginX, y + 4.5);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-        doc.text(`${d.signedByName || 'Firmado'} · ${fmtDate(d.signedAt)}`, marginX, y + 28);
-        y += 34;
+        doc.text(`Aprobado clínicamente en Zéndity · ${fmtDate(d.signedAt)}`, marginX, y + 9);
+        y += 16;
     } else {
         doc.setDrawColor(203, 213, 225);
         doc.line(marginX, y + 16, marginX + 65, y + 16);

@@ -48,6 +48,10 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
 
     // Firma
     const [signedById, setSignedById] = useState<string | null>(null);
+    // Quién firmó y cuándo. Sin esto el PDF no podía saber que el plan estaba
+    // aprobado y siempre imprimía "pendiente de firma clínica".
+    const [firmante, setFirmante] = useState<string | null>(null);
+    const [firmadoEn, setFirmadoEn] = useState<string | null>(null);
 
     useEffect(() => {
         fetchPAI();
@@ -111,6 +115,8 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
                     ? new Date(p.nextReview).toISOString().split('T')[0]
                     : enNoventa.toISOString().split('T')[0]);
                 setSignedById(p.signedById);
+                setFirmante(p.signedBy?.name ?? p.approvedBy?.name ?? null);
+                setFirmadoEn(p.signedAt ?? p.approvedAt ?? null);
             } else {
                 // Residente sin PAI todavia: el formulario nace con la fuente de
                 // apoyo del expediente y las fechas propuestas, igual que uno
@@ -191,8 +197,8 @@ export default function PAICreatorPage(props: { params: Promise<{ id: string }> 
             clinicalSummary, cognitiveLevel, mobility, continence, dietDetails,
             interdisciplinarySummary, risks, goals, recommendedServices,
             familyEducation, preferences, monitoringMethod, revisionCriteria,
-            signedByName: patientInfo?.lifePlans?.[0]?.signedBy?.name ?? null,
-            signedAt: null,
+            signedByName: firmante,
+            signedAt: firmadoEn,
             signatureBase64: null,
         });
     };
