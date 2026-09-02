@@ -17,6 +17,10 @@ interface LifePlan {
     signedBy?: { name: string; role: string };
     signedAt?: string;
     createdAt: string;
+    emailSentAt?: string | null;
+    nextReview?: string | null;
+    /** Cuántas versiones anteriores tiene este residente. Se calcula en pantalla. */
+    anteriores?: number;
 }
 
 export default function CaregiversLifePlanPage() {
@@ -28,6 +32,9 @@ export default function CaregiversLifePlanPage() {
     // Modal State para firmas (Convertido en In-Line flow)
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Pestañas de estado. "Todos" muestra un plan por residente.
+    const [filtro, setFiltro] = useState<'TODOS' | 'AL_DIA' | 'PENDIENTE' | 'BORRADOR'>('TODOS');
+
     // Conteo por RESIDENTE, no por plan: quien no tiene ningun plan no aparece
     // en la lista de abajo, y era justo el que no se veia.
     const [resumen, setResumen] = useState<{
@@ -38,6 +45,40 @@ export default function CaregiversLifePlanPage() {
     useEffect(() => {
         fetchLifePlans();
     }, []);
+
+    // Un plan por residente: el aprobado si lo hay, si no el borrador mas
+    // reciente. `anteriores` es cuantas versiones quedan detras — no se borran,
+    // son la constancia de que decia el cuido en cada periodo.
+    const visibles = (() => {
+        const porPaciente = new Map<string, any[]>();
+        plans.forEach(pl => {
+            const l = porPaciente.get(pl.patient.id) ?? [];
+            l.push(pl);
+            porPaciente.set(pl.patient.id, l);
+        });
+
+        const uno = [...porPaciente.values()].map(l => {
+            const orden = [...l].sort((a, b) =>
+                new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+            const vigente = orden.find(x => x.status === 'APPROVED') ?? orden[0];
+            return { ...vigente, anteriores: orden.length - 1 };
+        });
+
+        const hoy = new Date();
+        const filtrados = uno.filter(pl => {
+            const vencido = pl.nextReview && new Date(pl.nextReview) < hoy;
+            const alDia = pl.status === 'APPROVED' && pl.emailSentAt && !vencido;
+            const pendiente = pl.status === 'APPROVED' && (!pl.emailSentAt || vencido);
+            if (filtro === 'AL_DIA')    return alDia;
+            if (filtro === 'PENDIENTE') return pendiente;
+            if (filtro === 'BORRADOR')  return pl.status !== 'APPROVED';
+            return true;
+        });
+
+        // Mas reciente primero — el que se acaba de tocar queda arriba.
+        return filtrados.sort((a, b) =>
+            new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+    })();
 
     const fetchLifePlans = async () => {
         try {
@@ -121,14 +162,43 @@ export default function CaregiversLifePlanPage() {
                 </div>
             )}
 
+            {/* ── PESTAÑAS ──────────────────────────────────────────────────
+                La pantalla listaba PLANES, no residentes: cada vez que se
+                regenera uno aparece otra tarjeta del mismo. Ahora se muestra el
+                plan vigente de cada residente —el aprobado si lo hay, si no el
+                borrador mas reciente— y las versiones anteriores se cuentan en la
+                tarjeta. No se borran: un plan superado es la constancia de que
+                decia el cuido en ese periodo, y varios se firmaron y se enviaron
+                a familias. */}
+            <div className="flex gap-2 flex-wrap">
+                {([
+                    ['TODOS',     'Todos'],
+                    ['AL_DIA',    'Al día'],
+                    ['PENDIENTE', 'Pendientes de enviar o vencidos'],
+                    ['BORRADOR',  'En borrador'],
+                ] as const).map(([v, t]) => (
+                    <button
+                        key={v}
+                        onClick={() => setFiltro(v)}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                            filtro === v
+                                ? 'bg-[#0F6E56] text-white'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {plans.length === 0 && (
+                {visibles.length === 0 && (
                     <div className="col-span-full py-20 text-center text-slate-500 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                         Aún no hay Fichas de Vida procesadas desde Zendity Intake.
                     </div>
                 )}
 
-                {plans.map((plan) => (
+                {visibles.map((plan) => (
                     <div key={plan.id} className="bg-white rounded-xl border border-slate-200/80 overflow-hidden flex flex-col group hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-teal-200 transition-all duration-300">
 
                         {/* Cabecera / Estatus */}
@@ -139,6 +209,11 @@ export default function CaregiversLifePlanPage() {
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className="font-bold text-lg leading-tight text-slate-800">{plan.patient.name}</h3>
+                                    {!!plan.anteriores && (
+                                        <p className="text-[11px] font-bold text-slate-400 mt-0.5">
+                                            {plan.anteriores} versión{plan.anteriores === 1 ? '' : 'es'} anterior{plan.anteriores === 1 ? '' : 'es'} en el expediente
+                                        </p>
+                                    )}
                                     <div className="flex items-center gap-1.5 mt-1 text-[10px] uppercase font-bold tracking-widest text-slate-500">
                                         <User className="w-3 h-3" /> Residente
                                     </div>
