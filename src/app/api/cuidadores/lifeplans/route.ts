@@ -19,7 +19,9 @@ export async function GET() {
                 }
             },
             include: {
-                patient: true,
+                // Solo lo que la lista usa. `patient: true` mandaba el expediente
+                // completo al navegador en cada carga.
+                patient: { select: { id: true, name: true, roomNumber: true, status: true } },
                 signedBy: { select: { name: true, role: true } }
             },
             orderBy: { createdAt: 'desc' }

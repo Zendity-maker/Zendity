@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { resolverFamiliarPrincipal } from '@/lib/familiar-principal';
 import { avisoFamiliaSinPHI } from '@/lib/family-email';
 import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
@@ -139,13 +140,26 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                 const patient = await prisma.patient.findUnique({
                     where: { id: patientId },
                     include: {
-                        primaryFamilyMember: { select: { name: true, email: true } },
+                        primaryFamilyMember: { select: { id: true, name: true, email: true } },
+                        familyMembers: { select: { id: true, name: true, email: true, isPrimary: true } },
                         headquarters: { select: { name: true, logoUrl: true } }
                     }
                 });
 
-                const familyEmail = (patient as any)?.primaryFamilyMember?.email;
-                const familyName = (patient as any)?.primaryFamilyMember?.name;
+                // Antes se leia primaryFamilyMember a secas. Ese campo solo se
+                // llenaba si alguien marcaba una casilla, y casi nadie lo hacia:
+                // 4 de 19 residentes con contacto. Aprobar el PAI de los otros 15
+                // lo dejaba firmado y en silencio — le paso a Rosa M. Solis, cuya
+                // hija tiene correo y cuenta activa y nunca se entero.
+                //
+                // Regla: el primero de la lista salvo que se marque otro.
+                // Ver src/lib/familiar-principal.ts.
+                const principal = resolverFamiliarPrincipal(
+                    (patient as any)?.familyMembers ?? [],
+                    (patient as any)?.primaryFamilyMemberId,
+                );
+                const familyEmail = principal?.email;
+                const familyName = principal?.name;
                 const hqName = (patient as any)?.headquarters?.name || 'Zéndity';
                 const logoUrl = emailLogoSrc((patient as any)?.headquartersId, (patient as any)?.headquarters?.logoUrl);
 

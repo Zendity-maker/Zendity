@@ -2442,7 +2442,11 @@ export default function ZendityCareTabletPage() {
         ...(user?.role === 'SUPERVISOR' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN' || isActingAsCaregiver ? [{ href: '#', icon: '📌', label: 'Asignar', onClick: () => { setHubCaregiverId(""); setHubDescription(""); fetchCaregiversTarget(); setModalType('FAST_ACTION_DISPATCH'); } }] : []),
         { href: '/academy', icon: '🎓', label: 'Academy' },
         { href: '/care/profile', icon: '👤', label: 'Mi Perfil' },
-        { href: '/cuidadores', icon: '📋', label: 'Life Plans' },
+        // El indice de PAI exige NURSE/SUPERVISOR/DIRECTOR/ADMIN en su endpoint.
+        // Una cuidadora que tocara este enlace recibia una lista vacia. El plan
+        // del residente le llega por su tarjeta —riesgos y preferencias— que es
+        // lo que le sirve en el turno.
+        ...(puedeVerPAI ? [{ href: '/cuidadores', icon: '📋', label: 'Life Plans' }] : []),
     ];
 
     // Campana del topbar → notificaciones reales (no fast actions)

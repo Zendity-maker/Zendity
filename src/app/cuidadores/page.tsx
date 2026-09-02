@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ShieldAlert, CheckCircle2, Clock, User, FileSignature } from 'lucide-react';
 
 interface LifePlan {
     id: string;
-    patient: { name: string };
+    patient: { id: string; name: string };
     status: "DRAFT" | "APPROVED";
     criticalAlerts: string;
     feeding: string;
@@ -25,8 +26,6 @@ export default function CaregiversLifePlanPage() {
     const [loading, setLoading] = useState(true);
 
     // Modal State para firmas (Convertido en In-Line flow)
-    const [signingPlanId, setSigningPlanId] = useState<string | null>(null);
-    const [signaturePin, setSignaturePin] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -47,36 +46,8 @@ export default function CaregiversLifePlanPage() {
         }
     };
 
-    const handleSign = async (planId: string) => {
-        if (!signaturePin || signaturePin.length < 4 || !user) return;
-        setIsSubmitting(true);
 
-        try {
-            const res = await fetch("/api/cuidadores/lifeplans/sign", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    planId,
-                    userId: user.id,
-                    signature: signaturePin
-                }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setSignaturePin("");
-                setSigningPlanId(null);
-                fetchLifePlans();
-            } else {
-                alert(data.error);
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
-    const canSign = ["NURSE", "ADMIN", "DIRECTOR", "CLINICAL_DIRECTOR", "SUPER_ADMIN"].includes(user?.role || "");
 
     if (loading) return (
         <div className="flex h-64 items-center justify-center">
@@ -199,49 +170,21 @@ export default function CaregiversLifePlanPage() {
                                     )}
                                 </div>
                             ) : (
-                                canSign ? (
-                                    signingPlanId === plan.id ? (
-                                        <div className="animate-in fade-in space-y-3">
-                                            <p className="text-xs text-slate-500 font-medium">Validación Clínica para {plan.patient.name}:</p>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="password"
-                                                    placeholder="PIN Médico..."
-                                                    className="w-full text-center tracking-[0.3em] font-black text-slate-800 border border-slate-300 rounded-xl py-2.5 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white shadow-inner text-sm outline-none transition-all"
-                                                    value={signaturePin}
-                                                    onChange={e => setSignaturePin(e.target.value)}
-                                                    maxLength={6}
-                                                    autoFocus
-                                                />
-                                                <button
-                                                    onClick={() => handleSign(plan.id)}
-                                                    disabled={isSubmitting || signaturePin.length < 4}
-                                                    className="px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md disabled:opacity-50 transition-colors"
-                                                >
-                                                    {isSubmitting ? '...' : 'OK'}
-                                                </button>
-                                                <button
-                                                    onClick={() => setSigningPlanId(null)}
-                                                    className="px-3 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold rounded-xl transition-colors"
-                                                >
-                                                    X
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => setSigningPlanId(plan.id)}
-                                            className="w-full py-2.5 bg-white border border-slate-200 hover:border-teal-400 hover:text-teal-700 text-slate-600 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 group"
-                                        >
-                                            <FileSignature className="w-4 h-4 text-slate-500 group-hover:text-teal-500 transition-colors" />
-                                            Revisar y Firmar PAI
-                                        </button>
-                                    )
-                                ) : (
-                                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 py-2.5 rounded-xl">
-                                        <Clock className="w-4 h-4" /> En espera de auditoría
-                                    </div>
-                                )
+                                /* Aqui vivia un segundo camino para firmar el PAI: un "PIN Medico"
+                                   que no validaba nada —la ruta aceptaba 4 caracteres cualesquiera y
+                                   el firmante salia de la sesion, no del PIN— y que ademas no
+                                   guardaba el contenido editado, no exigia la version familiar y NO
+                                   enviaba el correo a la familia. Dos botones que firmaban el mismo
+                                   documento con consecuencias distintas es como se pierde un envio
+                                   sin que nadie lo note.
+                                   El PAI se aprueba en un solo lugar: su propia pantalla. */
+                                <Link
+                                    href={`/corporate/medical/patients/${plan.patient.id}/pai`}
+                                    className="w-full py-2.5 bg-white border border-slate-200 hover:border-teal-400 hover:bg-teal-50 rounded-xl font-bold text-sm text-slate-700 flex items-center justify-center gap-2 transition-colors group"
+                                >
+                                    <FileSignature className="w-4 h-4 text-slate-500 group-hover:text-teal-500 transition-colors" />
+                                    Abrir y aprobar PAI
+                                </Link>
                             )}
                         </div>
                     </div>

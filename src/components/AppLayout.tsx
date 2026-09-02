@@ -39,7 +39,9 @@ const clinicalNavigation = [
     // recibe 403 del endpoint.
     { name: 'Rotación / UPP', href: '/care/nursing', icon: Bed, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Reportes de Turno', href: '/care/reports', icon: ClipboardList },
-    { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText },
+    // Match exacto del role gate de /api/cuidadores/lifeplans. Sin onlyRoles lo
+    // veian cocina y mantenimiento, y al entrar chocaban con un 403.
+    { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
