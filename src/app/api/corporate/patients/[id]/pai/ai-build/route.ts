@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { esCuidadoDeFinal, lineaModalidad, etiquetaModalidad } from '@/lib/cuidado-final';
 import { generateObject, generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
@@ -152,7 +153,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 typeof patient.intakeData?.bradenScore === 'number' && patient.intakeData.bradenScore <= 14
                     ? ' (ALTO RIESGO de ulceras por presion)' : ''}`,
             `Escala Downton (caidas): ${patient.intakeData?.downtonScore ?? 'No registrada'}`,
-            `Modalidad de cuido: ${patient.careModality ?? 'NONE'}`,
+            `Modalidad de cuido: ${
+                esCuidadoDeFinal(patient.careModality)
+                    ? `${lineaModalidad(patient.careModality, patient.hospiceProvider)} — el objetivo del plan es CONFORT, no recuperacion${
+                        patient.hospiceStartDate ? ` (desde ${patient.hospiceStartDate.toLocaleDateString('es-PR')})` : ''}`
+                    : 'Cuido regular'
+            }`,
+            `Dialisis: ${
+                patient.needsDialysis
+                    ? 'SI — sale del hogar periodicamente a tratamiento'
+                    : 'No'
+            }`,
         ].join('\n');
 
         const clinicalContext = `
@@ -180,6 +191,16 @@ ${previousPai
     ? `Tipo: ${previousPai.type} | Aprobado: ${new Date(previousPai.approvedAt!).toLocaleDateString('es-PR')}\nResumen previo: ${previousPai.clinicalSummary?.slice(0, 200)}`
     : 'No existe PAI previo aprobado — este es el INICIAL'}
         `.trim();
+
+        // La carta a la familia la firma el hogar, con su nombre. Antes cerraba
+        // con "[Su Nombre] / Trabajador Social / Residencia Geriatrica" — un
+        // marcador sin rellenar y un cargo generico en un mensaje que la familia
+        // recibe del sitio donde vive su ser querido.
+        const sede = await prisma.headquarters.findUnique({
+            where: { id: invokerHqId },
+            select: { name: true },
+        });
+        const hqName = sede?.name || 'Zéndity';
 
         // ── 8b. QUIEN EXISTE DE VERDAD EN ESTA SEDE ──────────────────────────
         // Sin esto la IA repartia trabajo a fisioterapeutas, nutricionistas y
@@ -212,6 +233,24 @@ ${previousPai
         const { object } = await generateObject({
             model: openai('gpt-4o-mini'),
             system: `Eres el Director Médico de una residencia geriátrica. Redactas Planes Asistenciales Individualizados (PAI) de altísima calidad clínica y compasiva. Analiza todos los datos clínicos proporcionados — incluyendo signos vitales, adherencia, UPPs, caídas y alertas — para generar un PAI preciso y actualizado. Sé específico y basa CADA riesgo y objetivo en los datos reales provistos.
+
+REGLA INVIOLABLE SOBRE HOSPICIO Y PALIATIVO.
+Si el ESTADO FUNCIONAL dice que la modalidad es Hospicio o Paliativo, el plan
+cambia de proposito: se busca CONFORT, dignidad y acompañamiento, no recuperar
+funcion. Prohibidos los objetivos de rehabilitacion —"mejorar la fuerza",
+"aumentar la movilidad", "recuperar"— y prohibido el tono celebratorio o de
+progreso. Los objetivos correctos son manejo del dolor, higiene y piel,
+posicionamiento cómodo, alimentación segun tolerancia y no segun metas
+nutricionales, y acompañamiento a la persona y a su familia. En Puerto Rico y
+en este hogar, paliativo se comunica como hospicio: no los diferencies en el
+lenguaje a la familia.
+
+REGLA INVIOLABLE SOBRE DIALISIS.
+Si el residente sale a dialisis, el plan tiene que contemplarlo: los dias de
+tratamiento sale del hogar y vuelve cansado, hay restriccion de liquidos y de
+sal, hay que cuidar el acceso vascular (fistula o cateter) y vigilar la presion
+y el peso alrededor de la sesion. Un plan que no menciona la dialisis de alguien
+que va tres veces por semana no describe su vida.
 
 REGLA INVIOLABLE SOBRE LO QUE NO SABES.
 El bloque ESTADO FUNCIONAL es el expediente. NUNCA lo contradigas: si dice
@@ -273,7 +312,23 @@ tarea asignada al hogar.`,
         // ── 10. Generar versión familiar (lenguaje cálido, máx 400 palabras) ──
         const { text: familyVersion } = await generateText({
             model: openai('gpt-4o-mini'),
-            system: 'Eres un Trabajador Social especializado en comunicación familiar en residencias geriátricas. Tu tarea es traducir un Plan Asistencial clínico a un mensaje cálido, humano y comprensible para la familia. Usa un tono empático y positivo. NUNCA uses jerga médica sin explicarla. Máximo 400 palabras.',
+            system: `Escribes en nombre de ${hqName} a la familia de un residente. Traduces un Plan Asistencial clínico a un mensaje cálido, humano y comprensible. NUNCA uses jerga médica sin explicarla. Máximo 400 palabras.
+
+CÓMO SE FIRMA. La carta la firma el hogar, no una persona. Cierra exactamente con:
+
+Con cariño,
+El equipo de ${hqName}
+
+Está PROHIBIDO firmar con un nombre propio, con "[Su Nombre]", con un cargo
+como "Trabajador Social", o con "Residencia Geriátrica". La familia recibe esto
+del hogar donde vive su ser querido, y ese hogar tiene nombre.
+
+EL TONO SE AJUSTA A LA SITUACIÓN. El tono cálido no significa optimista a la
+fuerza. Si el residente está en hospicio o cuidado paliativo, esta carta NO
+habla de mejorar, progresar ni recuperar: habla de acompañar, de que no le
+falte nada, de cuidar su comodidad y su dignidad, y de que la familia no está
+sola. Escribir "un gran avance" a la familia de alguien que está en sus últimos
+meses hiere y además no es cierto.`,
             prompt: `Traduce este Plan Asistencial al lenguaje familiar cálido y comprensible:
 
 Residente: ${patient.name}
@@ -285,7 +340,10 @@ Riesgos principales: ${object.risks.map(r => `${r.area} (${r.priority}): ${r.fin
 Objetivos principales: ${object.goals.map(g => `${g.objective}: ${g.action}`).join('; ')}
 Educación familiar: ${object.familyEducation}
 
-Escribe una carta a la familia explicando el plan de cuidado de su ser querido de forma cálida y tranquilizadora. Incluye: cómo está hoy, qué prioridades tiene el equipo, y cómo la familia puede apoyar.`
+Situación de cuido: ${esCuidadoDeFinal(patient.careModality) ? `${etiquetaModalidad(patient.careModality)} — el propósito es confort y acompañamiento, NO recuperación. Ajusta el tono.` : 'Cuido regular'}
+Sale a diálisis: ${patient.needsDialysis ? 'Sí — menciónalo, la familia debe saber cómo se maneja ese día' : 'No'}
+
+Escribe una carta a la familia explicando el plan de cuidado de su ser querido de forma cálida. Incluye: cómo está hoy, qué prioridades tiene el equipo, y cómo la familia puede apoyar. Cierra con "Con cariño," y "El equipo de ${hqName}" — nunca con un nombre propio ni un cargo.`
         });
 
         return NextResponse.json({
