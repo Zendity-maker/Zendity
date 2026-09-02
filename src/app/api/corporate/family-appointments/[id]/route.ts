@@ -57,7 +57,7 @@ async function patchHandler(
 
         const staffId = (session.user as any).id;
         const hqId    = (session.user as any).headquartersId;
-        const { action, rejectedReason } = await req.json();
+        const { action, rejectedReason, durationMins: duracionAjustada } = await req.json();
 
         if (!['APPROVE', 'REJECT'].includes(action)) {
             return NextResponse.json({ success: false, error: 'Acción inválida' }, { status: 400 });
@@ -97,12 +97,32 @@ async function patchHandler(
         if (action === 'APPROVE') {
             // Construir startTime / endTime anclados a AST (no al reloj UTC del servidor).
             // requestedDate viene como medianoche AST → UTC; requestedTime es hora de pared AST.
+            // El hogar puede ajustar la duracion al aprobar. Antes solo se podia
+            // aprobar tal cual o rechazar: si la familia pedia dos horas en un
+            // turno apretado, la unica salida era un "no" seco cuando lo que se
+            // queria decir era "si, pero de 10:00 a 11:00".
+            //
+            // Se aceptan las mismas opciones que ofrece la pantalla de familia.
+            // Un valor fuera de esa lista se rechaza en vez de guardarse: una
+            // duracion arbitraria descuadraria el bloque del calendario.
+            const DURACIONES_VALIDAS = [30, 60, 120];
+            let duracion = appt.durationMins;
+            if (duracionAjustada !== undefined && duracionAjustada !== null) {
+                if (!DURACIONES_VALIDAS.includes(Number(duracionAjustada))) {
+                    return NextResponse.json(
+                        { success: false, error: 'Duración inválida. Use 30, 60 o 120 minutos.' },
+                        { status: 400 },
+                    );
+                }
+                duracion = Number(duracionAjustada);
+            }
+
             let startTime: Date;
             let endTime: Date;
             try {
                 const { hour, minute } = parseTimeOfDay(appt.requestedTime);
                 startTime = astDateTime(appt.requestedDate, hour, minute);
-                endTime = new Date(startTime.getTime() + appt.durationMins * 60_000);
+                endTime = new Date(startTime.getTime() + duracion * 60_000);
             } catch (err) {
                 console.error('[family-appointments PATCH] Hora inválida:', err);
                 return NextResponse.json(
@@ -118,7 +138,9 @@ async function patchHandler(
             const [updated] = await prisma.$transaction([
                 prisma.familyAppointment.update({
                     where: { id },
-                    data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date() },
+                    // Se guarda la duracion acordada, no la pedida: es la que la
+                    // familia vera en su calendario y la que lleva el ICS.
+                    data: { status: 'APPROVED', approvedById: staffId, approvedAt: new Date(), durationMins: duracion },
                 }),
                 prisma.headquartersEvent.create({
                     data: buildApprovedAppointmentEventData({

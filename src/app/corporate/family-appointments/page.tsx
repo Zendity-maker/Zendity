@@ -48,6 +48,9 @@ export default function FamilyAppointmentsPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
+    // Duración acordada por cita, cuando el hogar la ajusta al aprobar.
+    // Sin entrada aquí se usa la que pidió la familia.
+    const [duracion, setDuracion] = useState<Record<string, number>>({});
 
     // Modal rechazar
     const [rejectModal, setRejectModal] = useState<{ apptId: string; familyName: string } | null>(null);
@@ -68,13 +71,13 @@ export default function FamilyAppointmentsPage() {
 
     useEffect(() => { load(activeTab); }, [activeTab]); // eslint-disable-line
 
-    const handleAction = async (id: string, action: 'APPROVE' | 'REJECT', reason?: string) => {
+    const handleAction = async (id: string, action: 'APPROVE' | 'REJECT', reason?: string, durationMins?: number) => {
         setProcessing(id);
         try {
             const res = await fetch(`/api/corporate/family-appointments/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, rejectedReason: reason }),
+                body: JSON.stringify({ action, rejectedReason: reason, durationMins }),
             });
             const data = await res.json();
             if (data.success) {
@@ -208,9 +211,44 @@ export default function FamilyAppointmentsPage() {
 
                                 {/* Acciones solo para PENDING */}
                                 {activeTab === 'PENDING' && (
-                                    <div className="flex gap-2 pt-3 border-t border-slate-50">
+                                    <div className="pt-3 border-t border-slate-50 space-y-3">
+                                        {/* Duración acordada. La familia elige al pedir, pero el hogar
+                                            no podía ajustarla: si pedían dos horas en un turno apretado
+                                            la única salida era rechazar, cuando lo que se quería decir
+                                            era "sí, pero de 10:00 a 11:00". */}
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1.5">
+                                                Duración acordada
+                                                {(duracion[appt.id] ?? appt.durationMins) !== appt.durationMins && (
+                                                    <span className="ml-1.5 text-amber-600 normal-case font-bold tracking-normal">
+                                                        · la familia pidió {appt.durationMins} min
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <div className="flex gap-1.5">
+                                                {[30, 60, 120].map(v => {
+                                                    const activo = (duracion[appt.id] ?? appt.durationMins) === v;
+                                                    return (
+                                                        <button
+                                                            key={v}
+                                                            type="button"
+                                                            onClick={() => setDuracion(d => ({ ...d, [appt.id]: v }))}
+                                                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                                                activo
+                                                                    ? 'bg-[#0F6E56] text-white'
+                                                                    : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                                                            }`}
+                                                        >
+                                                            {v === 30 ? '30 min' : v === 60 ? '1 hora' : '2 horas'}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleAction(appt.id, 'APPROVE')}
+                                            onClick={() => handleAction(appt.id, 'APPROVE', undefined, duracion[appt.id] ?? appt.durationMins)}
                                             disabled={processing === appt.id}
                                             className="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black rounded-2xl py-3 text-sm transition-all active:scale-95"
                                         >
@@ -227,6 +265,7 @@ export default function FamilyAppointmentsPage() {
                                         >
                                             <X className="w-4 h-4" /> Rechazar
                                         </button>
+                                    </div>
                                     </div>
                                 )}
                             </div>
