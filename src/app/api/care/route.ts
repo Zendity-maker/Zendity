@@ -203,6 +203,22 @@ export async function GET(req: Request) {
             ? colors.map(c => ({ targetGroups: { has: c } }))
             : [];
 
+        // Eventos dirigidos a un residente concreto (targetPopulation SPECIFIC).
+        // Aqui vivian las citas de familia: al aprobar una videollamada o visita
+        // se crea un HeadquartersEvent con targetPopulation 'SPECIFIC',
+        // targetGroups [] y targetPatients [idDelResidente]. El OR de abajo solo
+        // tenia rama para 'ALL' y para grupos de color, asi que esos eventos no
+        // podian salir NUNCA en la tableta — no fallaban a veces, era estructural.
+        //
+        // Maria del Pilar Velez pidio 9 citas para Hector Velez Grau, 6 se
+        // aprobaron y ninguna llego a la cuidadora. No las ignoraron: no les
+        // llegaron. Se incluyen los residentes de cobertura porque quien cubre
+        // es quien tiene que atender la llamada.
+        const misPacientes = patientsRaw.map(p => p.id);
+        const eventPatientOrs = misPacientes.length > 0
+            ? [{ targetPopulation: 'SPECIFIC', targetPatients: { hasSome: misPacientes } }]
+            : [];
+
         const events = await prisma.headquartersEvent.findMany({
             where: {
                 headquartersId: hqId,
@@ -214,6 +230,7 @@ export async function GET(req: Request) {
                 OR: [
                     { targetPopulation: 'ALL' },
                     ...eventColorOrs,
+                    ...eventPatientOrs,
                 ],
             },
             include: {
