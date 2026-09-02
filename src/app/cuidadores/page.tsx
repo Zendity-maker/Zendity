@@ -28,6 +28,13 @@ export default function CaregiversLifePlanPage() {
     // Modal State para firmas (Convertido en In-Line flow)
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Conteo por RESIDENTE, no por plan: quien no tiene ningun plan no aparece
+    // en la lista de abajo, y era justo el que no se veia.
+    const [resumen, setResumen] = useState<{
+        total: number; alDia: number; sinEnviar: number;
+        vencidos: number; borrador: number; sinPlan: number;
+    } | null>(null);
+
     useEffect(() => {
         fetchLifePlans();
     }, []);
@@ -38,6 +45,7 @@ export default function CaregiversLifePlanPage() {
             const data = await res.json();
             if (data.success) {
                 setPlans(data.lifePlans);
+                setResumen(data.resumen ?? null);
             }
         } catch (error) {
             console.error(error);
@@ -71,6 +79,47 @@ export default function CaregiversLifePlanPage() {
                     <p className="text-slate-500 mt-3 font-medium text-sm">Fichas de Cuidado Operativo (PAI) generadas por IA y validadas por Enfermería clínica.</p>
                 </div>
             </div>
+
+            {/* ── ESTADO DE LOS PAI ──────────────────────────────────────────
+                Un plan solo cuenta como "al dia" si ademas la familia recibio su
+                copia. Aprobar sin enviar es media tarea, y esa mitad es la que se
+                perdia de vista: hasta sep-2026 el correo salia solo a quien
+                tuviera familiar principal marcado, o sea 4 de 19. */}
+            {resumen && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                    <div className="flex items-baseline justify-between mb-4">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                            Estado de los planes
+                        </p>
+                        <p className="text-sm font-bold text-slate-500">
+                            <span className="text-2xl font-black text-[#0F6E56]">{resumen.alDia}</span>
+                            <span className="text-slate-400"> de {resumen.total} al día</span>
+                        </p>
+                    </div>
+
+                    <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex mb-4">
+                        <div className="bg-[#0F6E56] h-full" style={{ width: `${(resumen.alDia / Math.max(resumen.total, 1)) * 100}%` }} />
+                        <div className="bg-amber-400 h-full" style={{ width: `${((resumen.sinEnviar + resumen.vencidos) / Math.max(resumen.total, 1)) * 100}%` }} />
+                        <div className="bg-slate-300 h-full" style={{ width: `${((resumen.borrador + resumen.sinPlan) / Math.max(resumen.total, 1)) * 100}%` }} />
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        {[
+                            { n: resumen.alDia,     t: 'Al día',            d: 'aprobado y la familia lo tiene', c: 'text-[#0F6E56]' },
+                            { n: resumen.sinEnviar, t: 'Sin enviar',        d: 'aprobado, la familia no lo ha recibido', c: 'text-amber-600' },
+                            { n: resumen.vencidos,  t: 'Vencidos',          d: 'pasó su fecha de revisión', c: 'text-amber-600' },
+                            { n: resumen.borrador,  t: 'En borrador',       d: 'falta redactarlo o aprobarlo', c: 'text-slate-600' },
+                            { n: resumen.sinPlan,   t: 'Sin plan',          d: 'no tiene ninguno', c: 'text-rose-600' },
+                        ].map(x => (
+                            <div key={x.t} className={x.n === 0 ? 'opacity-40' : ''}>
+                                <p className={`text-2xl font-black ${x.c}`}>{x.n}</p>
+                                <p className="text-xs font-bold text-slate-700">{x.t}</p>
+                                <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{x.d}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {plans.length === 0 && (
