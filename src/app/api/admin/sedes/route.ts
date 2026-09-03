@@ -103,6 +103,11 @@ export async function POST(req: Request) {
             ownerPhone,
             taxId,
             billingAddress,
+            // Telefono de la SEDE, distinto del del dueño: es el que sale
+            // impreso en el formulario de traslado de emergencia que va con el
+            // residente al hospital. No se pedia, y las dos sedes de Vivid
+            // quedaron sin el.
+            phone,
             plan,
             pricePerBed,
             beds,
@@ -130,6 +135,7 @@ export async function POST(req: Request) {
                     ownerPhone: ownerPhone || null,
                     taxId: taxId || null,
                     billingAddress: billingAddress || null,
+                    phone: phone || null,
                     subscriptionPlan: normalizePlan(plan) || 'PRO',
                     subscriptionStatus: 'ACTIVE',
                 },

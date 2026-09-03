@@ -1375,6 +1375,11 @@ function NewSedeModal({
         name: prefill?.name ?? "",
         capacity: prefill?.capacity ?? "50",
         licenseMonths: "12",
+        // Telefono y direccion DE LA SEDE. Salen impresos en el formulario de
+        // traslado de emergencia que va con el residente al hospital; sin ellos
+        // ese papel llega sin a quien llamar. Las dos sedes de Vivid se crearon
+        // sin ninguno de los dos porque el alta no los pedia.
+        phone: "",
         directorName: prefill?.directorName ?? "",
         directorEmail: prefill?.directorEmail ?? "",
         directorPinCode: "",
@@ -1389,6 +1394,10 @@ function NewSedeModal({
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Al crear una sede pasan varias cosas y ninguna se contaba: el modal se
+    // cerraba y ya. Quien da de alta no sabia que el BAA quedo pendiente ni que
+    // hasta firmarlo la sede no puede registrar residentes.
+    const [creada, setCreada] = useState<{ nombre: string; director: string; camas: number; mensual: number } | null>(null);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1411,6 +1420,12 @@ function NewSedeModal({
                     });
                 }
                 const hq = data.onboarding.hq;
+                setCreada({
+                    nombre: hq.name,
+                    director: form.directorEmail,
+                    camas: Number(form.capacity) || 0,
+                    mensual: data.onboarding.contract?.monthlyAmount ?? 0,
+                });
                 onCreated({
                     ...hq,
                     saasContract: data.onboarding.contract,
@@ -1432,6 +1447,53 @@ function NewSedeModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+            {creada ? (
+                /* Que se creo y que falta. Antes el modal se cerraba y ya: quien
+                   daba de alta no sabia que el BAA quedaba pendiente, ni que
+                   hasta firmarlo la sede no puede registrar ni un residente. */
+                <div className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-lg p-7 space-y-5">
+                    <div>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Sede creada</p>
+                        <h2 className="text-2xl font-black text-white mt-1">{creada.nombre}</h2>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between border-b border-slate-800 pb-2">
+                            <span className="text-slate-400">Director</span>
+                            <span className="text-white font-bold">{creada.director}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-800 pb-2">
+                            <span className="text-slate-400">Capacidad</span>
+                            <span className="text-white font-bold">{creada.camas} camas</span>
+                        </div>
+                        <div className="flex justify-between border-b border-slate-800 pb-2">
+                            <span className="text-slate-400">Mensualidad</span>
+                            <span className="text-white font-bold">${creada.mensual.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-amber-400 mb-1.5">Falta antes de operar</p>
+                        <p className="text-sm text-amber-100/90 leading-relaxed">
+                            El <strong>Acuerdo de Asociado Comercial (BAA)</strong> quedó pendiente de firma.
+                            Hasta que el director lo firme, esta sede <strong>no puede registrar residentes</strong>.
+                            Lo encuentra en su menú lateral, en <strong>Acuerdos</strong>.
+                        </p>
+                    </div>
+
+                    <p className="text-[13px] text-slate-400 leading-relaxed">
+                        Después necesitará registrar cuidadoras y personal de enfermería o supervisión.
+                        Su avance se ve en <strong className="text-slate-300">Puesta en Marcha</strong>.
+                    </p>
+
+                    <button
+                        onClick={onClose}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0F6B78] to-[#3CC6C4] text-white font-black"
+                    >
+                        Entendido
+                    </button>
+                </div>
+            ) : (
             <form
                 onSubmit={submit}
                 className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
@@ -1478,6 +1540,8 @@ function NewSedeModal({
                             <Field label="Nombre" span={2}><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} /></Field>
                             <Field label="Capacidad (camas)"><input required type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className={inputCls} /></Field>
                             <Field label="Meses de licencia"><input required type="number" min={1} value={form.licenseMonths} onChange={(e) => setForm({ ...form, licenseMonths: e.target.value })} className={inputCls} /></Field>
+                            <Field label="Teléfono de la sede" span={2}><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="787-000-0000 — sale en el formulario de traslado" className={inputCls} /></Field>
+                            <Field label="Dirección" span={2}><input value={form.billingAddress} onChange={(e) => setForm({ ...form, billingAddress: e.target.value })} placeholder="Dirección física del hogar" className={inputCls} /></Field>
                         </div>
                     </Section>
 
@@ -1535,6 +1599,7 @@ function NewSedeModal({
                     </button>
                 </footer>
             </form>
+            )}
         </div>
     );
 }
