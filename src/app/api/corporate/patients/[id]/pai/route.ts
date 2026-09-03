@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { marcaSede } from '@/lib/marca-sede';
 import { resolverFamiliarPrincipal } from '@/lib/familiar-principal';
 import { avisoFamiliaSinPHI } from '@/lib/family-email';
 import { requireRole } from '@/lib/api-auth';
@@ -179,6 +180,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
                         titulo: 'Plan de atención aprobado',
                         detalle: 'El equipo clínico aprobó una actualización del plan de atención. Puede leerlo completo en el portal familiar.',
                         ruta: '/family/pai',
+                        // La marca de la sede: su nombre grande y sus colores.
+                        // La familia recibe esto del hogar, no de Zendity.
+                        marca: await marcaSede((patient as any).headquartersId),
                     });
 
                     await sgMail.send({
