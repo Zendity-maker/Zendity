@@ -203,13 +203,13 @@ export default function SedesPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={openCreate}
-                        className="px-5 py-2.5 rounded-xl text-sm font-bold text-white shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2"
-                        style={{ backgroundColor: COLORS.teal }}
-                    >
-                        <Plus className="w-4 h-4" /> Nueva Sede
-                    </button>
+                    {/* Aqui vivia un boton "Nueva Sede". A esta pantalla solo llegan
+                        DIRECTOR y ADMIN (ver el gate de arriba), y la API exige
+                        SUPER_ADMIN: el boton era un callejon sin salida que devolvia
+                        403. Ademas ese camino creaba la sede SIN director y SIN
+                        contrato — sedes huerfanas. El alta completa —sede, director
+                        con PIN y contrato SaaS en una transaccion— vive en /admin/sedes,
+                        porque abrir una sede es una decision comercial, no operacional. */}
                     <button
                         onClick={() => router.push("/corporate")}
                         className="px-5 py-2.5 bg-white border border-slate-200 shadow-sm rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
