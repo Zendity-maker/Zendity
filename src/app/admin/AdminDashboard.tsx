@@ -1,5 +1,7 @@
 "use client";
 
+import { signOut } from "next-auth/react";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getPlanDisplayName, PLAN_PRICING, normalizePlan, BED_PRICE, calculateMonthlyFee } from "@/lib/entitlements";
@@ -31,6 +33,7 @@ import {
     ReceiptText,
     Eye,
     EyeOff,
+    LogOut,
 } from "lucide-react";
 
 // =============== Tipos ===============
@@ -200,6 +203,18 @@ export default function AdminDashboard({ userName }: { userName: string }) {
                             Super Admin
                         </span>
                         <span className="text-sm text-slate-400 hidden sm:block">{userName}</span>
+                        {/* Cerrar sesion. El panel de super admin no usa AppLayout
+                            —esta en isFullScreenRoute— y el boton de salir vive en
+                            su barra lateral. Ademas AppLayout redirige a /admin a
+                            cualquier SUPER_ADMIN que navegue a otra ruta: no habia
+                            NINGUNA forma de cerrar sesion desde aqui. */}
+                        <button
+                            onClick={() => signOut({ callbackUrl: "/login" })}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors flex items-center gap-1.5"
+                            title="Cerrar sesión"
+                        >
+                            <LogOut className="w-3.5 h-3.5" /> Salir
+                        </button>
                     </div>
                 </div>
 
