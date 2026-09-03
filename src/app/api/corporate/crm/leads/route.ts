@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { bloqueoPorBAA } from '@/lib/acuerdos-sede';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -135,6 +136,17 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
         }
 
+        // ── CANDADO BAA ──────────────────────────────────────────────────
+        // Sin Acuerdo de Asociado Comercial firmado, Zendity no puede recibir
+        // informacion de salud de un residente. Es requisito de HIPAA y protege
+        // al hogar tanto como al residente. Estricto a proposito: en el momento
+        // del alta nadie tiene prisa todavia, y un aviso permanente se vuelve
+        // paisaje en dos semanas. Ver src/lib/acuerdos-sede.ts.
+        const bloqueo = await bloqueoPorBAA(hqId);
+        if (bloqueo) {
+            return NextResponse.json({ success: false, error: bloqueo }, { status: 403 });
+        }
+
         const result = await prisma.$transaction(async (tx) => {
             // 1. Update Lead Status + evento de la transición
             const updatedLead = await tx.cRMLead.update({
@@ -155,6 +167,7 @@ export async function PATCH(request: Request) {
 
             // 2. Create the Patient
             const fullName = `${lead.firstName} ${lead.lastName}`;
+
             const newPatient = await tx.patient.create({
                 data: {
                     headquartersId: hqId,

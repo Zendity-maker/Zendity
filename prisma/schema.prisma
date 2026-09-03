@@ -212,6 +212,8 @@ model Headquarters {
   // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos familiares
   // generados desde esta sede. Multi-tenant scoping.
   familyContactLogs FamilyContactLog[]
+  /// BAA y contrato de servicio aceptados por esta sede.
+  acuerdos AcuerdoSede[]
 }
 
 // =======================
@@ -397,6 +399,8 @@ model User {
   encuestasComoFavorito FamilySurvey[] @relation("CuidadorFavorito")
   /// Sedes que este usuario administra como dueño. Ver Headquarters.ownerId.
   sedesPropias Headquarters[] @relation("SedesDelDueno")
+  /// Acuerdos de sede que esta persona acepto. Ver AcuerdoSede.
+  acuerdosAceptados AcuerdoSede[] @relation("AcuerdosAceptados")
 }
 
 model Account {
@@ -3738,4 +3742,42 @@ model FamilyContactLog {
   @@index([patientId, contactedAt]) // historial por residente
   @@index([familyMemberId, contactedAt]) // historial por familiar
   @@index([loggedById, contactedAt]) // "quién hizo cuántas"
+}
+
+/// Acuerdos que una sede acepta antes de operar: el BAA de HIPAA y el contrato
+/// de servicio.
+///
+/// Hasta sep-2026 no existia nada de esto. El SaaSContract se creaba POR Zendity
+/// SOBRE el cliente, sin que el cliente aceptara nada: ni firma, ni fecha de
+/// aceptacion, ni constancia de quien acepto. Si un hogar decia "yo nunca acorde
+/// ese precio", no habia con que responder. Y no habia BAA en absoluto, que es
+/// requisito legal para procesar PHI de residentes ajenos.
+///
+/// Se guarda el hash del contenido aceptado: si el texto del acuerdo cambia
+/// despues, se puede demostrar QUE version acepto esta sede y no otra.
+model AcuerdoSede {
+  id             String   @id @default(uuid())
+  headquartersId String
+  /// "BAA" | "SERVICIO"
+  tipo           String
+  /// Version del texto, ej "2026.09". Ver src/lib/baa-texto.ts
+  version        String
+  /// SHA-256 del texto exacto que se le mostro. Constancia de que se acepto.
+  contenidoHash  String
+
+  aceptadoEn     DateTime?
+  aceptadoPorId  String?
+  /// Nombre tal como lo escribio quien acepto — su firma tecleada.
+  firmanteNombre String?
+  /// Cargo declarado por quien acepta: "Dueño", "Administrador", etc.
+  firmanteCargo  String?
+  aceptadoIp     String?
+
+  createdAt      DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+  aceptadoPor  User?        @relation("AcuerdosAceptados", fields: [aceptadoPorId], references: [id])
+
+  @@unique([headquartersId, tipo, version])
+  @@index([headquartersId, aceptadoEn])
 }

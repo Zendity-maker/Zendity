@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { bloqueoPorBAA } from '@/lib/acuerdos-sede';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
@@ -46,6 +47,17 @@ export async function POST(req: Request) {
         }
 
         // 1. Crear el Perfil Demográfico base del Residente
+        // ── CANDADO BAA ──────────────────────────────────────────────────
+        // Sin Acuerdo de Asociado Comercial firmado, Zendity no puede recibir
+        // informacion de salud de un residente. Es requisito de HIPAA y protege
+        // al hogar tanto como al residente. Estricto a proposito: en el momento
+        // del alta nadie tiene prisa todavia, y un aviso permanente se vuelve
+        // paisaje en dos semanas. Ver src/lib/acuerdos-sede.ts.
+        const bloqueo = await bloqueoPorBAA((session.user as any).headquartersId);
+        if (bloqueo) {
+            return NextResponse.json({ success: false, error: bloqueo }, { status: 403 });
+        }
+
         const patient = await prisma.patient.create({
             data: {
                 name,
