@@ -127,15 +127,16 @@ async function paiContradiceExpediente(hqId: string): Promise<Hallazgo> {
  */
 async function caidasFueraDelModulo(hqId: string): Promise<Hallazgo> {
     const desde = new Date(Date.now() - 30 * 86400000);
-    const pacientes = await prisma.patient.findMany({
-        where: { headquartersId: hqId },
-        select: { id: true, name: true },
-    });
-    const fuera: string[] = [];
-    for (const p of pacientes) {
-        const logs = await prisma.dailyLog.count({
+
+    // Dos consultas agrupadas, no una por residente. La primera version hacia
+    // dos queries POR PACIENTE: con 47 residentes eran ~94 viajes a la base y
+    // el panel del super admin tardaba 7 segundos en dos sedes. Con mas
+    // clientes habria sido inusable.
+    const [menciones, registradas] = await Promise.all([
+        prisma.dailyLog.findMany({
             where: {
-                patientId: p.id, createdAt: { gte: desde },
+                createdAt: { gte: desde },
+                patient: { headquartersId: hqId },
                 OR: [
                     { notes: { contains: 'caída', mode: 'insensitive' } },
                     { notes: { contains: 'caida', mode: 'insensitive' } },
@@ -143,15 +144,28 @@ async function caidasFueraDelModulo(hqId: string): Promise<Hallazgo> {
                     { notes: { contains: 'se resbal', mode: 'insensitive' } },
                 ],
             },
-        });
-        if (!logs) continue;
-        const registradas = await prisma.fallIncident.count({
-            where: { patientId: p.id, incidentDate: { gte: desde } },
-        });
-        if (logs > registradas) {
-            fuera.push(`${p.name.trim()} — ${logs} mención(es) en notas, ${registradas} en el módulo`);
-        }
+            select: { patientId: true, patient: { select: { name: true } } },
+        }),
+        prisma.fallIncident.groupBy({
+            by: ['patientId'],
+            where: { incidentDate: { gte: desde }, patient: { headquartersId: hqId } },
+            _count: { _all: true },
+        }),
+    ]);
+
+    const enModulo = new Map(registradas.map(r => [r.patientId, r._count._all]));
+    const enNotas = new Map<string, { nombre: string; n: number }>();
+    menciones.forEach(m => {
+        const prev = enNotas.get(m.patientId);
+        enNotas.set(m.patientId, { nombre: m.patient.name.trim(), n: (prev?.n ?? 0) + 1 });
+    });
+
+    const fuera: string[] = [];
+    for (const [pid, { nombre, n }] of enNotas) {
+        const reg = enModulo.get(pid) ?? 0;
+        if (n > reg) fuera.push(`${nombre} — ${n} mención(es) en notas, ${reg} en el módulo`);
     }
+
     return {
         codigo: 'CAIDAS_FUERA_DEL_MODULO',
         titulo: 'Caídas mencionadas en notas que no están en el módulo de caídas',

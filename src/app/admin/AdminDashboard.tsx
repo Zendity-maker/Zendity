@@ -1014,6 +1014,23 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
     const [modalOpen, setModalOpen] = useState(false);
     const [manageSede, setManageSede] = useState<Sede | null>(null);
 
+    // Como esta cada cliente: puesta en marcha y hallazgos del monitor. El
+    // listado mostraba camas, ocupacion y facturacion —cuanto vendi— pero no si
+    // la sede PUEDE OPERAR ni si su informacion dice la verdad. Se carga aparte
+    // para no frenar la tabla: verificarSede hace varias consultas por sede.
+    const [salud, setSalud] = useState<Record<string, any>>({});
+    useEffect(() => {
+        fetch("/api/admin/salud-sedes")
+            .then(r => r.json())
+            .then(j => {
+                if (!j.success) return;
+                const m: Record<string, any> = {};
+                j.sedes.forEach((x: any) => { m[x.id] = x; });
+                setSalud(m);
+            })
+            .catch(() => {});
+    }, []);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1036,6 +1053,7 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
                             <th className="text-center p-4">Staff</th>
                             <th className="text-center p-4">MRR</th>
                             <th className="text-center p-4">Health</th>
+                            <th className="text-center p-4">Operativa</th>
                             <th className="text-center p-4">Estado</th>
                             <th className="text-center p-4">Gestión</th>
                         </tr>
@@ -1087,6 +1105,43 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
                                             </div>
                                             <span className="text-xs font-bold text-slate-300 w-8">{s.healthScore}</span>
                                         </div>
+                                    </td>
+                                    {/* Operativa — puesta en marcha y hallazgos del monitor.
+                                        Convierte "cuantas camas vendi" en "como esta el cliente". */}
+                                    <td className="p-4 text-center">
+                                        {salud[s.id]?.error ? (
+                                            <span className="text-[11px] text-slate-600">—</span>
+                                        ) : salud[s.id] ? (
+                                            <div className="space-y-1">
+                                                <div
+                                                    className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full inline-block ${
+                                                        salud[s.id].puedeOperar
+                                                            ? "bg-emerald-500/15 text-emerald-400"
+                                                            : "bg-rose-500/15 text-rose-400"
+                                                    }`}
+                                                    title={
+                                                        salud[s.id].puedeOperar
+                                                            ? undefined
+                                                            : `Le falta: ${salud[s.id].faltan.join(", ")}`
+                                                    }
+                                                >
+                                                    {salud[s.id].completados}/{salud[s.id].total}
+                                                </div>
+                                                {(salud[s.id].criticos > 0 || salud[s.id].altos > 0) && (
+                                                    <div className="text-[10px] font-bold">
+                                                        {salud[s.id].criticos > 0 && (
+                                                            <span className="text-rose-400">{salud[s.id].criticos} crítico{salud[s.id].criticos === 1 ? "" : "s"}</span>
+                                                        )}
+                                                        {salud[s.id].criticos > 0 && salud[s.id].altos > 0 && <span className="text-slate-600"> · </span>}
+                                                        {salud[s.id].altos > 0 && (
+                                                            <span className="text-amber-400">{salud[s.id].altos} alto{salud[s.id].altos === 1 ? "" : "s"}</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[11px] text-slate-600 animate-pulse">…</span>
+                                        )}
                                     </td>
                                     <td className="p-4 text-center">
                                         {s.isActive && s.subscriptionStatus === "ACTIVE" ? (
