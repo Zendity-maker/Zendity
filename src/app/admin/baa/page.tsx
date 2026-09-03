@@ -27,11 +27,16 @@ export default function BaaPage() {
             .finally(() => setCargando(false));
     }, []);
 
-    if (cargando) return <div className="p-10 text-center text-slate-400 font-bold animate-pulse">Cargando acuerdos…</div>;
-    if (!d) return <div className="p-10 text-center text-rose-400 font-bold">No se pudo cargar</div>;
+    if (cargando) return <div className="min-h-screen bg-[#0f172a] p-10 text-center text-slate-400 font-bold animate-pulse">Cargando acuerdos…</div>;
+    if (!d) return <div className="min-h-screen bg-[#0f172a] p-10 text-center text-rose-400 font-bold">No se pudo cargar</div>;
 
     return (
-        <div className="max-w-4xl mx-auto p-6 space-y-6 pb-16">
+        // El body global es bg-gray-50 (claro). El panel de super admin se pone
+        // su propio fondo oscuro —AdminDashboard usa bg-[#0f172a]— y esta pagina
+        // no lo hacia: sus text-white y text-emerald-100 quedaban sobre blanco y
+        // el titulo casi no se leia.
+        <div className="min-h-screen bg-[#0f172a] text-slate-200">
+            <div className="max-w-4xl mx-auto p-6 space-y-6 pb-16">
             <Link href="/admin" className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white">
                 <ArrowLeft className="w-4 h-4" /> Volver
             </Link>
@@ -115,6 +120,7 @@ export default function BaaPage() {
                 cláusulas que exige 45 CFR 164.504(e). Cada firma guarda el hash del texto exacto que se mostró:
                 si el acuerdo cambia, se puede demostrar qué versión aceptó cada sede.
             </p>
+            </div>
         </div>
     );
 }
