@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { crearAcuerdosPendientes } from '@/lib/acuerdos-sede';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
@@ -169,6 +170,17 @@ export async function POST(req: Request) {
 
             return { hq, director, contract };
         });
+
+        // El BAA nace PENDIENTE junto con la sede. Sin esta fila, la sede no
+        // tendria nada que firmar y el candado de creacion de residentes la
+        // dejaria bloqueada sin salida visible. Fuera de la transaccion: si
+        // fallara, la sede queda creada y el acuerdo se genera al entrar a
+        // /corporate/acuerdos — preferible a revertir un alta completa.
+        try {
+            await crearAcuerdosPendientes(result.hq.id, result.hq.name, null);
+        } catch (e) {
+            console.error('[admin/sedes] no se pudo crear el BAA pendiente:', e);
+        }
 
         // ── Email de bienvenida ─────────────────────────────────────────
         const sgKey = process.env.SENDGRID_API_KEY;
