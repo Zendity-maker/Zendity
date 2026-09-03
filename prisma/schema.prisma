@@ -30,6 +30,19 @@ model Headquarters {
   ownerName          String?
   ownerEmail         String?
   ownerPhone         String?
+
+  /// Dueño operativo de la sede: el DIRECTOR que la administra.
+  ///
+  /// Sin esto, GET /api/corporate/headquarters hacia un findMany SIN WHERE y
+  /// cualquier DIRECTOR veia TODAS las sedes del sistema con el nombre, correo,
+  /// telefono y numero patronal de sus dueños. Es la fuga documentada el
+  /// 21-may-2026 en CLAUDE.md: se le puso candado de rol y nunca el filtro.
+  ///
+  /// Regla acordada 03-sep-2026: SUPER_ADMIN ve todas —desde ahi se maneja
+  /// Zendity como empresa—; un DIRECTOR ve su propia sede y las que le
+  /// pertenezcan por este campo. Un dueño con varias sedes las agrupa aqui.
+  ownerId            String?
+  owner              User?    @relation("SedesDelDueno", fields: [ownerId], references: [id])
   taxId              String?
   billingAddress     String?
   subscriptionStatus String  @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELED
@@ -382,6 +395,8 @@ model User {
 
   /// Encuestas en las que una familia lo destaco.
   encuestasComoFavorito FamilySurvey[] @relation("CuidadorFavorito")
+  /// Sedes que este usuario administra como dueño. Ver Headquarters.ownerId.
+  sedesPropias Headquarters[] @relation("SedesDelDueno")
 }
 
 model Account {

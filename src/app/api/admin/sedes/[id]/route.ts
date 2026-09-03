@@ -35,7 +35,12 @@ export const dynamic = 'force-dynamic';
  * Auth: SUPER_ADMIN.
  */
 
-const ACTIONS = ['SUSPEND', 'REACTIVATE', 'RENEW_LICENSE', 'CHANGE_CAPACITY', 'CHANGE_PLAN', 'CLOSE', 'RESET_DIRECTOR_PIN'] as const;
+// RENAME y ASSIGN_OWNER agregadas el 03-sep-2026. El super admin solo tenia
+// acciones comerciales: no habia forma de corregir el nombre de una sede desde
+// aqui, y la unica pantalla que lo permitia era la del director. Mayaguez se
+// creo como "Vivis Senior Living  Mayaguez" —con s y doble espacio— y no habia
+// donde arreglarlo.
+const ACTIONS = ['SUSPEND', 'REACTIVATE', 'RENEW_LICENSE', 'CHANGE_CAPACITY', 'CHANGE_PLAN', 'CLOSE', 'RESET_DIRECTOR_PIN', 'RENAME', 'ASSIGN_OWNER'] as const;
 type Action = typeof ACTIONS[number];
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -142,6 +147,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             case 'CLOSE': {
                 data = { isActive: false, licenseActive: false, subscriptionStatus: 'CANCELED' };
                 resumen = 'Sede cerrada (fin de contrato)';
+                break;
+            }
+            case 'RENAME': {
+                const nuevo = String(body.name ?? '').replace(/\s+/g, ' ').trim();
+                if (nuevo.length < 3) {
+                    return NextResponse.json({ success: false, error: 'El nombre debe tener al menos 3 caracteres' }, { status: 400 });
+                }
+                // Se normalizan los espacios repetidos: "Vivid  Mayaguez" quedaria
+                // con doble espacio invisible en pantalla y en cada correo.
+                data = { name: nuevo };
+                resumen = `Renombrada de "${hq.name}" a "${nuevo}"`;
+                break;
+            }
+            case 'ASSIGN_OWNER': {
+                // Dueño operativo: agrupa varias sedes bajo un mismo DIRECTOR.
+                // Es lo que decide que sedes ve en su panel. null lo desasigna.
+                const ownerId = body.ownerId ? String(body.ownerId) : null;
+                if (ownerId) {
+                    const u = await prisma.user.findUnique({
+                        where: { id: ownerId },
+                        select: { id: true, name: true, role: true },
+                    });
+                    if (!u) {
+                        return NextResponse.json({ success: false, error: 'Usuario no encontrado' }, { status: 404 });
+                    }
+                    if (!['DIRECTOR', 'ADMIN'].includes(u.role)) {
+                        return NextResponse.json({ success: false, error: 'El dueño de una sede debe ser DIRECTOR o ADMIN' }, { status: 400 });
+                    }
+                    data = { ownerId };
+                    resumen = `Dueño asignado: ${u.name ?? ownerId}`;
+                } else {
+                    data = { ownerId: null };
+                    resumen = 'Dueño removido';
+                }
                 break;
             }
             case 'RESET_DIRECTOR_PIN': {

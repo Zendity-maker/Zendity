@@ -8,7 +8,10 @@ import { ENROLLED_PATIENT_STATUSES } from '@/lib/billable-residents';
 
 export const dynamic = 'force-dynamic';
 
-const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN'];
+// SUPER_ADMIN faltaba: es quien maneja Zendity como empresa y tiene que ver
+// todas las sedes. Sin el aqui, el dueño del producto quedaba fuera de su
+// propio listado. El alcance de cada rol se decide abajo, en el WHERE.
+const MULTI_HQ_ROLES = ['DIRECTOR', 'ADMIN', 'SUPER_ADMIN'];
 
 async function requireMultiHqRole() {
     const session = await getServerSession(authOptions);
@@ -32,7 +35,35 @@ export async function GET(_req: NextRequest) {
         const auth = await requireMultiHqRole();
         if ('error' in auth) return auth.error;
 
+        // ── QUIEN VE QUE SEDE ────────────────────────────────────────────
+        // Antes: findMany SIN WHERE. Cualquier DIRECTOR veia TODAS las sedes del
+        // sistema con nombre, correo, telefono y numero patronal de sus dueños.
+        // Es la fuga del 21-may-2026: se le puso candado de rol y nunca filtro.
+        //
+        // Regla: SUPER_ADMIN ve todas —desde ahi se maneja Zendity como empresa—
+        // y un DIRECTOR ve su sede mas las que le pertenezcan por ownerId, que es
+        // como un dueño agrupa varias.
+        const esSuperAdmin = auth.role === 'SUPER_ADMIN';
+        const miHqId = (auth.session.user as any).headquartersId as string | undefined;
+        const miUserId = (auth.session.user as any).id as string | undefined;
+
+        const filtroSedes = esSuperAdmin
+            ? {}
+            : {
+                OR: [
+                    ...(miHqId ? [{ id: miHqId }] : []),
+                    ...(miUserId ? [{ ownerId: miUserId }] : []),
+                ],
+            };
+
+        // Sin sede ni usuario resueltos no se devuelve nada: un OR vacio en
+        // Prisma no filtra, devolveria todas y volveriamos al mismo agujero.
+        if (!esSuperAdmin && !miHqId && !miUserId) {
+            return NextResponse.json({ success: true, headquarters: [] });
+        }
+
         const headquarters = await prisma.headquarters.findMany({
+            where: filtroSedes,
             orderBy: { name: 'asc' },
             select: {
                 id: true,
