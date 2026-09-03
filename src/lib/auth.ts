@@ -48,12 +48,39 @@ export const authOptions: NextAuthOptions = {
                         isActive: true,
                         isDeleted: true,
                         isShiftBlocked: true,
+                        // Estado de la sede: cerrarla tiene que significar algo.
+                        headquarters: {
+                            select: { name: true, isActive: true, subscriptionStatus: true },
+                        },
                     }
                 });
 
                 if (user) {
                     if (!user.isActive || user.isDeleted) {
                         throw new Error("Acceso Denegado. Cuenta inactiva.");
+                    }
+                    // ── SEDE CERRADA ────────────────────────────────────────
+                    // La accion CLOSE del super admin ponia isActive:false y
+                    // subscriptionStatus:'CANCELED', y NADA lo leia en el login:
+                    // el personal de una sede cerrada seguia entrando como si
+                    // nada. Cerrar una sede tiene que significar algo.
+                    //
+                    // El mensaje nombra la sede y dice a quien acudir. Un
+                    // "acceso denegado" seco ante un cierre administrativo hace
+                    // que la cuidadora crea que perdio su cuenta.
+                    //
+                    // SUPER_ADMIN queda fuera de esta puerta a proposito: es
+                    // quien tiene que poder entrar a exportar la informacion del
+                    // hogar durante los 60 dias que promete el BAA.
+                    const sedeCerrada =
+                        user.headquarters &&
+                        (user.headquarters.isActive === false ||
+                         user.headquarters.subscriptionStatus === 'CANCELED');
+                    if (sedeCerrada && user.role !== 'SUPER_ADMIN') {
+                        throw new Error(
+                            `${user.headquarters!.name} no tiene el servicio activo. ` +
+                            `Comunicate con la direccion del hogar.`
+                        );
                     }
                     // Soporte dual: hash bcrypt (nuevo) o texto plano (legacy, hasta migración)
                     const pinIsHashed = user.pinCode?.startsWith('$2');
