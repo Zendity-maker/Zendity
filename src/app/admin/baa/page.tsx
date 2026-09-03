@@ -72,7 +72,7 @@ export default function BaaPage() {
                             <th className="text-left p-3">Estado</th>
                             <th className="text-left p-3">Firmante</th>
                             <th className="text-left p-3">Fecha</th>
-                            <th className="text-right p-3">Residentes</th>
+                            <th className="text-right p-3">Residentes activos</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -108,7 +108,7 @@ export default function BaaPage() {
                                         ? new Date(s.fecha).toLocaleDateString("es-PR", { day: "2-digit", month: "short", year: "numeric" })
                                         : <span className="text-slate-600">—</span>}
                                 </td>
-                                <td className="p-3 text-right text-slate-300 font-bold">{s.residentes}</td>
+                                <td className="p-3 text-right text-slate-300 font-bold">{s.residentesActivos}</td>
                             </tr>
                         ))}
                     </tbody>

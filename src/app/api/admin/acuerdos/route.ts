@@ -30,7 +30,11 @@ export async function GET() {
                     },
                     orderBy: { aceptadoEn: 'desc' },
                 },
-                _count: { select: { patients: true } },
+                // Solo los ACTIVOS. Sin el where contaba a todos los que han
+                // pasado por la sede: Cupey salia con 47 cuando tiene 34 activos,
+                // 7 fallecidos y 6 dados de baja. En una pantalla de cumplimiento
+                // ese numero se lee como "cuanta gente hay hoy bajo este acuerdo".
+                _count: { select: { patients: { where: { status: 'ACTIVE' } } } },
             },
             orderBy: { name: 'asc' },
         });
@@ -41,7 +45,7 @@ export async function GET() {
                 id: h.id,
                 sede: h.name,
                 activa: h.isActive,
-                residentes: h._count.patients,
+                residentesActivos: h._count.patients,
                 creada: h.createdAt,
                 firmado: !!firmado,
                 version: firmado?.version ?? null,
