@@ -1985,19 +1985,19 @@ function LegalTab() {
             title: "Acuerdos BAA (HIPAA)",
             desc: "Gestiona los Business Associate Agreements con cada sede. Requerido por la Ley HIPAA para el manejo de PHI.",
             href: "/admin/baa",
-            badge: "2 pendientes",
+            // Antes: "2 pendientes" escrito a mano, el mismo numero hubiera lo
+            // que hubiera. Ahora la pagina lee AcuerdoSede y cuenta de verdad.
+            badge: "Ver estado",
             badgeColor: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
             cta: "Gestionar BAAs →",
         },
-        {
-            icon: "📋",
-            title: "Acuerdo de Nivel de Servicio (SLA)",
-            desc: "Define los compromisos de uptime (99.5%), tiempos de respuesta y compensaciones para todos los clientes.",
-            href: "/admin/sla",
-            badge: "v2.0",
-            badgeColor: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
-            cta: "Ver SLA →",
-        },
+        // Aqui habia una tarjeta "Acuerdo de Nivel de Servicio (SLA)" que
+        // llevaba a /admin/sla: 469 lineas estaticas prometiendo 99.5% de uptime
+        // y tiempos de respuesta, sin medir NADA. Se retira junto con la pagina.
+        // Prometer un SLA que no se mide es peor que no tener SLA: el dia que un
+        // cliente reclame, no hay con que responderle ni a favor ni en contra.
+        // Cuando exista medicion real —/api/health mas el monitor externo— vuelve.
+
         {
             icon: "✅",
             title: "Onboarding de Nuevas Sedes",
