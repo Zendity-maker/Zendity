@@ -141,6 +141,25 @@ export default function AcuerdosPage() {
                 </div>
             )}
 
+            {/* Exportar — el BAA promete "devolverá al Hogar toda la PHI en un
+                formato utilizable y legible" y sesenta días de acceso incluso por
+                impago. Hasta hoy no existía forma de hacerlo. La información es
+                del hogar: se descarga sin pedirle permiso a nadie. */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6">
+                <p className="font-black text-slate-800">Tu información</p>
+                <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
+                    Los expedientes de tus residentes, sus medicamentos, planes de cuido, caídas y
+                    úlceras. Es información del hogar y puedes descargarla cuando quieras — este
+                    acuerdo lo garantiza, incluso si algún día dejas de usar Zéndity.
+                </p>
+                <a
+                    href="/api/corporate/exportar"
+                    className="inline-block mt-4 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm transition-colors"
+                >
+                    Descargar toda mi información
+                </a>
+            </div>
+
             {aviso && (
                 <div className={`rounded-xl p-4 font-bold text-sm ${aviso.t === "ok" ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"}`}>
                     {aviso.m}
