@@ -184,6 +184,11 @@ const corporateNavigationSections = [
             // "Mis Sedes": ver y editar las propias. El ALTA de sedes es de
             // Zendity (/admin/sedes, SUPER_ADMIN) — nunca del operador cliente.
             { name: "Mis Sedes", href: "/corporate/sedes", icon: Building2, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            // Acuerdos y puesta en marcha: se construyeron sin enlace y habia que
+            // escribir la URL a mano. Un candado que bloquea admisiones tiene que
+            // tener su salida a la vista, o el bloqueo se vuelve un callejon.
+            { name: "Acuerdos", href: "/corporate/acuerdos", icon: Scale, requiredRoles: ["DIRECTOR", "ADMIN"] },
+            { name: "Puesta en Marcha", href: "/corporate/puesta-en-marcha", icon: CheckCircle2, requiredRoles: ["DIRECTOR", "ADMIN"] },
             { name: "Zendity HQ", href: "/corporate/hq", icon: Scale },
             { name: "Registro de Visitas", href: "/reception/visits", icon: ClipboardList },
             { name: "Kiosco de Recepción", href: "/reception", icon: Monitor },

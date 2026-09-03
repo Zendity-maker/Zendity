@@ -50,7 +50,7 @@ export async function bloqueoPorBAA(hqId: string): Promise<string | null> {
     return 'Esta sede aún no tiene firmado el Acuerdo de Asociado Comercial (BAA). '
         + 'Zéndity no puede recibir información de salud de un residente sin ese acuerdo: '
         + 'es un requisito de HIPAA y protege tanto al hogar como al residente. '
-        + 'El director puede firmarlo en Configuración → Acuerdos, y toma un minuto.';
+        + 'El director lo firma en el menú lateral, en Acuerdos. Toma un minuto.';
 }
 
 /** Crea las filas pendientes de aceptación al dar de alta una sede. */

@@ -8,7 +8,11 @@ import { useEffect, useState } from "react";
  * Sin este acuerdo, Zéndity no puede recibir información de salud de ningún
  * residente: el candado de /lib/acuerdos-sede.ts bloquea la creación del primer
  * expediente. Esta pantalla es la salida de ese bloqueo, y el mensaje del
- * bloqueo apunta aquí.
+ * bloqueo apunta aquí. Se llega por el menú lateral → Acuerdos.
+ *
+ * Se construyó primero sin enlace en el menú y había que escribir la URL a
+ * mano — un candado que bloquea admisiones tiene que tener su salida a la
+ * vista, o el bloqueo se vuelve un callejón sin salida.
  *
  * La firma es el nombre tecleado más el cargo, con fecha e IP. No hay casilla de
  * "acepto": una casilla no dice QUIÉN aceptó, y eso es justo lo que hace falta
