@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { marcaSede } from '@/lib/marca-sede';
+import { senderFrom } from '@/lib/family/appointment-effects';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
@@ -30,6 +32,8 @@ export async function POST(request: Request) {
             select: { name: true, logoUrl: true }
         });
         const hqName = hq?.name || 'Zendity Care Center';
+        // Color de la sede, no el teal de Zendity: el correo es del hogar.
+        const marca = await marcaSede(hqId);
 
         // Solo familiares de residentes que siguen en el hogar.
         //
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
 
         const corporateTemplate = `
         <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-            <div style="background-color: #ffffff; padding: 32px 24px; text-align: center; border-bottom: 3px solid #0d9488;">
+            <div style="background-color: #ffffff; padding: 32px 24px; text-align: center; border-bottom: 3px solid ${marca.primary};">
                 ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-width: 200px; max-height: 90px; margin-bottom: 8px; border-radius: 12px; object-fit: contain;" />` : `<h2 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 800;">${hqName}</h2>`}
                 <p style="color: #64748b; margin: 12px 0 0 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Comunicado General (Familias)</p>
             </div>
@@ -93,7 +97,9 @@ export async function POST(request: Request) {
 
         const msg = {
             to: targetEmails,
-            from: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com',
+            // Con el nombre del hogar: es lo unico que la familia ve en su
+            // bandeja antes de abrir. Antes iba la direccion cruda.
+            from: senderFrom(hqName),
             subject: `[Comunicado Institucional] ${subject}`,
             html: corporateTemplate,
             isMultiple: true, // BCC

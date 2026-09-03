@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { marcaSede } from '@/lib/marca-sede';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { prepararEnvio, satisfaccion, periodoActual, respuestas, pendientesDeResponder } from '@/lib/encuesta-familia';
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
         const base = process.env.NEXTAUTH_URL || 'https://app.zendity.com';
         // Remitente desde la variable de entorno, nunca hardcodeado (CLAUDE.md).
         const remitente = process.env.SENDGRID_FROM_EMAIL;
+        // El nombre del hogar en el remitente: la familia abre con mas
+        // confianza un correo de su hogar que uno de un proveedor.
+        const marca = await marcaSede(hqId);
         if (process.env.SENDGRID_API_KEY) sgMail.setApiKey(process.env.SENDGRID_API_KEY);
         let enviados = 0, fallidos = 0;
 
@@ -61,7 +65,7 @@ export async function POST(req: Request) {
                 if (!process.env.SENDGRID_API_KEY || !remitente) throw new Error('SendGrid no configurado');
                 await sgMail.send({
                     to: inv.email,
-                    from: remitente,
+                    from: { email: remitente!, name: marca.nombre },
                     subject: '¿Cómo lo estamos haciendo?',
                     // Sin PHI: ni diagnosticos ni datos clinicos. Solo la
                     // invitacion y el enlace.
@@ -116,6 +120,9 @@ export async function PUT(req: Request) {
         const pendientes = await pendientesDeResponder(hqId, periodo);
         const base = process.env.NEXTAUTH_URL || 'https://app.zendity.com';
         const remitente = process.env.SENDGRID_FROM_EMAIL;
+        // El nombre del hogar en el remitente: la familia abre con mas
+        // confianza un correo de su hogar que uno de un proveedor.
+        const marca = await marcaSede(hqId);
 
         let enviados = 0, sinCorreo = 0, fallaron = 0;
         for (const p of pendientes) {
@@ -126,7 +133,7 @@ export async function PUT(req: Request) {
                 if (!process.env.SENDGRID_API_KEY || !remitente) throw new Error('SendGrid no configurado');
                 await sgMail.send({
                     to: email,
-                    from: remitente,
+                    from: { email: remitente!, name: marca.nombre },
                     subject: `¿Cómo lo estamos haciendo? — un minuto sobre ${p.familyMember.patient.name.trim()}`,
                     html: `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:520px;margin:0 auto;color:#12211D;">
 <p style="font-size:16px;line-height:1.6;">Hola ${p.familyMember.name.trim()},</p>
