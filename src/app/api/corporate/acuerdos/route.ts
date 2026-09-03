@@ -33,12 +33,15 @@ export async function GET() {
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: auth.hqId },
-            select: { id: true, name: true, billingAddress: true },
+            select: { id: true, name: true, billingAddress: true, createdAt: true },
         });
         if (!hq) return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
 
         // El texto se arma en cada lectura con los datos vigentes de la sede.
-        const doc = textoBAA({ hqNombre: hq.name, hqDireccion: hq.billingAddress });
+        // servicioDesde = cuando se creo la sede en Zendity. Si el hogar lleva
+        // meses usando la plataforma, el acuerdo lo hace constar en vez de fingir
+        // que la relacion empezo el dia de la firma.
+        const doc = textoBAA({ hqNombre: hq.name, hqDireccion: hq.billingAddress, servicioDesde: hq.createdAt });
 
         const acuerdos = await prisma.acuerdoSede.findMany({
             where: { headquartersId: hq.id },
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
 
         const hq = await prisma.headquarters.findUnique({
             where: { id: auth.hqId },
-            select: { name: true, billingAddress: true },
+            select: { name: true, billingAddress: true, createdAt: true },
         });
         if (!hq) return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
 
@@ -95,7 +98,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Hash del texto exacto que se le mostro, no de una plantilla generica.
-        const hash = hashContenido(baaPlano({ hqNombre: hq.name, hqDireccion: hq.billingAddress }));
+        const hash = hashContenido(baaPlano({ hqNombre: hq.name, hqDireccion: hq.billingAddress, servicioDesde: hq.createdAt }));
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
             ?? req.headers.get('x-real-ip') ?? null;
 

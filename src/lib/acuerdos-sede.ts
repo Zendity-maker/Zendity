@@ -56,6 +56,7 @@ export async function bloqueoPorBAA(hqId: string): Promise<string | null> {
 /** Crea las filas pendientes de aceptación al dar de alta una sede. */
 export async function crearAcuerdosPendientes(hqId: string, hqNombre: string, hqDireccion?: string | null) {
     const texto = baaPlano({ hqNombre, hqDireccion });
+    // (servicioDesde se resuelve al mostrar y al firmar, desde Headquarters.createdAt)
     await prisma.acuerdoSede.upsert({
         where: { headquartersId_tipo_version: { headquartersId: hqId, tipo: 'BAA', version: BAA_VERSION } },
         update: {},

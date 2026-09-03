@@ -32,15 +32,31 @@ export interface DatosBAA {
     /** Quién firma por el hogar. */
     representante?: string | null;
     fechaEfectiva?: Date;
+    /**
+     * Cuándo empezó de verdad el servicio, si es anterior a la firma.
+     *
+     * Cupey llevaba desde mayo-2026 usando la plataforma cuando se firmó el BAA
+     * en septiembre: el acuerdo no existía antes. Fechar el documento como si la
+     * relación hubiera empezado el día de la firma seria contar mal la historia,
+     * y en un papel que existe justamente para dar constancia eso importa.
+     * No se antedata la firma —eso seria falsear— sino que se declara el hecho.
+     */
+    servicioDesde?: Date | null;
 }
 
 const NOMBRE_PROVEEDOR = 'Zéndity';
 
 export function textoBAA(d: DatosBAA): { titulo: string; secciones: { titulo: string; cuerpo: string }[] } {
     const hogar = d.hqNombre;
-    const fecha = (d.fechaEfectiva ?? new Date()).toLocaleDateString('es-PR', {
-        day: '2-digit', month: 'long', year: 'numeric',
-    });
+    const fmt = (x: Date) => x.toLocaleDateString('es-PR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const fecha = fmt(d.fechaEfectiva ?? new Date());
+
+    // Solo se declara si el servicio empezó ANTES de la firma. Si sede y acuerdo
+    // nacen el mismo día no hay nada que aclarar.
+    const firmadoEl = d.fechaEfectiva ?? new Date();
+    const previo = d.servicioDesde && d.servicioDesde < firmadoEl
+        && (firmadoEl.getTime() - d.servicioDesde.getTime()) > 2 * 86400000
+        ? d.servicioDesde : null;
 
     return {
         titulo: 'Acuerdo de Asociado Comercial (Business Associate Agreement)',
@@ -51,6 +67,11 @@ export function textoBAA(d: DatosBAA): { titulo: string; secciones: { titulo: st
                     `Este Acuerdo se celebra entre ${hogar}${d.hqDireccion ? `, con dirección en ${d.hqDireccion}` : ''} ` +
                     `(el "Hogar", entidad cubierta bajo HIPAA) y ${NOMBRE_PROVEEDOR} (el "Asociado Comercial"), ` +
                     `con fecha de vigencia ${fecha}.\n\n` +
+                    (previo
+                        ? `Las partes hacen constar que el Hogar viene utilizando la plataforma ${NOMBRE_PROVEEDOR} `
+                          + `desde el ${fmt(previo)}, con anterioridad a la firma de este Acuerdo. Las obligaciones aquí `
+                          + `establecidas se entienden aplicables a todo el tratamiento de PHI realizado desde esa fecha.\n\n`
+                        : '') +
                     `El Hogar utiliza la plataforma ${NOMBRE_PROVEEDOR} para documentar el cuidado de sus residentes. ` +
                     `En el curso de ese servicio, ${NOMBRE_PROVEEDOR} crea, recibe, mantiene y transmite información de ` +
                     `salud protegida ("PHI") que pertenece al Hogar y a sus residentes. Este Acuerdo regula ese manejo ` +
