@@ -11,6 +11,12 @@ const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 const HospitalizeBody = z.object({
     patientId: z.string().min(1, 'patientId requerido'),
     reason:    z.string().min(3, 'razón demasiado corta').max(1000),
+    // ¿El traslado fue por una caída? Hasta sep-2026 no se preguntaba, y la
+    // caída quedaba solo en la prosa del motivo: "Motivo: Tuvo una caída, está
+    // en el hospital". El dato estaba escrito y no llegaba al módulo, así que
+    // el conteo de caídas del hogar salía corto — hacia abajo, que es la
+    // dirección mala. Ver src/lib/verificaciones.ts, CAIDAS_FUERA_DEL_MODULO.
+    porCaida: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -29,7 +35,7 @@ export async function PATCH(req: Request) {
                 error: `Datos inválidos en ${path}: ${first?.message || 'formato incorrecto'}`,
             }, { status: 400 });
         }
-        const { patientId, reason } = parsed.data;
+        const { patientId, reason, porCaida } = parsed.data;
 
         // Tenant check: el paciente debe pertenecer a la sede del usuario en sesión.
         const patientCheck = await prisma.patient.findUnique({
@@ -44,6 +50,31 @@ export async function PATCH(req: Request) {
         }
 
         // 1. Modificar el estado del paciente a TEMPORARY_LEAVE y tipo HOSPITAL
+        // El traslado por caída registra la caída. Quien traslada ya escribió la
+        // causa; solo hay que estructurarla en vez de dejarla en prosa.
+        // Los datos clínicos van "No especificado": quien traslada suele no
+        // haber presenciado la caída, y un incidente honesto con huecos vale más
+        // que ninguno — o que uno inventado.
+        if (porCaida) {
+            try {
+                await prisma.fallIncident.create({
+                    data: {
+                        patientId,
+                        reportedById: authorId,
+                        location: 'Registrada desde traslado hospitalario',
+                        severity: 'SEVERE',
+                        interventions: 'Traslado a hospital. Consciente: No especificado · Sangrado: No especificado · Dolor: No especificado',
+                        notes: `Caída que motivó el traslado. Motivo declarado: ${reason}`,
+                    },
+                });
+                // Cualquier caída activa el riesgo de Downton.
+                await prisma.patient.update({ where: { id: patientId }, data: { downtonRisk: true } });
+            } catch (e) {
+                // No bloquea el traslado: primero sale el residente al hospital.
+                console.error('[hospitalize] no se pudo registrar la caída:', e);
+            }
+        }
+
         const updatedPatient = await prisma.patient.update({
             where: { id: patientId },
             data: {

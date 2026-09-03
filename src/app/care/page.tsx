@@ -265,6 +265,18 @@ export default function ZendityCareTabletPage() {
     const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
     const [isNightMode, setIsNightMode] = useState(() => isNightHours());
     const [hospitalReason, setHospitalReason] = useState("");
+    // ¿El traslado fue por una caída? Se preguntaba en la prosa del motivo y ahí
+    // moría: "Motivo: Tuvo una caída, está en el hospital" no llegaba al módulo
+    // de caídas, y el conteo del hogar salía corto.
+    const [trasladoPorCaida, setTrasladoPorCaida] = useState(false);
+
+    // Caída que no presencié. Mariangelie escribió el 01-sep: "La compañera de
+    // guardia, Yedaira, informó que el paciente sufrió dos caídas durante la
+    // noche". No estuvo, así que no puede decir si estaba consciente ni el nivel
+    // de dolor — el protocolo se los exige y por eso lo escribió en texto libre
+    // y la caída nunca llegó al módulo. Hizo lo correcto con lo que había.
+    const [caidaNoPresenciada, setCaidaNoPresenciada] = useState(false);
+    const [caidaReportadaPor, setCaidaReportadaPor] = useState("");
     // Sprint Diet System — prescripción canónica (textura + flags ortogonales).
     // Reemplaza al viejo `dietFormValue` string con vocabulario drift.
     const [careDietDraft, setCareDietDraft] = useState<DietPrescriptionData>({
@@ -1747,15 +1759,23 @@ export default function ZendityCareTabletPage() {
                     patientId: activePatient.id,
                     type: 'FALL',
                     // Campos estructurados — severidad/riskLevel se derivan en el backend
-                    conscious: fallProtocol.consciousness,
-                    bleeding: fallProtocol.bleeding,
-                    painLevel: fallProtocol.painLevel,
-                    description: `Residente sufrió caída. Consciente: ${fallProtocol.consciousness ? 'Sí' : 'No'}, Sangrado: ${fallProtocol.bleeding ? 'Sí' : 'No'}, Dolor ${fallProtocol.painLevel}/10`,
+                    // Sin presenciarla no se mandan los datos clínicos: el API
+                    // los guarda como "No especificado" en vez de que alguien
+                    // invente un nivel de dolor que no midió.
+                    conscious: caidaNoPresenciada ? undefined : fallProtocol.consciousness,
+                    bleeding: caidaNoPresenciada ? undefined : fallProtocol.bleeding,
+                    painLevel: caidaNoPresenciada ? undefined : fallProtocol.painLevel,
+                    location: caidaNoPresenciada ? 'No presenciada — reportada por terceros' : undefined,
+                    description: caidaNoPresenciada
+                        ? `Caída no presenciada por quien la registra. Reportada por: ${caidaReportadaPor.trim() || 'no indicado'}.`
+                        : `Residente sufrió caída. Consciente: ${fallProtocol.consciousness ? 'Sí' : 'No'}, Sangrado: ${fallProtocol.bleeding ? 'Sí' : 'No'}, Dolor: ${fallProtocol.painLevel}/10`,
                 })
             });
             const data = await res.json();
             if (data.success) {
                 setFallProtocol({ consciousness: true, bleeding: false, painLevel: 5 });
+                setCaidaNoPresenciada(false);
+                setCaidaReportadaPor("");
                 setModalType(null);
                 // El servidor detectó que esta caída ya estaba registrada hace
                 // menos de cinco minutos. No es un error: la cuidadora hizo lo
@@ -1790,6 +1810,7 @@ export default function ZendityCareTabletPage() {
                 body: JSON.stringify({
                     patientId: activePatient.id,
                     reason: hospitalReason,
+                    porCaida: trasladoPorCaida,
                     headquartersId: hqId,
                     caregiverId: user?.id
                 })
@@ -1800,6 +1821,7 @@ export default function ZendityCareTabletPage() {
                 avisoOk(" Traslado registrado. Abriendo Nota de Progreso Médica para impresión...");
                 setPdfNoteData({ ...data.patient, transferReason: hospitalReason, printDate: new Date() });
                 setHospitalReason("");
+                setTrasladoPorCaida(false);
                 setModalType('PROGRESS_NOTE_PDF');
 
                 // Fetch de nuevo para que el residente se vea deshabilitado con status TEMPORARY_LEAVE
@@ -4201,6 +4223,29 @@ export default function ZendityCareTabletPage() {
                         {modalType === 'FALL' && (
                             <div className="space-y-4 mt-2">
                                 <p className="font-black text-rose-600 uppercase text-lg border-b-2 border-rose-100 pb-2 flex items-center gap-2"><span></span> Protocolo de Caída</p>
+                                <label className="flex items-start gap-3 p-3.5 rounded-2xl border-2 border-amber-300 bg-amber-50 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={caidaNoPresenciada}
+                                        onChange={e => setCaidaNoPresenciada(e.target.checked)}
+                                        className="w-6 h-6 accent-amber-600 shrink-0 mt-0.5"
+                                    />
+                                    <span className="text-[15px] font-bold text-amber-900 leading-snug">
+                                        No la presencié — me la reportaron
+                                        <span className="block text-[13px] font-medium text-amber-800/80 mt-0.5">
+                                            La caída queda registrada igual, sin los datos que no puedes saber.
+                                        </span>
+                                    </span>
+                                </label>
+                                {caidaNoPresenciada && (
+                                    <input
+                                        value={caidaReportadaPor}
+                                        onChange={e => setCaidaReportadaPor(e.target.value)}
+                                        placeholder="¿Quién te la reportó? Ej. Yedaira, turno de noche"
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-amber-200 bg-white font-medium text-[15px]"
+                                    />
+                                )}
+                                {!caidaNoPresenciada && (
                                 <div className="bg-rose-50 p-5 rounded-2xl border border-rose-200 space-y-4 shadow-inner">
                                     <label className="flex items-center justify-between font-bold text-rose-900 cursor-pointer">
                                         ¿El residente reacciona y está consciente?
@@ -4215,6 +4260,7 @@ export default function ZendityCareTabletPage() {
                                         <input type="range" min="0" max="10" value={fallProtocol.painLevel} onChange={e => setFallProtocol({ ...fallProtocol, painLevel: parseInt(e.target.value) })} className="w-full mt-2 accent-rose-600" />
                                     </div>
                                 </div>
+                                )}
                                 <button onClick={submitFall} disabled={submitting} className="w-full py-5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl mt-4 shadow-rose-500/30">Evaluar Riesgo y Enviar Alerta Roja</button>
                             </div>
                         )}
@@ -4237,6 +4283,20 @@ export default function ZendityCareTabletPage() {
                                     />
                                 </div>
                                 <div className="space-y-3 mt-4">
+                                    <label className="flex items-center gap-3 p-4 mb-3 rounded-2xl border-2 border-rose-300 bg-rose-50 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={trasladoPorCaida}
+                                            onChange={e => setTrasladoPorCaida(e.target.checked)}
+                                            className="w-6 h-6 accent-rose-600 shrink-0"
+                                        />
+                                        <span className="text-[15px] font-bold text-rose-900 leading-snug">
+                                            El traslado es por una caída
+                                            <span className="block text-[13px] font-medium text-rose-700/80 mt-0.5">
+                                                Se registra en el módulo de caídas y activa el riesgo de Downton.
+                                            </span>
+                                        </span>
+                                    </label>
                                     <button onClick={submitHospitalTransfer} disabled={submitting || !hospitalReason} className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black text-lg rounded-2xl shadow-lg shadow-red-600/30 active:scale-95 transition-all flex items-center justify-center gap-3">
                                         {submitting ? "Procesando..." : <><span></span> Empezar Traslado e Imprimir Nota Corta</>}
                                     </button>
