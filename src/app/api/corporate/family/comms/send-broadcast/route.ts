@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { marcaSede } from '@/lib/marca-sede';
+import { marcaSede, correoDeSede } from '@/lib/marca-sede';
 import { senderFrom } from '@/lib/family/appointment-effects';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -71,29 +71,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, mocked: true, message: `Simulated broadcast to ${targetEmails.length} family members.` }, { status: 200 });
         }
 
-        const corporateTemplate = `
-        <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-            <div style="background-color: #ffffff; padding: 32px 24px; text-align: center; border-bottom: 3px solid ${marca.primary};">
-                ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-width: 200px; max-height: 90px; margin-bottom: 8px; border-radius: 12px; object-fit: contain;" />` : `<h2 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 800;">${hqName}</h2>`}
-                <p style="color: #64748b; margin: 12px 0 0 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Comunicado General (Familias)</p>
+        // Mismo encabezado y pie que el resto de correos a familia:
+        // el hogar al frente, Zendity al pie. Ver src/lib/marca-sede.ts.
+        const corporateTemplate = correoDeSede(marca, `
+            <p style="font-weight:700;color:#0f172a;margin:0 0 20px;">Estimadas Familias de ${hqName},</p>
+            <div style="white-space:pre-wrap;color:#475569;">${html}</div>
+            <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e7e5e4;">
+                <p style="margin:0;color:#0f172a;font-weight:700;">Atentamente,</p>
+                <p style="margin:4px 0 0;color:#64748b;">La Dirección de ${hqName}</p>
             </div>
-            <div style="padding: 40px 32px; background-color: #ffffff; color: #334155; line-height: 1.7; font-size: 16px;">
-                <p style="font-weight: 600; color: #0f172a; margin-bottom: 24px;">Estimadas Familias de ${hqName},</p>
-                <div style="white-space: pre-wrap; color: #475569;">
-                    ${html}
-                </div>
-                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
-                    <p style="margin: 0; color: #0f172a; font-weight: 600;">Atentamente,</p>
-                    <p style="margin: 4px 0 0 0; color: #64748b;">La Dirección del Centro</p>
-                </div>
-            </div>
-            <div style="background-color: #f8fafc; padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-                <p style="margin: 0;">Este mensaje ha sido enviado a toda la comunidad de familiares de la sede.</p>
-                <p style="margin: 8px 0 0 0;">Por favor no responda directamente a este correo automático.</p>
-                <p style="margin: 16px 0 0 0; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em;">Tecnología Zendity OS</p>
-            </div>
-        </div>
-        `;
+            <p style="margin:24px 0 0;font-size:12px;color:#a8a29e;line-height:1.6;">
+                Este mensaje se envió a toda la comunidad de familiares de la sede.
+                Por favor no responda directamente a este correo.
+            </p>
+        `);
 
         const msg = {
             to: targetEmails,

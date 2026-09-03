@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { marcaSede } from '@/lib/marca-sede';
+import { marcaSede, correoDeSede } from '@/lib/marca-sede';
 import { requireRole } from '@/lib/api-auth';
 import { resolveEffectiveHqId } from '@/lib/hq-resolver';
 import { prepararEnvio, satisfaccion, periodoActual, respuestas, pendientesDeResponder } from '@/lib/encuesta-familia';
@@ -69,11 +69,12 @@ export async function POST(req: Request) {
                     subject: '¿Cómo lo estamos haciendo?',
                     // Sin PHI: ni diagnosticos ni datos clinicos. Solo la
                     // invitacion y el enlace.
-                    html: `<p>Hola ${inv.nombre},</p>
+                    // Mismo encabezado y pie que el resto: el hogar al frente.
+                    html: correoDeSede(marca, `<p>Hola ${inv.nombre},</p>
 <p>Nos gustaría saber cómo vemos las cosas desde su lado. Son tres preguntas y toma menos de un minuto.</p>
-<p style="margin:24px 0;"><a href="${enlace}" style="background:#0F6E56;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;">Responder la encuesta</a></p>
+<p style="margin:24px 0;"><a href="${enlace}" style="background:${marca.primary};color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;">Responder la encuesta</a></p>
 <p style="color:#64748b;font-size:14px;">O copie este enlace: ${enlace}</p>
-<p style="color:#64748b;font-size:14px;">Su respuesta llega identificada a la dirección del hogar, para poder darle seguimiento si hace falta.</p>`,
+<p style="color:#64748b;font-size:14px;">Su respuesta llega identificada a la dirección del hogar, para poder darle seguimiento.</p>`),
                 });
                 enviados++;
             } catch {
