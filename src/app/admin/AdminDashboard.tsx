@@ -1048,7 +1048,9 @@ function SedesTab({ sedes, onCreated, onRefresh }: { sedes: Sede[]; onCreated: (
                     <thead className="bg-slate-950/60 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
                         <tr>
                             <th className="text-left p-4">Sede</th>
-                            <th className="text-center p-4">Plan</th>
+                            {/* Decia "Plan" pero muestra camas x tarifa: es facturacion,
+                                no plan. Y desde la tarifa unica el plan no significa nada. */}
+                            <th className="text-center p-4">Facturación</th>
                             <th className="text-center p-4">Ocupación</th>
                             <th className="text-center p-4">Staff</th>
                             <th className="text-center p-4">MRR</th>
@@ -1441,7 +1443,8 @@ function NewSedeModal({
         ownerPhone: prefill?.ownerPhone ?? "",
         taxId: "",
         billingAddress: "",
-        plan: initialPlan,
+        // Valor unico: ya no se escoge. Ver el comentario del formulario.
+        plan: 'ZENDITY',
         // Auto-prellena el precio según el plan elegido
         pricePerBed: String(PLAN_PRICING[initialPlan].pricePerBed),
         beds: prefill?.beds ?? "",
@@ -1611,26 +1614,15 @@ function NewSedeModal({
 
                     <Section title="Contrato SaaS (opcional)">
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Plan">
-                                <select
-                                    value={form.plan}
-                                    onChange={(e) => {
-                                        const newPlan = e.target.value;
-                                        // Al cambiar el plan, actualiza también el precio por cama
-                                        // al valor estándar del plan (puede sobreescribirlo manualmente después).
-                                        setForm({
-                                            ...form,
-                                            plan: newPlan,
-                                            pricePerBed: String(PLAN_PRICING[newPlan]?.pricePerBed ?? form.pricePerBed),
-                                        });
-                                    }}
-                                    className={inputCls}
-                                >
-                                    <option value="LITE">Plan Esencial — ${PLAN_PRICING.LITE.pricePerBed}/cama (mín ${PLAN_PRICING.LITE.monthlyMinimum})</option>
-                                    <option value="PRO">Plan Profesional — ${PLAN_PRICING.PRO.pricePerBed}/cama (mín ${PLAN_PRICING.PRO.monthlyMinimum})</option>
-                                    <option value="ENTERPRISE">Plan Corporativo — ${PLAN_PRICING.ENTERPRISE.pricePerBed}/cama (mín ${PLAN_PRICING.ENTERPRISE.monthlyMinimum})</option>
-                                </select>
-                            </Field>
+                            {/* Aqui habia un selector de plan —Esencial, Profesional,
+                                Corporativo—. La tarifa es unica desde el commit
+                                "$12.49/cama, se eliminan los planes diferenciados": los
+                                tres mostraban "Zendity Completo" y cobraban lo mismo.
+                                Un plan que no cambia ni el precio ni las funciones solo
+                                genera preguntas en una factura. Se retira de la UI; el
+                                campo sigue en la base con lo que ya tienen las sedes
+                                —borrarlo seria una migracion destructiva sin ganancia—
+                                y el alta ahora graba siempre el mismo valor. */}
                             <Field label={`Precio por cama (estándar $${PLAN_PRICING[form.plan]?.pricePerBed ?? 0})`}><input type="number" min={0} step="0.01" value={form.pricePerBed} onChange={(e) => setForm({ ...form, pricePerBed: e.target.value })} className={inputCls} /></Field>
                             <Field label="Camas facturadas"><input type="number" min={0} value={form.beds} onChange={(e) => setForm({ ...form, beds: e.target.value })} className={inputCls} /></Field>
                             <Field label="Mensualidad total ($)"><input type="number" min={0} step="0.01" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} className={inputCls} placeholder="Dejar en 0 si no crea contrato" /></Field>
