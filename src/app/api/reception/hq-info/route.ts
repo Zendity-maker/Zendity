@@ -16,6 +16,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireKioskDevice } from '@/lib/external-kiosk-auth';
+import { marcaSede } from '@/lib/marca-sede';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,14 +25,26 @@ export async function GET(req: Request) {
     if (device instanceof NextResponse) return device;
 
     try {
+        // La marca viaja con el nombre: el kiosco se pinta con los colores de
+        // LA SEDE, no con los de Zéndity. Un hogar ajeno a Vivid no tiene por
+        // qué heredar el azul de Vivid ni el teal del proveedor del software.
+        const marca = await marcaSede(device.headquartersId);
         const hq = await prisma.headquarters.findUnique({
             where: { id: device.headquartersId },
-            select: { name: true, logoUrl: true, phone: true },
+            select: { phone: true },
         });
-        if (!hq) {
-            return NextResponse.json({ success: false, error: 'Sede no encontrada' }, { status: 404 });
-        }
-        return NextResponse.json({ success: true, name: hq.name, logoUrl: hq.logoUrl, phone: hq.phone });
+        return NextResponse.json({
+            success: true,
+            name: marca.nombre,
+            logoUrl: marca.logoUrl,
+            phone: hq?.phone ?? null,
+            colores: {
+                primary: marca.primary,
+                secondary: marca.secondary,
+                accent: marca.accent,
+                bg: marca.bg,
+            },
+        });
     } catch (error) {
         console.error('Reception hq-info error:', error);
         return NextResponse.json({ success: false, error: 'Error interno' }, { status: 500 });

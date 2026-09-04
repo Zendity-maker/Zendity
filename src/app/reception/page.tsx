@@ -55,6 +55,21 @@ export default function ReceptionKiosk() {
     // hogar y se presenta como el hogar; el proveedor del software va en letra
     // pequeña al pie, si acaso.
     const [hqName, setHqName] = useState<string | null>(null);
+
+    /**
+     * Paleta de LA SEDE, no de Zéndity.
+     *
+     * `brandPrimary/Secondary/Accent/Bg` viven en Headquarters y las dos sedes
+     * de Vivid ya los tienen puestos. El kiosco los pide junto con el nombre y
+     * los aplica como variables CSS, así que un hogar ajeno a Vivid se pinta
+     * con los suyos sin tocar una línea.
+     *
+     * El respaldo es el de Vivid porque es quien lo usa hoy; si la llamada
+     * falla, la tablet se ve bien igual.
+     */
+    const [colores, setColores] = useState({
+        primary: '#1C3170', secondary: '#8CBBE8', accent: '#C5E69A', bg: '#FAF6EE',
+    });
     const bienvenidaDicha = useRef(false);
     const [sinAutorizar, setSinAutorizar] = useState(false);
 
@@ -306,6 +321,7 @@ export default function ReceptionKiosk() {
                 if (r.status === 401) { setSinAutorizar(true); return; }
                 const d = await r.json();
                 if (d?.name) setHqName(d.name);
+                if (d?.colores) setColores(c => ({ ...c, ...d.colores }));
             })
             .catch(() => {
                 // Sin red no se puede saber de quién es la casa. Se saluda sin
@@ -535,23 +551,23 @@ export default function ReceptionKiosk() {
     // vive aquí. Mejor decir la verdad, y decirle al personal qué hacer.
     if (sinAutorizar) {
         return (
-            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center select-none">
+            <div className="min-h-screen bg-[#FAF6EE] text-[#1C3170] flex flex-col items-center justify-center p-8 text-center select-none">
                 <div className="max-w-lg">
                     <div className="text-5xl mb-6">🔒</div>
-                    <h1 className="text-3xl font-black text-white mb-4">Tablet sin autorizar</h1>
-                    <p className="text-slate-300 text-lg leading-relaxed mb-8">
+                    <h1 className="text-3xl font-black text-[var(--m-primary)] mb-4">Tablet sin autorizar</h1>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_85%,white)] text-lg leading-relaxed mb-8">
                         Esta tablet todavía no está registrada como kiosco de este hogar,
                         así que no puede consultar residentes ni anotar visitas.
                     </p>
-                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-left">
-                        <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-3">Para el personal</p>
-                        <p className="text-slate-200 leading-relaxed">
-                            En Zéndity, entra a <span className="font-bold text-teal-400">Kioscos</span>,
+                    <div className="bg-white border border-[color-mix(in_oklab,var(--m-primary)_18%,transparent)] rounded-2xl p-6 text-left">
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm font-bold uppercase tracking-widest mb-3">Para el personal</p>
+                        <p className="text-[var(--m-primary)] leading-relaxed">
+                            En Zéndity, entra a <span className="font-bold text-[color-mix(in_oklab,var(--m-primary)_70%,white)]">Kioscos</span>,
                             genera el enlace de configuración de esta tablet y ábrelo aquí una vez.
                             Queda autorizada y no hay que repetirlo.
                         </p>
                     </div>
-                    <p className="text-slate-500 text-sm mt-8">
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-8">
                         Mientras tanto, anota la visita en papel.
                     </p>
                 </div>
@@ -561,7 +577,19 @@ export default function ReceptionKiosk() {
 
     return (
         <div
-            className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none"
+            /* Fondo CLARO. El kiosco está junto a una entrada con luz natural y
+               una pantalla oscura ahí se convierte en espejo. Además el tema
+               oscuro traia 22 usos de `text-slate-500` sobre `slate-900`: unos
+               4:1 de contraste, por debajo del mínimo legible para texto
+               corrido — y quien lo usa tiene ochenta años. */
+            className="min-h-screen flex flex-col items-center justify-center p-6 select-none"
+            style={{
+                background: colores.bg,
+                color: colores.primary,
+                ['--m-primary' as string]: colores.primary,
+                ['--m-secondary' as string]: colores.secondary,
+                ['--m-accent' as string]: colores.accent,
+            } as React.CSSProperties}
             onClick={resetInactivityTimer}
             onTouchStart={resetInactivityTimer}
             onKeyDown={resetInactivityTimer}
@@ -570,10 +598,10 @@ export default function ReceptionKiosk() {
 
             {/* Header */}
             <div className="w-full max-w-2xl mb-6 text-center">
-                <h1 className="text-white font-black text-3xl tracking-wide mb-1">
+                <h1 className="text-[var(--m-primary)] font-black text-3xl tracking-wide mb-1">
                     {hqName ?? '\u00A0'}
                 </h1>
-                <p className="text-teal-400 text-sm font-medium tracking-widest uppercase">
+                <p className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-sm font-medium tracking-widest uppercase">
                     Recepción · Powered by Zéndity
                 </p>
             </div>
@@ -581,18 +609,18 @@ export default function ReceptionKiosk() {
             {/* ── STEP: WELCOME ── */}
             {step === "welcome" && (
                 <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-500">
-                    <div className="w-32 h-32 rounded-full bg-teal-900/40 border-2 border-teal-500/50 flex items-center justify-center">
+                    <div className="w-32 h-32 rounded-full bg-[color-mix(in_oklab,var(--m-accent)_35%,white)] border-2 border-[var(--m-accent)] flex items-center justify-center">
                         <span className="text-6xl">👋</span>
                     </div>
-                    <h1 className="text-white text-3xl font-bold text-center leading-snug">
+                    <h1 className="text-[var(--m-primary)] text-3xl font-bold text-center leading-snug">
                         ¡Bienvenido!
                     </h1>
-                    <p className="text-slate-500 text-lg text-center max-w-sm">
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-lg text-center max-w-sm">
                         Regístrese para visitar a un residente de nuestra comunidad.
                     </p>
                     <button
                         onClick={() => setStep("asking-resident")}
-                        className="mt-4 bg-teal-600 hover:bg-teal-500 text-white font-black text-xl px-12 py-5 rounded-2xl shadow-[0_4px_24px_0_rgba(13,148,136,0.5)] hover:shadow-[0_6px_32px_rgba(13,148,136,0.4)] hover:-translate-y-1 transition-all duration-200"
+                        className="mt-4 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-xl px-12 py-5 rounded-2xl shadow-lg hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
                     >
                         Iniciar Registro
                     </button>
@@ -601,7 +629,7 @@ export default function ReceptionKiosk() {
                         para lo que sirve en una evacuacion. */}
                     <button
                         onClick={() => { setSalidaNombre(""); setSalidaCandidatas([]); setSalidaError(null); setStep("salida-nombre"); }}
-                        className="text-slate-400 hover:text-white text-base font-semibold underline underline-offset-4 px-6 py-3 transition-colors"
+                        className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] hover:text-[var(--m-primary)] text-base font-semibold underline underline-offset-4 px-6 py-3 transition-colors"
                     >
                         Ya me voy — registrar mi salida
                     </button>
@@ -611,8 +639,8 @@ export default function ReceptionKiosk() {
             {/* ── PASO: SALIDA — NOMBRE ── */}
             {step === "salida-nombre" && (
                 <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
-                    <h2 className="text-white text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
-                    <p className="text-slate-500 text-center text-sm">Para cerrar su visita de hoy.</p>
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-sm">Para cerrar su visita de hoy.</p>
                     <input
                         type="text"
                         value={salidaNombre}
@@ -620,21 +648,21 @@ export default function ReceptionKiosk() {
                         onKeyDown={(e) => { if (e.key === 'Enter') buscarSalida(); }}
                         placeholder="Su nombre completo..."
                         autoFocus
-                        className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500"
+                        className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)]"
                     />
 
                     {salidaCandidatas.length > 1 && (
                         <div className="w-full flex flex-col gap-2">
-                            <p className="text-slate-400 text-sm text-center">Toque su visita:</p>
+                            <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm text-center">Toque su visita:</p>
                             {salidaCandidatas.map((v) => (
                                 <button
                                     key={v.id}
                                     onClick={() => confirmarSalida(v.id)}
                                     disabled={salidaBuscando}
-                                    className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl px-5 py-4 text-left transition-colors disabled:opacity-50"
+                                    className="w-full bg-white hover:bg-[color-mix(in_oklab,var(--m-secondary)_18%,white)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] rounded-2xl px-5 py-4 text-left transition-colors disabled:opacity-50"
                                 >
-                                    <span className="block text-white font-bold">{v.visitorName}</span>
-                                    <span className="block text-slate-400 text-sm">
+                                    <span className="block text-[var(--m-primary)] font-bold">{v.visitorName}</span>
+                                    <span className="block text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm">
                                         Visitó a {v.residentName} · entró a las{' '}
                                         {new Date(v.visitedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
@@ -648,14 +676,14 @@ export default function ReceptionKiosk() {
                     <div className="flex gap-3 w-full">
                         <button
                             onClick={() => setStep("welcome")}
-                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-2xl transition-colors"
+                            className="flex-1 bg-white hover:bg-[color-mix(in_oklab,var(--m-primary)_8%,white)] text-[var(--m-primary)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] font-bold py-4 rounded-2xl transition-colors"
                         >
                             Volver
                         </button>
                         <button
                             onClick={buscarSalida}
                             disabled={salidaNombre.trim().length < 3 || salidaBuscando}
-                            className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all disabled:opacity-40"
+                            className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black py-4 rounded-2xl active:scale-95 transition-all disabled:opacity-40"
                         >
                             {salidaBuscando ? 'Buscando…' : 'Registrar salida'}
                         </button>
@@ -666,15 +694,15 @@ export default function ReceptionKiosk() {
             {/* ── PASO: SALIDA REGISTRADA ── */}
             {step === "salida-hecha" && (
                 <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500">
-                    <div className="w-28 h-28 rounded-full bg-teal-900/40 border-2 border-teal-500/50 flex items-center justify-center">
+                    <div className="w-28 h-28 rounded-full bg-[color-mix(in_oklab,var(--m-accent)_35%,white)] border-2 border-[var(--m-accent)] flex items-center justify-center">
                         <span className="text-5xl">👋</span>
                     </div>
-                    <h1 className="text-white text-3xl font-bold text-center">Salida registrada</h1>
+                    <h1 className="text-[var(--m-primary)] text-3xl font-bold text-center">Salida registrada</h1>
                     {salidaHecha && (
-                        <p className="text-slate-400 text-center text-lg leading-relaxed">
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-lg leading-relaxed">
                             {salidaHecha.visitorName}, gracias por visitar a {salidaHecha.residentName}.
                             <br />
-                            <span className="text-slate-500 text-base">
+                            <span className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-base">
                                 {new Date(salidaHecha.visitedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
                                 {' → '}
                                 {salidaHecha.departedAt && new Date(salidaHecha.departedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
@@ -683,7 +711,7 @@ export default function ReceptionKiosk() {
                     )}
                     <button
                         onClick={() => { setSalidaHecha(null); setSalidaNombre(""); setStep("welcome"); }}
-                        className="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-10 py-4 rounded-2xl transition-colors"
+                        className="mt-2 bg-white hover:bg-[color-mix(in_oklab,var(--m-primary)_8%,white)] text-[var(--m-primary)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] font-bold px-10 py-4 rounded-2xl transition-colors"
                     >
                         Listo
                     </button>
@@ -694,8 +722,8 @@ export default function ReceptionKiosk() {
             {step === "asking-resident" && (
                 <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
                     <StepIndicator current={1} total={3} />
-                    <h2 className="text-white text-2xl font-bold text-center">¿A quién viene a visitar?</h2>
-                    <p className="text-slate-500 text-center text-sm">Escriba o diga el nombre del residente.</p>
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">¿A quién viene a visitar?</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-sm">Escriba o diga el nombre del residente.</p>
 
                     <div className="w-full relative">
                         <input
@@ -703,19 +731,19 @@ export default function ReceptionKiosk() {
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             placeholder="Nombre del residente..."
-                            className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600 font-medium"
+                            className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] focus:ring-2 focus:ring-[var(--m-primary)]/30 placeholder:text-[color-mix(in_oklab,var(--m-primary)_80%,white)] font-medium"
                         />
                     </div>
 
 
                     <div className="flex gap-4 w-full mt-2">
-                        <button onClick={() => setStep("welcome")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <button onClick={() => setStep("welcome")} className="flex-1 bg-white hover:bg-[color-mix(in_oklab,var(--m-primary)_8%,white)] text-[var(--m-primary)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
                             <FaTimes /> Cancelar
                         </button>
                         <button
                             onClick={handleResidentConfirm}
                             disabled={!inputText.trim()}
-                            className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 bg-[var(--m-accent)] hover:brightness-95 disabled:opacity-40 disabled:pointer-events-none text-[var(--m-primary)] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                             Buscar <FaCheck />
                         </button>
@@ -726,15 +754,15 @@ export default function ReceptionKiosk() {
             {/* ── STEP: CONFIRMING RESIDENT ── */}
             {step === 'confirming-resident' && (
                 <div className="w-full max-w-2xl">
-                    <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-teal-500">
+                    <div className="bg-white rounded-2xl p-6 mb-6 border-2 border-[var(--m-accent)]">
                         <div className="flex items-start gap-4">
-                            <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span className="text-white text-sm font-bold">Z</span>
+                            <div className="w-10 h-10 bg-[var(--m-accent)] rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-[var(--m-primary)] text-sm font-bold">Z</span>
                             </div>
                             <div>
-                                <p className="text-teal-400 text-xs font-bold mb-1">ZENDI</p>
-                                <p className="text-white text-xl font-medium">¿A cuál de estos residentes viene a visitar?</p>
-                                <p className="text-slate-500 text-sm mt-1">Which resident are you visiting?</p>
+                                <p className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-xs font-bold mb-1">ZENDI</p>
+                                <p className="text-[var(--m-primary)] text-xl font-medium">¿A cuál de estos residentes viene a visitar?</p>
+                                <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-1">Which resident are you visiting?</p>
                             </div>
                         </div>
                     </div>
@@ -743,13 +771,13 @@ export default function ReceptionKiosk() {
                             <button
                                 key={patient.id}
                                 onClick={() => handleResidentSelect(patient)}
-                                className="w-full flex items-center justify-between bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-teal-500 rounded-2xl px-6 py-4 transition-all text-left"
+                                className="w-full flex items-center justify-between bg-white hover:bg-[color-mix(in_oklab,var(--m-secondary)_18%,white)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] hover:border-[var(--m-primary)] rounded-2xl px-6 py-4 transition-all text-left"
                             >
                                 <div>
-                                    <p className="text-white font-bold text-lg">{patient.name}</p>
-                                    {patient.room && <p className="text-slate-500 text-sm">Cuarto {patient.room}</p>}
+                                    <p className="text-[var(--m-primary)] font-bold text-lg">{patient.name}</p>
+                                    {patient.room && <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm">Cuarto {patient.room}</p>}
                                 </div>
-                                <span className="text-teal-400 text-2xl">→</span>
+                                <span className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-2xl">→</span>
                             </button>
                         ))}
                         <button
@@ -759,7 +787,7 @@ export default function ReceptionKiosk() {
                                 setInputText('');
                                                 speak('Por favor intente de nuevo con el nombre completo del residente.');
                             }}
-                            className="w-full py-3 text-slate-500 hover:text-slate-500 text-sm transition-colors"
+                            className="w-full py-3 text-[color-mix(in_oklab,var(--m-primary)_72%,white)] hover:text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm transition-colors"
                         >
                             Ninguno — intentar de nuevo
                         </button>
@@ -771,9 +799,9 @@ export default function ReceptionKiosk() {
             {step === "asking-name" && (
                 <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
                     <StepIndicator current={2} total={3} />
-                    <h2 className="text-white text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
-                    <p className="text-slate-500 text-center text-sm">
-                        Visitando a: <span className="text-teal-400 font-bold">{residentName}</span>
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-sm">
+                        Visitando a: <span className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] font-bold">{residentName}</span>
                     </p>
 
                     <div className="w-full space-y-3">
@@ -783,7 +811,7 @@ export default function ReceptionKiosk() {
                                 value={visitorName}
                                 onChange={(e) => setVisitorName(e.target.value)}
                                 placeholder="Su nombre completo..."
-                                className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600 font-medium"
+                                className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] focus:ring-2 focus:ring-[var(--m-primary)]/30 placeholder:text-[color-mix(in_oklab,var(--m-primary)_80%,white)] font-medium"
                             />
                         </div>
                         <input
@@ -791,13 +819,13 @@ export default function ReceptionKiosk() {
                             value={visitorRelation}
                             onChange={(e) => setVisitorRelation(e.target.value)}
                             placeholder="Relación (ej. Hijo/a, Cónyuge, Amigo/a)..."
-                            className="w-full bg-slate-800 border border-slate-600 text-white text-base rounded-2xl px-6 py-4 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600"
+                            className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-base rounded-2xl px-6 py-4 outline-none focus:border-[var(--m-primary)] focus:ring-2 focus:ring-[var(--m-primary)]/30 placeholder:text-[color-mix(in_oklab,var(--m-primary)_80%,white)]"
                         />
                     </div>
 
 
                     <div className="flex gap-4 w-full mt-2">
-                        <button onClick={() => setStep("asking-resident")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <button onClick={() => setStep("asking-resident")} className="flex-1 bg-white hover:bg-[color-mix(in_oklab,var(--m-primary)_8%,white)] text-[var(--m-primary)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
                             <FaTimes /> Atrás
                         </button>
                         <button
@@ -808,7 +836,7 @@ export default function ReceptionKiosk() {
                                 }
                             }}
                             disabled={!visitorName.trim()}
-                            className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 bg-[var(--m-accent)] hover:brightness-95 disabled:opacity-40 disabled:pointer-events-none text-[var(--m-primary)] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                             Continuar <FaCheck />
                         </button>
@@ -820,14 +848,14 @@ export default function ReceptionKiosk() {
             {step === "signing" && (
                 <div className="w-full max-w-lg flex flex-col items-center gap-5 animate-in fade-in slide-in-from-bottom-4 duration-400">
                     <StepIndicator current={3} total={3} />
-                    <h2 className="text-white text-2xl font-bold text-center">Firme para confirmar</h2>
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">Firme para confirmar</h2>
                     <div className="text-center space-y-0.5">
-                        <p className="text-slate-500 text-sm">Visitante: <span className="text-white font-semibold">{visitorName}</span></p>
-                        <p className="text-slate-500 text-sm">Residente: <span className="text-teal-400 font-semibold">{residentName}</span></p>
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm">Visitante: <span className="text-[var(--m-primary)] font-semibold">{visitorName}</span></p>
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm">Residente: <span className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] font-semibold">{residentName}</span></p>
                     </div>
 
                     {/* Canvas */}
-                    <div ref={canvasWrapRef} className="w-full bg-white rounded-2xl overflow-hidden border-4 border-slate-700 relative">
+                    <div ref={canvasWrapRef} className="w-full bg-white rounded-2xl overflow-hidden border-4 border-[color-mix(in_oklab,var(--m-primary)_18%,transparent)] relative">
                         <canvas
                             ref={canvasRef}
                             width={canvasSize.width}
@@ -843,12 +871,12 @@ export default function ReceptionKiosk() {
                         />
                         {!hasSigned && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-slate-500 text-base font-medium opacity-70">Firme aquí ✍️</span>
+                                <span className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-base font-medium opacity-70">Firme aquí ✍️</span>
                             </div>
                         )}
                     </div>
 
-                    <button onClick={clearCanvas} className="text-slate-500 hover:text-slate-500 text-sm flex items-center gap-1.5 transition-colors">
+                    <button onClick={clearCanvas} className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] hover:text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm flex items-center gap-1.5 transition-colors">
                         <FaRedo className="text-xs" /> Borrar firma
                     </button>
 
@@ -857,13 +885,13 @@ export default function ReceptionKiosk() {
                     )}
 
                     <div className="flex gap-4 w-full">
-                        <button onClick={() => setStep("asking-name")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors">
+                        <button onClick={() => setStep("asking-name")} className="flex-1 bg-white hover:bg-[color-mix(in_oklab,var(--m-primary)_8%,white)] text-[var(--m-primary)] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] font-bold py-4 rounded-xl transition-colors">
                             Atrás
                         </button>
                         <button
                             onClick={handleSignatureSubmit}
                             disabled={!hasSigned || isSaving}
-                            className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-black py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 bg-[var(--m-accent)] hover:brightness-95 disabled:opacity-40 disabled:pointer-events-none text-[var(--m-primary)] font-black py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                             {isSaving ? (
                                 <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Registrando...</span>
@@ -878,21 +906,21 @@ export default function ReceptionKiosk() {
             {/* ── STEP: DONE ── */}
             {step === "done" && (
                 <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500 text-center">
-                    <div className="w-28 h-28 rounded-full bg-teal-900/50 border-2 border-teal-500 flex items-center justify-center">
-                        <FaCheck className="text-teal-400 text-4xl" />
+                    <div className="w-28 h-28 rounded-full bg-[color-mix(in_oklab,var(--m-accent)_35%,white)] border-2 border-[var(--m-accent)] flex items-center justify-center">
+                        <FaCheck className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-4xl" />
                     </div>
-                    <h2 className="text-white text-3xl font-black">¡Visita Registrada!</h2>
+                    <h2 className="text-[var(--m-primary)] text-3xl font-black">¡Visita Registrada!</h2>
                     <div className="space-y-1">
-                        <p className="text-slate-500 text-lg">Bienvenido, <span className="text-white font-bold">{visitorName}</span></p>
-                        <p className="text-slate-500">Visita a <span className="text-teal-400 font-semibold">{residentName}</span> confirmada.</p>
-                        {visitId && <p className="text-slate-600 text-xs mt-2">ID: {visitId}</p>}
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-lg">Bienvenido, <span className="text-[var(--m-primary)] font-bold">{visitorName}</span></p>
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)]">Visita a <span className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] font-semibold">{residentName}</span> confirmada.</p>
+                        {visitId && <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-xs mt-2">ID: {visitId}</p>}
                     </div>
-                    <p className="text-slate-500 text-sm mt-4">Esta pantalla se reiniciará en unos segundos...</p>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-4">Esta pantalla se reiniciará en unos segundos...</p>
                 </div>
             )}
 
             {/* Footer */}
-            <div className="mt-16 text-slate-700 text-xs tracking-widest uppercase">
+            <div className="mt-16 text-[color-mix(in_oklab,var(--m-primary)_55%,white)] text-xs tracking-widest uppercase">
                 Zéndity Healthcare Management Platform
             </div>
         </div>
@@ -907,13 +935,13 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
                 <div
                     key={i}
                     className={`h-2 rounded-full transition-all duration-300 ${
-                        i + 1 === current ? "w-8 bg-teal-500" :
-                        i + 1 < current ? "w-2 bg-teal-700" :
-                        "w-2 bg-slate-700"
+                        i + 1 === current ? "w-8 bg-[var(--m-primary)]" :
+                        i + 1 < current ? "w-2 bg-[var(--m-accent)]" :
+                        "w-2 bg-[color-mix(in_oklab,var(--m-primary)_8%,white)]"
                     }`}
                 />
             ))}
-            <span className="text-slate-500 text-xs ml-1">{current} de {total}</span>
+            <span className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-xs ml-1">{current} de {total}</span>
         </div>
     );
 }

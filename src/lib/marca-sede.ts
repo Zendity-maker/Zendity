@@ -21,6 +21,7 @@ import { prisma } from '@/lib/prisma';
 const DEFAULT = {
     primary: '#0F6E56',
     secondary: '#1D9E75',
+    accent: '#1D9E75',
     bg: '#FAFAF9',
 };
 
@@ -32,6 +33,8 @@ export interface MarcaSede {
     logoUrl: string | null;
     primary: string;
     secondary: string;
+    /** Color de la acción positiva. Verde en Vivid. */
+    accent: string;
     bg: string;
     /** Para el campo `from` de SendGrid. */
     remitente: { name: string; email: string };
@@ -42,7 +45,7 @@ export async function marcaSede(hqId: string): Promise<MarcaSede> {
         where: { id: hqId },
         select: {
             name: true, brandName: true, logoUrl: true,
-            brandPrimary: true, brandSecondary: true, brandBg: true,
+            brandPrimary: true, brandSecondary: true, brandAccent: true, brandBg: true,
         },
     });
 
@@ -53,6 +56,11 @@ export async function marcaSede(hqId: string): Promise<MarcaSede> {
         logoUrl: hq?.logoUrl ?? null,
         primary: hq?.brandPrimary ?? DEFAULT.primary,
         secondary: hq?.brandSecondary ?? DEFAULT.secondary,
+        // `brandAccent` existía en el modelo desde siempre —el verde de Vivid,
+        // #C5E69A— y este selector no lo pedía. Es el color de la acción
+        // positiva; sin él, el kiosco no tenía con qué pintar el botón que
+        // continúa y acababa usando el teal de Zéndity.
+        accent: hq?.brandAccent ?? DEFAULT.accent,
         bg: hq?.brandBg ?? DEFAULT.bg,
         remitente: {
             // El nombre de la sede es lo que se ve en la bandeja.
