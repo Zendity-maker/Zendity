@@ -58,6 +58,40 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     const FULL_VIEW_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'SOCIAL_WORKER'];
     const allRoles = [userRole, ...(Array.isArray(userSecondary) ? userSecondary : [])];
     const isCoordinatorOnly = allRoles.includes('COORDINATOR') && !allRoles.some((r: string) => FULL_VIEW_ROLES.includes(r));
+
+    /**
+     * ESPEJOS DE LOS ROLE-GATES DE CADA ENDPOINT
+     * ──────────────────────────────────────────
+     * Hasta sep-2026 ningún botón de acción de esta pantalla miraba el rol. Una
+     * cuidadora veía "Editar Perfil", llenaba el formulario entero y chocaba
+     * contra un 403 al guardar. El backend nunca estuvo abierto —los cuatro
+     * endpoints validan— pero la pantalla prometía algo que no podía cumplir.
+     *
+     * OJO, hay DOS semánticas de rol conviviendo en esta misma pantalla y
+     * espejar la equivocada es cometer el mismo error al revés:
+     *
+     *   · `requireRole()` acepta rol primario O secundario  → hospitalizar,
+     *     protocolo postural.
+     *   · Los otros leen `session.user.role` a secas, primario únicamente →
+     *     perfil, diálisis, dieta, altas y fallecimiento. Una enfermera cuyo
+     *     NURSE esté en secondaryRoles NO pasa ahí.
+     *
+     * Por eso son dos ayudantes y no uno. Si algún día se unifican los
+     * endpoints, esto se unifica con ellos —no antes.
+     */
+    const puedePrimario = (roles: string[]) => roles.includes(userRole);
+    const puedeConSecundarios = (roles: string[]) => allRoles.some((r: string) => roles.includes(r));
+
+    // PATCH/PUT /api/corporate/patients/[id] — perfil general y flag de diálisis.
+    const puedeEditarPerfil = puedePrimario(['DIRECTOR', 'ADMIN', 'NURSE']);
+    // PUT /api/corporate/patients/[id]/diet
+    const puedeEditarDieta = puedePrimario(['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']);
+    // POST /api/corporate/patients/[id]/discharge — DISCHARGED y DECEASED.
+    const puedeDarDeBaja = puedePrimario(['DIRECTOR', 'ADMIN']);
+    // El mismo endpoint, pero TEMPORARY_LEAVE y RETURN abren a más roles.
+    const puedeDarPermiso = puedePrimario(['DIRECTOR', 'ADMIN', 'SUPERVISOR', 'NURSE', 'CAREGIVER']);
+    // POST /api/care/hospitalize — este sí pasa por requireRole().
+    const puedeHospitalizar = puedeConSecundarios(['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN']);
     const [patientData, setPatientData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -469,36 +503,42 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 </span>
                                 {patientData?.status !== 'DISCHARGED' && patientData?.status !== 'DECEASED' && (
                                     <>
-                                    <button onClick={() => {
-                                        setDietDraft({
-                                            dietTexture:    patientData?.dietTexture ?? null,
-                                            dietDiabetic:   patientData?.dietDiabetic ?? false,
-                                            dietLowSodium:  patientData?.dietLowSodium ?? false,
-                                            dietRenal:      patientData?.dietRenal ?? false,
-                                            dietVegetarian: patientData?.dietVegetarian ?? false,
-                                        });
-                                        setShowDietModal(true);
-                                    }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
-                                        <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
-                                    </button>
-                                    <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
-                                        <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Perfil
-                                    </button>
-                                    <button
-                                        title={patientData?.needsDialysis ? 'Quitar flag de diálisis' : 'Marcar como paciente de diálisis'}
-                                        onClick={async () => {
-                                            const newVal = !patientData?.needsDialysis;
-                                            const res = await fetch(`/api/corporate/patients/${params.id}`, {
-                                                method: 'PUT',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ needsDialysis: newVal })
+                                    {puedeEditarDieta && (
+                                        <button onClick={() => {
+                                            setDietDraft({
+                                                dietTexture:    patientData?.dietTexture ?? null,
+                                                dietDiabetic:   patientData?.dietDiabetic ?? false,
+                                                dietLowSodium:  patientData?.dietLowSodium ?? false,
+                                                dietRenal:      patientData?.dietRenal ?? false,
+                                                dietVegetarian: patientData?.dietVegetarian ?? false,
                                             });
-                                            if ((await res.json()).success !== false) fetchPatientData();
-                                        }}
-                                        className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${patientData?.needsDialysis ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-                                    >
-                                        🩺 {patientData?.needsDialysis ? 'Diálisis ✓' : 'Diálisis'}
-                                    </button>
+                                            setShowDietModal(true);
+                                        }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">
+                                            <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Dieta
+                                        </button>
+                                    )}
+                                    {puedeEditarPerfil && (
+                                        <button onClick={openEditModal} className="flex items-center gap-1.5 px-3 py-1 bg-white text-slate-700 font-bold hover:bg-slate-50 rounded-lg transition-all ml-1 border border-slate-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Editar Perfil General">
+                                            <PencilIcon className="w-3.5 h-3.5 stroke-2" /> Editar Perfil
+                                        </button>
+                                    )}
+                                    {puedeEditarPerfil && (
+                                        <button
+                                            title={patientData?.needsDialysis ? 'Quitar flag de diálisis' : 'Marcar como paciente de diálisis'}
+                                            onClick={async () => {
+                                                const newVal = !patientData?.needsDialysis;
+                                                const res = await fetch(`/api/corporate/patients/${params.id}`, {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ needsDialysis: newVal })
+                                                });
+                                                if ((await res.json()).success !== false) fetchPatientData();
+                                            }}
+                                            className={`flex items-center gap-1.5 px-3 py-1 font-bold rounded-lg transition-all ml-1 border shadow-sm text-xs uppercase tracking-wide active:scale-95 ${patientData?.needsDialysis ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                            🩺 {patientData?.needsDialysis ? 'Diálisis ✓' : 'Diálisis'}
+                                        </button>
+                                    )}
                                     {/* Va aqui, con Dieta y Dialisis, y no en la
                                         fila de acciones grandes: es una marca
                                         clinica del residente, no una accion que
@@ -545,28 +585,38 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <Link href={`/corporate/patients/${patientData.id}/emergency-print`} target="_blank" className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     🆘 Tarjeta de Emergencia
                                 </Link>
-                                <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                    <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal
-                                </button>
-                                <button
-                                    onClick={() => setHospModal(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all active:scale-95 shadow-sm"
-                                >
-                                    🚑 Hospitalización de Emergencia
-                                </button>
-                                <button onClick={() => setShowDischargeModal(true)} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                    <ArrowRightOnRectangleIcon className="w-5 h-5" /> Baja Definitiva
-                                </button>
+                                {puedeDarPermiso && (
+                                    <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                        <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal
+                                    </button>
+                                )}
+                                {puedeHospitalizar && (
+                                    <button
+                                        onClick={() => setHospModal(true)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-all active:scale-95 shadow-sm"
+                                    >
+                                        🚑 Hospitalización de Emergencia
+                                    </button>
+                                )}
+                                {puedeDarDeBaja && (
+                                    <button onClick={() => setShowDischargeModal(true)} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                        <ArrowRightOnRectangleIcon className="w-5 h-5" /> Baja Definitiva
+                                    </button>
+                                )}
                             </>
                         )}
                         {patientData?.status === 'TEMPORARY_LEAVE' && (
                             <>
-                                <button onClick={() => handlePatientAction('RETURN')} className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                    <UserIcon className="w-5 h-5" /> {patientData.leaveType === 'HOSPITAL' ? 'Alta Hospitalaria — Retornar' : 'Retornar a la Residencia'}
-                                </button>
-                                <button onClick={() => setShowDeceasedFromLeaveModal(true)} className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                    <HeartCrack className="w-5 h-5" /> Registrar Fallecimiento
-                                </button>
+                                {puedeDarPermiso && (
+                                    <button onClick={() => handlePatientAction('RETURN')} className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                        <UserIcon className="w-5 h-5" /> {patientData.leaveType === 'HOSPITAL' ? 'Alta Hospitalaria — Retornar' : 'Retornar a la Residencia'}
+                                    </button>
+                                )}
+                                {puedeDarDeBaja && (
+                                    <button onClick={() => setShowDeceasedFromLeaveModal(true)} className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                        <HeartCrack className="w-5 h-5" /> Registrar Fallecimiento
+                                    </button>
+                                )}
                             </>
                         )}
                         {(patientData?.status === 'DISCHARGED' || patientData?.status === 'DECEASED') && (
