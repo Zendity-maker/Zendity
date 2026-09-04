@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import { FaMicrophone, FaCheck, FaTimes, FaRedo } from "react-icons/fa";
 
 const INACTIVITY_MS = 60_000; // 60s para reset automático
@@ -39,11 +38,17 @@ interface VisitData {
     patientId: string | null;
 }
 
-// ─── Kiosk device-token (Fase 1) ─────────────────────────────────────────────
-// Espejo de /external-kiosk: si la tablet está provisionada, su token vive en
-// localStorage bajo "zendity_kiosk_token". Lo enviamos como x-device-token en
-// los fetches del kiosko. Si no hay token (tablet sin provisionar), el header
-// va AUSENTE y reception sigue funcionando igual (backend tolerante en Fase 1).
+// ─── Token de dispositivo ────────────────────────────────────────────────────
+// Espejo de /external-kiosk: el token de la tablet vive en localStorage bajo
+// "zendity_kiosk_token" y viaja como x-device-token en cada petición.
+//
+// La fase 1 lo enviaba pero el backend lo ignoraba —"backend tolerante"— y esa
+// fase 2 nunca llegó. El resultado, comprobado en producción el 04-sep-2026:
+// /api/reception/search-resident respondía 200 sin ninguna credencial, con
+// nombres y números de cuarto. Los tres endpoints ya EXIGEN el token.
+//
+// Las dos tablets comparten la llave, así que una configurada por
+// /external-kiosk/setup vale también para recepción.
 const KIOSK_TOKEN_KEY = "zendity_kiosk_token";
 
 function kioskDeviceHeaders(): Record<string, string> {
@@ -54,11 +59,13 @@ function kioskDeviceHeaders(): Record<string, string> {
 
 // ─── Componente Principal ────────────────────────────────────────────────────
 export default function ReceptionKiosk() {
-    const searchParams = useSearchParams();
-    const hqId = searchParams?.get('hqId') || null;
+    // El `?hqId=` de la URL del kiosco ya no se lee: la sede sale del token de
+    // la tablet. El parámetro sigue en el enlace del QR y es inofensivo —lo
+    // ignora el cliente y lo ignora el servidor.
 
     const [step, setStep] = useState<KioskStep>("welcome");
     const [hqName, setHqName] = useState("Zéndity");
+    const [sinAutorizar, setSinAutorizar] = useState(false);
 
     // Display states (usados en JSX para mostrar nombres)
     const [residentName, setResidentName] = useState("");
@@ -208,8 +215,8 @@ export default function ReceptionKiosk() {
         stopListening();
 
         try {
-            const hqParam = hqId ? `&hqId=${encodeURIComponent(hqId)}` : '';
-            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}${hqParam}`, {
+            // Sin `hqId`: la sede la pone el token de la tablet.
+            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(name)}`, {
                 headers: kioskDeviceHeaders(),
             });
             const data = await res.json();
@@ -265,15 +272,22 @@ export default function ReceptionKiosk() {
         });
     };
 
-    // ── Cargar nombre de la sede al montar ───────────────────────────────────
+    // ── Identidad de la sede, y de paso comprobación del token ───────────────
+    //
+    // La sede ya no sale del `?hqId=` de la URL sino del dispositivo, así que
+    // esta llamada sirve para dos cosas: traer el nombre y averiguar si la
+    // tablet está autorizada. Un 401 aquí significa que no lo está, y hay que
+    // DECIRLO: antes, sin token, el kiosco se veía normal y luego no
+    // encontraba a nadie, que es la peor forma de fallar.
     useEffect(() => {
-        if (!hqId) return;
-        fetch(`/api/reception/hq-info?hqId=${encodeURIComponent(hqId)}`, { headers: kioskDeviceHeaders() })
-            .then(r => r.json())
-            .then(d => { if (d.name) setHqName(d.name); })
+        fetch('/api/reception/hq-info', { headers: kioskDeviceHeaders() })
+            .then(async r => {
+                if (r.status === 401) { setSinAutorizar(true); return; }
+                const d = await r.json();
+                if (d?.name) setHqName(d.name);
+            })
             .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hqId]);
+    }, []);
 
     // ── Bienvenida al montar — solo una vez ─────────────────────────────────
     useEffect(() => {
@@ -453,7 +467,6 @@ export default function ReceptionKiosk() {
         setErrorMsg(null);
         try {
             const signature = canvasRef.current?.toDataURL("image/png") || null;
-            const timestamp = new Date().toISOString();
             const res = await fetch("/api/reception/visit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...kioskDeviceHeaders() },
@@ -462,8 +475,9 @@ export default function ReceptionKiosk() {
                     visitorName: visitData.visitorName || visitorName,
                     visitorRelation: visitData.visitorRelation || visitorRelation,
                     patientId: visitData.patientId || null,
+                    // Sin `timestamp`: la hora la pone el servidor. Quien
+                    // firma un registro no puede fijar su propia hora.
                     signatureData: signature,
-                    timestamp
                 })
             });
             const data = await res.json();
@@ -482,6 +496,37 @@ export default function ReceptionKiosk() {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
+
+    // Tablet sin autorizar. Va ANTES que todo: sin token no se puede buscar a
+    // nadie ni registrar nada, y una pantalla de bienvenida normal que luego
+    // "no encuentra al residente" haría creer al visitante que la persona no
+    // vive aquí. Mejor decir la verdad, y decirle al personal qué hacer.
+    if (sinAutorizar) {
+        return (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8 text-center select-none">
+                <div className="max-w-lg">
+                    <div className="text-5xl mb-6">🔒</div>
+                    <h1 className="text-3xl font-black text-white mb-4">Tablet sin autorizar</h1>
+                    <p className="text-slate-300 text-lg leading-relaxed mb-8">
+                        Esta tablet todavía no está registrada como kiosco de este hogar,
+                        así que no puede consultar residentes ni anotar visitas.
+                    </p>
+                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 text-left">
+                        <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mb-3">Para el personal</p>
+                        <p className="text-slate-200 leading-relaxed">
+                            En Zéndity, entra a <span className="font-bold text-teal-400">Kioscos</span>,
+                            genera el enlace de configuración de esta tablet y ábrelo aquí una vez.
+                            Queda autorizada y no hay que repetirlo.
+                        </p>
+                    </div>
+                    <p className="text-slate-500 text-sm mt-8">
+                        Mientras tanto, anota la visita en papel.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 select-none"

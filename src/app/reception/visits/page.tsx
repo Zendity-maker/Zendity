@@ -33,11 +33,23 @@ export default async function VisitsPage({
         };
     }
 
-    const visits = await prisma.familyVisit.findMany({
-        where,
-        orderBy: { visitedAt: 'desc' },
-        take: 200
-    });
+    /**
+     * Tope y aviso de recorte.
+     *
+     * Antes esto era `take: 200` a secas. Un rango con más de 200 visitas se
+     * imprimía recortado SIN decirlo: el papel parecía el registro completo del
+     * periodo y no lo era. En un documento que se le enseña a un inspector eso
+     * es peor que no imprimirlo — nadie duda de una lista que no avisa.
+     *
+     * Se sube el tope y, si aun así sobran, el aviso sale IMPRESO, no en una
+     * barra de pantalla que el papel no recoge.
+     */
+    const TOPE = 1000;
+    const [totalEnRango, visits] = await Promise.all([
+        prisma.familyVisit.count({ where }),
+        prisma.familyVisit.findMany({ where, orderBy: { visitedAt: 'desc' }, take: TOPE }),
+    ]);
+    const recortado = totalEnRango > visits.length;
 
     const today = new Date().toLocaleDateString('es-PR', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
@@ -76,6 +88,19 @@ export default async function VisitsPage({
 
             {/* Contenido imprimible */}
             <div className="print-page max-w-5xl mx-auto p-8">
+
+                {recortado && (
+                    <div className="mb-6 border-2 border-amber-500 bg-amber-50 rounded-lg px-5 py-4">
+                        <p className="font-black text-amber-900 text-sm uppercase tracking-wider mb-1">
+                            Registro parcial
+                        </p>
+                        <p className="text-amber-900 text-sm leading-relaxed">
+                            En este periodo hay <strong>{totalEnRango}</strong> visitas y aquí salen las{' '}
+                            <strong>{visits.length}</strong> más recientes. Reduce el rango de fechas para
+                            obtener el registro completo.
+                        </p>
+                    </div>
+                )}
 
                 {/* Header de la sede */}
                 <div className="border-b-2 border-slate-800 pb-6 mb-6">
