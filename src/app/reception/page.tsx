@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FaMicrophone, FaCheck, FaTimes, FaRedo } from "react-icons/fa";
+import { FaCheck, FaTimes, FaRedo } from "react-icons/fa";
 
 const INACTIVITY_MS = 60_000; // 60s para reset automático
 
@@ -16,29 +16,6 @@ interface VisitaAbierta {
     residentName: string | null;
     visitedAt: string;
     departedAt?: string | null;
-}
-
-interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-}
-
-interface ISpeechRecognition extends EventTarget {
-    lang: string;
-    interimResults: boolean;
-    maxAlternatives: number;
-    onstart: (() => void) | null;
-    onend: (() => void) | null;
-    onresult: ((e: SpeechRecognitionEvent) => void) | null;
-    onerror: (() => void) | null;
-    start: () => void;
-    stop: () => void;
-}
-
-declare global {
-    interface Window {
-        SpeechRecognition: new () => ISpeechRecognition;
-        webkitSpeechRecognition: new () => ISpeechRecognition;
-    }
 }
 
 interface VisitData {
@@ -155,8 +132,6 @@ export default function ReceptionKiosk() {
     // Candidatos al buscar residente
     const [residentCandidates, setResidentCandidates] = useState<any[]>([]);
 
-    const [isListening, setIsListening] = useState(false);
-    const [transcript, setTranscript] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [visitId, setVisitId] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -174,7 +149,6 @@ export default function ReceptionKiosk() {
     const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Referencia al reconocedor activo (para poder detenerlo)
-    const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
     // Referencia al audio activo de ElevenLabs (para cancelar duplicación)
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -195,9 +169,12 @@ export default function ReceptionKiosk() {
         const playWithElevenLabs = async () => {
             try {
                 setIsSpeaking(true);
+                // El token va aquí también: el kiosco no tiene sesión de
+                // nadie, y sin credencial /api/zendi/speak devuelve 401 y la
+                // tablet se queda muda. Si falla, cae a la voz del navegador.
                 const res = await fetch('/api/zendi/speak', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...kioskDeviceHeaders() },
                     body: JSON.stringify({ text })
                 });
 
@@ -245,46 +222,29 @@ export default function ReceptionKiosk() {
     }, []);
 
     // ── STT ──────────────────────────────────────────────────────────────────
-    const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch { }
-            recognitionRef.current = null;
-        }
-        setIsListening(false);
-    }, []);
+    // El dictado se retiró el 04-sep-2026. Andrés lo probó en la tablet: no
+    // oía bien. Es el peor caso posible para reconocimiento de voz —apellidos
+    // puertorriqueños, dichos por gente mayor, en un lobby con ruido— y es
+    // donde menos se puede fallar: un nombre mal oído archiva la visita contra
+    // el residente equivocado.
+    //
+    // Además el kiosco abría el micrófono SOLO, sin que nadie lo pidiera, en un
+    // área común donde el personal habla de residentes. Ese audio salía del
+    // edificio hacia el servicio de reconocimiento del navegador y nadie había
+    // consentido nada. Un micrófono que se enciende solo en el lobby de un
+    // sistema con PHI es difícil de justificar.
+    //
+    // Y `startListening` lanzaba un alert() nativo cuando el navegador no
+    // soportaba la API — llamado automáticamente en SEIS puntos del flujo: un
+    // popup por paso en cualquier tablet sin soporte.
+    //
+    // La VOZ DE ZENDI se queda: guía hablando, el visitante escribe.
 
-    const startListening = useCallback((onResult?: (text: string) => void) => {
-        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRec) {
-            alert("Tu navegador no soporta reconocimiento de voz. Por favor escribe manualmente.");
-            return;
-        }
-        const rec: ISpeechRecognition = new SpeechRec();
-        rec.lang = "es-PR";
-        rec.interimResults = false;
-        rec.maxAlternatives = 1;
-
-        recognitionRef.current = rec;
-
-        rec.onstart = () => setIsListening(true);
-        rec.onend = () => { setIsListening(false); recognitionRef.current = null; };
-        rec.onresult = (e: SpeechRecognitionEvent) => {
-            const text = e.results[0][0].transcript;
-            setTranscript(text);
-            if (onResult) onResult(text);
-        };
-        rec.onerror = () => {
-            setIsListening(false);
-            recognitionRef.current = null;
-        };
-        rec.start();
-    }, []);
 
     // ── Búsqueda y confirmación de residente ─────────────────────────────────
     const handleResidentConfirm = async () => {
-        const name = inputText.trim() || transcript.trim();
+        const name = inputText.trim();
         if (!name) return;
-        stopListening();
 
         try {
             // Sin `hqId`: la sede la pone el token de la tablet.
@@ -298,12 +258,9 @@ export default function ReceptionKiosk() {
                 setResidentName(patient.name);
                 nameStepAnnouncedRef.current = true;
                 setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
-                setTranscript('');
                 setInputText('');
                 setStep('asking-name');
-                speak(`¿Viene a visitar a ${patient.name}? Perfecto. ¿Me puede dar su nombre completo?`, () => {
-                    setTimeout(() => startListening(), 500);
-                });
+                speak(`¿Viene a visitar a ${patient.name}? Perfecto. ¿Me puede dar su nombre completo?`);
             } else if (data.patients?.length > 1) {
                 setResidentCandidates(data.patients);
                 setStep('confirming-resident');
@@ -313,21 +270,16 @@ export default function ReceptionKiosk() {
                 setResidentName(name);
                 nameStepAnnouncedRef.current = true;
                 setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
-                setTranscript('');
                 setInputText('');
                 setStep('asking-name');
-                speak(`De acuerdo. ¿Me puede dar su nombre completo?`, () => {
-                    setTimeout(() => startListening(), 500);
-                });
+                speak(`De acuerdo. ¿Me puede dar su nombre completo?`);
             }
         } catch {
             setResidentName(name);
             nameStepAnnouncedRef.current = true;
             setVisitData(prev => ({ ...prev, residentName: name, patientId: null }));
             setStep('asking-name');
-            speak(`¿Me puede dar su nombre completo?`, () => {
-                setTimeout(() => startListening(), 500);
-            });
+            speak(`¿Me puede dar su nombre completo?`);
         }
     };
 
@@ -336,12 +288,9 @@ export default function ReceptionKiosk() {
         nameStepAnnouncedRef.current = true;
         setVisitData(prev => ({ ...prev, residentName: patient.name, patientId: patient.id }));
         setResidentCandidates([]);
-        setTranscript('');
         setInputText('');
         setStep('asking-name');
-        speak(`Perfecto. Visita para ${patient.name}. ¿Me puede dar su nombre completo?`, () => {
-            setTimeout(() => startListening(), 500);
-        });
+        speak(`Perfecto. Visita para ${patient.name}. ¿Me puede dar su nombre completo?`);
     };
 
     // ── Identidad de la sede, y de paso comprobación del token ───────────────
@@ -391,18 +340,14 @@ export default function ReceptionKiosk() {
     // ── Flujo de pasos — nunca incluir 'welcome' ────────────────────────────
     useEffect(() => {
         if (step === 'asking-resident') {
-            speak('¿A quién viene a visitar hoy?', () => {
-                setTimeout(() => startListening(), 500);
-            });
+            speak('¿A quién viene a visitar hoy?');
         } else if (step === 'asking-name') {
             if (nameStepAnnouncedRef.current) {
                 // Ya fue anunciado por handleResidentConfirm — solo resetear el ref
                 nameStepAnnouncedRef.current = false;
             } else {
                 // Llegó aquí por otra vía — hablar normalmente
-                speak('¿Me puede dar su nombre completo?', () => {
-                    setTimeout(() => startListening(), 500);
-                });
+                speak('¿Me puede dar su nombre completo?');
             }
         } else if (step === 'signing') {
             speak(`Gracias ${visitData.visitorName}. Por favor firme su visita en la pantalla mientras le notifico al personal.`);
@@ -414,7 +359,6 @@ export default function ReceptionKiosk() {
                 setVisitorName('');
                 setVisitorRelation('');
                 setInputText('');
-                setTranscript('');
                 setHasSigned(false);
                 setVisitId(null);
                 setErrorMsg(null);
@@ -431,7 +375,6 @@ export default function ReceptionKiosk() {
     // Cualquier actividad (click/touch/key/change) reinicia el timer.
     // Si no hay actividad en 60s y el step es intermedio, reset a 'welcome'.
     const handleInactivityReset = useCallback(() => {
-        stopListening();
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.src = '';
@@ -444,7 +387,6 @@ export default function ReceptionKiosk() {
         setVisitorName('');
         setVisitorRelation('');
         setInputText('');
-        setTranscript('');
         setHasSigned(false);
         setVisitId(null);
         setErrorMsg(null);
@@ -457,7 +399,7 @@ export default function ReceptionKiosk() {
         }
 
         speak('Sesión expirada por inactividad.');
-    }, [speak, stopListening]);
+    }, [speak]);
 
     const resetInactivityTimer = useCallback(() => {
         if (inactivityTimerRef.current) {
@@ -763,15 +705,8 @@ export default function ReceptionKiosk() {
                             placeholder="Nombre del residente..."
                             className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600 font-medium"
                         />
-                        {transcript && step === "asking-resident" && (
-                            <p className="text-teal-400 text-sm mt-2 text-center">Escuché: &quot;{transcript}&quot;</p>
-                        )}
                     </div>
 
-                    <MicButton
-                        isListening={isListening}
-                        onPress={() => startListening((text) => setInputText(text))}
-                    />
 
                     <div className="flex gap-4 w-full mt-2">
                         <button onClick={() => setStep("welcome")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
@@ -779,7 +714,7 @@ export default function ReceptionKiosk() {
                         </button>
                         <button
                             onClick={handleResidentConfirm}
-                            disabled={!inputText.trim() && !transcript.trim()}
+                            disabled={!inputText.trim()}
                             className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                             Buscar <FaCheck />
@@ -822,8 +757,7 @@ export default function ReceptionKiosk() {
                                 setResidentCandidates([]);
                                 setStep('asking-resident');
                                 setInputText('');
-                                setTranscript('');
-                                speak('Por favor intente de nuevo con el nombre completo del residente.');
+                                                speak('Por favor intente de nuevo con el nombre completo del residente.');
                             }}
                             className="w-full py-3 text-slate-500 hover:text-slate-500 text-sm transition-colors"
                         >
@@ -859,15 +793,8 @@ export default function ReceptionKiosk() {
                             placeholder="Relación (ej. Hijo/a, Cónyuge, Amigo/a)..."
                             className="w-full bg-slate-800 border border-slate-600 text-white text-base rounded-2xl px-6 py-4 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 placeholder:text-slate-600"
                         />
-                        {transcript && step === "asking-name" && (
-                            <p className="text-teal-400 text-sm text-center">Escuché: &quot;{transcript}&quot;</p>
-                        )}
                     </div>
 
-                    <MicButton
-                        isListening={isListening}
-                        onPress={() => startListening((text) => setVisitorName(text))}
-                    />
 
                     <div className="flex gap-4 w-full mt-2">
                         <button onClick={() => setStep("asking-resident")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-500 font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2">
@@ -877,7 +804,6 @@ export default function ReceptionKiosk() {
                             onClick={() => {
                                 if (visitorName.trim()) {
                                     setVisitData(prev => ({ ...prev, visitorName, visitorRelation }));
-                                    setTranscript("");
                                     setStep("signing");
                                 }
                             }}
@@ -992,17 +918,3 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
     );
 }
 
-function MicButton({ isListening, onPress }: { isListening: boolean; onPress: () => void }) {
-    return (
-        <button
-            onClick={onPress}
-            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 border-2 ${
-                isListening
-                    ? "bg-rose-600 border-rose-400 scale-110 shadow-[0_0_24px_rgba(239,68,68,0.6)] animate-pulse"
-                    : "bg-slate-800 border-slate-600 hover:border-teal-500 hover:bg-slate-700"
-            }`}
-        >
-            <FaMicrophone className={`text-xl ${isListening ? "text-white" : "text-slate-500"}`} />
-        </button>
-    );
-}
