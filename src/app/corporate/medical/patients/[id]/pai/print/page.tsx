@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { edadEnAnios } from "@/lib/edad";
 import { PrinterIcon } from "@heroicons/react/24/outline";
 
 export default function PAIOfficialPrintRecord(props: { params: Promise<{ id: string }> }) {
@@ -87,7 +88,7 @@ export default function PAIOfficialPrintRecord(props: { params: Promise<{ id: st
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">1. Identificación y Perfil del Residente</h2>
                     <table className="w-full text-sm border-collapse">
                         <tbody>
-                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{patientInfo?.dateOfBirth ? `${new Date().getFullYear() - new Date(patientInfo.dateOfBirth).getFullYear()} años` : 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{edadEnAnios(patientInfo?.dateOfBirth) !== null ? `${edadEnAnios(patientInfo?.dateOfBirth)} años` : 'N/D'}</td></tr>
                             <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Habitación</th><td className="py-2 font-medium">{patientInfo?.roomNumber || 'N/A'}</td></tr>
                             <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Fuente de Apoyo</th><td className="py-2 font-medium">{pai.supportSource || 'N/D'}</td></tr>
                         </tbody>
