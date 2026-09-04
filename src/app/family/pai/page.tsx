@@ -9,8 +9,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { IconPAI } from "@/components/icons/ZendityIcons";
+import { generatePaiPDF } from "@/lib/pai-pdf";
 
 const TYPE_LABELS: Record<string, string> = {
     INITIAL:   "Plan Inicial",
@@ -26,6 +27,61 @@ export default function FamilyPaiPage() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<any>(null);
+    const [descargando, setDescargando] = useState(false);
+    const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
+
+    /**
+     * Descarga el MISMO PDF que genera el hogar (`generatePaiPDF`), en vez de
+     * abrir una pantalla para que el navegador la imprima.
+     *
+     * Antes esto era un enlace a /family/pai/print/[id], una pantalla que
+     * llamaba a endpoints de corporate cerrados a FAMILY y que ademas recibia
+     * el id del PLAN donde esperaba el del RESIDENTE. Fallaba siempre, y al
+     * fallar mostraba "Aun no hay un Plan Asistencial Interdisciplinario
+     * firmado para visualizar": le decia a la familia que su residente no
+     * tiene plan de cuido. Lo tiene, aprobado y firmado.
+     */
+    const descargarPDF = async () => {
+        if (!selected || descargando) return;
+        setDescargando(true);
+        setErrorDescarga(null);
+        try {
+            const res = await fetch(`/api/family/pai/${selected.id}`);
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                setErrorDescarga(data.error || 'No se pudo abrir el plan.');
+                return;
+            }
+            const { plan, patient } = data;
+            generatePaiPDF({
+                hqName: patient?.headquarters?.name || '',
+                patientName: patient?.name || 'Residente',
+                roomNumber: patient?.roomNumber,
+                dateOfBirth: patient?.dateOfBirth,
+                supportSource: plan.supportSource,
+                type: plan.type, status: plan.status,
+                startDate: plan.startDate, nextReview: plan.nextReview,
+                clinicalSummary: plan.clinicalSummary,
+                cognitiveLevel: plan.cognitiveLevel,
+                mobility: plan.mobility,
+                continence: plan.continence,
+                dietDetails: plan.dietDetails,
+                interdisciplinarySummary: plan.interdisciplinarySummary,
+                risks: plan.risks, goals: plan.goals,
+                recommendedServices: plan.recommendedServices,
+                familyEducation: plan.familyEducation,
+                preferences: plan.preferences,
+                monitoringMethod: plan.monitoringMethod,
+                revisionCriteria: plan.revisionCriteria,
+                signedByName: plan.approvedBy?.name,
+                signedAt: plan.approvedAt,
+            });
+        } catch {
+            setErrorDescarga('No se pudo descargar. Revisa tu conexion.');
+        } finally {
+            setDescargando(false);
+        }
+    };
 
     useEffect(() => {
         fetch('/api/family/pai')
@@ -213,15 +269,18 @@ export default function FamilyPaiPage() {
                                     </div>
                                 )}
 
-                                {/* Botón imprimir */}
-                                <Link
-                                    href={`/family/pai/print/${selected.id}`}
-                                    target="_blank"
-                                    className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand border border-brand/25 rounded-full px-4 py-1.5 hover:bg-brand/10 transition-colors"
+                                {/* Descarga del plan completo */}
+                                <button
+                                    onClick={descargarPDF}
+                                    disabled={descargando}
+                                    className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand border border-brand/25 rounded-full px-4 py-1.5 hover:bg-brand/10 transition-colors disabled:opacity-50"
                                 >
-                                    <Printer className="w-3.5 h-3.5" strokeWidth={1.5} />
-                                    Imprimir plan completo
-                                </Link>
+                                    <Download className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                    {descargando ? 'Preparando…' : 'Descargar plan completo (PDF)'}
+                                </button>
+                                {errorDescarga && (
+                                    <p className="mt-2 text-xs text-rose-600">{errorDescarga}</p>
+                                )}
                             </div>
                         )}
                     </>
