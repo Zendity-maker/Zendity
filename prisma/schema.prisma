@@ -612,6 +612,19 @@ model FamilyVisit {
   signatureData   String?  @db.Text // Base64 del canvas (truncado a 50k)
   notes           String?
   visitedAt       DateTime @default(now())
+
+  /// Hora de SALIDA. Null mientras el visitante sigue dentro.
+  ///
+  /// El registro solo guardaba la entrada, y un registro de visitas sirve
+  /// justamente para saber quién está en el edificio: en una evacuación, la
+  /// lista de entradas sin salidas es la gente a la que hay que buscar.
+  ///
+  /// Se queda en null también cuando alguien se va sin registrarse. Eso NO se
+  /// rellena solo: inventar una hora de salida en un documento que se firma
+  /// sería falsearlo. La bitácora los muestra como "sin registrar" para que se
+  /// vea el hueco en vez de taparlo.
+  departedAt      DateTime?
+
   notified        Boolean  @default(false)
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])

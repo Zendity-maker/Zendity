@@ -6,7 +6,17 @@ import { FaMicrophone, FaCheck, FaTimes, FaRedo } from "react-icons/fa";
 const INACTIVITY_MS = 60_000; // 60s para reset automático
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
-type KioskStep = 'welcome' | 'asking-resident' | 'confirming-resident' | 'asking-name' | 'signing' | 'done';
+type KioskStep = 'welcome' | 'asking-resident' | 'confirming-resident' | 'asking-name' | 'signing' | 'done'
+    | 'salida-nombre' | 'salida-hecha';
+
+/** Visita abierta que el kiosco puede cerrar. */
+interface VisitaAbierta {
+    id: string;
+    visitorName: string;
+    residentName: string | null;
+    visitedAt: string;
+    departedAt?: string | null;
+}
 
 interface SpeechRecognitionEvent extends Event {
     results: SpeechRecognitionResultList;
@@ -64,8 +74,70 @@ export default function ReceptionKiosk() {
     // ignora el cliente y lo ignora el servidor.
 
     const [step, setStep] = useState<KioskStep>("welcome");
-    const [hqName, setHqName] = useState("Zéndity");
+    // Arranca en null, NO en "Zéndity". Este kiosco está en el lobby de un
+    // hogar y se presenta como el hogar; el proveedor del software va en letra
+    // pequeña al pie, si acaso.
+    const [hqName, setHqName] = useState<string | null>(null);
+    const bienvenidaDicha = useRef(false);
     const [sinAutorizar, setSinAutorizar] = useState(false);
+
+    // ── Salida ───────────────────────────────────────────────────────────────
+    // El visitante escribe SU nombre y se le devuelven solo sus visitas
+    // abiertas de hoy. No se enseña la lista completa: seria decirle a
+    // cualquiera que pase por el lobby quien esta dentro y a quien vino a ver.
+    const [salidaNombre, setSalidaNombre] = useState("");
+    const [salidaCandidatas, setSalidaCandidatas] = useState<VisitaAbierta[]>([]);
+    const [salidaBuscando, setSalidaBuscando] = useState(false);
+    const [salidaHecha, setSalidaHecha] = useState<VisitaAbierta | null>(null);
+    const [salidaError, setSalidaError] = useState<string | null>(null);
+
+    const buscarSalida = async () => {
+        const nombre = salidaNombre.trim();
+        if (nombre.length < 3 || salidaBuscando) return;
+        setSalidaBuscando(true);
+        setSalidaError(null);
+        try {
+            const res = await fetch(`/api/reception/salida?nombre=${encodeURIComponent(nombre)}`, {
+                headers: kioskDeviceHeaders(),
+            });
+            const data = await res.json();
+            const vs = data.visitas ?? [];
+            setSalidaCandidatas(vs);
+            if (vs.length === 0) {
+                setSalidaError('No encontramos una visita abierta a ese nombre. Avise al personal.');
+            } else if (vs.length === 1) {
+                await confirmarSalida(vs[0].id);
+            }
+        } catch {
+            setSalidaError('Error de conexión.');
+        } finally {
+            setSalidaBuscando(false);
+        }
+    };
+
+    const confirmarSalida = async (visitId: string) => {
+        setSalidaBuscando(true);
+        setSalidaError(null);
+        try {
+            const res = await fetch('/api/reception/salida', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...kioskDeviceHeaders() },
+                body: JSON.stringify({ visitId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setSalidaHecha(data.visita);
+                setStep('salida-hecha');
+                speak('Gracias por su visita. Que tenga buen día.');
+            } else {
+                setSalidaError(data.error || 'No se pudo registrar la salida.');
+            }
+        } catch {
+            setSalidaError('Error de conexión.');
+        } finally {
+            setSalidaBuscando(false);
+        }
+    };
 
     // Display states (usados en JSX para mostrar nombres)
     const [residentName, setResidentName] = useState("");
@@ -286,17 +358,35 @@ export default function ReceptionKiosk() {
                 const d = await r.json();
                 if (d?.name) setHqName(d.name);
             })
-            .catch(() => {});
+            .catch(() => {
+                // Sin red no se puede saber de quién es la casa. Se saluda sin
+                // nombrar a nadie antes que nombrar a quien no es.
+                if (!bienvenidaDicha.current) {
+                    bienvenidaDicha.current = true;
+                    setTimeout(() => speak('Bienvenido. Soy Zendi, su asistente de recepción.'), 800);
+                }
+            });
     }, []);
 
-    // ── Bienvenida al montar — solo una vez ─────────────────────────────────
+    // ── Bienvenida — espera a saber de quién es la casa ─────────────────────
+    //
+    // Antes esto corría con `[]` de dependencias y un temporizador de 800 ms,
+    // así que la clausura capturaba el `hqName` inicial y lo decía SIEMPRE, sin
+    // importar cuándo llegara el nombre real: "Bienvenido a Zéndity. Soy Zendi,
+    // su asistente de recepción." No era una carrera que a veces se perdía —
+    // se perdía todas las veces.
+    //
+    // Ahora depende de `hqName` y solo habla cuando hay uno. El ref evita que
+    // repita el saludo si el nombre volviera a cambiar.
     useEffect(() => {
+        if (!hqName || bienvenidaDicha.current) return;
+        bienvenidaDicha.current = true;
         const timer = setTimeout(() => {
             speak(`Bienvenido a ${hqName}. Soy Zendi, su asistente de recepción.`);
         }, 800);
         return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Sin dependencias — solo al montar
+    }, [hqName]);
 
     // ── Flujo de pasos — nunca incluir 'welcome' ────────────────────────────
     useEffect(() => {
@@ -539,7 +629,7 @@ export default function ReceptionKiosk() {
             {/* Header */}
             <div className="w-full max-w-2xl mb-6 text-center">
                 <h1 className="text-white font-black text-3xl tracking-wide mb-1">
-                    {hqName}
+                    {hqName ?? '\u00A0'}
                 </h1>
                 <p className="text-teal-400 text-sm font-medium tracking-widest uppercase">
                     Recepción · Powered by Zéndity
@@ -563,6 +653,97 @@ export default function ReceptionKiosk() {
                         className="mt-4 bg-teal-600 hover:bg-teal-500 text-white font-black text-xl px-12 py-5 rounded-2xl shadow-[0_4px_24px_0_rgba(13,148,136,0.5)] hover:shadow-[0_6px_32px_rgba(13,148,136,0.4)] hover:-translate-y-1 transition-all duration-200"
                     >
                         Iniciar Registro
+                    </button>
+                    {/* La salida va aqui, discreta pero presente. Sin ella el
+                        registro no dice quien esta dentro del edificio, que es
+                        para lo que sirve en una evacuacion. */}
+                    <button
+                        onClick={() => { setSalidaNombre(""); setSalidaCandidatas([]); setSalidaError(null); setStep("salida-nombre"); }}
+                        className="text-slate-400 hover:text-white text-base font-semibold underline underline-offset-4 px-6 py-3 transition-colors"
+                    >
+                        Ya me voy — registrar mi salida
+                    </button>
+                </div>
+            )}
+
+            {/* ── PASO: SALIDA — NOMBRE ── */}
+            {step === "salida-nombre" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <h2 className="text-white text-2xl font-bold text-center">¿Cuál es su nombre?</h2>
+                    <p className="text-slate-500 text-center text-sm">Para cerrar su visita de hoy.</p>
+                    <input
+                        type="text"
+                        value={salidaNombre}
+                        onChange={(e) => { setSalidaNombre(e.target.value); setSalidaError(null); setSalidaCandidatas([]); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') buscarSalida(); }}
+                        placeholder="Su nombre completo..."
+                        autoFocus
+                        className="w-full bg-slate-800 border border-slate-600 text-white text-xl rounded-2xl px-6 py-5 outline-none focus:border-teal-500"
+                    />
+
+                    {salidaCandidatas.length > 1 && (
+                        <div className="w-full flex flex-col gap-2">
+                            <p className="text-slate-400 text-sm text-center">Toque su visita:</p>
+                            {salidaCandidatas.map((v) => (
+                                <button
+                                    key={v.id}
+                                    onClick={() => confirmarSalida(v.id)}
+                                    disabled={salidaBuscando}
+                                    className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl px-5 py-4 text-left transition-colors disabled:opacity-50"
+                                >
+                                    <span className="block text-white font-bold">{v.visitorName}</span>
+                                    <span className="block text-slate-400 text-sm">
+                                        Visitó a {v.residentName} · entró a las{' '}
+                                        {new Date(v.visitedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {salidaError && <p className="text-amber-400 text-center text-sm">{salidaError}</p>}
+
+                    <div className="flex gap-3 w-full">
+                        <button
+                            onClick={() => setStep("welcome")}
+                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-4 rounded-2xl transition-colors"
+                        >
+                            Volver
+                        </button>
+                        <button
+                            onClick={buscarSalida}
+                            disabled={salidaNombre.trim().length < 3 || salidaBuscando}
+                            className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-black py-4 rounded-2xl active:scale-95 transition-all disabled:opacity-40"
+                        >
+                            {salidaBuscando ? 'Buscando…' : 'Registrar salida'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PASO: SALIDA REGISTRADA ── */}
+            {step === "salida-hecha" && (
+                <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-28 h-28 rounded-full bg-teal-900/40 border-2 border-teal-500/50 flex items-center justify-center">
+                        <span className="text-5xl">👋</span>
+                    </div>
+                    <h1 className="text-white text-3xl font-bold text-center">Salida registrada</h1>
+                    {salidaHecha && (
+                        <p className="text-slate-400 text-center text-lg leading-relaxed">
+                            {salidaHecha.visitorName}, gracias por visitar a {salidaHecha.residentName}.
+                            <br />
+                            <span className="text-slate-500 text-base">
+                                {new Date(salidaHecha.visitedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                {' → '}
+                                {salidaHecha.departedAt && new Date(salidaHecha.departedAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </p>
+                    )}
+                    <button
+                        onClick={() => { setSalidaHecha(null); setSalidaNombre(""); setStep("welcome"); }}
+                        className="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-10 py-4 rounded-2xl transition-colors"
+                    >
+                        Listo
                     </button>
                 </div>
             )}

@@ -139,7 +139,8 @@ export default async function VisitsPage({
                             <th className="px-3 py-3 text-left font-bold text-xs">Visitante / Visitor</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Residente visitado</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Fecha / Date</th>
-                            <th className="px-3 py-3 text-left font-bold text-xs">Hora / Time</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Entrada / In</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Salida / Out</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Firma / Signature</th>
                         </tr>
                     </thead>
@@ -159,6 +160,22 @@ export default async function VisitsPage({
                                         hour: '2-digit', minute: '2-digit'
                                     })}
                                 </td>
+                                {/* El hueco se ENSEÑA. Una visita sin salida no
+                                    se rellena por nuestra cuenta —seria falsear
+                                    un documento firmado— pero tampoco se
+                                    disimula: asi alguien puede cerrarla o
+                                    corregir el habito. */}
+                                <td className="px-3 py-2.5 text-xs font-medium">
+                                    {v.departedAt ? (
+                                        <span className="text-slate-600">
+                                            {new Date(v.departedAt).toLocaleTimeString('es-PR', {
+                                                hour: '2-digit', minute: '2-digit'
+                                            })}
+                                        </span>
+                                    ) : (
+                                        <span className="text-amber-700 italic">Sin registrar</span>
+                                    )}
+                                </td>
                                 <td className="px-3 py-2.5">
                                     {v.signatureData ? (
                                         // eslint-disable-next-line @next/next/no-img-element
@@ -171,7 +188,7 @@ export default async function VisitsPage({
                         ))}
                         {visits.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                                     No hay visitas registradas para este período.
                                 </td>
                             </tr>
