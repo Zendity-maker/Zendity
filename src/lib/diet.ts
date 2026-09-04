@@ -51,6 +51,19 @@ export const DIET_TEXTURE_DESC: Record<DietTexture, string> = {
     PEG:             'Alimentación enteral por sonda, no oral',
 };
 
+/**
+ * Densidades de fórmula enteral en kcal/mL. Es un vocabulario cerrado a
+ * propósito: son las presentaciones que existen en el mercado, y dejarlo como
+ * texto libre reproduciría exactamente el problema que este módulo vino a
+ * resolver —tres pantallas escribiendo "1.5 Cal", "1.5 kcal/ml" y "1,5".
+ */
+export const DIET_PEG_DENSIDADES = [1.0, 1.2, 1.5, 2.0] as const;
+
+/** "1.5 Cal" — como lo dice la orden y como lo lee la cocina. */
+export function etiquetaDensidadPeg(kcalMl: number): string {
+    return `${kcalMl.toFixed(1)} Cal`;
+}
+
 export type DietModifier = 'diabetic' | 'lowSodium' | 'renal' | 'vegetarian';
 
 export const DIET_MODIFIERS: DietModifier[] = ['diabetic', 'lowSodium', 'renal', 'vegetarian'];
@@ -75,6 +88,8 @@ export interface DietPrescription {
     dietLowSodium: boolean;
     dietRenal: boolean;
     dietVegetarian: boolean;
+    /** kcal/mL de la fórmula. Solo con dietTexture = PEG. */
+    dietPegKcalMl?: number | null;
 }
 
 /**
@@ -85,6 +100,11 @@ export interface DietPrescription {
 export function formatDietSummary(p: Partial<DietPrescription>): string {
     if (!p.dietTexture) return 'Sin prescribir';
     const parts = [DIET_TEXTURE_LABELS[p.dietTexture]];
+    // La densidad va pegada a la textura, no como modificador: no es algo que
+    // se le añade a la dieta, es de qué está hecha.
+    if (p.dietTexture === 'PEG' && p.dietPegKcalMl) {
+        parts[0] += ` ${etiquetaDensidadPeg(p.dietPegKcalMl)}`;
+    }
     if (p.dietDiabetic)   parts.push('+Diabética');
     if (p.dietLowSodium)  parts.push('+Bajo Sodio');
     if (p.dietRenal)      parts.push('+Renal');

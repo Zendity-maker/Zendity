@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
 import { DietTexture } from '@prisma/client';
-import { buildLegacyDietString } from '@/lib/diet';
+import { buildLegacyDietString, DIET_PEG_DENSIDADES } from '@/lib/diet';
 
 /**
  * PUT /api/corporate/patients/[id]/diet-prescription
@@ -65,6 +65,27 @@ async function putDietPrescriptionHandler(
     const dietRenal      = Boolean(body.dietRenal);
     const dietVegetarian = Boolean(body.dietVegetarian);
 
+    /**
+     * Densidad de la fórmula enteral. Solo con PEG: en una dieta oral no
+     * significa nada, y guardarla ahí dejaría un valor que la cocina leería
+     * como si fuera una orden.
+     *
+     * Vocabulario cerrado a propósito (DIET_PEG_DENSIDADES). El sistema de
+     * dietas existe justamente porque tres pantallas escribían texto libre con
+     * vocabularios incompatibles; abrir este campo repetiría esa historia.
+     */
+    let dietPegKcalMl: number | null = null;
+    if (dietTexture === 'PEG' && body.dietPegKcalMl != null) {
+        const valor = Number(body.dietPegKcalMl);
+        if (!DIET_PEG_DENSIDADES.includes(valor as any)) {
+            return NextResponse.json(
+                { success: false, error: `Densidad inválida: ${body.dietPegKcalMl}. Válidas: ${DIET_PEG_DENSIDADES.join(', ')}` },
+                { status: 400 }
+            );
+        }
+        dietPegKcalMl = valor;
+    }
+
     // Tenant check — paciente debe pertenecer a la sede del invocador
     const existing = await prisma.patient.findFirst({
         where: { id, headquartersId: auth.headquartersId },
@@ -80,7 +101,7 @@ async function putDietPrescriptionHandler(
     // Mantener Patient.diet legacy sincronizado para back-compat.
     // El día que dropeemos la columna, esto se borra.
     const legacyDietString = buildLegacyDietString({
-        dietTexture, dietDiabetic, dietLowSodium, dietRenal, dietVegetarian,
+        dietTexture, dietDiabetic, dietLowSodium, dietRenal, dietVegetarian, dietPegKcalMl,
     });
 
     const patient = await prisma.patient.update({
@@ -91,11 +112,12 @@ async function putDietPrescriptionHandler(
             dietLowSodium,
             dietRenal,
             dietVegetarian,
+            dietPegKcalMl,
             diet: legacyDietString, // sync legacy
         },
         select: {
             id: true, dietTexture: true, dietDiabetic: true, dietLowSodium: true,
-            dietRenal: true, dietVegetarian: true, diet: true,
+            dietRenal: true, dietVegetarian: true, dietPegKcalMl: true, diet: true,
         },
     });
 

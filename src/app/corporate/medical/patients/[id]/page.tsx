@@ -112,6 +112,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     // Reemplaza el viejo `newDiet` string.
     const [dietDraft, setDietDraft] = useState<DietPrescriptionData>({
         dietTexture: null, dietDiabetic: false, dietLowSodium: false, dietRenal: false, dietVegetarian: false,
+        dietPegKcalMl: null,
     });
     const [savingDiet, setSavingDiet] = useState(false);
     const [hospReason, setHospReason] = useState("");
@@ -511,6 +512,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                                 dietLowSodium:  patientData?.dietLowSodium ?? false,
                                                 dietRenal:      patientData?.dietRenal ?? false,
                                                 dietVegetarian: patientData?.dietVegetarian ?? false,
+                                                dietPegKcalMl:  patientData?.dietPegKcalMl ?? null,
                                             });
                                             setShowDietModal(true);
                                         }} className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 rounded-lg transition-all ml-1 border border-indigo-200 shadow-sm text-xs uppercase tracking-wide active:scale-95" title="Cambiar Dieta">

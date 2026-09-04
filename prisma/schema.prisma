@@ -733,6 +733,19 @@ model Patient {
   dietRenal      Boolean      @default(false) // modificador: dieta renal
   dietVegetarian Boolean      @default(false) // modificador: vegetariana
 
+  /// Densidad calórica de la fórmula enteral, en kcal/mL. Solo tiene sentido
+  /// con dietTexture = PEG.
+  ///
+  /// El string libre `diet` decía "Tubo PEG (1.5 Cal)" para Artemia Figueroa y
+  /// Rosa Solís, pero el modelo canónico (textura + banderas) no tenía dónde
+  /// guardarlo y lo reducía a "PEG (Sonda)". El dato se perdía en cocina, en el
+  /// encabezado del perfil y en la ficha clínica — en todas partes menos en un
+  /// campo marcado DEPRECATED que ya nadie debía leer.
+  ///
+  /// Una fórmula de 1.0 y una de 2.0 kcal/mL son el doble de calorías en el
+  /// mismo volumen. No es un detalle de formato.
+  dietPegKcalMl  Float?
+
   avdScore    Int? // Puntuación de Actividades Vida Diaria
   downtonRisk Boolean @default(false) // Escala de Caídas
   nortonRisk  Boolean @default(false) // Escala de Úlceras

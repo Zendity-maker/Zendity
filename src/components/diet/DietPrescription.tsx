@@ -20,6 +20,8 @@ import {
     DIET_TEXTURE_DESC,
     DIET_MODIFIERS,
     DIET_MODIFIER_LABELS,
+    DIET_PEG_DENSIDADES,
+    etiquetaDensidadPeg,
     DietModifier,
     DietPrescription as DietPrescriptionData,
 } from '@/lib/diet';
@@ -39,9 +41,16 @@ export default function DietPrescription({ value, onChange, disabled = false, co
         dietLowSodium:  value.dietLowSodium ?? false,
         dietRenal:      value.dietRenal ?? false,
         dietVegetarian: value.dietVegetarian ?? false,
+        dietPegKcalMl:  value.dietPegKcalMl ?? null,
     };
 
-    const setTexture = (t: DietTexture | null) => onChange({ ...current, dietTexture: t });
+    // Al salir de PEG se limpia la densidad: dejarla colgando escribiría
+    // "1.5 Cal" en una dieta oral, que no significa nada.
+    const setTexture = (t: DietTexture | null) => onChange({
+        ...current,
+        dietTexture: t,
+        dietPegKcalMl: t === 'PEG' ? current.dietPegKcalMl : null,
+    });
     const toggleMod = (m: DietModifier) => {
         const next = { ...current };
         const key = ({
@@ -78,6 +87,42 @@ export default function DietPrescription({ value, onChange, disabled = false, co
                     </p>
                 )}
             </div>
+
+            {/* Densidad de la fórmula — solo con PEG. Va aquí, pegada a la
+                textura, porque es de qué está hecha la dieta y no un
+                modificador que se le añade. */}
+            {current.dietTexture === 'PEG' && (
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        Densidad de la fórmula (kcal/mL)
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                        {DIET_PEG_DENSIDADES.map((d) => {
+                            const activa = current.dietPegKcalMl === d;
+                            return (
+                                <button
+                                    key={d}
+                                    type="button"
+                                    disabled={disabled}
+                                    onClick={() => onChange({ ...current, dietPegKcalMl: activa ? null : d })}
+                                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors disabled:opacity-50 ${
+                                        activa
+                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    {etiquetaDensidadPeg(d)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {!compact && !current.dietPegKcalMl && (
+                        <p className="mt-1 text-xs text-amber-600 italic">
+                            Sin densidad, la cocina no sabe cuántas calorías lleva el mismo volumen.
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Modificadores — checkboxes ortogonales */}
             <div>
