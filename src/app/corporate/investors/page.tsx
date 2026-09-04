@@ -175,18 +175,22 @@ export default function VividInvestorsDashboard() {
             </div>
 
             <main className="max-w-7xl mx-auto px-6 lg:px-12 py-12 space-y-12">
-                {/* Pestañas por sede. Solo aparecen con mas de una: con una sola
-                    serian una fila vacia que no aporta nada. */}
+                {/* Selector de sede. Solo aparece con mas de una: con una sola seria
+                    una fila vacia que no aporta nada.
+
+                    Va como control segmentado —fondo y borde propios— y no como
+                    pastillas sueltas. Las pastillas quedaban flotando encima del
+                    titulo de la sede y se leian como parte de el. */}
                 {kpis.length > 1 && (
-                    <div className="flex gap-2 flex-wrap -mb-4">
+                    <div className="inline-flex gap-1 p-1 rounded-full bg-[#1C3170]/40 border border-[#8CBBE8]/20">
                         {kpis.map((hq, i) => (
                             <button
                                 key={hq.hqId}
                                 onClick={() => setSedeActiva(i)}
-                                className={`px-5 py-2.5 rounded-full text-sm font-bold transition-colors border ${
+                                className={`px-6 py-2 rounded-full text-sm font-bold transition-colors ${
                                     i === sedeActiva
-                                        ? 'bg-[#C5E69A] text-[#1C3170] border-[#C5E69A]'
-                                        : 'bg-transparent text-[#8CBBE8]/70 border-[#8CBBE8]/25 hover:text-[#FAF6EE] hover:border-[#8CBBE8]/50'
+                                        ? 'bg-[#C5E69A] text-[#1C3170]'
+                                        : 'text-[#8CBBE8]/70 hover:text-[#FAF6EE]'
                                 }`}
                             >
                                 {hq.name.replace('Vivid Senior Living ', '')}
@@ -198,7 +202,7 @@ export default function VividInvestorsDashboard() {
                 {kpis.filter((_, i) => i === sedeActiva || kpis.length === 1).map((hq) => {
                     const o = hq.ocupacion, f = hq.finanzas, c = hq.crecimiento, q = hq.calidad, e = hq.equipo, p = hq.rentabilidad;
                     const maxSerie = Math.max(...f.serie.map(s => s.facturado), 1);
-                    const gradeColor = q.facilityHealthGrade === 'EXCELENTE' ? 'text-[#C5E69A]' : q.facilityHealthGrade === 'BUENO' ? 'text-teal-400' : q.facilityHealthGrade === 'ALERTA' ? 'text-[#C5E69A]' : 'text-rose-400';
+                    const gradeColor = q.facilityHealthGrade === 'EXCELENTE' ? 'text-[#C5E69A]' : q.facilityHealthGrade === 'BUENO' ? 'text-teal-400' : q.facilityHealthGrade === 'ALERTA' ? 'text-amber-400' : 'text-rose-400';
                     const maxPipeline = Math.max(...Object.values(c.pipeline), 1);
 
                     return (
@@ -208,11 +212,11 @@ export default function VividInvestorsDashboard() {
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-3xl font-light text-[#FAF6EE] tracking-tight">{hq.name}</h2>
                                     {hq.isOpen ? (
-                                        <span className="px-3 py-1 bg-[#C5E69A]/10 text-[#C5E69A] border border-[#C5E69A]/40/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                                        <span className="px-3 py-1 bg-[#C5E69A]/10 text-[#C5E69A] border border-[#C5E69A]/25 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
                                             <CheckCircle className="w-3 h-3" /> Operativo
                                         </span>
                                     ) : (
-                                        <span className="px-3 py-1 bg-[#C5E69A]/10 text-[#C5E69A] border border-[#C5E69A]/40/20 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                                        <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
                                             <Clock className="w-3 h-3" /> Pre-Apertura
                                         </span>
                                     )}
@@ -223,7 +227,7 @@ export default function VividInvestorsDashboard() {
                             </div>
 
                             {/* Resumen ejecutivo */}
-                            <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-[#C5E69A]/40/20 rounded-3xl p-8">
+                            <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-[#C5E69A]/25 rounded-3xl p-8">
                                 <h3 className="text-sm font-black text-[#C5E69A] uppercase tracking-widest flex items-center gap-2 mb-4">
                                     <Sparkles className="w-4 h-4" /> Resumen Ejecutivo
                                 </h3>
@@ -244,7 +248,7 @@ export default function VividInvestorsDashboard() {
                                     { label: 'Cobranza del Mes', value: f.tasaCobranza !== null ? `${f.tasaCobranza}%` : '—', sub: `${fmt(f.cobradoMes)} cobrado`, icon: Landmark, tone: 'text-teal-400' },
                                     { label: 'Salud Operativa', value: `${q.facilityHealthScore}`, sub: q.facilityHealthGrade, icon: HeartPulse, tone: gradeColor },
                                 ].map(kpi => (
-                                    <div key={kpi.label} className="bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-2xl p-6">
+                                    <div key={kpi.label} className="bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-2xl p-6">
                                         <div className="flex items-center gap-2 text-[#8CBBE8]/55 mb-3">
                                             <kpi.icon className={`w-4 h-4 ${kpi.tone}`} />
                                             <span className="text-[11px] font-black uppercase tracking-widest">{kpi.label}</span>
@@ -257,7 +261,7 @@ export default function VividInvestorsDashboard() {
 
                             <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
                                 {/* Finanzas */}
-                                <div className="xl:col-span-3 bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-3xl p-8 space-y-8">
+                                <div className="xl:col-span-3 bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-3xl p-8 space-y-8">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-lg font-bold text-[#FAF6EE] flex items-center gap-2">
                                             <DollarSign className="w-5 h-5 text-[#C5E69A]" /> Finanzas
@@ -289,7 +293,7 @@ export default function VividInvestorsDashboard() {
                                     </div>
 
                                     {/* Detalle */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-[#8CBBE8]/20/50">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-[#8CBBE8]/20">
                                         {[
                                             { label: 'Facturado (mes)', value: fmt(f.facturadoMes), tone: 'text-[#FAF6EE]' },
                                             { label: 'Vencido acum.', value: fmt(f.vencidoTotal), tone: f.vencidoTotal > 0 ? 'text-rose-400' : 'text-[#C5E69A]' },
@@ -305,7 +309,7 @@ export default function VividInvestorsDashboard() {
                                 </div>
 
                                 {/* Crecimiento */}
-                                <div className="xl:col-span-2 bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-3xl p-8 space-y-6">
+                                <div className="xl:col-span-2 bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-3xl p-8 space-y-6">
                                     <h3 className="text-lg font-bold text-[#FAF6EE] flex items-center gap-2">
                                         <TrendingUp className="w-5 h-5 text-[#C5E69A]" /> Crecimiento
                                     </h3>
@@ -329,7 +333,7 @@ export default function VividInvestorsDashboard() {
                                         El pipeline de arriba es el ESTADO del CRM hoy;
                                         esto es el FLUJO mensual real del negocio. */}
                                     {c.funnel.mesesConDatos > 0 && (
-                                        <div className="pt-4 border-t border-[#8CBBE8]/20/50 space-y-3">
+                                        <div className="pt-4 border-t border-[#8CBBE8]/20 space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest">
                                                     Embudo · {c.funnel.mesesConDatos} mes{c.funnel.mesesConDatos !== 1 ? 'es' : ''}
@@ -342,7 +346,7 @@ export default function VividInvestorsDashboard() {
                                                     )}
                                                 </p>
                                                 {c.funnel.conversionPct !== null && (
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/40/20 px-2.5 py-0.5 rounded-full">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/25 px-2.5 py-0.5 rounded-full">
                                                         {c.funnel.conversionPct}% conversión
                                                     </span>
                                                 )}
@@ -373,7 +377,7 @@ export default function VividInvestorsDashboard() {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#8CBBE8]/20/50">
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#8CBBE8]/20">
                                         <div>
                                             <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest">Camas libres</p>
                                             <p className="text-2xl font-black text-[#FAF6EE] mt-0.5">{o.camasLibres}</p>
@@ -384,7 +388,7 @@ export default function VividInvestorsDashboard() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4 pt-4 border-t border-[#8CBBE8]/20/50 text-xs">
+                                    <div className="flex items-center gap-4 pt-4 border-t border-[#8CBBE8]/20 text-xs">
                                         <span className="flex items-center gap-1.5 text-[#C5E69A] font-bold">
                                             <ArrowUpRight className="w-4 h-4" /> {o.altasMes} admisión{o.altasMes !== 1 ? 'es' : ''} este mes
                                         </span>
@@ -396,13 +400,13 @@ export default function VividInvestorsDashboard() {
                             </div>
 
                             {/* Rentabilidad — Fase 3 */}
-                            <div className="bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-3xl p-8 space-y-6">
+                            <div className="bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-3xl p-8 space-y-6">
                                 <div className="flex items-center justify-between flex-wrap gap-3">
                                     <h3 className="text-lg font-bold text-[#FAF6EE] flex items-center gap-2">
                                         <PiggyBank className="w-5 h-5 text-[#C5E69A]" /> Rentabilidad Operativa
                                     </h3>
                                     {p.mesesSinDatos > 0 && (
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/40/20 px-3 py-1 rounded-full">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/25 px-3 py-1 rounded-full">
                                             {p.mesesSinDatos} mes{p.mesesSinDatos !== 1 ? 'es' : ''} sin gastos cargados
                                         </span>
                                     )}
@@ -426,7 +430,7 @@ export default function VividInvestorsDashboard() {
                                                 { label: 'Margen', value: fmt(p.margen), tone: p.margen >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
                                                 { label: 'Margen %', value: p.margenPct !== null ? `${p.margenPct}%` : '—', tone: (p.margenPct ?? 0) >= 0 ? 'text-[#C5E69A]' : 'text-rose-400' },
                                             ].map(k => (
-                                                <div key={k.label} className="bg-[#101B33]/50 rounded-2xl p-5 border border-[#8CBBE8]/20/50">
+                                                <div key={k.label} className="bg-[#101B33]/50 rounded-2xl p-5 border border-[#8CBBE8]/20">
                                                     <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest">{k.label}</p>
                                                     <p className={`text-2xl font-black mt-1 ${k.tone}`}>{k.value}</p>
                                                 </div>
@@ -473,7 +477,7 @@ export default function VividInvestorsDashboard() {
 
                                         {/* Punto de equilibrio */}
                                         {p.breakEven && (
-                                            <div className={`rounded-2xl p-6 border ${p.breakEven.alcanzable ? 'border-[#8CBBE8]/20/50 bg-[#101B33]/50' : 'border-rose-500/30 bg-rose-500/5'}`}>
+                                            <div className={`rounded-2xl p-6 border ${p.breakEven.alcanzable ? 'border-[#8CBBE8]/20 bg-[#101B33]/50' : 'border-rose-500/30 bg-rose-500/5'}`}>
                                                 <h4 className="text-sm font-black text-[#8CBBE8]/55 uppercase tracking-widest flex items-center gap-2 mb-4">
                                                     <Scale className="w-4 h-4 text-[#C5E69A]" /> Punto de Equilibrio
                                                 </h4>
@@ -483,7 +487,7 @@ export default function VividInvestorsDashboard() {
                                                             Se necesitan <span className="text-[#FAF6EE] font-black text-xl">{p.breakEven.camasNecesarias}</span> camas
                                                             ocupadas <span className="text-[#8CBBE8]/55">({p.breakEven.ocupacionEquilibrioPct}% de ocupación)</span> para cubrir el costo operativo.
                                                         </p>
-                                                        <span className={`text-sm font-black px-3 py-1 rounded-full ${p.breakEven.camasSobreEquilibrio >= 0 ? 'text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/40/20' : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'}`}>
+                                                        <span className={`text-sm font-black px-3 py-1 rounded-full ${p.breakEven.camasSobreEquilibrio >= 0 ? 'text-[#C5E69A] bg-[#C5E69A]/10 border border-[#C5E69A]/25' : 'text-rose-400 bg-rose-500/10 border border-rose-500/20'}`}>
                                                             {p.breakEven.camasSobreEquilibrio >= 0
                                                                 ? `${p.breakEven.camasSobreEquilibrio} camas por encima`
                                                                 : `${Math.abs(p.breakEven.camasSobreEquilibrio)} camas por debajo`}
@@ -511,7 +515,7 @@ export default function VividInvestorsDashboard() {
                                             const [yy, mm] = ultimo.mes.split('-');
                                             const maxCat = Math.max(...ultimo.porCategoria.map(c2 => c2.amount), 1);
                                             return (
-                                                <div className="pt-2 border-t border-[#8CBBE8]/20/50">
+                                                <div className="pt-2 border-t border-[#8CBBE8]/20">
                                                     <p className="text-[10px] text-[#8CBBE8]/55 font-black uppercase tracking-widest mb-4">
                                                         Estructura de costos — {MESES_ES[mm]} {yy}
                                                     </p>
@@ -538,7 +542,7 @@ export default function VividInvestorsDashboard() {
 
                             {/* Calidad + Equipo */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-2xl p-6 flex items-center justify-between">
+                                <div className="bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-2xl p-6 flex items-center justify-between">
                                     <div>
                                         <p className="text-[11px] text-[#8CBBE8]/55 font-black uppercase tracking-widest flex items-center gap-2">
                                             <Activity className="w-4 h-4 text-blue-400" /> Compliance Clínico
@@ -547,7 +551,7 @@ export default function VividInvestorsDashboard() {
                                     </div>
                                     <p className="text-3xl font-black text-[#FAF6EE]">{q.clinicalComplianceRate}<span className="text-[#8CBBE8]/45 text-lg">/100</span></p>
                                 </div>
-                                <div className="bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-2xl p-6 flex items-center justify-between">
+                                <div className="bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-2xl p-6 flex items-center justify-between">
                                     <div>
                                         <p className="text-[11px] text-[#8CBBE8]/55 font-black uppercase tracking-widest flex items-center gap-2">
                                             <Users className="w-4 h-4 text-teal-400" /> Equipo
@@ -556,7 +560,7 @@ export default function VividInvestorsDashboard() {
                                     </div>
                                     <p className="text-3xl font-black text-[#FAF6EE]">{e.staffCount}</p>
                                 </div>
-                                <div className="bg-[#1C3170]/40/50 border border-[#8CBBE8]/20/50 rounded-2xl p-6 flex items-center justify-between">
+                                <div className="bg-[#1C3170]/40 border border-[#8CBBE8]/20 rounded-2xl p-6 flex items-center justify-between">
                                     <div>
                                         <p className="text-[11px] text-[#8CBBE8]/55 font-black uppercase tracking-widest flex items-center gap-2">
                                             <UserCheck className="w-4 h-4 text-[#C5E69A]" /> Ratio Staff/Residente
