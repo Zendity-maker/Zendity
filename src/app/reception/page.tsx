@@ -55,6 +55,9 @@ export default function ReceptionKiosk() {
     // hogar y se presenta como el hogar; el proveedor del software va en letra
     // pequeña al pie, si acaso.
     const [hqName, setHqName] = useState<string | null>(null);
+    // Lo que se DICE, distinto de lo que se ve. En pantalla va la sede completa
+    // —hay que saber dónde estás— y en voz alta el nombre comercial.
+    const [hqHablado, setHqHablado] = useState<string | null>(null);
 
     /**
      * Paleta de LA SEDE, no de Zéndity.
@@ -321,6 +324,7 @@ export default function ReceptionKiosk() {
                 if (r.status === 401) { setSinAutorizar(true); return; }
                 const d = await r.json();
                 if (d?.name) setHqName(d.name);
+                if (d?.nombreHablado || d?.name) setHqHablado(d.nombreHablado || d.name);
                 if (d?.colores) setColores(c => ({ ...c, ...d.colores }));
             })
             .catch(() => {
@@ -344,14 +348,14 @@ export default function ReceptionKiosk() {
     // Ahora depende de `hqName` y solo habla cuando hay uno. El ref evita que
     // repita el saludo si el nombre volviera a cambiar.
     useEffect(() => {
-        if (!hqName || bienvenidaDicha.current) return;
+        if (!hqHablado || bienvenidaDicha.current) return;
         bienvenidaDicha.current = true;
         const timer = setTimeout(() => {
-            speak(`Bienvenido a ${hqName}. Soy Zendi, su asistente de recepción.`);
+            speak(`Bienvenido a ${hqHablado}. Soy Zendi, su asistente de recepción.`);
         }, 800);
         return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [hqName]);
+    }, [hqHablado]);
 
     // ── Flujo de pasos — nunca incluir 'welcome' ────────────────────────────
     useEffect(() => {
@@ -368,7 +372,7 @@ export default function ReceptionKiosk() {
         } else if (step === 'signing') {
             speak(`Gracias ${visitData.visitorName}. Por favor firme su visita en la pantalla mientras le notifico al personal.`);
         } else if (step === 'done') {
-            speak(`Visita registrada. ¡Que disfrute su visita con ${visitData.residentName}!`);
+            speak(`Visita registrada. Que disfrute su visita con ${visitData.residentName}. Al terminar, vuelva a esta tablet y toque Ya me voy.`);
             const timer = setTimeout(() => {
                 setStep('welcome');
                 setResidentName('');
@@ -624,12 +628,16 @@ export default function ReceptionKiosk() {
                     >
                         Iniciar Registro
                     </button>
-                    {/* La salida va aqui, discreta pero presente. Sin ella el
-                        registro no dice quien esta dentro del edificio, que es
-                        para lo que sirve en una evacuacion. */}
+                    {/* La salida con el mismo peso que la entrada.
+                        Empezo como un enlace subrayado y eso la volvia
+                        invisible: quien no la ve, no la usa, y una salida que
+                        nadie marca deja el registro sin decir quien esta dentro
+                        del edificio — que es para lo que sirve en una
+                        evacuacion. Va en azul secundario para que se distinga
+                        de la accion de entrar sin quedar por debajo. */}
                     <button
                         onClick={() => { setSalidaNombre(""); setSalidaCandidatas([]); setSalidaError(null); setStep("salida-nombre"); }}
-                        className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] hover:text-[var(--m-primary)] text-base font-semibold underline underline-offset-4 px-6 py-3 transition-colors"
+                        className="mt-2 bg-white hover:brightness-[0.97] border-[3px] border-[var(--m-secondary)] text-[var(--m-primary)] font-black text-xl px-12 py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
                     >
                         Ya me voy — registrar mi salida
                     </button>
@@ -915,7 +923,21 @@ export default function ReceptionKiosk() {
                         <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)]">Visita a <span className="text-[color-mix(in_oklab,var(--m-primary)_70%,white)] font-semibold">{residentName}</span> confirmada.</p>
                         {visitId && <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-xs mt-2">ID: {visitId}</p>}
                     </div>
-                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-4">Esta pantalla se reiniciará en unos segundos...</p>
+                    {/* El recordatorio de la salida va AQUI y no en un
+                        cartel del lobby: es el unico momento en que la persona
+                        esta mirando la tablet y sabe que existe. Sin esto, la
+                        salida se queda sin marcar y la lista de "quien esta
+                        dentro" no sirve. */}
+                    <div className="mt-2 rounded-2xl px-6 py-5 max-w-md bg-white border-[3px] border-[var(--m-secondary)]">
+                        <p className="text-[var(--m-primary)] text-lg font-bold leading-relaxed">
+                            Al terminar su visita, vuelva a esta tablet y toque
+                            <span className="whitespace-nowrap"> «Ya me voy»</span>.
+                        </p>
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-base mt-1.5 leading-relaxed">
+                            Así sabemos quién está en el hogar en caso de una emergencia.
+                        </p>
+                    </div>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-2">Esta pantalla se reiniciará en unos segundos...</p>
                 </div>
             )}
 

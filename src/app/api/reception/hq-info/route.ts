@@ -35,7 +35,13 @@ export async function GET(req: Request) {
         });
         return NextResponse.json({
             success: true,
+            // El nombre COMPLETO va en pantalla: quien mira la tablet debe
+            // saber en qué sede está.
             name: marca.nombre,
+            // El nombre COMERCIAL es el que se dice en voz alta. "Bienvenido a
+            // Vivid Senior Living" suena a que te reciben; "Bienvenido a Vivid
+            // Senior Living Cupey" suena a que te leen una dirección.
+            nombreHablado: marca.marca,
             logoUrl: marca.logoUrl,
             phone: hq?.phone ?? null,
             colores: {
