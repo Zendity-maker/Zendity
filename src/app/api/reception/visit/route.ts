@@ -28,6 +28,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireKioskDevice, touchKioskDevice } from '@/lib/external-kiosk-auth';
+import { cuidadorasDeResidente } from '@/lib/cuidadora-a-cargo';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,20 +102,48 @@ export async function POST(req: Request) {
             },
         }).catch(e => console.error('FamilyVisitNote:', e));
 
-        prisma.user.findMany({
-            where: { headquartersId: hqId, role: { in: ['SUPERVISOR', 'DIRECTOR', 'ADMIN'] }, isActive: true, isDeleted: false },
-            select: { id: true },
-        }).then(sups => Promise.all(sups.map(s =>
-            prisma.notification.create({
-                data: {
-                    userId: s.id,
-                    type: 'FAMILY_VISIT',
-                    title: `Visita familiar — ${patient.name}`,
-                    message: `${visitorName} se registró en recepción para visitar a ${patient.name} el ${dateStr} a las ${timeStr}.`,
-                    isRead: false,
-                },
-            }).catch(() => null),
-        ))).catch(e => console.error('Notificación de visita:', e));
+        /**
+         * A quién le llega el aviso.
+         *
+         * Supervisión ya lo recibía. Faltaba LA CUIDADORA DEL RESIDENTE, que
+         * es quien puede hacer algo con la noticia: avisarle, arreglarle el
+         * cuarto, acompañarlo a la sala.
+         *
+         * La tablet de cuido YA sondea `/api/notifications/unread?type=FAMILY_VISIT`
+         * cada 30 s y saca un toast — la entrega estaba construida entera; lo
+         * único que faltaba era crearle la fila. El aviso puede tardar hasta
+         * medio minuto en salir, que es el tiempo que el visitante tarda en
+         * firmar y caminar.
+         *
+         * Si no se resuelve una cuidadora, el aviso NO desaparece: supervisión
+         * lo recibe igual. Baja de precisión, no de existencia.
+         */
+        Promise.all([
+            prisma.user.findMany({
+                where: { headquartersId: hqId, role: { in: ['SUPERVISOR', 'DIRECTOR', 'ADMIN'] }, isActive: true, isDeleted: false },
+                select: { id: true },
+            }).then(us => us.map(u => u.id)),
+            cuidadorasDeResidente(hqId, patient.id)
+                .then(cs => cs.map(c => c.userId))
+                .catch(e => { console.error('Cuidadora a cargo:', e); return [] as string[]; }),
+        ]).then(([supervision, cuidadoras]) => {
+            // Un mismo usuario puede caer en las dos listas (una supervisora que
+            // cubre color). Un solo aviso.
+            const destinatarios = [...new Set([...supervision, ...cuidadoras])];
+            return Promise.all(destinatarios.map(userId =>
+                prisma.notification.create({
+                    data: {
+                        userId,
+                        type: 'FAMILY_VISIT',
+                        // Nada clínico: quién viene y a quién. La cuidadora ya
+                        // sabe quiénes son sus residentes.
+                        title: `${patient.name} tiene visita`,
+                        message: `${visitorName} se registró en recepción para visitar a ${patient.name} el ${dateStr} a las ${timeStr}.`,
+                        isRead: false,
+                    },
+                }).catch(() => null),
+            ));
+        }).catch(e => console.error('Notificación de visita:', e));
 
         return NextResponse.json({
             success: true,
