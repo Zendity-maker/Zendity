@@ -3,7 +3,7 @@
 import { useState, useEffect, use, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon } from "@heroicons/react/24/outline";
+import { UserIcon, ArrowLeftIcon, ArrowRightOnRectangleIcon, CalendarDaysIcon, DocumentArrowDownIcon, PencilIcon, DocumentTextIcon, CameraIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import DietPrescription from "@/components/diet/DietPrescription";
 import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
 import { HeartCrack, FileText } from "lucide-react";
@@ -121,6 +121,27 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     };
 
     const [showEditModal, setShowEditModal] = useState(false);
+
+    /**
+     * Esc cierra "Editar Perfil".
+     *
+     * El modal solo tenía Cancelar, y está al final de un formulario de doce
+     * campos con tres cargas de fotos: para salir había que recorrerlo entero.
+     * Celia entraba únicamente a LEER la fecha de nacimiento y se quedaba
+     * dentro de una pantalla de escritura sin salida a la vista.
+     *
+     * Esc y la X hacen lo mismo que Cancelar: descartan. NO se cierra al tocar
+     * el fondo, a propósito — en un formulario de este tamaño un clic afuera
+     * mientras se escribe borraría el trabajo sin que nadie lo pidiera.
+     */
+    useEffect(() => {
+        if (!showEditModal) return;
+        const alPulsar = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setShowEditModal(false);
+        };
+        window.addEventListener('keydown', alPulsar);
+        return () => window.removeEventListener('keydown', alPulsar);
+    }, [showEditModal]);
     const [editForm, setEditForm] = useState({
         name: "", roomNumber: "", dateOfBirth: "",
         diet: "", allergies: "", diagnoses: "", colorGroup: "",
@@ -778,10 +799,24 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
             {showEditModal && (
                 <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-3">
-                            <PencilIcon className="w-6 h-6 text-indigo-600" />
-                            Editar Perfil del Residente
-                        </h3>
+                        {/* Encabezado pegajoso: la salida tiene que seguir a la
+                            vista aunque se baje hasta las fotos. El -m/-p y el
+                            fondo blanco lo hacen ocupar todo el ancho del panel
+                            para que el contenido no se cuele por detrás. */}
+                        <div className="sticky top-0 z-10 bg-white flex items-center justify-between gap-4 -mx-8 -mt-8 px-8 pt-8 pb-4 mb-6 border-b border-slate-100">
+                            <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                                <PencilIcon className="w-6 h-6 text-indigo-600" />
+                                Editar Perfil del Residente
+                            </h3>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                title="Cerrar sin guardar (Esc)"
+                                aria-label="Cerrar sin guardar"
+                                className="shrink-0 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors active:scale-95"
+                            >
+                                <XMarkIcon className="w-6 h-6 stroke-2" />
+                            </button>
+                        </div>
 
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
