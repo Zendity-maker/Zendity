@@ -50,6 +50,7 @@ model Headquarters {
 
   users         User[]
   patients      Patient[]
+  visitantesAutorizados VisitanteAutorizado[]
   courses       Course[]
   userCourses   UserCourse[]
   incidents     Incident[]
@@ -105,6 +106,14 @@ model Headquarters {
   // El PISO se DERIVA del color de la cuidadora/residente; no hay campo de piso
   // manual por entidad. Sedes sin pisos físicos dejan el map null/vacío y todo
   // colapsa a un piso virtual único. Editable desde admin UI corporativo.
+  /// Horario de visitas: { "dias": [0,2,3,4,5,6], "desde": "10:00", "hasta": "18:00" }
+  /// donde 0 es domingo. Vivid: martes a domingo de 10 a 6, lunes cerrado.
+  ///
+  /// Fuera de ese horario el kiosco NO bloquea —una emergencia no espera al
+  /// martes— pero exige el PIN de un miembro del personal y guarda su nombre
+  /// en el asiento. Nulo = se usa el horario por defecto del código.
+  horarioVisitas Json?
+
   colorFloorMap Json?
 
   // White-label theming — paleta de marca por sede para la superficie familiar.
@@ -625,12 +634,93 @@ model FamilyVisit {
   /// vea el hueco en vez de taparlo.
   departedAt      DateTime?
 
+  /// Quién cerró una salida que el visitante no registró, y cuándo.
+  ///
+  /// La hora de salida solo sirve si la gente la marca, y no siempre la
+  /// marcan. Supervisión cierra las que quedan abiertas al terminar el turno,
+  /// y la bitácora lo dice con esas palabras: "cerrada por personal — el
+  /// visitante no registró salida". No es lo mismo que una salida firmada y el
+  /// documento no puede fingir que sí.
+  salidaCerradaPorId String?
+  salidaCerradaAt    DateTime?
+
+  /// FAMILIAR · TOUR · OFICIAL · SERVICIO_EXTERNO
+  ///
+  /// Recepción es la PUERTA: por aquí entra todo el mundo. Lo que el proveedor
+  /// externo hace adentro —qué residentes, qué servicio, avisar a familias—
+  /// sigue siendo del kiosco de servicios externos.
+  tipo            String   @default("FAMILIAR")
+
+  /// Datos que solo tienen sentido en algunos tipos. Nulables todos.
+  visitorPhone    String?  // tour, oficial, servicio externo
+  visitorEmail    String?  // tour
+  futuroResidente String?  // tour — de quién se está averiguando
+  entidad         String?  // oficial y servicio externo — de parte de quién viene
+  profesion       String?  // servicio externo — enfermera, médico, trabajador social…
+
+  /// Visita fuera del horario establecido, y quién la autorizó.
+  ///
+  /// El horario de Vivid es martes a domingo de 10 a 6. Fuera de eso no se
+  /// bloquea —las emergencias existen— pero no entra nadie sin que un miembro
+  /// del personal ponga su PIN, y su nombre queda en el asiento.
+  fueraDeHorario  Boolean  @default(false)
+  autorizadaPorId String?
+
   notified        Boolean  @default(false)
 
-  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
-  patient      Patient?     @relation(fields: [patientId], references: [id])
+  headquarters Headquarters         @relation(fields: [headquartersId], references: [id])
+  patient      Patient?             @relation(fields: [patientId], references: [id])
+  /// Residentes adicionales. Un proveedor externo ve a varios en una visita;
+  /// `patientId` queda como el principal para no romper lo que ya lo lee.
+  pacientes    FamilyVisitPatient[]
 
   @@index([headquartersId, visitedAt])
+  @@index([headquartersId, departedAt])
+}
+
+/// Residentes de una visita, cuando son más de uno. Misma forma que
+/// ExternalServiceVisitPatient, que ya resolvía esto en el otro kiosco.
+model FamilyVisitPatient {
+  id        String @id @default(uuid())
+  visitId   String
+  patientId String
+
+  visit   FamilyVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  patient Patient     @relation(fields: [patientId], references: [id])
+
+  @@unique([visitId, patientId])
+  @@index([patientId])
+}
+
+/// LISTA DE VISITANTES AUTORIZADOS DE UN RESIDENTE
+///
+/// Caso que lo motivó: Óscar López solo puede recibir a personas de una lista
+/// concreta. Pasa en hogares de envejecientes —órdenes de protección,
+/// conflictos de familia, tutelas— y hasta sep-2026 el kiosco registraba a
+/// cualquiera y lo mandaba para adentro.
+///
+/// La lista NO se borra: se revoca. Quién la puso, quién la quitó y cuándo son
+/// parte del expediente, porque detrás suele haber una decisión legal.
+model VisitanteAutorizado {
+  id             String    @id @default(uuid())
+  headquartersId String
+  patientId      String
+  nombre         String
+  relacion       String?
+  telefono       String?
+  /// Por qué está en la lista. Ej. "Orden del tribunal del 12-ago-2026".
+  notas          String?
+  activo         Boolean   @default(true)
+  creadoPorId    String
+  createdAt      DateTime  @default(now())
+  revocadoPorId  String?
+  revocadoAt     DateTime?
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, activo])
+  @@index([headquartersId])
 }
 
 model FamilyVisitNote {
@@ -777,6 +867,15 @@ model Patient {
   //
   // Aditivo (Bool default false) — backward compatible 100%. Setearlo en
   // pacientes reales es data op del deploy (similar al backfill de floor).
+  /// Solo pueden visitarlo las personas de `visitantesAutorizados`.
+  ///
+  /// Con esto en true, el kiosco NO le dice al visitante que no está
+  /// autorizado —eso sería confrontarlo en el lobby y revelar la restricción
+  /// delante de quien pase— sino que le pide que espere y avisa al personal.
+  /// Quién puede entrar lo decide una persona, no una tablet.
+  visitasRestringidas       Boolean @default(false)
+  visitasRestringidasMotivo String?
+
   requiresPosturalChanges Boolean    @default(false)
   colorGroup              ColorGroup @default(UNASSIGNED) // FASE 7: Zonificación
   conciergeBalance        Float      @default(0.0) // FASE 18: Saldo Gift Cards B2C
@@ -839,6 +938,8 @@ model Patient {
   incidents           Incident[]
   familyMembers       FamilyMember[]      @relation("PatientFamily")
   primaryFamilyMember FamilyMember?       @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
+  visitasComoAdicional  FamilyVisitPatient[]
+  visitantesAutorizados VisitanteAutorizado[]
   familyVisits        FamilyVisit[]
   familyMessages      FamilyMessage[] // FASE 13 Integrations
   wellnessNotes       WellnessDiary[]
