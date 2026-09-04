@@ -2,6 +2,8 @@ import { useState } from "react";
 import { PlusIcon, PhotoIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import EmergencyPdfButton from "./EmergencyPdfButton";
 import { useAuth } from "@/context/AuthContext";
+import { edadEnAnios, fechaNacimientoLarga, fechaLocalLarga } from "@/lib/edad";
+import { formatDietSummary } from "@/lib/diet";
 
 /**
  * Roles autorizados para togglear el protocolo de rotación postural.
@@ -10,11 +12,35 @@ import { useAuth } from "@/context/AuthContext";
  */
 const PROTOCOL_TOGGLE_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'NURSE'];
 
+/**
+ * Grupos de color = zonificación de piso. Es lo que decide qué residentes le
+ * salen a cada cuidadora en el tablet, así que en la ficha vale tanto como la
+ * habitación. UNASSIGNED no se dibuja: no es un grupo, es su ausencia.
+ */
+const GRUPOS_COLOR: Record<string, { nombre: string; punto: string }> = {
+    RED:    { nombre: 'Rojo',     punto: 'bg-red-500' },
+    YELLOW: { nombre: 'Amarillo', punto: 'bg-yellow-400' },
+    GREEN:  { nombre: 'Verde',    punto: 'bg-green-500' },
+    BLUE:   { nombre: 'Azul',     punto: 'bg-blue-500' },
+};
+
+function Renglon({ etiqueta, valor, tono = 'text-slate-800' }: { etiqueta: string; valor: React.ReactNode; tono?: string }) {
+    return (
+        <div className="flex justify-between items-center gap-4 text-sm">
+            <span className="text-slate-500 font-medium shrink-0">{etiqueta}</span>
+            <span className={`font-bold text-right ${tono}`}>{valor}</span>
+        </div>
+    );
+}
+
 export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { patientData: any, onRefresh: () => void }) {
     const intake = patientData?.intakeData;
     const meds = patientData?.medications?.filter((m: any) => m.isActive) || [];
     const { user } = useAuth();
     const canToggleProtocol = !!user?.role && PROTOCOL_TOGGLE_ROLES.includes(user.role);
+
+    const edad = edadEnAnios(patientData?.dateOfBirth);
+    const grupo = GRUPOS_COLOR[patientData?.colorGroup ?? ''];
 
     const requiresPostural = !!patientData?.requiresPosturalChanges;
     const [protocolModalOpen, setProtocolModalOpen] = useState(false);
@@ -136,20 +162,75 @@ export default function PatientClinicalSummaryTab({ patientData, onRefresh }: { 
                         <h3 className="text-xl font-black text-slate-800 text-center leading-tight">{patientData?.name}</h3>
                         <p className="text-slate-500 font-medium text-sm mt-1">Expediente Clínico Base</p>
 
-                        <div className="w-full mt-6 pt-6 border-t border-slate-100 space-y-3">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-medium">Asignación Dietética</span>
-                                <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">{patientData?.diet || "Estándar"}</span>
+                        {/* Identidad. Va primero y aparte porque es lo que se
+                            consulta de un vistazo —"¿qué edad tiene?"— y hasta
+                            sep-2026 no estaba: para verlo había que abrir
+                            "Editar Perfil", es decir, entrar a un formulario de
+                            escritura para LEER. Celia lo reportó. El dato ya
+                            viajaba en `patientData`; solo no se dibujaba. */}
+                        {edad !== null && (
+                            <div className="w-full mt-6 pt-6 border-t border-slate-100 text-center">
+                                <p className="text-3xl font-black text-slate-800 leading-none">
+                                    {edad} <span className="text-lg font-bold text-slate-500">años</span>
+                                </p>
+                                <p className="text-slate-500 font-medium text-sm mt-1.5">
+                                    Nació el {fechaNacimientoLarga(patientData.dateOfBirth)}
+                                </p>
                             </div>
+                        )}
+
+                        <div className={`w-full mt-6 pt-6 border-t border-slate-100 space-y-3`}>
+                            <Renglon etiqueta="Habitación" valor={patientData?.roomNumber || "No asignada"} />
+
+                            {grupo && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-500 font-medium">Grupo de color</span>
+                                    <span className="flex items-center gap-2 font-bold text-slate-800">
+                                        <span className={`w-3.5 h-3.5 rounded-full ${grupo.punto} ring-2 ring-white shadow-sm`} />
+                                        {grupo.nombre}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Canónica (textura + modificadores), la misma que
+                                dibuja el encabezado del perfil. Antes esta línea
+                                leía `patientData.diet`, el string libre marcado
+                                DEPRECATED en el schema, y la misma pantalla
+                                mostraba dos dietas distintas para el mismo
+                                residente en 32 de 34 casos. */}
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-medium">Habitación</span>
-                                <span className="font-bold text-slate-800">{patientData?.roomNumber || "No asignada"}</span>
+                                <span className="text-slate-500 font-medium">Dieta</span>
+                                <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg text-right">
+                                    {formatDietSummary(patientData ?? {})}
+                                </span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-medium">Estatus</span>
-                                <span className="font-bold text-emerald-600">{patientData?.status === 'ACTIVE' ? "ACTIVO" : patientData?.status}</span>
-                            </div>
+
+                            <Renglon
+                                etiqueta="Estatus"
+                                valor={patientData?.status === 'ACTIVE' ? "ACTIVO" : patientData?.status}
+                                tono={patientData?.status === 'ACTIVE' ? 'text-emerald-600' : 'text-slate-800'}
+                            />
                         </div>
+
+                        {/* Cobertura e ingreso. Sección aparte y CONDICIONAL: el
+                            hospital preferido lo tiene 1 de cada 5 residentes y
+                            la fecha de ingreso 1 de cada 8 (los de la carga
+                            inicial de may-2026 no la tienen a propósito). Si se
+                            dibujaran siempre, la tarjeta se llenaría de guiones
+                            y el ojo dejaría de leerla. */}
+                        {(patientData?.insurancePlanName || patientData?.preferredHospital || patientData?.admissionDate) && (
+                            <div className="w-full mt-6 pt-6 border-t border-slate-100 space-y-3">
+                                {patientData?.insurancePlanName && (
+                                    <Renglon etiqueta="Plan médico" valor={patientData.insurancePlanName} />
+                                )}
+                                {patientData?.preferredHospital && (
+                                    <Renglon etiqueta="Hospital preferido" valor={patientData.preferredHospital} />
+                                )}
+                                {patientData?.admissionDate && (
+                                    <Renglon etiqueta="Ingresó" valor={fechaLocalLarga(patientData.admissionDate)} />
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-amber-50 rounded-3xl p-6 border border-amber-100 shadow-sm">
