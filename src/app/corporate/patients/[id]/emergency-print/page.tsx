@@ -38,6 +38,8 @@ interface EmergencyCard {
   headquarters: {
     name: string;
     phone: string | null;
+    address: string | null;
+    billingAddress: string | null;
   } | null;
 }
 
@@ -183,6 +185,21 @@ export default async function EmergencyPrintPage({
             {card.headquarters && (
               <span>
                 <span className="font-semibold">Sede:</span> {card.headquarters.name}
+              </span>
+            )}
+            {/* El telefono se pedia al endpoint y no se dibujaba, y la
+                direccion no se pedia siquiera. Esta tarjeta va con el residente
+                al hospital: sin telefono nadie puede llamar al hogar, y sin
+                direccion no saben de donde vino. */}
+            {card.headquarters?.phone && (
+              <span>
+                <span className="font-semibold">Tel. del hogar:</span> {card.headquarters.phone}
+              </span>
+            )}
+            {(card.headquarters?.address || card.headquarters?.billingAddress) && (
+              <span>
+                <span className="font-semibold">Dirección:</span>{' '}
+                {card.headquarters.address || card.headquarters.billingAddress}
               </span>
             )}
           </div>

@@ -16,7 +16,7 @@ export async function GET(
         const patient = await prisma.patient.findUnique({
             where: { id },
             include: {
-                headquarters: { select: { name: true, phone: true } },
+                headquarters: { select: { name: true, phone: true, address: true, billingAddress: true } },
                 medications: {
                     where: { status: 'ACTIVE' },
                     include: { medication: { select: { name: true, category: true, dosage: true, route: true } } },

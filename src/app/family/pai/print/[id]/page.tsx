@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
+import { edadEnAnios } from "@/lib/edad";
 import { PrinterIcon, ArrowDownTrayIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 
@@ -74,7 +75,7 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                     )}
                     <h1 className="text-2xl font-black uppercase tracking-widest text-slate-800">Plan Asistencial Individualizado (PAI)</h1>
                     <p className="text-sm font-bold text-slate-800 text-black uppercase mt-1">Documento Clínico - Revisión Semestral | Copia para Familiares</p>
-                    <p className="text-xs text-slate-700 font-medium mt-1">{hqInfo?.address || 'Dirección de la Sede'} | {hqInfo?.contactEmail || 'contacto@sede.com'} | Tel: {hqInfo?.contactPhone || 'N/A'}</p>
+                    <p className="text-xs text-slate-700 font-medium mt-1">{[hqInfo?.address || hqInfo?.billingAddress, hqInfo?.phone && `Tel: ${hqInfo.phone}`, hqInfo?.licenseNumber && `Lic. ${hqInfo.licenseNumber}`].filter(Boolean).join('  |  ')}</p>
                 </div>
 
                 {/* Top Quick Attributes */}
@@ -93,7 +94,7 @@ export default function FamilyPAIPrintRecord(props: { params: Promise<{ id: stri
                     <h2 className="text-lg font-black bg-slate-800 text-white px-3 py-1 mb-4 uppercase tracking-wider">1. Identificación y Perfil del Residente</h2>
                     <table className="w-full text-sm border-collapse">
                         <tbody>
-                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{patientInfo?.dateOfBirth ? `${new Date().getFullYear() - new Date(patientInfo.dateOfBirth).getFullYear()} años` : 'N/D'}</td></tr>
+                            <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left w-1/4 font-bold text-slate-900 text-black font-black">Edad</th><td className="py-2 font-medium">{edadEnAnios(patientInfo?.dateOfBirth) !== null ? `${edadEnAnios(patientInfo?.dateOfBirth)} años` : 'N/D'}</td></tr>
                             <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Habitación</th><td className="py-2 font-medium">{patientInfo?.roomNumber || 'N/A'}</td></tr>
                             <tr className="border-b border-slate-500 print:border-black"><th className="py-2 text-left font-bold text-slate-900 text-black font-black">Fuente de Apoyo</th><td className="py-2 font-medium">{pai.supportSource || 'N/D'}</td></tr>
                         </tbody>

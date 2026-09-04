@@ -43,6 +43,7 @@ interface FullPatientData {
         name: string;
         logoUrl: string | null;
         phone: string | null;
+        address: string | null;
         billingAddress: string | null;
     };
     intakeData: {
@@ -680,8 +681,11 @@ export default function ResidentSummaryPrint({
                         />
                     )}
                     <div style={{ fontSize: '10px', fontWeight: 700, color: VIVID_NAVY, marginBottom: '2px' }}>{hq.name}</div>
-                    {hq.billingAddress && (
-                        <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '4px' }}>{hq.billingAddress}</div>
+                    {/* La física primero: es la que el hospital necesita si
+                        tiene que devolver al residente o llamar. La postal es
+                        el respaldo, para los hogares que solo tienen una. */}
+                    {(hq.address || hq.billingAddress) && (
+                        <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '4px' }}>{hq.address || hq.billingAddress}</div>
                     )}
                     {hq.phone && (
                         <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '8px' }}>Tel. {hq.phone}</div>

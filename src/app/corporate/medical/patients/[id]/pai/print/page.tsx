@@ -69,7 +69,7 @@ export default function PAIOfficialPrintRecord(props: { params: Promise<{ id: st
                     )}
                     <h1 className="text-2xl font-black uppercase tracking-widest text-slate-800">Plan Asistencial Individualizado (PAI)</h1>
                     <p className="text-sm font-bold text-slate-800 text-black uppercase mt-1">Documento Clínico - Revisión Semestral | Uso Interno y Familiar</p>
-                    <p className="text-xs text-slate-700 font-medium mt-1">{hqInfo?.address || 'Dirección de la Sede'} | {hqInfo?.contactEmail || 'contacto@sede.com'} | Tel: {hqInfo?.contactPhone || 'N/A'}</p>
+                    <p className="text-xs text-slate-700 font-medium mt-1">{[hqInfo?.address || hqInfo?.billingAddress, hqInfo?.phone && `Tel: ${hqInfo.phone}`, hqInfo?.licenseNumber && `Lic. ${hqInfo.licenseNumber}`].filter(Boolean).join('  |  ')}</p>
                 </div>
 
                 {/* Top Quick Attributes */}

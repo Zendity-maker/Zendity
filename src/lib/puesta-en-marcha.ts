@@ -46,7 +46,7 @@ export async function puestaEnMarcha(hqId: string): Promise<PuestaEnMarcha> {
         where: { id: hqId },
         select: {
             name: true, logoUrl: true, brandPrimary: true, colorFloorMap: true,
-            phone: true, billingAddress: true,
+            phone: true, address: true, billingAddress: true,
         },
     });
     if (!hq) throw new Error('Sede no encontrada');
@@ -86,10 +86,20 @@ export async function puestaEnMarcha(hqId: string): Promise<PuestaEnMarcha> {
         {
             clave: 'DATOS_SEDE',
             titulo: 'Datos de contacto de la sede',
-            porque: 'Teléfono y dirección salen en el formulario de traslado de emergencia que va con el residente al hospital.',
-            hecho: !!hq.phone && !!hq.billingAddress,
+            porque: 'Teléfono y dirección salen en el formulario de traslado de emergencia que va con el residente al hospital, en el PAI y en las evaluaciones de Trabajo Social.',
+            // `address` es la dirección física del hogar; `billingAddress`, la
+            // postal. Vale cualquiera de las dos —muchos hogares tienen una
+            // sola— y se prefiere la física, que es la que el hospital
+            // necesita. Mismo criterio que ya usaba el PDF de evaluaciones de
+            // Trabajo Social.
+            //
+            // Antes esto miraba `billingAddress` a secas, y el teléfono lo
+            // buscaba en `phone` mientras la única casilla de la pantalla
+            // escribía `ownerPhone` —el del dueño. Andrés llenó el teléfono y
+            // el paso siguió diciendo que faltaba.
+            hecho: !!hq.phone && !!(hq.address || hq.billingAddress),
             bloqueante: false,
-            detalle: [!hq.phone && 'falta teléfono', !hq.billingAddress && 'falta dirección'].filter(Boolean).join(', ') || undefined,
+            detalle: [!hq.phone && 'falta teléfono', !(hq.address || hq.billingAddress) && 'falta dirección'].filter(Boolean).join(', ') || undefined,
             ruta: '/corporate/sedes',
         },
         {

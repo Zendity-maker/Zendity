@@ -35,7 +35,7 @@ async function getResidentSummaryHandler(req: Request) {
             where: { id: patientId, headquartersId: invokerHqId },
             include: {
                 headquarters: {
-                    select: { id: true, name: true, logoUrl: true, phone: true, billingAddress: true }
+                    select: { id: true, name: true, logoUrl: true, phone: true, address: true, billingAddress: true }
                 },
                 intakeData: true,
                 medications: {

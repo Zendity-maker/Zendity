@@ -27,6 +27,10 @@ interface HQRow {
     ownerEmail: string | null;
     ownerPhone: string | null;
     taxId: string | null;
+    phone: string | null;
+    address: string | null;
+    billingAddress: string | null;
+    licenseNumber: string | null;
     subscriptionPlan: string;
     subscriptionStatus: string;
     _count: { patients: number; users: number };
@@ -41,6 +45,10 @@ interface FormState {
     ownerEmail: string;
     ownerPhone: string;
     taxId: string;
+    phone: string;
+    address: string;
+    billingAddress: string;
+    licenseNumber: string;
     subscriptionPlan: string;
     isActive: boolean;
 }
@@ -53,6 +61,10 @@ const BLANK_FORM: FormState = {
     ownerEmail: "",
     ownerPhone: "",
     taxId: "",
+    phone: "",
+    address: "",
+    billingAddress: "",
+    licenseNumber: "",
     subscriptionPlan: "PRO",
     isActive: true,
 };
@@ -124,6 +136,10 @@ export default function SedesPage() {
             ownerEmail: row.ownerEmail || "",
             ownerPhone: row.ownerPhone || "",
             taxId: row.taxId || "",
+            phone: row.phone || "",
+            address: row.address || "",
+            billingAddress: row.billingAddress || "",
+            licenseNumber: row.licenseNumber || "",
             subscriptionPlan: row.subscriptionPlan || "PRO",
             isActive: row.isActive,
         });
@@ -143,6 +159,10 @@ export default function SedesPage() {
                 ownerEmail: form.ownerEmail.trim() || null,
                 ownerPhone: form.ownerPhone.trim() || null,
                 taxId: form.taxId.trim() || null,
+                phone: form.phone.trim() || null,
+                address: form.address.trim() || null,
+                billingAddress: form.billingAddress.trim() || null,
+                licenseNumber: form.licenseNumber.trim() || null,
             };
             if (modalMode === "edit") {
                 payload.id = form.id;
@@ -443,6 +463,68 @@ export default function SedesPage() {
                                 </div>
                             </div>
 
+                            {/* Datos del HOGAR — distintos de los del dueño.
+                                Esta seccion no existia: `phone`, `address`,
+                                `billingAddress` y `licenseNumber` solo se
+                                podian escribir al crear la sede, y esa opcion
+                                se anadio despues de que Cupey y Mayagüez ya
+                                existieran. Las dos quedaron sin ellos, la
+                                puesta en marcha los pedia, y no habia donde
+                                ponerlos. Va PRIMERO porque es la identidad del
+                                hogar; lo de abajo es la del dueño. */}
+                            <div>
+                                <h3 className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: COLORS.teal }}>
+                                    Datos del Hogar
+                                </h3>
+                                <p className="text-xs text-slate-500 mb-3">
+                                    Salen impresos en el formulario de traslado al hospital, en el PAI y en las evaluaciones de Trabajo Social.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">Teléfono del hogar</label>
+                                        <input
+                                            type="tel"
+                                            value={form.phone}
+                                            onChange={e => setForm({ ...form, phone: e.target.value })}
+                                            placeholder="787-000-0000"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">Número de licencia</label>
+                                        <input
+                                            type="text"
+                                            value={form.licenseNumber}
+                                            onChange={e => setForm({ ...form, licenseNumber: e.target.value })}
+                                            placeholder="Departamento de la Familia"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">Dirección física</label>
+                                        <input
+                                            type="text"
+                                            value={form.address}
+                                            onChange={e => setForm({ ...form, address: e.target.value })}
+                                            placeholder="Dónde está el hogar — la que va en el traslado al hospital"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                                            Dirección postal <span className="font-medium text-slate-400">— solo si la correspondencia llega a otro sitio</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={form.billingAddress}
+                                            onChange={e => setForm({ ...form, billingAddress: e.target.value })}
+                                            placeholder="Déjala vacía si es la misma"
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Dueño B2B */}
                             <div>
                                 <h3 className="text-xs font-black uppercase tracking-widest mb-3" style={{ color: COLORS.teal }}>
@@ -468,7 +550,7 @@ export default function SedesPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-600 mb-1">Teléfono</label>
+                                        <label className="block text-xs font-bold text-slate-600 mb-1">Teléfono del propietario</label>
                                         <input
                                             type="tel"
                                             value={form.ownerPhone}

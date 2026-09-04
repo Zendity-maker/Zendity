@@ -76,6 +76,10 @@ export async function GET(_req: NextRequest) {
                 ownerEmail: true,
                 ownerPhone: true,
                 taxId: true,
+                phone: true,
+                address: true,
+                billingAddress: true,
+                licenseNumber: true,
                 subscriptionPlan: true,
                 subscriptionStatus: true,
                 _count: {
@@ -159,6 +163,10 @@ export async function POST(req: NextRequest) {
                 ownerEmail: body.ownerEmail || null,
                 ownerPhone: body.ownerPhone || null,
                 taxId: body.taxId || null,
+                phone: body.phone || null,
+                address: body.address || null,
+                billingAddress: body.billingAddress || null,
+                licenseNumber: body.licenseNumber || null,
                 subscriptionPlan: plan,
                 subscriptionStatus: 'ACTIVE',
             },
@@ -202,6 +210,26 @@ export async function PATCH(req: NextRequest) {
         if (body.ownerEmail !== undefined) data.ownerEmail = body.ownerEmail || null;
         if (body.ownerPhone !== undefined) data.ownerPhone = body.ownerPhone || null;
         if (body.taxId !== undefined) data.taxId = body.taxId || null;
+
+        // Identidad del HOGAR, distinta de la de su dueño.
+        //
+        // `ownerPhone` es el teléfono del dueño; `phone` es el del hogar, y es
+        // el que sale impreso en el formulario de traslado que acompaña al
+        // residente al hospital. Andrés llenó el primero y la puesta en marcha
+        // seguía pidiendo el segundo, porque son campos distintos.
+        //
+        // Y hay DOS direcciones a propósito (ver el comentario del schema):
+        // `address` es dónde está el hogar —la que va en membretes oficiales y
+        // en el traslado— y `billingAddress` es a dónde llega la
+        // correspondencia administrativa. Pueden no coincidir.
+        //
+        // Hasta sep-2026 ninguno de los cuatro se podía escribir desde ninguna
+        // pantalla: solo los aceptaba la creación de sede, añadida después de
+        // que Cupey y Mayagüez ya existieran. Las dos quedaron sin ellos.
+        if (body.phone !== undefined) data.phone = body.phone || null;
+        if (body.address !== undefined) data.address = body.address || null;
+        if (body.billingAddress !== undefined) data.billingAddress = body.billingAddress || null;
+        if (body.licenseNumber !== undefined) data.licenseNumber = body.licenseNumber || null;
 
         // CAMPOS COMERCIALES — solo Zendity (17-ago-2026).
         //
