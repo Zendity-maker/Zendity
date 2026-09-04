@@ -155,6 +155,15 @@ export default function VividInvestorsDashboard() {
                             <p className="text-slate-500 font-medium text-xs tracking-[0.2em] uppercase leading-relaxed">Partners & Investor Dashboard</p>
                         </div>
                     </div>
+                    {/* Salida. La pagina es de pantalla completa —no lleva la barra
+                        lateral— y sin esto quedaba sin forma de volver, como le pasaba
+                        al panel de super admin. */}
+                    <a
+                        href="/corporate"
+                        className="mt-4 md:mt-0 md:order-last text-xs font-bold text-white/50 hover:text-white transition-colors px-3 py-2"
+                    >
+                        ← Volver a Zéndity
+                    </a>
                     <div className="mt-4 md:mt-0 flex items-center gap-4 bg-white/5 border border-white/10 px-6 py-2 rounded-full">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         <span className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Datos en Vivo</span>

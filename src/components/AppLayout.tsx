@@ -541,6 +541,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         pathname === "/login" ||
         pathname === "/reception" ||
         pathname.startsWith("/admin") ||
+        // El panel de inversionistas trae su propio diseño de pantalla completa
+        // —fondo oscuro, su marca, su encabezado sticky— y al renderizarse dentro
+        // de AppLayout ese encabezado peleaba con el scroll del <main>: no se
+        // quedaba arriba y tapaba el contenido.
+        pathname.startsWith("/corporate/investors") ||
         pathname.startsWith("/care") ||
         pathname.startsWith("/cleaning") ||
         pathname.startsWith("/family") ||

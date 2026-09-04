@@ -48,9 +48,28 @@ export async function GET(_req: Request) {
         const auth = await requireRole(ALLOWED_ROLES);
         if (auth instanceof NextResponse) return auth;
 
-        const targetHqs = auth.role === 'DIRECTOR'
-            ? await prisma.headquarters.findMany({ where: { id: auth.headquartersId } })
-            : await prisma.headquarters.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+        // ── QUE SEDES ENTRAN EN ESTOS NUMEROS ────────────────────────────
+        // Antes: un DIRECTOR veia solo la suya —por eso Andres, dueño de Cupey y
+        // Mayaguez, no veia Mayaguez— y CUALQUIER OTRO ROL veia TODAS las sedes
+        // activas. Eso incluye INVESTOR: un inversionista de un hogar habria
+        // visto los ingresos, la ocupacion y el censo de cualquier otro cliente
+        // que entrara. Es la misma fuga que se cerro en /corporate/headquarters.
+        //
+        // Regla: SUPER_ADMIN ve todas —maneja Zendity como empresa—; el resto ve
+        // su sede mas las que le pertenezcan por ownerId.
+        const esSuperAdmin = auth.role === 'SUPER_ADMIN';
+        const targetHqs = esSuperAdmin
+            ? await prisma.headquarters.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } })
+            : await prisma.headquarters.findMany({
+                where: {
+                    isActive: true,
+                    OR: [
+                        ...(auth.headquartersId ? [{ id: auth.headquartersId }] : []),
+                        ...(auth.id ? [{ ownerId: auth.id }] : []),
+                    ],
+                },
+                orderBy: { name: 'asc' },
+            });
 
         const now = new Date();
         const y = now.getUTCFullYear();
