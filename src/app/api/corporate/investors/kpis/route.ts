@@ -64,8 +64,14 @@ export async function GET(_req: Request) {
                 where: {
                     isActive: true,
                     OR: [
+                        // Su propia sede.
                         ...(auth.headquartersId ? [{ id: auth.headquartersId }] : []),
+                        // Las que le pertenecen como dueño.
                         ...(auth.id ? [{ ownerId: auth.id }] : []),
+                        // Y aquellas a las que está vinculado sin pertenecer: un
+                        // inversionista puede tener participación en varias sedes
+                        // sin ser dueño de ninguna. Ver SedeVinculo.
+                        ...(auth.id ? [{ vinculos: { some: { userId: auth.id } } }] : []),
                     ],
                 },
                 orderBy: { name: 'asc' },

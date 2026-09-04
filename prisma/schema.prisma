@@ -214,6 +214,8 @@ model Headquarters {
   familyContactLogs FamilyContactLog[]
   /// BAA y contrato de servicio aceptados por esta sede.
   acuerdos AcuerdoSede[]
+  /// Personas vinculadas a esta sede sin pertenecer a ella. Ver SedeVinculo.
+  vinculos SedeVinculo[]
 }
 
 // =======================
@@ -401,6 +403,8 @@ model User {
   sedesPropias Headquarters[] @relation("SedesDelDueno")
   /// Acuerdos de sede que esta persona acepto. Ver AcuerdoSede.
   acuerdosAceptados AcuerdoSede[] @relation("AcuerdosAceptados")
+  /// Sedes a las que esta persona está vinculada sin pertenecer. Ver SedeVinculo.
+  vinculosDeSede SedeVinculo[] @relation("VinculosDeSede")
 }
 
 model Account {
@@ -3780,4 +3784,36 @@ model AcuerdoSede {
 
   @@unique([headquartersId, tipo, version])
   @@index([headquartersId, aceptadoEn])
+}
+
+/// Vínculo de una persona con una sede que NO es la suya.
+///
+/// Hasta sep-2026 un usuario pertenecía a exactamente una sede
+/// (`User.headquartersId`), y lo único multi-sede era la propiedad
+/// (`Headquarters.ownerId`). Eso cubre al dueño que administra varias, pero no
+/// a quien tiene un interés legítimo en más de una sin ser su dueño.
+///
+/// El caso que lo motivó: Cristian es inversionista de Cupey Y de Mayagüez. Su
+/// usuario cuelga de Cupey, así que el panel de inversionistas solo le mostraba
+/// una — y la alternativa de marcarlo como dueño habría sido falsa, porque el
+/// dueño es Andrés.
+///
+/// Es un vínculo de VISIBILIDAD, no de mando: no otorga permisos operativos ni
+/// clínicos sobre la sede, solo hace que sus números entren en las vistas
+/// agregadas a las que su rol ya tiene acceso.
+model SedeVinculo {
+  id             String   @id @default(uuid())
+  userId         String
+  headquartersId String
+  /// "INVERSIONISTA" por ahora. Se deja abierto para vínculos futuros.
+  tipo           String   @default("INVERSIONISTA")
+  notas          String?
+  createdAt      DateTime @default(now())
+
+  user         User         @relation("VinculosDeSede", fields: [userId], references: [id], onDelete: Cascade)
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, headquartersId, tipo])
+  @@index([userId])
+  @@index([headquartersId])
 }
