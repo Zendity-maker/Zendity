@@ -111,6 +111,9 @@ export default function VividInvestorsDashboard() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [kpis, setKpis] = useState<VividKPI[]>([]);
+    // Sede visible. Con las sedes apiladas la pagina se duplicaba por cada una;
+    // con cinco seria interminable. Se muestra una y se cambia con pestañas.
+    const [sedeActiva, setSedeActiva] = useState(0);
     const [fetchLoading, setFetchLoading] = useState(true);
 
     const INVESTOR_ROLES = ['INVESTOR', 'ADMIN', 'DIRECTOR', 'SUPER_ADMIN'];
@@ -172,7 +175,27 @@ export default function VividInvestorsDashboard() {
             </div>
 
             <main className="max-w-7xl mx-auto px-6 lg:px-12 py-12 space-y-12">
-                {kpis.map((hq) => {
+                {/* Pestañas por sede. Solo aparecen con mas de una: con una sola
+                    serian una fila vacia que no aporta nada. */}
+                {kpis.length > 1 && (
+                    <div className="flex gap-2 flex-wrap -mb-4">
+                        {kpis.map((hq, i) => (
+                            <button
+                                key={hq.hqId}
+                                onClick={() => setSedeActiva(i)}
+                                className={`px-5 py-2.5 rounded-full text-sm font-bold transition-colors border ${
+                                    i === sedeActiva
+                                        ? 'bg-[#C5E69A] text-[#1C3170] border-[#C5E69A]'
+                                        : 'bg-transparent text-[#8CBBE8]/70 border-[#8CBBE8]/25 hover:text-[#FAF6EE] hover:border-[#8CBBE8]/50'
+                                }`}
+                            >
+                                {hq.name.replace('Vivid Senior Living ', '')}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {kpis.filter((_, i) => i === sedeActiva || kpis.length === 1).map((hq) => {
                     const o = hq.ocupacion, f = hq.finanzas, c = hq.crecimiento, q = hq.calidad, e = hq.equipo, p = hq.rentabilidad;
                     const maxSerie = Math.max(...f.serie.map(s => s.facturado), 1);
                     const gradeColor = q.facilityHealthGrade === 'EXCELENTE' ? 'text-[#C5E69A]' : q.facilityHealthGrade === 'BUENO' ? 'text-teal-400' : q.facilityHealthGrade === 'ALERTA' ? 'text-[#C5E69A]' : 'text-rose-400';
