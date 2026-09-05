@@ -260,7 +260,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
 
     const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
     const [isNightMode, setIsNightMode] = useState(() => isNightHours());
@@ -1800,6 +1800,45 @@ export default function ZendityCareTabletPage() {
         }
     };
 
+    /**
+     * Reportar un fallecimiento. NO lo declara.
+     *
+     * Fernando González falleció el 4-sep-2026 y en el sistema siguió activo,
+     * o sea en esta misma lista, pidiendo baño, comidas y rotaciones. Quien
+     * estaba de turno tenía tres opciones: inventar un baño, dejar el hueco, o
+     * sacarlo del piso. Eligieron no falsificar y usaron "Trasladar ER", que
+     * era el único botón que su rol les daba. Este es el botón que faltaba.
+     *
+     * Declarar el fallecimiento y cerrar el expediente sigue siendo de
+     * dirección: aquí solo se reporta.
+     */
+    const [notaFallecimiento, setNotaFallecimiento] = useState("");
+
+    const submitReporteFallecimiento = async () => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/reportar-fallecimiento", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId: activePatient.id, nota: notaFallecimiento }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                avisoOk(data.mensaje);
+                setNotaFallecimiento("");
+                setModalType(null);
+                fetchPatients(selectedColor!);
+            } else {
+                avisoError(data.error || 'No se pudo reportar.');
+            }
+        } catch (e) {
+            console.error(e);
+            avisoError("Error de conexión.");
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const submitHospitalTransfer = async () => {
         setSubmitting(true);
         try {
@@ -3141,7 +3180,17 @@ export default function ZendityCareTabletPage() {
 
                                         return (
                                         <div key={p.id} className="bg-[#1F2D3A] border border-[#2a3b4d] rounded-[20px] text-white flex flex-col relative overflow-hidden transition-colors hover:border-[#3CC6C4]/40">
-                                            {p.status === 'TEMPORARY_LEAVE' && <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex items-center justify-center font-display text-lg font-semibold text-[#94a3b8] backdrop-blur-sm">FUERA DE EDIFICIO</div>}
+                                            {/* "FUERA DE EDIFICIO" es correcto para un hospital o una
+                                                salida con la familia. Para un fallecimiento
+                                                reportado seria frio y falso, y quien lo lee es
+                                                quien acaba de estar con esa persona. */}
+                                            {p.status === 'TEMPORARY_LEAVE' && (
+                                                <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex items-center justify-center font-display text-lg font-semibold text-[#94a3b8] backdrop-blur-sm text-center px-4">
+                                                    {p.leaveType === 'FALLECIMIENTO_REPORTADO'
+                                                        ? 'FALLECIMIENTO REPORTADO'
+                                                        : 'FUERA DE EDIFICIO'}
+                                                </div>
+                                            )}
 
                                             {/* ===== HEADER BANNER ===== */}
                                             <div className="bg-[#1F2D3A] border-b border-[#2a3b4d] px-4 py-3 flex justify-between items-center gap-3">
@@ -3541,6 +3590,20 @@ export default function ZendityCareTabletPage() {
                                                 <span className="text-base leading-none">🚑</span> Trasladar ER
                                             </button>
                                         </div>
+
+                                        {/* Reportar fallecimiento. Va aqui, en
+                                            el piso, porque quien lo sabe primero
+                                            es quien esta en el piso. Discreto a
+                                            proposito —no es una accion de uso
+                                            diario— pero presente: sin el, la
+                                            unica salida era "Trasladar ER", que
+                                            es lo que paso con Fernando. */}
+                                        <button
+                                            onClick={() => { setActivePatient(p); setNotaFallecimiento(''); setModalType('REPORTAR_FALLECIMIENTO'); }}
+                                            className="w-full mt-1.5 min-h-[44px] bg-white border border-[#cbd5e1] text-[#475569] rounded-[12px] flex items-center justify-center gap-2 text-[13px] font-semibold hover:bg-[#f8fafc] transition-colors"
+                                        >
+                                            Reportar fallecimiento
+                                        </button>
 
                                         {/* Row 4 — Diálisis (solo residentes con needsDialysis) */}
                                         {p.needsDialysis && p.status === 'ACTIVE' && (
@@ -4262,6 +4325,41 @@ export default function ZendityCareTabletPage() {
                                 </div>
                                 )}
                                 <button onClick={submitFall} disabled={submitting} className="w-full py-5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl mt-4 shadow-rose-500/30">Evaluar Riesgo y Enviar Alerta Roja</button>
+                            </div>
+                        )}
+
+                        {modalType === 'REPORTAR_FALLECIMIENTO' && (
+                            <div className="space-y-4 mt-2">
+                                <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-slate-200 pb-2">
+                                    Reportar fallecimiento
+                                </p>
+                                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                                    <p className="text-slate-700 font-bold text-sm leading-relaxed mb-1">
+                                        {activePatient?.name} dejará de aparecer en el piso de inmediato y no se le pedirán más registros de cuido.
+                                    </p>
+                                    <p className="text-slate-600 text-sm leading-relaxed">
+                                        Dirección recibe el aviso ahora mismo. <strong>El cierre del expediente lo hace dirección</strong>, no tú.
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-black text-slate-700 uppercase block mb-2">
+                                        Nota <span className="font-medium text-slate-500 normal-case">(opcional)</span>
+                                    </label>
+                                    <textarea
+                                        value={notaFallecimiento}
+                                        onChange={e => setNotaFallecimiento(e.target.value)}
+                                        rows={3}
+                                        placeholder="Hora, quién estuvo presente, si la familia ya fue notificada…"
+                                        className="w-full bg-white border-2 border-slate-200 rounded-2xl p-3 text-slate-800 focus:border-slate-500 outline-none"
+                                    />
+                                </div>
+                                <button
+                                    onClick={submitReporteFallecimiento}
+                                    disabled={submitting}
+                                    className="w-full min-h-[56px] bg-slate-800 hover:bg-slate-900 text-white font-black rounded-2xl disabled:opacity-40 transition-colors"
+                                >
+                                    {submitting ? 'Reportando…' : 'Reportar y avisar a dirección'}
+                                </button>
                             </div>
                         )}
 
