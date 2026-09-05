@@ -21,6 +21,27 @@ import ZendiAssist from "@/components/ZendiAssist";
 import StaffChat from "@/components/StaffChat";
 import DietPrescription from "@/components/diet/DietPrescription";
 import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
+import { MOTIVOS_RECHAZO, pideMotivo, etiquetaMotivo } from "@/lib/comida";
+import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
+import { EFECTOS_PRN } from "@/lib/prn";
+
+/** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
+interface DosisPRNPendiente {
+    id: string;
+    medicamento: string;
+    motivo: string | null;
+    administradoAt: string;
+    residente: { id: string; nombre: string };
+}
+
+/** Lo minimo que el bloque de PRN necesita de un medicamento del residente. */
+interface MedDelResidente {
+    id: string;
+    frequency?: string | null;
+    status?: string | null;
+    isActive?: boolean;
+    medication?: { name?: string | null; dosage?: string | null } | null;
+}
 import { Toaster, toast } from 'sonner';
 
 function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
@@ -269,7 +290,7 @@ export default function ZendityCareTabletPage() {
 
     // Modals Data
     const [activePatient, setActivePatient] = useState<any>(null);
-    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
+    const [modalType, setModalType] = useState<"VITALS" | "LOG" | "MEDS" | "FALL" | "HUB" | "HOSPITAL_TRANSFER" | "REPORTAR_FALLECIMIENTO" | "CAMBIO_CONDICION" | "PROGRESS_NOTE_PDF" | "ACCEPT_HANDOVER" | "DIET_CHANGE" | "FAST_ACTION_DISPATCH" | "PREVENTIVE" | "VITALS_HISTORY" | "SHIFT_CLOSURE_WIZARD" | null>(null);
 
     const isNightHours = () => { const h = new Date().getHours(); return h >= 22 || h < 6; };
     const [isNightMode, setIsNightMode] = useState(() => isNightHours());
@@ -496,8 +517,37 @@ export default function ZendityCareTabletPage() {
         });
     }, [activePatient]);
     const [fallProtocol, setFallProtocol] = useState({ consciousness: true, bleeding: false, painLevel: 5 });
+    /**
+     * Comio poco o nada: falta decir por que. Ver src/lib/comida.ts.
+     *
+     * Se guarda la comida y la calidad que ya se tocaron, y el registro espera
+     * al motivo. Si la cuidadora cierra sin contestar, no se guarda nada — es
+     * preferible un hueco a una comida con un motivo inventado.
+     */
+    const [rechazoPendiente, setRechazoPendiente] = useState<{ mealType: string; quality: string } | null>(null);
+    const [motivoRechazo, setMotivoRechazo] = useState<string | null>(null);
+    const [aceptoEnCambio, setAceptoEnCambio] = useState("");
+
+    /**
+     * "Algo cambio" — lo que el piso nota y no es emergencia.
+     * Ver src/lib/cambios-de-condicion.ts.
+     */
+    const [areaCambio, setAreaCambio] = useState<string | null>(null);
+    const [descripcionCambio, setDescripcionCambio] = useState("");
+
+    /**
+     * PRN — QUE medicamento y PARA QUE.
+     *
+     * `prnMedId` es lo que faltaba: hasta hoy el flujo mandaba TODOS los
+     * medicamentos del turno y marcaba cada uno como administrado. Ver el
+     * comentario de /api/care/meds/bulk.
+     */
+    const [prnMedId, setPrnMedId] = useState<string | null>(null);
+    const [prnTodos, setPrnTodos] = useState(false);
+    /** Dosis PRN de las ultimas 12 horas sin respuesta. Ver src/lib/prn.ts. */
+    const [prnSinEfecto, setPrnSinEfecto] = useState<DosisPRNPendiente[]>([]);
+
     const [prnNote, setPrnNote] = useState("");
-    const [omissionNote, setOmissionNote] = useState("");
     const [activeMedAction, setActiveMedAction] = useState<'PRN' | 'OMISSION' | null>(null);
     const sigCanvas = useRef<any>(null); // FASE 60: eMAR Digital Signature
     const packSigCanvas = useRef<any>(null); // Firma del pack (flujo secuencial por slot)
@@ -1524,54 +1574,70 @@ export default function ZendityCareTabletPage() {
         }
     };
 
-    const submitBulkMeds = async (action: 'PRN' | 'OMISSION') => {
-        if (action === 'PRN' && !prnNote.trim()) return avisoOk("Especifique qué medicamento PRN se administra.");
-        if (action === 'OMISSION' && !omissionNote.trim()) return avisoOk("Debe especificar la razón clínica de descontinuar/omitir.");
-
-        let signatureBase64 = null;
-        if (action === 'PRN' && sigCanvas.current) {
-            if (sigCanvas.current.isEmpty()) {
-                return avisoError(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
-            }
-            signatureBase64 = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+    /**
+     * REGISTRAR UNA DOSIS PRN. Una sola, con su motivo y su firma.
+     *
+     * El flujo viejo mandaba `getMedsForCurrentShift(...)` entero: una dosis por
+     * razon necesaria marcaba como administrado TODO el turno. Se uso una vez en
+     * la historia del sistema. Mientras tanto, 4 medicamentos PRN activos con
+     * cero administraciones y 27 notas de turno diciendo que se administro algo.
+     */
+    const submitPRN = async () => {
+        if (!prnMedId) return avisoError(" Elija qué medicamento se administró.");
+        if (prnNote.trim().length < 5) return avisoError(" Falta para qué se administró.");
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+            return avisoError(" Es mandatorio plasmar su Firma Electrónica para administrar medicamentos.");
         }
-
         setSubmitting(true);
         try {
-            const medicationIds = getMedsForCurrentShift(activePatient.medications).map((m: any) => m.id);
-            if (medicationIds.length === 0) return avisoOk("No hay medicamentos para procesar.");
-
-            let finalNotes = "";
-            if (action === 'PRN') finalNotes = `SOS/PRN Aplicado: ${prnNote}`;
-            if (action === 'OMISSION') finalNotes = `Omitido/Rechazado: ${omissionNote}`;
-
             const res = await fetch("/api/care/meds/bulk", {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    action,
-                    medicationIds,
-                    notes: finalNotes,
-                    signatureBase64
-                })
+                    action: 'PRN',
+                    medicationIds: [prnMedId],
+                    prnMotivo: prnNote.trim(),
+                    signatureBase64: sigCanvas.current.getTrimmedCanvas().toDataURL('image/png'),
+                }),
             });
             const data = await res.json();
             if (data.success) {
-                // No vaciamos meds — dejamos que refreshPatientsSilently + administraciones de hoy
-                // recalculen el estado de packs. Cerrar el modal sí.
-                refreshPatientsSilently(selectedColor!);
-                setPrnNote("");
-                setOmissionNote("");
+                avisoOk(" Dosis PRN registrada. Después habrá que decir si hizo efecto.");
+                setPrnNote(""); setPrnMedId(null); setPrnTodos(false);
                 setActiveMedAction(null);
                 sigCanvas.current?.clear();
-                avisoOk(` Zendity Care: ${data.count} medicamentos procesados exitosamente.`);
+                cargarPrnSinEfecto(activePatient?.id);
+                refreshPatientsSilently(selectedColor!);
             } else {
-                avisoError("Error: " + data.error);
+                avisoError(" " + (data.error || 'No se pudo registrar'));
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setSubmitting(false);
-        }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
+    const cargarPrnSinEfecto = useCallback(async (patientId?: string) => {
+        if (!patientId) return setPrnSinEfecto([]);
+        try {
+            const res = await fetch(`/api/care/meds/prn-efecto?patientId=${patientId}`);
+            const data = await res.json();
+            setPrnSinEfecto(data.success ? data.pendientes : []);
+        } catch { setPrnSinEfecto([]); }
+    }, []);
+
+    /** ¿Funcionó? Es la pregunta que decide si se repite, se cambia o se llama al médico. */
+    const responderPRN = async (id: string, efecto: string) => {
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/meds/prn-efecto", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, efecto }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                avisoOk(` Anotado: ${data.mensaje}`);
+                cargarPrnSinEfecto(activePatient?.id);
+            } else {
+                avisoError(" " + (data.error || 'No se pudo registrar'));
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
     const handleBathLog = async () => {
@@ -1598,19 +1664,79 @@ export default function ZendityCareTabletPage() {
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
+    /**
+     * "Todo" y "mitad" se registran de una. "Poco" y "nada" abren la pregunta
+     * que faltaba —por que— antes de escribir nada.
+     *
+     * 258 registros de "nada" en Cupey sin una sola causa. Un "no comio"
+     * repetido y sin causa no le sirve a la cocina, ni al medico, ni a la
+     * familia: ocupa espacio y no responde nada.
+     */
     const handleMealLog = async (mealType: string, quality: string) => {
+        if (pideMotivo(quality)) {
+            setRechazoPendiente({ mealType, quality });
+            setMotivoRechazo(null);
+            setAceptoEnCambio("");
+            return;
+        }
+        await registrarComida(mealType, quality, null, null);
+    };
+
+    const registrarComida = async (
+        mealType: string,
+        quality: string,
+        motivo: string | null,
+        acepto: string | null,
+    ) => {
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/adls/meal", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id, mealType, quality, timeLogged: horaRegistro?.toISOString() })
+                body: JSON.stringify({
+                    patientId: activePatient.id, caregiverId: user?.id, shiftSessionId: activeSession?.id,
+                    mealType, quality, timeLogged: horaRegistro?.toISOString(),
+                    motivoRechazo: motivo, aceptoEnCambio: acepto,
+                })
             });
             const data = await res.json();
             if (data.success) {
-                avisoOk(` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+                const etiqueta = etiquetaMotivo(motivo);
+                avisoOk(etiqueta
+                    ? ` Registrado: comió ${quality === 'NONE' ? 'nada' : 'poco'} — ${etiqueta.toLowerCase()}`
+                    : ` Comida (${mealType}) registrada con métrica de consumo: ${quality}`);
+                setRechazoPendiente(null);
+                setMotivoRechazo(null);
+                setAceptoEnCambio("");
                 refreshPatientsSilently(selectedColor!);
             } else {
                 avisoError(` Error Clínico: ${data.error}`);
+            }
+        } catch (e) { console.error(e); } finally { setSubmitting(false); }
+    };
+
+    /**
+     * ALGO CAMBIO. Ver src/lib/cambios-de-condicion.ts.
+     *
+     * No es una emergencia y por eso no tenia boton: camina distinto, come
+     * menos, esta mas callado. Eso terminaba en una nota de turno que nadie
+     * relee, y el expediente seguia diciendo lo de antes.
+     */
+    const reportarCambio = async () => {
+        if (!areaCambio || descripcionCambio.trim().length < 15) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/care/cambio-condicion", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientId: activePatient.id, area: areaCambio, descripcion: descripcionCambio.trim() }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                avisoOk(` ${data.mensaje}`);
+                setModalType(null);
+                setAreaCambio(null);
+                setDescripcionCambio("");
+            } else {
+                avisoError(` ${data.error}`);
             }
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
@@ -1629,6 +1755,15 @@ export default function ZendityCareTabletPage() {
         setDailyLog(prev => ({ ...prev, notes: prev.notes + (prev.notes ? '\n' : '') + " Ronda de seguridad sin novedades, residente descansando." }));
         // Old manual night round string push replaced by 2-Hour SLA engine
     };
+
+    /**
+     * Al abrir medicamentos, traer las dosis PRN que todavia no tienen
+     * respuesta. Se pregunta donde ya esta la persona, no en otra pantalla.
+     */
+    useEffect(() => {
+        if (modalType === 'MEDS' && activePatient?.id) cargarPrnSinEfecto(activePatient.id);
+        else if (modalType === null) setPrnSinEfecto([]);
+    }, [modalType, activePatient?.id, cargarPrnSinEfecto]);
 
     // FASE 110: 2-Hour SLA Night Rounds Engine
     useEffect(() => {
@@ -3590,9 +3725,73 @@ export default function ZendityCareTabletPage() {
                                         </div>
                                     )}
 
-                                    {/* ===== ACTION GRID ===== */}
+                                    {/* ===== ACTION GRID =====
+                                        TRES BLOQUES, EN EL ORDEN DEL DIA.
+
+                                        Antes eran cuatro filas sin criterio: "Vitales" —que es
+                                        rutina— vivia con "Preventiva" y "Bitacora", que son otra
+                                        cosa; y "Trasladar ER" pesaba lo mismo que "Bitacora".
+
+                                        Eso fallaba en las dos direcciones a la vez. Zuleyka no
+                                        encontro como reportar un fallecimiento y uso "Trasladar ER",
+                                        porque era el unico boton que su rol le daba y estaba ahi,
+                                        al lado de todo lo demas. Una accion irreversible no puede
+                                        verse igual que registrar un bano.
+
+                                        Ahora:
+                                          LO DE SIEMPRE   lo que se toca todos los dias
+                                          ALGO CAMBIO     lo que se nota y todavia no es grave
+                                          ALGO PASO       lo irreversible, separado y con peso propio
+
+                                        Frecuencia y gravedad van en direcciones opuestas, asi que
+                                        el orden sirve para las dos: lo que mas se usa queda arriba
+                                        y lo que menos se usa —y mas cuesta deshacer— queda abajo.
+
+                                        Lo que NO se movio: bano, comida y rotacion siguen en la
+                                        tira de arriba. Se tocan cientos de veces al dia y ya tienen
+                                        memoria muscular; moverlos cuesta mas de lo que rinde. */}
                                     <div className={`px-4 pt-2.5 pb-3.5 ${isAbsent ? 'pointer-events-none' : ''}`}>
-                                        {/* Row 1 — 3 cols: Vitales / Bitácora / Preventiva */}
+
+                                        {/* ── LO DE SIEMPRE ─────────────────────────────────
+                                            Medicamentos primero: es el boton mas tocado de la
+                                            tarjeta y ya era el mas grande. Solo sube un puesto.
+                                            La dialisis vive aqui y no en "algo paso" porque para
+                                            Carmen no es un evento: es su martes. Cuando se veia
+                                            como una salida excepcional, su salida a dialisis se
+                                            registro como "salio con la familia". */}
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mb-1.5">Lo de siempre</p>
+                                        {(() => {
+                                            const medsForShift = getMedsForCurrentShift(p.medications || []);
+                                            return (
+                                                <button
+                                                    onClick={() => { setActivePatient(p); setModalType('MEDS'); }}
+                                                    className="w-full h-[52px] bg-[#0F6B78] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[14px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90 relative"
+                                                >
+                                                    <span className="text-lg leading-none">💊</span>
+                                                    <span>Medicamentos</span>
+                                                    {medsForShift.length > 0 && (
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#D9534F] text-white text-[11px] font-bold min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center leading-none">{medsForShift.length}</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })()}
+
+                                        {p.needsDialysis && p.status === 'ACTIVE' && (
+                                            <button
+                                                onClick={() => departDialysis(p.id, p.name)}
+                                                disabled={submitting}
+                                                className="mt-1.5 w-full min-h-[52px] bg-[#1e40af] hover:bg-[#1d4ed8] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-60"
+                                            >
+                                                <span className="text-base leading-none">🩺</span> Salida a Diálisis
+                                            </button>
+                                        )}
+
+                                        {/* ── ALGO CAMBIO ───────────────────────────────────
+                                            Los tres de siempre —vitales, bitacora, preventiva—
+                                            mas el que faltaba. Ver src/lib/cambios-de-condicion.ts:
+                                            entre lo rutinario y lo grave habia un hueco, y lo que
+                                            caia ahi terminaba en una nota de turno que nadie relee. */}
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mt-3 mb-1.5">Algo cambió</p>
                                         <div className="grid grid-cols-3 gap-1.5">
                                             <button
                                                 onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }}
@@ -3622,64 +3821,51 @@ export default function ZendityCareTabletPage() {
                                                 <span className="text-[12px] font-medium text-[#1F2D3A]">Preventiva</span>
                                             </button>
                                         </div>
-
-                                        {/* Row 2 — Medicamentos full width con badge de pendientes */}
-                                        {(() => {
-                                            const medsForShift = getMedsForCurrentShift(p.medications || []);
-                                            return (
-                                                <button
-                                                    onClick={() => { setActivePatient(p); setModalType('MEDS'); }}
-                                                    className="mt-1.5 w-full h-[52px] bg-[#0F6B78] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[14px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90 relative"
-                                                >
-                                                    <span className="text-lg leading-none">💊</span>
-                                                    <span>Medicamentos</span>
-                                                    {medsForShift.length > 0 && (
-                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#D9534F] text-white text-[11px] font-bold min-w-[22px] h-[22px] px-1.5 rounded-full flex items-center justify-center leading-none">{medsForShift.length}</span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })()}
-
-                                        {/* Row 3 — Alerta Caída + Trasladar ER */}
-                                        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
-                                            <button
-                                                onClick={() => { setActivePatient(p); setModalType('FALL'); }}
-                                                className="min-h-[52px] bg-[#fffbeb] border border-[#fde68a] text-[#92400e] rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
-                                            >
-                                                <span className="text-base leading-none">⚠</span> Alerta Caída
-                                            </button>
-                                            <button
-                                                onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }}
-                                                className="min-h-[52px] bg-[#1F2D3A] text-white rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90"
-                                            >
-                                                <span className="text-base leading-none">🚑</span> Trasladar ER
-                                            </button>
-                                        </div>
-
-                                        {/* Reportar fallecimiento. Va aqui, en
-                                            el piso, porque quien lo sabe primero
-                                            es quien esta en el piso. Discreto a
-                                            proposito —no es una accion de uso
-                                            diario— pero presente: sin el, la
-                                            unica salida era "Trasladar ER", que
-                                            es lo que paso con Fernando. */}
                                         <button
-                                            onClick={() => { setActivePatient(p); setNotaFallecimiento(''); setModalType('REPORTAR_FALLECIMIENTO'); }}
-                                            className="w-full mt-1.5 min-h-[44px] bg-white border border-[#cbd5e1] text-[#475569] rounded-[12px] flex items-center justify-center gap-2 text-[13px] font-semibold hover:bg-[#f8fafc] transition-colors"
+                                            onClick={() => { setActivePatient(p); setAreaCambio(null); setDescripcionCambio(''); setModalType('CAMBIO_CONDICION'); }}
+                                            className="mt-1.5 w-full min-h-[52px] bg-[#e1f5ee] border border-[#0F6B78]/25 text-[#0F6B78] rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
                                         >
-                                            Reportar fallecimiento
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            Algo cambió en el residente
                                         </button>
 
-                                        {/* Row 4 — Diálisis (solo residentes con needsDialysis) */}
-                                        {p.needsDialysis && p.status === 'ACTIVE' && (
+                                        {/* ── ALGO PASO ─────────────────────────────────────
+                                            Separado por una linea de verdad, no por un margen.
+                                            Las tres son irreversibles o casi, y ninguna se toca
+                                            en un dia normal. Estaban al mismo nivel visual que
+                                            "Bitacora", y asi fue como un fallecimiento se
+                                            registro con el boton de traslado al hospital. */}
+                                        <div className="mt-3 pt-3 border-t border-[#e7e5e4]">
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mb-1.5">Algo pasó</p>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <button
+                                                    onClick={() => { setActivePatient(p); setModalType('FALL'); }}
+                                                    className="min-h-[52px] bg-[#fffbeb] border border-[#fde68a] text-[#92400e] rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
+                                                >
+                                                    <span className="text-base leading-none">⚠</span> Alerta Caída
+                                                </button>
+                                                <button
+                                                    onClick={() => { setActivePatient(p); setModalType('HOSPITAL_TRANSFER'); }}
+                                                    className="min-h-[52px] bg-[#1F2D3A] text-white rounded-[12px] flex items-center justify-center gap-1.5 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-90"
+                                                >
+                                                    <span className="text-base leading-none">🚑</span> Trasladar ER
+                                                </button>
+                                            </div>
+
+                                            {/* Va aqui, en el piso, porque quien lo sabe primero
+                                                es quien esta en el piso. Discreto a proposito —no
+                                                es una accion de uso diario— pero presente: sin el,
+                                                la unica salida era "Trasladar ER", que es lo que
+                                                paso con Fernando. */}
                                             <button
-                                                onClick={() => departDialysis(p.id, p.name)}
-                                                disabled={submitting}
-                                                className="mt-1.5 w-full min-h-[52px] bg-[#1e40af] hover:bg-[#1d4ed8] text-white rounded-[12px] flex items-center justify-center gap-2 font-semibold text-[13px] transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] disabled:opacity-60"
+                                                onClick={() => { setActivePatient(p); setNotaFallecimiento(''); setModalType('REPORTAR_FALLECIMIENTO'); }}
+                                                className="w-full mt-1.5 min-h-[44px] bg-white border border-[#cbd5e1] text-[#475569] rounded-[12px] flex items-center justify-center gap-2 text-[13px] font-semibold hover:bg-[#f8fafc] transition-colors"
                                             >
-                                                <span className="text-base leading-none">🩺</span> Salida a Diálisis
+                                                Reportar fallecimiento
                                             </button>
-                                        )}
+                                        </div>
 
                                         {/* ── PLAN DE CUIDO ──
                                             El PAI vivia en /corporate/medical y solo se llegaba desde el
@@ -4053,7 +4239,65 @@ export default function ZendityCareTabletPage() {
                                             <button onClick={() => setDailyLog({ ...dailyLog, selectedMeal: 'DINNER' })} className={`py-2 text-sm font-bold rounded-lg border ${dailyLog.selectedMeal === 'DINNER' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-orange-600 border-orange-200'}`}>Cena</button>
                                         </div>
 
-                                        {dailyLog.selectedMeal && (
+                                        {/**
+                                          * PASO 2 — por que comio poco o nada.
+                                          *
+                                          * Aparece solo cuando hace falta, encima de los cuatro botones,
+                                          * y no deja registrar sin contestar. La ultima opcion —"rechazo y
+                                          * no dijo por que"— existe para que nunca haya que inventar una:
+                                          * una lista cerrada sin salida honesta no produce datos limpios,
+                                          * produce datos falsos.
+                                          */}
+                                        {rechazoPendiente && (
+                                            <div className="mt-1 p-3 bg-white border-2 border-rose-200 rounded-2xl animate-in fade-in zoom-in-95">
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <p className="font-black text-rose-800 text-sm leading-tight">
+                                                        Comió {rechazoPendiente.quality === 'NONE' ? 'nada' : 'poco'}. ¿Por qué?
+                                                    </p>
+                                                    <button
+                                                        onClick={() => { setRechazoPendiente(null); setMotivoRechazo(null); setAceptoEnCambio(""); }}
+                                                        className="text-slate-400 hover:text-slate-600 shrink-0"
+                                                        aria-label="Cancelar"
+                                                    ><X className="w-5 h-5" /></button>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {MOTIVOS_RECHAZO.map(m => (
+                                                        <button
+                                                            key={m.codigo}
+                                                            onClick={() => setMotivoRechazo(m.codigo)}
+                                                            className={`py-3 px-2 rounded-xl text-xs font-bold border-2 text-left leading-tight min-h-[52px] transition-all active:scale-95 ${
+                                                                motivoRechazo === m.codigo
+                                                                    ? 'bg-rose-500 text-white border-rose-600'
+                                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-rose-300'
+                                                            }`}
+                                                        >{m.etiqueta}</button>
+                                                    ))}
+                                                </div>
+
+                                                {/* Lo que si acepto no cabe en ninguna lista: va libre. */}
+                                                {motivoRechazo && motivoRechazo !== 'FUERA_DEL_HOGAR' && (
+                                                    <input
+                                                        type="text"
+                                                        value={aceptoEnCambio}
+                                                        onChange={e => setAceptoEnCambio(e.target.value)}
+                                                        maxLength={200}
+                                                        placeholder="¿Qué sí aceptó? (opcional) — ej. avena, solo el jugo"
+                                                        className="w-full mt-3 p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                                    />
+                                                )}
+
+                                                <button
+                                                    onClick={() => registrarComida(rechazoPendiente.mealType, rechazoPendiente.quality, motivoRechazo, aceptoEnCambio.trim() || null)}
+                                                    disabled={!motivoRechazo || submitting}
+                                                    className="w-full mt-3 py-4 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-xl min-h-[56px] text-sm transition-all active:scale-95"
+                                                >
+                                                    {submitting ? 'Registrando…' : motivoRechazo ? 'Registrar' : 'Elija un motivo'}
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {dailyLog.selectedMeal && !rechazoPendiente && (
                                             <div className="grid grid-cols-4 gap-3 animate-in fade-in zoom-in-95 mt-1">
                                                 <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'ALL')} className="py-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Todo</button>
                                                 <button onClick={() => handleMealLog(dailyLog.selectedMeal || '', 'HALF')} className="py-4 bg-blue-100 hover:bg-blue-200 text-blue-800 font-black rounded-xl md:text-sm text-xs min-h-[56px] shadow-sm transform transition-all active:scale-95">Mitad</button>
@@ -4319,7 +4563,40 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                 )}
 
-                                {/* Flujo PRN (S.O.S.) — preservado, colapsado por defecto */}
+                                {/* ── PRN SIN RESPUESTA ──
+                                    Un PRN se da PARA algo, y la pregunta que sigue —¿funciono?—
+                                    decide si se repite, se cambia o se llama al medico. Nada la
+                                    hacia, asi que la respuesta vivia en notas de turno: "se
+                                    administro 50 mg de Seroquel, pero no se ha logrado
+                                    estabilizar". Ver src/lib/prn.ts. */}
+                                {prnSinEfecto.length > 0 && (
+                                    <div className="pt-3 mt-3 border-t border-slate-200 space-y-2">
+                                        <p className="text-xs font-black text-slate-500 uppercase tracking-wide">¿Hizo efecto?</p>
+                                        {prnSinEfecto.map((d) => (
+                                            <div key={d.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                                                <p className="text-sm font-black text-amber-900 leading-tight">{d.medicamento}</p>
+                                                <p className="text-xs text-amber-800/80 mt-0.5">
+                                                    Para: {d.motivo} · {new Date(d.administradoAt).toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-1.5 mt-2.5">
+                                                    {EFECTOS_PRN.map(e => (
+                                                        <button
+                                                            key={e.codigo}
+                                                            onClick={() => responderPRN(d.id, e.codigo)}
+                                                            disabled={submitting}
+                                                            className="py-2.5 px-2 bg-white border-2 border-amber-200 hover:border-amber-400 text-amber-900 rounded-xl text-xs font-black transition-colors disabled:opacity-50"
+                                                        >{e.etiqueta}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* ── REGISTRAR UNA DOSIS PRN ──
+                                    Ahora se elige QUE medicamento. Antes se mandaba el turno
+                                    entero y se marcaba todo como administrado, con una nota
+                                    pegada a cada uno. Se uso una vez en la historia del sistema. */}
                                 <div className="pt-3 mt-3 border-t border-slate-200">
                                     {activeMedAction === 'PRN' ? (
                                         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3 animate-in fade-in">
@@ -4327,19 +4604,79 @@ export default function ZendityCareTabletPage() {
                                                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                                                 <p className="text-xs font-black text-amber-700 uppercase tracking-wide">Dosis PRN (S.O.S.)</p>
                                             </div>
-                                            <input type="text" value={prnNote} onChange={e => setPrnNote(e.target.value)} placeholder="Ej. Tylenol 500mg" className="w-full bg-white p-3 rounded-xl font-bold outline-none border-2 border-amber-200 focus:border-amber-400 text-amber-900 text-sm" />
+
+                                            {(() => {
+                                                const todos: MedDelResidente[] = (activePatient?.medications || []).filter((m: MedDelResidente) => m.isActive !== false);
+                                                const prn = todos.filter(m => (m.frequency || '').toUpperCase().includes('PRN') || m.status === 'PRN');
+                                                // Los PRN del residente primero. Si lo que se dio no
+                                                // esta marcado como PRN en el catalogo, "ver todos"
+                                                // lo alcanza — sin esa salida, no se registra nada.
+                                                const lista = prnTodos || prn.length === 0 ? todos : prn;
+                                                return (
+                                                    <div>
+                                                        <p className="text-[11px] font-black text-amber-800 uppercase tracking-wide mb-1.5">
+                                                            ¿Qué medicamento?
+                                                        </p>
+                                                        {lista.length === 0 ? (
+                                                            <p className="text-xs text-amber-800/70 bg-white border border-amber-200 rounded-xl p-3">
+                                                                Este residente no tiene medicamentos activos registrados.
+                                                            </p>
+                                                        ) : (
+                                                            <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                                                                {lista.map(m => (
+                                                                    <button
+                                                                        key={m.id}
+                                                                        onClick={() => setPrnMedId(m.id)}
+                                                                        className={`w-full text-left px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                                                                            prnMedId === m.id
+                                                                                ? 'bg-amber-500 text-white border-amber-600'
+                                                                                : 'bg-white text-amber-900 border-amber-200 hover:border-amber-400'
+                                                                        }`}
+                                                                    >
+                                                                        {m.medication?.name} {m.medication?.dosage}
+                                                                        {((m.frequency || '').toUpperCase().includes('PRN') || m.status === 'PRN') && (
+                                                                            <span className={`ml-2 text-[10px] font-black px-1.5 py-0.5 rounded ${prnMedId === m.id ? 'bg-white/25' : 'bg-amber-100'}`}>PRN</span>
+                                                                        )}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {!prnTodos && prn.length > 0 && (
+                                                            <button
+                                                                onClick={() => setPrnTodos(true)}
+                                                                className="mt-2 text-[11px] font-bold text-amber-700 underline"
+                                                            >
+                                                                Ver todos los medicamentos del residente
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            <div>
+                                                <p className="text-[11px] font-black text-amber-800 uppercase tracking-wide mb-1.5">¿Para qué?</p>
+                                                <input
+                                                    type="text"
+                                                    value={prnNote}
+                                                    onChange={e => setPrnNote(e.target.value)}
+                                                    maxLength={300}
+                                                    placeholder="Ej. agitación al bañarlo · dolor en la cadera · diarrea"
+                                                    className="w-full bg-white p-3 rounded-xl font-bold outline-none border-2 border-amber-200 focus:border-amber-400 text-amber-900 text-sm"
+                                                />
+                                            </div>
+
                                             <div className="bg-white border-2 border-amber-200 rounded-xl overflow-hidden touch-none relative">
                                                 <div className="absolute top-1/2 left-0 w-full border-b border-dashed border-amber-200 pointer-events-none"></div>
                                                 <SignatureCanvas ref={sigCanvas} penColor="#b45309" canvasProps={{className: 'w-full h-24 cursor-crosshair'}} />
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => sigCanvas.current?.clear()} className="px-3 py-2 text-[11px] font-bold text-amber-700 underline">Limpiar firma</button>
-                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); }} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black rounded-xl text-sm">Cancelar</button>
-                                                <button onClick={() => submitBulkMeds('PRN')} disabled={submitting} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-md text-sm disabled:opacity-60">Confirmar PRN</button>
+                                                <button onClick={() => { setActiveMedAction(null); setPrnNote(""); setPrnMedId(null); setPrnTodos(false); }} className="flex-1 py-3 bg-slate-100 text-slate-700 font-black rounded-xl text-sm">Cancelar</button>
+                                                <button onClick={submitPRN} disabled={submitting || !prnMedId || prnNote.trim().length < 5} className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-md text-sm disabled:opacity-60">Confirmar PRN</button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <button onClick={() => setActiveMedAction('PRN')} className="w-full py-3 text-xs font-black text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors">
+                                        <button onClick={() => { setActiveMedAction('PRN'); setPrnMedId(null); setPrnNote(""); setPrnTodos(false); }} className="w-full py-3 text-xs font-black text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors">
                                             + Registrar dosis PRN (S.O.S.)
                                         </button>
                                     )}
@@ -4424,6 +4761,78 @@ export default function ZendityCareTabletPage() {
                                     className="w-full min-h-[56px] bg-slate-800 hover:bg-slate-900 text-white font-black rounded-2xl disabled:opacity-40 transition-colors"
                                 >
                                     {submitting ? 'Reportando…' : 'Reportar y avisar a dirección'}
+                                </button>
+                            </div>
+                        )}
+
+                        {/**
+                          * ALGO CAMBIO EN EL RESIDENTE.
+                          *
+                          * Dos pasos: que area, y que se vio. La descripcion es obligatoria
+                          * y no hay plantilla: lo que hace util este registro es la frase de
+                          * quien lo vio, no una casilla.
+                          *
+                          * La ultima area —"otra cosa"— es la salida honesta. Sin ella, lo
+                          * que no entra en las ocho anteriores se fuerza en la que menos se
+                          * equivoca, que es justo el problema que esto viene a resolver.
+                          */}
+                        {modalType === 'CAMBIO_CONDICION' && (
+                            <div className="space-y-4 mt-2">
+                                <p className="font-black text-slate-800 uppercase text-lg border-b-2 border-[#0F6B78]/20 pb-2">
+                                    Algo cambió en {activePatient?.name?.split(' ')[0]}
+                                </p>
+                                <p className="text-slate-600 text-sm leading-relaxed">
+                                    Para lo que notas y todavía no es una emergencia. Enfermería lo revisa y te contesta.
+                                    Si es urgente, usa <strong>Alerta Caída</strong> o <strong>Trasladar ER</strong>.
+                                </p>
+
+                                <div>
+                                    <label className="text-sm font-black text-slate-700 uppercase block mb-2">¿Qué cambió?</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {AREAS_DE_CAMBIO.map(a => (
+                                            <button
+                                                key={a.codigo}
+                                                onClick={() => setAreaCambio(a.codigo)}
+                                                className={`p-3 rounded-xl border-2 text-left transition-all active:scale-95 min-h-[64px] ${
+                                                    areaCambio === a.codigo
+                                                        ? 'bg-[#0F6B78] text-white border-[#0F6B78]'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-[#0F6B78]/40'
+                                                }`}
+                                            >
+                                                <span className="block font-black text-[13px] leading-tight">{a.etiqueta}</span>
+                                                <span className={`block text-[10px] mt-1 leading-tight ${areaCambio === a.codigo ? 'text-white/70' : 'text-slate-400'}`}>
+                                                    {a.ejemplo}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {areaCambio && (
+                                    <div className="animate-in fade-in">
+                                        <label className="text-sm font-black text-slate-700 uppercase block mb-2">¿Qué viste?</label>
+                                        <textarea
+                                            value={descripcionCambio}
+                                            onChange={e => setDescripcionCambio(e.target.value)}
+                                            rows={4}
+                                            maxLength={2000}
+                                            placeholder="Con tus palabras. Ej. Hoy caminó inclinado hacia la derecha y se apoyó en la pared dos veces."
+                                            className="w-full bg-white border-2 border-slate-200 rounded-2xl p-3 text-slate-800 focus:border-[#0F6B78] outline-none"
+                                        />
+                                        <p className="text-[11px] text-slate-400 mt-1">
+                                            {descripcionCambio.trim().length < 15
+                                                ? `Faltan ${15 - descripcionCambio.trim().length} caracteres`
+                                                : 'Listo'}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={reportarCambio}
+                                    disabled={submitting || !areaCambio || descripcionCambio.trim().length < 15}
+                                    className="w-full min-h-[56px] bg-[#0F6B78] hover:bg-[#0d5a64] text-white font-black rounded-2xl disabled:opacity-40 transition-colors"
+                                >
+                                    {submitting ? 'Reportando…' : 'Reportar a enfermería'}
                                 </button>
                             </div>
                         )}

@@ -20,7 +20,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield, QrCode, Bed, Send, Phone
+    Shield, QrCode, Bed, Send, Phone, TrendingUp
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -42,6 +42,9 @@ const clinicalNavigation = [
     // Match exacto del role gate de /api/cuidadores/lifeplans. Sin onlyRoles lo
     // veian cocina y mantenimiento, y al entrar chocaban con un 403.
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+    // Cambios de condicion reportados desde el piso. Mismo gate que
+    // PUEDEN_REVISAR_CAMBIO en src/lib/cambios-de-condicion.ts.
+    { name: 'Cambios del piso', href: '/care/cambios', icon: TrendingUp, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
@@ -229,6 +232,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
     const [hrObsPendingCount, setHrObsPendingCount] = useState(0);
     const [paiPendingCount, setPaiPendingCount] = useState(0);
+    const [cambiosPendingCount, setCambiosPendingCount] = useState(0);
     const [inboxPendingCount, setInboxPendingCount] = useState(0);
     // Estado de alerta cuando el Schedule de la semana actual está en DRAFT.
     // Solo se consulta para roles DIRECTOR/ADMIN/SUPERVISOR (los únicos que
@@ -385,6 +389,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         };
         fetchPaiPending();
         const interval = setInterval(fetchPaiPending, 60000);
+        return () => clearInterval(interval);
+    }, [isPaiRole]);
+
+    /**
+     * CAMBIOS DE CONDICION SIN REVISAR.
+     *
+     * Mismo instrumento y misma razon que el contador del PAI: el aviso se lee
+     * una vez y se va. Lo que insiste hasta que alguien resuelve es el numero.
+     */
+    useEffect(() => {
+        if (!isPaiRole) return;
+        const fetchCambios = async () => {
+            try {
+                const res = await fetch('/api/care/cambio-condicion/pending-count');
+                const data = await res.json();
+                if (data.success) setCambiosPendingCount(data.pendientes ?? 0);
+            } catch {}
+        };
+        fetchCambios();
+        const interval = setInterval(fetchCambios, 60000);
         return () => clearInterval(interval);
     }, [isPaiRole]);
 
@@ -838,6 +862,7 @@ if ((item as any).onlyRoles) {
                             const isMyObs = item.href === '/my-observations';
                             const isHrObs = item.href === '/hr/incidents';
                             const isPai = item.href === '/cuidadores';
+                            const isCambios = item.href === '/care/cambios';
                             const isTriageSuper = item.href === '/care/supervisor';
                             return (
                                 <Link
@@ -856,6 +881,11 @@ if ((item as any).onlyRoles) {
                                         {isSidebarCollapsed && isHrObs && hrObsPendingCount > 0 && (
                                             <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
                                                 {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                            </span>
+                                        )}
+                                        {isSidebarCollapsed && isCambios && cambiosPendingCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-[#0F6B78] text-white text-[10px] font-bold min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center leading-none">
+                                                {cambiosPendingCount > 9 ? '9+' : cambiosPendingCount}
                                             </span>
                                         )}
                                         {isSidebarCollapsed && isPai && paiPendingCount > 0 && (
@@ -878,6 +908,11 @@ if ((item as any).onlyRoles) {
                                     {!isSidebarCollapsed && isHrObs && hrObsPendingCount > 0 && (
                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                             {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                        </span>
+                                    )}
+                                    {!isSidebarCollapsed && isCambios && cambiosPendingCount > 0 && (
+                                        <span className="ml-auto bg-[#0F6B78] text-white text-[11px] font-bold min-w-[20px] h-[20px] px-1.5 rounded-full flex items-center justify-center leading-none">
+                                            {cambiosPendingCount > 9 ? '9+' : cambiosPendingCount}
                                         </span>
                                     )}
                                     {!isSidebarCollapsed && isPai && paiPendingCount > 0 && (
@@ -1009,6 +1044,7 @@ if ((item as any).onlyRoles) {
                                     const isMyObs = item.href === '/my-observations';
                             const isHrObs = item.href === '/hr/incidents';
                             const isPai = item.href === '/cuidadores';
+                            const isCambios = item.href === '/care/cambios';
                                     const isTriageSuperM = item.href === '/care/supervisor';
                                     return (
                                         <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
@@ -1022,6 +1058,11 @@ if ((item as any).onlyRoles) {
                                             {isHrObs && hrObsPendingCount > 0 && (
                                                 <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                     {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                                </span>
+                                            )}
+                                            {isCambios && cambiosPendingCount > 0 && (
+                                                <span className="ml-auto bg-[#0F6B78] text-white text-[11px] font-bold min-w-[20px] h-[20px] px-1.5 rounded-full flex items-center justify-center leading-none">
+                                                    {cambiosPendingCount > 9 ? '9+' : cambiosPendingCount}
                                                 </span>
                                             )}
                                             {isPai && paiPendingCount > 0 && (

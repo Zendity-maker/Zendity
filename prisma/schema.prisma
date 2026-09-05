@@ -27,9 +27,9 @@ model Headquarters {
   createdAt        DateTime @default(now())
 
   // FASE 65: Zendity SaaS CRM (B2B Billing & Ownership)
-  ownerName          String?
-  ownerEmail         String?
-  ownerPhone         String?
+  ownerName  String?
+  ownerEmail String?
+  ownerPhone String?
 
   /// Dueño operativo de la sede: el DIRECTOR que la administra.
   ///
@@ -42,23 +42,23 @@ model Headquarters {
   /// Zendity como empresa—; un DIRECTOR ve su propia sede y las que le
   /// pertenezcan por este campo. Un dueño con varias sedes las agrupa aqui.
   ownerId            String?
-  owner              User?    @relation("SedesDelDueno", fields: [ownerId], references: [id])
+  owner              User?   @relation("SedesDelDueno", fields: [ownerId], references: [id])
   taxId              String?
   billingAddress     String?
   subscriptionStatus String  @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELED
   subscriptionPlan   String  @default("PRO") // LITE, PRO, ENTERPRISE
 
-  users         User[]
-  patients      Patient[]
+  users                 User[]
+  patients              Patient[]
   visitantesAutorizados VisitanteAutorizado[]
-  courses       Course[]
-  userCourses   UserCourse[]
-  incidents     Incident[]
-  familyMem     FamilyMember[]
-  familyVisits  FamilyVisit[]
-  evals         EmployeeEvaluation[]
-  surveys       FamilySurvey[]
-  corporateDocs CorporateDocument[]
+  courses               Course[]
+  userCourses           UserCourse[]
+  incidents             Incident[]
+  familyMem             FamilyMember[]
+  familyVisits          FamilyVisit[]
+  evals                 EmployeeEvaluation[]
+  surveys               FamilySurvey[]
+  corporateDocs         CorporateDocument[]
 
   // FASE 18 Integrations
   conciergeProducts ConciergeProduct[]
@@ -222,9 +222,12 @@ model Headquarters {
   // generados desde esta sede. Multi-tenant scoping.
   familyContactLogs FamilyContactLog[]
   /// BAA y contrato de servicio aceptados por esta sede.
-  acuerdos AcuerdoSede[]
+  acuerdos          AcuerdoSede[]
   /// Personas vinculadas a esta sede sin pertenecer a ella. Ver SedeVinculo.
-  vinculos SedeVinculo[]
+  vinculos          SedeVinculo[]
+
+  /// Cambios en la condicion de un residente vistos desde el piso.
+  cambiosDeCondicion CambioDeCondicion[]
 }
 
 // =======================
@@ -409,11 +412,11 @@ model User {
   /// Encuestas en las que una familia lo destaco.
   encuestasComoFavorito FamilySurvey[] @relation("CuidadorFavorito")
   /// Sedes que este usuario administra como dueño. Ver Headquarters.ownerId.
-  sedesPropias Headquarters[] @relation("SedesDelDueno")
+  sedesPropias          Headquarters[] @relation("SedesDelDueno")
   /// Acuerdos de sede que esta persona acepto. Ver AcuerdoSede.
-  acuerdosAceptados AcuerdoSede[] @relation("AcuerdosAceptados")
+  acuerdosAceptados     AcuerdoSede[]  @relation("AcuerdosAceptados")
   /// Sedes a las que esta persona está vinculada sin pertenecer. Ver SedeVinculo.
-  vinculosDeSede SedeVinculo[] @relation("VinculosDeSede")
+  vinculosDeSede        SedeVinculo[]  @relation("VinculosDeSede")
 }
 
 model Account {
@@ -632,7 +635,7 @@ model FamilyVisit {
   /// rellena solo: inventar una hora de salida en un documento que se firma
   /// sería falsearlo. La bitácora los muestra como "sin registrar" para que se
   /// vea el hueco en vez de taparlo.
-  departedAt      DateTime?
+  departedAt DateTime?
 
   /// Quién cerró una salida que el visitante no registró, y cuándo.
   ///
@@ -649,21 +652,21 @@ model FamilyVisit {
   /// Recepción es la PUERTA: por aquí entra todo el mundo. Lo que el proveedor
   /// externo hace adentro —qué residentes, qué servicio, avisar a familias—
   /// sigue siendo del kiosco de servicios externos.
-  tipo            String   @default("FAMILIAR")
+  tipo String @default("FAMILIAR")
 
   /// Datos que solo tienen sentido en algunos tipos. Nulables todos.
-  visitorPhone    String?  // tour, oficial, servicio externo
-  visitorEmail    String?  // tour
-  futuroResidente String?  // tour — de quién se está averiguando
-  entidad         String?  // oficial y servicio externo — de parte de quién viene
-  profesion       String?  // servicio externo — enfermera, médico, trabajador social…
+  visitorPhone    String? // tour, oficial, servicio externo
+  visitorEmail    String? // tour
+  futuroResidente String? // tour — de quién se está averiguando
+  entidad         String? // oficial y servicio externo — de parte de quién viene
+  profesion       String? // servicio externo — enfermera, médico, trabajador social…
 
   /// Visita fuera del horario establecido, y quién la autorizó.
   ///
   /// El horario de Vivid es martes a domingo de 10 a 6. Fuera de eso no se
   /// bloquea —las emergencias existen— pero no entra nadie sin que un miembro
   /// del personal ponga su PIN, y su nombre queda en el asiento.
-  fueraDeHorario  Boolean  @default(false)
+  fueraDeHorario  Boolean @default(false)
   autorizadaPorId String?
 
   /// La persona se presentó y quedó esperando asistencia en recepción.
@@ -676,9 +679,9 @@ model FamilyVisit {
   /// Si supervisión lo deja pasar y el visitante repite el registro, quedan
   /// dos filas: el intento y la visita. Son dos hechos distintos y las dos son
   /// ciertas.
-  retenida        Boolean  @default(false)
+  retenida Boolean @default(false)
 
-  notified        Boolean  @default(false)
+  notified Boolean @default(false)
 
   headquarters Headquarters         @relation(fields: [headquartersId], references: [id])
   patient      Patient?             @relation(fields: [patientId], references: [id])
@@ -714,7 +717,7 @@ model FamilyVisitPatient {
 /// La lista NO se borra: se revoca. Quién la puso, quién la quitó y cuándo son
 /// parte del expediente, porque detrás suele haber una decisión legal.
 model VisitanteAutorizado {
-  id             String    @id @default(uuid())
+  id             String @id @default(uuid())
   headquartersId String
   patientId      String
 
@@ -731,18 +734,18 @@ model VisitanteAutorizado {
   ///                  true. Sin estricto, la lista blanca no estorba a nadie.
   ///
   /// Si alguien apareciera en las dos por error, manda la negativa.
-  tipo           String    @default("AUTORIZADO")
+  tipo String @default("AUTORIZADO")
 
-  nombre         String
-  relacion       String?
-  telefono       String?
+  nombre        String
+  relacion      String?
+  telefono      String?
   /// Por qué está en la lista. Ej. "Orden del tribunal del 12-ago-2026".
-  notas          String?
-  activo         Boolean   @default(true)
-  creadoPorId    String
-  createdAt      DateTime  @default(now())
-  revocadoPorId  String?
-  revocadoAt     DateTime?
+  notas         String?
+  activo        Boolean   @default(true)
+  creadoPorId   String
+  createdAt     DateTime  @default(now())
+  revocadoPorId String?
+  revocadoAt    DateTime?
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -875,7 +878,7 @@ model Patient {
   ///
   /// Una fórmula de 1.0 y una de 2.0 kcal/mL son el doble de calorías en el
   /// mismo volumen. No es un detalle de formato.
-  dietPegKcalMl  Float?
+  dietPegKcalMl Float?
 
   avdScore    Int? // Puntuación de Actividades Vida Diaria
   downtonRisk Boolean @default(false) // Escala de Caídas
@@ -987,17 +990,17 @@ model Patient {
 
   createdAt DateTime @default(now())
 
-  headquarters        Headquarters        @relation(fields: [headquartersId], references: [id])
-  medications         PatientMedication[]
-  incidents           Incident[]
-  familyMembers       FamilyMember[]      @relation("PatientFamily")
-  primaryFamilyMember FamilyMember?       @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
+  headquarters          Headquarters          @relation(fields: [headquartersId], references: [id])
+  medications           PatientMedication[]
+  incidents             Incident[]
+  familyMembers         FamilyMember[]        @relation("PatientFamily")
+  primaryFamilyMember   FamilyMember?         @relation("PrimaryFamilyMember", fields: [primaryFamilyMemberId], references: [id])
   visitasComoAdicional  FamilyVisitPatient[]
   visitantesAutorizados VisitanteAutorizado[]
-  familyVisits        FamilyVisit[]
-  familyMessages      FamilyMessage[] // FASE 13 Integrations
-  wellnessNotes       WellnessDiary[]
-  familyAppointments  FamilyAppointment[] // Sprint C
+  familyVisits          FamilyVisit[]
+  familyMessages        FamilyMessage[] // FASE 13 Integrations
+  wellnessNotes         WellnessDiary[]
+  familyAppointments    FamilyAppointment[] // Sprint C
 
   // FASE 6 Integrations
   intakeData IntakeData?
@@ -1072,6 +1075,9 @@ model Patient {
   // Sprint Coordinador Paso 3 (jun-2026): bitácora de contactos con familiares
   // sobre este residente. Historial por-residente lee de aquí.
   familyContactLogs FamilyContactLog[]
+
+  /// Lo que el piso nota que cambió en este residente. Ver CambioDeCondicion.
+  cambiosDeCondicion CambioDeCondicion[]
 
   /// Marca EXPLICITA de que este residente no tiene familiar conocido.
   ///
@@ -1160,6 +1166,30 @@ model MedicationAdministration {
   status          MedStatus @default(PENDING) // PENDING por defecto
   notes           String?
   signatureBase64 String?   @db.Text
+
+  /// EL PRN Y SU RESULTADO.
+  ///
+  /// Un medicamento por razon necesaria se da PARA algo, y la pregunta que
+  /// sigue —¿funciono?— decide si se repite, se cambia o se llama al medico.
+  /// Nada la hacia, asi que la respuesta vivia en las notas de turno cuando
+  /// alguien se acordaba de escribirla:
+  ///
+  ///     "Se administro 50 mg de Seroquel, pero no se ha logrado estabilizar."
+  ///     "Se le administro su medicacion sin observarse efecto."
+  ///     "Se le administro clonazepam de 1 mg, lo cual lo tranquilizo en 45 min."
+  ///
+  /// Las tres son informacion clinica de primer orden y ninguna llego al eMAR.
+  /// Medido el 05-sep-2026 en Cupey: 4 medicamentos PRN activos con CERO
+  /// administraciones registradas en tres meses, contra 27 notas de turno que
+  /// dicen que se administro algo.
+  ///
+  /// `prnEfectoPorId` es String suelto y no relacion, igual que
+  /// Patient.fallecimientoReportadoPorId: quien responde puede no ser quien
+  /// administro.
+  prnMotivo      String?
+  prnEfecto      String? // RESUELTO | PARCIAL | SIN_EFECTO | NO_EVALUABLE
+  prnEfectoAt    DateTime?
+  prnEfectoPorId String?
 
   patientMedication PatientMedication @relation(fields: [patientMedicationId], references: [id])
   administeredBy    User?             @relation(fields: [administeredById], references: [id])
@@ -1667,10 +1697,10 @@ model VitalSigns {
 }
 
 model DailyLog {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   patientId       String
   authorId        String
-  bathCompleted   Boolean  @default(false)
+  bathCompleted   Boolean   @default(false)
   /// % de ingesta. NULLABLE desde el 24-ago-2026.
   ///
   /// La alimentación real se registra en MealLog desde la pantalla de la
@@ -1683,8 +1713,8 @@ model DailyLog {
   /// exactamente lo que saben. Ver scripts/verificar-fuentes-cuidado.ts.
   foodIntake      Int? // % de ingesta (0, 25, 50, 75, 100)
   notes           String?
-  isClinicalAlert Boolean  @default(false) // Si true, dispara aviso a enfermería
-  isResolved      Boolean  @default(false) // FASE 33: Triage Flag
+  isClinicalAlert Boolean   @default(false) // Si true, dispara aviso a enfermería
+  isResolved      Boolean   @default(false) // FASE 33: Triage Flag
   photoUrl        String? // FASE 37: Image Uploads
   /// Hora REAL en que ocurrio el cuido, cuando la cuidadora la declara.
   ///
@@ -1697,7 +1727,7 @@ model DailyLog {
   /// verdad, y null dice exactamente eso. Quien lea, que use
   /// `occurredAt ?? createdAt`.
   occurredAt      DateTime?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
   author  User    @relation(fields: [authorId], references: [id])
@@ -2550,9 +2580,9 @@ model ShiftSession {
   /// NO cambia el estado del residente. Observar que alguien no está no es lo
   /// mismo que autorizar su salida: eso pasa por su propio flujo, con motivo y
   /// constancia. Aquí se guarda lo que se vio.
-  censoInicial    Json?
+  censoInicial Json?
 
-  leaveCensus     Int       @default(0) // Residentes del turno ausentes (Hospital/Familia)
+  leaveCensus     Int     @default(0) // Residentes del turno ausentes (Hospital/Familia)
   aiSummaryReport String?
 
   // FASE 44: Shift Handover Enforcement
@@ -2602,6 +2632,24 @@ model MealLog {
   mealType       MealType
   quality        MealQuality
   timeLogged     DateTime    @default(now())
+
+  /// POR QUE no comio, y QUE si acepto.
+  ///
+  /// Hasta hoy este modelo guardaba solo cuanto: todo, mitad, poco, nada. En
+  /// Cupey hay 258 registros de NONE y ninguno dice por que. Un "no comio"
+  /// repetido sin causa no le sirve a nadie; con la causa, la cocina puede
+  /// actuar.
+  ///
+  /// Lo que hoy se escribe a mano en las notas de turno, porque no habia donde
+  /// ponerlo: "se niega diariamente a desayunar tostadas, sandwiches,
+  /// revueltos o panqueques. Solo acepta avena." Eso es una preferencia
+  /// accionable atrapada en texto libre que la cocina no lee.
+  ///
+  /// `motivoRechazo` es un codigo del catalogo de src/lib/comida.ts, no texto
+  /// libre — un catalogo se puede contar. `aceptoEnCambio` SI es texto libre:
+  /// lo que el residente si comio no cabe en ninguna lista.
+  motivoRechazo  String?
+  aceptoEnCambio String?
 
   patient      Patient       @relation(fields: [patientId], references: [id])
   caregiver    User          @relation(fields: [caregiverId], references: [id])
@@ -2956,19 +3004,19 @@ enum AssignmentStatus {
 // =======================
 
 model ClinicalNote {
-  id        String   @id @default(uuid())
-  patientId String
-  authorId  String
-  title     String
-  content   String   @db.Text
-  type      String   @default("GENERAL") // Ej: TRIAGE_RESOLUTION, GENERAL
+  id         String    @id @default(uuid())
+  patientId  String
+  authorId   String
+  title      String
+  content    String    @db.Text
+  type       String    @default("GENERAL") // Ej: TRIAGE_RESOLUTION, GENERAL
   /// Hora REAL del cuido cuando la cuidadora la declara. Las rondas de pañal
   /// (seco/humedo/evacuacion) entran por aqui desde /api/care/rounds, y hasta
   /// sep-2026 su unica hora era `createdAt` — la del tecleo. Nullable: en las
   /// filas viejas nadie sabe cuando ocurrio. Usar `occurredAt ?? createdAt`.
   occurredAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   patient Patient @relation(fields: [patientId], references: [id])
   author  User    @relation(fields: [authorId], references: [id])
@@ -3971,7 +4019,7 @@ model FamilyContactLog {
 /// Se guarda el hash del contenido aceptado: si el texto del acuerdo cambia
 /// despues, se puede demostrar QUE version acepto esta sede y no otra.
 model AcuerdoSede {
-  id             String   @id @default(uuid())
+  id             String @id @default(uuid())
   headquartersId String
   /// "BAA" | "SERVICIO"
   tipo           String
@@ -3988,7 +4036,7 @@ model AcuerdoSede {
   firmanteCargo  String?
   aceptadoIp     String?
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   headquarters Headquarters @relation(fields: [headquartersId], references: [id], onDelete: Cascade)
   aceptadoPor  User?        @relation("AcuerdosAceptados", fields: [aceptadoPorId], references: [id])
@@ -4027,4 +4075,60 @@ model SedeVinculo {
   @@unique([userId, headquartersId, tipo])
   @@index([userId])
   @@index([headquartersId])
+}
+
+/// LO QUE EL PISO NOTA QUE CAMBIÓ
+/// ─────────────────────────────
+/// Una cuidadora ve algo que ayer no estaba y que no es una emergencia: camina
+/// distinto, come menos, está más callado, la piel de un talón. No es una caída
+/// ni un traslado, así que no hay botón; termina —cuando termina— en una nota de
+/// turno que nadie relee.
+///
+/// EL CASO QUE LO PIDIÓ, escrito a mano en una nota de turno de Cupey:
+///
+///     "Presenta dificultad para caminar y lo hace inclinado. Es necesario
+///      trasladarlo en silla de ruedas para evitar caídas."
+///
+/// Eso cambia el nivel de movilidad del expediente, cambia el riesgo de caídas y
+/// cambia el PAI. Se quedó en el texto. IntakeData.mobilityLevel siguió diciendo
+/// lo de siempre, y el chequeo que compara el PAI contra el expediente siguió
+/// comparando contra un dato viejo.
+///
+/// POR QUÉ ES UN MODELO Y NO UN CAMPO: lo que hace falta no es guardar el texto
+/// —eso ya se podía— sino que ALGUIEN LO CIERRE. Por eso tiene revisión: quien
+/// lo reporta no puede actualizar el expediente, y quien puede actualizarlo no
+/// estaba en el pasillo. Sin el cierre esto sería otra bitácora más.
+///
+/// Tercera vez este mes con la misma forma: alguien del piso sabe algo, el
+/// sistema no le da dónde ponerlo, y elige lo menos equivocado.
+model CambioDeCondicion {
+  id             String @id @default(uuid())
+  headquartersId String
+  patientId      String
+
+  /// Quién lo vio. String suelto, como Patient.fallecimientoReportadoPorId.
+  reportadoPorId String
+  reportadoAt    DateTime @default(now())
+
+  /// Qué cambió. Catálogo cerrado en src/lib/cambios-de-condicion.ts —
+  /// incluye OTRO, que es la salida honesta: una lista cerrada sin escape
+  /// obliga a elegir lo menos equivocado, y eso es justo lo que se quiere evitar.
+  area        String
+  descripcion String @db.Text
+
+  /// El cierre. Mientras `revisadoAt` sea null, esto cuenta en el badge de
+  /// enfermería. Un hallazgo que nadie puede cerrar es ruido; este se cierra.
+  revisadoPorId String?
+  revisadoAt    DateTime?
+  /// ACTUALIZADO_EXPEDIENTE | EN_OBSERVACION | SIN_CAMBIO | DERIVADO_MEDICO
+  resultado     String?
+  respuesta     String?   @db.Text
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient      @relation(fields: [patientId], references: [id])
+
+  /// La cola de enfermería: lo pendiente de esta sede, lo más viejo primero.
+  @@index([headquartersId, revisadoAt, reportadoAt])
+  /// El historial del residente.
+  @@index([patientId, reportadoAt])
 }

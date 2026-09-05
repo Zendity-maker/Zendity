@@ -16,6 +16,20 @@ import {
 } from "@/lib/diet";
 import { DietTexture } from "@prisma/client";
 
+/**
+ * Rechazos de comida agrupados por residente, tal como los arma
+ * /api/kitchen/dashboard. Solo llegan los motivos que la cocina puede resolver.
+ */
+interface RechazoPorResidente {
+    patientId: string;
+    nombre: string;
+    habitacion: string | null;
+    veces: number;
+    ultimo: string;
+    motivos: { etiqueta: string; n: number }[];
+    acepta: string[];
+}
+
 export default function KitchenDashboard() {
     const { user, logout } = useAuth();
     const { activeHqId } = useActiveHq();
@@ -27,6 +41,15 @@ export default function KitchenDashboard() {
     const [observations, setObservations] = useState<any[]>([]);
     const [todayMenu, setTodayMenu] = useState<any>(null);
     const [kpi, setKpi] = useState<any>(null);
+    /**
+     * Lo que no se comieron y por que. Ver src/lib/comida.ts.
+     *
+     * La cocina veia dietas y menus, y nada de como le fue a lo que mando.
+     * Solo llegan los motivos que se arreglan cocinando; lo clinico va a
+     * enfermeria.
+     */
+    const [rechazos, setRechazos] = useState<RechazoPorResidente[]>([]);
+    const [diasDeRechazos, setDiasDeRechazos] = useState(14);
     const [markingRead, setMarkingRead] = useState<string | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
 
@@ -61,6 +84,8 @@ export default function KitchenDashboard() {
                 setObservations(data.observations);
                 setTodayMenu(data.todayMenu);
                 setKpi(data.kpi);
+                setRechazos(data.rechazosPorResidente ?? []);
+                setDiasDeRechazos(data.diasDeRechazos ?? 14);
             }
         } catch (e) {
             console.error(e);
@@ -242,6 +267,52 @@ export default function KitchenDashboard() {
                                             </div>
                                         );
                                     })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/**
+                          * LO QUE NO SE COMIERON.
+                          *
+                          * Un rechazo suelto es ruido; el mismo rechazo tres veces es una
+                          * preferencia que se puede resolver mañana. Por eso se agrupa por
+                          * residente y se ordena por frecuencia, no por fecha.
+                          */}
+                        {rechazos.length > 0 && (
+                            <div className="bg-white rounded-3xl border border-rose-200 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-rose-100 bg-rose-50/50">
+                                    <h3 className="font-black text-rose-900">Lo que no se comieron</h3>
+                                    <p className="text-sm text-rose-700/70 font-medium">
+                                        Últimos {diasDeRechazos} días · {rechazos.length} residente{rechazos.length === 1 ? '' : 's'}
+                                    </p>
+                                </div>
+                                <div className="divide-y divide-rose-50 max-h-[420px] overflow-y-auto">
+                                    {rechazos.map(r => (
+                                        <div key={r.patientId} className="p-4">
+                                            <div className="flex items-baseline justify-between gap-3">
+                                                <p className="font-bold text-slate-800 text-sm">
+                                                    {r.nombre}
+                                                    {r.habitacion && <span className="text-slate-400 font-medium ml-2">Hab. {r.habitacion}</span>}
+                                                </p>
+                                                <span className="text-xs font-black text-rose-700 shrink-0">
+                                                    {r.veces} vez{r.veces === 1 ? '' : 'es'}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {r.motivos.map(m => (
+                                                    <span key={m.etiqueta} className="text-[11px] font-bold px-2 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-100">
+                                                        {m.etiqueta}{m.n > 1 ? ` ×${m.n}` : ''}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {/* Esto es lo accionable: lo que sí come. */}
+                                            {r.acepta.length > 0 && (
+                                                <p className="text-xs text-emerald-800 font-medium mt-2 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5">
+                                                    <span className="font-black">Sí acepta:</span> {r.acepta.join(' · ')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         )}

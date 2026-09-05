@@ -20,6 +20,11 @@ const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 //  - ADMINISTER_PACK requiere signatureBase64
 //  - OMIT requiere reason con ≥10 chars
 //  - Dup-check HOY por (medicationId, scheduleTime) antes de insertar
+/** Ids unicos, para que mandar el mismo dos veces no cuente como dos. */
+function idsAProcesarPRN(ids: string[]): string[] {
+    return [...new Set(ids)];
+}
+
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -34,7 +39,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Rol no autorizado para administración masiva de medicamentos' }, { status: 403 });
         }
 
-        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, administeredAt: horaDeclarada } = await req.json();
+        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, administeredAt: horaDeclarada } = await req.json();
 
         if (!action || !medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
             return NextResponse.json({ success: false, error: "Datos incompletos para la acción masiva" }, { status: 400 });
@@ -68,6 +73,39 @@ export async function POST(req: Request) {
         }
         if (isOmit && (!reason || typeof reason !== 'string' || reason.trim().length < 10)) {
             return NextResponse.json({ success: false, error: 'Razón de omisión requerida (mínimo 10 caracteres)' }, { status: 400 });
+        }
+
+        /**
+         * EL PRN ES UNO, NO EL TURNO ENTERO.
+         *
+         * Hasta hoy el cliente mandaba `getMedsForCurrentShift(...)` completo:
+         * registrar UNA dosis por razon necesaria marcaba como administrados
+         * TODOS los medicamentos del turno, con una nota de texto libre pegada a
+         * cada uno. Un boton asi no lo usa nadie que sepa lo que esta haciendo, y
+         * los datos lo confirman: se uso UNA vez en toda la historia del sistema,
+         * y esa vez cayo sobre un medicamento cuya frecuencia ni siquiera es PRN.
+         *
+         * Mientras tanto, 4 medicamentos PRN activos con CERO administraciones
+         * registradas y 27 notas de turno en 120 dias diciendo que se administro
+         * algo — varias, benzodiacepinas. El PRN no se registraba mal: no se
+         * registraba.
+         *
+         * Ahora se exige un medicamento y el motivo. Un PRN sin motivo no se
+         * puede evaluar despues, que es justo para lo que sirve registrarlo.
+         */
+        if (isPRN) {
+            if (idsAProcesarPRN(medicationIds).length !== 1) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Un PRN se registra de uno en uno: indique qué medicamento se administró.',
+                }, { status: 400 });
+            }
+            if (!prnMotivo || typeof prnMotivo !== 'string' || prnMotivo.trim().length < 5) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Falta para qué se administró (mínimo 5 caracteres).',
+                }, { status: 400 });
+            }
         }
 
         /**
@@ -162,8 +200,11 @@ export async function POST(req: Request) {
             administeredAt: adminStatus === 'ADMINISTERED' ? administeredAt : null,
             notes: isOmit
                 ? `Omitido: ${reason.trim()}`
-                : (notes || (isPRN ? 'Administración PRN de emergencia' : undefined)),
-            signatureBase64: signatureBase64 || null
+                : (notes || undefined),
+            signatureBase64: signatureBase64 || null,
+            // El motivo del PRN va a su propio campo, no dentro de `notes`:
+            // un campo se puede consultar, un texto libre no.
+            prnMotivo: isPRN ? String(prnMotivo).trim().slice(0, 300) : null,
         }));
 
         const result = await prisma.medicationAdministration.createMany({ data: dataToInsert });

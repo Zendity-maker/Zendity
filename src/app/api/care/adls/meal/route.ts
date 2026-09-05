@@ -5,6 +5,8 @@ import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
 import { MealType, MealQuality } from '@prisma/client';
 import { resolverHoraReal } from '@/lib/hora-real';
+import { esMotivoValido, etiquetaMotivo, requiereAvisoAEnfermeria, pideMotivo } from '@/lib/comida';
+import { notifyRoles } from '@/lib/notifications';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -16,6 +18,16 @@ const MealBody = z.object({
     quality:        z.nativeEnum(MealQuality),
     // Hora real de la comida. Opcional: sin ella se usa `now()` como siempre.
     timeLogged:     z.string().datetime().optional(),
+
+    /**
+     * Por que no comio, y que si acepto. Ver src/lib/comida.ts.
+     *
+     * Opcionales en el contrato a proposito: hay clientes viejos en tabletas
+     * que no los mandan, y rechazar su registro haria que se pierda la comida
+     * entera por falta de un motivo. Se valida lo que llega, no se exige.
+     */
+    motivoRechazo:  z.string().max(40).optional().nullable(),
+    aceptoEnCambio: z.string().max(200).optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -37,10 +49,27 @@ export async function POST(req: Request) {
         }
         const { patientId, caregiverId, shiftSessionId, mealType, quality, timeLogged } = parsed.data;
 
+        /**
+         * El motivo se valida contra el catalogo — un codigo inventado se
+         * rechaza en vez de guardarse. Y solo tiene sentido cuando comio poco o
+         * nada: un motivo de rechazo junto a "se lo comio todo" es un dato que
+         * se contradice a si mismo, asi que se descarta en silencio.
+         */
+        const motivoRechazo = pideMotivo(quality) && esMotivoValido(parsed.data.motivoRechazo)
+            ? parsed.data.motivoRechazo!
+            : null;
+        if (parsed.data.motivoRechazo && pideMotivo(quality) && !motivoRechazo) {
+            return NextResponse.json({
+                success: false,
+                error: `Motivo de rechazo no reconocido: ${parsed.data.motivoRechazo}`,
+            }, { status: 400 });
+        }
+        const aceptoEnCambio = (parsed.data.aceptoEnCambio ?? '').trim().slice(0, 200) || null;
+
         // Tenant check — el residente DEBE pertenecer a la sede del invocador
         const patient = await prisma.patient.findUnique({
             where: { id: patientId },
-            select: { headquartersId: true }
+            select: { headquartersId: true, name: true }
         });
         if (!patient || patient.headquartersId !== sessionHqId) {
             return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede." }, { status: 404 });
@@ -114,8 +143,27 @@ export async function POST(req: Request) {
                 mealType,
                 quality,
                 timeLogged: hora.hora,
+                motivoRechazo,
+                aceptoEnCambio,
             }
         });
+
+        /**
+         * Nausea, dolor y dificultad para tragar no son preferencias: son
+         * sintomas, y la disfagia es riesgo de aspiracion. Enfermeria se entera
+         * hoy, no en el resumen del turno.
+         *
+         * No bloquea el registro: si el aviso falla, la comida ya quedo escrita.
+         */
+        if (motivoRechazo && requiereAvisoAEnfermeria(motivoRechazo)) {
+            notifyRoles(sessionHqId, ['NURSE', 'SUPERVISOR'], {
+                type: 'EMAR_ALERT',
+                title: `No comió — ${patient.name.trim()}`,
+                message: `${etiquetaMotivo(motivoRechazo)}. Registrado por ${auth.name ?? 'personal'}.`
+                    + (aceptoEnCambio ? ` Sí aceptó: ${aceptoEnCambio}.` : ''),
+                link: '/care/supervisor',
+            }, auth.id).catch(e => console.error('Aviso de rechazo de comida:', e));
+        }
 
         return NextResponse.json({ success: true, meal: newMeal });
 
