@@ -227,6 +227,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [intakePendingCount, setIntakePendingCount] = useState(0);
     const [apptPendingCount, setApptPendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
+    const [hrObsPendingCount, setHrObsPendingCount] = useState(0);
     const [inboxPendingCount, setInboxPendingCount] = useState(0);
     // Estado de alerta cuando el Schedule de la semana actual está en DRAFT.
     // Solo se consulta para roles DIRECTOR/ADMIN/SUPERVISOR (los únicos que
@@ -335,6 +336,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchMyObsPending, 60000);
         return () => clearInterval(interval);
     }, [isEmployeeObsRole]);
+
+    /**
+     * Badge de observaciones que esperan una DECISIÓN (DIRECTOR, ADMIN, HR_MANAGER).
+     *
+     * El empleado tenía su contador desde siempre y quien decide no tenía
+     * ninguno. Comprobado en produccion el 04-sep-2026: dos observaciones
+     * llevaban 56 y 45 dias en EXPLANATION_RECEIVED. Las dos SI dispararon su
+     * notificacion al responder el empleado —"Pendiente tu decision"— y
+     * seguian ahi. Una notificacion se lee una vez y se va; un contador
+     * insiste hasta que alguien resuelve.
+     */
+    const isHrDeciderRole = user?.role && ['DIRECTOR', 'ADMIN', 'HR_MANAGER'].includes(user.role);
+    useEffect(() => {
+        if (!isHrDeciderRole) return;
+        const fetchHrObsPending = async () => {
+            try {
+                const res = await fetch('/api/hr/incidents/pending-count');
+                const data = await res.json();
+                if (data.success) setHrObsPendingCount(data.pendientes ?? 0);
+            } catch {}
+        };
+        fetchHrObsPending();
+        const interval = setInterval(fetchHrObsPending, 60000);
+        return () => clearInterval(interval);
+    }, [isHrDeciderRole]);
 
     // Polling badge inbox operativo (solo SUPERVISOR, DIRECTOR, ADMIN)
     const isSupervisorRole = user?.role && ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role);
@@ -471,6 +497,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             case 'SCHEDULE_PUBLISHED':  return isClinical ? '/care/profile' : '/hr/schedule';
             case 'SHIFT_BLOCKED':       return '/care/profile';
             case 'CONCIERGE_SERVICE':   return isSupervision ? '/corporate/concierge' : '/family/marketplace';
+            case 'HR_OBSERVATION':      return isSupervision ? '/hr/incidents' : '/my-observations';
             default:                 return null;
         }
     };
@@ -783,6 +810,7 @@ if ((item as any).onlyRoles) {
                             const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                             const Icon = item.icon;
                             const isMyObs = item.href === '/my-observations';
+                            const isHrObs = item.href === '/hr/incidents';
                             const isTriageSuper = item.href === '/care/supervisor';
                             return (
                                 <Link
@@ -798,6 +826,11 @@ if ((item as any).onlyRoles) {
                                                 {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
                                             </span>
                                         )}
+                                        {isSidebarCollapsed && isHrObs && hrObsPendingCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                            </span>
+                                        )}
                                         {isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
                                             <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
                                                 {inboxPendingCount > 9 ? '9+' : inboxPendingCount}
@@ -808,6 +841,11 @@ if ((item as any).onlyRoles) {
                                     {!isSidebarCollapsed && isMyObs && myObsPendingCount > 0 && (
                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                             {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                        </span>
+                                    )}
+                                    {!isSidebarCollapsed && isHrObs && hrObsPendingCount > 0 && (
+                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                            {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
                                         </span>
                                     )}
                                     {!isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
@@ -932,6 +970,7 @@ if ((item as any).onlyRoles) {
                                     const isCurrent = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
                                     const Icon = item.icon;
                                     const isMyObs = item.href === '/my-observations';
+                            const isHrObs = item.href === '/hr/incidents';
                                     const isTriageSuperM = item.href === '/care/supervisor';
                                     return (
                                         <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
@@ -940,6 +979,11 @@ if ((item as any).onlyRoles) {
                                             {isMyObs && myObsPendingCount > 0 && (
                                                 <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-amber-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                     {myObsPendingCount > 9 ? '9+' : myObsPendingCount}
+                                                </span>
+                                            )}
+                                            {isHrObs && hrObsPendingCount > 0 && (
+                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                    {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
                                                 </span>
                                             )}
                                             {isTriageSuperM && inboxPendingCount > 0 && (

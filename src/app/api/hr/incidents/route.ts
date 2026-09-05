@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyRoles } from '@/lib/notifications';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -8,6 +9,8 @@ export const dynamic = 'force-dynamic';
 
 // Datos disciplinarios — solo SUPERVISOR/DIRECTOR/ADMIN (RR.HH.)
 const ALLOWED_ROLES = ['SUPERVISOR', 'DIRECTOR', 'ADMIN', 'HR_MANAGER'];
+/** Quienes pueden decidir. Mismo set que /incidents/[id]/decide. */
+const DECIDEN = ['DIRECTOR', 'ADMIN', 'HR_MANAGER'];
 
 export async function POST(req: Request) {
     try {
@@ -86,8 +89,34 @@ export async function POST(req: Request) {
         // emitirlo. Asignarla ahora le notificaría "formación asignada" por un
         // incidente que aún puede descartarse. Vive en /incidents/[id]/decide.
 
-        // En DRAFT NO se notifica al empleado ni se envía email.
-        // El flujo dispara notificaciones cuando el director decide (decide endpoint).
+        /**
+         * En DRAFT NO se notifica AL EMPLEADO ni se envía email: el borrador
+         * aún puede descartarse y enterarle de algo que quizá no ocurra sería
+         * peor que no decirle nada.
+         *
+         * Pero de ahí no se sigue que no haya que avisar a QUIEN DECIDE. Hasta
+         * sep-2026 aquí solo había un comentario diciendo que el flujo notifica
+         * "cuando el director decide" — y para decidir, primero tiene que
+         * enterarse de que hay algo escrito.
+         *
+         * Solo cuando quien la escribe NO puede decidirla. Una observación
+         * escrita por el propio director se notificaría a sí mismo, y eso es
+         * ruido: para ese caso está el contador del menú, que insiste sin
+         * interrumpir.
+         */
+        if (!DECIDEN.includes(invokerRole)) {
+            notifyRoles(
+                hqId,
+                DECIDEN,
+                {
+                    type: 'HR_OBSERVATION',
+                    title: 'Observación de personal pendiente de revisión',
+                    message: `${newIncident.supervisor?.name ?? 'Supervisión'} escribió una observación sobre ${newIncident.employee?.name ?? 'un empleado'}. Está en borrador, esperando tu decisión.`,
+                    link: '/hr/incidents',
+                },
+                invokerId,
+            ).catch(e => console.error('Aviso de observación nueva:', e));
+        }
 
         return NextResponse.json({ success: true, incident: newIncident });
     } catch (error: any) {

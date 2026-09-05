@@ -124,7 +124,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             });
 
             await notifyUser(incident.employeeId, {
-                type: 'EMAR_ALERT',
+                type: 'HR_OBSERVATION',
                 title: 'Observación pendiente de respuesta',
                 message: 'El director solicita tu explicación. Tienes 72 horas para responder.',
                 link: `/my-observations/${id}`,
@@ -267,7 +267,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         // Notificación in-app
         await notifyUser(incident.employeeId, {
-            type: 'EMAR_ALERT',
+            type: 'HR_OBSERVATION',
             title: 'Observación aplicada',
             message: `Se aplicó una ${severityLabel(incident.severity)}. Puntos deducidos: ${pointsDeductedAbs}. Revisa el detalle.`,
             link: `/my-observations/${id}`,

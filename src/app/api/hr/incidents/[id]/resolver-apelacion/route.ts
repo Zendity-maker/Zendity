@@ -100,7 +100,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         await notifyUser(incident.employeeId, {
-            type: 'EMAR_ALERT',
+            type: 'HR_OBSERVATION',
             title: outcome === 'ACCEPTED' ? '✅ Tu apelación fue aceptada' : 'Tu apelación fue revisada',
             message: outcome === 'ACCEPTED'
                 ? `Se revisó tu apelación y se te dio la razón.${puntos > 0 ? ` Se te devolvieron ${puntos} puntos.` : ''} Entra para leer la respuesta.`

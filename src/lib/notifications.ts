@@ -4,7 +4,14 @@
  */
 import { prisma } from "@/lib/prisma";
 
-type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE" | "CONCIERGE_SERVICE" | "SHIFT_BLOCKED" | "EVALUATION_COMPLETE" | "EXTERNAL_VISIT_PENDING" | "EXTERNAL_VISIT_PUBLISHED";
+type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE" | "CONCIERGE_SERVICE" | "SHIFT_BLOCKED" | "EVALUATION_COMPLETE" | "EXTERNAL_VISIT_PENDING" | "EXTERNAL_VISIT_PUBLISHED"
+    /**
+     * Observaciones de personal. Antes viajaban como "EMAR_ALERT" —el tipo de
+     * las alertas de medicacion— porque no habia uno propio, y eso las metia en
+     * la misma bolsa que lo clinico. Una llamada de atencion a una empleada y
+     * un medicamento sin administrar no son la misma clase de cosa.
+     */
+    | "HR_OBSERVATION";
 
 interface NotifPayload {
     type: NotifType;

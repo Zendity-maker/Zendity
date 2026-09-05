@@ -111,9 +111,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // Trigger de reunión formal: notificar a DIRECTOR/ADMIN. Best-effort.
         try {
             await notifyRoles(hqId, ['DIRECTOR', 'ADMIN'], {
-                // 'EMAR_ALERT' es el type que ya usan decide/respond para notifs
-                // del módulo de observaciones HR — se mantiene por consistencia.
-                type: 'EMAR_ALERT',
+                // Tipo propio desde sep-2026. Antes todo el módulo viajaba
+                // como 'EMAR_ALERT' —el de las alertas de medicación— por no
+                // haber uno de recursos humanos.
+                type: 'HR_OBSERVATION',
                 title: 'Empleado rehusó firmar — requiere reunión formal',
                 message: `${incident.employee?.name || 'El empleado'} se negó a firmar el acuse de una observación. Requiere reunión formal con administración.`,
                 link: `/hr/incidents/${id}`,
