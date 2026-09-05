@@ -35,6 +35,8 @@ export async function GET() {
         const activos = await prisma.patient.findMany({
             where: { headquartersId: hqId, status: 'ACTIVE' },
             select: {
+                id: true, name: true, roomNumber: true, status: true,
+                admissionDate: true, createdAt: true,
                 lifePlans: {
                     orderBy: { createdAt: 'desc' },
                     select: { status: true, emailSentAt: true, nextReview: true },
@@ -53,7 +55,26 @@ export async function GET() {
             resumen.alDia++;
         }
 
-        return NextResponse.json({ success: true, lifePlans, resumen });
+        /**
+         * Los residentes SIN NINGÚN plan, como filas.
+         *
+         * El resumen ya los contaba, pero la lista se arma desde `LifePlan` y
+         * quien no tiene ninguno no sale: no aparecía como problema, aparecía
+         * como nada. El comentario de arriba ya lo decía y se había resuelto a
+         * medias — un número que nadie puede pinchar.
+         *
+         * Hoy en Cupey son 0. Pero Mayagüez empieza a admitir, y el primer
+         * residente que entre allí sin plan sería invisible justo en la
+         * pantalla que existe para vigilar eso.
+         */
+        const sinPlan = activos
+            .filter(p => p.lifePlans.length === 0)
+            .map(p => ({
+                id: p.id, name: p.name, roomNumber: p.roomNumber, status: p.status,
+                desde: p.admissionDate ?? p.createdAt,
+            }));
+
+        return NextResponse.json({ success: true, lifePlans, resumen, sinPlan });
     } catch (error) {
         console.error("Error fetching Life Plans:", error);
         return NextResponse.json({ success: false, error: "Error de lectura PAI" }, { status: 500 });

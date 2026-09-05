@@ -41,6 +41,12 @@ export default function CaregiversLifePlanPage() {
         total: number; alDia: number; sinEnviar: number;
         vencidos: number; borrador: number; sinPlan: number;
     } | null>(null);
+    /**
+     * Residentes SIN NINGÚN plan. Van aparte porque no hay `LifePlan` que
+     * mostrar: la lista se arma desde los planes y quien no tiene ninguno no
+     * salía —no aparecía como problema, aparecía como nada.
+     */
+    const [sinPlan, setSinPlan] = useState<{ id:string; name:string; roomNumber:string|null; desde:string }[]>([]);
 
     useEffect(() => {
         fetchLifePlans();
@@ -87,6 +93,7 @@ export default function CaregiversLifePlanPage() {
             if (data.success) {
                 setPlans(data.lifePlans);
                 setResumen(data.resumen ?? null);
+                setSinPlan(data.sinPlan ?? []);
             }
         } catch (error) {
             console.error(error);
@@ -191,8 +198,40 @@ export default function CaregiversLifePlanPage() {
                 ))}
             </div>
 
+            {/* Sin ningún plan. Va ARRIBA y en rojo: un residente sin plan de
+                cuido es un hueco mayor que uno con el plan sin firmar, y hasta
+                hoy solo existía como un número en el resumen que nadie podía
+                pinchar. Se respeta el filtro: en "Al día" no pinta nada. */}
+            {sinPlan.length > 0 && (filtro === 'TODOS' || filtro === 'BORRADOR') && (
+                <div className="mb-6 rounded-2xl border-2 border-rose-200 bg-rose-50/60 p-5">
+                    <h3 className="font-black text-rose-800 text-sm uppercase tracking-wider mb-1">
+                        Sin plan de cuido — {sinPlan.length} residente{sinPlan.length === 1 ? '' : 's'}
+                    </h3>
+                    <p className="text-rose-900/80 text-sm mb-4">
+                        No tienen ningún PAI, ni siquiera en borrador.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {sinPlan.map(r => {
+                            const dias = Math.floor((Date.now() - new Date(r.desde).getTime()) / 86400000);
+                            return (
+                                <Link
+                                    key={r.id}
+                                    href={`/corporate/medical/patients/${r.id}/pai`}
+                                    className="bg-white rounded-xl border border-rose-200 px-4 py-3 hover:border-rose-400 transition-colors"
+                                >
+                                    <span className="block font-bold text-slate-800">{r.name.trim()}</span>
+                                    <span className="block text-xs text-slate-500">
+                                        {r.roomNumber ? `Cuarto ${r.roomNumber} · ` : ''}{dias} días en el hogar
+                                    </span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {visibles.length === 0 && (
+                {visibles.length === 0 && sinPlan.length === 0 && (
                     <div className="col-span-full py-20 text-center text-slate-500 font-bold bg-white rounded-3xl border border-dashed border-slate-200">
                         Aún no hay Fichas de Vida procesadas desde Zendity Intake.
                     </div>

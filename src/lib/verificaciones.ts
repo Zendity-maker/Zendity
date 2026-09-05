@@ -273,6 +273,58 @@ async function variosPaiVigentes(hqId: string): Promise<Hallazgo> {
 
 /** Corre todas las verificaciones de una sede y devuelve solo lo que falló. */
 export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
+/* ─────────────── 7. RESIDENTE SIN PLAN DE CUIDO FIRMADO ─────────────────── */
+/**
+ * Un residente lleva meses en el hogar y su PAI sigue sin firmar, o no existe.
+ *
+ * Medido el 05-sep-2026: 16 de los 32 residentes activos de Cupey tenían el
+ * plan COMPLETO —versión familiar, riesgos, objetivos, movilidad correcta,
+ * editado a mano— y sin firmar. Doce llevaban 106 días así. No faltaba trabajo
+ * clínico: faltaba una firma, y nada se lo decía a nadie.
+ *
+ * Los otros seis chequeos de este archivo vigilan planes EQUIVOCADOS —que
+ * contradigan el expediente, que estén duplicados, que se aprueben sin
+ * enviarse. Ninguno vigilaba la ausencia. Un plan que dice una mentira se ve;
+ * un plan que no existe, no.
+ *
+ * El umbral son 30 días desde el ingreso. Antes de eso el plan se está
+ * haciendo y señalarlo sería ruido; después, ya no es que esté en camino.
+ */
+const DIAS_SIN_PLAN = 30;
+
+async function sinPlanDeCuidoFirmado(hqId: string): Promise<Hallazgo> {
+    const limite = new Date(Date.now() - DIAS_SIN_PLAN * 86400000);
+    const activos = await prisma.patient.findMany({
+        where: { headquartersId: hqId, status: 'ACTIVE' },
+        select: {
+            name: true, admissionDate: true, createdAt: true,
+            lifePlans: { select: { status: true }, where: { status: 'APPROVED' } },
+        },
+    });
+
+    const casos = activos
+        .filter(p => p.lifePlans.length === 0 && (p.admissionDate ?? p.createdAt) < limite)
+        .map(p => {
+            const desde = p.admissionDate ?? p.createdAt;
+            const dias = Math.floor((Date.now() - desde.getTime()) / 86400000);
+            return { nombre: p.name.trim(), dias };
+        })
+        .sort((a, b) => b.dias - a.dias);
+
+    return {
+        codigo: 'SIN_PLAN_DE_CUIDO',
+        titulo: 'Residentes sin plan de cuido firmado',
+        // ALTA y no CRITICA: en casi todos los casos el plan está escrito y
+        // solo falta la firma, así que el cuido real no está a ciegas. Pero
+        // ante el Departamento de la Familia, un residente sin PAI vigente es
+        // un residente sin PAI.
+        severidad: 'ALTA',
+        total: casos.length,
+        ejemplos: casos.slice(0, MAX_EJEMPLOS).map(c => `${c.nombre} — ${c.dias} días en el hogar`),
+        accion: 'Life Plan (PAI) → filtro Borradores. Si el plan ya está completo, solo falta firmarlo.',
+    };
+}
+
     const todas = await Promise.all([
         alergiasSinDocumentar(hqId),
         paiContradiceExpediente(hqId),
@@ -280,6 +332,7 @@ export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
         aprobadoSinEfecto(hqId),
         sinContactoFamiliar(hqId),
         variosPaiVigentes(hqId),
+        sinPlanDeCuidoFirmado(hqId),
     ]);
     const orden: Record<Severidad, number> = { CRITICA: 0, ALTA: 1, MEDIA: 2 };
     return todas

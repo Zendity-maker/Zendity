@@ -228,6 +228,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const [apptPendingCount, setApptPendingCount] = useState(0);
     const [myObsPendingCount, setMyObsPendingCount] = useState(0);
     const [hrObsPendingCount, setHrObsPendingCount] = useState(0);
+    const [paiPendingCount, setPaiPendingCount] = useState(0);
     const [inboxPendingCount, setInboxPendingCount] = useState(0);
     // Estado de alerta cuando el Schedule de la semana actual está en DRAFT.
     // Solo se consulta para roles DIRECTOR/ADMIN/SUPERVISOR (los únicos que
@@ -361,6 +362,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(fetchHrObsPending, 60000);
         return () => clearInterval(interval);
     }, [isHrDeciderRole]);
+
+    /**
+     * Badge de planes de cuido que necesitan accion.
+     *
+     * Medido el 05-sep-2026: 16 de 32 residentes de Cupey tenian su PAI
+     * COMPLETO y sin firmar, doce de ellos desde hacia 106 dias. No faltaba
+     * trabajo clinico —version familiar, riesgos, objetivos, movilidad
+     * correcta, todos editados a mano— faltaba una firma, y nada se lo decia a
+     * nadie. El resumen ya se calculaba, pero habia que ABRIR la pantalla para
+     * verlo, y quien no sabe que hay algo pendiente no la abre a comprobarlo.
+     */
+    const isPaiRole = user?.role && ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role);
+    useEffect(() => {
+        if (!isPaiRole) return;
+        const fetchPaiPending = async () => {
+            try {
+                const res = await fetch('/api/cuidadores/lifeplans/pending-count');
+                const data = await res.json();
+                if (data.success) setPaiPendingCount(data.pendientes ?? 0);
+            } catch {}
+        };
+        fetchPaiPending();
+        const interval = setInterval(fetchPaiPending, 60000);
+        return () => clearInterval(interval);
+    }, [isPaiRole]);
 
     // Polling badge inbox operativo (solo SUPERVISOR, DIRECTOR, ADMIN)
     const isSupervisorRole = user?.role && ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user.role);
@@ -811,6 +837,7 @@ if ((item as any).onlyRoles) {
                             const Icon = item.icon;
                             const isMyObs = item.href === '/my-observations';
                             const isHrObs = item.href === '/hr/incidents';
+                            const isPai = item.href === '/cuidadores';
                             const isTriageSuper = item.href === '/care/supervisor';
                             return (
                                 <Link
@@ -831,6 +858,11 @@ if ((item as any).onlyRoles) {
                                                 {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
                                             </span>
                                         )}
+                                        {isSidebarCollapsed && isPai && paiPendingCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-indigo-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
+                                                {paiPendingCount > 9 ? '9+' : paiPendingCount}
+                                            </span>
+                                        )}
                                         {isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
                                             <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-rose-500 rounded-full border-[1.5px] border-white text-[9px] font-black text-white leading-none px-0.5">
                                                 {inboxPendingCount > 9 ? '9+' : inboxPendingCount}
@@ -846,6 +878,11 @@ if ((item as any).onlyRoles) {
                                     {!isSidebarCollapsed && isHrObs && hrObsPendingCount > 0 && (
                                         <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                             {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                        </span>
+                                    )}
+                                    {!isSidebarCollapsed && isPai && paiPendingCount > 0 && (
+                                        <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-indigo-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                            {paiPendingCount > 9 ? '9+' : paiPendingCount}
                                         </span>
                                     )}
                                     {!isSidebarCollapsed && isTriageSuper && inboxPendingCount > 0 && (
@@ -971,6 +1008,7 @@ if ((item as any).onlyRoles) {
                                     const Icon = item.icon;
                                     const isMyObs = item.href === '/my-observations';
                             const isHrObs = item.href === '/hr/incidents';
+                            const isPai = item.href === '/cuidadores';
                                     const isTriageSuperM = item.href === '/care/supervisor';
                                     return (
                                         <Link key={item.name} href={item.href} onClick={() => setMobileDrawerOpen(false)} className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all mb-1 ${isCurrent ? sidebarActiveItem : sidebarHoverItem}`}>
@@ -984,6 +1022,11 @@ if ((item as any).onlyRoles) {
                                             {isHrObs && hrObsPendingCount > 0 && (
                                                 <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-rose-500 rounded-full text-[10px] font-black text-white leading-none px-1">
                                                     {hrObsPendingCount > 9 ? '9+' : hrObsPendingCount}
+                                                </span>
+                                            )}
+                                            {isPai && paiPendingCount > 0 && (
+                                                <span className="ml-auto min-w-[20px] h-[20px] flex items-center justify-center bg-indigo-500 rounded-full text-[10px] font-black text-white leading-none px-1">
+                                                    {paiPendingCount > 9 ? '9+' : paiPendingCount}
                                                 </span>
                                             )}
                                             {isTriageSuperM && inboxPendingCount > 0 && (
