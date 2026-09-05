@@ -3180,14 +3180,17 @@ export default function ZendityCareTabletPage() {
 
                                         return (
                                         <div key={p.id} className="bg-[#1F2D3A] border border-[#2a3b4d] rounded-[20px] text-white flex flex-col relative overflow-hidden transition-colors hover:border-[#3CC6C4]/40">
-                                            {/* "FUERA DE EDIFICIO" es correcto para un hospital o una
-                                                salida con la familia. Para un fallecimiento
-                                                reportado seria frio y falso, y quien lo lee es
-                                                quien acaba de estar con esa persona. */}
+                                            {/* "FUERA DE EDIFICIO" es correcto para un hospital o
+                                                una salida con la familia. Para un fallecimiento
+                                                seria frio y falso, y quien lo lee es quien acaba
+                                                de estar con esa persona.
+                                                "EN PROTOCOLO DE FALLECIMIENTO" describe el ESTADO
+                                                —hay algo en curso— en vez de anunciar el hecho a
+                                                secas en la pantalla del piso. */}
                                             {p.status === 'TEMPORARY_LEAVE' && (
                                                 <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex items-center justify-center font-display text-lg font-semibold text-[#94a3b8] backdrop-blur-sm text-center px-4">
                                                     {p.leaveType === 'FALLECIMIENTO_REPORTADO'
-                                                        ? 'FALLECIMIENTO REPORTADO'
+                                                        ? 'EN PROTOCOLO DE FALLECIMIENTO'
                                                         : 'FUERA DE EDIFICIO'}
                                                 </div>
                                             )}
