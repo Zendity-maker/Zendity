@@ -200,6 +200,73 @@ export async function POST(req: Request) {
             });
         }
 
+        /**
+         * Un tour es un prospecto: entra al CRM en etapa TOUR.
+         *
+         * El pipeline ya tenía la etapa `TOUR` en `LeadStage` y el panel de
+         * inversionistas contaba "30 tours en 3 meses" — pero el CRM tiene CERO
+         * leads, así que esos números salían de otro sitio y alguien los
+         * transcribía a mano. La familia entra, firma la tablet, y el lead
+         * aparece en el embudo sin que nadie lo copie.
+         *
+         * Accesorio a propósito: si esto falla, la visita YA quedó registrada.
+         * El asiento de la bitácora es lo que no puede perderse; un lead sin
+         * crear se arregla a mano, una visita sin registrar no.
+         *
+         * `firstName`/`lastName` son obligatorios en el modelo y la tablet pide
+         * un nombre suelto: se parte por el primer espacio. Preferible a
+         * exigirle dos casillas a alguien de pie en un mostrador.
+         */
+        if (tipo === 'TOUR') {
+            const partes = visitorName.split(/\s+/);
+            const firstName = partes[0] ?? visitorName;
+            const lastName = partes.slice(1).join(' ') || '—';
+            const email = String(body.visitorEmail ?? '').trim() || null;
+            const phone = String(body.visitorPhone ?? '').trim() || null;
+
+            (async () => {
+                // Si ya existe por correo o teléfono, se AVANZA a TOUR en vez de
+                // duplicar: quien llamó la semana pasada y hoy vino a verlo es
+                // la misma persona, y el embudo tiene que contarla una vez.
+                const existente = (email || phone)
+                    ? await prisma.cRMLead.findFirst({
+                        where: {
+                            headquartersId: hqId,
+                            OR: [
+                                ...(email ? [{ email }] : []),
+                                ...(phone ? [{ phone }] : []),
+                            ],
+                        },
+                        select: { id: true, stage: true },
+                    })
+                    : null;
+
+                if (existente) {
+                    if (existente.stage === 'PROSPECT') {
+                        await prisma.cRMLead.update({
+                            where: { id: existente.id },
+                            data: {
+                                stage: 'TOUR',
+                                stageEvents: { create: [{ headquartersId: hqId, stage: 'TOUR', fromStage: existente.stage }] },
+                            },
+                        });
+                    }
+                    return;
+                }
+
+                await prisma.cRMLead.create({
+                    data: {
+                        headquartersId: hqId,
+                        stage: 'TOUR',
+                        firstName, lastName, email, phone,
+                        notes: `Recorrido registrado en recepción el ${dateStr} a las ${timeStr}.`
+                            + (body.futuroResidente ? ` Pregunta por ${body.futuroResidente}.` : ''),
+                        stageEvents: { create: [{ headquartersId: hqId, stage: 'TOUR', fromStage: null }] },
+                    },
+                });
+            })().catch(e => console.error('Lead de recorrido:', e));
+        }
+
         // ── La visita sigue su curso ────────────────────────────────────────
         if (tipo === 'FAMILIAR' && principal) {
             prisma.familyVisitNote.create({

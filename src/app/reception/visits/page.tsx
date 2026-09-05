@@ -3,7 +3,16 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import PrintButton from './PrintButton';
+import CerrarSalidas from './CerrarSalidas';
 import DateFilter from './DateFilter';
+
+/** Como se lee cada tipo en un documento que ve un inspector. */
+const TIPO_LABEL: Record<string, { texto: string; icono: string }> = {
+    FAMILIAR:         { texto: 'Familiar',  icono: '👋' },
+    TOUR:             { texto: 'Recorrido', icono: '🏡' },
+    OFICIAL:          { texto: 'Oficial',   icono: '📋' },
+    SERVICIO_EXTERNO: { texto: 'Servicio',  icono: '🩺' },
+};
 
 export default async function VisitsPage({
     searchParams
@@ -51,6 +60,20 @@ export default async function VisitsPage({
     ]);
     const recortado = totalEnRango > visits.length;
 
+    /**
+     * Visitas de hoy sin salida y sin cerrar. Se buscan aparte del rango que
+     * mire el usuario: quien esta revisando marzo tambien deberia poder cerrar
+     * las de hoy, y quien mira hoy no deberia poder cerrar las de marzo — una
+     * visita de hace tres meses no se cierra "porque se fue", se cierra porque
+     * alguien lo decidio, y eso es otra conversacion.
+     */
+    const inicioDeHoy = new Date(); inicioDeHoy.setHours(0, 0, 0, 0);
+    const abiertas = await prisma.familyVisit.findMany({
+        where: { headquartersId: hqId, departedAt: null, salidaCerradaAt: null, visitedAt: { gte: inicioDeHoy }, retenida: false },
+        select: { id: true, visitorName: true },
+        orderBy: { visitedAt: 'asc' },
+    });
+
     const today = new Date().toLocaleDateString('es-PR', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
@@ -81,6 +104,7 @@ export default async function VisitsPage({
                     )}
                 </div>
                 <div className="flex items-center gap-3">
+                    <CerrarSalidas abiertas={abiertas} />
                     <DateFilter />
                     <PrintButton />
                 </div>
@@ -136,8 +160,9 @@ export default async function VisitsPage({
                     <thead>
                         <tr style={{background: '#1E293B', color: 'white'}}>
                             <th className="px-3 py-3 text-left font-bold text-xs">#</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Tipo</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Visitante / Visitor</th>
-                            <th className="px-3 py-3 text-left font-bold text-xs">Residente visitado</th>
+                            <th className="px-3 py-3 text-left font-bold text-xs">Residente / Entidad</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Fecha / Date</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Entrada / In</th>
                             <th className="px-3 py-3 text-left font-bold text-xs">Salida / Out</th>
@@ -148,8 +173,36 @@ export default async function VisitsPage({
                         {visits.map((v, i) => (
                             <tr key={v.id} style={{background: i % 2 === 0 ? '#F8FAFC' : 'white', borderBottom: '1px solid #E2E8F0'}}>
                                 <td className="px-3 py-2.5 text-slate-500 font-bold text-xs">{i + 1}</td>
-                                <td className="px-3 py-2.5 font-medium text-slate-800">{v.visitorName}</td>
-                                <td className="px-3 py-2.5 text-slate-600">{v.residentName}</td>
+                                <td className="px-3 py-2.5 text-slate-700 text-xs whitespace-nowrap">
+                                    {TIPO_LABEL[v.tipo]?.icono ?? ''} {TIPO_LABEL[v.tipo]?.texto ?? v.tipo}
+                                </td>
+                                <td className="px-3 py-2.5 font-medium text-slate-800">
+                                    {v.visitorName}
+                                    {v.profesion && <span className="block text-xs text-slate-500">{v.profesion}</span>}
+                                    {/* Las marcas van AQUI, no en una columna
+                                        aparte: son excepciones y merecen verse
+                                        junto a quien las provoco, no perdidas
+                                        al final de la fila. */}
+                                    {v.retenida && (
+                                        <span className="block text-xs font-bold text-amber-700 mt-0.5">
+                                            Esperó asistencia — no pasó
+                                        </span>
+                                    )}
+                                    {v.fueraDeHorario && (
+                                        <span className="block text-xs font-bold text-amber-700 mt-0.5">
+                                            Fuera de horario — autorizada
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="px-3 py-2.5 text-slate-600">
+                                    {v.residentName || v.entidad || '—'}
+                                    {v.residentName && v.entidad && (
+                                        <span className="block text-xs text-slate-500">{v.entidad}</span>
+                                    )}
+                                    {v.tipo === 'TOUR' && v.futuroResidente && (
+                                        <span className="block text-xs text-slate-500">Pregunta por {v.futuroResidente}</span>
+                                    )}
+                                </td>
                                 <td className="px-3 py-2.5 text-slate-600 text-xs">
                                     {new Date(v.visitedAt).toLocaleDateString('es-PR', {
                                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
@@ -172,6 +225,14 @@ export default async function VisitsPage({
                                                 hour: '2-digit', minute: '2-digit'
                                             })}
                                         </span>
+                                    ) : v.salidaCerradaAt ? (
+                                        // Cerrada por personal NO es lo mismo que
+                                        // firmada por quien se fue, y el documento
+                                        // no puede fingir que si.
+                                        <span className="text-slate-600">
+                                            Cerrada por personal
+                                            <span className="block text-[10px] text-slate-500 italic">el visitante no registró salida</span>
+                                        </span>
                                     ) : (
                                         <span className="text-amber-700 italic">Sin registrar</span>
                                     )}
@@ -188,7 +249,7 @@ export default async function VisitsPage({
                         ))}
                         {visits.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                                <td colSpan={8} className="px-4 py-12 text-center text-slate-500">
                                     No hay visitas registradas para este período.
                                 </td>
                             </tr>
