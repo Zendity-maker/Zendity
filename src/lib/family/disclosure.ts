@@ -52,23 +52,55 @@ export function sanitizeClinical<T extends Record<string, any>>(
 }
 
 /**
- * Detecta notas con prefijos de alerta clínica interna que NO deben llegar a familia.
- * Estas notas son señales del equipo (triage, observaciones) que la familia
- * solo debería ver traducidas/sanitizadas.
+ * ¿Esta nota puede llegar a la familia?
  *
- * Patrones reconocidos:
- *   - "[ALERTA ...]" o "[alerta ...]"
- *   - "[ACCIÓN PREVENTIVA ...]"
+ * ═══ ESTO ERA UNA LISTA NEGRA Y DEJABA PASAR LO PEOR ═══
  *
- * Si la nota es null/empty → false (no es nota válida para mostrar).
+ * Bloqueaba tres prefijos: "[ALERTA", "[alerta" y "[ACCIÓN PREVENTIVA". Todo
+ * lo demás pasaba. Medido en producción el 05-sep-2026: 39 notas de
+ * `[TRASLADO HOSPITALARIO DE EMERGENCIA]` pasaban el filtro, y 23 de ellas
+ * eran de residentes con familia en el portal. Entre ellas:
+ *
+ *     "[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: Fallecio pasiente"
+ *     "[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: Fallecio"
+ *
+ * Una familia podía abrir el portal y leer que su familiar murió, en una nota
+ * interna escrita a las prisas y con faltas. El filtro bloqueaba las alertas
+ * de rutina y dejaba pasar las muertes.
+ *
+ * ═══ AHORA ES UNA LISTA BLANCA ═══
+ *
+ * El defecto era estructural, no una entrada que faltara: con una lista negra,
+ * CUALQUIER marcador nuevo que alguien invente el año que viene se publica
+ * solo. Se invierte la carga — lo que el sistema no reconoce como seguro es
+ * interno.
+ *
+ * Pasan:
+ *   · Notas SIN marcador — las de estilo de vida ("Lavado de ropa
+ *     completado", "Aseo de habitación"). Son las 288 de bitácora que la
+ *     familia sí debe ver.
+ *   · "[Zendi Update]" — mensajes que una persona escribió, revisó y aprobó
+ *     antes de que salieran. Las 1 832 notas de bienestar son de estas.
+ *
+ * Todo lo demás —alertas, acciones preventivas, traslados, notas de turno,
+ * salidas a diálisis y lo que venga— es lenguaje del equipo para el equipo.
+ * La familia recibe eso en la llamada semanal, de una persona que puede
+ * explicarlo y responder preguntas, no en un renglón de portal.
+ *
+ * Si la nota es null/vacía → false.
  */
-const ALERT_PREFIXES = ['[ALERTA', '[ACCIÓN PREVENTIVA', '[alerta'];
+const MARCADORES_PARA_FAMILIA = ['[zendi update]'];
 
 export function isCleanNote(note: string | null | undefined): boolean {
     if (!note) return false;
     const trimmed = note.trim();
     if (!trimmed) return false;
-    return !ALERT_PREFIXES.some((p) => trimmed.startsWith(p));
+
+    // Sin marcador: nota de estilo de vida, va a la familia.
+    if (!trimmed.startsWith('[')) return true;
+
+    const marcador = trimmed.slice(0, trimmed.indexOf(']') + 1).toLowerCase();
+    return MARCADORES_PARA_FAMILIA.includes(marcador);
 }
 
 /**
