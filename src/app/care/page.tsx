@@ -142,6 +142,15 @@ function isPackComplete(pack: { label: string; meds: any[] }): boolean {
     return pack.meds.every(m => slotStatusToday(m, pack.label) !== null);
 }
 
+/** Como se lee cada tipo de salida en el censo de turno. */
+const ETIQUETA_SALIDA: Record<string, string> = {
+    HOSPITAL: 'hospital',
+    FAMILY_VISIT: 'salida con la familia',
+    DIALYSIS: 'diálisis',
+    OTHER: 'otro motivo',
+    FALLECIMIENTO_REPORTADO: 'fallecimiento reportado',
+};
+
 export default function ZendityCareTabletPage() {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => setIsMounted(true), []);
@@ -927,7 +936,18 @@ export default function ZendityCareTabletPage() {
             const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
             const res = await fetch("/api/care/shift/start", {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ caregiverId: user?.id, headquartersId: hq, initialCensus: calculatedCensus })
+                body: JSON.stringify({
+                    caregiverId: user?.id, headquartersId: hq, initialCensus: calculatedCensus,
+                    // Las marcas, no solo el conteo. Antes se descartaban: la
+                    // cuidadora recorria la lista una por una y de todo eso
+                    // solo llegaba un numero. Se manda tambien lo que el
+                    // sistema decia, para que una discrepancia quede escrita.
+                    censo: patients.map(p => ({
+                        patientId: p.id,
+                        marca: censusChecklist[p.id] ?? 'PRESENT',
+                        sistemaDecia: p.status === 'TEMPORARY_LEAVE' ? (p.leaveType ?? null) : null,
+                    })),
+                })
             });
             const data = await res.json();
             if (data.success) {
@@ -2316,10 +2336,34 @@ export default function ZendityCareTabletPage() {
                                         <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-black text-lg">{p.name.charAt(0)}</div>
                                         <span className="font-bold text-slate-800 text-xl">{p.name}</span>
                                     </div>
-                                    <div className="flex flex-wrap bg-slate-200 rounded-xl p-1 gap-1">
-                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'PRESENT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'PRESENT' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Presente</button>
-                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'HOSPITAL' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'HOSPITAL' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Hospital</button>
-                                        <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'FAMILY_VISIT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'FAMILY_VISIT' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Familia</button>
+                                    <div className="flex flex-col items-end gap-1.5">
+                                        <div className="flex flex-wrap bg-slate-200 rounded-xl p-1 gap-1">
+                                            <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'PRESENT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'PRESENT' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Presente</button>
+                                            <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'HOSPITAL' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'HOSPITAL' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Hospital</button>
+                                            {/* Dialisis, SOLO para quien sale a dialisis.
+                                                Carmen salio a dialisis el 05-sep y de tres
+                                                opciones —presente, hospital, familia— ninguna
+                                                decia lo que paso, asi que se marco "Familia": la
+                                                menos equivocada. Y como su `leaveType` real es
+                                                DIALYSIS, que no coincidia con ningun boton, la
+                                                fila aparecia SIN NADA marcado, como si faltara
+                                                contestar.
+                                                No se muestra a todo el mundo: llenar la pantalla
+                                                de opciones que no aplican es la otra forma de que
+                                                alguien marque lo que no es. */}
+                                            {p.needsDialysis && (
+                                                <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'DIALYSIS' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'DIALYSIS' ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Diálisis</button>
+                                            )}
+                                            <button onClick={() => setCensusChecklist({ ...censusChecklist, [p.id]: 'FAMILY_VISIT' })} className={`px-4 py-2.5 text-sm font-black uppercase tracking-wider rounded-lg transition-all ${censusChecklist[p.id] === 'FAMILY_VISIT' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}> Familia</button>
+                                        </div>
+                                        {/* Lo que el sistema YA sabe, al lado de lo que se marca.
+                                            Si no coinciden se dice AHI, en el momento en que
+                                            alguien puede arreglarlo — no en un informe de despues. */}
+                                        {p.status === 'TEMPORARY_LEAVE' && censusChecklist[p.id] !== (p.leaveType ?? '') && (
+                                            <span className="text-[12px] font-semibold text-amber-700 text-right leading-snug">
+                                                El sistema dice que salió por {ETIQUETA_SALIDA[p.leaveType ?? ''] ?? 'otro motivo'}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             ))}

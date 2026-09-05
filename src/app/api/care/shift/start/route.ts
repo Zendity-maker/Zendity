@@ -120,6 +120,46 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Sede inválida" }, { status: 403 });
         }
 
+        /**
+         * El censo residente por residente, no solo el conteo.
+         *
+         * Antes solo llegaba `initialCensus` —el NUMERO de presentes— y las
+         * marcas se descartaban en el cliente. La cuidadora recorria la lista
+         * decidiendo con cuidado donde estaba cada persona, y de todo eso
+         * sobrevivia un entero. Creia estar registrando algo y no registraba
+         * nada.
+         *
+         * Los ids se VALIDAN contra los residentes de la sede: el cuerpo de la
+         * peticion no decide de quien se guarda nada.
+         *
+         * NO cambia el estado de nadie. Observar que alguien no esta no es lo
+         * mismo que autorizar su salida —eso pasa por su propio flujo, con
+         * motivo y constancia. Aqui se guarda lo que se VIO, y cuando no
+         * coincide con lo que el sistema decia, se guarda tambien esa
+         * discrepancia: es justo lo que hay que poder revisar despues.
+         */
+        const MARCAS_CENSO = ['PRESENT', 'HOSPITAL', 'DIALYSIS', 'FAMILY_VISIT'];
+        let censoInicial: object[] | undefined;
+        if (Array.isArray(body.censo) && body.censo.length > 0) {
+            const propuestos = (body.censo as { patientId?: unknown; marca?: unknown; sistemaDecia?: unknown }[])
+                .filter(c => c && typeof c.patientId === 'string' && MARCAS_CENSO.includes(String(c.marca)))
+                .slice(0, 200);
+            const validos = await prisma.patient.findMany({
+                where: { id: { in: propuestos.map(c => c.patientId as string) }, headquartersId },
+                select: { id: true },
+            });
+            const permitidos = new Set(validos.map(v => v.id));
+            censoInicial = propuestos
+                .filter(c => permitidos.has(c.patientId as string))
+                .map(c => ({
+                    patientId: c.patientId as string,
+                    marca: String(c.marca),
+                    // Solo cuando DISCREPA. Escribir "coincide" en todas las
+                    // filas seria ruido; el hueco es el dato.
+                    ...(c.sistemaDecia && c.sistemaDecia !== c.marca ? { contradice: String(c.sistemaDecia) } : {}),
+                }));
+        }
+
         // Suspensión de turno: el empleado sigue activo en el sistema y puede
         // entrar a Zendity, pero no abre turno. Es la diferencia con la baja
         // (isActive:false), donde ni siquiera puede iniciar sesión.
@@ -169,6 +209,7 @@ export async function POST(req: Request) {
                 caregiverId,
                 headquartersId,
                 initialCensus,
+                ...(censoInicial?.length ? { censoInicial } : {}),
                 startTime: new Date()
             }
         });

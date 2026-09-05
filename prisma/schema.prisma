@@ -2534,6 +2534,24 @@ model ShiftSession {
   expectedEndTime DateTime?
   actualEndTime   DateTime?
   initialCensus   Int?
+
+  /// El censo de inicio, residente por residente.
+  ///
+  /// Hasta sep-2026 solo se guardaba `initialCensus` — el NÚMERO de presentes.
+  /// La cuidadora recorría la lista decidiendo con cuidado dónde estaba cada
+  /// persona y de todo eso solo sobrevivía el conteo; las marcas se
+  /// descartaban al enviar. Creía estar registrando algo y no registraba nada.
+  ///
+  /// Shape: [{ patientId, marca, contradice? }] donde `marca` es PRESENT,
+  /// HOSPITAL, DIALYSIS o FAMILY_VISIT, y `contradice` guarda el `leaveType`
+  /// que el sistema tenía cuando la marca no coincidió — que es justo el caso
+  /// que hay que poder revisar después.
+  ///
+  /// NO cambia el estado del residente. Observar que alguien no está no es lo
+  /// mismo que autorizar su salida: eso pasa por su propio flujo, con motivo y
+  /// constancia. Aquí se guarda lo que se vio.
+  censoInicial    Json?
+
   leaveCensus     Int       @default(0) // Residentes del turno ausentes (Hospital/Familia)
   aiSummaryReport String?
 
