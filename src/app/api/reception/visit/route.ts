@@ -29,6 +29,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireKioskDevice, touchKioskDevice } from '@/lib/external-kiosk-auth';
 import { cuidadorasDeResidente } from '@/lib/cuidadora-a-cargo';
+import { evaluarAcceso, resumenParaPersonal } from '@/lib/visitantes-autorizados';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +71,17 @@ export async function POST(req: Request) {
         // Hora del servidor. La tablet ya no la propone.
         const visitedAt = new Date();
 
+        /**
+         * Acceso restringido: lista negra siempre, lista blanca solo en modo
+         * estricto. Se evalúa ANTES de dar por buena la visita.
+         *
+         * El intento se registra igual —con `retenida`— porque para un
+         * residente con restricción, "esta persona se presentó el martes" es
+         * justo lo que hay que poder mirar después. Si no se guardara, la única
+         * huella sería un aviso que alguien leyó y se fue.
+         */
+        const acceso = await evaluarAcceso(hqId, patient.id, visitorName);
+
         // Esto SÍ bloquea: es el asiento de la bitácora. Si falla, que se sepa.
         const visit = await prisma.familyVisit.create({
             data: {
@@ -80,6 +92,7 @@ export async function POST(req: Request) {
                 headquartersId: hqId,
                 signatureData: signatureData ? signatureData.substring(0, 50000) : null,
                 visitedAt,
+                retenida: acceso.retener,
                 notified: false,
             },
             select: { id: true, visitedAt: true },
@@ -92,6 +105,12 @@ export async function POST(req: Request) {
         const dateStr = visitedAt.toLocaleDateString('es-PR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const timeStr = visitedAt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' });
 
+        // Lo de aquí abajo describe una visita que OCURRIÓ. Si la persona
+        // quedó esperando en recepción, todavía no ocurrió: escribir "visitó a
+        // X" en el expediente sería falso, y mandar "X tiene visita" a la vez
+        // que "hay alguien esperando asistencia" son dos avisos que se
+        // contradicen en la misma pantalla.
+        if (!acceso.retener) {
         prisma.familyVisitNote.create({
             data: {
                 patientId: patient.id,
@@ -144,9 +163,56 @@ export async function POST(req: Request) {
                 }).catch(() => null),
             ));
         }).catch(e => console.error('Notificación de visita:', e));
+        }
+
+        if (acceso.retener) {
+            /**
+             * EL AVISO NO LLEVA VEREDICTO.
+             *
+             * "No autorizado a visitar a Fulano" es un juicio que la tablet
+             * puede equivocar —un nombre escrito distinto, un yerno nuevo que
+             * nadie añadió a la lista— y quien camine hasta recepción llegaría
+             * con un prejuicio sobre alguien que puede estar perfectamente
+             * bien. El título dice que hay una visita esperando; el detalle,
+             * sin sentencia, va en el cuerpo, y el motivo completo vive en el
+             * perfil del residente.
+             *
+             * TIPO `FAMILY_VISIT` a propósito, no uno nuevo: la tablet de cuido
+             * sondea ÚNICAMENTE ese tipo. Un tipo propio sería invisible ahí
+             * —construido y sin llegar a nadie— hasta añadirlo al sondeo.
+             */
+            const supervision = await prisma.user.findMany({
+                where: { headquartersId: hqId, role: { in: ['SUPERVISOR', 'DIRECTOR', 'ADMIN'] }, isActive: true, isDeleted: false },
+                select: { id: true },
+            });
+            const cuidadoras = await cuidadorasDeResidente(hqId, patient.id).catch(() => []);
+            const destinatarios = [...new Set([...supervision.map(u => u.id), ...cuidadoras.map(c => c.userId)])];
+
+            await Promise.all(destinatarios.map(userId =>
+                prisma.notification.create({
+                    data: {
+                        userId,
+                        type: 'FAMILY_VISIT',
+                        title: `Visita esperando asistencia — ${patient.name}`,
+                        message: `${resumenParaPersonal(acceso, visitorName)} Está esperando en recepción. El detalle está en el perfil del residente, en Acceso de visitas.`,
+                        isRead: false,
+                    },
+                }).catch(() => null),
+            ));
+
+            // La tablet solo sabe que hay que esperar. Nada de por qué.
+            return NextResponse.json({
+                success: true,
+                retenida: true,
+                visit,
+                patient: patient.name,
+                mensaje: 'Por favor espere un momento. Ya avisamos al personal de recepción.',
+            });
+        }
 
         return NextResponse.json({
             success: true,
+            retenida: false,
             visit,
             patient: patient.name,
             registradaA: visitedAt.toISOString(),

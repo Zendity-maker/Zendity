@@ -666,6 +666,18 @@ model FamilyVisit {
   fueraDeHorario  Boolean  @default(false)
   autorizadaPorId String?
 
+  /// La persona se presentó y quedó esperando asistencia en recepción.
+  ///
+  /// El intento SE REGISTRA aunque no llegue a pasar. Para un residente con
+  /// acceso restringido, "esta persona se presentó el martes" es justo lo que
+  /// hay que poder mirar después; si no se guardara, la única huella sería un
+  /// aviso que alguien leyó y se fue.
+  ///
+  /// Si supervisión lo deja pasar y el visitante repite el registro, quedan
+  /// dos filas: el intento y la visita. Son dos hechos distintos y las dos son
+  /// ciertas.
+  retenida        Boolean  @default(false)
+
   notified        Boolean  @default(false)
 
   headquarters Headquarters         @relation(fields: [headquartersId], references: [id])
@@ -705,6 +717,22 @@ model VisitanteAutorizado {
   id             String    @id @default(uuid())
   headquartersId String
   patientId      String
+
+  /// AUTORIZADO o NO_AUTORIZADO.
+  ///
+  /// Dos listas, no una. La primera versión tenía solo la de autorizados más
+  /// un interruptor de modo estricto, y eso obliga a todo o nada: para dejar
+  /// fuera a UNA persona habría que listar a todas las demás. Andrés lo señaló
+  /// y tiene razón — el caso común no es querer una lista blanca, es querer
+  /// mantener fuera a alguien en particular.
+  ///
+  ///   NO_AUTORIZADO  actúa SIEMPRE, con o sin modo estricto.
+  ///   AUTORIZADO     solo cuenta cuando `Patient.visitasRestringidas` está en
+  ///                  true. Sin estricto, la lista blanca no estorba a nadie.
+  ///
+  /// Si alguien apareciera en las dos por error, manda la negativa.
+  tipo           String    @default("AUTORIZADO")
+
   nombre         String
   relacion       String?
   telefono       String?
@@ -719,7 +747,7 @@ model VisitanteAutorizado {
   headquarters Headquarters @relation(fields: [headquartersId], references: [id])
   patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  @@index([patientId, activo])
+  @@index([patientId, activo, tipo])
   @@index([headquartersId])
 }
 
