@@ -13,6 +13,7 @@ import PatientFallRiskTab from "@/components/medical/fall-risk/PatientFallRiskTa
 import PatientEMARTab from "@/components/medical/emar/PatientEMARTab";
 import PatientClinicalSummaryTab from "@/components/medical/patient/PatientClinicalSummaryTab";
 import PatientFamilyTab from "@/components/medical/patient/PatientFamilyTab";
+import AccesoVisitasCard from "@/components/medical/patient/AccesoVisitasCard";
 import PatientBillingTab from "@/components/medical/patient/PatientBillingTab";
 import PatientReportsTab from "@/components/medical/patient/PatientReportsTab";
 import PatientExternalServicesTab from "@/components/medical/patient/PatientExternalServicesTab";
@@ -736,7 +737,14 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         {activeTab === "meds" && !isCoordinatorOnly && <PatientEMARTab patientId={params.id as string} />}
                         {activeTab === "upps" && !isCoordinatorOnly && <PatientUlcersTab patientId={params.id as string} />}
                         {activeTab === "falls" && !isCoordinatorOnly && <PatientFallRiskTab patientId={params.id as string} />}
-                        {activeTab === "family" && <PatientFamilyTab patientId={params.id as string} />}
+                        {/* El acceso de visitas va con el portal familiar: es
+                            donde se mira cuando pasa algo en recepcion. */}
+                        {activeTab === "family" && (
+                            <div className="space-y-6">
+                                <PatientFamilyTab patientId={params.id as string} />
+                                <AccesoVisitasCard patientId={params.id as string} patientName={patientData?.name} />
+                            </div>
+                        )}
                         {activeTab === "calls" && <PatientCallsTab patientId={params.id as string} />}
                         {activeTab === "social" && <PatientExternalServicesTab patientId={params.id as string} />}
                         {activeTab === "social-work" && hasSocialWorkAccess && !isCoordinatorOnly && <PatientSocialWorkTab patientId={params.id as string} />}
