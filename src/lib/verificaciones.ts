@@ -272,7 +272,6 @@ async function variosPaiVigentes(hqId: string): Promise<Hallazgo> {
 }
 
 /** Corre todas las verificaciones de una sede y devuelve solo lo que falló. */
-export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
 /* ─────────────── 7. RESIDENTE SIN PLAN DE CUIDO FIRMADO ─────────────────── */
 /**
  * Un residente lleva meses en el hogar y su PAI sigue sin firmar, o no existe.
@@ -325,6 +324,143 @@ async function sinPlanDeCuidoFirmado(hqId: string): Promise<Hallazgo> {
     };
 }
 
+
+/* ────────────── 8. LA DIETA NO REFLEJA EL DIAGNÓSTICO ──────────────────── */
+/**
+ * Un residente con diabetes documentada cuya prescripción de dieta no lleva el
+ * modificador diabético. La cocina prepara desde ese campo: `/kitchen` cuenta
+ * `dietDiabetic` para armar las bandejas del día. Si el campo está en false, la
+ * bandeja sale regular por más que el diagnóstico esté escrito dos pantallas
+ * más allá.
+ *
+ * MEDIDO EN CUPEY EL 05-sep-2026: 11 de 33 residentes activos tienen "Diabetes"
+ * escrita en sus diagnósticos de intake. UNO tiene la dieta diabética marcada.
+ * Seis de los diez restantes están además en tratamiento activo —Glimepiride,
+ * Januvia, Metformin, y dos con insulina Lantus—. La cocina veía un diabético.
+ *
+ * No es un descuido de nadie en particular: el diagnóstico se escribe en el
+ * intake, la dieta se prescribe en otra pantalla, y nada las compara. Esto las
+ * compara.
+ *
+ * CRÍTICA porque el daño es diario y silencioso: se sirve tres veces al día,
+ * nadie ve el error al servirlo, y el residente no está en condiciones de
+ * notarlo.
+ */
+
+/** Antidiabéticos por nombre. Se compara en minúsculas contra Medication.name. */
+const ANTIDIABETICOS = [
+    'metformin', 'glipizide', 'glyburide', 'glimepiride', 'sitagliptin', 'januvia',
+    'empagliflozin', 'jardiance', 'dapagliflozin', 'farxiga', 'pioglitazone', 'actos',
+    'insulin', 'lantus', 'humulin', 'humalog', 'novolog', 'levemir', 'tresiba',
+    'semaglutide', 'ozempic', 'dulaglutide', 'trulicity', 'liraglutide', 'victoza',
+];
+
+/** Diabetes en el texto del diagnóstico, sin contar "prediabetes" ni negaciones. */
+const DIABETES_DX = /(?<!pre[\s-]?)(?<!no\s)(?<!sin\s)diabet/i;
+/** Enfermedad renal que justifica el modificador renal. */
+const RENAL_DX = /(fallo|insuficiencia|enfermedad)\s+renal|renal\s+cr[oó]nic|\bERC\b|nefropat|di[aá]lisis/i;
+
+async function dietaNoReflejaDiagnostico(hqId: string): Promise<Hallazgo> {
+    const activos = await prisma.patient.findMany({
+        where: { headquartersId: hqId, status: 'ACTIVE' },
+        select: {
+            name: true, dietDiabetic: true, dietRenal: true, needsDialysis: true,
+            intakeData: { select: { diagnoses: true, medicalHistory: true } },
+            medications: {
+                where: { isActive: true },
+                select: { medication: { select: { name: true } } },
+            },
+        },
+    });
+
+    const casos: string[] = [];
+    for (const p of activos) {
+        const dx = `${p.intakeData?.diagnoses ?? ''} ${p.intakeData?.medicalHistory ?? ''}`;
+        const meds = p.medications.map(m => m.medication.name.toLowerCase());
+
+        // Diabetes: el diagnóstico escrito, o el tratamiento en curso.
+        const tratamiento = meds.filter(n => ANTIDIABETICOS.some(a => n.includes(a)));
+        if (!p.dietDiabetic && (DIABETES_DX.test(dx) || tratamiento.length > 0)) {
+            const porque = tratamiento.length > 0
+                ? `en tratamiento con ${tratamiento[0]}`
+                : 'diagnóstico de diabetes en el expediente';
+            casos.push(`${p.name.trim()} — ${porque}, y su dieta no está marcada como diabética`);
+        }
+
+        // Renal: la diálisis ya está marcada en el expediente, o el diagnóstico.
+        if (!p.dietRenal && (p.needsDialysis || RENAL_DX.test(dx))) {
+            const porque = p.needsDialysis ? 'recibe diálisis' : 'enfermedad renal en el expediente';
+            casos.push(`${p.name.trim()} — ${porque}, y su dieta no está marcada como renal`);
+        }
+    }
+
+    return {
+        codigo: 'DIETA_NO_REFLEJA_DIAGNOSTICO',
+        titulo: 'La dieta prescrita no refleja el diagnóstico',
+        severidad: 'CRITICA',
+        total: casos.length,
+        ejemplos: casos.slice(0, MAX_EJEMPLOS),
+        accion: 'Expediente del residente → Prescripción de dieta. Si el diagnóstico no aplica a la alimentación, corregir el diagnóstico; si aplica, marcar el modificador. La cocina lee ese campo.',
+    };
+}
+
+/* ───────────── 9. CONTROLADO QUE EL SISTEMA NO SABE QUE LO ES ──────────── */
+/**
+ * `Medication.isControlled` pinta el rótulo "Controlado" en la tableta de la
+ * cuidadora, junto al medicamento, en el momento de administrarlo.
+ *
+ * MEDIDO EL 05-sep-2026: 197 medicamentos en el catálogo, CERO marcados. Entre
+ * ellos Clonazepam 0.5 mg, Clonazepam 1 mg y Lorazepam 0.5 mg — benzodiacepinas
+ * de Lista IV. El rótulo existe desde que se escribió la pantalla y no se ha
+ * mostrado nunca, porque no hay ninguna fila que lo encienda.
+ *
+ * Se limita a las sustancias federalmente reguladas y sin ambigüedad. Los
+ * antipsicóticos —Quetiapine, Risperidone— NO entran: se vigilan de cerca en un
+ * hogar, pero no son sustancias controladas, y meterlos aquí haría sonar el
+ * chequeo por algo que no está mal. Gabapentin tampoco: su regulación varía por
+ * jurisdicción.
+ *
+ * Solo se miran los que esta sede tiene prescritos hoy — un catálogo maestro
+ * enorme convertiría esto en una lista que nadie termina.
+ */
+const CONTROLADOS_FEDERALES = [
+    'clonazep', 'lorazep', 'alprazol', 'diazep', 'temazep', 'midazol', 'chlordiazep',
+    'zolpidem', 'ambien', 'eszopiclone', 'lunesta', 'phenobarbital',
+    'oxycod', 'hydrocod', 'morphin', 'morfin', 'fentanyl', 'hydromorph', 'codeine', 'codeina',
+    'tramadol', 'methadon', 'buprenorph',
+    'methylphen', 'amphetamin', 'dextroamphetamin', 'lisdexamfetamin',
+    'pregabal', 'lyrica', 'testosteron', 'diazepam',
+];
+
+async function controladoSinMarcar(hqId: string): Promise<Hallazgo> {
+    const recetados = await prisma.patientMedication.findMany({
+        where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isActive: true },
+        select: { medication: { select: { name: true, isControlled: true } } },
+    });
+
+    const nombres = new Map<string, number>();
+    for (const r of recetados) {
+        const m = r.medication;
+        if (m.isControlled) continue;
+        if (!CONTROLADOS_FEDERALES.some(c => m.name.toLowerCase().includes(c))) continue;
+        nombres.set(m.name, (nombres.get(m.name) ?? 0) + 1);
+    }
+
+    const casos = [...nombres.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([nombre, n]) => `${nombre} — recetado a ${n} residente${n === 1 ? '' : 's'}`);
+
+    return {
+        codigo: 'CONTROLADO_SIN_MARCAR',
+        titulo: 'Sustancias controladas sin marcar en el catálogo',
+        severidad: 'ALTA',
+        total: casos.length,
+        ejemplos: casos.slice(0, MAX_EJEMPLOS),
+        accion: 'Medicamentos → Catálogo → editar y marcar "Controlado". Mientras esté en false, la tableta de la cuidadora no muestra el rótulo al administrarlo.',
+    };
+}
+
+export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
     const todas = await Promise.all([
         alergiasSinDocumentar(hqId),
         paiContradiceExpediente(hqId),
@@ -333,6 +469,8 @@ async function sinPlanDeCuidoFirmado(hqId: string): Promise<Hallazgo> {
         sinContactoFamiliar(hqId),
         variosPaiVigentes(hqId),
         sinPlanDeCuidoFirmado(hqId),
+        dietaNoReflejaDiagnostico(hqId),
+        controladoSinMarcar(hqId),
     ]);
     const orden: Record<Severidad, number> = { CRITICA: 0, ALTA: 1, MEDIA: 2 };
     return todas
