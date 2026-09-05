@@ -987,6 +987,9 @@ export default function ReceptionKiosk() {
                         <span className="text-4xl">🕒</span>
                     </div>
                     <h2 className="text-[var(--m-primary)] text-2xl font-bold">Fuera del horario de visitas</h2>
+                    {/* Que quede claro a QUE se refiere: el horario regula las
+                        visitas a residentes. Los servicios entran cuando el
+                        residente los necesita. */}
                     <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-lg leading-relaxed">
                         {errorOtro || 'Un miembro del personal debe autorizar esta visita.'}
                     </p>

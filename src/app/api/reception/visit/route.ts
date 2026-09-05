@@ -50,12 +50,26 @@ export async function POST(req: Request) {
         /**
          * Fuera de horario: no se bloquea, se exige autorización.
          *
+         * SOLO APLICA A LAS VISITAS A RESIDENTES. El horario de visitas regula
+         * cuándo la familia y las amistades pueden entrar a ver a alguien; no
+         * regula cuándo el hogar recibe servicios. Una enfermera de hospicio, una
+         * terapista o un médico llegan cuando el residente los necesita, y un
+         * inspector de agencia llega cuando le toca —a veces sin avisar, que es
+         * justamente el punto de una inspección.
+         *
+         * Pedirle el PIN de una supervisora a la enfermera de hospicio de las
+         * 2 de la madrugada convertiría una regla de cortesía en un obstáculo
+         * clínico.
+         *
          * El `autorizadaPorId` lo devuelve /api/reception/autorizar tras validar
          * el PIN de alguien del personal. Aquí se comprueba que ese id sea de
          * verdad de esta sede: sin eso, la tablet podría mandar cualquier id y
          * el asiento diría que autorizó alguien que no estaba.
          */
-        const horario = await estadoHorarioDeSede(hqId);
+        const rigeElHorario = tipo === 'FAMILIAR';
+        const horario = rigeElHorario
+            ? await estadoHorarioDeSede(hqId)
+            : { dentro: true, explicacion: '', horario: null as never };
         let autorizadaPorId: string | null = null;
         if (!horario.dentro) {
             const propuesto = String(body.autorizadaPorId ?? '').trim();
