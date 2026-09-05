@@ -5,6 +5,14 @@ import { FaHeart, FaStar, FaTimes, FaCheck, FaImages } from "react-icons/fa";
 
 export default function ZendiMomentsWidget() {
     const [moments, setMoments] = useState<any[]>([]);
+    /**
+     * Por qué HOY no hay mensaje para alguien.
+     *
+     * Cuando el servidor omite un momento por una novedad clínica reciente, el
+     * widget se quedaba en blanco y la cuidadora no sabía si es que no tocaba
+     * o si algo falló. Peor: no sabría que a esa familia hay que llamarla.
+     */
+    const [omitido, setOmitido] = useState<{ residente: string; mensaje: string } | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +28,7 @@ export default function ZendiMomentsWidget() {
             const data = await res.json();
             if (data.success && data.moments) {
                 setMoments(data.moments);
+                setOmitido(data.omitido ?? null);
             }
         } catch (error) {
             console.error("Error fetching Zendi moments", error);
@@ -71,6 +80,23 @@ export default function ZendiMomentsWidget() {
     };
 
     if (loading) return null;
+    // Sin mensaje por una novedad clínica: se DICE, y se dice qué hacer.
+    if (moments.length === 0 && omitido) {
+        return (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5">
+                <p className="font-black text-amber-900 text-sm uppercase tracking-wider mb-1">
+                    Sin mensaje automático hoy
+                </p>
+                <p className="text-amber-900 leading-relaxed">
+                    {omitido.mensaje}
+                </p>
+                <p className="text-amber-800/80 text-sm mt-2 leading-relaxed">
+                    Una novedad clínica se cuenta hablando, no con un mensaje automático.
+                </p>
+            </div>
+        );
+    }
+
     if (moments.length === 0) return null;
 
     const currentMoment = moments[0]; // Se resuelve de uno en uno
