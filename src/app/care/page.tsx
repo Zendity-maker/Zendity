@@ -3188,10 +3188,28 @@ export default function ZendityCareTabletPage() {
                                                 —hay algo en curso— en vez de anunciar el hecho a
                                                 secas en la pantalla del piso. */}
                                             {p.status === 'TEMPORARY_LEAVE' && (
-                                                <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex items-center justify-center font-display text-lg font-semibold text-[#94a3b8] backdrop-blur-sm text-center px-4">
-                                                    {p.leaveType === 'FALLECIMIENTO_REPORTADO'
-                                                        ? 'EN PROTOCOLO DE FALLECIMIENTO'
-                                                        : 'FUERA DE EDIFICIO'}
+                                                <div className="absolute inset-0 bg-[#0f172a]/85 z-20 flex flex-col items-center justify-center gap-1.5 backdrop-blur-sm text-center px-5">
+                                                    {p.leaveType === 'FALLECIMIENTO_REPORTADO' ? (
+                                                        <>
+                                                            <span className="font-display text-base font-semibold text-[#cbd5e1] leading-tight">
+                                                                EN PROTOCOLO DE FALLECIMIENTO
+                                                            </span>
+                                                            {/* La etiqueta sola no basta: quien mira la
+                                                                tablet necesita saber POR QUE esta tarjeta
+                                                                no le pide nada, y que alguien se esta
+                                                                ocupando. Sin eso, el hueco se lee como un
+                                                                fallo del sistema o como algo que se le
+                                                                olvido registrar. */}
+                                                            <span className="text-[13px] font-medium text-[#94a3b8] leading-snug">
+                                                                No se registran cuidados.
+                                                                <span className="block">Administración cerrará el expediente.</span>
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="font-display text-lg font-semibold text-[#94a3b8]">
+                                                            FUERA DE EDIFICIO
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
 
