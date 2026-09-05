@@ -81,10 +81,20 @@ export function nombresCoinciden(escrito: string, enLista: string): boolean {
     return contieneTodas(pb, pa) || contieneTodas(pa, pb);
 }
 
+/**
+ * @param soloListaNegra  El modo estricto NO se aplica.
+ *
+ * Se usa con los proveedores externos. Una orden de protección o un conflicto
+ * de familia apunta a personas concretas, y esas quedan fuera vengan a lo que
+ * vengan — por eso la lista negra sí corre. Pero aplicar el estricto dejaría
+ * esperando a la enfermera de hospicio y a la terapista en cada visita, y el
+ * modo estricto no se puso para eso: se puso para las visitas personales.
+ */
 export async function evaluarAcceso(
     hqId: string,
     patientId: string,
     nombreVisitante: string,
+    soloListaNegra = false,
 ): Promise<AccesoVisita> {
     const paciente = await prisma.patient.findFirst({
         where: { id: patientId, headquartersId: hqId },
@@ -111,7 +121,7 @@ export async function evaluarAcceso(
         };
     }
 
-    if (!paciente.visitasRestringidas) return { retener: false };
+    if (soloListaNegra || !paciente.visitasRestringidas) return { retener: false };
 
     const autorizado = lista.find(v => v.tipo === 'AUTORIZADO' && nombresCoinciden(nombreVisitante, v.nombre));
     return {

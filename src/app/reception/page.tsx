@@ -7,7 +7,22 @@ const INACTIVITY_MS = 60_000; // 60s para reset automático
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 type KioskStep = 'welcome' | 'asking-resident' | 'confirming-resident' | 'asking-name' | 'signing' | 'done'
-    | 'salida-nombre' | 'salida-hecha';
+    | 'salida-nombre' | 'salida-hecha'
+    // Los otros tres caminos. Recepcion es la PUERTA: por aqui entra todo el
+    // mundo, y lo que el proveedor externo hace adentro sigue siendo del kiosco
+    // de servicios externos.
+    | 'tour' | 'oficial' | 'servicio' | 'servicio-residentes'
+    // Alguien quedo esperando asistencia, o la visita es fuera de horario.
+    | 'retenida' | 'autorizar';
+
+/** FAMILIAR | TOUR | OFICIAL | SERVICIO_EXTERNO */
+type TipoVisita = 'FAMILIAR' | 'TOUR' | 'OFICIAL' | 'SERVICIO_EXTERNO';
+
+/** Residente tal como lo devuelve /api/reception/search-resident. */
+interface ResidenteBuscado { id: string; name: string; room?: string | null }
+
+/** Catálogo de entidades que dan servicio al hogar. */
+interface CategoriaEntidad { id: string; name: string; icon: string | null; providers: { id: string; name: string }[] }
 
 /** Visita abierta que el kiosco puede cerrar. */
 interface VisitaAbierta {
@@ -86,6 +101,40 @@ export default function ReceptionKiosk() {
     const [salidaHecha, setSalidaHecha] = useState<VisitaAbierta | null>(null);
     const [salidaError, setSalidaError] = useState<string | null>(null);
 
+    // ── Los tres caminos que no son el familiar ─────────────────────────────
+    const [tipo, setTipo] = useState<TipoVisita>('FAMILIAR');
+    const [otro, setOtro] = useState({
+        nombre: '', telefono: '', correo: '', futuroResidente: '',
+        entidad: '', profesion: '', motivo: '',
+    });
+    const [entidades, setEntidades] = useState<CategoriaEntidad[]>([]);
+    const [residentesElegidos, setResidentesElegidos] = useState<ResidenteBuscado[]>([]);
+    const [busquedaServicio, setBusquedaServicio] = useState('');
+    const [candidatosServicio, setCandidatosServicio] = useState<ResidenteBuscado[]>([]);
+    const [enviando, setEnviando] = useState(false);
+    const [errorOtro, setErrorOtro] = useState<string | null>(null);
+
+    // Fuera de horario: el PIN de quien autoriza. No se guarda, se cambia por
+    // un id en /api/reception/autorizar y se descarta.
+    const [pin, setPin] = useState('');
+    const [autorizadaPorId, setAutorizadaPorId] = useState<string | null>(null);
+    const [autorizadaPor, setAutorizadaPor] = useState<string | null>(null);
+    const [pendienteDeAutorizar, setPendienteDeAutorizar] = useState<KioskStep | null>(null);
+
+    const empezar = (t: TipoVisita, destino: KioskStep) => {
+        setTipo(t);
+        setOtro({ nombre: '', telefono: '', correo: '', futuroResidente: '', entidad: '', profesion: '', motivo: '' });
+        setResidentesElegidos([]);
+        setBusquedaServicio(''); setCandidatosServicio([]);
+        setErrorOtro(null);
+        setStep(destino);
+        if (t === 'SERVICIO_EXTERNO' && entidades.length === 0) {
+            fetch('/api/reception/entidades', { headers: kioskDeviceHeaders() })
+                .then(r => r.json()).then(d => { if (d.success) setEntidades(d.categorias ?? []); })
+                .catch(() => {});
+        }
+    };
+
     const buscarSalida = async () => {
         const nombre = salidaNombre.trim();
         if (nombre.length < 3 || salidaBuscando) return;
@@ -108,6 +157,98 @@ export default function ReceptionKiosk() {
         } finally {
             setSalidaBuscando(false);
         }
+    };
+
+    /**
+     * Envío de tour, oficial y servicio externo. Uno solo para los tres: al
+     * servidor le llega el mismo cuerpo con `tipo` distinto, y duplicar esto
+     * tres veces sería tres sitios donde olvidarse del token o del horario.
+     *
+     * Si el servidor responde 403 por horario, se guarda a dónde había que
+     * volver y se manda a la pantalla del PIN. Al autorizar, se reintenta solo.
+     */
+    const enviarOtro = async (t: TipoVisita, desde: KioskStep, autorizacion?: string | null) => {
+        if (enviando) return;
+        setEnviando(true);
+        setErrorOtro(null);
+        try {
+            const res = await fetch('/api/reception/visit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...kioskDeviceHeaders() },
+                body: JSON.stringify({
+                    tipo: t,
+                    visitorName: otro.nombre.trim(),
+                    visitorPhone: otro.telefono.trim() || null,
+                    visitorEmail: otro.correo.trim() || null,
+                    futuroResidente: otro.futuroResidente.trim() || null,
+                    entidad: otro.entidad.trim() || null,
+                    profesion: otro.profesion.trim() || null,
+                    motivo: otro.motivo.trim() || null,
+                    patientIds: residentesElegidos.map(r => r.id),
+                    autorizadaPorId: autorizacion ?? autorizadaPorId,
+                }),
+            });
+            const data = await res.json();
+
+            if (res.status === 403 && data.fueraDeHorario) {
+                setPendienteDeAutorizar(desde);
+                setPin('');
+                setErrorOtro(data.error);
+                setStep('autorizar');
+                return;
+            }
+            if (!data.success) { setErrorOtro(data.error || 'No se pudo registrar.'); return; }
+
+            if (data.retenida) { setStep('retenida'); speak('Por favor espere un momento. Ya avisamos al personal.'); return; }
+
+            setVisitId(data.visit?.id ?? null);
+            setStep('done');
+            speak(t === 'TOUR'
+                ? 'Registrado. En un momento alguien viene a recibirle.'
+                : 'Registrado. Gracias.');
+        } catch {
+            setErrorOtro('Error de conexión.');
+        } finally {
+            setEnviando(false);
+        }
+    };
+
+    /** Cambia el PIN del personal por un id, y reintenta lo que quedó pendiente. */
+    const autorizarYSeguir = async () => {
+        if (!pin.trim() || enviando) return;
+        setEnviando(true);
+        setErrorOtro(null);
+        try {
+            const res = await fetch('/api/reception/autorizar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...kioskDeviceHeaders() },
+                body: JSON.stringify({ pin: pin.trim() }),
+            });
+            const d = await res.json();
+            if (!d.success) { setErrorOtro(d.error); return; }
+            setAutorizadaPorId(d.autorizadaPorId);
+            setAutorizadaPor(d.autorizadaPor);
+            setPin('');
+            const volver = pendienteDeAutorizar;
+            setPendienteDeAutorizar(null);
+            if (volver === 'signing' || tipo === 'FAMILIAR') { setStep('signing'); }
+            else { await enviarOtro(tipo, volver ?? 'welcome', d.autorizadaPorId); }
+        } catch {
+            setErrorOtro('Error de conexión.');
+        } finally {
+            setEnviando(false);
+        }
+    };
+
+    /** Buscador de residentes para el servicio externo — permite varios. */
+    const buscarParaServicio = async (q: string) => {
+        setBusquedaServicio(q);
+        if (q.trim().length < 2) { setCandidatosServicio([]); return; }
+        try {
+            const res = await fetch(`/api/reception/search-resident?q=${encodeURIComponent(q)}`, { headers: kioskDeviceHeaders() });
+            const d = await res.json();
+            setCandidatosServicio((d.patients ?? []).filter((p: ResidenteBuscado) => !residentesElegidos.some(r => r.id === p.id)));
+        } catch { setCandidatosServicio([]); }
     };
 
     const confirmarSalida = async (visitId: string) => {
@@ -527,13 +668,30 @@ export default function ReceptionKiosk() {
                     visitorName: visitData.visitorName || visitorName,
                     visitorRelation: visitData.visitorRelation || visitorRelation,
                     patientId: visitData.patientId || null,
+                    tipo: 'FAMILIAR',
+                    autorizadaPorId,
                     // Sin `timestamp`: la hora la pone el servidor. Quien
                     // firma un registro no puede fijar su propia hora.
                     signatureData: signature,
                 })
             });
             const data = await res.json();
-            if (data.success) {
+
+            // Fuera de horario: no se pierde la firma ni los datos. Se guarda a
+            // donde hay que volver, se pide el PIN, y al autorizar se reintenta
+            // desde aqui mismo.
+            if (res.status === 403 && data.fueraDeHorario) {
+                setPendienteDeAutorizar('signing');
+                setPin('');
+                setErrorOtro(data.error);
+                setStep('autorizar');
+                return;
+            }
+
+            if (data.success && data.retenida) {
+                setStep('retenida');
+                speak('Por favor espere un momento. Ya avisamos al personal.');
+            } else if (data.success) {
                 setVisitId(data.visit?.id || null);
                 setStep("done");
             } else {
@@ -612,35 +770,240 @@ export default function ReceptionKiosk() {
 
             {/* ── STEP: WELCOME ── */}
             {step === "welcome" && (
-                <div className="flex flex-col items-center gap-8 animate-in fade-in zoom-in-95 duration-500">
-                    <div className="w-32 h-32 rounded-full bg-[color-mix(in_oklab,var(--m-accent)_35%,white)] border-2 border-[var(--m-accent)] flex items-center justify-center">
-                        <span className="text-6xl">👋</span>
-                    </div>
-                    <h1 className="text-[var(--m-primary)] text-3xl font-bold text-center leading-snug">
-                        ¡Bienvenido!
-                    </h1>
-                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-lg text-center max-w-sm">
-                        Regístrese para visitar a un residente de nuestra comunidad.
+                <div className="w-full max-w-2xl flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-500">
+                    <h1 className="text-[var(--m-primary)] text-3xl font-bold text-center">¡Bienvenido!</h1>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-lg text-center">
+                        ¿Qué le trae hoy?
                     </p>
-                    <button
-                        onClick={() => setStep("asking-resident")}
-                        className="mt-4 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-xl px-12 py-5 rounded-2xl shadow-lg hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
-                    >
-                        Iniciar Registro
-                    </button>
-                    {/* La salida con el mismo peso que la entrada.
-                        Empezo como un enlace subrayado y eso la volvia
-                        invisible: quien no la ve, no la usa, y una salida que
-                        nadie marca deja el registro sin decir quien esta dentro
-                        del edificio — que es para lo que sirve en una
-                        evacuacion. Va en azul secundario para que se distinga
-                        de la accion de entrar sin quedar por debajo. */}
+
+                    {/* Cuatro caminos, no uno. Cada uno pide cosas distintas y
+                        mezclarlos en un solo formulario obligaria a todos a
+                        contestar preguntas que no les tocan. Tarjetas grandes
+                        porque quien las toca puede tener ochenta anos y estar
+                        de pie en un mostrador. */}
+                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {([
+                            { icono: '👋', titulo: 'Visitar a un residente', sub: 'Familia y amistades', ir: () => { setTipo('FAMILIAR'); setStep('asking-resident'); }, principal: true },
+                            { icono: '🏡', titulo: 'Conocer el hogar', sub: 'Recorrido e información', ir: () => empezar('TOUR', 'tour') },
+                            { icono: '🩺', titulo: 'Servicio a residentes', sub: 'Enfermería, terapia, hospicio…', ir: () => empezar('SERVICIO_EXTERNO', 'servicio') },
+                            { icono: '📋', titulo: 'Visita oficial', sub: 'Agencia, inspección, suplidor', ir: () => empezar('OFICIAL', 'oficial') },
+                        ]).map(c => (
+                            <button
+                                key={c.titulo}
+                                onClick={c.ir}
+                                className={`flex items-center gap-4 text-left rounded-2xl px-6 py-6 shadow-lg active:scale-[0.98] transition-all ${
+                                    c.principal
+                                        ? 'bg-[var(--m-accent)] hover:brightness-95'
+                                        : 'bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_18%,transparent)]'
+                                }`}
+                            >
+                                <span className="text-4xl shrink-0">{c.icono}</span>
+                                <span className="min-w-0">
+                                    <span className="block text-[var(--m-primary)] font-black text-lg leading-tight">{c.titulo}</span>
+                                    <span className="block text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-sm mt-0.5">{c.sub}</span>
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* La salida con el mismo peso que la entrada. Empezo como
+                        un enlace subrayado y eso la volvia invisible: quien no
+                        la ve, no la usa, y una salida que nadie marca deja el
+                        registro sin decir quien esta dentro del edificio. */}
                     <button
                         onClick={() => { setSalidaNombre(""); setSalidaCandidatas([]); setSalidaError(null); setStep("salida-nombre"); }}
-                        className="mt-2 bg-white hover:brightness-[0.97] border-[3px] border-[var(--m-secondary)] text-[var(--m-primary)] font-black text-xl px-12 py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
+                        className="w-full mt-2 bg-white hover:brightness-[0.97] border-[3px] border-[var(--m-secondary)] text-[var(--m-primary)] font-black text-xl px-12 py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
                     >
                         Ya me voy — registrar mi salida
                     </button>
+                </div>
+            )}
+
+            {/* ── PASO: TOUR ── */}
+            {step === "tour" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">Bienvenido a conocer el hogar</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-base mb-2">
+                        Déjenos sus datos y alguien viene a recibirle.
+                    </p>
+                    <input autoFocus value={otro.nombre} onChange={e => setOtro({ ...otro, nombre: e.target.value })}
+                        placeholder="Su nombre completo" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input type="tel" value={otro.telefono} onChange={e => setOtro({ ...otro, telefono: e.target.value })}
+                        placeholder="Teléfono" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input type="email" value={otro.correo} onChange={e => setOtro({ ...otro, correo: e.target.value })}
+                        placeholder="Correo electrónico" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input value={otro.futuroResidente} onChange={e => setOtro({ ...otro, futuroResidente: e.target.value })}
+                        placeholder="¿Para quién nos visita? (opcional)" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    {errorOtro && <p className="text-amber-700 text-center text-base">{errorOtro}</p>}
+                    <div className="flex gap-3 w-full mt-2">
+                        <button onClick={() => setStep("welcome")} className="flex-1 bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold text-lg py-5 rounded-2xl transition-all">Volver</button>
+                        <button onClick={() => enviarOtro('TOUR', 'tour')} disabled={!otro.nombre.trim() || enviando} className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-lg py-5 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40">
+                            {enviando ? 'Registrando…' : 'Continuar'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PASO: VISITA OFICIAL ── */}
+            {step === "oficial" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">Visita oficial</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-base mb-2">
+                        Agencia, inspección o suplidor.
+                    </p>
+                    <input autoFocus value={otro.nombre} onChange={e => setOtro({ ...otro, nombre: e.target.value })}
+                        placeholder="Su nombre completo" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input value={otro.entidad} onChange={e => setOtro({ ...otro, entidad: e.target.value })}
+                        placeholder="¿De parte de qué entidad?" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input value={otro.motivo} onChange={e => setOtro({ ...otro, motivo: e.target.value })}
+                        placeholder="Motivo de la visita" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <input type="tel" value={otro.telefono} onChange={e => setOtro({ ...otro, telefono: e.target.value })}
+                        placeholder="Teléfono (opcional)" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    {errorOtro && <p className="text-amber-700 text-center text-base">{errorOtro}</p>}
+                    <div className="flex gap-3 w-full mt-2">
+                        <button onClick={() => setStep("welcome")} className="flex-1 bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold text-lg py-5 rounded-2xl transition-all">Volver</button>
+                        <button onClick={() => enviarOtro('OFICIAL', 'oficial')} disabled={!otro.nombre.trim() || !otro.entidad.trim() || enviando} className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-lg py-5 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40">
+                            {enviando ? 'Registrando…' : 'Continuar'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PASO: SERVICIO EXTERNO — QUIÉN ES ── */}
+            {step === "servicio" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">Servicio a residentes</h2>
+                    <input autoFocus value={otro.nombre} onChange={e => setOtro({ ...otro, nombre: e.target.value })}
+                        placeholder="Su nombre completo" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    <div className="w-full">
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mb-2 font-semibold">¿Qué hace usted?</p>
+                        <div className="flex flex-wrap gap-2">
+                            {['Enfermera', 'Médico', 'Trabajador social', 'Terapista', 'Hospicio', 'Otro'].map(pr => (
+                                <button key={pr} onClick={() => setOtro({ ...otro, profesion: pr })}
+                                    className={`px-5 py-3 rounded-2xl text-base font-bold border-2 transition-colors ${
+                                        otro.profesion === pr
+                                            ? 'bg-[var(--m-accent)] border-[var(--m-accent)] text-[var(--m-primary)]'
+                                            : 'bg-white border-[color-mix(in_oklab,var(--m-primary)_20%,transparent)] text-[var(--m-primary)]'
+                                    }`}>{pr}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="w-full">
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mb-2 font-semibold">¿De parte de qué entidad?</p>
+                        <input list="entidades-hogar" value={otro.entidad} onChange={e => setOtro({ ...otro, entidad: e.target.value })}
+                            placeholder="Escriba o elija" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                        {/* El catalogo ya existe y Cupey lo tiene lleno: 19
+                            proveedores. Si llega uno que no esta, se escribe y
+                            el servidor lo anade — asi es como Mayagüez, que no
+                            tiene ninguno, va a llenar el suyo. */}
+                        <datalist id="entidades-hogar">
+                            {entidades.flatMap(c => (c.providers ?? []).map(pv => (
+                                <option key={pv.id} value={pv.name} />
+                            )))}
+                        </datalist>
+                    </div>
+                    {errorOtro && <p className="text-amber-700 text-center text-base">{errorOtro}</p>}
+                    <div className="flex gap-3 w-full mt-2">
+                        <button onClick={() => setStep("welcome")} className="flex-1 bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold text-lg py-5 rounded-2xl transition-all">Volver</button>
+                        <button onClick={() => setStep("servicio-residentes")}
+                            disabled={!otro.nombre.trim() || !otro.entidad.trim() || enviando} className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-lg py-5 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40">
+                            Continuar
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PASO: SERVICIO EXTERNO — A QUIÉN VIENE ── */}
+            {step === "servicio-residentes" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold text-center">¿A quién viene a atender?</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-center text-base">
+                        Puede añadir varios.
+                    </p>
+                    {residentesElegidos.length > 0 && (
+                        <div className="w-full flex flex-wrap gap-2">
+                            {residentesElegidos.map(r => (
+                                <button key={r.id} onClick={() => setResidentesElegidos(v => v.filter(x => x.id !== r.id))}
+                                    className="flex items-center gap-2 bg-[var(--m-accent)] text-[var(--m-primary)] font-bold px-4 py-2.5 rounded-2xl text-base">
+                                    {r.name} <span className="opacity-60">✕</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <input value={busquedaServicio} onChange={e => buscarParaServicio(e.target.value)}
+                        placeholder="Escriba el nombre del residente" className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)]" />
+                    {candidatosServicio.length > 0 && (
+                        <div className="w-full flex flex-col gap-2">
+                            {candidatosServicio.map(c => (
+                                <button key={c.id} onClick={() => {
+                                    setResidentesElegidos(v => [...v, { id: c.id, name: c.name, room: c.room }]);
+                                    setBusquedaServicio(''); setCandidatosServicio([]);
+                                }}
+                                    className="w-full text-left bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_20%,transparent)] rounded-2xl px-5 py-4">
+                                    <span className="block text-[var(--m-primary)] font-bold">{c.name}</span>
+                                    <span className="block text-[color-mix(in_oklab,var(--m-primary)_70%,white)] text-sm">Cuarto {c.room ?? '—'}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {errorOtro && <p className="text-amber-700 text-center text-base">{errorOtro}</p>}
+                    <div className="flex gap-3 w-full mt-2">
+                        <button onClick={() => setStep("servicio")} className="flex-1 bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold text-lg py-5 rounded-2xl transition-all">Volver</button>
+                        <button onClick={() => enviarOtro('SERVICIO_EXTERNO', 'servicio-residentes')}
+                            disabled={residentesElegidos.length === 0 || enviando} className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-lg py-5 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40">
+                            {enviando ? 'Registrando…' : 'Continuar'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PASO: ESPERANDO ASISTENCIA ──
+                Ni una palabra de por que. Un "usted no esta autorizado" en la
+                pantalla seria confrontar a alguien en el lobby y revelar delante
+                de quien pase que ese residente tiene una restriccion. */}
+            {step === "retenida" && (
+                <div className="flex flex-col items-center gap-6 text-center max-w-lg animate-in fade-in zoom-in-95 duration-500">
+                    <div className="w-28 h-28 rounded-full bg-white border-[3px] border-[var(--m-secondary)] flex items-center justify-center">
+                        <span className="text-5xl">🔔</span>
+                    </div>
+                    <h2 className="text-[var(--m-primary)] text-3xl font-black">Un momento, por favor</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-xl leading-relaxed">
+                        Ya avisamos al personal de recepción. Enseguida le atienden.
+                    </p>
+                    <button onClick={() => { setStep('welcome'); setErrorOtro(null); }}
+                        className="mt-2 bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold px-10 py-4 rounded-2xl">
+                        Listo
+                    </button>
+                </div>
+            )}
+
+            {/* ── PASO: AUTORIZACIÓN FUERA DE HORARIO ──
+                No se bloquea: una emergencia no espera al martes. Pero no entra
+                nadie sin que alguien del personal ponga su PIN, y su nombre
+                queda en el asiento. */}
+            {step === "autorizar" && (
+                <div className="w-full max-w-lg flex flex-col items-center gap-5 text-center animate-in fade-in slide-in-from-bottom-4 duration-400">
+                    <div className="w-24 h-24 rounded-full bg-white border-[3px] border-[var(--m-secondary)] flex items-center justify-center">
+                        <span className="text-4xl">🕒</span>
+                    </div>
+                    <h2 className="text-[var(--m-primary)] text-2xl font-bold">Fuera del horario de visitas</h2>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-lg leading-relaxed">
+                        {errorOtro || 'Un miembro del personal debe autorizar esta visita.'}
+                    </p>
+                    <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-base">
+                        Pida a alguien del personal que ponga su PIN.
+                    </p>
+                    <input type="password" inputMode="numeric" autoFocus value={pin}
+                        onChange={e => setPin(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') autorizarYSeguir(); }}
+                        placeholder="PIN del personal"
+                        className="w-full bg-white border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] text-xl rounded-2xl px-6 py-5 outline-none focus:border-[var(--m-primary)] placeholder:text-[color-mix(in_oklab,var(--m-primary)_45%,white)] text-center tracking-[0.4em]" />
+                    <div className="flex gap-3 w-full">
+                        <button onClick={() => { setPin(''); setErrorOtro(null); setStep('welcome'); }} className="flex-1 bg-white hover:brightness-[0.97] border-2 border-[color-mix(in_oklab,var(--m-primary)_25%,transparent)] text-[var(--m-primary)] font-bold text-lg py-5 rounded-2xl transition-all">Cancelar</button>
+                        <button onClick={autorizarYSeguir} disabled={!pin.trim() || enviando} className="flex-1 bg-[var(--m-accent)] hover:brightness-95 text-[var(--m-primary)] font-black text-lg py-5 rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40">
+                            {enviando ? 'Verificando…' : 'Autorizar'}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -775,7 +1138,7 @@ export default function ReceptionKiosk() {
                         </div>
                     </div>
                     <div className="space-y-3">
-                        {residentCandidates.map((patient: any) => (
+                        {residentCandidates.map((patient: ResidenteBuscado) => (
                             <button
                                 key={patient.id}
                                 onClick={() => handleResidentSelect(patient)}
@@ -937,6 +1300,11 @@ export default function ReceptionKiosk() {
                             Así sabemos quién está en el hogar en caso de una emergencia.
                         </p>
                     </div>
+                    {autorizadaPor && (
+                        <p className="text-[color-mix(in_oklab,var(--m-primary)_80%,white)] text-base">
+                            Entrada autorizada por <strong>{autorizadaPor}</strong>.
+                        </p>
+                    )}
                     <p className="text-[color-mix(in_oklab,var(--m-primary)_72%,white)] text-sm mt-2">Esta pantalla se reiniciará en unos segundos...</p>
                 </div>
             )}
