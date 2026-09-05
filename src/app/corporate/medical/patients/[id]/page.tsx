@@ -109,6 +109,19 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
     // Form States
     const [actionReason, setActionReason] = useState("");
     const [leaveType, setLeaveType] = useState("HOSPITAL");
+    /**
+     * Tipo de BAJA, separado del tipo de PERMISO.
+     *
+     * Los dos <select> escribían el mismo `leaveType`, y el de baja no tenía
+     * `value` —no era controlado—. Al reabrir el modal, la pantalla volvía a
+     * mostrar "Egreso / Reubicación" mientras el estado seguía en 'DECEASED'
+     * de una vez anterior: el botón registraba un FALLECIMIENTO con la
+     * pantalla diciendo egreso.
+     *
+     * Un cierre de expediente no puede depender de que dos modales no se hayan
+     * pisado.
+     */
+    const [tipoBaja, setTipoBaja] = useState<'DISCHARGED' | 'DECEASED'>('DISCHARGED');
     // Sprint Diet System — prescripción canónica (textura + flags).
     // Reemplaza el viejo `newDiet` string.
     const [dietDraft, setDietDraft] = useState<DietPrescriptionData>({
@@ -602,7 +615,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                     </button>
                                 )}
                                 {puedeDarDeBaja && (
-                                    <button onClick={() => setShowDischargeModal(true)} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
+                                    <button onClick={() => { setTipoBaja('DISCHARGED'); setActionReason(''); setShowDischargeModal(true); }} className="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                         <ArrowRightOnRectangleIcon className="w-5 h-5" /> Baja Definitiva
                                     </button>
                                 )}
@@ -770,7 +783,7 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                         <div className="space-y-4 mb-8">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tipo de Baja</label>
-                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500" onChange={(e) => setLeaveType(e.target.value)}>
+                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500" value={tipoBaja} onChange={(e) => setTipoBaja(e.target.value as 'DISCHARGED' | 'DECEASED')}>
                                     <option value="DISCHARGED">Egreso / Reubicación</option>
                                     <option value="DECEASED">Fallecimiento</option>
                                 </select>
@@ -788,7 +801,9 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
 
                         <div className="flex gap-4 pt-4 border-t border-slate-100">
                             <button onClick={() => setShowDischargeModal(false)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors">Cancelar</button>
-                            <button onClick={() => handlePatientAction(leaveType === 'DECEASED' ? 'DECEASED' : 'DISCHARGED')} className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-colors">Confirmar Baja</button>
+                            <button onClick={() => handlePatientAction(tipoBaja)} className="flex-1 px-4 py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/30 transition-colors">
+                                {tipoBaja === 'DECEASED' ? 'Confirmar Fallecimiento' : 'Confirmar Egreso'}
+                            </button>
                         </div>
                     </div>
                 </div>
