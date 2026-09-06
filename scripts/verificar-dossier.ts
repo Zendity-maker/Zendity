@@ -15,7 +15,7 @@
  * Solo lee. No escribe nada.
  */
 import { prisma } from '../src/lib/prisma';
-import { construirDossierPDF, type DossierMeta } from '../src/lib/dossier-pdf';
+import { construirDossierPDF, construirDossierCompletoPDF, type DossierMeta } from '../src/lib/dossier-pdf';
 import { textoDeAlergias, alergiasSinDocumentar } from '../src/lib/alergias';
 
 /** Lo más largo que el prompt puede devolver hoy. El peor caso, no el normal. */
@@ -38,6 +38,7 @@ async function main() {
     const sedes = await prisma.headquarters.findMany({ where: { isActive: true }, select: { id: true, name: true, phone: true, billingAddress: true, logoUrl: true } });
 
     let peor = 0, total = 0, conAviso = 0;
+    const todas: DossierMeta[] = [];
     for (const sede of sedes) {
         const pacientes = await prisma.patient.findMany({
             where: { headquartersId: sede.id, status: 'ACTIVE' },
@@ -100,6 +101,7 @@ async function main() {
                 generadoAt: new Date(), desde: hace30,
             };
 
+            todas.push(meta);
             const { doc, omitido } = construirDossierPDF(meta);
             // --guardar <trozo del nombre>: escribe el PDF para poder mirarlo.
             const guardar = process.argv.indexOf('--guardar');
@@ -117,6 +119,24 @@ async function main() {
             console.log(`   ${paginas}p · ${String(v.length).padStart(2)} vit (${String(v.filter(anormal).length).padStart(2)} fuera) · ${String(p.medications.length).padStart(2)} meds · ${p.fallIncidents.length} caid · ${p.dailyLogs.length} alert · ${p.name.trim()}${marca}${corte}`);
         }
     }
+    // El taco de la visita: todos en un archivo, dos hojas cada uno.
+    if (todas.length) {
+        const { doc: taco, recortes } = construirDossierCompletoPDF(todas);
+        const pag = (taco.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
+        const fs = await import('fs');
+        fs.writeFileSync('/tmp/dossiers-visita-completa.pdf', Buffer.from(taco.output('arraybuffer')));
+        console.log(`\nTACO COMPLETO: ${todas.length} residentes · ${pag} paginas · esperadas ${todas.length * 2} · ${pag === todas.length * 2 ? 'CUADRA' : 'NO CUADRA'}`);
+        console.log(`   recortes: ${recortes.length ? recortes.map(r => r.nombre.trim()).join(', ') : 'ninguno'}`);
+        console.log('   /tmp/dossiers-visita-completa.pdf');
+
+        // El camino de "sin analisis": la IA es una seccion, no el documento.
+        const sinIA = { ...todas[0], analisis: '', analisisNoDisponible: 'OpenAI respondio 429 (limite de uso)' };
+        const { doc: d2, omitido: o2 } = construirDossierPDF(sinIA);
+        const p2 = (d2.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
+        fs.writeFileSync('/tmp/dossier-sin-ia.pdf', Buffer.from(d2.output('arraybuffer')));
+        console.log(`SIN ANALISIS DE ZENDI: ${p2} paginas · recorta ${o2.length ? o2.join(', ') : 'nada'} · /tmp/dossier-sin-ia.pdf`);
+    }
+
     console.log(`\nRESULTADO: ${total} dossiers · maximo ${peor} paginas · ${peor <= 2 ? 'TOPE RESPETADO' : 'TOPE ROTO'}`);
     console.log(`Con aviso de recorte al pie: ${conAviso} de ${total}. Ninguno recorta en silencio.`);
 }

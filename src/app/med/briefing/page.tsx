@@ -30,7 +30,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from 'react-markdown';
-import { descargarDossierPDF, type DossierMeta } from "@/lib/dossier-pdf";
+import { descargarDossierPDF, descargarDossierCompletoPDF, type DossierMeta } from "@/lib/dossier-pdf";
 
 interface VitalRow {
     date: string; systolic: number; diastolic: number; heartRate: number;
@@ -64,6 +64,8 @@ interface DossierData {
     patientId: string;
     patientName: string;
     dossierMarkdown: string;
+    /** Por qué falta el análisis de Zendi. El resto del dossier no depende de él. */
+    analisisNoDisponible: string | null;
     hasRedFlags: boolean;
     redFlags: string[];
     rawData: DossierRawData;
@@ -72,12 +74,22 @@ interface DossierData {
 const fechaHora = (iso: string) =>
     new Date(iso).toLocaleString('es-PR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+/** Lo que la lista necesita de /api/corporate/patients. Nada más. */
+interface ResidenteEnLista {
+    id: string;
+    name: string;
+    roomNumber: string | null;
+    colorGroup: string | null;
+}
+
 export default function MedicalBriefingPage() {
-    const [patients, setPatients] = useState<any[]>([]);
+    const [patients, setPatients] = useState<ResidenteEnLista[]>([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState<string | null>(null);
     const [dossiers, setDossiers] = useState<Record<string, DossierData>>({});
     const [activeDossier, setActiveDossier] = useState<string | null>(null);
+    const [lote, setLote] = useState<{ hechos: number; total: number; quien: string } | null>(null);
+    const [resumenLote, setResumenLote] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -94,8 +106,8 @@ export default function MedicalBriefingPage() {
         })();
     }, []);
 
-    const handleGenerateDossier = async (patientId: string) => {
-        setGenerating(patientId);
+    /** Pide un dossier. Devuelve el dato o el motivo del fallo, sin alertas. */
+    const pedirDossier = async (patientId: string): Promise<DossierData | string> => {
         try {
             const res = await fetch("/api/med/briefing/monthly", {
                 method: "POST",
@@ -105,47 +117,106 @@ export default function MedicalBriefingPage() {
             const data = await res.json();
             if (data.success) {
                 setDossiers(prev => ({ ...prev, [patientId]: data as DossierData }));
-                setActiveDossier(patientId);
-            } else {
-                alert(`Error consultando Zendi: ${data.error}`);
+                return data as DossierData;
             }
+            return data.error || `El servidor respondió ${res.status}`;
         } catch (e) {
-            console.error(e);
-            alert("Error de conexión con el motor de inteligencia clínica.");
-        } finally {
-            setGenerating(null);
+            return (e as Error).message || 'no se pudo conectar con el servidor';
         }
+    };
+
+    const handleGenerateDossier = async (patientId: string) => {
+        setGenerating(patientId);
+        setResumenLote(null);
+        const r = await pedirDossier(patientId);
+        setGenerating(null);
+        if (typeof r === 'string') {
+            // El motivo real, no "error interno". Si esto vuelve a fallar,
+            // el mensaje dice qué arreglar.
+            alert(`No se pudo generar el dossier.\n\n${r}`);
+            return;
+        }
+        setActiveDossier(patientId);
+    };
+
+    /**
+     * TODOS LOS RESIDENTES, UN SOLO ARCHIVO.
+     *
+     * De uno en uno a propósito: son una llamada a la IA por residente y
+     * dispararlas todas a la vez es la forma de que el proveedor corte a la
+     * mitad y no se sepa cuáles salieron. Va enseñando por quién va.
+     *
+     * Un residente que falle NO detiene el resto: se anota y se sigue. El
+     * resumen final dice cuántos salieron, cuántos fallaron y cuáles se
+     * quedaron sin el análisis de Zendi — porque un taco de papeles del que no
+     * se sabe qué falta es peor que no tenerlo.
+     */
+    const generarTodos = async () => {
+        const total = patients.length;
+        if (total === 0) return;
+        if (!confirm(
+            `Se van a generar ${total} dossiers, uno por residente activo, y se descargarán en un solo PDF de ${total * 2} páginas.\n\n` +
+            `Cada uno consulta a Zendi, así que tarda un rato y tiene costo. ¿Seguimos?`
+        )) return;
+
+        setResumenLote(null);
+        const hechos: DossierData[] = [];
+        const fallaron: string[] = [];
+
+        for (let i = 0; i < total; i++) {
+            const p = patients[i];
+            setLote({ hechos: i, total, quien: p.name });
+            const r = await pedirDossier(p.id);
+            if (typeof r === 'string') fallaron.push(`${p.name} (${r})`);
+            else hechos.push(r);
+        }
+        setLote(null);
+
+        if (hechos.length === 0) {
+            setResumenLote(`No salió ninguno. El primero falló así: ${fallaron[0] ?? 'sin detalle'}`);
+            return;
+        }
+
+        descargarDossierCompletoPDF(hechos.map(aMeta), hechos[0].rawData.hqName ?? 'Zendity');
+
+        const sinAnalisis = hechos.filter(d => !d.dossierMarkdown.trim()).length;
+        setResumenLote([
+            `${hechos.length} de ${total} dossiers descargados en un solo PDF.`,
+            fallaron.length ? `No salieron ${fallaron.length}: ${fallaron.join(' · ')}.` : '',
+            sinAnalisis ? `${sinAnalisis} van sin el análisis de Zendi; el papel lo dice y lo demás está completo.` : '',
+        ].filter(Boolean).join(' '));
     };
 
     const active = activeDossier ? dossiers[activeDossier] : null;
 
     /** Lo mismo que ve el médico en papel, armado desde lo que hay en pantalla. */
-    const descargar = () => {
-        if (!active) return;
-        const r = active.rawData;
+    const aMeta = (d: DossierData): DossierMeta => {
+        const r = d.rawData;
         const desde = new Date();
         desde.setDate(desde.getDate() - 30);
-        const meta: DossierMeta = {
-            nombre: active.patientName,
+        return {
+            nombre: d.patientName,
             habitacion: r.roomNumber,
             grupoColor: r.colorGroup,
             dieta: r.diet,
             alergias: r.allergies,
             alergiasSinDocumentar: r.allergiesUndocumented,
             diagnosticos: r.diagnoses,
-            señalesDeAlarma: active.redFlags ?? [],
+            señalesDeAlarma: d.redFlags ?? [],
             vitales: r.vitals,
             promedio: r.avgVitals,
             medicamentos: r.medications,
             caidas: r.falls,
             alertas: r.clinicalAlerts,
-            analisis: active.dossierMarkdown,
+            analisis: d.dossierMarkdown,
+            analisisNoDisponible: d.analisisNoDisponible,
             hogar: { nombre: r.hqName ?? 'Zéndity', telefono: r.hqPhone, direccion: r.hqAddress, logo: r.hqLogoUrl },
             generadoAt: new Date(),
             desde,
         };
-        descargarDossierPDF(meta);
     };
+
+    const descargar = () => { if (active) descargarDossierPDF(aMeta(active)); };
 
     const fuera = active ? active.rawData.vitals.filter(v => v.isAbnormal) : [];
 
@@ -159,6 +230,40 @@ export default function MedicalBriefingPage() {
                 <p className="text-slate-500 font-medium text-lg mt-1">
                     Los últimos 30 días del residente, en dos páginas, para el médico que visita.
                 </p>
+
+                {!loading && patients.length > 0 && (
+                    <div className="mt-5 flex flex-wrap items-center gap-3">
+                        <button
+                            onClick={generarTodos}
+                            disabled={!!lote || !!generating}
+                            className="py-3 px-6 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-black rounded-xl shadow-md transition-all active:scale-95"
+                        >
+                            {lote
+                                ? `Generando ${lote.hechos + 1} de ${lote.total}…`
+                                : `Generar los ${patients.length} y bajar un solo PDF`}
+                        </button>
+                        {lote && (
+                            <span className="text-sm font-bold text-slate-500">
+                                {lote.quien}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {lote && (
+                    <div className="mt-3 h-2 w-full max-w-xl bg-slate-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-teal-500 transition-all duration-300"
+                            style={{ width: `${Math.round((lote.hechos / lote.total) * 100)}%` }}
+                        />
+                    </div>
+                )}
+
+                {resumenLote && (
+                    <div className="mt-4 max-w-3xl rounded-xl border-2 border-teal-200 bg-teal-50 px-5 py-3">
+                        <p className="text-sm font-bold text-teal-900">{resumenLote}</p>
+                    </div>
+                )}
             </div>
 
             {loading ? (
@@ -257,9 +362,25 @@ export default function MedicalBriefingPage() {
                                     )}
                                 </div>
 
-                                <div className="prose prose-slate prose-sm max-w-none">
-                                    <ReactMarkdown>{active.dossierMarkdown}</ReactMarkdown>
-                                </div>
+                                {/* El resto del dossier no depende de la IA, asi
+                                    que si falta se dice y ya — no se esconde ni
+                                    se tira el documento entero. */}
+                                {active.dossierMarkdown.trim() ? (
+                                    <div className="prose prose-slate prose-sm max-w-none">
+                                        <ReactMarkdown>{active.dossierMarkdown}</ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3">
+                                        <h4 className="text-xs font-black text-amber-800 uppercase tracking-wider mb-1">Sin análisis de Zendi</h4>
+                                        <p className="text-sm text-amber-900">
+                                            {active.analisisNoDisponible
+                                                ? `No se pudo generar: ${active.analisisNoDisponible}.`
+                                                : 'No se pudo generar el análisis automático.'}{' '}
+                                            El dossier se descarga igual — alergias, medicamentos y signos vitales
+                                            salen del expediente y no dependen de él.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center text-slate-400 font-bold">

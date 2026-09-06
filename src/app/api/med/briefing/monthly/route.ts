@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         const patient: any = await prisma.patient.findFirst({
             where: { id: patientId, headquartersId: auth.headquartersId },
             include: {
-                headquarters: { select: { id: true, name: true, logoUrl: true, billingAddress: true, phone: true } },
+                headquarters: { select: { id: true, name: true, logoUrl: true, address: true, billingAddress: true, phone: true } },
                 vitalSigns: { where: { createdAt: { gte: date30DaysAgo } }, orderBy: { createdAt: 'asc' }, include: { measuredBy: { select: { name: true } } } },
                 incidents: { where: { reportedAt: { gte: date30DaysAgo } }, orderBy: { reportedAt: 'asc' } },
                 dailyLogs: { where: { createdAt: { gte: date30DaysAgo }, isClinicalAlert: true }, orderBy: { createdAt: 'asc' }, include: { author: { select: { name: true } } } },
@@ -130,16 +130,44 @@ ${incidentLogs.length > 0 ? incidentLogs.join('\n') : 'Ninguno'}
 Caidas Reportadas:
 ${fallLogs.length > 0 ? fallLogs.join('\n') : 'Ninguna'}`;
 
-        const gptResponse = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [{ role: "system", content: systemPrompt }],
-            temperature: 0.2,
-            // 800 daba un texto que no cabia en la pagina 2. Las tablas del PDF
-            // ya llevan los numeros; esto es la lectura, no el dato.
-            max_tokens: 520,
-        });
+        /**
+         * EL ANÁLISIS ES UNA SECCIÓN, NO EL DOCUMENTO.
+         *
+         * Antes esta llamada estaba dentro del try grande: si OpenAI fallaba
+         * —sin clave, sin crédito, caído, modelo retirado— la ruta devolvía un
+         * 500 con "Error interno al generar el dossier medico" y el médico se
+         * quedaba SIN PAPEL. Pero las alergias, los medicamentos, los vitales,
+         * las caídas y las alertas no necesitan IA: salen del expediente.
+         *
+         * Así que el fallo se aísla, y el motivo VIAJA con la respuesta. Un
+         * "error interno" genérico es lo que hace imposible saber qué pasó
+         * cuando alguien reporta que "el botón no hace nada".
+         */
+        let dossierMarkdown = '';
+        let analisisNoDisponible: string | null = null;
 
-        const dossierMarkdown = gptResponse.choices[0].message?.content || "No se pudo generar el dossier tecnico.";
+        if (!process.env.OPENAI_API_KEY) {
+            analisisNoDisponible = 'falta la clave de OpenAI en el servidor (OPENAI_API_KEY)';
+            console.error('[dossier] OPENAI_API_KEY no configurada');
+        } else {
+            try {
+                const gptResponse = await openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: [{ role: "system", content: systemPrompt }],
+                    temperature: 0.2,
+                    // 800 daba un texto que no cabia en la pagina 2. Las tablas
+                    // del PDF ya llevan los numeros; esto es la lectura, no el dato.
+                    max_tokens: 520,
+                });
+                dossierMarkdown = gptResponse.choices[0].message?.content?.trim() || '';
+                if (!dossierMarkdown) analisisNoDisponible = 'el modelo respondió vacío';
+            } catch (e) {
+                // El mensaje de OpenAI enmascara la clave; se recorta igualmente.
+                const msg = (e as Error)?.message ?? 'error desconocido';
+                analisisNoDisponible = msg.slice(0, 180);
+                console.error('[dossier] fallo el analisis de Zendi:', msg);
+            }
+        }
 
         // El dossier sale del sistema hacia un medico de fuera: es una
         // exportacion de PHI y tiene que quedar registrada.
@@ -161,6 +189,7 @@ ${fallLogs.length > 0 ? fallLogs.join('\n') : 'Ninguna'}`;
             patientName: patient.name,
 
             dossierMarkdown,
+            analisisNoDisponible,
             hasRedFlags: redFlags.length > 0,
             redFlags,
             rawData: {
@@ -180,7 +209,10 @@ ${fallLogs.length > 0 ? fallLogs.join('\n') : 'Ninguna'}`;
                 // entra en el documento sin depender de una descarga.
                 hqLogoUrl: patient.headquarters?.logoUrl || null,
 
-                hqAddress: patient.headquarters?.billingAddress || null,
+                // `address` es donde ESTA el hogar —la de membretes—;
+                // `billingAddress` es a donde llega el correo administrativo.
+                // Ver el comentario del schema en Headquarters.
+                hqAddress: patient.headquarters?.address || patient.headquarters?.billingAddress || null,
                 hqPhone: patient.headquarters?.phone || null,
                 vitals: vitals.map((v: any) => ({
                     date: v.createdAt.toISOString(),
@@ -214,7 +246,14 @@ ${fallLogs.length > 0 ? fallLogs.join('\n') : 'Ninguna'}`;
         });
 
     } catch (error) {
-        console.error("Monthly Briefing API Error:", error);
-        return NextResponse.json({ success: false, error: "Error interno al generar el dossier medico." }, { status: 500 });
+        // La IA ya no llega aqui: lo que caiga en este catch es la base de
+        // datos o un dato con una forma inesperada. Se dice cual, porque
+        // "error interno" no le sirve a nadie para arreglarlo.
+        const msg = (error as Error)?.message ?? 'error desconocido';
+        console.error("[dossier] fallo armando el documento:", msg);
+        return NextResponse.json(
+            { success: false, error: `No se pudo armar el dossier: ${msg.slice(0, 180)}` },
+            { status: 500 },
+        );
     }
 }

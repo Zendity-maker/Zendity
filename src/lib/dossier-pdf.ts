@@ -23,6 +23,12 @@
  * con el número. Una lista que se recorta en silencio es peor que una lista
  * larga: el médico no tiene forma de saber que le falta algo.
  *
+ * EL ANÁLISIS DE ZENDI ES UNA SECCIÓN, NO EL DOCUMENTO. Si la IA no responde
+ * —sin clave, sin crédito, OpenAI caído— el dossier se hace igual: las
+ * alergias, los medicamentos y los vitales no necesitan IA para nada. Antes un
+ * fallo de OpenAI se llevaba por delante el documento entero y el médico se
+ * quedaba sin papel. Ahora falta un párrafo y el papel lo dice.
+ *
  * POR QUÉ NO ES UNA CAPTURA DE PANTALLA. Antes esto era html2canvas: una imagen
  * larga cortada en trozos. El texto no se podía seleccionar, las filas se
  * partían por la mitad en el corte, y el nombre del residente salía solo en la
@@ -88,8 +94,10 @@ export interface DossierMeta {
     medicamentos: MedDossier[];
     caidas: { date: string; severity: string | null; notes: string | null; interventions: string | null }[];
     alertas: { date: string; notes: string | null; author: string | null }[];
-    /** El texto de Zendi, en markdown. */
+    /** El texto de Zendi, en markdown. Vacío si no se pudo generar. */
     analisis: string;
+    /** Por qué falta el análisis. Se imprime tal cual si `analisis` está vacío. */
+    analisisNoDisponible?: string | null;
     hogar: {
         nombre: string;
         telefono?: string | null;
@@ -132,8 +140,21 @@ const fechaHora = (iso: string) =>
  * precio del tope. "Cabe en dos páginas" no significa nada si para lograrlo se
  * está tirando media historia clínica por la borda sin decirlo.
  */
-export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: string[] } {
-    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+const paginasDe = (doc: jsPDF) =>
+    (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
+
+/**
+ * Pinta LAS DOS HOJAS de un residente en el documento que se le pase.
+ *
+ * Está separada de `construirDossierPDF` para que el mismo código sirva para un
+ * residente y para los treinta y tres seguidos. La alternativa —dos
+ * generadores— es la forma de que el papel de la visita completa acabe siendo
+ * distinto del papel de un residente suelto, y entonces nadie sabe cuál está
+ * mirando. Es lo mismo que le pasaba al PAI.
+ *
+ * `primero` dice si puede usar la página que jsPDF ya trae abierta.
+ */
+function pintarDossier(doc: jsPDF, m: DossierMeta, primero: boolean): string[] {
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
 
@@ -154,7 +175,7 @@ export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: stri
 
     const abrirPagina = () => {
         pagina++;
-        if (pagina > 1) doc.addPage();
+        if (!(primero && pagina === 1)) doc.addPage();
         const alto = pagina === 1 ? 26 : 16;
         setFill(INK);
         doc.rect(0, 0, W, alto, 'F');
@@ -432,7 +453,21 @@ export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: stri
         y += 2;
     }
 
-    if (m.analisis.trim() && titulo('Análisis de Zendi')) {
+    /**
+     * Cuando el análisis falta se dice, con el motivo. Un hueco silencioso en
+     * un documento clínico hace que quien lo lee crea que no había nada que
+     * analizar, y eso es distinto de que la máquina no contestara.
+     */
+    if (!m.analisis.trim()) {
+        if (titulo('Análisis de Zendi', AMBAR)) {
+            parrafo(
+                m.analisisNoDisponible
+                    ? `No se pudo generar el análisis automático de este mes: ${m.analisisNoDisponible}. Todo lo demás de este documento —alergias, medicamentos, signos vitales, caídas y alertas— sale directo del expediente y no depende de él.`
+                    : 'No se pudo generar el análisis automático de este mes. Todo lo demás de este documento sale directo del expediente y no depende de él.',
+                8.5, AMBAR,
+            );
+        }
+    } else if (titulo('Análisis de Zendi')) {
         const bs = bloques(m.analisis);
         let cortado = false;
         for (const b of bs) {
@@ -451,9 +486,18 @@ export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: stri
     }
 
     /* ── Pie de las dos hojas ──────────────────────────────────────────── */
+    /**
+     * "Página 1 de 2", no "página 7 de 66".
+     *
+     * En el PDF de la visita completa cada residente sigue siendo un documento
+     * de dos hojas que se puede separar del taco y archivar solo. Numerarlo
+     * sobre el total del taco lo convertiría en un capítulo de algo, y en la
+     * oficina del médico esas dos hojas acaban en una carpeta con su nombre.
+     */
     const total = pagina;
+    const ultima = paginasDe(doc);
     for (let p = 1; p <= total; p++) {
-        doc.setPage(p);
+        doc.setPage(ultima - total + p);
         if (p === total) {
             if (omitido.length) {
                 setFill(AMBAR_BG); setDraw(AMBAR); doc.setLineWidth(0.4);
@@ -512,7 +556,37 @@ export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: stri
         doc.text(`Página ${p} de ${total}`, W - M, H - 9, { align: 'right' });
     }
 
-    return { doc, omitido };
+    doc.setPage(paginasDe(doc));
+    return omitido;
+}
+
+/** Un residente. */
+export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: string[] } {
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    return { doc, omitido: pintarDossier(doc, m, true) };
+}
+
+/**
+ * Todos los residentes de la visita, en un solo archivo.
+ *
+ * El médico que viene un martes ve a veinte personas seguidas. Veinte archivos
+ * sueltos en la carpeta de descargas es veinte oportunidades de abrir el que no
+ * era; uno solo se imprime de un tirón y se reparte. Cada residente conserva
+ * sus dos hojas con su nombre en las dos, así que el taco se separa sin perder
+ * de quién es cada papel.
+ *
+ * Devuelve también qué se recortó y de quién, para poder decirlo.
+ */
+export function construirDossierCompletoPDF(
+    metas: DossierMeta[],
+): { doc: jsPDF; recortes: { nombre: string; omitido: string[] }[] } {
+    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+    const recortes: { nombre: string; omitido: string[] }[] = [];
+    metas.forEach((m, i) => {
+        const omitido = pintarDossier(doc, m, i === 0);
+        if (omitido.length) recortes.push({ nombre: m.nombre, omitido });
+    });
+    return { doc, recortes };
 }
 
 /** Nombre del archivo que ve quien descarga. */
@@ -524,4 +598,12 @@ export function dossierFileName(nombre: string): string {
 /** Genera y descarga. Es lo que llama el botón de la pantalla. */
 export function descargarDossierPDF(m: DossierMeta): void {
     construirDossierPDF(m).doc.save(dossierFileName(m.nombre));
+}
+
+/** Genera y descarga el taco completo de la visita. */
+export function descargarDossierCompletoPDF(metas: DossierMeta[], hogar: string): void {
+    const limpio = hogar.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+    construirDossierCompletoPDF(metas).doc.save(
+        `Dossiers_Visita_Medica_${limpio}_${new Date().toISOString().slice(0, 10)}.pdf`,
+    );
 }
