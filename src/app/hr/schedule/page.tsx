@@ -77,6 +77,26 @@ const TECLA_COLOR: Record<string, string> = {
     '0': '',           // sin color
 };
 
+/**
+ * LOS GRUPOS QUE EXISTEN DE VERDAD.
+ *
+ * En Cupey hay tres, con once residentes cada uno: rojo, azul y amarillo.
+ * GREEN tiene CERO residentes y sin embargo era el color por defecto de cada
+ * turno nuevo — se planificaron 25 turnos a un grupo que no tiene a nadie.
+ *
+ * Se deja como opción por si el hogar lo activa, pero no cuenta para la
+ * cobertura: exigir que esté cubierto un grupo sin residentes sería pedir que
+ * alguien cuide a nadie.
+ */
+const COLORES_CON_RESIDENTES = ['RED', 'YELLOW', 'BLUE'];
+
+/** Los turnos que necesitan cobertura de color. Un día libre no cubre nada. */
+const TURNOS_QUE_CUBREN = ['MORNING', 'EVENING', 'NIGHT', 'FULL_DAY', 'FULL_NIGHT'];
+
+const NOMBRE_COLOR: Record<string, string> = {
+    RED: 'Rojo', YELLOW: 'Amarillo', BLUE: 'Azul', GREEN: 'Verde', ALL: 'Todos',
+};
+
 /** Lo que se enseña debajo de la tabla. Una lista corta que se aprende mirando. */
 const AYUDA_TECLAS = [
     { k: 'D', q: 'Diurno' }, { k: 'T', q: 'Tarde' }, { k: 'N', q: 'Noche' }, { k: 'L', q: 'Libre' },
@@ -217,6 +237,23 @@ export default function ScheduleBuilderPage() {
      * tocar el ratón.
      */
     const [celdaFoco, setCeldaFoco] = useState<{ userId: string; fecha: string } | null>(null);
+
+    /**
+     * DOS PASADAS, NO UNA.
+     *
+     * "Quién trabaja qué día" y "qué grupo lleva" son dos decisiones con vidas
+     * distintas, y estaban pegadas en la misma tarjeta.
+     *
+     * Medido sobre 15 semanas: quién trabaja se repite el 55% de una semana a
+     * otra; añadiendo el color baja al 33%. Y el color que se planifica lo
+     * rehace el piso 31 VECES AL DÍA — 959 reasignaciones en 30 días, de las
+     * cuales solo 9 fueron por ausencia. Cuando el turno acaba teniendo las dos
+     * cosas, el color planificado NO coincide el 54% de las veces.
+     *
+     * O sea: el turno es un compromiso con la persona; el color es una
+     * propuesta que el piso ajusta al entrar. Se arman por separado.
+     */
+    const [modoColor, setModoColor] = useState(false);
     /** Guardado automático: hay cambios que todavía no están en la base. */
     const [sinGuardar, setSinGuardar] = useState(false);
     const [guardadoAt, setGuardadoAt] = useState<Date | null>(null);
@@ -333,6 +370,81 @@ export default function ScheduleBuilderPage() {
     }, [sinGuardar]);
 
     /**
+     * QUÉ COLORES FALTAN, DÍA POR DÍA Y TURNO POR TURNO.
+     *
+     * Es lo único que hace difícil repartir colores: no es elegir uno, es
+     * comprobar que cada turno de cada día tenga sus tres grupos cubiertos. Eso
+     * se hacía de cabeza mirando siete columnas.
+     */
+    const huecosDeColor = () => {
+        const huecos: { fecha: string; dia: string; turno: string; faltan: string[] }[] = [];
+        for (const d of weekDays) {
+            const fecha = d.toISOString().split('T')[0];
+            for (const turno of ['MORNING', 'EVENING', 'NIGHT']) {
+                const delTurno = shifts.filter(s =>
+                    s.date === fecha
+                    && (s.shiftType === turno
+                        || (turno === 'MORNING' && s.shiftType === 'FULL_DAY')
+                        || (turno === 'NIGHT' && s.shiftType === 'FULL_NIGHT')));
+                if (delTurno.length === 0) continue; // nadie trabaja: no hay hueco que llenar
+                const cubiertos = new Set(delTurno.flatMap(s =>
+                    s.colorGroup === 'ALL' ? COLORES_CON_RESIDENTES : (s.colorGroup ? [s.colorGroup] : [])));
+                const faltan = COLORES_CON_RESIDENTES.filter(c => !cubiertos.has(c));
+                if (faltan.length) {
+                    huecos.push({
+                        fecha,
+                        dia: d.toLocaleDateString('es-PR', { weekday: 'short' }),
+                        turno: SHIFT_LABELS[turno]?.split(' ')[0] ?? turno,
+                        faltan,
+                    });
+                }
+            }
+        }
+        return huecos;
+    };
+
+    /**
+     * PROPONER UN REPARTO.
+     *
+     * Con quién trabaja ya decidido, repartir los tres grupos es mecánico:
+     * dentro de cada turno de cada día, se van dando en orden a quien no lleva
+     * ninguno. No pretende ser la decisión final — es el borrador que quita las
+     * noventa decisiones y deja las cuatro que importan.
+     *
+     * NO toca lo que ya está puesto a mano, ni la supervisión de piso, ni los
+     * días libres. Rellenar no es sobrescribir.
+     */
+    const proponerColores = () => {
+        setShifts(prev => {
+            const copia = [...prev];
+            for (const d of weekDays) {
+                const fecha = d.toISOString().split('T')[0];
+                for (const turno of ['MORNING', 'EVENING', 'NIGHT']) {
+                    const idx = copia
+                        .map((s, i) => ({ s, i }))
+                        .filter(({ s }) => s.date === fecha
+                            && (s.shiftType === turno
+                                || (turno === 'MORNING' && s.shiftType === 'FULL_DAY')
+                                || (turno === 'NIGHT' && s.shiftType === 'FULL_NIGHT')));
+                    if (idx.length === 0) continue;
+
+                    const yaPuestos = new Set(idx
+                        .filter(({ s }) => s.colorGroup && s.colorGroup !== 'ALL')
+                        .map(({ s }) => s.colorGroup as string));
+                    const porRepartir = COLORES_CON_RESIDENTES.filter(c => !yaPuestos.has(c));
+                    const libres = idx.filter(({ s }) => !s.colorGroup && !s.isFloorSupervision);
+
+                    libres.forEach(({ i }, n) => {
+                        const color = porRepartir[n];
+                        if (color) copia[i] = { ...copia[i], colorGroup: color };
+                    });
+                }
+            }
+            return copia;
+        });
+    };
+
+    /**
      * EL TECLADO SOBRE LA MATRIZ.
      *
      * Flechas para moverse, una letra para el turno, un número para el color.
@@ -383,7 +495,11 @@ export default function ScheduleBuilderPage() {
         }
         if (k in TECLA_COLOR) {
             e.preventDefault();
-            return ponerColor(celdaFoco.userId, celdaFoco.fecha, TECLA_COLOR[k]);
+            ponerColor(celdaFoco.userId, celdaFoco.fecha, TECLA_COLOR[k]);
+            // En la pasada de colores el número es el gesto principal, así que
+            // baja sola igual que la letra en la primera pasada.
+            if (modoColor) mover(1, 0);
+            return;
         }
     };
 
@@ -658,6 +774,42 @@ export default function ScheduleBuilderPage() {
             } else {
                 alert(data.error || 'Error eliminando borrador');
             }
+        } catch {
+            alert('Error de conexión');
+        } finally { setDeletingDraft(false); }
+    };
+
+    /**
+     * BORRAR EL BORRADOR DE LA SEMANA QUE SE ESTÁ MIRANDO.
+     *
+     * La ruta DELETE existía y estaba bien hecha, pero el único botón que la
+     * llamaba vivía dentro del modal de conflicto — el que sale al intentar
+     * guardar una semana que ya tiene borrador. Para borrar uno viejo había que
+     * volver a esa semana, añadir un turno, guardar, y esperar el modal.
+     *
+     * Comprobado en producción: dos borradores completos que nunca se
+     * publicaron y nadie pudo quitar. La semana del 20-jul con 98 turnos, 48
+     * días parada; la del 18-may con 68, 111 días.
+     *
+     * Una capacidad a la que no se llega es lo mismo que no tenerla.
+     */
+    const borrarBorradorDeLaSemana = async () => {
+        if (!draftId || publishedSchedule) return;
+        const semana = weekStart.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' });
+        if (!confirm(
+            `¿Eliminar el borrador de la semana del ${semana}?\n\n`
+            + `Son ${shifts.length} turnos y no se puede deshacer.`
+        )) return;
+        setDeletingDraft(true);
+        try {
+            const res = await fetch(`/api/hr/schedule/${draftId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (!data.success) { alert(data.error || 'No se pudo eliminar'); return; }
+            setShifts([]);
+            setDraftId(null);
+            setSinGuardar(false);
+            setGuardadoAt(null);
+            fetchSchedule();
         } catch {
             alert('Error de conexión');
         } finally { setDeletingDraft(false); }
@@ -1202,7 +1354,64 @@ export default function ScheduleBuilderPage() {
                 const sinDecidir = listaOrdenada.length * weekDays.length
                     - shifts.filter(sh => listaOrdenada.some(p => p.id === sh.userId)).length;
 
+                const huecos = huecosDeColor();
+
                 return (
+                <div className="space-y-3">
+                {/* ── LAS DOS PASADAS ────────────────────────────────────────
+                    Primero quién trabaja, después qué grupo lleva. El turno se
+                    repite el 55% de una semana a otra; el color baja eso al 33%
+                    y encima el piso lo rehace 31 veces al día. Mezclarlas era
+                    pedir dos decisiones distintas en el mismo gesto. */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-2 flex flex-wrap items-center gap-2">
+                    <div className="flex rounded-xl overflow-hidden border border-slate-200">
+                        <button
+                            onClick={() => setModoColor(false)}
+                            className={`px-4 py-2 text-xs font-bold transition-all ${!modoColor ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            1 · Quién trabaja
+                        </button>
+                        <button
+                            onClick={() => setModoColor(true)}
+                            className={`px-4 py-2 text-xs font-bold transition-all ${modoColor ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                        >
+                            2 · Repartir grupos
+                        </button>
+                    </div>
+
+                    {modoColor && !publishedSchedule && (
+                        <button
+                            onClick={proponerColores}
+                            className="px-4 py-2 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-all"
+                        >
+                            Proponer reparto
+                        </button>
+                    )}
+
+                    {modoColor && (
+                        huecos.length === 0
+                            ? <span className="text-xs font-bold text-emerald-600 ml-auto">Todos los turnos tienen sus tres grupos cubiertos.</span>
+                            : <span className="text-xs font-bold text-amber-700 ml-auto">
+                                {huecos.length} {huecos.length === 1 ? 'turno sin cubrir' : 'turnos sin cubrir'}
+                              </span>
+                    )}
+                </div>
+
+                {/* Los huecos, dichos con nombre. Antes había que comprobarlo de
+                    cabeza mirando siete columnas. */}
+                {modoColor && huecos.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-800 mb-2">Grupos sin cubrir</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {huecos.map((h, i) => (
+                                <span key={i} className="text-[11px] font-bold bg-white border border-amber-300 text-amber-900 rounded-lg px-2 py-1">
+                                    {h.dia} · {h.turno} — falta {h.faltan.map(c => NOMBRE_COLOR[c] ?? c).join(', ')}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 <div
                     className="bg-white rounded-2xl border border-slate-200 overflow-x-auto outline-none"
                     tabIndex={0}
@@ -1257,19 +1466,22 @@ export default function ScheduleBuilderPage() {
                                                         <span className="text-[10px] font-black text-slate-500">🛌 Libre</span>
                                                     ) : (
                                                         <>
-                                                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border leading-none ${SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                            {/* En la pasada de colores el turno pasa a segundo
+                                                                plano: ya está decidido, lo que se está haciendo
+                                                                es repartir grupos. */}
+                                                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border leading-none ${modoColor ? 'bg-slate-50 text-slate-400 border-slate-200' : (SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING)}`}>
                                                                 {SHIFT_LABELS[sh.shiftType]?.split(' ')[0] || sh.shiftType}
                                                             </span>
                                                             {sh.isFloorSupervision ? (
                                                                 <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-indigo-100 text-indigo-700 border-indigo-300">👁</span>
                                                             ) : sh.colorGroup ? (
-                                                                <span className={`text-[9px] font-black px-1.5 rounded-full border leading-none ${COLOR_STYLES[sh.colorGroup]}`}>
-                                                                    {sh.colorGroup}
+                                                                <span className={`font-black rounded-full border leading-none ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'} ${COLOR_STYLES[sh.colorGroup]}`}>
+                                                                    {modoColor ? (NOMBRE_COLOR[sh.colorGroup] ?? sh.colorGroup) : sh.colorGroup}
                                                                 </span>
                                                             ) : (
                                                                 // Turno puesto y color sin decidir: se avisa.
-                                                                <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-amber-100 text-amber-700 border-amber-300">
-                                                                    sin color
+                                                                <span className={`font-black rounded-full border leading-none bg-amber-100 text-amber-700 border-amber-300 ${modoColor ? 'text-[11px] px-2.5 py-1' : 'text-[9px] px-1.5'}`}>
+                                                                    sin grupo
                                                                 </span>
                                                             )}
                                                             {sh.notes && <span className="text-[9px] leading-none">📝</span>}
@@ -1295,7 +1507,10 @@ export default function ScheduleBuilderPage() {
                         aprende mirando mientras se teclea. */}
                     <div className="border-t border-slate-100 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-50/60">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teclado</span>
-                        {AYUDA_TECLAS.map(a => (
+                        {(modoColor
+                            ? AYUDA_TECLAS.filter(a => '12340⌫↵'.includes(a.k))
+                            : AYUDA_TECLAS.filter(a => !'1234'.includes(a.k))
+                        ).map(a => (
                             <span key={a.k} className="inline-flex items-center gap-1">
                                 <kbd className="text-[10px] font-black bg-white border border-slate-300 rounded px-1.5 py-0.5 text-slate-700 shadow-sm">{a.k}</kbd>
                                 <span className="text-[10px] text-slate-500 font-medium">{a.q}</span>
@@ -1304,11 +1519,12 @@ export default function ScheduleBuilderPage() {
                         <span className="text-[10px] text-slate-400 font-medium ml-auto">Flechas para moverte</span>
                     </div>
 
-                    {sinDecidir > 0 && (
+                    {!modoColor && sinDecidir > 0 && (
                         <div className="border-t border-amber-100 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
                             Faltan {sinDecidir} {sinDecidir === 1 ? 'celda' : 'celdas'} por decidir — las de fondo ámbar.
                         </div>
                     )}
+                </div>
                 </div>
                 );
             })()}
@@ -1370,6 +1586,18 @@ export default function ScheduleBuilderPage() {
                             >
                                 {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
                             </button>
+                            {/* Borrar el borrador de ESTA semana. Antes solo se
+                                llegaba desde el modal de conflicto. */}
+                            {!publishedSchedule && draftId && canDeleteDraft && (
+                                <button
+                                    onClick={borrarBorradorDeLaSemana}
+                                    disabled={deletingDraft || saving}
+                                    className="px-4 py-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition-all disabled:opacity-50 text-sm flex items-center gap-2"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    {deletingDraft ? 'Eliminando…' : 'Eliminar borrador'}
+                                </button>
+                            )}
                             {!publishedSchedule && (
                                 <span className="text-xs font-bold whitespace-nowrap">
                                     {sinGuardar ? (
