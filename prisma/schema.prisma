@@ -1127,11 +1127,34 @@ model PatientMedication {
   medicationId String
 
   // Reglas del eMAR
-  frequency     String  @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
+  frequency     String @default("DIARIO") // DIARIO, PRN (Por Razón Necesaria), SEMANAL
   scheduleTimes String // JSON Array Estructurado o CSV: "08:00, 14:00, 20:00"
-  prepDuration  String  @default("1_SEMANA") // 1_SEMANA o 2_SEMANAS (FASE 9 Carrito)
-  instructions  String? // Ej: "Tomar con alimentos"
-  prescribedBy  String? // Nombre del médico externo o interno
+
+  /// QUÉ DÍAS. Vacío = todos los días.
+  ///
+  /// 0 = domingo … 6 = sábado, igual que Date.getDay().
+  ///
+  /// POR QUÉ HACÍA FALTA. `frequency` existe desde siempre y NO tiene campo en
+  /// ningún formulario: el de /med pide residente, medicamento, horario y
+  /// duración del pack, y nada más. Así que "semanal" no tenía dónde ir y se
+  /// escribía dentro del horario, a mano:
+  ///
+  ///     scheduleTimes = "08:00 AM (Semanal)"
+  ///
+  /// Y `parseTimeToMinutes` exige el formato exacto HH:MM AM/PM. Lo que no
+  /// encaja se descarta con un `return` silencioso, así que esos medicamentos
+  /// NUNCA aparecen en un pack, nadie los administra y nada lo reporta.
+  ///
+  /// Medido el 05-sep-2026: 17 de 261 medicamentos activos de Cupey con CERO
+  /// administraciones desde que se recetaron. Entre ellos Warfarin 1mg —un
+  /// anticoagulante— y Alendronate semanal para dos residentes.
+  ///
+  /// Escribir "(Semanal)" era lo correcto que se podía hacer con lo que había:
+  /// avisaba a un humano. El precio fue que el sistema dejó de verlos.
+  scheduleDays Int[]
+  prepDuration String  @default("1_SEMANA") // 1_SEMANA o 2_SEMANAS (FASE 9 Carrito)
+  instructions String? // Ej: "Tomar con alimentos"
+  prescribedBy String? // Nombre del médico externo o interno
 
   startDate DateTime        @default(now())
   endDate   DateTime? // Si es tratamiento temporal (Ej: Antibióticos por 7 días)

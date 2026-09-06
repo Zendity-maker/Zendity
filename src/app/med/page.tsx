@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FRECUENCIAS, DIAS, tieneHoraLegible } from "@/lib/receta";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import TaskAssignmentButton from "@/components/TaskAssignmentButton";
@@ -30,7 +31,17 @@ export default function ZendityMedPage() {
     // Add Med State
     const [addMedModalOpen, setAddMedModalOpen] = useState(false);
     const [catalog, setCatalog] = useState<any[]>([]);
-    const [addForm, setAddForm] = useState({ patientId: "", medicationId: "", scheduleTimes: "08:00 AM", prepDuration: "1_SEMANA", reason: "Asignación Inicial de Fármaco" });
+    /**
+     * `frequency` y `prescribedBy` existen en el modelo desde siempre y este
+     * formulario no los pedia. Ver src/lib/receta.ts: por eso "semanal" se
+     * escribia dentro del horario y el medicamento desaparecia de la tableta,
+     * y por eso 261 de 261 medicamentos activos no tienen prescriptor.
+     */
+    const [addForm, setAddForm] = useState({
+        patientId: "", medicationId: "", scheduleTimes: "08:00 AM", prepDuration: "1_SEMANA",
+        frequency: "DIARIO", scheduleDays: [] as number[], prescribedBy: "",
+        reason: "Asignación Inicial de Fármaco",
+    });
     const [medSearch, setMedSearch] = useState("");
     const [showDropdown, setShowDropdown] = useState(false);
 
@@ -151,6 +162,15 @@ export default function ZendityMedPage() {
 
     const handleAddMedSubmit = async () => {
         if (!addForm.medicationId || !addForm.reason) return alert("Faltan datos obligatorios.");
+        if (addForm.frequency === 'SEMANAL' && addForm.scheduleDays.length === 0) {
+            return alert("Marca al menos un día de la semana.");
+        }
+        // Un medicamento que no es PRN y cuya hora no parsea NO llega a la
+        // tableta: se descarta en silencio al armar los packs. Es lo que dejo a
+        // 13 medicamentos de Cupey sin una sola administracion.
+        if (addForm.frequency !== 'PRN' && !tieneHoraLegible(addForm.scheduleTimes)) {
+            return alert("El horario tiene que llevar al menos una hora en formato 08:00 AM.\n\nSi el medicamento es solo ciertos días, elige \"Solo ciertos días\" y marca los días — no lo escribas dentro del horario.");
+        }
         setSubmitting(true);
         try {
             const res = await fetch("/api/med/crud", {
@@ -161,6 +181,9 @@ export default function ZendityMedPage() {
                     medicationId: addForm.medicationId,
                     scheduleTimes: addForm.scheduleTimes,
                     prepDuration: addForm.prepDuration,
+                    frequency: addForm.frequency,
+                    scheduleDays: addForm.scheduleDays,
+                    prescribedBy: addForm.prescribedBy,
                     authorId: user?.id,
                     reason: addForm.reason
                 })
@@ -168,7 +191,7 @@ export default function ZendityMedPage() {
             const data = await res.json();
             if (data.success) {
                 setAddMedModalOpen(false);
-                setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", reason: "Asignación Inicial de Fármaco" });
+                setAddForm({ ...addForm, medicationId: "", scheduleTimes: "08:00 AM", frequency: "DIARIO", scheduleDays: [], prescribedBy: "", reason: "Asignación Inicial de Fármaco" });
                 setMedSearch("");
                 fetchPatients();
             } else {
@@ -543,9 +566,66 @@ export default function ZendityMedPage() {
                                     </ul>
                                 )}
                             </div>
+                            {/* FRECUENCIA — el campo que faltaba. Sin el, "semanal" se
+                                escribia dentro del horario y el medicamento dejaba de
+                                aparecer en la tableta. Ver src/lib/receta.ts. */}
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Horario de Suministro</label>
-                                <input type="text" value={addForm.scheduleTimes} onChange={e => setAddForm({...addForm, scheduleTimes: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: 08:00 AM, 08:00 PM, PRN" />
+                                <label className="block text-sm font-bold text-slate-700 mb-1">¿Cada cuándo?</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {FRECUENCIAS.map(f => (
+                                        <button
+                                            key={f.codigo}
+                                            type="button"
+                                            onClick={() => setAddForm({ ...addForm, frequency: f.codigo, scheduleDays: f.codigo === 'SEMANAL' ? addForm.scheduleDays : [] })}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${addForm.frequency === f.codigo ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-300'}`}
+                                        >
+                                            <span className="block text-[13px] font-black leading-tight">{f.etiqueta}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-1.5">
+                                    {FRECUENCIAS.find(f => f.codigo === addForm.frequency)?.ayuda}
+                                </p>
+                            </div>
+
+                            {addForm.frequency === 'SEMANAL' && (
+                                <div className="animate-in fade-in">
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">¿Qué días?</label>
+                                    <div className="grid grid-cols-7 gap-1.5">
+                                        {DIAS.map(d => {
+                                            const puesto = addForm.scheduleDays.includes(d.n);
+                                            return (
+                                                <button
+                                                    key={d.n}
+                                                    type="button"
+                                                    title={d.largo}
+                                                    onClick={() => setAddForm({ ...addForm, scheduleDays: puesto ? addForm.scheduleDays.filter(x => x !== d.n) : [...addForm.scheduleDays, d.n].sort() })}
+                                                    className={`py-3 rounded-xl border-2 font-black text-sm transition-all ${puesto ? 'bg-teal-600 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-200 hover:border-teal-300'}`}
+                                                >{d.corto}</button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {addForm.frequency !== 'PRN' && (
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Horario de Suministro</label>
+                                    <input type="text" value={addForm.scheduleTimes} onChange={e => setAddForm({...addForm, scheduleTimes: e.target.value})} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: 08:00 AM, 08:00 PM" />
+                                    <p className="text-[11px] text-slate-400 mt-1.5">
+                                        Solo horas, separadas por coma. Los días van arriba.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* PRESCRITO POR — la pestaña del eMAR tiene un bloque rotulado
+                                asi desde siempre, leyendo un campo que nadie escribia: 261 de
+                                261 medicamentos activos con el prescriptor vacio. */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">
+                                    Prescrito por <span className="font-medium text-slate-400">(médico que lo ordenó)</span>
+                                </label>
+                                <input type="text" value={addForm.prescribedBy} onChange={e => setAddForm({...addForm, prescribedBy: e.target.value})} maxLength={120} className="w-full p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-teal-500" placeholder="Ej: Dra. Rivera — Medicina Interna" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Duración Preparación</label>

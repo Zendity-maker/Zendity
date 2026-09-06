@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { esFrecuenciaValida, diasValidos } from '@/lib/receta';
 
 // HIPAA: solo personal clínico puede leer/escribir prescripciones.
 // CRUD de PatientMedication afecta órdenes médicas — requiere auth real.
@@ -40,7 +41,34 @@ export async function POST(req: Request) {
         if (auth instanceof NextResponse) return auth;
         const { id: invokerId, headquartersId: invokerHqId } = auth;
 
-        const { action, patientId, medicationId, scheduleTimes, prepDuration, reason, patientMedicationId } = await req.json();
+        const {
+            action, patientId, medicationId, scheduleTimes, prepDuration, reason, patientMedicationId,
+            // Los tres que faltaban. Ver src/lib/receta.ts.
+            frequency, scheduleDays, prescribedBy,
+        } = await req.json();
+
+        /**
+         * FRECUENCIA, DIAS Y PRESCRIPTOR.
+         *
+         * `frequency` existe en el modelo desde siempre y NO lo pedia ningun
+         * formulario, asi que "semanal" se escribia dentro del horario:
+         * "08:00 AM (Semanal)". El agrupador de packs parsea ese texto con un
+         * regex estricto y descarta lo que no encaja en silencio. Medido el
+         * 05-sep-2026: 13 medicamentos activos de Cupey que no aparecen en
+         * ningun pack, entre ellos Warfarin 1mg con 107 dias sin una sola
+         * administracion.
+         *
+         * `prescribedBy` es igual de viejo: se LEE en la pestaña del eMAR —hay
+         * un bloque rotulado "Prescrito por"— y no se escribia en ningun sitio.
+         * 261 de 261 medicamentos activos con el campo vacio. El nombre del
+         * medico terminaba, cuando terminaba, en el texto de la justificacion.
+         *
+         * Se validan aqui y no se confia en lo que llegue: una frecuencia
+         * inventada vuelve a DIARIO, que es el comportamiento de siempre.
+         */
+        const frecuencia = esFrecuenciaValida(frequency) ? frequency : 'DIARIO';
+        const dias = frecuencia === 'SEMANAL' ? diasValidos(scheduleDays) : [];
+        const medico = typeof prescribedBy === 'string' ? prescribedBy.trim().slice(0, 120) || null : null;
 
         // authorId SIEMPRE viene de la sesión, no del body (auditoría HIPAA).
         const authorId = invokerId;
@@ -63,8 +91,20 @@ export async function POST(req: Request) {
             if (!patient) {
                 return NextResponse.json({ success: false, error: "Residente no encontrado en tu sede." }, { status: 404 });
             }
+            // "Ciertos dias" sin ningun dia marcado seria un medicamento que no
+            // toca nunca — peor que el problema que se viene a resolver.
+            if (frecuencia === 'SEMANAL' && dias.length === 0) {
+                return NextResponse.json({ success: false, error: "Marca al menos un día de la semana." }, { status: 400 });
+            }
             updatedMed = await prisma.patientMedication.create({
-                data: { patientId, medicationId, scheduleTimes, prepDuration: prepDuration || "1_SEMANA" }
+                data: {
+                    patientId, medicationId, scheduleTimes,
+                    prepDuration: prepDuration || "1_SEMANA",
+                    frequency: frecuencia,
+                    scheduleDays: dias,
+                    prescribedBy: medico,
+                    status: frecuencia === 'PRN' ? 'PRN' : 'ACTIVE',
+                }
             });
             await prisma.medicationAuditLog.create({
                 data: { action: 'ADDED', patientMedicationId: updatedMed.id, authorId, reason }
@@ -87,6 +127,9 @@ export async function POST(req: Request) {
                 data: {
                     scheduleTimes,
                     prepDuration: prepDuration || "1_SEMANA",
+                    frequency: frecuencia,
+                    scheduleDays: dias,
+                    ...(medico !== null ? { prescribedBy: medico } : {}),
                     isActive: true,
                     status: "ACTIVE"
                 }

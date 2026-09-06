@@ -25,6 +25,7 @@ import { MOTIVOS_RECHAZO, pideMotivo, etiquetaMotivo } from "@/lib/comida";
 import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
 import { EFECTOS_PRN } from "@/lib/prn";
 import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
+import { tocaHoy } from "@/lib/receta";
 
 /** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
 interface DosisPRNPendiente {
@@ -119,11 +120,28 @@ function slotInShift(minutes: number, shift: string): boolean {
 // Agrupa los medicamentos por slot del turno actual.
 // Retorna: [{ label: "8:00 AM", slotMinutes: 480, meds: [PatientMedication...] }, ...]
 // ordenados cronológicamente (NIGHT: 22:00→05:59 continuos).
+/**
+ * Los packs del turno.
+ *
+ * DOS FILTROS NUEVOS desde sep-2026, y los dos existen porque antes no habia
+ * donde poner la informacion:
+ *
+ *   - Un PRN no entra en ningun pack. Se da cuando hace falta, por su propio
+ *     flujo, con su motivo y su pregunta de efecto. Antes tampoco entraba
+ *     —porque "PRN" no parsea como hora— pero por accidente.
+ *
+ *   - Un medicamento de ciertos dias solo entra el dia que toca. Antes eso se
+ *     escribia dentro del horario, "08:00 AM (Semanal)", y como no parseaba el
+ *     medicamento desaparecia de la tableta para siempre: 13 medicamentos
+ *     activos de Cupey sin una sola administracion, entre ellos Warfarin con
+ *     107 dias. Ver src/lib/receta.ts.
+ */
 function groupMedsByScheduleTime(medications: any[]) {
     const shift = getCurrentShift();
     const groups: Record<string, { slotMinutes: number; meds: any[] }> = {};
     medications.forEach(m => {
         if (!m.scheduleTimes) return;
+        if (!tocaHoy(m)) return;
         const times = m.scheduleTimes.split(',').map((t: string) => t.trim());
         times.forEach((t: string) => {
             const min = parseTimeToMinutes(t);

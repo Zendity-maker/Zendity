@@ -28,6 +28,7 @@
  * retira el check. No se deja sonando.
  */
 import { prisma } from '@/lib/prisma';
+import { llegaAlPiso } from '@/lib/receta';
 
 export type Severidad = 'CRITICA' | 'ALTA' | 'MEDIA';
 
@@ -534,6 +535,62 @@ async function ulceraSinSeguimiento(hqId: string): Promise<Hallazgo> {
     };
 }
 
+/* ────────── 11. MEDICAMENTO QUE NO LLEGA A LA PANTALLA DE NADIE ────────── */
+/**
+ * Un medicamento recetado y activo cuyo horario el sistema no sabe leer, así que
+ * no aparece en ningún pack y nadie lo administra nunca.
+ *
+ * MEDIDO EL 05-sep-2026: 17 de 261 medicamentos activos de Cupey con CERO
+ * administraciones registradas desde que se recetaron. Entre ellos Warfarin 1mg
+ * —un anticoagulante— y Alendronate semanal en dos residentes.
+ *
+ * LA CAUSA. `frequency` existe en el modelo y no lo pide ningún formulario, así
+ * que "semanal" se escribía dentro del texto del horario: "08:00 AM (Semanal)".
+ * El agrupador de packs parsea ese texto con un regex estricto y descarta lo que
+ * no encaja con un `return` silencioso. El medicamento desaparece de la tableta
+ * sin que nada lo diga.
+ *
+ * Es el mismo patrón de todo lo demás: el dato existe, no tiene campo, se va al
+ * texto libre, y deja de contar.
+ *
+ * CRÍTICA. Un anticoagulante que el sistema nunca pide es un anticoagulante que
+ * puede llevar meses sin darse, y el expediente no distingue "no se dio" de "no
+ * se registró". Ninguna de las dos respuestas es buena delante de una familia.
+ */
+async function medicamentoQueNoLlega(hqId: string): Promise<Hallazgo> {
+    const meds = await prisma.patientMedication.findMany({
+        where: { patient: { headquartersId: hqId, status: 'ACTIVE' }, isActive: true },
+        select: {
+            frequency: true, scheduleTimes: true, startDate: true,
+            patient: { select: { name: true } },
+            medication: { select: { name: true } },
+            _count: { select: { administrations: true } },
+        },
+    });
+
+    const casos = meds
+        .filter(m => !llegaAlPiso(m))
+        .map(m => {
+            const dias = Math.floor((Date.now() - m.startDate.getTime()) / 86400000);
+            const n = m._count.administrations;
+            return {
+                texto: `${m.patient.name.trim()} — ${m.medication.name}: horario "${m.scheduleTimes}" que el sistema no sabe leer. `
+                    + `${n === 0 ? `Sin una sola administración en ${dias} días.` : `${n} administración(es) registradas.`}`,
+                orden: n === 0 ? dias + 100000 : dias,
+            };
+        })
+        .sort((a, b) => b.orden - a.orden);
+
+    return {
+        codigo: 'MEDICAMENTO_QUE_NO_LLEGA',
+        titulo: 'Medicamentos que no aparecen en ningún pack',
+        severidad: 'CRITICA',
+        total: casos.length,
+        ejemplos: casos.slice(0, MAX_EJEMPLOS).map(c => c.texto),
+        accion: 'Med & Zoning → editar el medicamento: poner la hora en formato "08:00 AM" y elegir la frecuencia (todos los días, ciertos días, o por razón necesaria). Lo que hoy dice "(Semanal)" dentro del horario va en el selector de días.',
+    };
+}
+
 export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
     const todas = await Promise.all([
         alergiasSinDocumentar(hqId),
@@ -546,6 +603,7 @@ export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
         dietaNoReflejaDiagnostico(hqId),
         controladoSinMarcar(hqId),
         ulceraSinSeguimiento(hqId),
+        medicamentoQueNoLlega(hqId),
     ]);
     const orden: Record<Severidad, number> = { CRITICA: 0, ALTA: 1, MEDIA: 2 };
     return todas
