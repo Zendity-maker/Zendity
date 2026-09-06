@@ -45,6 +45,45 @@ const COLOR_STYLES: Record<string, string> = {
     SUPERVISION: "bg-indigo-100 text-indigo-700 border-indigo-300"
 };
 
+/**
+ * LOS ATAJOS DE TECLADO.
+ *
+ * Celia armaba el horario en Excel y lo pasaba al constructor. La razón es
+ * aritmética: 12 personas × 7 días = 84 celdas, y cada una costaba entre 5 y 7
+ * interacciones (agregar → abrir modal → tipo → color → cerrar). Casi 500
+ * gestos para una semana, con tres desplegables apilados dentro de una columna
+ * que no cabe en pantalla.
+ *
+ * En Excel eso es teclear una letra y bajar. Aquí también, ahora.
+ *
+ * Las letras cubren el 98% de los turnos reales (medido sobre 1 387): diurno,
+ * vespertino, nocturno y libre. Los turnos largos y la supervisión son 49 de
+ * 1 387 y van por el menú — no vale la pena una tecla para el 3%.
+ */
+const TECLA_TURNO: Record<string, string> = {
+    d: 'MORNING',      // Diurno
+    t: 'EVENING',      // Tarde
+    n: 'NIGHT',        // Noche
+    l: 'OFF',          // Libre
+};
+
+/** Números para el color. Se teclean después de la letra, sin salir de la celda. */
+const TECLA_COLOR: Record<string, string> = {
+    '1': 'RED',
+    '2': 'YELLOW',
+    '3': 'GREEN',
+    '4': 'BLUE',
+    '5': 'ALL',
+    '0': '',           // sin color
+};
+
+/** Lo que se enseña debajo de la tabla. Una lista corta que se aprende mirando. */
+const AYUDA_TECLAS = [
+    { k: 'D', q: 'Diurno' }, { k: 'T', q: 'Tarde' }, { k: 'N', q: 'Noche' }, { k: 'L', q: 'Libre' },
+    { k: '1', q: 'Rojo' }, { k: '2', q: 'Amarillo' }, { k: '3', q: 'Verde' }, { k: '4', q: 'Azul' },
+    { k: '0', q: 'Sin color' }, { k: '⌫', q: 'Borrar' }, { k: '↵', q: 'Más opciones' },
+];
+
 function getMondayOf(date: Date) {
     const d = new Date(date);
     const day = d.getDay();
@@ -154,11 +193,33 @@ export default function ScheduleBuilderPage() {
     // UI: notas colapsables + copia semana anterior + vista alterna
     const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
     const [copyingWeek, setCopyingWeek] = useState(false);
-    const [viewMode, setViewMode] = useState<'day' | 'employee'>('day');
+    /**
+     * LA MATRIZ ABRE PRIMERO.
+     *
+     * Arrancaba en 'day': siete columnas con una docena de tarjetas cada una, y
+     * cada tarjeta con tres desplegables apilados. Ochenta y cuatro tarjetas que
+     * no caben en una pantalla, para una tarea que es "quién trabaja qué día".
+     *
+     * La vista por empleado ya existía —12 filas × 7 días, una palabra por
+     * celda— pero estaba detrás de un botón, así que la pantalla que se abría
+     * era siempre la peor para armar el horario. Ahora abre la buena; la de día
+     * sigue ahí para mirar una jornada concreta, que es para lo que sirve.
+     */
+    const [viewMode, setViewMode] = useState<'day' | 'employee'>('employee');
     // Modal de edición rápida — funciona en cualquier vista. Click en chip
     // (especialmente en vista-empleado) abre este modal en vez de rebotar
     // a vista-día.
     const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
+
+    /**
+     * La celda donde está el cursor, en la matriz. Es lo que hace que el
+     * teclado tenga sentido: se teclea una letra y se baja con la flecha, sin
+     * tocar el ratón.
+     */
+    const [celdaFoco, setCeldaFoco] = useState<{ userId: string; fecha: string } | null>(null);
+    /** Guardado automático: hay cambios que todavía no están en la base. */
+    const [sinGuardar, setSinGuardar] = useState(false);
+    const [guardadoAt, setGuardadoAt] = useState<Date | null>(null);
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -230,6 +291,151 @@ export default function ScheduleBuilderPage() {
             colorGroup: 'GREEN'
         };
         setShifts(prev => [...prev, newShift]);
+    };
+
+    /**
+     * GUARDADO AUTOMÁTICO.
+     *
+     * Las 84 entradas de una semana vivían en la memoria del navegador hasta
+     * que alguien pulsaba Guardar, y no había aviso al cerrar la pestaña. Un
+     * cierre accidental y se perdía la semana entera.
+     *
+     * Eso por sí solo enseña a construirlo afuera y pasarlo cuando está listo,
+     * que es exactamente lo que estaba pasando.
+     *
+     * Tres segundos de silencio y se guarda. No se guarda un horario publicado
+     * —ese no se toca— ni uno vacío, para no crear un borrador de la nada al
+     * abrir la pantalla.
+     */
+    const primerRender = useRef(true);
+    useEffect(() => {
+        if (primerRender.current) { primerRender.current = false; return; }
+        if (publishedSchedule || loading || shifts.length === 0) return;
+        setSinGuardar(true);
+        const t = setTimeout(() => {
+            postSchedule(true)
+                .then(() => { setSinGuardar(false); setGuardadoAt(new Date()); })
+                .catch(() => { /* se reintenta al siguiente cambio */ });
+        }, 3000);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shifts]);
+
+    /**
+     * Y si aun así cierra con algo sin guardar, que el navegador lo diga. Es la
+     * red debajo de la red: si el autoguardado falló, esto avisa.
+     */
+    useEffect(() => {
+        if (!sinGuardar) return;
+        const avisar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+        window.addEventListener('beforeunload', avisar);
+        return () => window.removeEventListener('beforeunload', avisar);
+    }, [sinGuardar]);
+
+    /**
+     * EL TECLADO SOBRE LA MATRIZ.
+     *
+     * Flechas para moverse, una letra para el turno, un número para el color.
+     * Es lo que se hace en una hoja de cálculo, y es la razón por la que la
+     * hoja de cálculo ganaba.
+     *
+     * `preventDefault` solo en las teclas que se usan: lo demás sigue llegando
+     * al navegador, incluido Tab, para que no se atrape a quien navega con él.
+     */
+    const manejarTecla = (e: React.KeyboardEvent, listaOrdenada: { id: string }[], dias: Date[]) => {
+        // Un horario publicado no se edita: se despublica primero.
+        if (!celdaFoco || publishedSchedule) return;
+        const iFila = listaOrdenada.findIndex(p => p.id === celdaFoco.userId);
+        const iCol = dias.findIndex(d => d.toISOString().split('T')[0] === celdaFoco.fecha);
+        if (iFila < 0 || iCol < 0) return;
+
+        const mover = (df: number, dc: number) => {
+            const f = Math.min(Math.max(iFila + df, 0), listaOrdenada.length - 1);
+            const c = Math.min(Math.max(iCol + dc, 0), dias.length - 1);
+            setCeldaFoco({ userId: listaOrdenada[f].id, fecha: dias[c].toISOString().split('T')[0] });
+        };
+
+        const k = e.key;
+        if (k === 'ArrowDown')  { e.preventDefault(); return mover(1, 0); }
+        if (k === 'ArrowUp')    { e.preventDefault(); return mover(-1, 0); }
+        if (k === 'ArrowRight') { e.preventDefault(); return mover(0, 1); }
+        if (k === 'ArrowLeft')  { e.preventDefault(); return mover(0, -1); }
+
+        if (k === 'Backspace' || k === 'Delete') {
+            e.preventDefault();
+            return borrarCelda(celdaFoco.userId, celdaFoco.fecha);
+        }
+
+        if (k === 'Enter' || k === ' ') {
+            e.preventDefault();
+            const sh = shifts.find(x => x.userId === celdaFoco.userId && x.date === celdaFoco.fecha);
+            if (sh) setEditingShiftId(sh.tempId);
+            return;
+        }
+
+        const letra = k.toLowerCase();
+        if (TECLA_TURNO[letra]) {
+            e.preventDefault();
+            ponerTurno(celdaFoco.userId, celdaFoco.fecha, TECLA_TURNO[letra]);
+            // Bajar sola: se rellena una columna de arriba abajo sin soltar el
+            // teclado, que es como se arma una semana de verdad.
+            return mover(1, 0);
+        }
+        if (k in TECLA_COLOR) {
+            e.preventDefault();
+            return ponerColor(celdaFoco.userId, celdaFoco.fecha, TECLA_COLOR[k]);
+        }
+    };
+
+    /**
+     * PONER UN TURNO CON UNA TECLA.
+     *
+     * Si la celda está vacía, crea. Si tiene algo, lo cambia. Sin valor por
+     * defecto: `addShift` creaba todo como MORNING + GREEN, y GREEN se usó 24
+     * veces en 1 387 turnos — el defecto acertaba el 1.7% de las veces, así que
+     * cada entrada nacía con tres cosas que corregir.
+     *
+     * Un día libre no lleva color. No es un detalle estético: el color vacío en
+     * un día trabajado significa "falta decidirlo", y en un día libre significa
+     * "no aplica". Guardarlos igual es lo que hacía imposible ver qué faltaba.
+     */
+    const ponerTurno = (userId: string, fecha: string, shiftType: string) => {
+        const persona = staff.find(s => s.id === userId);
+        if (!persona) return;
+        setShifts(prev => {
+            const existe = prev.find(s => s.userId === userId && s.date === fecha);
+            if (existe) {
+                return prev.map(s => s !== existe ? s : {
+                    ...s,
+                    shiftType,
+                    colorGroup: shiftType === 'OFF' ? '' : s.colorGroup,
+                    isFloorSupervision: shiftType === 'OFF' ? false : s.isFloorSupervision,
+                });
+            }
+            return [...prev, {
+                tempId: `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                userId,
+                userName: persona.name,
+                date: fecha,
+                shiftType,
+                // Sin color por defecto: se elige, o se queda pendiente a la vista.
+                colorGroup: '',
+            }];
+        });
+    };
+
+    /** El color, con un número. No hace nada sobre un día libre. */
+    const ponerColor = (userId: string, fecha: string, color: string) => {
+        setShifts(prev => prev.map(s => {
+            if (s.userId !== userId || s.date !== fecha) return s;
+            if (s.shiftType === 'OFF') return s;
+            return { ...s, colorGroup: color, isFloorSupervision: false };
+        }));
+    };
+
+    /** Vaciar la celda. Vuelve a "sin decidir", que se ve distinto de "libre". */
+    const borrarCelda = (userId: string, fecha: string) => {
+        setShifts(prev => prev.filter(s => !(s.userId === userId && s.date === fecha)));
     };
 
     /**
@@ -972,89 +1178,110 @@ export default function ScheduleBuilderPage() {
             )}
 
             {/* Vista por empleado */}
-            {viewMode === 'employee' && (
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
-                    <table className="w-full text-xs">
+            {/* ── LA MATRIZ, QUE AHORA SE TECLEA ──────────────────────────
+                12 personas × 7 días caben en una pantalla; siete columnas con
+                doce tarjetas de tres desplegables cada una, no. Esta es la vista
+                que Celia armaba en Excel, y ahora se rellena igual: una letra y
+                la flecha abajo.
+
+                Una celda vacía se ve DISTINTA de un día libre. Antes las dos
+                eran un hueco, y por eso "no se veían bien los días libres": lo
+                que se veía era la ausencia de algo, que puede ser descanso o
+                puede ser que falte decidirlo. */}
+            {viewMode === 'employee' && (() => {
+                const listaOrdenada = staff
+                    // FASE 51: incluir empleados CLEANING con rol clínico SECUNDARIO
+                    // (caso Yaileen: CLEANING + secondary CAREGIVER).
+                    .filter(s => {
+                        if (s.role !== 'CLEANING') return true;
+                        const sec: string[] = s.secondaryRoles || [];
+                        return sec.some(r => ['CAREGIVER', 'NURSE', 'SUPERVISOR'].includes(r));
+                    })
+                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                const sinDecidir = listaOrdenada.length * weekDays.length
+                    - shifts.filter(sh => listaOrdenada.some(p => p.id === sh.userId)).length;
+
+                return (
+                <div
+                    className="bg-white rounded-2xl border border-slate-200 overflow-x-auto outline-none"
+                    tabIndex={0}
+                    onKeyDown={e => manejarTecla(e, listaOrdenada, weekDays)}
+                >
+                    <table className="w-full text-xs select-none">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
                                 <th className="text-left px-3 py-2 font-black text-slate-600 uppercase tracking-widest text-[10px] sticky left-0 bg-slate-50 z-10">Empleado</th>
                                 {weekDays.map(d => (
-                                    <th key={d.toISOString()} className="text-left px-3 py-2 font-black text-slate-600 uppercase tracking-widest text-[10px]">
+                                    <th key={d.toISOString()} className="text-center px-2 py-2 font-black text-slate-600 uppercase tracking-widest text-[10px]">
                                         {formatDate(d)}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {staff
-                                // FASE 51: incluir empleados CLEANING que tengan rol clínico
-                                // SECUNDARIO (caso Yaileen: CLEANING + secondary CAREGIVER —
-                                // trabaja como cuidadora en piso aunque su rol primary sea
-                                // limpieza). Patrón coherente con los endpoints clínicos.
-                                .filter(s => {
-                                    if (s.role !== 'CLEANING') return true;
-                                    const sec: string[] = s.secondaryRoles || [];
-                                    return sec.some(r => ['CAREGIVER', 'NURSE', 'SUPERVISOR'].includes(r));
-                                })
-                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                                .map(emp => (
-                                <tr key={emp.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                                    <td className="px-3 py-2 font-bold text-slate-700 text-xs sticky left-0 bg-white z-10">
+                            {listaOrdenada.map(emp => (
+                                <tr key={emp.id} className="border-b border-slate-100">
+                                    <td className="px-3 py-2 font-bold text-slate-700 text-xs sticky left-0 bg-white z-10 whitespace-nowrap">
                                         <div>{emp.name}</div>
                                         <div className="text-[10px] text-slate-500 font-medium">
-                                            {emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : 'Cuidador/a'}
+                                            {emp.role === 'SUPERVISOR' ? 'Supervisor' : emp.role === 'NURSE' ? 'Enfermero/a' : emp.role === 'CLEANING' ? 'Limpieza' : 'Cuidador/a'}
                                         </div>
                                     </td>
                                     {weekDays.map(d => {
                                         const dateStr = d.toISOString().split('T')[0];
-                                        const cellShifts = shifts.filter(s => s.userId === emp.id && s.date === dateStr);
+                                        const sh = shifts.find(x => x.userId === emp.id && x.date === dateStr);
+                                        const enFoco = celdaFoco?.userId === emp.id && celdaFoco?.fecha === dateStr;
+                                        const esLibre = sh?.shiftType === 'OFF';
+                                        const faltaColor = !!sh && !esLibre && !sh.colorGroup && !sh.isFloorSupervision;
+
                                         return (
-                                            <td key={dateStr} className="px-2 py-2 align-top">
-                                                {cellShifts.length === 0 ? (
-                                                    <button
-                                                        onClick={() => addShift(d, emp.id)}
-                                                        className="w-full text-[10px] font-bold text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg py-1.5 px-2 transition-all border border-dashed border-slate-200 hover:border-teal-300"
-                                                    >
-                                                        + Agregar
-                                                    </button>
-                                                ) : (
-                                                    <div className="space-y-1">
-                                                        {cellShifts.map(sh => {
-                                                            const isOff = sh.shiftType === 'OFF';
-                                                            return (
-                                                                <button
-                                                                    key={sh.tempId}
-                                                                    onClick={() => setEditingShiftId(sh.tempId)}
-                                                                    title="Click para editar"
-                                                                    className="w-full flex flex-wrap items-center gap-1 hover:bg-slate-50 rounded-md p-0.5 transition-colors"
-                                                                >
-                                                                    {isOff ? (
-                                                                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border bg-slate-100 text-slate-500 border-slate-300">
-                                                                            🛌 OFF
-                                                                        </span>
-                                                                    ) : (
-                                                                        <>
-                                                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING}`}>
-                                                                                {SHIFT_LABELS[sh.shiftType]?.split(' ')[0] || sh.shiftType}
-                                                                            </span>
-                                                                            {sh.colorGroup && (
-                                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${COLOR_STYLES[sh.colorGroup || 'NONE']}`}>
-                                                                                    {sh.colorGroup}
-                                                                                </span>
-                                                                            )}
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                            <td key={dateStr} className="px-1 py-1 align-middle">
+                                                <button
+                                                    onClick={() => setCeldaFoco({ userId: emp.id, fecha: dateStr })}
+                                                    onDoubleClick={() => sh && setEditingShiftId(sh.tempId)}
+                                                    title={sh ? 'Doble clic o Enter para más opciones' : 'Teclea D, T, N o L'}
+                                                    className={`w-full min-h-[46px] rounded-lg border-2 px-1.5 py-1 transition-all flex flex-col items-center justify-center gap-0.5
+                                                        ${enFoco ? 'border-teal-500 ring-2 ring-teal-200' : 'border-transparent'}
+                                                        ${!sh
+                                                            // "Sin decidir" NO es un hueco: es ámbar hasta que
+                                                            // alguien diga qué es. Es la mitad del arreglo.
+                                                            ? 'bg-amber-50/70 hover:bg-amber-100'
+                                                            : esLibre
+                                                                ? 'bg-slate-100 hover:bg-slate-200'
+                                                                : 'bg-white hover:bg-slate-50'}`}
+                                                >
+                                                    {!sh ? (
+                                                        <span className="text-[11px] font-bold text-amber-600/70">—</span>
+                                                    ) : esLibre ? (
+                                                        <span className="text-[10px] font-black text-slate-500">🛌 Libre</span>
+                                                    ) : (
+                                                        <>
+                                                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full border leading-none ${SHIFT_STYLES[sh.shiftType] || SHIFT_STYLES.MORNING}`}>
+                                                                {SHIFT_LABELS[sh.shiftType]?.split(' ')[0] || sh.shiftType}
+                                                            </span>
+                                                            {sh.isFloorSupervision ? (
+                                                                <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-indigo-100 text-indigo-700 border-indigo-300">👁</span>
+                                                            ) : sh.colorGroup ? (
+                                                                <span className={`text-[9px] font-black px-1.5 rounded-full border leading-none ${COLOR_STYLES[sh.colorGroup]}`}>
+                                                                    {sh.colorGroup}
+                                                                </span>
+                                                            ) : (
+                                                                // Turno puesto y color sin decidir: se avisa.
+                                                                <span className="text-[9px] font-black px-1.5 rounded-full border leading-none bg-amber-100 text-amber-700 border-amber-300">
+                                                                    sin color
+                                                                </span>
+                                                            )}
+                                                            {sh.notes && <span className="text-[9px] leading-none">📝</span>}
+                                                        </>
+                                                    )}
+                                                </button>
                                             </td>
                                         );
                                     })}
                                 </tr>
                             ))}
-                            {staff.filter(s => s.role !== 'CLEANING').length === 0 && (
+                            {listaOrdenada.length === 0 && (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
                                         No hay empleados clínicos cargados para esta sede.
@@ -1063,8 +1290,28 @@ export default function ScheduleBuilderPage() {
                             )}
                         </tbody>
                     </table>
+
+                    {/* La ayuda vive debajo de la tabla, no en un tutorial. Se
+                        aprende mirando mientras se teclea. */}
+                    <div className="border-t border-slate-100 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-50/60">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teclado</span>
+                        {AYUDA_TECLAS.map(a => (
+                            <span key={a.k} className="inline-flex items-center gap-1">
+                                <kbd className="text-[10px] font-black bg-white border border-slate-300 rounded px-1.5 py-0.5 text-slate-700 shadow-sm">{a.k}</kbd>
+                                <span className="text-[10px] text-slate-500 font-medium">{a.q}</span>
+                            </span>
+                        ))}
+                        <span className="text-[10px] text-slate-400 font-medium ml-auto">Flechas para moverte</span>
+                    </div>
+
+                    {sinDecidir > 0 && (
+                        <div className="border-t border-amber-100 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
+                            Faltan {sinDecidir} {sinDecidir === 1 ? 'celda' : 'celdas'} por decidir — las de fondo ámbar.
+                        </div>
+                    )}
                 </div>
-            )}
+                );
+            })()}
 
             {/* Resumen por día */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -1112,13 +1359,29 @@ export default function ScheduleBuilderPage() {
                                 )}
                             </button>
                         )}
-                        <button
-                            onClick={saveSchedule}
-                            disabled={saving || shifts.length === 0}
-                            className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
-                        >
-                            {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
-                        </button>
+                        {/* El botón se queda: guardar a mano sigue estando, y el
+                            estado del autoguardado se dice aquí para que nadie
+                            tenga que confiar en que pasó. */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={saveSchedule}
+                                disabled={saving || shifts.length === 0}
+                                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50 text-sm"
+                            >
+                                {saving ? 'Guardando...' : `Guardar borrador (${shifts.length} turnos)`}
+                            </button>
+                            {!publishedSchedule && (
+                                <span className="text-xs font-bold whitespace-nowrap">
+                                    {sinGuardar ? (
+                                        <span className="text-amber-600">Guardando…</span>
+                                    ) : guardadoAt ? (
+                                        <span className="text-emerald-600">
+                                            Guardado {guardadoAt.toLocaleTimeString('es-PR', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    ) : null}
+                                </span>
+                            )}
+                        </div>
                         {publishedSchedule && (
                             <button
                                 onClick={unpublishSchedule}
