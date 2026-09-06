@@ -14,11 +14,6 @@ export default function ZendityMedPage() {
     const { activeHqId } = useActiveHq();
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('MAR'); // MAR, OCR, CART
-
-    // OCR Simulator
-    const [ocrLoading, setOcrLoading] = useState(false);
-    const [ocrResult, setOcrResult] = useState<any>(null);
 
     // CRUD State
     const [modalOpen, setModalOpen] = useState(false);
@@ -66,10 +61,12 @@ export default function ZendityMedPage() {
 
     const fetchPatients = async () => {
         try {
-            const hq = (activeHqId && activeHqId !== 'ALL')
-                ? activeHqId
-                : (user?.hqId || user?.headquartersId || "hq-demo-1");
-            const res = await fetch(`/api/med?hqId=${hq}`);
+            // El hqId es una SUGERENCIA para el switcher multi-sede: el servidor
+            // lo pasa por resolveEffectiveHqId y un rol de una sola sede recibe
+            // siempre la suya. Antes caia a "hq-demo-1" — un id inventado que
+            // CLAUDE.md prohibe y que aqui no hacia nada salvo confundir.
+            const hq = (activeHqId && activeHqId !== 'ALL') ? activeHqId : '';
+            const res = await fetch(`/api/med${hq ? `?hqId=${hq}` : ''}`);
             const data = await res.json();
             if (data.success) {
                 // Nuevo contrato: si el backend ya envía `patients` agrupados,
@@ -100,28 +97,6 @@ export default function ZendityMedPage() {
             console.error(error);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleOcrUpload = async (e: any) => {
-        // Simulador interactivo de File Upload -> OCR
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setOcrLoading(true);
-        setOcrResult(null);
-
-        try {
-            // LLamamos a la API Simluadora de Visión
-            const res = await fetch("/api/med/ocr", { method: "POST", body: new FormData() });
-            const data = await res.json();
-            if (data.success) {
-                setOcrResult(data.parsedMedication);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setOcrLoading(false);
         }
     };
 
@@ -204,31 +179,6 @@ export default function ZendityMedPage() {
         }
     };
 
-    const submitCartSign = async (color: string) => {
-        setSubmitting(true);
-        try {
-            const hq = user?.hqId || user?.headquartersId || "hq-demo-1";
-            const res = await fetch("/api/med/cart", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    colorGroup: color,
-                    authorId: user?.id,
-                    hqId: hq
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert(` ` + data.message);
-            } else {
-                alert(` ` + data.error);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
     const colorMapping: Record<string, string> = {
         RED: "bg-red-50 text-red-700 border-red-200",
         YELLOW: "bg-amber-50 text-amber-700 border-amber-200",
@@ -237,7 +187,7 @@ export default function ZendityMedPage() {
         UNASSIGNED: "bg-slate-50 text-slate-700"
     };
 
-    if (loading) return <div className="p-20 text-center font-bold text-slate-500 animate-pulse text-xl">Cargando Zendity Med (eMAR)...</div>;
+    if (loading) return <div className="p-20 text-center font-bold text-slate-500 animate-pulse text-xl">Cargando Zéndity Med (eMAR)…</div>;
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -245,29 +195,23 @@ export default function ZendityMedPage() {
             <div className="flex justify-between items-center border-b border-slate-200 pb-6">
                 <div>
                     <h1 className="text-4xl font-black text-slate-900 flex items-center gap-3">
-                         Zendity Med <span className="text-base text-teal-600 font-bold bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest border border-teal-100">Inteligencia Clínica</span>
+                        Zéndity Med <span className="text-base text-teal-600 font-bold bg-teal-50 px-3 py-1 rounded-full uppercase tracking-widest border border-teal-100">Inteligencia Clínica</span>
                     </h1>
-                    <p className="text-slate-500 mt-2 max-w-2xl font-medium">Gestión del Historial de Vida de Fármacos, Cumplimiento de Auditoría HIPAA y Panel de Preparación de Retén para Cuidadores por Grupo de Color.</p>
+                    <p className="text-slate-500 mt-2 max-w-2xl font-medium">El historial de vida de cada fármaco del hogar. Todo cambio pide una razón escrita y queda firmado.</p>
                 </div>
 
-                {/* TABS PESTAÑAS */}
-                <div className="flex bg-slate-200 p-1.5 rounded-2xl shadow-inner gap-1">
-                    <button onClick={() => setActiveTab('MAR')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'MAR' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>e-MAR Central</button>
-                    <button onClick={() => setActiveTab('OCR')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'OCR' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
-                         Escáner OCR
-                    </button>
-                    <button onClick={() => setActiveTab('CART')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'CART' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Validar Carrito (Turnos)</button>
-                    <a href="/med/briefing" className="px-6 py-2.5 rounded-xl font-black text-sm text-indigo-700 bg-indigo-100 hover:bg-indigo-200 border border-indigo-200 shadow-sm transition-all flex items-center gap-2 ml-4">
-                        <span className="text-xl"></span> Prep. Visita Médica
+                <div className="flex items-center gap-3">
+                    <a href="/med/briefing" className="px-6 py-2.5 rounded-xl font-black text-sm text-indigo-700 bg-indigo-100 hover:bg-indigo-200 border border-indigo-200 shadow-sm transition-all">
+                        Prep. visita médica
                     </a>
-                    <TaskAssignmentButton user={user} buttonStyle="px-6 py-2.5 rounded-xl font-black text-sm text-white bg-teal-600 hover:bg-teal-700 shadow-sm transition-all flex items-center gap-2 border border-teal-500 ml-2" />
+                    <TaskAssignmentButton user={user} buttonStyle="px-6 py-2.5 rounded-xl font-black text-sm text-white bg-teal-600 hover:bg-teal-700 shadow-sm transition-all border border-teal-500" />
                 </div>
             </div>
 
             {/* ========================================================= */}
             {/* PESTAÑA 1: e-MAR CRÓNICO (HIPAA AUDIT)                     */}
             {/* ========================================================= */}
-            {activeTab === 'MAR' && (
+            {(
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {patients.map(p => (
                         <div key={p.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition-shadow">
@@ -317,131 +261,6 @@ export default function ZendityMedPage() {
                             </div>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* PESTAÑA 2: OCR SIMULADOR (Inteligencia Clínica)           */}
-            {/* ========================================================= */}
-            {activeTab === 'OCR' && (
-                <div className="max-w-3xl mx-auto">
-                    <div className="bg-indigo-900 rounded-2xl p-1 shadow-2xl overflow-hidden relative">
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay"></div>
-
-                        <div className="bg-white m-1 rounded-2xl p-10 relative z-10">
-
-                            <div className="text-center mb-8">
-                                <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 border-4 border-indigo-100 shadow-inner">
-                                    
-                                </div>
-                                <h2 className="text-3xl font-black text-slate-800">Cero Papel Médico</h2>
-                                <p className="text-slate-500 font-medium mt-2">Sube una foto de la receta médica. Zendity AI leerá la posología y generará las instrucciones operativas estándar para tu sede.</p>
-                            </div>
-
-                            <div className="border-4 border-dashed border-slate-200 rounded-xl p-12 text-center bg-slate-50 hover:bg-slate-100 hover:border-indigo-300 transition-colors cursor-pointer relative group">
-                                <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50" onChange={handleOcrUpload} accept="image/*" />
-                                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform"></div>
-                                <p className="font-bold text-slate-700 text-lg">Toca para Tomar Foto a la Receta</p>
-                                <p className="text-sm font-medium text-slate-500 mt-1">Soporta prescripciones a mano alzada o impresas.</p>
-                            </div>
-
-                            {ocrLoading && (
-                                <div className="mt-8 p-6 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center gap-4 animate-pulse">
-                                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                    <div>
-                                        <p className="font-black text-indigo-900 text-lg">Leyendo caligrafía médica...</p>
-                                        <p className="text-sm font-medium text-indigo-700/70">Zendity AI procesando NLP de posología.</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {ocrResult && (
-                                <div className="mt-8 bg-slate-900 text-white rounded-xl shadow-xl overflow-hidden animate-in zoom-in-95">
-                                    <div className="p-4 bg-teal-500/20 border-b border-white/10 flex items-center gap-3">
-                                        <span className="text-xl"></span>
-                                        <h3 className="font-bold text-teal-400 tracking-widest uppercase text-sm">Extracción NLP Completada</h3>
-                                    </div>
-                                    <div className="p-6 space-y-6">
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Texto Crudo Extraído (Receta Físca)</p>
-                                            <div className="p-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm text-slate-500">
-                                                "{ocrResult.rawText}"
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Fármaco (DB Link)</p>
-                                                <p className="font-black text-xl">{ocrResult.name}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Dosis (Potencia)</p>
-                                                <p className="font-black text-xl">{ocrResult.dosage}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="pt-4 border-t border-white/10">
-                                            <p className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-2"> Instrucción Traducida para Cuidadores (Piso)</p>
-                                            <p className="text-lg font-medium leading-relaxed bg-amber-500/10 p-4 border border-amber-500/20 rounded-xl text-amber-100">
-                                                {ocrResult.instructions}
-                                            </p>
-                                        </div>
-
-                                        <button className="w-full py-4 bg-teal-500 hover:bg-teal-400 text-white font-black rounded-xl text-lg shadow-lg shadow-teal-500/20 active:scale-95 transition-all">
-                                            Anexar este Récord al e-MAR
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* PESTAÑA 3: CART VALIDATOR (Retén de Turnos)                 */}
-            {/* ========================================================= */}
-            {activeTab === 'CART' && (
-                <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-200">
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-black text-slate-900">Validación de Carrito de Medicamentos</h2>
-                        <p className="text-slate-500 font-medium">Firme electrónicamente los "Platos de Dosis" preparados divididos por Grupo de Color (Balance de Carga) antes de entregar la responsabilidad de los carritos rodantes al personal del piso de Cuidadores del turno entrante.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        {['RED', 'YELLOW', 'GREEN', 'BLUE'].map(color => {
-                            const inZone = patients.filter(p => p.colorGroup === color);
-                            const medCount = inZone.reduce((acc, p) => acc + p.medications.length, 0);
-
-                            return (
-                                <div key={color} className={`rounded-3xl border-2 p-5 flex flex-col justify-between ${colorMapping[color]}`}>
-                                    <div>
-                                        <h3 className="font-black text-xl mb-1">Coche {color}</h3>
-                                        <p className="text-sm font-bold opacity-80 mb-6">{inZone.length} Residentes  {medCount} Dosis Previstas</p>
-
-                                        <div className="space-y-2 mb-6">
-                                            <div className="flex items-center gap-2 text-sm font-medium">
-                                                <input type="checkbox" className="w-5 h-5 rounded border-2 bg-white/50 text-current focus:ring-0 cursor-pointer" />
-                                                <label>Dosis Mañana Preparada</label>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm font-medium">
-                                                <input type="checkbox" className="w-5 h-5 rounded border-2 bg-white/50 text-current focus:ring-0 cursor-pointer" />
-                                                <label>Insumos Diabéticos Listos</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={() => submitCartSign(color)}
-                                        disabled={submitting}
-                                        className="w-full py-3 bg-white/80 border hover:bg-white border-current/20 font-black rounded-xl shadow-sm text-sm transition-all active:scale-95 backdrop-blur-sm"
-                                    >
-                                        Firmar (Doble Chequeo)
-                                    </button>
-                                </div>
-                            )
-                        })}
-                    </div>
                 </div>
             )}
 
