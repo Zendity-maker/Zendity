@@ -157,3 +157,37 @@ export function nivelDe(hallazgos: HallazgoVital[]): NivelVital | null {
     if (hallazgos.length > 0) return 'ANOTAR';
     return null;
 }
+
+/**
+ * ¿ESTA LECTURA ESTÁ ALTERADA?
+ * ────────────────────────────
+ * Una sola definición, la de arriba, que es la que revisó la enfermera del
+ * hogar. Existe porque había DOS COPIAS SUELTAS con lógica distinta:
+ *
+ *   /api/corporate/trends            comparaba la temperatura CRUDA contra
+ *                                    umbrales Celsius (> 38 || < 36)
+ *   /api/corporate/director-briefing la normalizaba antes
+ *
+ * Y en Cupey 4 091 de 5 811 temperaturas están guardadas en Fahrenheit, porque
+ * el formulario acepta las dos escalas y detecta la unidad al leer. Así que la
+ * primera copia marcaba como alterada cualquier lectura normal: 98.6 es mayor
+ * que 38.
+ *
+ * Sobre las mismas 5 811 tomas, medido el 05-sep-2026:
+ *
+ *     /corporate/trends            83.8% "anómalas"
+ *     /corporate/director-briefing 55.4%
+ *     evaluarVitales               18.0%  (y solo 7.6% requieren llamar)
+ *
+ * Un panel de dirección que dice que la mitad de las tomas del día están
+ * alteradas no informa de nada: enseña a ignorarlo. El número verdadero es uno
+ * de cada seis.
+ */
+export function esVitalAnomalo(v: Parameters<typeof evaluarVitales>[0]): boolean {
+    return nivelDe(evaluarVitales(v)) !== null;
+}
+
+/** Solo lo que exige una llamada. Para contadores de "necesita atención ahora". */
+export function esVitalCritico(v: Parameters<typeof evaluarVitales>[0]): boolean {
+    return nivelDe(evaluarVitales(v)) === 'LLAMAR';
+}

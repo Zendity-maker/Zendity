@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { esVitalAnomalo } from '@/lib/vitals-thresholds';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -10,21 +11,6 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Clinical-day thresholds para marcar vitales como anómalos.
-// Los signos son nulables desde sep-2026: lo que no se midió no puede estar
-// anómalo. Ver el comentario de VitalSigns en el esquema.
-function isAbnormalVital(v: {
-    systolic: number | null; diastolic: number | null; heartRate: number | null;
-    temperature: number | null; spo2: number | null;
-}): boolean {
-    if (v.spo2 !== null && v.spo2 < 94) return true;
-    if (v.systolic !== null && (v.systolic > 140 || v.systolic < 90)) return true;
-    if (v.diastolic !== null && (v.diastolic > 90 || v.diastolic < 60)) return true;
-    if (v.heartRate !== null && (v.heartRate < 50 || v.heartRate > 100)) return true;
-    if (v.temperature !== null && (v.temperature > 38 || v.temperature < 36)) return true;
-    return false;
-}
 
 function formatISODate(d: Date): string {
     // Retorna YYYY-MM-DD anclado en AST (restamos 4h para representar clock AST)
@@ -223,11 +209,11 @@ export async function GET(request: NextRequest) {
         // ── Serie 3: Vitales anómalos ──
         const vitalsByDay = bucketize(vitalsCurrent, (v) => v.createdAt);
         const vitalsSeries = vitalsByDay.map(({ date, rows }) => {
-            const abnormal = rows.filter(isAbnormalVital).length;
+            const abnormal = rows.filter(esVitalAnomalo).length;
             return { date, total: rows.length, abnormal };
         });
-        const vitalsCurrentAbnormal = vitalsCurrent.filter(isAbnormalVital).length;
-        const vitalsPrevAbnormal = vitalsPrev.filter(isAbnormalVital).length;
+        const vitalsCurrentAbnormal = vitalsCurrent.filter(esVitalAnomalo).length;
+        const vitalsPrevAbnormal = vitalsPrev.filter(esVitalAnomalo).length;
 
         // ── Serie 4: Triage (tickets por día + MTTR) ──
         const triageByDay = bucketize(triageCurrent, (t) => t.createdAt);

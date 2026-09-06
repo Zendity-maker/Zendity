@@ -122,10 +122,35 @@ export async function calculateDynamicScore(userId: string) {
         }),
     ]);
 
+    /**
+     * OMITIR BIEN DEJA DE COSTAR PUNTOS.
+     *
+     * Esta penalidad —8 puntos por omisión— nunca llegó a dispararse: filtraba
+     * por `administeredAt >= hace 7 días` y una omisión guarda `administeredAt:
+     * null`, así que la comparación jamás daba cierto. Estuvo contando cero
+     * desde siempre.
+     *
+     * Y ARREGLAR EL FILTRO HABRÍA SIDO PEOR QUE DEJARLO ROTO. En 24 537
+     * administraciones de Cupey hay TRES omisiones. Eso no es un hogar donde
+     * nunca se omite: es un eMAR donde registrar la verdad salía caro. Encender
+     * la penalidad habría puesto precio justo al acto de documentar.
+     *
+     * Peor todavía, estaba al revés: una dosis DOCUMENTADA como omitida costaba
+     * 8 puntos, y una dosis que nadie registró nunca —`MISSED`— no cuesta nada,
+     * ni aquí ni en ningún otro sitio. El incentivo apuntaba a callarse.
+     *
+     * Desde sep-2026 el motivo decide el estado (ver src/lib/omision-medicamento.ts),
+     * así que además muchas de estas ya no son fallos de quien administra:
+     * "el residente lo rechazó" es REFUSED y "indicación médica" es HELD.
+     *
+     * El número se sigue calculando —con el filtro correcto, para que sea
+     * cierto— y se sigue enseñando en `details`. Lo que se quita es el castigo.
+     * Hacer el dato veraz, no crear una métrica que castigue la conducta.
+     */
     // ── Negativos clínicos (últimos 7 días) ──
     const [medsOmitted, rotationsLate, fastActionsFailed] = await Promise.all([
         prisma.medicationAdministration.count({
-            where: { administeredById: userId, status: 'OMITTED', administeredAt: { gte: sevenDaysAgo } }
+            where: { administeredById: userId, status: 'OMITTED', createdAt: { gte: sevenDaysAgo } }
         }),
         prisma.posturalChangeLog.count({
             where: { nurseId: userId, isComplianceAlert: true, performedAt: { gte: sevenDaysAgo } }
@@ -283,7 +308,8 @@ export async function calculateDynamicScore(userId: string) {
     // vuelve a ser visible. El tope mantiene la penalizacion severa (puede
     // llevar de 75 a 40 por si sola) pero deja siempre camino de regreso.
     const rawNegatives =
-        (medsOmitted * 8) +
+        // medsOmitted NO entra: ver el comentario largo arriba. Una omisión
+        // documentada es trabajo bien hecho, no una falta.
         (rotationsLate * 8) +
         (fastActionsFailed * 8) +
         (unclosedSessions * 10) +

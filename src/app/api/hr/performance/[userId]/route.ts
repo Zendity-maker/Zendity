@@ -156,11 +156,23 @@ export async function GET(req: Request, { params }: any) {
             const totalMeds = await prisma.medicationAdministration.count({
                 where: { administeredById: userId, administeredAt: { gte: sevenDaysAgo } }
             });
-            const omittedMeds = await prisma.medicationAdministration.count({
-                where: { administeredById: userId, status: 'OMITTED', administeredAt: { gte: sevenDaysAgo } }
+            /**
+             * LA EXACTITUD DEL eMAR NO ES "CUANTAS OMITIO".
+             *
+             * Contaba OMITTED, o sea que documentar una omisión bajaba la nota.
+             * Una dosis omitida CON su motivo es trabajo bien hecho; lo que
+             * daña el expediente es la dosis que nadie resolvió — `MISSED`, que
+             * no se penalizaba en ninguna parte del sistema.
+             *
+             * Ademas el filtro nunca funcionó: usaba `administeredAt`, y una
+             * omisión lo guarda en null, así que `omittedMeds` era siempre 0 y
+             * la exactitud salía 100% para todo el mundo.
+             */
+            const missedMeds = await prisma.medicationAdministration.count({
+                where: { administeredById: userId, status: 'MISSED', createdAt: { gte: sevenDaysAgo } }
             });
 
-            const emarAccuracy = totalMeds === 0 ? 100 : Math.round(((totalMeds - omittedMeds) / totalMeds) * 100);
+            const emarAccuracy = totalMeds === 0 ? 100 : Math.round(((totalMeds - missedMeds) / totalMeds) * 100);
 
             // Clinical Notes Consistency
             const clinicalNotes = await prisma.medicationAuditLog.count({

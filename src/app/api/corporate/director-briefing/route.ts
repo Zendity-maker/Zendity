@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { esVitalAnomalo } from '@/lib/vitals-thresholds';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -36,30 +37,6 @@ interface BriefingBullet {
     description: string;
     action: string;
     link?: string;   // ruta interna a la que navega el botón de acción
-}
-
-// Las temperaturas pueden estar guardadas en °F (>50) o °C (<50).
-// Normalizar a °C antes de comparar para evitar falsos positivos.
-function normalizeTempC(temp: number): number {
-    return temp > 50 ? (temp - 32) * 5 / 9 : temp;
-}
-
-// Clinical-day thresholds para marcar vitales como anómalos.
-// Los signos son nulables desde sep-2026: lo que no se midió no puede estar
-// anómalo. Ver el comentario de VitalSigns en el esquema.
-function isAbnormalVital(v: {
-    systolic: number | null; diastolic: number | null; heartRate: number | null;
-    temperature: number | null; spo2: number | null;
-}): boolean {
-    if (v.spo2 !== null && v.spo2 < 94) return true;
-    if (v.systolic !== null && (v.systolic > 140 || v.systolic < 90)) return true;
-    if (v.diastolic !== null && (v.diastolic > 90 || v.diastolic < 60)) return true;
-    if (v.heartRate !== null && (v.heartRate < 50 || v.heartRate > 100)) return true;
-    if (v.temperature !== null) {
-        const tempC = normalizeTempC(v.temperature);
-        if (tempC > 38 || tempC < 36) return true;
-    }
-    return false;
 }
 
 async function buildContext(effectiveHqId: string | 'ALL') {
@@ -131,7 +108,7 @@ async function buildContext(effectiveHqId: string | 'ALL') {
     const handoversSigned = handoversToday.filter(h => h.supervisorSignedAt).length;
     const handoversPending = handoversToday.length - handoversSigned;
 
-    const vitalsAbnormal = vitalsToday.filter(isAbnormalVital).length;
+    const vitalsAbnormal = vitalsToday.filter(esVitalAnomalo).length;
 
     const uniqueMealKeys = new Set(mealsToday.map(m => `${m.patientId}::${m.mealType}`));
     const mealCoverage = patientsCount > 0
