@@ -12,6 +12,25 @@ const CATEGORIES: { value: Category; label: string; color: string }[] = [
     { value: "URGENT",    label: "🚨 Urgente",            color: "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" },
 ];
 
+/**
+ * EL CANAL HACIA ZENDITY — la empresa, no el hogar.
+ *
+ * Baja a bottom-6 el 06-sep-2026: estaba en bottom-24 porque debajo vivia el
+ * boton de voz de Zendi, que se retiro. Sin el, este quedaba flotando con un
+ * hueco debajo.
+ *
+ * CERO TICKETS DESDE EL 20-MAY-2026, y se queda igual. No es el caso del boton
+ * de Zendi —que tenia cero uso porque no funcionaba—: este funciona (crea el
+ * ticket, manda correo, hay pantalla en /admin/support para leerlos) y tiene
+ * cero uso porque hoy el unico que lo usaria es el dueño de la empresa, y a si
+ * mismo no se abre un ticket. El dia que haya un segundo cliente, esto es lo
+ * unico que tiene el director de otro hogar para avisar de que algo se rompio.
+ *
+ * QUIEN LO VE, desde hoy: supervision y direccion. Antes lo veia todo el mundo
+ * menos las familias, cuidadoras incluidas — y el problema de una cuidadora a
+ * mitad de turno va a su supervisora, no al fabricante del software. Un canal
+ * que salta la cadena de mando parece atajo y es via muerta.
+ */
 export default function SupportButton() {
     const [open, setOpen] = useState(false);
     const [category, setCategory] = useState<Category>("QUESTION");
@@ -68,7 +87,7 @@ export default function SupportButton() {
             <button
                 onClick={handleOpen}
                 title="Contactar Soporte Zéndity"
-                className="fixed bottom-24 right-6 z-50 w-12 h-12 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
+                className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-teal-600 hover:bg-teal-700 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 flex items-center justify-center"
             >
                 <HelpCircle className="w-6 h-6" />
             </button>

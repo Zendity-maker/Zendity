@@ -851,7 +851,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 de 33 residentes. Ver el commit para el detalle. */}
 
             {/* Punto 8 — Botón de soporte flotante (oculto para FAMILY) */}
-            {user?.role !== 'FAMILY' && <SupportButton />}
+            {/* Soporte a Zendity: supervision y direccion. Cuenta roles
+                secundarios, como el resto del sistema. */}
+            {[user?.role ?? '', ...((user as any)?.secondaryRoles ?? [])]
+                .some((r: string) => ['SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(r)) && <SupportButton />}
 
             {/* FASE 81: Chat interno staff (oculto para FAMILY) */}
             {user?.role !== 'FAMILY' && (
