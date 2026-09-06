@@ -30,6 +30,7 @@
  * dos hojas y el texto es texto.
  */
 import jsPDF from 'jspdf';
+import { dosisODejarloEnBlanco } from '@/lib/dosis';
 
 const ROJO: [number, number, number] = [190, 18, 60];
 const ROJO_BG: [number, number, number] = [254, 226, 226];
@@ -315,7 +316,7 @@ export function construirDossierPDF(m: DossierMeta): { doc: jsPDF; omitido: stri
             doc.setFont('helvetica', 'bold').setFontSize(7.5);
             doc.text((doc.splitTextToSize(md.name, 55) as string[])[0], cols[0] + 1.5, y);
             doc.setFont('helvetica', 'normal');
-            doc.text(md.dosage ?? '—', cols[1] + 1.5, y);
+            doc.text(dosisODejarloEnBlanco(md.dosage), cols[1] + 1.5, y);
             doc.text(md.route ?? '—', cols[2] + 1.5, y);
             doc.text(md.frequency ?? '—', cols[3] + 1.5, y);
             doc.text((doc.splitTextToSize(md.scheduleTimes ?? '—', W - M - cols[4] - 3) as string[])[0], cols[4] + 1.5, y);

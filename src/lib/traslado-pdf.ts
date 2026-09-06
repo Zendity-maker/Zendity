@@ -22,6 +22,7 @@
  * que sí, tres son alérgicos a penicilina.
  */
 import jsPDF from 'jspdf';
+import { dosisODejarloEnBlanco } from '@/lib/dosis';
 
 const ROJO: [number, number, number] = [190, 18, 60];
 const ROJO_BG: [number, number, number] = [254, 226, 226];
@@ -225,7 +226,7 @@ export function generarTrasladoPDF(m: TrasladoMeta): ArrayBuffer {
             setText(INK); doc.setFont('helvetica', 'bold').setFontSize(8);
             doc.text((doc.splitTextToSize(med.name, COLS[0].w - 4) as string[])[0] ?? '', x + 2, y + 4.8); x += COLS[0].w;
             doc.setFont('helvetica', 'normal');
-            doc.text(med.dosage ?? '—', x + 2, y + 4.8); x += COLS[1].w;
+            doc.text(dosisODejarloEnBlanco(med.dosage), x + 2, y + 4.8); x += COLS[1].w;
             doc.text(med.route ?? '—', x + 2, y + 4.8); x += COLS[2].w;
             doc.text(med.frequency ?? '—', x + 2, y + 4.8); x += COLS[3].w;
             setText(MUTED); doc.setFontSize(7.5);
