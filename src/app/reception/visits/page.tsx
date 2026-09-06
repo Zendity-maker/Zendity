@@ -106,7 +106,7 @@ export default async function VisitsPage({
                 <div className="flex items-center gap-3">
                     <CerrarSalidas abiertas={abiertas} />
                     <DateFilter />
-                    <PrintButton />
+                    <PrintButton from={searchParams.from} to={searchParams.to} />
                 </div>
             </div>
 
