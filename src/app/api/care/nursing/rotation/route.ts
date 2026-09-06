@@ -271,10 +271,25 @@ export async function GET(_req: Request) {
         const counts: Record<Tier, number> = { OK: 0, DUE: 0, OVERDUE: 0, NEVER: 0, FUERA: 0, SIN_ORDEN: 0 };
         for (const p of patients) counts[p.tier]++;
 
+        // El membrete del hogar viaja con el tablero: la pantalla genera el
+        // formulario de tratamiento en papel para el home care, y sin esto
+        // saldria sin logo ni telefono al que devolver la hoja.
+        const sede = await prisma.headquarters.findUnique({
+            where: { id: hqId },
+            select: { name: true, phone: true, address: true, billingAddress: true, logoUrl: true },
+        });
+
         return NextResponse.json({
             success: true,
             generatedAt: now.toISOString(),
             hqId,
+            hogar: sede ? {
+                nombre: sede.name,
+                telefono: sede.phone,
+                // `address` es la de membretes; billingAddress es la administrativa.
+                direccion: sede.address ?? sede.billingAddress,
+                logo: sede.logoUrl,
+            } : null,
             thresholdsMin: { target: TARGET_MIN, breach: BREACH_MIN },
             counts,
             total: patients.length,

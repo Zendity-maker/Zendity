@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import DeclareUlcerModal from "@/components/medical/upps/DeclareUlcerModal";
+import { descargarFormularioUppPDF } from "@/lib/formulario-tratamiento-upp";
 import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, puedeRegistrar, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
@@ -59,6 +60,14 @@ interface ActiveUlcer {
     }[];
 }
 
+/** El membrete del hogar, para el formulario en papel del home care. */
+interface HogarMembrete {
+    nombre: string;
+    telefono: string | null;
+    direccion: string | null;
+    logo: string | null;
+}
+
 /** Lo que el piso vio en la piel y todavia nadie decidio si es ulcera. */
 interface PielPendiente {
     id: string;
@@ -95,6 +104,7 @@ interface ApiResponse {
     counts?: Record<Tier, number>;
     total?: number;
     patients?: PatientRow[];
+    hogar?: HogarMembrete | null;
 }
 
 const TIER_ORDER: Tier[] = ['OVERDUE', 'DUE', 'NEVER', 'OK', 'SIN_ORDEN', 'FUERA'];
@@ -150,7 +160,7 @@ export default function NursingRotationPage() {
      * Resultado en Cupey: cuatro ulceras, una curacion cada una, la del dia en
      * que se abrieron. La mas grave lleva 77 dias asi.
      */
-    const [curando, setCurando] = useState<{ ulcera: ActiveUlcer; residente: string } | null>(null);
+    const [curando, setCurando] = useState<{ ulcera: ActiveUlcer; residente: string; habitacion: string | null } | null>(null);
     const [tratamiento, setTratamiento] = useState("");
     const [medida, setMedida] = useState("");
     const [notaCura, setNotaCura] = useState("");
@@ -252,8 +262,8 @@ export default function NursingRotationPage() {
         .filter(t => puedeRegistrar(t, rolesDelUsuario));
     const def = TIPOS_UPP[tipoRegistro];
 
-    const abrirCuracion = (ulcera: ActiveUlcer, residente: string) => {
-        setCurando({ ulcera, residente });
+    const abrirCuracion = (ulcera: ActiveUlcer, residente: string, habitacion: string | null) => {
+        setCurando({ ulcera, residente, habitacion });
         setTratamiento(""); setMedida(""); setNotaCura(""); setMotivo("");
         // El primero que su rol permita. Una cuidadora abre directamente en
         // "Cambié el apósito" sin tener que escoger nada.
@@ -687,7 +697,7 @@ export default function NursingRotationPage() {
                                         {p.activeUlcers.map(u => (
                                             <button
                                                 key={u.id}
-                                                onClick={() => abrirCuracion(u, p.name)}
+                                                onClick={() => abrirCuracion(u, p.name, p.roomNumber)}
                                                 title={`Última curación hace ${u.diasSinCuracion} día(s). Toca para registrar una.`}
                                                 className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full inline-flex items-center gap-1 border transition-colors ${
                                                     u.diasSinCuracion >= 7
@@ -1101,6 +1111,36 @@ export default function NursingRotationPage() {
                                     </div>
                                 )}
                             </div>
+                            )}
+
+                            {/* EL FORMULARIO EN PAPEL, DESDE AQUÍ.
+                                La enfermera del home care viene, cura, y el
+                                tratamiento se lo lleva puesto. Esta hoja sale
+                                con el nombre del residente y su úlcera ya
+                                escritos, para que ella solo ponga lo que solo
+                                ella puede dar. Se imprime, se le da cuando
+                                llega, y vuelve firmada a enfermería. */}
+                            {def.puedeCambiarEstadio && (
+                                <button
+                                    onClick={() => descargarFormularioUppPDF({
+                                        hogar: data?.hogar ?? { nombre: 'Zéndity', telefono: null, direccion: null, logo: null },
+                                        residente: {
+                                            nombre: curando.residente,
+                                            habitacion: curando.habitacion,
+                                            localizacion: curando.ulcera.bodyLocation,
+                                            estadio: curando.ulcera.stage,
+                                            identificadaAt: new Date(curando.ulcera.identifiedAt),
+                                            planActual: curando.ulcera.planTratamiento,
+                                        },
+                                        generadoAt: new Date(),
+                                    })}
+                                    className="w-full py-3 bg-white border-2 border-teal-300 hover:border-teal-500 text-teal-800 text-sm font-black rounded-xl transition-colors"
+                                >
+                                    Descargar el formulario para el home care
+                                    <span className="block text-[11px] font-medium text-teal-700/70 mt-0.5">
+                                        Hoja en papel con el nombre y la úlcera ya puestos. La enfermera de fuera escribe el plan y la firma.
+                                    </span>
+                                </button>
                             )}
 
                             {/* EL HISTORIAL, AQUÍ.

@@ -208,3 +208,14 @@ export function generarFormularioUppPDF(f: FormularioUpp): jsPDF {
 
     return doc;
 }
+
+/** El nombre del archivo que ve quien lo descarga. */
+export function nombreFormularioUpp(residente: string | null | undefined): string {
+    const limpio = (residente ?? 'en-blanco').trim().replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40);
+    return `Plan_Tratamiento_UPP_${limpio}_${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+/** Genera y descarga. Es lo que llama el botón de la pantalla. */
+export function descargarFormularioUppPDF(f: FormularioUpp): void {
+    generarFormularioUppPDF(f).save(nombreFormularioUpp(f.residente?.nombre));
+}
