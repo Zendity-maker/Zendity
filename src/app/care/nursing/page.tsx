@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { TIPOS_UPP, MOTIVOS_CAMBIO, puedeRegistrar, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
     Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
@@ -37,10 +38,19 @@ interface ActiveUlcer {
     stage: number;
     status: string;
     identifiedAt: string;
-    /** Fecha de la ultima curacion, o la de apertura si nunca hubo otra. */
+    /** El plan del home care. Se enseña EN el formulario, no en otra pantalla. */
+    planTratamiento: string | null;
+    planEstablecidoPor: string | null;
+    /** Reloj 1: cuando se aplico el TRATAMIENTO del plan. */
     ultimaCuracionAt: string;
     ultimoTratamiento: string | null;
     diasSinCuracion: number;
+    /** Reloj 2: cuando MIRO alguien con criterio clinico (curacion o valoracion). */
+    ultimaValoracionAt: string;
+    diasSinValoracion: number;
+    /** Lo que hace el piso entre visitas de la enfermera. No mueve ningun reloj. */
+    ultimoCambioAposito: { at: string; motivo: string | null } | null;
+    cambiosEnUnDia: number;
 }
 interface PatientRow {
     patientId: string;
@@ -133,14 +143,70 @@ export default function NursingRotationPage() {
     const [guardandoCura, setGuardandoCura] = useState(false);
     const [errorCura, setErrorCura] = useState<string | null>(null);
 
+    /**
+     * QUÉ SE ESTÁ REGISTRANDO. Ver src/lib/upp.ts.
+     *
+     * Una cuidadora solo ve CAMBIO_APOSITO, y su formulario NO le pregunta qué
+     * aplicó: ella limpia y tapa hasta que venga la enfermera. Preguntárselo la
+     * obligaría a inventarse una respuesta.
+     */
+    const [tipoRegistro, setTipoRegistro] = useState<TipoRegistroUpp>('CURACION');
+    const [motivo, setMotivo] = useState<string>('');
+
+    // El plan del home care: enfermería y dirección lo escriben, la cuidadora
+    // lo lee. Se edita aquí mismo porque es donde se echa en falta.
+    const [editandoPlan, setEditandoPlan] = useState(false);
+    const [planTexto, setPlanTexto] = useState('');
+    const [planQuien, setPlanQuien] = useState('');
+    const [guardandoPlan, setGuardandoPlan] = useState(false);
+
+    const rolesDelUsuario = [user?.role ?? '', ...(user?.secondaryRoles ?? [])];
+    const tiposDisponibles = (Object.keys(TIPOS_UPP) as TipoRegistroUpp[])
+        .filter(t => puedeRegistrar(t, rolesDelUsuario));
+    const def = TIPOS_UPP[tipoRegistro];
+
     const abrirCuracion = (ulcera: ActiveUlcer, residente: string) => {
         setCurando({ ulcera, residente });
-        setTratamiento(""); setMedida(""); setNotaCura("");
+        setTratamiento(""); setMedida(""); setNotaCura(""); setMotivo("");
+        // El primero que su rol permita. Una cuidadora abre directamente en
+        // "Cambié el apósito" sin tener que escoger nada.
+        setTipoRegistro(tiposDisponibles[0] ?? 'CAMBIO_APOSITO');
         setEstadioNuevo(ulcera.stage); setCerrarUlcera(false); setErrorCura(null);
+        setEditandoPlan(false);
+        setPlanTexto(ulcera.planTratamiento ?? '');
+        setPlanQuien(ulcera.planEstablecidoPor ?? '');
     };
 
+    const guardarPlan = async () => {
+        if (!curando) return;
+        setGuardandoPlan(true);
+        try {
+            const res = await fetch(`/api/care/upp/${curando.ulcera.id}/plan`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planTratamiento: planTexto.trim(), planEstablecidoPor: planQuien.trim() }),
+            });
+            const d = await res.json();
+            if (!d.success) { setErrorCura(d.error || 'No se pudo guardar el plan'); return; }
+            // El modal sigue abierto con el plan ya escrito: quien lo acaba de
+            // poner suele venir justo a registrar algo sobre esa úlcera.
+            setCurando(c => c && { ...c, ulcera: { ...c.ulcera, planTratamiento: planTexto.trim() || null, planEstablecidoPor: planQuien.trim() || null } });
+            setEditandoPlan(false);
+            fetchData();
+        } catch {
+            setErrorCura('Error de red');
+        } finally {
+            setGuardandoPlan(false);
+        }
+    };
+
+    const listoParaGuardar = !!curando
+        && (!def.pideTratamiento || !!tratamiento.trim())
+        && (!def.pideMotivo || !!motivo)
+        && !(motivo === 'OTRO' && !notaCura.trim());
+
     const guardarCuracion = async () => {
-        if (!curando || !tratamiento.trim()) return;
+        if (!curando || !listoParaGuardar) return;
         setGuardandoCura(true);
         setErrorCura(null);
         try {
@@ -148,11 +214,13 @@ export default function NursingRotationPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    treatmentApplied: tratamiento.trim(),
+                    tipo: tipoRegistro,
+                    motivo: def.pideMotivo ? motivo : undefined,
+                    treatmentApplied: def.pideTratamiento ? tratamiento.trim() : undefined,
                     woundSize: medida.trim(),
                     notes: notaCura.trim(),
-                    stage: estadioNuevo,
-                    status: cerrarUlcera ? 'RESOLVED' : undefined,
+                    stage: def.puedeCambiarEstadio ? estadioNuevo : undefined,
+                    status: def.puedeCambiarEstadio && cerrarUlcera ? 'RESOLVED' : undefined,
                 }),
             });
             const data = await res.json();
@@ -534,28 +602,159 @@ export default function NursingRotationPage() {
                                 </div>
                                 <button onClick={() => setCurando(null)} className="text-slate-400 hover:text-slate-600 shrink-0 text-2xl leading-none px-2">×</button>
                             </div>
-                            <p className={`text-xs font-bold mt-2 ${curando.ulcera.diasSinCuracion >= 7 ? 'text-amber-700' : 'text-slate-400'}`}>
-                                Última curación hace {curando.ulcera.diasSinCuracion} día{curando.ulcera.diasSinCuracion === 1 ? '' : 's'}
-                                {curando.ulcera.ultimoTratamiento && ` — ${curando.ulcera.ultimoTratamiento}`}
-                            </p>
+                            {/* Los DOS relojes, separados. "Sin curar" y "sin
+                                mirar" se resuelven distinto: lo primero espera a
+                                la enfermera de servicios externos, lo segundo lo
+                                puede hacer Celia hoy. */}
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold">
+                                <span className={curando.ulcera.diasSinCuracion >= 7 ? 'text-rose-700' : 'text-slate-400'}>
+                                    Curada hace {curando.ulcera.diasSinCuracion}d
+                                    {curando.ulcera.ultimoTratamiento && ` — ${curando.ulcera.ultimoTratamiento}`}
+                                </span>
+                                <span className={curando.ulcera.diasSinValoracion >= 7 ? 'text-amber-700' : 'text-slate-400'}>
+                                    Vista hace {curando.ulcera.diasSinValoracion}d
+                                </span>
+                                {curando.ulcera.cambiosEnUnDia > 0 && (
+                                    <span className="text-slate-500">
+                                        {curando.ulcera.cambiosEnUnDia} cambio{curando.ulcera.cambiosEnUnDia === 1 ? '' : 's'} de apósito en 24h
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-5 space-y-4">
-                            <div>
-                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
-                                    ¿Qué se aplicó?
-                                </label>
-                                <input
-                                    type="text"
-                                    value={tratamiento}
-                                    onChange={e => setTratamiento(e.target.value)}
-                                    maxLength={500}
-                                    placeholder="Ej. limpieza con salina + apósito hidrocoloide"
-                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
-                                />
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* QUÉ SE ESTÁ REGISTRANDO. Una cuidadora ve un solo
+                                tipo y no tiene que escoger nada; enfermería y
+                                dirección ven los tres. */}
+                            {tiposDisponibles.length > 1 && (
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    {tiposDisponibles.map(t => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setTipoRegistro(t)}
+                                            className={`py-2.5 px-2 rounded-xl text-xs font-black border-2 leading-tight transition-colors ${
+                                                tipoRegistro === t
+                                                    ? 'bg-slate-900 text-white border-slate-900'
+                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                                            }`}
+                                        >{TIPOS_UPP[t].etiqueta}</button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* La frase que marca la raya. Va SIEMPRE, no detrás
+                                de un icono de ayuda: es la única capacitación que
+                                alguien va a leer a las 3 de la mañana. */}
+                            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                                {def.queEs}
+                            </p>
+
+                            {/* EL PLAN DEL HOME CARE. Pedirle a alguien que actúe
+                                y guardar la instrucción en otra pantalla es
+                                pedirle que actúe de memoria. */}
+                            {editandoPlan ? (
+                                <div className="rounded-xl border-2 border-teal-300 bg-teal-50 p-3 space-y-2">
+                                    <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Plan del home care</p>
+                                    <textarea
+                                        value={planTexto}
+                                        onChange={e => setPlanTexto(e.target.value)}
+                                        rows={3}
+                                        maxLength={4000}
+                                        placeholder="Qué mandó el home care: producto, frecuencia, cuidados…"
+                                        className="w-full p-2.5 border-2 border-teal-200 rounded-lg text-sm outline-none focus:border-teal-500 bg-white"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={planQuien}
+                                        onChange={e => setPlanQuien(e.target.value)}
+                                        maxLength={120}
+                                        placeholder="Quién lo estableció — ej. Metro Pavia Home Care"
+                                        className="w-full p-2.5 border-2 border-teal-200 rounded-lg text-sm outline-none focus:border-teal-500 bg-white"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={guardarPlan} disabled={guardandoPlan}
+                                            className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white text-sm font-black rounded-lg transition-colors">
+                                            {guardandoPlan ? 'Guardando…' : 'Guardar plan'}
+                                        </button>
+                                        <button onClick={() => setEditandoPlan(false)}
+                                            className="px-4 py-2.5 bg-white border-2 border-slate-200 text-slate-600 text-sm font-bold rounded-lg">
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : curando.ulcera.planTratamiento ? (
+                                <div className="rounded-xl border-2 border-teal-200 bg-teal-50 px-3 py-2.5">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider mb-1">
+                                            Plan del home care{curando.ulcera.planEstablecidoPor ? ` · ${curando.ulcera.planEstablecidoPor}` : ''}
+                                        </p>
+                                        {def.puedeCambiarEstadio && (
+                                            <button onClick={() => setEditandoPlan(true)} className="text-[10px] font-black text-teal-700 underline shrink-0">Cambiar</button>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-teal-900 font-medium leading-snug whitespace-pre-line">
+                                        {curando.ulcera.planTratamiento}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border-2 border-amber-200 bg-amber-50 px-3 py-2.5">
+                                    <p className="text-sm text-amber-900 font-bold leading-snug">
+                                        Esta úlcera no tiene el plan del home care escrito.
+                                        <span className="block text-xs font-medium text-amber-800/80 mt-0.5">
+                                            Sin él, quien cambie el apósito no sabe qué manda el tratamiento.
+                                        </span>
+                                    </p>
+                                    {/* Solo quien puede escribirlo ve el botón. A una
+                                        cuidadora no se le pide que rellene un plan
+                                        que no es suyo — se le dice que falta. */}
+                                    {def.puedeCambiarEstadio && (
+                                        <button onClick={() => setEditandoPlan(true)}
+                                            className="mt-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-lg transition-colors">
+                                            Escribir el plan
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {def.pideMotivo && (
+                                <div>
+                                    <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                        ¿Por qué hubo que cambiarlo?
+                                    </label>
+                                    <div className="space-y-1.5">
+                                        {MOTIVOS_CAMBIO.map(m => (
+                                            <button
+                                                key={m.codigo}
+                                                onClick={() => setMotivo(m.codigo)}
+                                                className={`w-full text-left px-3 py-3 rounded-xl text-sm font-bold border-2 transition-colors ${
+                                                    motivo === m.codigo
+                                                        ? 'bg-rose-600 text-white border-rose-700'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-rose-300'
+                                                }`}
+                                            >{m.etiqueta}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {def.pideTratamiento && (
+                                <div>
+                                    <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                        ¿Qué se aplicó?
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={tratamiento}
+                                        onChange={e => setTratamiento(e.target.value)}
+                                        maxLength={500}
+                                        placeholder="Ej. limpieza con salina + apósito hidrocoloide"
+                                        className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                    />
+                                </div>
+                            )}
+
+                            <div className={def.puedeCambiarEstadio ? "grid grid-cols-2 gap-3" : ""}>
                                 <div>
                                     <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
                                         Medida <span className="font-medium normal-case text-slate-400">(opcional)</span>
@@ -569,6 +768,10 @@ export default function NursingRotationPage() {
                                         className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
                                     />
                                 </div>
+                                {/* Cambiar el estadio es clasificar, y eso es de
+                                    enfermeria o direccion. Una cuidadora que
+                                    limpia y tapa no reclasifica una herida. */}
+                                {def.puedeCambiarEstadio && (
                                 <div>
                                     <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">Estadio</label>
                                     <div className="grid grid-cols-4 gap-1">
@@ -585,11 +788,15 @@ export default function NursingRotationPage() {
                                         ))}
                                     </div>
                                 </div>
+                                )}
                             </div>
 
                             <div>
                                 <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
-                                    Cómo la viste <span className="font-medium normal-case text-slate-400">(opcional)</span>
+                                    Cómo la viste{' '}
+                                    <span className="font-medium normal-case text-slate-400">
+                                        {motivo === 'OTRO' ? '(escribe qué pasó)' : '(opcional)'}
+                                    </span>
                                 </label>
                                 <textarea
                                     value={notaCura}
@@ -604,6 +811,7 @@ export default function NursingRotationPage() {
                             {/* Cerrar una ulcera tenia que ser posible: dos de las cuatro
                                 de Cupey son de un residente que fallecio hace 84 dias y
                                 seguian abiertas porque nada podia cerrarlas. */}
+                            {def.puedeCambiarEstadio && (
                             <label className="flex items-start gap-3 p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 cursor-pointer">
                                 <input
                                     type="checkbox"
@@ -618,15 +826,16 @@ export default function NursingRotationPage() {
                                     </span>
                                 </span>
                             </label>
+                            )}
 
                             {errorCura && <p className="text-rose-600 text-sm font-bold">{errorCura}</p>}
 
                             <button
                                 onClick={guardarCuracion}
-                                disabled={guardandoCura || !tratamiento.trim()}
+                                disabled={guardandoCura || !listoParaGuardar}
                                 className="w-full min-h-[52px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
                             >
-                                {guardandoCura ? 'Guardando…' : cerrarUlcera ? 'Registrar y cerrar' : 'Registrar curación'}
+                                {guardandoCura ? 'Guardando…' : cerrarUlcera ? 'Registrar y cerrar' : `Registrar: ${def.etiqueta.toLowerCase()}`}
                             </button>
                         </div>
                     </div>

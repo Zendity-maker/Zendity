@@ -183,4 +183,28 @@ echo "✅ Guard pasado. Ejecutando: npx prisma db push ${ARGS[*]:-}"
 # Sin exec, npx corre como hijo, retorna, y el trap restaura `.env`.
 npx prisma db push "${ARGS[@]:-}"
 code=$?
+
+# ─── 10. Regenerar el cliente CON el .env de vuelta ────────────────────
+# `prisma db push` regenera el cliente al terminar — y aqui lo hace mientras
+# `.env` sigue movido (paso 8). El cliente generado guarda DONDE encontro un
+# `.env` para cargarlo en runtime; si no habia ninguno, guarda "ninguno". El
+# resultado es un cliente que despues NO carga `.env` y falla con:
+#
+#     error: Environment variable not found: DATABASE_URL.
+#
+# El .env estaba perfecto. Pasó el 06-sep-2026 y costo un rato entenderlo,
+# porque el sintoma apunta al fichero y no al cliente.
+#
+# El trap restaura `.env` al salir, asi que aqui hay que restaurarlo A MANO
+# antes de regenerar. Se hace en un subshell condicional para no tocar la
+# maquinaria del trap: si esto falla, no rompe nada — el push ya termino.
+if [ "$ENV_MOVED" = true ] && [ -f ".env.guard-bak" ]; then
+    mv .env.guard-bak .env
+    ENV_MOVED=false
+    echo "🔁 Regenerando el cliente Prisma con .env restaurado…"
+    npx prisma generate >/dev/null 2>&1 \
+        && echo "   listo." \
+        || echo "   ⚠️  no se pudo regenerar. Corre 'npx prisma generate' a mano."
+fi
+
 exit $code

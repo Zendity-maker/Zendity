@@ -22,11 +22,11 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
 import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
+import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION } from '@/lib/upp';
 
 export const dynamic = 'force-dynamic';
 
 /** Igual que ULCERA_SIN_SEGUIMIENTO en src/lib/verificaciones.ts. */
-const DIAS_SIN_CURACION = 7;
 /** Igual que el tier OVERDUE de /api/care/nursing/rotation. */
 const MINUTOS_ROTACION_VENCIDA = 135;
 
@@ -48,6 +48,7 @@ export async function GET() {
     try {
         const ahora = Date.now();
         const limiteCuracion = new Date(ahora - DIAS_SIN_CURACION * 86400000);
+        const limiteValoracion = new Date(ahora - DIAS_SIN_VALORACION * 86400000);
         const limitePRN = new Date(ahora - HORAS_PARA_EXIGIR_EFECTO * 3600000);
 
         const [ulceras, prnSinRespuesta, cambios, relevos, rotacion, planes] = await Promise.all([
@@ -57,7 +58,11 @@ export async function GET() {
                 select: {
                     stage: true, identifiedAt: true,
                     patient: { select: { status: true } },
-                    logs: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+                    // Con el tipo: un cambio de aposito NO cuenta como curacion.
+                    // Ver src/lib/upp.ts. Antes bastaba el ultimo log de
+                    // cualquier clase y eso habria callado la alerta en cuanto
+                    // una cuidadora cambiara una gasa.
+                    logs: { orderBy: { createdAt: 'desc' }, take: 12, select: { createdAt: true, tipo: true } },
                 },
             }),
             prisma.medicationAdministration.count({
@@ -88,12 +93,28 @@ export async function GET() {
             }),
         ]);
 
-        const curacionesVencidas = ulceras.filter(u => {
-            const fuera = u.patient.status !== 'ACTIVE' && u.patient.status !== 'TEMPORARY_LEAVE';
-            if (fuera) return true;
-            const ultima = u.logs[0]?.createdAt ?? u.identifiedAt;
-            return ultima < limiteCuracion;
-        }).length;
+        /**
+         * DOS HUECOS DISTINTOS, DOS LINEAS DISTINTAS.
+         *
+         *   sin curar   nadie aplico el tratamiento del plan del home care
+         *   sin mirar   nadie con criterio clinico la ha valorado
+         *
+         * Se cuentan aparte porque se resuelven distinto: lo primero espera a
+         * la enfermera de servicios externos; lo segundo lo puede hacer Celia
+         * hoy mismo. Meterlos en un solo numero es dar un total sobre el que
+         * nadie sabe que hacer.
+         */
+        const fueraDelHogar = (st: string) => st !== 'ACTIVE' && st !== 'TEMPORARY_LEAVE';
+        const ultimo = (u: typeof ulceras[number], tipos: string[]) =>
+            u.logs.find(l => tipos.includes(l.tipo))?.createdAt ?? u.identifiedAt;
+
+        const curacionesVencidas = ulceras.filter(u =>
+            fueraDelHogar(u.patient.status) || ultimo(u, ['CURACION']) < limiteCuracion,
+        ).length;
+
+        const sinValorar = ulceras.filter(u =>
+            !fueraDelHogar(u.patient.status) && ultimo(u, ['CURACION', 'VALORACION']) < limiteValoracion,
+        ).length;
 
         const rotacionesVencidas = rotacion.filter(p => {
             const ultima = p.posturalChanges[0]?.performedAt;
@@ -118,8 +139,13 @@ export async function GET() {
             },
             {
                 codigo: 'CURACION_VENCIDA', titulo: 'Úlceras sin curación registrada',
-                detalle: `Más de ${DIAS_SIN_CURACION} días sin nota, o de alguien que ya no está en el hogar.`,
+                detalle: `Más de ${DIAS_SIN_CURACION} días sin el tratamiento del plan, o de alguien que ya no está en el hogar. Un cambio de apósito no cuenta.`,
                 total: curacionesVencidas, urgencia: 'ALTA', href: '/care/nursing',
+            },
+            {
+                codigo: 'UPP_SIN_VALORAR', titulo: 'Úlceras que nadie ha mirado',
+                detalle: `Más de ${DIAS_SIN_VALORACION} días sin que enfermería o dirección la valoren.`,
+                total: sinValorar, urgencia: 'ALTA', href: '/care/nursing',
             },
             {
                 codigo: 'PRN_SIN_RESPUESTA', titulo: 'PRN sin saber si hizo efecto',

@@ -1415,17 +1415,54 @@ model PressureUlcer {
   resolvedAt   DateTime?
   status       String    @default("ACTIVE") // ACTIVE, HEALING, RESOLVED
 
+  /// EL TRATAMIENTO QUE ESTABLECIÓ EL HOME CARE.
+  ///
+  /// No lo decide el hogar: viene de fuera y el hogar hace continuidad. Hasta
+  /// sep-2026 no tenía dónde vivir, así que estaba en la cabeza de alguien o en
+  /// un papel — y la cuidadora que cambia un apósito a las 3 de la mañana no
+  /// tenía forma de leer qué manda el plan.
+  ///
+  /// Se enseña EN el formulario de cambio de apósito, no en otra pantalla:
+  /// pedirle a alguien que actúe y guardar la instrucción en otro sitio es
+  /// pedirle que actúe de memoria.
+  planTratamiento    String?   @db.Text
+  /// Quién lo estableció, en texto libre: "Metro Pavia Home Care". No es un
+  /// User del sistema — es de fuera.
+  planEstablecidoPor String?
+  planActualizadoAt  DateTime?
+
   patient Patient    @relation(fields: [patientId], references: [id])
   logs    UlcerLog[]
 }
 
 model UlcerLog {
-  id               String   @id @default(uuid())
-  ulcerId          String
-  nurseId          String
-  notes            String
-  woundSize        String? // Ej: "2x3 cm"
-  treatmentApplied String // Ej: "Limpieza con Salina + Vendaje Hidrocoloide"
+  id        String  @id @default(uuid())
+  ulcerId   String
+  nurseId   String
+  notes     String
+  woundSize String? // Ej: "2x3 cm"
+
+  /// QUÉ ES ESTE REGISTRO. Ver src/lib/upp.ts.
+  ///
+  ///   CURACION        el tratamiento del plan — enfermería o dirección
+  ///   CAMBIO_APOSITO  la cuidadora limpió y tapó hasta que venga la enfermera
+  ///   VALORACION      alguien con criterio clínico la miró y dice cómo va
+  ///
+  /// Antes había un solo tipo, así que los tres caían en el mismo hueco y el
+  /// reloj de 7 días se reiniciaba con cualquiera. Un cambio de apósito hacía
+  /// que Enfermería se callara aunque nadie hubiera curado nada.
+  ///
+  /// Las filas anteriores a sep-2026 quedan como CURACION, que es lo que eran:
+  /// las escribió enfermería o dirección, únicos roles que podían.
+  tipo String @default("CURACION")
+
+  /// POR QUÉ se cambió el apósito. Solo en CAMBIO_APOSITO. Ver MOTIVOS_CAMBIO.
+  motivo String?
+
+  /// Qué se aplicó. NULO en un cambio de apósito, y es a propósito: la
+  /// cuidadora limpia y tapa, no sigue el tratamiento. Preguntárselo la
+  /// obligaría a inventarse una respuesta.
+  treatmentApplied String? // Ej: "Limpieza con Salina + Vendaje Hidrocoloide"
   createdAt        DateTime @default(now())
   hasPhoto         Boolean  @default(false)
   // Foto de la lesión, pedida por la enfermera del hogar (19-ago-2026): deja ver

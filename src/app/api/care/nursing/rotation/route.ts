@@ -140,6 +140,11 @@ export async function GET(_req: Request) {
                         stage: true,
                         status: true,
                         identifiedAt: true,
+                        // El plan del home care viaja a la pantalla: la
+                        // cuidadora que va a cambiar un aposito tiene que
+                        // poder leerlo EN el formulario, no en otro sitio.
+                        planTratamiento: true,
+                        planEstablecidoPor: true,
                         /**
                          * La ultima curacion. Sin esto la pantalla enseñaba la
                          * ulcera y no cuanto llevaba sin tocarse — que es lo
@@ -149,10 +154,22 @@ export async function GET(_req: Request) {
                          * la del dia en que se declararon, porque no existia
                          * endpoint para añadir otra. Ver /api/care/upp/[id]/curacion.
                          */
+                        /**
+                         * DOS RELOJES, NO UNO (06-sep-2026).
+                         *
+                         * Un cambio de apósito NO es una curación: la cuidadora
+                         * limpia y tapa hasta que venga la enfermera. Si contara
+                         * como curación, el reloj se reiniciaría y Enfermería se
+                         * callaría aunque nadie hubiera tratado la herida.
+                         *
+                         * Se traen los últimos de cada tipo por separado. El
+                         * take es pequeño a propósito: solo hace falta el más
+                         * reciente de cada uno, y el conteo de cambios va aparte.
+                         */
                         logs: {
                             orderBy: { createdAt: 'desc' },
-                            take: 1,
-                            select: { createdAt: true, treatmentApplied: true },
+                            take: 12,
+                            select: { createdAt: true, treatmentApplied: true, tipo: true, motivo: true },
                         },
                     },
                 },
@@ -186,16 +203,34 @@ export async function GET(_req: Request) {
                 nortonRisk: p.nortonRisk,
                 enrolledBy,
                 activeUlcers: p.pressureUlcers.map(u => {
-                    const ultima = u.logs[0]?.createdAt ?? u.identifiedAt;
+                    const curacion = u.logs.find(l => l.tipo === 'CURACION');
+                    const miro = u.logs.find(l => l.tipo === 'CURACION' || l.tipo === 'VALORACION');
+                    const cambio = u.logs.find(l => l.tipo === 'CAMBIO_APOSITO');
+                    const hace24h = Date.now() - 24 * 60 * 60 * 1000;
+                    const cambiosHoy = u.logs.filter(
+                        l => l.tipo === 'CAMBIO_APOSITO' && new Date(l.createdAt).getTime() >= hace24h,
+                    ).length;
+                    const dias = (d: Date | string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+                    // Sin registros del tipo, el reloj cuenta desde que se
+                    // declaró la úlcera. Nunca desde "nunca": una úlcera sin
+                    // curaciones lleva sin curar desde el día uno.
+                    const ultimaCuracion = curacion?.createdAt ?? u.identifiedAt;
+                    const ultimaMirada = miro?.createdAt ?? u.identifiedAt;
                     return {
                         id: u.id,
                         bodyLocation: u.bodyLocation,
                         stage: u.stage,
                         status: u.status,
                         identifiedAt: u.identifiedAt,
-                        ultimaCuracionAt: ultima,
-                        ultimoTratamiento: u.logs[0]?.treatmentApplied ?? null,
-                        diasSinCuracion: Math.floor((Date.now() - new Date(ultima).getTime()) / 86400000),
+                        planTratamiento: u.planTratamiento,
+                        planEstablecidoPor: u.planEstablecidoPor,
+                        ultimaCuracionAt: ultimaCuracion,
+                        ultimoTratamiento: curacion?.treatmentApplied ?? null,
+                        diasSinCuracion: dias(ultimaCuracion),
+                        ultimaValoracionAt: ultimaMirada,
+                        diasSinValoracion: dias(ultimaMirada),
+                        ultimoCambioAposito: cambio ? { at: cambio.createdAt, motivo: cambio.motivo } : null,
+                        cambiosEnUnDia: cambiosHoy,
                     };
                 }),
                 lastRotation: last

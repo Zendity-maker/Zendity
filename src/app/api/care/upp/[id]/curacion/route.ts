@@ -23,38 +23,73 @@
  * recogía. La pantalla enseñaba un historial de curaciones al que era imposible
  * añadir nada — prometía y no entregaba.
  *
- * QUIÉN PUEDE. Mismos roles que declarar una úlcera, y por la misma razón que
- * quedó escrita el 24-ago-2026: una supervisora observa y reporta la piel como
- * cualquier cuidadora, pero la clasificación formal es de enfermería o dirección.
+ * QUIÉN PUEDE — Y AHORA DEPENDE DEL TIPO (06-sep-2026). Ver src/lib/upp.ts.
+ * Antes esto solo sabía escribir CURACIONES y solo enfermería/dirección podían.
+ * Pero en el hogar pasan tres cosas distintas sobre la misma herida:
+ *
+ *   CURACION        el tratamiento del plan del home care — enfermería/dirección
+ *   CAMBIO_APOSITO  la cuidadora limpia y tapa hasta que venga la enfermera
+ *   VALORACION      alguien con criterio la mira y dice cómo va
+ *
+ * A la cuidadora NO se le pregunta qué aplicó: no aplica tratamiento, limpia y
+ * tapa. Preguntárselo la obligaría a inventarse una respuesta y el expediente
+ * se llenaría de tratamientos que nadie indicó. Se le pregunta POR QUÉ.
+ *
+ * Y su registro NO reinicia el reloj de la curación. Si lo reiniciara,
+ * Enfermería se callaría porque alguien cambió una gasa — que es exactamente la
+ * forma de que una úlcera estadio 4 pase 77 días sin que nadie la trate.
  */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireRole } from '@/lib/api-auth';
+import { getSessionUser } from '@/lib/api-auth';
 import { notifyRoles } from '@/lib/notifications';
+import { TIPOS_UPP, puedeRegistrar, avisoAEnfermeria, etiquetaDeMotivo, MOTIVOS_CAMBIO, type TipoRegistroUpp } from '@/lib/upp';
 
 export const dynamic = 'force-dynamic';
-
-const PUEDEN_CURAR = ['NURSE', 'DIRECTOR', 'ADMIN'];
 
 /** Estados que puede tomar una úlcera. RESOLVED sella `resolvedAt`. */
 const ESTADOS = ['ACTIVE', 'HEALING', 'RESOLVED'];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-    const auth = await requireRole(PUEDEN_CURAR);
-    if (auth instanceof NextResponse) return auth;
+    const auth = await getSessionUser();
+    if (!auth) return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
 
     try {
         const { id } = await ctx.params;
         const body = await req.json().catch(() => ({}));
+
+        // El TIPO decide todo lo demás: quién puede, qué se pide y qué reloj se
+        // mueve. Sin tipo explícito se asume CURACION, que es lo que este
+        // endpoint escribía antes de sep-2026.
+        const tipo = (String(body.tipo ?? 'CURACION').trim() || 'CURACION') as TipoRegistroUpp;
+        if (!(tipo in TIPOS_UPP)) {
+            return NextResponse.json({ success: false, error: 'Tipo de registro no válido' }, { status: 400 });
+        }
+        const def = TIPOS_UPP[tipo];
+
+        // Rol primario O secundario: en Cupey la enfermería la hace una DIRECTOR
+        // con NURSE secundario, así que mirar solo el primario no alcanza.
+        if (!puedeRegistrar(tipo, [auth.role, ...auth.secondaryRoles])) {
+            return NextResponse.json({ success: false, error: `Tu rol no puede registrar: ${def.etiqueta}` }, { status: 403 });
+        }
+
         const treatmentApplied = String(body.treatmentApplied ?? '').trim();
+        const motivo = String(body.motivo ?? '').trim();
         const notes = String(body.notes ?? '').trim();
         const woundSize = String(body.woundSize ?? '').trim();
         const photoUrl = typeof body.photoUrl === 'string' ? body.photoUrl : null;
-        const nuevoEstadio = body.stage != null ? Number(body.stage) : null;
-        const nuevoEstado = body.status ? String(body.status).trim() : null;
+        const nuevoEstadio = def.puedeCambiarEstadio && body.stage != null ? Number(body.stage) : null;
+        const nuevoEstado = def.puedeCambiarEstadio && body.status ? String(body.status).trim() : null;
 
-        if (!treatmentApplied) {
+        if (def.pideTratamiento && !treatmentApplied) {
             return NextResponse.json({ success: false, error: 'Falta qué se aplicó' }, { status: 400 });
+        }
+        if (def.pideMotivo && !MOTIVOS_CAMBIO.some(m => m.codigo === motivo)) {
+            return NextResponse.json({ success: false, error: 'Falta por qué se cambió el apósito' }, { status: 400 });
+        }
+        // "Otra cosa" sin escribir cuál no es un motivo: es un hueco con etiqueta.
+        if (motivo === 'OTRO' && !notes) {
+            return NextResponse.json({ success: false, error: 'Escribe qué pasó' }, { status: 400 });
         }
         if (nuevoEstadio !== null && !(Number.isInteger(nuevoEstadio) && nuevoEstadio >= 1 && nuevoEstadio <= 4)) {
             return NextResponse.json({ success: false, error: 'El estadio va de 1 a 4' }, { status: 400 });
@@ -85,11 +120,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 data: {
                     ulcerId: id,
                     nurseId: auth.id,
-                    treatmentApplied: treatmentApplied.slice(0, 500),
+                    tipo,
+                    motivo: def.pideMotivo ? motivo : null,
+                    treatmentApplied: def.pideTratamiento ? treatmentApplied.slice(0, 500) : null,
                     // `notes` es obligatorio en el modelo. Si no se escribe nada,
-                    // se guarda lo aplicado en vez de un string vacío que
-                    // después nadie sabe leer.
-                    notes: (notes || treatmentApplied).slice(0, 2000),
+                    // se guarda lo que dé sentido a la fila —lo aplicado, o el
+                    // motivo— en vez de un string vacío que nadie sabe leer.
+                    notes: (notes || treatmentApplied || etiquetaDeMotivo(motivo)).slice(0, 2000),
                     woundSize: woundSize.slice(0, 60) || null,
                     photoUrl: photoUrl,
                     hasPhoto: !!photoUrl,
@@ -120,17 +157,49 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 type: 'TRIAGE',
                 title: `UPP empeoró — ${ulcera.patient.name.trim()}`,
                 message: `${ulcera.bodyLocation}: pasó de estadio ${ulcera.stage} a ${nuevoEstadio}. `
-                    + `Registrado por ${auth.name ?? 'personal'}. Aplicado: ${treatmentApplied.slice(0, 120)}`,
+                    + `Registrado por ${auth.name ?? 'personal'}.`
+                    + (treatmentApplied ? ` Aplicado: ${treatmentApplied.slice(0, 120)}` : ''),
                 link: '/care/nursing',
             }, auth.id).catch(e => console.error('Aviso de UPP que empeora:', e));
         }
+
+        /**
+         * EL PISO VE, LA ENFERMERA DECIDE.
+         *
+         * Contaminación fecal sobre un estadio 3 o 4, o tres cambios en 24
+         * horas, no esperan a la próxima visita: a ese ritmo el plan no está
+         * aguantando y eso lo juzga enfermería, no la cuidadora que va por el
+         * tercero. El aviso NO bloquea el registro — se anota y se sigue.
+         */
+        let avisado: string | null = null;
+        if (tipo === 'CAMBIO_APOSITO') {
+            const desde = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const cambiosHoy = await prisma.ulcerLog.count({
+                where: { ulcerId: id, tipo: 'CAMBIO_APOSITO', createdAt: { gte: desde } },
+            });
+            avisado = avisoAEnfermeria(motivo, ulcera.stage, cambiosHoy);
+            if (avisado) {
+                notifyRoles(auth.headquartersId, ['NURSE', 'DIRECTOR'], {
+                    type: 'TRIAGE',
+                    title: `Apósito — ${ulcera.patient.name.trim()}`,
+                    message: `${ulcera.bodyLocation} (estadio ${ulcera.stage}): ${avisado} `
+                        + `Último cambio por ${auth.name ?? 'personal'}: ${etiquetaDeMotivo(motivo).toLowerCase()}.`,
+                    link: '/care/nursing',
+                }, auth.id).catch(e => console.error('Aviso de apósito:', e));
+            }
+        }
+
+        const base = tipo === 'CAMBIO_APOSITO'
+            ? 'Cambio de apósito registrado. La curación sigue pendiente de la enfermera.'
+            : tipo === 'VALORACION' ? 'Valoración registrada.' : 'Curación registrada.';
 
         return NextResponse.json({
             success: true,
             logId: log.id,
             mensaje: nuevoEstado === 'RESOLVED'
                 ? 'Úlcera cerrada.'
-                : empeora ? 'Curación registrada. Se avisó del deterioro.' : 'Curación registrada.',
+                : empeora ? `${base} Se avisó del deterioro.`
+                : avisado ? `${base} Se avisó a enfermería.` : base,
         });
     } catch (error) {
         console.error('Curación UPP:', error);
