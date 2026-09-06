@@ -58,9 +58,23 @@ export async function GET(req: Request) {
                     // Mismo select que la descarga manual: la dosis vive en el
                     // catalogo Medication, no en PatientMedication.
                     medications: {
-                        where: { isActive: true, status: 'ACTIVE' },
+                        /**
+                         * INCLUYE LOS PRN. Filtraba `status: 'ACTIVE'`, y desde
+                         * sep-2026 una receta por razon necesaria se guarda con
+                         * `status: 'PRN'` — antes ese estado no lo escribia nadie,
+                         * asi que el filtro no quitaba nada y el fallo estaba
+                         * dormido.
+                         *
+                         * Este es el papel que va CON el residente a emergencias.
+                         * Omitir su Clonazepam o su Pepcid porque son "por razon
+                         * necesaria" es justo lo contrario de lo que necesita
+                         * quien lo reciba: son los que no estan en un horario y
+                         * por eso hay que decirlos.
+                         */
+                        where: { isActive: true, status: { in: ['ACTIVE', 'PRN'] } },
                         select: {
                             frequency: true, scheduleTimes: true, instructions: true,
+                            status: true,
                             medication: { select: { name: true, dosage: true } },
                         },
                     },
@@ -91,7 +105,9 @@ export async function GET(req: Request) {
                     meds: p.medications.map(m => ({
                         name: m.medication?.name ?? 'Medicamento',
                         dosage: m.medication?.dosage ?? '',
-                        times: horarios(m.scheduleTimes),
+                        // Un PRN no tiene hora: el PDF pintaria "—" y se leeria
+                        // como un dato que falta. Se dice lo que es.
+                        times: esPRN(m) ? ['Por razón necesaria'] : horarios(m.scheduleTimes),
                         instructions: m.instructions,
                     })),
                     alerts: [
@@ -143,6 +159,11 @@ export async function GET(req: Request) {
 }
 
 /** scheduleTimes puede venir como JSON `["08:00"]` o CSV `"08:00, 14:00"`. */
+/** Por razon necesaria — por `frequency` o por `status`, que conviven. */
+function esPRN(m: { frequency?: string | null; status?: string | null }): boolean {
+    return (m.frequency ?? '').toUpperCase().includes('PRN') || m.status === 'PRN';
+}
+
 function horarios(raw: string | null): string[] {
     if (!raw) return [];
     try {

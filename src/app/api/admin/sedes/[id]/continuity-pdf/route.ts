@@ -71,7 +71,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                     select: { stage: true, bodyLocation: true },
                 },
                 medications: {
-                    where: { isActive: true, status: 'ACTIVE' },
+                        /**
+                         * INCLUYE LOS PRN. Filtraba `status: 'ACTIVE'`, y desde
+                         * sep-2026 una receta por razon necesaria se guarda con
+                         * `status: 'PRN'` — antes ese estado no lo escribia nadie,
+                         * asi que el filtro no quitaba nada y el fallo estaba
+                         * dormido.
+                         *
+                         * Este es el papel que va CON el residente a emergencias.
+                         * Omitir su Clonazepam o su Pepcid porque son "por razon
+                         * necesaria" es justo lo contrario de lo que necesita
+                         * quien lo reciba: son los que no estan en un horario y
+                         * por eso hay que decirlos.
+                         */
+                    where: { isActive: true, status: { in: ['ACTIVE', 'PRN'] } },
                     select: {
                         frequency: true, scheduleTimes: true, instructions: true,
                         medication: { select: { name: true, dosage: true } },
