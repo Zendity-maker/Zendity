@@ -21,6 +21,12 @@ function EmarPrintContent() {
     const [patient, setPatient] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
+    /** Rango del PDF. Por defecto 30 días — ver el comentario de la barra. */
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const hace30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    const [desde, setDesde] = useState(hace30);
+    const [hasta, setHasta] = useState(hoyISO);
+
     useEffect(() => {
         if (!patientId) return;
 
@@ -79,15 +85,63 @@ function EmarPrintContent() {
         <div className="bg-slate-200 min-h-screen flex justify-center py-10 font-sans print:py-0 print:bg-white print:m-0">
             <div className="bg-white w-full max-w-[8.5in] shadow-2xl p-12 print:shadow-none print:p-0">
                 
-                {/* Opciones No-Imprimibles */}
-                <div className="flex justify-between items-center bg-slate-800 text-white p-4 rounded-xl mb-8 print:hidden">
-                    <div>
-                        <p className="font-black">eMAR Cardex View</p>
-                        <p className="text-xs text-slate-500">Sólo para fines de auditoría oficial.</p>
+                {/* ── SALIDAS ────────────────────────────────────────────────
+                    "Descargar PDF" genera el documento: nombre del residente y
+                    período en CADA hoja, cabecera repetida, "Página 12 de 71".
+                    Es el que se entrega a un inspector.
+
+                    Y LLEVA RANGO. El residente con más historial tiene 1 978
+                    dosis — setenta y una páginas. Un eMAR completo casi nunca es
+                    lo que alguien pide: se pide "del 1 al 31 de agosto". El
+                    defecto son 30 días.
+
+                    "Imprimir" sigue siendo la pantalla, limpia desde el arreglo
+                    de AppLayout, pero sin período en las hojas siguientes. */}
+                <div className="bg-slate-800 text-white p-4 rounded-xl mb-8 print:hidden">
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                        <div>
+                            <p className="font-black">Registro de administración de medicamentos</p>
+                            <p className="text-xs text-slate-400">Documento de auditoría oficial.</p>
+                        </div>
+                        <div className="flex items-end gap-2 flex-wrap">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                Desde
+                                <input
+                                    type="date"
+                                    value={desde}
+                                    onChange={e => setDesde(e.target.value)}
+                                    className="block mt-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white font-medium"
+                                />
+                            </label>
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                Hasta
+                                <input
+                                    type="date"
+                                    value={hasta}
+                                    onChange={e => setHasta(e.target.value)}
+                                    className="block mt-1 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1.5 text-sm text-white font-medium"
+                                />
+                            </label>
+                            <button
+                                onClick={() => {
+                                    const q = new URLSearchParams();
+                                    if (desde) q.set('from', desde);
+                                    if (hasta) q.set('to', hasta);
+                                    window.location.href = `/api/care/patient/${patientId}/emar-pdf?${q}`;
+                                }}
+                                className="bg-teal-600 hover:bg-teal-500 px-5 py-2 rounded-lg font-bold text-sm transition-colors"
+                            >
+                                Descargar PDF
+                            </button>
+                            <button
+                                onClick={() => window.print()}
+                                title="Imprime la pantalla. Para entregar, usa Descargar PDF."
+                                className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg font-bold text-sm transition-colors"
+                            >
+                                Imprimir
+                            </button>
+                        </div>
                     </div>
-                    <button onClick={() => window.print()} className="bg-indigo-500 hover:bg-indigo-600 px-6 py-2 rounded-lg font-bold text-sm">
-                         Imprimir Expediente
-                    </button>
                 </div>
 
                 {/* Encabezado Oficial Zendity */}
