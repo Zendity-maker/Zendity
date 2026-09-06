@@ -64,6 +64,8 @@ scripts/*
 !scripts/previsualizar-reporte.ts
 # Comprobar que el dossier medico cabe de verdad en dos paginas
 !scripts/verificar-dossier.ts
+# Rescate de las alertas de piel anteriores al canal (sep-2026)
+!scripts/rescatar-alertas-de-piel.ts
 # Migración de catálogo Academy — se reusa al abrir cada sede nueva
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva

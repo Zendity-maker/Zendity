@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, puedeRegistrar, type TipoRegistroUpp } from "@/lib/upp";
+import DeclareUlcerModal from "@/components/medical/upps/DeclareUlcerModal";
+import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, puedeRegistrar, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
     Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
@@ -51,6 +52,21 @@ interface ActiveUlcer {
     /** Lo que hace el piso entre visitas de la enfermera. No mueve ningun reloj. */
     ultimoCambioAposito: { at: string; motivo: string | null } | null;
     cambiosEnUnDia: number;
+    historial: {
+        id: string; at: string; tipo: string; motivo: string | null;
+        tratamiento: string | null; notas: string | null; medida: string | null;
+        tieneFoto: boolean; porQuien: string | null;
+    }[];
+}
+
+/** Lo que el piso vio en la piel y todavia nadie decidio si es ulcera. */
+interface PielPendiente {
+    id: string;
+    descripcion: string;
+    reportadoAt: string;
+    reportadoPor: string;
+    diasEsperando: number;
+    residente: { id: string; nombre: string; habitacion: string | null };
 }
 interface PatientRow {
     patientId: string;
@@ -161,6 +177,75 @@ export default function NursingRotationPage() {
     const [planTexto, setPlanTexto] = useState('');
     const [planQuien, setPlanQuien] = useState('');
     const [guardandoPlan, setGuardandoPlan] = useState(false);
+
+    /**
+     * TODO LO DE LA PIEL, EN UNA PANTALLA.
+     *
+     * Estaba en cuatro sitios: declarar en el expediente (pestaña que enfermería
+     * no abre nunca), tratar aquí, seguir en otro tablero, y reportar desde la
+     * tableta a un texto libre que no llegaba a ninguno. El desorden no era el
+     * número de pantallas: era que el reporte del piso no llegaba al módulo.
+     * Cerrado eso, juntar lo demás aquí es lo que hace que se use.
+     */
+    const [piel, setPiel] = useState<PielPendiente[]>([]);
+    const [declarandoDe, setDeclarandoDe] = useState<PielPendiente | null>(null);
+    const [zona, setZona] = useState('');
+    const [estadioNuevaUlcera, setEstadioNuevaUlcera] = useState<number | null>(null);
+    const [valoracion, setValoracion] = useState('');
+    const [guardandoDecl, setGuardandoDecl] = useState(false);
+    const [errorDecl, setErrorDecl] = useState<string | null>(null);
+    const [declararLibre, setDeclararLibre] = useState(false);
+    /**
+     * TODOS los residentes activos, no solo los del protocolo de rotación.
+     *
+     * `data.patients` trae a quien ya está bajo protocolo —por orden clínica,
+     * por Norton o por tener úlcera—. Justo el que NO está en esa lista es el
+     * que puede estrenar una úlcera, y con el selector limitado no habría forma
+     * de declarársela sin salir de la pantalla.
+     */
+    const [todosLosResidentes, setTodosLosResidentes] = useState<{ id: string; name: string }[]>([]);
+
+    const cargarPiel = async () => {
+        try {
+            const r = await fetch('/api/care/cambio-condicion');
+            const d = await r.json();
+            if (d.success) setPiel((d.cambios ?? []).filter((c: { area: string }) => c.area === 'PIEL'));
+        } catch { /* la pantalla se queda como está */ }
+    };
+
+    const declararDesdeReporte = async () => {
+        if (!declarandoDe || !zona.trim() || !estadioNuevaUlcera) return;
+        setGuardandoDecl(true); setErrorDecl(null);
+        try {
+            const r = await fetch(`/api/care/cambio-condicion/${declarandoDe.id}/declarar-ulcera`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bodyLocation: zona.trim(), stage: estadioNuevaUlcera, respuesta: valoracion.trim() }),
+            });
+            const d = await r.json();
+            if (!d.success) { setErrorDecl(d.error || 'No se pudo declarar'); return; }
+            setDeclarandoDe(null); setZona(''); setEstadioNuevaUlcera(null); setValoracion('');
+            await Promise.all([fetchData(), cargarPiel()]);
+        } catch { setErrorDecl('Error de red'); }
+        finally { setGuardandoDecl(false); }
+    };
+
+    /** No es úlcera: se cierra el reporte con una razón y deja de contar. */
+    const descartarPiel = async (c: PielPendiente, respuesta: string) => {
+        setGuardandoDecl(true); setErrorDecl(null);
+        try {
+            const r = await fetch(`/api/care/cambio-condicion/${c.id}/revisar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resultado: 'SIN_CAMBIO', respuesta }),
+            });
+            const d = await r.json();
+            if (!d.success) { setErrorDecl(d.error || 'No se pudo cerrar'); return; }
+            setDeclarandoDe(null); setZona(''); setEstadioNuevaUlcera(null); setValoracion('');
+            await cargarPiel();
+        } catch { setErrorDecl('Error de red'); }
+        finally { setGuardandoDecl(false); }
+    };
 
     const rolesDelUsuario = [user?.role ?? '', ...(user?.secondaryRoles ?? [])];
     const tiposDisponibles = (Object.keys(TIPOS_UPP) as TipoRegistroUpp[])
@@ -321,7 +406,12 @@ export default function NursingRotationPage() {
         if (authLoading) return;
         if (!user) { router.push('/login'); return; }
         fetchData();
-        const id = setInterval(() => { setRefreshing(true); fetchData(); }, 60_000);
+        cargarPiel();
+        fetch('/api/corporate/patients')
+            .then(r => r.json())
+            .then(d => { if (d.success) setTodosLosResidentes((d.patients ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }))); })
+            .catch(() => { /* se cae al listado del protocolo */ });
+        const id = setInterval(() => { setRefreshing(true); fetchData(); cargarPiel(); }, 60_000);
         return () => clearInterval(id);
     }, [authLoading, user, router, fetchData]);
 
@@ -374,7 +464,7 @@ export default function NursingRotationPage() {
                             </button>
                             <div>
                                 <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                                    <Bed className="w-6 h-6 text-teal-600" /> Rotación Postural
+                                    <Bed className="w-6 h-6 text-teal-600" /> Piel, úlceras y rotación
                                 </h1>
                                 <p className="text-xs text-slate-500 font-semibold">
                                     {total} residente{total === 1 ? '' : 's'} bajo protocolo · umbral {data?.thresholdsMin?.target}/{data?.thresholdsMin?.breach} min
@@ -393,8 +483,62 @@ export default function NursingRotationPage() {
                                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                                 Actualizar
                             </button>
+                            {/* Declarar sin reporte previo: una enfermera que ve
+                                una úlcera al bañar a alguien no tiene que pedirle
+                                a nadie que la reporte primero. Antes esto solo
+                                existía en el expediente, pestaña "upps". */}
+                            {puedeRegistrar('CURACION', [user?.role ?? '', ...(user?.secondaryRoles ?? [])]) && (
+                                <button
+                                    onClick={() => setDeclararLibre(true)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-lg"
+                                >
+                                    <Bandage className="w-3.5 h-3.5" /> Declarar úlcera
+                                </button>
+                            )}
                         </div>
                     </div>
+
+                    {/* LO QUE EL PISO VIO Y NADIE HA DECIDIDO.
+                        Va ARRIBA del todo: es lo único de esta pantalla que
+                        puede estar escondiendo una úlcera que no existe en el
+                        sistema. Nueve llevaban entre 10 y 106 días en notas de
+                        turno que nadie leía. */}
+                    {piel.length > 0 && (
+                        <div className="mb-4 rounded-2xl border-2 border-fuchsia-300 bg-fuchsia-50 p-4">
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                                <p className="text-sm font-black text-fuchsia-900">
+                                    {piel.length} reporte{piel.length === 1 ? '' : 's'} de piel sin decidir
+                                </p>
+                                <span className="text-xs font-bold text-fuchsia-700">
+                                    ¿es úlcera o no?
+                                </span>
+                            </div>
+                            <div className="space-y-2">
+                                {piel.map(c => (
+                                    <div key={c.id} className="bg-white rounded-xl border border-fuchsia-200 p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-black text-slate-900 text-sm leading-tight">
+                                                    {c.residente.nombre}
+                                                    {c.residente.habitacion && <span className="text-slate-400 font-medium ml-2">Hab. {c.residente.habitacion}</span>}
+                                                </p>
+                                                <p className="text-sm text-slate-700 mt-1 leading-snug">{c.descripcion}</p>
+                                                <p className="text-[11px] text-slate-400 mt-1">
+                                                    {c.reportadoPor} · hace {c.diasEsperando} día{c.diasEsperando === 1 ? '' : 's'}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => { setDeclarandoDe(c); setZona(''); setEstadioNuevaUlcera(null); setValoracion(''); setErrorDecl(null); }}
+                                                className="shrink-0 px-3 py-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-xs font-black rounded-lg transition-colors"
+                                            >
+                                                Revisar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Chips de counts por tier */}
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -597,6 +741,96 @@ export default function NursingRotationPage() {
                 Lo minimo que hace falta para que quede constancia: que se
                 aplico. Todo lo demas es opcional a proposito — obligar a medir
                 una lesion que no se midio produciria una medida inventada. */}
+            {/* DECIDIR SOBRE UN REPORTE DE PIEL: o es úlcera y se declara, o no
+                lo es y se cierra con una razón. No hay tercera opción, y esa es
+                la gracia — mientras no se decida, cuenta. */}
+            <DeclareUlcerModal
+                isOpen={declararLibre}
+                onClose={() => setDeclararLibre(false)}
+                patients={todosLosResidentes.length > 0
+                    ? todosLosResidentes
+                    : (data?.patients ?? []).map(p => ({ id: p.patientId, name: p.name }))}
+                onCreated={() => { setDeclararLibre(false); fetchData(); }}
+            />
+
+            {declarandoDe && (
+                <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+                    <div className="bg-white w-full md:max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+                        <div className="p-5 border-b border-slate-100">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="font-black text-slate-900 text-lg leading-tight">{declarandoDe.residente.nombre}</p>
+                                    <p className="text-xs text-slate-500 font-bold mt-0.5">
+                                        Reportado por {declarandoDe.reportadoPor} hace {declarandoDe.diasEsperando} día{declarandoDe.diasEsperando === 1 ? '' : 's'}
+                                    </p>
+                                </div>
+                                <button onClick={() => setDeclarandoDe(null)} className="text-slate-400 hover:text-slate-600 shrink-0 text-2xl leading-none px-2">×</button>
+                            </div>
+                            <p className="mt-3 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-snug">
+                                “{declarandoDe.descripcion}”
+                            </p>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">Dónde está</label>
+                                <input
+                                    type="text" value={zona} onChange={e => setZona(e.target.value)} maxLength={120}
+                                    placeholder="Ej. Sacro, Talón derecho, Codo izquierdo"
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">Estadio</label>
+                                <div className="grid grid-cols-4 gap-1.5">
+                                    {[1, 2, 3, 4].map(e => (
+                                        <button key={e} onClick={() => setEstadioNuevaUlcera(e)}
+                                            className={`py-3 rounded-xl text-sm font-black border-2 transition-colors ${
+                                                estadioNuevaUlcera === e ? 'bg-rose-600 text-white border-rose-700' : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'
+                                            }`}>{e}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                    Tu valoración <span className="font-medium normal-case text-slate-400">(le llega a quien lo reportó)</span>
+                                </label>
+                                <textarea
+                                    value={valoracion} onChange={e => setValoracion(e.target.value)} rows={2} maxLength={2000}
+                                    placeholder="Qué viste al revisarla."
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                />
+                            </div>
+
+                            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                                La ficha se abre con la fecha en que el piso lo reportó, no con la de hoy: si no,
+                                los relojes arrancarían en cero y se perderían los días que lleva.
+                            </p>
+
+                            {errorDecl && <p className="text-rose-600 text-sm font-bold">{errorDecl}</p>}
+
+                            <button
+                                onClick={declararDesdeReporte}
+                                disabled={guardandoDecl || !zona.trim() || !estadioNuevaUlcera}
+                                className="w-full min-h-[52px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                            >
+                                {guardandoDecl ? 'Declarando…' : 'Sí es úlcera — declararla'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (!valoracion.trim()) { setErrorDecl('Escribe por qué no es úlcera. A quien lo reportó le llega tu respuesta.'); return; }
+                                    descartarPiel(declarandoDe, valoracion.trim());
+                                }}
+                                disabled={guardandoDecl}
+                                className="w-full min-h-[48px] bg-white border-2 border-slate-200 hover:border-slate-400 text-slate-700 font-bold rounded-2xl transition-colors"
+                            >
+                                No es úlcera — cerrar con mi respuesta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {curando && (
                 <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
                     <div className="bg-white w-full md:max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
@@ -867,6 +1101,43 @@ export default function NursingRotationPage() {
                                     </div>
                                 )}
                             </div>
+                            )}
+
+                            {/* EL HISTORIAL, AQUÍ.
+                                Vivía en /corporate/medical/patients/[id], pestaña
+                                "upps" — una pantalla que enfermería no abre nunca.
+                                Quien va a registrar algo sobre una herida necesita
+                                ver qué se le hizo antes, en el mismo sitio. */}
+                            {curando.ulcera.historial.length > 0 && (
+                                <details className="rounded-xl border-2 border-slate-200 bg-slate-50">
+                                    <summary className="cursor-pointer px-3 py-2.5 text-xs font-black text-slate-600 uppercase tracking-wide select-none">
+                                        Historial — {curando.ulcera.historial.length} registro{curando.ulcera.historial.length === 1 ? '' : 's'}
+                                    </summary>
+                                    <div className="px-3 pb-3 space-y-2">
+                                        {curando.ulcera.historial.map(h => (
+                                            <div key={h.id} className="bg-white rounded-lg border border-slate-200 px-3 py-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                                        h.tipo === 'CURACION' ? 'bg-rose-100 text-rose-800'
+                                                        : h.tipo === 'CAMBIO_APOSITO' ? 'bg-slate-200 text-slate-700'
+                                                        : h.tipo === 'CIERRE' ? 'bg-emerald-100 text-emerald-800'
+                                                        : 'bg-amber-100 text-amber-800'
+                                                    }`}>
+                                                        {h.tipo === 'CAMBIO_APOSITO' ? 'Apósito' : h.tipo === 'VALORACION' ? 'Valoración' : h.tipo === 'CIERRE' ? 'Cierre' : 'Curación'}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold text-slate-400">
+                                                        {new Date(h.at).toLocaleDateString('es-PR', { day: '2-digit', month: 'short' })}
+                                                        {h.porQuien ? ` · ${h.porQuien}` : ''}
+                                                    </span>
+                                                </div>
+                                                {h.tratamiento && <p className="text-xs font-bold text-slate-800 mt-1">{h.tratamiento}</p>}
+                                                {h.motivo && <p className="text-xs text-slate-600 mt-1">{etiquetaDeMotivo(h.motivo)}</p>}
+                                                {h.notas && <p className="text-xs text-slate-500 mt-1 leading-snug whitespace-pre-line">{h.notas}</p>}
+                                                {h.medida && <p className="text-[11px] text-slate-400 mt-1">Medida: {h.medida}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
                             )}
 
                             {errorCura && <p className="text-rose-600 text-sm font-bold">{errorCura}</p>}

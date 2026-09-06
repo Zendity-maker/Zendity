@@ -170,7 +170,7 @@ export async function GET(_req: Request) {
                         logs: {
                             orderBy: { createdAt: 'desc' },
                             take: 12,
-                            select: { createdAt: true, treatmentApplied: true, tipo: true, motivo: true },
+                            select: { id: true, createdAt: true, treatmentApplied: true, tipo: true, motivo: true, notes: true, woundSize: true, hasPhoto: true, nurse: { select: { name: true } } },
                         },
                     },
                 },
@@ -232,6 +232,20 @@ export async function GET(_req: Request) {
                         diasSinValoracion: dias(ultimaMirada),
                         ultimoCambioAposito: cambio ? { at: cambio.createdAt, motivo: cambio.motivo } : null,
                         cambiosEnUnDia: cambiosHoy,
+                        // El historial viaja con la ulcera: antes habia que
+                        // salir a /corporate/medical/patients/[id] para verlo,
+                        // que es una pantalla que enfermeria no abre nunca.
+                        historial: u.logs.map(l => ({
+                            id: l.id,
+                            at: l.createdAt,
+                            tipo: l.tipo,
+                            motivo: l.motivo,
+                            tratamiento: l.treatmentApplied,
+                            notas: l.notes,
+                            medida: l.woundSize,
+                            tieneFoto: l.hasPhoto,
+                            porQuien: l.nurse?.name ?? null,
+                        })),
                     };
                 }),
                 lastRotation: last
