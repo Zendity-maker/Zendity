@@ -89,7 +89,7 @@ export async function GET(req: Request) {
                 where: {
                     patientMedication: { patientId: { in: patientIds } },
                     createdAt: { gte: clinicalDayStart, lt: clinicalDayEnd },
-                    status: { in: ['MISSED', 'REFUSED', 'OMITTED'] }
+                    status: { in: ['MISSED', 'REFUSED', 'OMITTED', 'HELD'] }
                 },
                 include: {
                     patientMedication: {

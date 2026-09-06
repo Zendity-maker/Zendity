@@ -149,7 +149,9 @@ export async function GET(request: Request) {
         // --- Vitals ---
         const vitalsTotal = vitals.length;
         const vitalsCritical = vitals.filter(v =>
-            (v.spo2 != null && v.spo2 < 94) || v.systolic > 160 || v.diastolic > 100
+            (v.spo2 != null && v.spo2 < 94)
+            || (v.systolic != null && v.systolic > 160)
+            || (v.diastolic != null && v.diastolic > 100)
         ).length;
 
         // --- Incidents ---

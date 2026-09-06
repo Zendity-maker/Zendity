@@ -1681,16 +1681,38 @@ enum LifePlanStatus {
 // =======================
 
 model VitalSigns {
-  id           String   @id @default(uuid())
+  id           String @id @default(uuid())
   patientId    String
   measuredById String
-  systolic     Int
-  diastolic    Int
-  temperature  Float
-  heartRate    Int
-  glucose      Int?
-  spo2         Int? // FASE 83: Saturación de oxígeno (SpO2) — alerta crítica si < 94
-  createdAt    DateTime @default(now())
+
+  /// TODO ERA OBLIGATORIO, Y ESO DECIDIA QUE SE MEDIA.
+  ///
+  /// Presion, temperatura y pulso eran NOT NULL. Para anotar una sola glucosa
+  /// habia que llenar los otros cuatro, asi que o se inventaban o no se
+  /// anotaba. Medido el 05-sep-2026 sobre 4 836 tomas de 90 dias en Cupey:
+  /// sistolica, diastolica, temperatura y pulso al 100%; glucosa al 1% — 46
+  /// lecturas, con ONCE residentes diabeticos, dos de ellos con insulina Lantus.
+  ///
+  /// La forma decidia que se media. Ahora son nulables y el endpoint exige AL
+  /// MENOS UNA: quien solo tomo la glucosa registra la glucosa, y el expediente
+  /// dice que se midio eso y solo eso, que es la verdad.
+  systolic    Int?
+  diastolic   Int?
+  temperature Float?
+  heartRate   Int?
+  glucose     Int?
+  spo2        Int? // FASE 83: Saturación de oxígeno (SpO2) — alerta crítica si < 94
+
+  /// EL PESO. No existia en NINGUN sitio del esquema — lo comprobe buscando
+  /// "weight" en el archivo entero: cero apariciones.
+  ///
+  /// En un hogar de ancianos el peso es el indicador de nutricion, de retencion
+  /// de liquidos y de declive en hospicio. Es lo que dice si un residente que
+  /// come poco esta perdiendo masa, si un diuretico esta trabajando, y si
+  /// alguien en hospicio se esta apagando. En kilogramos.
+  weight Float?
+
+  createdAt DateTime @default(now())
 
   patient    Patient @relation(fields: [patientId], references: [id])
   measuredBy User    @relation(fields: [measuredById], references: [id])

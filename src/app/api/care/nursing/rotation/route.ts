@@ -140,6 +140,20 @@ export async function GET(_req: Request) {
                         stage: true,
                         status: true,
                         identifiedAt: true,
+                        /**
+                         * La ultima curacion. Sin esto la pantalla enseñaba la
+                         * ulcera y no cuanto llevaba sin tocarse — que es lo
+                         * unico que dice si hay que hacer algo hoy.
+                         *
+                         * Las cuatro de Cupey tenian UNA sola curacion cada una,
+                         * la del dia en que se declararon, porque no existia
+                         * endpoint para añadir otra. Ver /api/care/upp/[id]/curacion.
+                         */
+                        logs: {
+                            orderBy: { createdAt: 'desc' },
+                            take: 1,
+                            select: { createdAt: true, treatmentApplied: true },
+                        },
                     },
                 },
             },
@@ -171,7 +185,19 @@ export async function GET(_req: Request) {
                 requiresPosturalChanges: p.requiresPosturalChanges,
                 nortonRisk: p.nortonRisk,
                 enrolledBy,
-                activeUlcers: p.pressureUlcers,
+                activeUlcers: p.pressureUlcers.map(u => {
+                    const ultima = u.logs[0]?.createdAt ?? u.identifiedAt;
+                    return {
+                        id: u.id,
+                        bodyLocation: u.bodyLocation,
+                        stage: u.stage,
+                        status: u.status,
+                        identifiedAt: u.identifiedAt,
+                        ultimaCuracionAt: ultima,
+                        ultimoTratamiento: u.logs[0]?.treatmentApplied ?? null,
+                        diasSinCuracion: Math.floor((Date.now() - new Date(ultima).getTime()) / 86400000),
+                    };
+                }),
                 lastRotation: last
                     ? {
                           performedAt: last.performedAt,

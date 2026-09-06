@@ -24,6 +24,7 @@ import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/l
 import { MOTIVOS_RECHAZO, pideMotivo, etiquetaMotivo } from "@/lib/comida";
 import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
 import { EFECTOS_PRN } from "@/lib/prn";
+import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
 
 /** Dosis PRN administrada que todavia no tiene respuesta. Ver /api/care/meds/prn-efecto. */
 interface DosisPRNPendiente {
@@ -149,11 +150,18 @@ function groupMedsByScheduleTime(medications: any[]) {
     return entries;
 }
 
-// Estado hoy del med en ese slot: 'ADMINISTERED' | 'OMITTED' | 'REFUSED' | null
+/**
+ * Estado hoy del med en ese slot: 'ADMINISTERED' | 'OMITTED' | 'REFUSED' | 'HELD' | null
+ *
+ * HELD entra desde sep-2026: una omision por indicacion medica o por
+ * procedimiento ya no se guarda como OMITTED. Si no estuviera en esta lista, el
+ * pack no se daria nunca por completo y el turno quedaria colgado — el mismo
+ * fallo que rompia el pack entero al omitir uno.
+ */
 function slotStatusToday(med: any, slotLabel: string): string | null {
     const admins = med.administrations || [];
     const found = admins.find((a: any) =>
-        a.scheduleTime === slotLabel && ['ADMINISTERED', 'OMITTED', 'REFUSED'].includes(a.status)
+        a.scheduleTime === slotLabel && ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'].includes(a.status)
     );
     return found ? found.status : null;
 }
@@ -429,7 +437,7 @@ export default function ZendityCareTabletPage() {
     }, []);
 
     // Form States & Shadow AI
-    const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+    const [vitals, setVitals] = useState({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" });
     // Campos con error al intentar guardar vitales sin completar (sys/dia/hr/temp obligatorios)
     const [vitalsErrors, setVitalsErrors] = useState<{ sys: boolean; dia: boolean; hr: boolean; temp: boolean }>({ sys: false, dia: false, hr: false, temp: false });
     // Orden de vitales vencida → modal de justificación tardía (20 chars mín, -2 cumplimiento)
@@ -562,14 +570,16 @@ export default function ZendityCareTabletPage() {
     useEffect(() => { setHoraRegistro(null); }, [activePatient?.id, modalType]);
     // Flujo por pack — omisión individual
     const [omittingMed, setOmittingMed] = useState<{ id: string; name: string; slotLabel: string } | null>(null);
-    const OMIT_REASONS = [
-        'Residente lo rechazó',
-        'Residente en procedimiento',
-        'Medicamento no disponible',
-        'Indicación médica',
-        'Otro'
-    ];
-    const [omitReasonCat, setOmitReasonCat] = useState<string>(OMIT_REASONS[0]);
+    /**
+     * Los motivos viven en src/lib/omision-medicamento.ts. Faltaban dos —"fuera
+     * del hogar" y "falleció"— y por eso dos de las tres omisiones de toda la
+     * historia estan mal clasificadas.
+     *
+     * Y NO HAY VALOR POR DEFECTO. Antes arrancaba en OMIT_REASONS[0], o sea en
+     * "Residente lo rechazó": quien no tocaba el desplegable culpaba al
+     * residente sin querer. Ahora hay que elegir.
+     */
+    const [omitReasonCat, setOmitReasonCat] = useState<string>("");
     const [omitReasonText, setOmitReasonText] = useState<string>("");
     const [packJustCompleted, setPackJustCompleted] = useState<string | null>(null); // slotLabel para la animación ✓
     const [submitting, setSubmitting] = useState(false);
@@ -1364,32 +1374,45 @@ export default function ZendityCareTabletPage() {
     };
 
     const submitVitals = async (lateReason?: string) => {
-        // Validación sincronizada con backend: sys, dia, hr, temp son obligatorios
-        const missing = {
-            sys: !vitals.sys,
-            dia: !vitals.dia,
-            hr: !vitals.hr,
-            temp: !vitals.temp,
-        };
-        const hasMissing = missing.sys || missing.dia || missing.hr || missing.temp;
-        if (hasMissing) {
-            setVitalsErrors(missing);
-            avisoError("Completa los campos obligatorios: Sistólica, Diastólica, Pulso y Temperatura.");
+        /**
+         * YA NO HACE FALTA LLENARLO TODO — hace falta llenar ALGO.
+         *
+         * Presion, temperatura y pulso eran obligatorios aqui y en la base, y
+         * eso decidia que se media: para anotar una glucosa habia que teclear
+         * los otros cuatro. Medido sobre 4 836 tomas de 90 dias en Cupey —los
+         * cuatro al 100%, la glucosa al 1%— con once residentes diabeticos y
+         * dos con insulina. La forma decidia, no la clinica.
+         */
+        const algoLleno = [vitals.sys, vitals.dia, vitals.hr, vitals.temp, vitals.glucose, vitals.spo2, vitals.weight]
+            .some(v => v !== '' && v != null);
+        if (!algoLleno) {
+            avisoError("Registra al menos una medida.");
             return;
         }
 
-        // Validación de rango fisiológico de temperatura
-        // El backend detecta la unidad: < 45 = Celsius, ≥ 45 = Fahrenheit
-        const tempNum = parseFloat(vitals.temp);
-        const isCelsiusEntry = tempNum < 45;
-        const tempValid = isCelsiusEntry
-            ? (tempNum >= 34.0 && tempNum <= 42.0)   // rango Celsius válido
-            : (tempNum >= 93.2 && tempNum <= 107.6);  // rango Fahrenheit válido
-        if (!tempValid) {
-            setVitalsErrors(prev => ({ ...prev, temp: true }));
-            const unit = isCelsiusEntry ? '°C (rango válido: 34–42)' : '°F (rango válido: 93–107)';
-            avisoError(`Temperatura fuera de rango fisiológico: ${vitals.temp} ${unit}.\n\nVerifica que el termómetro esté correctamente aplicado y vuelve a tomar la lectura.`);
+        // La presion va con las dos cifras o con ninguna: una sistolica sola no
+        // es una presion arterial.
+        const faltaMitadDePresion = (!!vitals.sys) !== (!!vitals.dia);
+        if (faltaMitadDePresion) {
+            setVitalsErrors(prev => ({ ...prev, sys: !vitals.sys, dia: !vitals.dia }));
+            avisoError("La presión necesita las dos cifras: sistólica y diastólica.");
             return;
+        }
+
+        // Validación de rango fisiológico de temperatura — solo si se tomó.
+        // El backend detecta la unidad: < 45 = Celsius, ≥ 45 = Fahrenheit
+        if (vitals.temp) {
+            const tempNum = parseFloat(vitals.temp);
+            const isCelsiusEntry = tempNum < 45;
+            const tempValid = isCelsiusEntry
+                ? (tempNum >= 34.0 && tempNum <= 42.0)   // rango Celsius válido
+                : (tempNum >= 93.2 && tempNum <= 107.6);  // rango Fahrenheit válido
+            if (!tempValid) {
+                setVitalsErrors(prev => ({ ...prev, temp: true }));
+                const unit = isCelsiusEntry ? '°C (rango válido: 34–42)' : '°F (rango válido: 93–107)';
+                avisoError(`Temperatura fuera de rango fisiológico: ${vitals.temp} ${unit}.\n\nVerifica que el termómetro esté correctamente aplicado y vuelve a tomar la lectura.`);
+                return;
+            }
         }
 
         setVitalsErrors({ sys: false, dia: false, hr: false, temp: false });
@@ -1401,8 +1424,9 @@ export default function ZendityCareTabletPage() {
             // dextro/oxímetro a ese residente, debe poder guardar sin ellos.
             // Solución: omitir el campo del payload si viene vacío.
             const cleanVitals: any = { ...vitals };
-            if (cleanVitals.glucose === '' || cleanVitals.glucose == null) delete cleanVitals.glucose;
-            if (cleanVitals.spo2    === '' || cleanVitals.spo2    == null) delete cleanVitals.spo2;
+            for (const k of ['sys', 'dia', 'hr', 'temp', 'glucose', 'spo2', 'weight']) {
+                if (cleanVitals[k] === '' || cleanVitals[k] == null) delete cleanVitals[k];
+            }
             const payload = {
                 patientId: activePatient.id,
                 type: 'VITALS',
@@ -1415,7 +1439,7 @@ export default function ZendityCareTabletPage() {
             });
             const data = await res.json();
             if (data.success) {
-                setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" });
+                setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" });
                 setLateReasonOpen(false);
                 setLateReasonDraft("");
                 refreshPatientsSilently(selectedColor!);
@@ -1503,11 +1527,14 @@ export default function ZendityCareTabletPage() {
 
     const confirmOmitMed = async (pack: { label: string; meds: any[] }) => {
         if (!omittingMed) return;
+        if (!omitReasonCat) return avisoOk("Elija por qué se omite.");
         const reasonText = omitReasonText.trim();
         if (reasonText.length < 10) {
             return avisoOk("La razón de omisión debe tener mínimo 10 caracteres.");
         }
-        const fullReason = `${omitReasonCat}: ${reasonText}`;
+        // El texto conserva la etiqueta legible; el codigo viaja aparte para que
+        // el servidor sepa si esto es REFUSED, HELD u OMITTED.
+        const fullReason = `${etiquetaOmision(omitReasonCat) ?? omitReasonCat}: ${reasonText}`;
         setSubmitting(true);
         try {
             const res = await fetch("/api/care/meds/bulk", {
@@ -1516,7 +1543,8 @@ export default function ZendityCareTabletPage() {
                     action: 'OMIT',
                     medicationIds: [omittingMed.id],
                     scheduleTime: pack.label,
-                    reason: fullReason
+                    reason: fullReason,
+                    motivoCodigo: omitReasonCat,
                 })
             });
             const data = await res.json();
@@ -1532,14 +1560,14 @@ export default function ZendityCareTabletPage() {
                 return {
                     ...prev,
                     medications: prev.medications.map((m: any) => m.id === medIdOmitted
-                        ? { ...m, administrations: [...(m.administrations || []), { id: `optim-omit-${m.id}-${pack.label}`, status: 'OMITTED', scheduleTime: pack.label, createdAt: now, notes: `Omitido: ${fullReason}` }] }
+                        ? { ...m, administrations: [...(m.administrations || []), { id: `optim-omit-${m.id}-${pack.label}`, status: estadoParaOmision(omitReasonCat), scheduleTime: pack.label, createdAt: now, notes: `Omitido: ${fullReason}` }] }
                         : m
                     )
                 };
             });
             setOmittingMed(null);
             setOmitReasonText("");
-            setOmitReasonCat(OMIT_REASONS[0]);
+            setOmitReasonCat("");
             refreshPatientsSilently(selectedColor!);
         } catch (e) {
             console.error(e);
@@ -3794,7 +3822,7 @@ export default function ZendityCareTabletPage() {
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-[#a8a29e] mt-3 mb-1.5">Algo cambió</p>
                                         <div className="grid grid-cols-3 gap-1.5">
                                             <button
-                                                onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }}
+                                                onClick={() => { setActivePatient(p); setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" }); setModalType('VITALS'); }}
                                                 className="min-h-[52px] bg-white border border-[#e7e5e4] rounded-[12px] flex flex-col items-center justify-center gap-1 transition-[opacity,transform] duration-[80ms] ease-out active:scale-[0.97] hover:opacity-85"
                                             >
                                                 <svg className="w-4 h-4 text-[#0F6B78]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -4054,7 +4082,7 @@ export default function ZendityCareTabletPage() {
                                 ) : (
                                     <p className="text-sm font-bold text-slate-500 text-center py-4">No hay lecturas registradas en este turno.</p>
                                 )}
-                                <button onClick={() => { setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "" }); setModalType('VITALS'); }} className="w-full py-4 mt-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-teal-500/30">
+                                <button onClick={() => { setVitals({ sys: "", dia: "", temp: "", hr: "", glucose: "", spo2: "", weight: "" }); setModalType('VITALS'); }} className="w-full py-4 mt-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl transition-all active:scale-95 shadow-lg shadow-teal-500/30">
                                     Tomar Nueva Lectura
                                 </button>
                             </div>
@@ -4131,7 +4159,14 @@ export default function ZendityCareTabletPage() {
                                     </div>
                                     <input type="number" placeholder="Oxigenación (SpO2 %)" value={vitals.spo2} onChange={e => setVitals({ ...vitals, spo2: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                     <input type="number" placeholder="Glucosa mg/dL" value={vitals.glucose} onChange={e => setVitals({ ...vitals, glucose: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
+                                    {/* EL PESO. No existia en ninguna parte del sistema — ni un campo en
+                                        todo el esquema. En un hogar de ancianos es el indicador de
+                                        nutricion, de retencion de liquidos y de declive en hospicio. */}
+                                    <input type="number" step="0.1" placeholder="Peso (kg)" value={vitals.weight} onChange={e => setVitals({ ...vitals, weight: e.target.value })} className="bg-slate-50 border-2 border-slate-200 p-5 rounded-2xl font-black text-lg md:col-span-1 focus:border-teal-500 focus:ring-4 outline-none transition-all" />
                                 </div>
+                                <p className="text-[11px] text-slate-400 font-medium -mt-3">
+                                    Llena lo que hayas medido. Si solo tomaste la glucosa o el peso, registra solo eso.
+                                </p>
                                 {aiSuggestion && (<div className="p-5 bg-teal-50 border-2 border-teal-200 rounded-2xl text-teal-800 text-base font-bold shadow-inner flex items-center gap-3"><span className="text-2xl">🧠</span> {aiSuggestion}</div>)}
                                 <button onClick={() => submitVitals()} disabled={submitting} className={`w-full py-6 text-white font-black rounded-2xl mt-4 transition-all shadow-xl flex items-center justify-center gap-3 min-h-[72px] text-xl ${submitting ? 'bg-teal-800 opacity-80 cursor-wait' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'}`}>
                                     {submitting ? 'Analizando Vitales con Zendi...' : 'Guardar y Analizar Vitales'}
@@ -4437,7 +4472,8 @@ export default function ZendityCareTabletPage() {
                                                     <p className="font-black text-rose-700 text-sm">¿Por qué se omite {omittingMed.name}?</p>
                                                 </div>
                                                 <select value={omitReasonCat} onChange={e => setOmitReasonCat(e.target.value)} className="w-full bg-white border-2 border-rose-200 rounded-xl px-3 py-2.5 font-bold text-rose-900 text-sm focus:outline-none focus:border-rose-400">
-                                                    {OMIT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                                                    <option value="" disabled>Elija el motivo…</option>
+                                                    {MOTIVOS_OMISION.map(m => <option key={m.codigo} value={m.codigo}>{m.etiqueta}</option>)}
                                                 </select>
                                                 <textarea
                                                     value={omitReasonText}
@@ -4453,13 +4489,13 @@ export default function ZendityCareTabletPage() {
                                                     <span className="text-slate-400">{omitReasonText.length}/500</span>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => { setOmittingMed(null); setOmitReasonText(""); setOmitReasonCat(OMIT_REASONS[0]); }}
+                                                    <button onClick={() => { setOmittingMed(null); setOmitReasonText(""); setOmitReasonCat(""); }}
                                                         className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl transition-all text-sm">
                                                         Cancelar
                                                     </button>
                                                     <button onClick={() => confirmOmitMed(activePack)}
-                                                        disabled={omitReasonText.trim().length < 10 || submitting}
-                                                        className={`flex-1 py-3 font-black rounded-xl transition-all text-sm ${omitReasonText.trim().length < 10 || submitting ? 'bg-rose-200 text-rose-400 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md active:scale-95'}`}>
+                                                        disabled={!omitReasonCat || omitReasonText.trim().length < 10 || submitting}
+                                                        className={`flex-1 py-3 font-black rounded-xl transition-all text-sm ${!omitReasonCat || omitReasonText.trim().length < 10 || submitting ? 'bg-rose-200 text-rose-400 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-md active:scale-95'}`}>
                                                         {submitting ? 'Omitiendo…' : 'Confirmar omisión'}
                                                     </button>
                                                 </div>
@@ -4489,6 +4525,13 @@ export default function ZendityCareTabletPage() {
                                                                 {status === 'REFUSED' && (
                                                                     <span className="inline-flex items-center bg-amber-100 text-amber-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">
                                                                         Rechazado
+                                                                    </span>
+                                                                )}
+                                                                {/* Suspendido: indicacion medica o procedimiento. No es una
+                                                                    omision de quien administra, y por eso no se pinta en rojo. */}
+                                                                {status === 'HELD' && (
+                                                                    <span className="inline-flex items-center bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-full px-2.5 py-1 whitespace-nowrap">
+                                                                        Suspendido
                                                                     </span>
                                                                 )}
                                                                 {!status && (

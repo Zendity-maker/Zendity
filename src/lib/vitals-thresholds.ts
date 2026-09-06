@@ -88,19 +88,25 @@ export function aCelsius(temp: number): number | null {
  * Devuelve todos los hallazgos, no solo el primero: una lectura puede cruzar
  * varios umbrales a la vez y la enfermera necesita verlos todos.
  */
+/**
+ * NULABLES DESDE SEP-2026. Los cuatro signos eran obligatorios en la base, asi
+ * que para anotar una sola glucosa habia que llenarlos todos. Lo que no se
+ * midio se evalua como lo que es: nada. Cada bloque de abajo se salta solo si
+ * su signo viene vacio, y un hallazgo nunca se inventa sobre un dato ausente.
+ */
 export function evaluarVitales(v: {
-    systolic: number;
-    diastolic: number;
-    heartRate: number;
+    systolic?: number | null;
+    diastolic?: number | null;
+    heartRate?: number | null;
     /** En Celsius o Fahrenheit; se normaliza aquí. */
-    temperature: number;
+    temperature?: number | null;
     spo2?: number | null;
 }): HallazgoVital[] {
     const h: HallazgoVital[] = [];
     const add = (nivel: NivelVital, signo: string, mensaje: string) => h.push({ nivel, signo, mensaje });
 
     // ── Temperatura ────────────────────────────────────────────────────
-    const c = aCelsius(v.temperature);
+    const c = v.temperature == null ? null : aCelsius(v.temperature);
     if (c !== null) {
         const t = `${c.toFixed(1)} °C`;
         if (c >= 38.0) add('LLAMAR', 'temperatura', `Fiebre — ${t}.`);
@@ -117,18 +123,24 @@ export function evaluarVitales(v: {
     }
 
     // ── Presión ────────────────────────────────────────────────────────
+    if (v.systolic != null) {
     if (v.systolic > 180) add('LLAMAR', 'presión', `Sistólica muy alta — ${v.systolic}.`);
     else if (v.systolic < 90) add('LLAMAR', 'presión', `Sistólica muy baja — ${v.systolic}.`);
     else if (v.systolic >= 160) add('ANOTAR', 'presión', `Sistólica elevada — ${v.systolic}.`);
+    }
 
+    if (v.diastolic != null) {
     if (v.diastolic > 110) add('LLAMAR', 'presión', `Diastólica muy alta — ${v.diastolic}.`);
     else if (v.diastolic < 50) add('LLAMAR', 'presión', `Diastólica muy baja — ${v.diastolic}.`);
     else if (v.diastolic >= 100) add('ANOTAR', 'presión', `Diastólica elevada — ${v.diastolic}.`);
+    }
 
     // ── Pulso ──────────────────────────────────────────────────────────
+    if (v.heartRate != null) {
     if (v.heartRate > 110) add('LLAMAR', 'pulso', `Pulso rápido — ${v.heartRate}.`);
     else if (v.heartRate < 50) add('LLAMAR', 'pulso', `Pulso lento — ${v.heartRate}.`);
     else if (v.heartRate >= 100) add('ANOTAR', 'pulso', `Pulso elevado — ${v.heartRate}.`);
+    }
 
     // ── Oxígeno ────────────────────────────────────────────────────────
     if (v.spo2 != null) {

@@ -42,6 +42,10 @@ const clinicalNavigation = [
     // Match exacto del role gate de /api/cuidadores/lifeplans. Sin onlyRoles lo
     // veian cocina y mantenimiento, y al entrar chocaban con un 403.
     { name: 'Life Plan (PAI)', href: '/cuidadores', icon: FileText, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+    // La puerta de enfermeria: una lista de trabajo calculada contra la
+    // realidad, no un tablero. Va ANTES que las pantallas a las que enlaza
+    // porque es donde se decide a cual entrar.
+    { name: 'Enfermería', href: '/care/enfermeria', icon: Stethoscope, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     // Cambios de condicion reportados desde el piso. Mismo gate que
     // PUEDEN_REVISAR_CAMBIO en src/lib/cambios-de-condicion.ts.
     { name: 'Cambios del piso', href: '/care/cambios', icon: TrendingUp, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },

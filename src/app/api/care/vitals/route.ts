@@ -36,13 +36,26 @@ const optionalNum = (schema: z.ZodType<number, any, any>) =>
 //   Temp        30–45        (auto-detect Celsius si <45, Fahrenheit si ≥45 — ver tempF)
 //   Glucosa     20–800 mg/dL
 //   SpO2        50–100 %
+/**
+ * TODO OPCIONAL, PERO AL MENOS UNO.
+ *
+ * Los cuatro signos eran obligatorios, y eso decidia que se media: para anotar
+ * una sola glucosa habia que llenar presion, temperatura y pulso. Medido sobre
+ * 4 836 tomas de 90 dias en Cupey — presion, temperatura y pulso al 100%,
+ * glucosa al 1%, con once residentes diabeticos y dos con insulina.
+ *
+ * Los rangos siguen siendo los mismos: lo que se manda se valida igual. Lo que
+ * cambia es que no hace falta mandarlo todo.
+ */
 const VitalsDataSchema = z.object({
-    sys:        coerceNum.int().min(60).max(250),
-    dia:        coerceNum.int().min(30).max(150),
-    hr:         coerceNum.int().min(25).max(250),
-    temp:       coerceNum.min(30).max(115), // soporta °C o °F, validamos en runtime
+    sys:        optionalNum(coerceNum.int().min(60).max(250)),
+    dia:        optionalNum(coerceNum.int().min(30).max(150)),
+    hr:         optionalNum(coerceNum.int().min(25).max(250)),
+    temp:       optionalNum(coerceNum.min(30).max(115)), // soporta °C o °F, validamos en runtime
     glucose:    optionalNum(coerceNum.int().min(20).max(800)),
     spo2:       optionalNum(coerceNum.int().min(50).max(100)),
+    /** Peso en kilogramos. Rango generoso a proposito: un adulto puede pesar 30. */
+    weight:     optionalNum(coerceNum.min(20).max(300)),
     lateReason: z.string().optional(),
 });
 
@@ -234,14 +247,41 @@ export async function POST(req: Request) {
             }
 
             // Datos ya validados y coercionados a number por Zod
-            const { sys, dia, hr, temp } = data;
+            const sys = data.sys ?? null;
+            const dia = data.dia ?? null;
+            const hr = data.hr ?? null;
+            const temp = data.temp ?? null;
             const glucose = data.glucose ?? null;
             const spo2 = data.spo2 ?? null;
+            const weight = data.weight ?? null;
+
+            /**
+             * AL MENOS UNA. Ya no hace falta llenarlo todo, pero una toma vacia
+             * no es una toma: seria una fila que dice que alguien paso por ahi.
+             */
+            if ([sys, dia, hr, temp, glucose, spo2, weight].every(v => v === null)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Registra al menos una medida.',
+                }, { status: 400 });
+            }
+
+            /**
+             * La presion se toma con las dos cifras o con ninguna. Una sistolica
+             * sola no es una presion arterial, y guardarla dejaria el expediente
+             * con media medida que despues nadie sabe leer.
+             */
+            if ((sys === null) !== (dia === null)) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'La presión necesita las dos cifras: sistólica y diastólica.',
+                }, { status: 400 });
+            }
 
             // Temperatura ilegible: ni Celsius ni Fahrenheit plausibles. En los datos
             // de Cupey hay 86 lecturas así, entrando al expediente como válidas.
             // Se rechaza aquí para que la cuidadora la corrija en el momento.
-            if (aCelsius(temp) === null) {
+            if (temp !== null && aCelsius(temp) === null) {
                 return NextResponse.json({
                     success: false,
                     error: `Temperatura fuera de rango (${temp}). Revisa el valor y vuelve a registrarlo.`
@@ -271,14 +311,18 @@ export async function POST(req: Request) {
              * que se bloquea es la lectura identica.
              */
             const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000);
-            const tomaReciente = await prisma.vitalSigns.findFirst({
+            // Solo aplica a una toma que TRAE los tres valores: con signos
+            // nulables, comparar null con null marcaria como duplicada una
+            // glucosa de la manana y otra de la tarde.
+            const puedeCompararse = sys !== null && dia !== null && hr !== null;
+            const tomaReciente = puedeCompararse ? await prisma.vitalSigns.findFirst({
                 where: {
                     patientId,
                     createdAt: { gte: dosMinutosAtras },
                     systolic: sys, diastolic: dia, heartRate: hr,
                 },
                 select: { id: true },
-            });
+            }) : null;
             if (tomaReciente) {
                 return NextResponse.json({
                     success: true,
@@ -298,6 +342,7 @@ export async function POST(req: Request) {
                     temperature: temp,
                     glucose,
                     spo2,
+                    weight,
                 }
             });
 

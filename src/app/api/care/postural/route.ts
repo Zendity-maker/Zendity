@@ -132,21 +132,28 @@ export async function POST(req: Request) {
             const rotReason = pointsDelta > 0
                 ? 'Rotación UPP a tiempo'
                 : 'Rotación UPP retrasada (>135 min)';
-            await applyScoreEvent(caregiverId, patient.headquartersId, pointsDelta, rotReason, 'ROTATION');
-
-            // Si es un castigo, inyectamos incidente real con el headquartersId correcto del paciente
-            if (pointsDelta < 0) {
-                await prisma.incident.create({
-                    data: {
-                        patientId,
-                        headquartersId: patient.headquartersId,
-                        type: "ULCER",
-                        severity: "MEDIUM",
-                        description: `PENALIDAD HR: Cambio postural de residente retrasado por más de 135 minutos. Infracción al protocolo UPP.`,
-                        biometricSignature: "zendity-ai-auditor"
-                    }
-                });
-            }
+            /**
+             * La penalidad queda AQUI y solo aqui: `applyScoreEvent` escribe un
+             * ScoreEvent con categoria ROTATION a nombre de la persona, que es
+             * donde vive el desempeno del personal.
+             *
+             * ANTES ESCRIBIA ADEMAS UN INCIDENTE CLINICO EN EL EXPEDIENTE DEL
+             * RESIDENTE, con `type: "ULCER"` y firma "zendity-ai-auditor".
+             *
+             * Medido en Cupey el 05-sep-2026: 129 filas en el registro de
+             * incidentes de la sede, y las 129 eran esto. CERO incidentes
+             * clinicos reales. Luz M. Rios —que si tiene una ulcera sacra
+             * estadio 4— acumulaba 32 "incidentes de ulcera" en su expediente
+             * que no eran suyos, sino sanciones al personal.
+             *
+             * Tres cosas mal a la vez: el registro clinico dejaba de servir para
+             * lo clinico, el badge del supervisor contaba sanciones como tareas
+             * de piso, y una auditoria externa leeria 129 incidentes de ulcera
+             * en un hogar que tiene cuatro.
+             *
+             * Ademas era doble contabilidad: el ScoreEvent ya existia. Esto no
+             * anadia informacion, solo la ponia donde no va.
+             */
         }
 
         const newRotation = await prisma.posturalChangeLog.create({

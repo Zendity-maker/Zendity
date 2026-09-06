@@ -44,15 +44,21 @@ function normalizeTempC(temp: number): number {
     return temp > 50 ? (temp - 32) * 5 / 9 : temp;
 }
 
+// Clinical-day thresholds para marcar vitales como anómalos.
+// Los signos son nulables desde sep-2026: lo que no se midió no puede estar
+// anómalo. Ver el comentario de VitalSigns en el esquema.
 function isAbnormalVital(v: {
-    systolic: number; diastolic: number; heartRate: number; temperature: number; spo2: number | null;
+    systolic: number | null; diastolic: number | null; heartRate: number | null;
+    temperature: number | null; spo2: number | null;
 }): boolean {
     if (v.spo2 !== null && v.spo2 < 94) return true;
-    if (v.systolic > 140 || v.systolic < 90) return true;
-    if (v.diastolic > 90 || v.diastolic < 60) return true;
-    if (v.heartRate < 50 || v.heartRate > 100) return true;
-    const tempC = normalizeTempC(v.temperature);
-    if (tempC > 38 || tempC < 36) return true;
+    if (v.systolic !== null && (v.systolic > 140 || v.systolic < 90)) return true;
+    if (v.diastolic !== null && (v.diastolic > 90 || v.diastolic < 60)) return true;
+    if (v.heartRate !== null && (v.heartRate < 50 || v.heartRate > 100)) return true;
+    if (v.temperature !== null) {
+        const tempC = normalizeTempC(v.temperature);
+        if (tempC > 38 || tempC < 36) return true;
+    }
     return false;
 }
 

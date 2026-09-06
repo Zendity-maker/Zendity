@@ -81,11 +81,15 @@ export async function GET() {
 
         // Filtrar vitales críticos — detección unidad temperatura (Celsius si < 45 → convertir a °F)
         const criticalVitals = criticalVitalsRaw.filter(v => {
-            const tempF = v.temperature < 45 ? (v.temperature * 9 / 5) + 32 : v.temperature;
-            const isFeverish = tempF > 100.4;
+            // Los signos son nulables desde sep-2026: lo que no se midio no
+            // puede estar alterado. Cada condicion se evalua solo si su signo existe.
+            const tempF = v.temperature == null ? null
+                : v.temperature < 45 ? (v.temperature * 9 / 5) + 32 : v.temperature;
+            const isFeverish = tempF != null && tempF > 100.4;
             const isHypoxic = v.spo2 !== null && v.spo2 !== undefined && v.spo2 < 94;
-            const isHypertensive = v.systolic > 140 || v.diastolic > 90;
-            const isHypotensive = v.systolic < 90;
+            const isHypertensive = (v.systolic != null && v.systolic > 140)
+                || (v.diastolic != null && v.diastolic > 90);
+            const isHypotensive = v.systolic != null && v.systolic < 90;
             return isFeverish || isHypoxic || isHypertensive || isHypotensive;
         });
 

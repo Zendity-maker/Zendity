@@ -11,15 +11,18 @@ const ALLOWED_ROLES = ['DIRECTOR', 'ADMIN', 'SUPERVISOR'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Clinical-day thresholds para marcar vitales como anómalos
+// Clinical-day thresholds para marcar vitales como anómalos.
+// Los signos son nulables desde sep-2026: lo que no se midió no puede estar
+// anómalo. Ver el comentario de VitalSigns en el esquema.
 function isAbnormalVital(v: {
-    systolic: number; diastolic: number; heartRate: number; temperature: number; spo2: number | null;
+    systolic: number | null; diastolic: number | null; heartRate: number | null;
+    temperature: number | null; spo2: number | null;
 }): boolean {
     if (v.spo2 !== null && v.spo2 < 94) return true;
-    if (v.systolic > 140 || v.systolic < 90) return true;
-    if (v.diastolic > 90 || v.diastolic < 60) return true;
-    if (v.heartRate < 50 || v.heartRate > 100) return true;
-    if (v.temperature > 38 || v.temperature < 36) return true;
+    if (v.systolic !== null && (v.systolic > 140 || v.systolic < 90)) return true;
+    if (v.diastolic !== null && (v.diastolic > 90 || v.diastolic < 60)) return true;
+    if (v.heartRate !== null && (v.heartRate < 50 || v.heartRate > 100)) return true;
+    if (v.temperature !== null && (v.temperature > 38 || v.temperature < 36)) return true;
     return false;
 }
 

@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { notifyRoles } from '@/lib/notifications';
 import { todayStartAST } from '@/lib/dates';
+import { estadoParaOmision, esMotivoOmisionValido } from '@/lib/omision-medicamento';
 
 // CAREGIVER puede firmar el pack del turno. NURSE/SUP/DIR/ADMIN también.
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Rol no autorizado para administración masiva de medicamentos' }, { status: 403 });
         }
 
-        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, administeredAt: horaDeclarada } = await req.json();
+        const { action, medicationIds, scheduleTime, notes, signatureBase64, reason, prnMotivo, motivoCodigo, administeredAt: horaDeclarada } = await req.json();
 
         if (!action || !medicationIds || !Array.isArray(medicationIds) || medicationIds.length === 0) {
             return NextResponse.json({ success: false, error: "Datos incompletos para la acción masiva" }, { status: 400 });
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
                     patientMedicationId: { in: medicationIds },
                     scheduleTime,
                     createdAt: { gte: todayStartAST() },
-                    status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED'] }
+                    status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] }
                 },
                 select: { patientMedicationId: true }
             });
@@ -161,11 +162,28 @@ export async function POST(req: Request) {
             }
         }
 
-        // Mapear status — REFUSED viene del wizard de warnings del cierre de
-        // turno, no de este endpoint bulk. Actions válidas: ADMINISTER_PACK |
-        // OMIT | OMISSION | PRN.
+        /**
+         * EL ESTADO SALE DEL MOTIVO, NO DE LA ACCION.
+         *
+         * Antes toda omision se guardaba como OMITTED, fuera cual fuera la
+         * causa. Por eso en 24 534 administraciones de Cupey hay CERO REFUSED y
+         * CERO HELD: la mitad del enum `MedStatus` no se ha usado nunca, no
+         * porque no pase, sino porque no habia forma de decirlo.
+         *
+         * "No quiso" es REFUSED. "El medico lo suspendio" o "esta en un
+         * procedimiento" es HELD. "No habia el medicamento" es OMITTED. Son
+         * tres cosas distintas y hasta hoy se guardaban como una.
+         *
+         * Ver src/lib/omision-medicamento.ts. Un codigo desconocido —o un
+         * cliente viejo que no lo mande— cae en OMITTED, que es exactamente lo
+         * que se hacia antes: se falla hacia el comportamiento anterior.
+         */
         let adminStatus: MedStatus = 'ADMINISTERED';
-        if (isOmit) adminStatus = 'OMITTED';
+        if (isOmit) {
+            adminStatus = esMotivoOmisionValido(motivoCodigo)
+                ? estadoParaOmision(motivoCodigo) as MedStatus
+                : 'OMITTED';
+        }
 
         const now = new Date();
 

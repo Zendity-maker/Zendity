@@ -3,6 +3,7 @@
  * Uso: never throw — si falla, hace log y sigue. El flujo principal no se rompe.
  */
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@prisma/client";
 
 type NotifType = "TRIAGE" | "HANDOVER" | "COURSE_COMPLETED" | "EMAR_ALERT" | "FAMILY_VISIT" | "SCHEDULE_PUBLISHED" | "SHIFT_ALERT" | "STAFF_MESSAGE" | "CONCIERGE_SERVICE" | "SHIFT_BLOCKED" | "EVALUATION_COMPLETE" | "EXTERNAL_VISIT_PENDING" | "EXTERNAL_VISIT_PUBLISHED"
     /**
@@ -23,6 +24,32 @@ interface NotifPayload {
 
 /**
  * Crea notificaciones para todos los usuarios de una sede con los roles indicados.
+ *
+ * DOS COSAS QUE ESTA FUNCION HACIA MAL, medidas en Cupey el 05-sep-2026.
+ *
+ * 1. NO MIRABA SI LA CUENTA ESTABA ACTIVA. 49 238 de 115 305 notificaciones
+ *    —el 42.7%— estaban escritas a cuentas que no pueden entrar al sistema.
+ *    8 032 de ellas en los ultimos 30 dias. La cuenta desactivada de la
+ *    enfermera jefe acumulaba 4 841 avisos, entre ellos 45 alertas de eMAR y
+ *    193 de triage, con el mas reciente del mismo dia en que se midio.
+ *
+ * 2. SOLO MIRABA EL ROL PRIMARIO. Y el rol de enfermeria en Cupey no es
+ *    primario de nadie: la unica cuenta NURSE esta desactivada, y quien hace
+ *    enfermeria es Celia Sierra, DIRECTOR con NURSE secundario.
+ *
+ *    Las dos cosas juntas daban el peor resultado posible:
+ *
+ *        notifyRoles(hq, ['NURSE'], ...)  ->  1 usuario, 0 activos
+ *
+ *    Ese es exactamente el aviso que manda "Referir a enfermeria" desde el
+ *    panel de triage. Se escribia, devolvia exito, y no llegaba a nadie.
+ *
+ * EFECTO DEL ARREGLO, simulado contra los datos reales antes de aplicarlo:
+ * ninguna cuenta activa deja de recibir nada. Quienes dejan de recibir son
+ * las 15 cuentas desactivadas. Quienes empiezan a recibir son las personas
+ * que de verdad tienen el rol: Celia los avisos de enfermeria, y las dos
+ * supervisoras con CAREGIVER secundario los de cuidado — unos 10 al dia mas
+ * cada una, que es lo que recibe una cuidadora.
  */
 export async function notifyRoles(
     hqId: string,
@@ -31,10 +58,22 @@ export async function notifyRoles(
     excludeUserId?: string
 ): Promise<number> {
     try {
+        // La firma publica acepta string[] — la usan ~40 llamadas con literales.
+        const rolesDeLaBusqueda = roles as Role[];
         const users = await prisma.user.findMany({
             where: {
                 headquartersId: hqId,
-                role: { in: roles as any },
+                // Una notificacion a una cuenta que no puede entrar no es una
+                // notificacion: es una fila.
+                isActive: true,
+                isDeleted: false,
+                // El rol que alguien ejerce puede ser el secundario. Mismo
+                // criterio que requireRole() en src/lib/api-auth.ts, que acepta
+                // primario O secundario desde FASE 51.
+                OR: [
+                    { role: { in: rolesDeLaBusqueda } },
+                    { secondaryRoles: { hasSome: rolesDeLaBusqueda } },
+                ],
                 ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
             },
             select: { id: true },

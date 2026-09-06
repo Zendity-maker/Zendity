@@ -115,7 +115,9 @@ export async function POST(req: Request) {
         let hasIssues = false;
 
         patients.forEach(p => {
-            const fever = p.vitalSigns.find(v => v.temperature > 99.5);
+            // `temperature` es nulable desde sep-2026: una toma que solo
+            // registro glucosa no dice nada sobre fiebre.
+            const fever = p.vitalSigns.find(v => v.temperature != null && v.temperature > 99.5);
             if (fever) {
                 ttsMessage += `Por favor, mantén en observación a ${p.name}, presentó una temperatura elevada de ${fever.temperature} grados recientemente. Sugiero aumentar su ingesta hídrica. `;
                 quickRead.vitalsAlerts++;

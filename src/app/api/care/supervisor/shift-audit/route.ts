@@ -157,7 +157,7 @@ export async function GET(req: Request) {
                 where: {
                     administeredById: caregiverId,
                     administeredAt: { gte: shiftStart, lte: shiftEnd },
-                    status: { in: ['OMITTED', 'REFUSED'] },
+                    status: { in: ['OMITTED', 'REFUSED', 'HELD'] },
                     patientMedication: { patientId: { in: patientIds } }
                 },
                 select: {

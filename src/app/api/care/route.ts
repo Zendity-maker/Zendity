@@ -123,7 +123,10 @@ export async function GET(req: Request) {
                         administrations: {
                             where: {
                                 createdAt: { gte: todayStart, lte: todayEnd },
-                                status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED'] }
+                                // HELD incluido desde sep-2026: una omision por
+                                // indicacion medica ya no se guarda como OMITTED.
+                                // Ver src/lib/omision-medicamento.ts.
+                                status: { in: ['ADMINISTERED', 'OMITTED', 'REFUSED', 'HELD'] }
                             },
                             select: { id: true, status: true, scheduleTime: true, createdAt: true, notes: true }
                         }

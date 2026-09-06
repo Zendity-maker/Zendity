@@ -460,6 +460,80 @@ async function controladoSinMarcar(hqId: string): Promise<Hallazgo> {
     };
 }
 
+/* ─────────────── 10. ÚLCERA ABIERTA QUE NADIE ESTÁ CERRANDO ─────────────── */
+/**
+ * Una úlcera por presión activa sin curación registrada, o abierta a nombre de
+ * alguien que ya no está en el hogar.
+ *
+ * MEDIDO EL 05-sep-2026. Cuatro úlceras registradas en Cupey, las cuatro en
+ * estado ACTIVE, cada una con EXACTAMENTE UNA curación: la del día en que se
+ * declaró. Luz M. Ríos, sacra estadio 4, 77 días. Y dos de Wilfredo Matos, que
+ * falleció hace 84.
+ *
+ * La causa no era descuido clínico: `/api/care/upp` solo tenía GET y un POST que
+ * CREA una úlcera. No existía endpoint para añadir una segunda curación ni para
+ * cerrarla. La pantalla enseñaba un historial al que era imposible añadir nada.
+ * Ahora existe —/api/care/upp/[id]/curacion— y esto vigila que se use.
+ *
+ * SIETE DÍAS. Una úlcera de estadio 3 o 4 se cura mucho más seguido que eso;
+ * el umbral no dice cada cuánto hay que curar, dice a partir de cuándo el
+ * silencio deja de poder explicarse.
+ *
+ * CRÍTICA. Una úlcera por presión es la lesión que un hogar tiene que poder
+ * demostrar que atendió. Sin registro, la respuesta a "¿qué se le hizo?" es
+ * ninguna, se haya hecho o no.
+ */
+const DIAS_SIN_CURACION = 7;
+
+async function ulceraSinSeguimiento(hqId: string): Promise<Hallazgo> {
+    const ulceras = await prisma.pressureUlcer.findMany({
+        where: { patient: { headquartersId: hqId }, resolvedAt: null, status: { not: 'RESOLVED' } },
+        select: {
+            bodyLocation: true, stage: true, identifiedAt: true,
+            patient: { select: { name: true, status: true } },
+            logs: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+        },
+    });
+
+    const limite = Date.now() - DIAS_SIN_CURACION * 86400000;
+    const casos: { texto: string; orden: number }[] = [];
+
+    for (const u of ulceras) {
+        const ultima = u.logs[0]?.createdAt ?? u.identifiedAt;
+        const dias = Math.floor((Date.now() - ultima.getTime()) / 86400000);
+        const nombre = u.patient.name.trim();
+        const lesion = `${u.bodyLocation} estadio ${u.stage}`;
+
+        // El residente ya no está: la úlcera no se cura, se cierra el registro.
+        if (u.patient.status !== 'ACTIVE' && u.patient.status !== 'TEMPORARY_LEAVE') {
+            casos.push({
+                texto: `${nombre} — ${lesion}, sigue abierta y el residente ya no está en el hogar`,
+                orden: 100000,
+            });
+            continue;
+        }
+        if (ultima.getTime() < limite) {
+            casos.push({
+                texto: `${nombre} — ${lesion}, ${dias} días sin curación registrada`,
+                // Estadio primero, después antigüedad: una estadio 4 de 10 días
+                // pesa más que una estadio 1 de 40.
+                orden: u.stage * 1000 + dias,
+            });
+        }
+    }
+
+    casos.sort((a, b) => b.orden - a.orden);
+
+    return {
+        codigo: 'ULCERA_SIN_SEGUIMIENTO',
+        titulo: 'Úlceras por presión sin curación registrada',
+        severidad: 'CRITICA',
+        total: casos.length,
+        ejemplos: casos.slice(0, MAX_EJEMPLOS).map(c => c.texto),
+        accion: `Rotación / UPP → tocar la etiqueta de la úlcera y registrar la curación. Si el residente ya no está o la lesión cerró, marcarla como resuelta en esa misma pantalla.`,
+    };
+}
+
 export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
     const todas = await Promise.all([
         alergiasSinDocumentar(hqId),
@@ -471,6 +545,7 @@ export async function verificarSede(hqId: string): Promise<Hallazgo[]> {
         sinPlanDeCuidoFirmado(hqId),
         dietaNoReflejaDiagnostico(hqId),
         controladoSinMarcar(hqId),
+        ulceraSinSeguimiento(hqId),
     ]);
     const orden: Record<Severidad, number> = { CRITICA: 0, ALTA: 1, MEDIA: 2 };
     return todas

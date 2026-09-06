@@ -24,7 +24,9 @@ async function main() {
     const porSigno: Record<string, number> = {};
 
     for (const v of vs) {
-        if (aCelsius(v.temperature) === null) ilegibles++;
+        // `temperature` es nulable desde sep-2026. Sin temperatura no hay
+        // lectura ilegible que contar: simplemente no se midio.
+        if (v.temperature != null && aCelsius(v.temperature) === null) ilegibles++;
         const h = evaluarVitales(v);
         const n = nivelDe(h);
         if (n === 'LLAMAR') llamar++; else if (n === 'ANOTAR') anotar++; else limpias++;

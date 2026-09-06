@@ -37,6 +37,10 @@ interface ActiveUlcer {
     stage: number;
     status: string;
     identifiedAt: string;
+    /** Fecha de la ultima curacion, o la de apertura si nunca hubo otra. */
+    ultimaCuracionAt: string;
+    ultimoTratamiento: string | null;
+    diasSinCuracion: number;
 }
 interface PatientRow {
     patientId: string;
@@ -107,6 +111,60 @@ export default function NursingRotationPage() {
     const [data, setData] = useState<ApiResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [decidiendo, setDecidiendo] = useState<string | null>(null);
+
+    /**
+     * CURAR UNA ULCERA SIN SALIR DE AQUI.
+     *
+     * Esta pantalla enseñaba "UPP Sacral E4" como etiqueta y no daba ninguna
+     * forma de actuar: sus unicos botones activaban o desactivaban la rotacion.
+     * Para anotar una curacion habia que ir a /corporate/medical/patients/[id],
+     * pestaña "upps" — que no esta enlazada desde ninguna pantalla de
+     * enfermeria— y alli tampoco se podia, porque la API no tenia el endpoint.
+     *
+     * Resultado en Cupey: cuatro ulceras, una curacion cada una, la del dia en
+     * que se abrieron. La mas grave lleva 77 dias asi.
+     */
+    const [curando, setCurando] = useState<{ ulcera: ActiveUlcer; residente: string } | null>(null);
+    const [tratamiento, setTratamiento] = useState("");
+    const [medida, setMedida] = useState("");
+    const [notaCura, setNotaCura] = useState("");
+    const [estadioNuevo, setEstadioNuevo] = useState<number | null>(null);
+    const [cerrarUlcera, setCerrarUlcera] = useState(false);
+    const [guardandoCura, setGuardandoCura] = useState(false);
+    const [errorCura, setErrorCura] = useState<string | null>(null);
+
+    const abrirCuracion = (ulcera: ActiveUlcer, residente: string) => {
+        setCurando({ ulcera, residente });
+        setTratamiento(""); setMedida(""); setNotaCura("");
+        setEstadioNuevo(ulcera.stage); setCerrarUlcera(false); setErrorCura(null);
+    };
+
+    const guardarCuracion = async () => {
+        if (!curando || !tratamiento.trim()) return;
+        setGuardandoCura(true);
+        setErrorCura(null);
+        try {
+            const res = await fetch(`/api/care/upp/${curando.ulcera.id}/curacion`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    treatmentApplied: tratamiento.trim(),
+                    woundSize: medida.trim(),
+                    notes: notaCura.trim(),
+                    stage: estadioNuevo,
+                    status: cerrarUlcera ? 'RESOLVED' : undefined,
+                }),
+            });
+            const data = await res.json();
+            if (!data.success) { setErrorCura(data.error || 'No se pudo registrar'); return; }
+            setCurando(null);
+            fetchData();
+        } catch {
+            setErrorCura('Error de red');
+        } finally {
+            setGuardandoCura(false);
+        }
+    };
 
     /**
      * Enfermería decide si un residente enrolado SOLO por Norton necesita
@@ -401,13 +459,27 @@ export default function NursingRotationPage() {
                                                 <Activity className="w-3 h-3" /> Norton
                                             </span>
                                         )}
-                                        {p.enrolledBy.ulcer && p.activeUlcers[0] && (
-                                            <span title={`${p.activeUlcers.length} úlcera${p.activeUlcers.length === 1 ? '' : 's'} activa${p.activeUlcers.length === 1 ? '' : 's'}`} className="text-[10px] font-bold uppercase tracking-wider text-rose-800 bg-rose-50 border border-rose-200 px-2 py-1 rounded-full inline-flex items-center gap-1">
+                                        {/* Una etiqueta por ulcera, y cada una ABRE la curacion.
+                                            Antes era una sola etiqueta muerta que ademas escondia
+                                            las demas detras de un "+1". Los dias sin curacion van
+                                            en la etiqueta porque son el dato que decide si hay algo
+                                            que hacer hoy; a partir de 7 se pinta en ambar. */}
+                                        {p.activeUlcers.map(u => (
+                                            <button
+                                                key={u.id}
+                                                onClick={() => abrirCuracion(u, p.name)}
+                                                title={`Última curación hace ${u.diasSinCuracion} día(s). Toca para registrar una.`}
+                                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full inline-flex items-center gap-1 border transition-colors ${
+                                                    u.diasSinCuracion >= 7
+                                                        ? 'text-amber-900 bg-amber-50 border-amber-300 hover:bg-amber-100'
+                                                        : 'text-rose-800 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                                                }`}
+                                            >
                                                 <Bandage className="w-3 h-3" />
-                                                UPP {p.activeUlcers[0].bodyLocation} E{p.activeUlcers[0].stage}
-                                                {p.activeUlcers.length > 1 && <span>+{p.activeUlcers.length - 1}</span>}
-                                            </span>
-                                        )}
+                                                UPP {u.bodyLocation} E{u.stage}
+                                                <span className="opacity-60">· {u.diasSinCuracion}d</span>
+                                            </button>
+                                        ))}
                                     </div>
 
                                     {/* Salida del estado "Riesgo Norton — sin orden".
@@ -444,6 +516,122 @@ export default function NursingRotationPage() {
                     </div>
                 )}
             </div>
+
+            {/* ── CURACION ──────────────────────────────────────────────────
+                Lo minimo que hace falta para que quede constancia: que se
+                aplico. Todo lo demas es opcional a proposito — obligar a medir
+                una lesion que no se midio produciria una medida inventada. */}
+            {curando && (
+                <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+                    <div className="bg-white w-full md:max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+                        <div className="p-5 border-b border-slate-100 sticky top-0 bg-white rounded-t-3xl">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="font-black text-slate-900 text-lg leading-tight">{curando.residente}</p>
+                                    <p className="text-sm text-slate-500 font-medium">
+                                        {curando.ulcera.bodyLocation} · estadio {curando.ulcera.stage}
+                                    </p>
+                                </div>
+                                <button onClick={() => setCurando(null)} className="text-slate-400 hover:text-slate-600 shrink-0 text-2xl leading-none px-2">×</button>
+                            </div>
+                            <p className={`text-xs font-bold mt-2 ${curando.ulcera.diasSinCuracion >= 7 ? 'text-amber-700' : 'text-slate-400'}`}>
+                                Última curación hace {curando.ulcera.diasSinCuracion} día{curando.ulcera.diasSinCuracion === 1 ? '' : 's'}
+                                {curando.ulcera.ultimoTratamiento && ` — ${curando.ulcera.ultimoTratamiento}`}
+                            </p>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                    ¿Qué se aplicó?
+                                </label>
+                                <input
+                                    type="text"
+                                    value={tratamiento}
+                                    onChange={e => setTratamiento(e.target.value)}
+                                    maxLength={500}
+                                    placeholder="Ej. limpieza con salina + apósito hidrocoloide"
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                        Medida <span className="font-medium normal-case text-slate-400">(opcional)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={medida}
+                                        onChange={e => setMedida(e.target.value)}
+                                        maxLength={60}
+                                        placeholder="2x3 cm"
+                                        className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">Estadio</label>
+                                    <div className="grid grid-cols-4 gap-1">
+                                        {[1, 2, 3, 4].map(e => (
+                                            <button
+                                                key={e}
+                                                onClick={() => setEstadioNuevo(e)}
+                                                className={`py-3 rounded-xl text-sm font-black border-2 transition-colors ${
+                                                    estadioNuevo === e
+                                                        ? 'bg-rose-600 text-white border-rose-700'
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'
+                                                }`}
+                                            >{e}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-black text-slate-600 uppercase tracking-wide block mb-1.5">
+                                    Cómo la viste <span className="font-medium normal-case text-slate-400">(opcional)</span>
+                                </label>
+                                <textarea
+                                    value={notaCura}
+                                    onChange={e => setNotaCura(e.target.value)}
+                                    rows={3}
+                                    maxLength={2000}
+                                    placeholder="Bordes, exudado, olor, dolor al curar…"
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-rose-400"
+                                />
+                            </div>
+
+                            {/* Cerrar una ulcera tenia que ser posible: dos de las cuatro
+                                de Cupey son de un residente que fallecio hace 84 dias y
+                                seguian abiertas porque nada podia cerrarlas. */}
+                            <label className="flex items-start gap-3 p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={cerrarUlcera}
+                                    onChange={e => setCerrarUlcera(e.target.checked)}
+                                    className="w-5 h-5 accent-emerald-600 shrink-0 mt-0.5"
+                                />
+                                <span className="text-sm font-bold text-emerald-900 leading-snug">
+                                    Dar la úlcera por resuelta
+                                    <span className="block text-xs font-medium text-emerald-700/80 mt-0.5">
+                                        Deja de contar como activa y de pedir rotación por su causa.
+                                    </span>
+                                </span>
+                            </label>
+
+                            {errorCura && <p className="text-rose-600 text-sm font-bold">{errorCura}</p>}
+
+                            <button
+                                onClick={guardarCuracion}
+                                disabled={guardandoCura || !tratamiento.trim()}
+                                className="w-full min-h-[52px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                            >
+                                {guardandoCura ? 'Guardando…' : cerrarUlcera ? 'Registrar y cerrar' : 'Registrar curación'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
