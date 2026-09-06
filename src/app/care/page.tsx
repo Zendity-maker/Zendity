@@ -23,6 +23,7 @@ import DietPrescription from "@/components/diet/DietPrescription";
 import { formatDietSummary, DietPrescription as DietPrescriptionData } from "@/lib/diet";
 import { MOTIVOS_RECHAZO, pideMotivo, etiquetaMotivo } from "@/lib/comida";
 import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
+import { MOTIVOS_CAMBIO, TIPOS_UPP } from "@/lib/upp";
 import { EFECTOS_PRN } from "@/lib/prn";
 import { MOTIVOS_OMISION, etiquetaOmision, estadoParaOmision } from "@/lib/omision-medicamento";
 import { tocaHoy } from "@/lib/receta";
@@ -1877,6 +1878,55 @@ export default function ZendityCareTabletPage() {
         } catch (e) { console.error(e); } finally { setSubmitting(false); }
     };
 
+    /**
+     * CAMBIÉ EL APÓSITO — desde la tarjeta de la cuidadora.
+     *
+     * El registro existe desde el 06-sep-2026 en /care/nursing, pero esa
+     * pantalla es de enfermería: una cuidadora no la ve en el menú y con la URL
+     * directa recibe un 403. O sea que se construyó un botón para ella detrás
+     * de una puerta que ella no puede abrir.
+     *
+     * Ella es quien ve el apósito sucio a las tres de la mañana, así que el
+     * registro viene a su tarjeta. NO se le pregunta qué aplicó: limpia y tapa
+     * hasta que venga la enfermera. Se le pregunta POR QUÉ, y se le enseña el
+     * plan del home care ahí mismo.
+     */
+    const [aposito, setAposito] = useState<{ residente: any; ulcera: any } | null>(null);
+    const [motivoAposito, setMotivoAposito] = useState('');
+    const [notaAposito, setNotaAposito] = useState('');
+    const [guardandoAposito, setGuardandoAposito] = useState(false);
+
+    const abrirAposito = (residente: any) => {
+        const u = residente.pressureUlcers?.[0];
+        if (!u) return;
+        setAposito({ residente, ulcera: u });
+        setMotivoAposito(''); setNotaAposito('');
+    };
+
+    const guardarAposito = async () => {
+        if (!aposito || !motivoAposito) return;
+        if (motivoAposito === 'OTRO' && !notaAposito.trim()) {
+            avisoError('Escribe qué pasó.');
+            return;
+        }
+        setGuardandoAposito(true);
+        try {
+            const res = await fetch(`/api/care/upp/${aposito.ulcera.id}/curacion`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: 'CAMBIO_APOSITO', motivo: motivoAposito, notes: notaAposito.trim() }),
+            });
+            const d = await res.json();
+            if (!d.success) { avisoError(d.error || 'No se pudo registrar'); return; }
+            avisoOk(d.mensaje || 'Cambio de apósito registrado.');
+            setAposito(null);
+        } catch {
+            avisoError('Error de red');
+        } finally {
+            setGuardandoAposito(false);
+        }
+    };
+
     const handlePosturalChange = async (position: string) => {
         setSubmitting(true);
         try {
@@ -3685,7 +3735,21 @@ export default function ZendityCareTabletPage() {
                                                         </span>
                                                     )}
                                                     {p.nortonRisk && <span className="text-[10px] font-semibold text-[#92400e] bg-[#fef3c7] border border-[#fde68a] px-1.5 py-0.5 rounded-md">Alto riesgo piel</span>}
-                                                    {p.pressureUlcers?.length > 0 && <span className="text-[10px] font-semibold text-white bg-[#D9534F] px-1.5 py-0.5 rounded-md">UPP activa</span>}
+                                                    {/* LA ETIQUETA DE UPP AHORA SE TOCA.
+                                                        Era una etiqueta muerta. La cuidadora es quien
+                                                        ve el aposito sucio a las 3 de la mañana, y la
+                                                        pantalla donde se registra —/care/nursing— es
+                                                        de enfermeria: ella no la ve ni con la URL.
+                                                        Asi que el registro viene a su tarjeta. */}
+                                                    {p.pressureUlcers?.length > 0 && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); abrirAposito(p); }}
+                                                            title="Toca para registrar que cambiaste el apósito"
+                                                            className="text-[10px] font-semibold text-white bg-[#D9534F] hover:bg-[#c0392b] px-1.5 py-0.5 rounded-md transition-colors"
+                                                        >
+                                                            UPP · cambié apósito
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -5632,6 +5696,92 @@ export default function ZendityCareTabletPage() {
             {/* Avisos del piso. Reemplazan los 57 alert() que bloqueaban la
                 pantalla y había que cerrar con el dedo a mitad de un turno. */}
             <AvisoPiso aviso={aviso} onCerrar={cerrarAviso} />
+
+            {/* CAMBIÉ EL APÓSITO — la cuidadora, en su tarjeta.
+                No se le pregunta qué aplicó: limpia y tapa hasta que venga la
+                enfermera. Se le pregunta POR QUÉ, y el plan del home care va
+                delante para que no tenga que actuar de memoria. */}
+            {aposito && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+                    <div className="bg-white w-full md:max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+                        <div className="p-5 border-b border-slate-100">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="font-black text-slate-900 text-lg leading-tight">{aposito.residente.name}</p>
+                                    <p className="text-sm text-slate-500 font-medium">
+                                        {aposito.ulcera.bodyLocation} · estadio {aposito.ulcera.stage}
+                                    </p>
+                                </div>
+                                <button onClick={() => setAposito(null)} className="text-slate-400 hover:text-slate-600 shrink-0 text-2xl leading-none px-2">×</button>
+                            </div>
+                            <p className="mt-3 text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                                {TIPOS_UPP.CAMBIO_APOSITO.queEs}
+                            </p>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {aposito.ulcera.planTratamiento ? (
+                                <div className="rounded-xl border-2 border-teal-200 bg-teal-50 px-3 py-2.5">
+                                    <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider mb-1">
+                                        Plan del home care{aposito.ulcera.planEstablecidoPor ? ` · ${aposito.ulcera.planEstablecidoPor}` : ''}
+                                    </p>
+                                    <p className="text-sm text-teal-900 font-medium leading-snug whitespace-pre-line">
+                                        {aposito.ulcera.planTratamiento}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border-2 border-amber-200 bg-amber-50 px-3 py-2.5">
+                                    <p className="text-sm text-amber-900 font-bold leading-snug">
+                                        Esta úlcera todavía no tiene el plan escrito.
+                                        <span className="block text-xs font-medium text-amber-800/80 mt-0.5">
+                                            Limpia y tapa como te indicaron, y díselo a enfermería en el relevo.
+                                        </span>
+                                    </p>
+                                </div>
+                            )}
+
+                            <div>
+                                <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-1.5">¿Por qué hubo que cambiarlo?</p>
+                                <div className="space-y-1.5">
+                                    {MOTIVOS_CAMBIO.map(m => (
+                                        <button
+                                            key={m.codigo}
+                                            onClick={() => setMotivoAposito(m.codigo)}
+                                            className={`w-full text-left px-3 py-3 rounded-xl text-sm font-bold border-2 transition-colors ${
+                                                motivoAposito === m.codigo
+                                                    ? 'bg-[#D9534F] text-white border-[#c0392b]'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-[#D9534F]/40'
+                                            }`}
+                                        >{m.etiqueta}</button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-1.5">
+                                    Cómo la viste <span className="font-medium normal-case text-slate-400">{motivoAposito === 'OTRO' ? '(escribe qué pasó)' : '(opcional)'}</span>
+                                </p>
+                                <textarea
+                                    value={notaAposito}
+                                    onChange={e => setNotaAposito(e.target.value)}
+                                    rows={3}
+                                    maxLength={2000}
+                                    placeholder="Lo que viste al destapar."
+                                    className="w-full p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#D9534F]"
+                                />
+                            </div>
+
+                            <button
+                                onClick={guardarAposito}
+                                disabled={guardandoAposito || !motivoAposito}
+                                className="w-full min-h-[52px] bg-[#D9534F] hover:bg-[#c0392b] disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                            >
+                                {guardandoAposito ? 'Guardando…' : 'Registrar el cambio'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

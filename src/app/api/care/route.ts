@@ -157,8 +157,13 @@ export async function GET(req: Request) {
                     take: 1
                 },
                 pressureUlcers: {
-                    where: { status: 'ACTIVE' },
-                    select: { id: true }
+                    // La cuidadora registra el cambio de aposito desde su
+                    // tarjeta, asi que necesita saber CUAL ulcera y su plan:
+                    // pedirle que actue sin enseñarle el plan del home care es
+                    // pedirle que actue de memoria. HEALING tambien: una ulcera
+                    // que va sanando sigue llevando aposito.
+                    where: { status: { in: ['ACTIVE', 'HEALING'] } },
+                    select: { id: true, bodyLocation: true, stage: true, planTratamiento: true, planEstablecidoPor: true },
                 },
                 posturalChanges: {
                     orderBy: { performedAt: 'desc' },
