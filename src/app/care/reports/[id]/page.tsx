@@ -57,7 +57,15 @@ const COLOR_CHIP: Record<string, string> = {
     UNASSIGNED: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+/**
+ * Firmar un relevo es de supervisión y dirección — mismos roles que
+ * /api/care/reports/[id]/sign. Lo que cambia es que ahora se cuentan los roles
+ * SECUNDARIOS, y que a quien no puede se le dice en vez de moverlo de sitio:
+ * un rebote mudo es indistinguible de un enlace roto.
+ */
 const ALLOWED_ROLES = ["SUPERVISOR", "DIRECTOR", "ADMIN", "SUPER_ADMIN"];
+const puedeFirmar = (u: { role?: string | null; secondaryRoles?: string[] } | null | undefined) =>
+    [u?.role ?? "", ...(u?.secondaryRoles ?? [])].some(r => ALLOWED_ROLES.includes(r));
 
 const formatDateTime = (iso: string | null) => {
     if (!iso) return "—";
@@ -107,15 +115,16 @@ export default function ReportDetailPage() {
             router.replace("/login");
             return;
         }
-        if (!ALLOWED_ROLES.includes(user.role ?? "")) {
-            router.replace("/care/supervisor");
+        if (!puedeFirmar(user)) {
+            // Antes rebotaba a /care/supervisor sin decir nada.
+            return;
         }
     }, [user, authLoading, router]);
 
     // ── Fetch ──
     useEffect(() => {
         if (!reportId) return;
-        if (!user || !ALLOWED_ROLES.includes(user.role ?? "")) return;
+        if (!user || !puedeFirmar(user)) return;
 
         let cancelled = false;
         (async () => {
@@ -164,6 +173,25 @@ export default function ReportDetailPage() {
     };
 
     // ── Estados de carga / error ──
+    // Va ANTES del spinner: como fetchReport no arranca sin permiso, `loading`
+    // se quedaba en true para siempre y la pantalla giraba sin fin.
+    if (!authLoading && user && !puedeFirmar(user)) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-8" style={{ backgroundColor: "#fafaf9" }}>
+                <div className="max-w-md text-center">
+                    <ShieldAlert className="w-8 h-8 mx-auto mb-3 text-slate-400" />
+                    <p className="font-black text-lg mb-2" style={{ color: "#1F2D3A" }}>Este relevo lo firma supervisión o dirección.</p>
+                    <p className="text-sm text-slate-500 mb-5">
+                        Puedes ver la lista de reportes de turno, pero la firma no está abierta a tu rol.
+                    </p>
+                    <Link href="/care/reports" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-medium transition" style={{ backgroundColor: "#0F6B78" }}>
+                        <ArrowLeft className="w-4 h-4" /> Volver a los reportes
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
     if (authLoading || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#fafaf9" }}>

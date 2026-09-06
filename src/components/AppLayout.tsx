@@ -974,7 +974,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             // Vitales: solo NURSE, SUPERVISOR, DIRECTOR, ADMIN
                             if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
                             // Reportes de Turno: solo CAREGIVER y NURSE en Clinical
-                            if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
+                            // Los mismos que /api/care/reports, contando roles
+                            // secundarios. Antes solo CAREGIVER/NURSE primarios,
+                            // asi que quien FIRMA los relevos no veia el enlace.
+                            if (item.href === '/care/reports') {
+                                const puedeVerRelevos = [user?.role || '', ...((user as any)?.secondaryRoles ?? [])];
+                                if (!puedeVerRelevos.some((r: string) => ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(r))) return null;
+                            }
                             // Mis Observaciones: solo roles definidos en onlyRoles
                             // Sprint Coordinador (jun-2026): considera primary OR secondaryRoles.
 // Necesario para dual-rol (ej. NURSE + secondary COORDINATOR) y consistente
@@ -1158,7 +1164,13 @@ if ((item as any).onlyRoles) {
                                 clinicalNavigation.map((item) => {
                                     if (user?.role === "CAREGIVER" && item.href === '/care/supervisor') return null;
                                     if (item.href === '/care/vitals' && !['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(user?.role || '')) return null;
-                                    if (item.href === '/care/reports' && !['CAREGIVER', 'NURSE'].includes(user?.role || '')) return null;
+                                    // Los mismos que /api/care/reports, contando roles
+                            // secundarios. Antes solo CAREGIVER/NURSE primarios,
+                            // asi que quien FIRMA los relevos no veia el enlace.
+                            if (item.href === '/care/reports') {
+                                const puedeVerRelevos = [user?.role || '', ...((user as any)?.secondaryRoles ?? [])];
+                                if (!puedeVerRelevos.some((r: string) => ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'].includes(r))) return null;
+                            }
                                     // Sprint Coordinador (jun-2026): considera primary OR secondaryRoles.
 // Necesario para dual-rol (ej. NURSE + secondary COORDINATOR) y consistente
 // con requireRole del backend.

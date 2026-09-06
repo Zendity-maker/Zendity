@@ -21,7 +21,6 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import AppLayout from "@/components/AppLayout";
 import { Loader2, CheckCircle2, ChevronRight } from "lucide-react";
 
 interface Pendiente {
@@ -63,9 +62,11 @@ export default function EnfermeriaPage() {
         return () => clearInterval(t);
     }, []);
 
+    // Sin <AppLayout> aqui: el layout raiz ya envuelve toda la app, asi que
+    // montarlo otra vez daba dos barras laterales, dos cabeceras y un h-screen
+    // dentro de otro h-screen.
     return (
-        <AppLayout>
-            <div className="max-w-3xl mx-auto p-4 md:p-8">
+        <div className="max-w-3xl mx-auto p-4 md:p-8">
                 <div className="mb-6">
                     <h1 className="text-2xl md:text-3xl font-black text-slate-900">Enfermería</h1>
                     <p className="text-slate-500 font-medium mt-1">Lo que espera una decisión. Lo más urgente primero.</p>
@@ -105,7 +106,6 @@ export default function EnfermeriaPage() {
                         ))}
                     </div>
                 )}
-            </div>
-        </AppLayout>
+        </div>
     );
 }

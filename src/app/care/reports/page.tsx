@@ -30,7 +30,31 @@ const SHIFT_STYLES: Record<ShiftType, { label: string; bg: string; text: string;
     SUPERVISOR_DAY:{ label: 'Supervisor', bg: 'bg-teal-50 border-teal-200',    text: 'text-teal-800',   icon: ClipboardList },
 };
 
-const ALLOWED_ROLES = ['CAREGIVER', 'NURSE'];
+/**
+ * QUIÉN ENTRA A LA LISTA DE RELEVOS
+ * ─────────────────────────────────
+ * Decía ['CAREGIVER','NURSE'] y eso dejaba fuera EXACTAMENTE a quien puede
+ * hacer el trabajo. Las cuatro capas del camino se contradecían:
+ *
+ *   /care/reports          (esta lista)      CAREGIVER, NURSE
+ *   /api/care/reports      (servidor)        + SUPERVISOR, DIRECTOR, ADMIN
+ *   /care/reports/[id]     (el detalle)      SUPERVISOR, DIRECTOR, ADMIN, SUPER_ADMIN
+ *   /api/.../[id]/sign     (firmar)          SUPERVISOR, DIRECTOR, ADMIN
+ *
+ * Una directora tocaba "62 relevos sin aceptar" en Enfermería, llegaba aquí y
+ * la pantalla la mandaba al dashboard sin decir nada — parecía un enlace roto.
+ * Una cuidadora sí entraba, pero al abrir un relevo la echaban al panel del
+ * supervisor. Nadie podía recorrer lista → detalle → firma.
+ *
+ * Medido el 06-sep-2026: 62 relevos en PENDING, el más viejo del 9 de junio.
+ * Tres meses sin que nadie pudiera aceptarlos por el camino normal.
+ *
+ * Ahora la lista deja pasar a los mismos que su propio servidor, y CUENTA LOS
+ * ROLES SECUNDARIOS, como hacen requireRole y el menú. En Cupey nadie tiene
+ * NURSE de rol primario: la enfermería la hace una DIRECTOR con NURSE
+ * secundario, así que gatear por el primario solo no alcanza a nadie.
+ */
+const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 export default function CareReportsPage() {
     const router = useRouter();
@@ -39,13 +63,16 @@ export default function CareReportsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const isAuthorized = !!user?.role && ALLOWED_ROLES.includes(user.role);
+    const rolesDelUsuario = [user?.role ?? '', ...(user?.secondaryRoles ?? [])];
+    const isAuthorized = rolesDelUsuario.some(r => ALLOWED_ROLES.includes(r));
 
     useEffect(() => {
         if (authLoading) return;
         if (!user) { router.replace('/login'); return; }
-        if (!isAuthorized) router.replace('/');
-    }, [user, authLoading, isAuthorized, router]);
+        // Antes: router.replace('/'). Un rebote mudo al dashboard es
+        // indistinguible de un enlace roto, y fue justo lo que se reportó. Si
+        // alguien no tiene acceso se le dice; no se le mueve de sitio.
+    }, [user, authLoading, router]);
 
     const fetchReports = async () => {
         if (!isAuthorized) return;
@@ -64,10 +91,24 @@ export default function CareReportsPage() {
 
     useEffect(() => { if (isAuthorized) fetchReports(); }, [isAuthorized]);
 
-    if (authLoading || !isAuthorized) {
+    if (authLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#fafaf9]">
                 <div className="text-[#1F2D3A]/60 font-medium">Cargando...</div>
+            </div>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#fafaf9] p-8">
+                <div className="max-w-md text-center">
+                    <p className="font-black text-[#1F2D3A] text-lg mb-2">Los reportes de turno no están abiertos a tu rol.</p>
+                    <p className="text-[#1F2D3A]/60 text-sm">
+                        Los ve el personal de piso y enfermería, y los firman supervisión y dirección.
+                        Si crees que deberías verlos, dilo — es un permiso, no un fallo.
+                    </p>
+                </div>
             </div>
         );
     }
