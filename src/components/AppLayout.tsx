@@ -814,6 +814,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     display: block !important;
                 }
                 .zendity-main > * { overflow: visible !important; height: auto !important; }
+
+                /* QUE SE IMPRIMAN LOS FONDOS.
+                   El navegador descarta los colores de fondo al imprimir pero
+                   conserva el color del texto. El registro de visitas tiene su
+                   fila de cabecera como fondo #1E293B con texto BLANCO: al
+                   imprimir, el fondo desaparece y quedan los titulos de las
+                   columnas en blanco sobre papel blanco. Invisibles.
+                   Y lo mismo con los chips de grupo, donde el color ES el dato.
+                   Solo emergency-print lo pedia; las otras nueve no. */
+                body, .zendity-main {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+
+                /* QUE LA CABECERA SE REPITA EN CADA HOJA.
+                   Ninguna de las diez lo pedia. Un registro de tres paginas
+                   dejaba las hojas 2 y 3 con columnas sin titulo — ilegibles
+                   para quien las lee, que en el caso de las visitas es un
+                   inspector. Y una fila partida a la mitad por el salto de
+                   pagina no se lee en ninguna de las dos. */
+                thead { display: table-header-group !important; }
+                tfoot { display: table-footer-group !important; }
+                tr, img { break-inside: avoid !important; page-break-inside: avoid !important; }
+                table { break-inside: auto !important; }
             }
         `}</style>
 
