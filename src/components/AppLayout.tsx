@@ -52,6 +52,21 @@ const clinicalNavigation = [
     // Cambios de condicion reportados desde el piso. Mismo gate que
     // PUEDEN_REVISAR_CAMBIO en src/lib/cambios-de-condicion.ts.
     { name: 'Cambios del piso', href: '/care/cambios', icon: TrendingUp, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+    /**
+     * LO CLINICO QUE VIVIA EN EL MENU CORPORATIVO.
+     *
+     * El expediente del residente, el catalogo de farmacia, la auditoria del
+     * eMAR y el tablero de UPP estaban en la seccion "Area Clinica / Medica"
+     * de `corporateNavigationSections` — o sea que solo aparecian si ya estabas
+     * en /corporate. Una enfermera sentada en /care no sabia que existian.
+     *
+     * Los roles son los mismos que aceptan sus endpoints, para que un enlace
+     * visible nunca termine en un muro. El del eMAR incluye SOCIAL_WORKER
+     * porque /api/emar los deja leer.
+     */
+    { name: 'Expedientes', href: '/corporate/medical/patients', icon: Users, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
+    { name: 'Auditoría eMAR', href: '/corporate/medical/emar', icon: Pill, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'] },
+    { name: 'Catálogo Farmacia', href: '/corporate/medical/catalog', icon: Package, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Cocina y Nutrición', href: '/kitchen', icon: Utensils },
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
@@ -712,7 +727,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // Sprint Coordinador (jun-2026): incluir /coordinator. Sin esto, COORDINATOR-pura
     // entra a /coordinator y cae al sidebar clinical (clinicalNavigation, el de
     // cuidadores) en vez del corporate donde vive el bloque "Comunicación Familiar".
-    const isCorporateWorkspace = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr") || pathname.startsWith("/coordinator");
+    /**
+     * EL MENU LO DECIDE EL ROL, NO LA URL.
+     *
+     * Antes esto era solo `pathname.startsWith("/corporate") || ...`, asi que
+     * el menu entero se sustituia por el corporativo en cuanto alguien tocaba
+     * una ruta de /corporate — pasara lo que pasara con quien lo tocaba.
+     *
+     * EN LA PRACTICA: la tableta enlaza el Plan de Cuido a
+     * /corporate/medical/patients/[id]/pai. Una cuidadora que lo abria se
+     * teletransportaba: barra oscura, su menu clinico desaparecido, y en su
+     * lugar 45 enlaces de Operaciones, Recursos Humanos y Administracion, de
+     * los cuales solo 7 tienen puerta de rol — el resto le contestan con un
+     * muro cuando los toca.
+     *
+     * Y no habia vuelta: el conmutador de entorno de la barra superior solo lo
+     * ven ADMIN, DIRECTOR y SUPERVISOR. Para una cuidadora o una enfermera era
+     * un viaje de ida.
+     *
+     * Ahora el entorno corporativo solo existe para quien de verdad trabaja en
+     * los dos. Para el resto, el menu clinico se queda donde esta, aunque la
+     * URL sea de /corporate — que es lo que pasa cuando abren el PAI de una
+     * residente, y es una pantalla suya.
+     */
+    const TRABAJAN_EN_CORPORATIVO = ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'HR_MANAGER', 'SUPER_ADMIN', 'COORDINATOR'];
+    const rutaCorporativa = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr") || pathname.startsWith("/coordinator");
+    const isCorporateWorkspace = rutaCorporativa && TRABAJAN_EN_CORPORATIVO.includes(user?.role ?? '');
 
     // Sidebar colors and styles based on workspace
     const sidebarBg = isCorporateWorkspace ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-white border-slate-200 text-slate-600";

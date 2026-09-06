@@ -1,20 +1,52 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withPhiAccessLog } from '@/lib/phi-audit';
+import { requireRole } from '@/lib/api-auth';
+
+/**
+ * QUIEN PUEDE LEER EL DIRECTORIO DE RESIDENTES.
+ *
+ * Esta ruta comprobaba UNICAMENTE que hubiera sesion iniciada. Y como el
+ * `include` no lleva `select`, devuelve el modelo Patient COMPLETO: nombre,
+ * habitacion, fecha de nacimiento, dieta, cuota mensual, ultimos digitos de
+ * cuenta bancaria, motivo de egreso y la nota de fallecimiento.
+ *
+ * Medido en Cupey el 05-sep-2026: tres cuentas activas no clinicas tienen
+ * headquartersId de la sede — cocina, mantenimiento y un INVERSIONISTA. Las
+ * tres podian pedir esta lista.
+ *
+ * Segundo caso identico encontrado el mismo dia, despues de /api/emar. Misma
+ * forma: `if (!session?.user)` y nada mas.
+ *
+ * Los roles salen de quien llama de verdad a esta ruta: el directorio clinico,
+ * el calendario, el tablero de UPP, el briefing medico, la referencia del
+ * coordinador y los modales de contacto y cita familiar. O sea clinica,
+ * direccion, trabajo social y coordinacion.
+ */
+const VEN_DIRECTORIO = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER', 'COORDINATOR'];
+
+/**
+ * CAREGIVER entra, y no por generosidad: "Med & Zoning" esta en su menu sin
+ * restriccion de rol y enlaza al briefing medico, que pide esta lista.
+ * Bloquearlas les romperia una pantalla que usan hoy. La fuga que se cierra es
+ * la de las cuentas NO clinicas.
+ *
+ * PENDIENTE, y lo digo aqui para que no se pierda: esta ruta devuelve el modelo
+ * Patient ENTERO —incluye cuota mensual y ultimos digitos de cuenta bancaria—
+ * porque el `include` de abajo no lleva `select`. Eso es sobre-exposicion
+ * incluso para quien tiene derecho a la lista. Acotarlo toca nueve pantallas
+ * que la consumen, asi que va por separado y con su propia comprobacion.
+ */
 
 // PHI audit (Pilar 1) — lista de residentes: PatientList, sin patientId único.
 export const GET = withPhiAccessLog(getPatientsListHandler, { resourceType: 'PatientList' });
 
 async function getPatientsListHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ success: false, error: 'No autorizado' }, { status: 401 });
-        }
+        const auth = await requireRole(VEN_DIRECTORIO);
+        if (auth instanceof NextResponse) return auth;
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
 
         // Por defecto solo activos y en licencia temporal: el calendario y la
         // admisión usan este mismo endpoint para elegir residente, y ahí un
