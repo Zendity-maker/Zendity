@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import sgMail from '@sendgrid/mail';
+import { emailLogoSrc } from '@/lib/email-logo';
 import { requireRole } from '@/lib/api-auth';
 
 // Publicar horarios (y notificar al equipo por email) es operación de gestión.
@@ -10,19 +11,65 @@ if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+/**
+ * LAS SIETE, NO TRES.
+ *
+ * Este mapa tenía solo MORNING, EVENING y NIGHT. Los otros cuatro caían al
+ * `|| s.shiftType` y salían como el código crudo en inglés.
+ *
+ * Medido sobre el correo de la semana del 07-sep-2026: 28 de 84 filas, un
+ * TERCIO del correo. La cuidadora recibía la palabra "OFF" con la columna de
+ * grupo en blanco donde debía leer "Día libre" — y el día libre es el tipo de
+ * turno más usado del sistema: 424 de 1 387.
+ *
+ * Mismas etiquetas que el constructor. Si se añade un tipo allí, va aquí.
+ */
 const SHIFT_LABELS: Record<string, string> = {
-    MORNING: 'Diurno 6AM–2PM',
-    EVENING: 'Vespertino 2PM–10PM',
-    NIGHT: 'Nocturno 10PM–6AM'
+    MORNING:        'Diurno 6:00 AM – 2:00 PM',
+    EVENING:        'Vespertino 2:00 PM – 10:00 PM',
+    NIGHT:          'Nocturno 10:00 PM – 6:00 AM',
+    FULL_DAY:       'Turno largo 6:00 AM – 6:00 PM',
+    FULL_NIGHT:     'Turno largo 6:00 PM – 6:00 AM',
+    SUPERVISOR_DAY: 'Supervisión 9:00 AM – 6:00 PM',
+    OFF:            'Día libre',
 };
 
 const COLOR_LABELS: Record<string, string> = {
-    RED: 'Grupo RED',
-    YELLOW: 'Grupo YELLOW',
-    GREEN: 'Grupo GREEN',
-    BLUE: 'Grupo BLUE',
-    ALL: 'Todos los grupos'
+    RED: 'Grupo Rojo',
+    YELLOW: 'Grupo Amarillo',
+    GREEN: 'Grupo Verde',
+    BLUE: 'Grupo Azul',
+    ALL: 'Todos los grupos',
 };
+
+/**
+ * Lo que lleva la persona ese día, en una línea.
+ *
+ * Un día libre no lleva grupo, y la supervisión de piso tampoco — pero por
+ * razones distintas: una no trabaja y la otra trabaja sin ser dueña de un
+ * grupo. Antes las dos salían con la casilla vacía, que se lee como un olvido.
+ */
+function etiquetaDeGrupo(s: { shiftType: string; colorGroup: string | null; isFloorSupervision: boolean }): string | null {
+    if (s.shiftType === 'OFF') return null;
+    if (s.isFloorSupervision) return 'Supervisión de piso';
+    if (!s.colorGroup) return null;
+    return COLOR_LABELS[s.colorGroup] ?? s.colorGroup;
+}
+
+/** El horario real del turno: el fijo, o las horas que se le pusieron a mano. */
+function etiquetaDeTurno(s: {
+    shiftType: string; isManual: boolean;
+    customStartTime: Date | null; customEndTime: Date | null; customDescription: string | null;
+}): string {
+    if (s.isManual && s.customStartTime && s.customEndTime) {
+        const hora = (d: Date) => d.toLocaleTimeString('es-PR', {
+            hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Puerto_Rico',
+        });
+        const rango = `${hora(s.customStartTime)} – ${hora(s.customEndTime)}`;
+        return s.customDescription ? `${s.customDescription} · ${rango}` : rango;
+    }
+    return SHIFT_LABELS[s.shiftType] ?? s.shiftType;
+}
 
 const NIGHT_SHIFTS      = ['NIGHT', 'FULL_NIGHT'];
 const CARE_ROLES        = ['CAREGIVER', 'NURSE'];
@@ -195,69 +242,115 @@ export async function POST(req: Request) {
         const emailPromises: Promise<any>[] = [];
 
         for (const [userId, { user, shifts }] of byUser) {
-            const shiftsText = shifts.map(s => {
-                const noteLine = s.notes ? ` · Nota: ${s.notes}` : '';
-                return `${formatDate(s.date)} — ${SHIFT_LABELS[s.shiftType] || s.shiftType} (${COLOR_LABELS[s.colorGroup] || s.colorGroup})${noteLine}`;
-            }).join('\n');
+            // La misma lectura que el correo. Antes un día libre salía aquí como
+            // "OFF (null)" porque el grupo no existe para un día que no se trabaja.
+            const shiftsText = [...shifts]
+                .sort((a, b) => a.date.getTime() - b.date.getTime())
+                .map(s => {
+                    const grupo = etiquetaDeGrupo(s);
+                    const nota = s.notes ? ` · Nota: ${s.notes}` : '';
+                    return `${formatDate(s.date)} — ${etiquetaDeTurno(s)}${grupo ? ` (${grupo})` : ''}${nota}`;
+                }).join('\n');
 
             notificationPromises.push(
                 prisma.notification.create({
                     data: {
                         userId,
                         type: 'SCHEDULE_PUBLISHED',
-                        title: `Horario publicado — semana del ${weekStart}`,
-                        message: `Tu horario para la semana del ${weekStart} al ${weekEnd} ha sido publicado en ${hqName}.\n\n${shiftsText}`,
+                        title: `Tu horario del ${weekStart} al ${weekEnd}`,
+                        message: `${hqName} publicó tu horario.\n\n${shiftsText}`,
                         isRead: false
                     }
                 }).catch(() => null)
             );
 
             if (user.email && process.env.SENDGRID_API_KEY) {
-                const shiftsHtml = shifts.map(s => `
-                    <tr>
-                        <td style="padding:10px 16px;border-bottom:1px solid #E2E8F0;color:#1E293B;font-size:14px;">${formatDate(s.date)}</td>
-                        <td style="padding:10px 16px;border-bottom:1px solid #E2E8F0;color:#64748B;font-size:14px;">${SHIFT_LABELS[s.shiftType] || s.shiftType}</td>
-                        <td style="padding:10px 16px;border-bottom:1px solid #E2E8F0;font-size:14px;">
-                            <span style="background:#E1F5EE;color:#0F6E56;font-weight:700;padding:3px 10px;border-radius:20px;font-size:12px;">${COLOR_LABELS[s.colorGroup] || s.colorGroup}</span>
-                        </td>
-                        <td style="padding:8px 16px;border-bottom:1px solid #E2E8F0;color:#666666;font-size:13px;font-style:italic;">${s.notes || '—'}</td>
-                    </tr>`).join('');
+                /**
+                 * ES UN CORREO DEL HOGAR, NO DE LA PLATAFORMA.
+                 *
+                 * Este era el único correo del sistema que se salía del patrón
+                 * de casa: ponía "ZENDITY — Healthcare Management Platform" en
+                 * la cabecera, con otra paleta que las diez rutas que ya usan
+                 * `emailLogoSrc`. Quien lo abre trabaja para el hogar; Zéndity
+                 * es la herramienta con la que se lo mandan, y va al pie.
+                 *
+                 * Y NO ES UNA TABLA. Cuatro columnas no caben en un teléfono, y
+                 * la de notas enseñaba "—" en casi todas las filas: un cuarto
+                 * del ancho para no decir nada. Una fila por día, y la nota
+                 * debajo de su día solo cuando existe.
+                 */
+                const ordenados = [...shifts].sort((a, b) => a.date.getTime() - b.date.getTime());
+                const trabaja = ordenados.filter(s => s.shiftType !== 'OFF');
+                const libres  = ordenados.filter(s => s.shiftType === 'OFF');
+                const primero = trabaja[0];
 
-                const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,sans-serif;">
-                    <div style="max-width:560px;margin:32px auto;background:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
-                        <div style="background:#1E293B;padding:24px 32px;">
-                            <div style="color:#1D9E75;font-size:22px;font-weight:900;letter-spacing:2px;">ZENDITY</div>
-                            <div style="color:#94A3B8;font-size:12px;margin-top:4px;">Healthcare Management Platform</div>
+                const filas = ordenados.map(s => {
+                    const esLibre = s.shiftType === 'OFF';
+                    const grupo = etiquetaDeGrupo(s);
+                    const nota = s.notes && s.notes.trim()
+                        ? `<div style="margin:6px 0 0;padding:8px 12px;background:#FFFBEB;border-left:3px solid #E5A93D;border-radius:6px;color:#78350F;font-size:13px;">${s.notes.trim()}</div>`
+                        : '';
+                    return `
+                    <tr>
+                      <td style="padding:14px 0;border-bottom:1px solid #E7E5E4;">
+                        <div style="font-size:13px;font-weight:700;color:${esLibre ? '#78716C' : '#1F2D3A'};text-transform:capitalize;">${formatDate(s.date)}</div>
+                        <div style="margin-top:4px;">
+                          <span style="display:inline-block;font-size:14px;font-weight:${esLibre ? '600' : '700'};color:${esLibre ? '#78716C' : '#0F6B78'};">${etiquetaDeTurno(s)}</span>
+                          ${grupo ? `<span style="display:inline-block;margin-left:8px;background:#EAF4F5;color:#0F6B78;font-weight:700;padding:2px 10px;border-radius:20px;font-size:12px;">${grupo}</span>` : ''}
                         </div>
-                        <div style="padding:32px;">
-                            <h2 style="margin:0 0 8px;color:#1E293B;font-size:18px;">Tu horario esta listo</h2>
-                            <p style="color:#64748B;font-size:14px;margin:0 0 24px;">Hola <strong>${user.name}</strong>, tu horario para la semana del <strong>${weekStart} al ${weekEnd}</strong> ha sido publicado en <strong>${hqName}</strong>.</p>
-                            <table style="width:100%;border-collapse:collapse;border:1px solid #E2E8F0;border-radius:8px;overflow:hidden;">
-                                <thead><tr style="background:#1E293B;">
-                                    <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">FECHA</th>
-                                    <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">TURNO</th>
-                                    <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">GRUPO</th>
-                                    <th style="padding:10px 16px;text-align:left;color:#FFFFFF;font-size:12px;">NOTAS</th>
-                                </tr></thead>
-                                <tbody>${shiftsHtml}</tbody>
-                            </table>
-                            <div style="margin-top:24px;padding:16px;background:#E1F5EE;border-radius:8px;border-left:4px solid #1D9E75;">
-                                <p style="margin:0;color:#0F6E56;font-size:13px;">Al iniciar tu turno en Zendity, el sistema asignara tu grupo de residentes automaticamente segun este horario.</p>
-                            </div>
-                            <div style="margin-top:24px;text-align:center;">
-                                <a href="https://app.zendity.com" style="background:#1D9E75;color:#FFFFFF;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Abrir Zendity</a>
-                            </div>
-                        </div>
-                        <div style="background:#F8FAFC;padding:16px 32px;text-align:center;border-top:1px solid #E2E8F0;">
-                            <p style="margin:0;color:#94A3B8;font-size:12px;">${hqName} — Zendity Healthcare Management Platform</p>
-                        </div>
-                    </div></body></html>`;
+                        ${nota}
+                      </td>
+                    </tr>`;
+                }).join('');
+
+                // Lo primero que quiere saber quien abre esto en el teléfono.
+                const resumen = trabaja.length === 0
+                    ? 'Esta semana no tienes turnos asignados.'
+                    : `Esta semana trabajas <strong>${trabaja.length} ${trabaja.length === 1 ? 'día' : 'días'}</strong>`
+                      + (libres.length ? ` y libras <strong>${libres.length}</strong>.` : '.')
+                      + (primero ? ` Tu primer turno es el <strong>${formatDate(primero.date)}</strong>, ${etiquetaDeTurno(primero).toLowerCase()}.` : '');
+
+                const logo = emailLogoSrc(schedule.headquartersId, schedule.headquarters?.logoUrl);
+
+                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F5F5F4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:560px;margin:24px auto;background:#FFFFFF;border-radius:14px;overflow:hidden;border:1px solid #C9D4D8;">
+
+    <div style="background:#1F2D3A;padding:24px;text-align:center;border-bottom:4px solid #0F6B78;">
+      ${logo
+        ? `<img src="${logo}" alt="${hqName}" style="max-height:52px;border-radius:8px;" />`
+        : `<h2 style="color:#FFFFFF;margin:0;font-size:22px;font-weight:800;">${hqName}</h2>`}
+      <p style="color:#3CC6C4;margin:8px 0 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Tu horario de la semana</p>
+    </div>
+
+    <div style="padding:28px 24px;color:#1F2D3A;line-height:1.6;">
+      <p style="margin:0 0 6px;font-size:16px;"><strong>${user.name}</strong>,</p>
+      <p style="margin:0 0 20px;font-size:15px;color:#44403C;">${resumen}</p>
+
+      <table style="width:100%;border-collapse:collapse;">${filas}</table>
+
+      ${trabaja.length > 0 ? `
+      <div style="margin-top:24px;padding:14px 16px;background:#EAF4F5;border-radius:8px;border-left:4px solid #0F6B78;">
+        <p style="margin:0;color:#0F6B78;font-size:13px;">Al ponchar tu turno, el sistema te asigna tu grupo de residentes según este horario. No hay que hacer nada más.</p>
+      </div>` : ''}
+
+      <div style="margin-top:24px;text-align:center;">
+        <a href="https://app.zendity.com" style="background:#0F6B78;color:#FFFFFF;padding:13px 30px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;">Ver mi horario</a>
+      </div>
+    </div>
+
+    <div style="background:#F5F5F4;padding:16px 24px;text-align:center;border-top:1px solid #E7E5E4;">
+      <p style="margin:0;color:#57534E;font-size:12px;">Horario publicado por la administración de ${hqName}.</p>
+      <p style="margin:4px 0 0;color:#78716C;font-size:12px;">Si algo no cuadra, habla con tu supervisora antes del turno.</p>
+      <p style="margin:12px 0 0;font-size:10px;font-weight:700;color:#0F6B78;text-transform:uppercase;letter-spacing:0.5px;">Tecnología impulsada por Zéndity</p>
+    </div>
+  </div></body></html>`;
 
                 emailPromises.push(
                     sgMail.send({
                         to: user.email,
-                        from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: `${hqName} via Zendity` },
-                        subject: `Tu horario esta listo — semana del ${weekStart}`,
+                        from: { email: process.env.SENDGRID_FROM_EMAIL || 'notificaciones@zendity.com', name: hqName },
+                        subject: `Tu horario del ${weekStart} al ${weekEnd}`,
                         html
                     }).catch(e => console.error(`Email error for ${user.email}:`, e))
                 );
