@@ -32,9 +32,30 @@ import { llegaAlPiso } from '@/lib/receta';
 
 export type Severidad = 'CRITICA' | 'ALTA' | 'MEDIA';
 
+/**
+ * Los identificadores de los chequeos, como tipo.
+ *
+ * No es decoracion: el reporte semanal de enfermeria se arma pidiendo hallazgos
+ * POR CODIGO, y un codigo mal escrito no falla — devuelve cero y esa linea del
+ * reporte dice "0" para siempre. Es exactamente el patron que estos chequeos
+ * existen para cazar, asi que aqui se caza en tiempo de compilacion.
+ */
+export type CodigoChequeo =
+    | 'ALERGIAS_SIN_DOCUMENTAR'
+    | 'PAI_CONTRADICE_EXPEDIENTE'
+    | 'CAIDAS_FUERA_DEL_MODULO'
+    | 'APROBADO_SIN_EFECTO'
+    | 'SIN_CONTACTO_FAMILIAR'
+    | 'VARIOS_PAI_VIGENTES'
+    | 'SIN_PLAN_DE_CUIDO'
+    | 'DIETA_NO_REFLEJA_DIAGNOSTICO'
+    | 'CONTROLADO_SIN_MARCAR'
+    | 'ULCERA_SIN_SEGUIMIENTO'
+    | 'MEDICAMENTO_QUE_NO_LLEGA';
+
 export interface Hallazgo {
     /** Identificador estable del check. */
-    codigo: string;
+    codigo: CodigoChequeo;
     /** Qué se comprobó, en una línea que un director entienda. */
     titulo: string;
     severidad: Severidad;

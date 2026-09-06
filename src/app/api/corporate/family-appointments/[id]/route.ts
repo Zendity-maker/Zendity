@@ -13,6 +13,19 @@ import {
     sendApprovedAppointmentNotifications,
 } from '@/lib/family/appointment-effects';
 
+/**
+ * La clave del remitente, al cargar el modulo.
+ *
+ * `@sendgrid/mail` es un singleton por instancia: si nadie llama a setApiKey en
+ * esa instancia, `send()` falla. Este archivo lo omitia, asi que el envio solo
+ * funcionaba cuando el lambda venia caliente de otra ruta que si la habia
+ * puesto. Con el cron `keep-warm` cada 30 minutos eso pasa casi siempre — casi.
+ * Un correo que sale "casi siempre" no es un correo que sale.
+ */
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
 // Sprint Coordinador (jun-2026): COORDINATOR puede aprobar/rechazar TODAS
 // las citas familiares (cambio de criterio vs Q2 del sprint inicial donde
 // aprobar quedó en DIR/ADMIN). Refactor a requireRole con secondaryRoles

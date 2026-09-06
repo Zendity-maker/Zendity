@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateContinuityPDF } from '@/lib/continuity-pdf';
 import sgMail from '@sendgrid/mail';
+import { logPhiAccess } from '@/lib/phi-audit';
+
+/**
+ * La clave del remitente, al cargar el modulo.
+ *
+ * `@sendgrid/mail` es un singleton por instancia: si nadie llama a setApiKey en
+ * esa instancia, `send()` falla. Este archivo lo omitia, asi que el envio solo
+ * funcionaba cuando el lambda venia caliente de otra ruta que si la habia
+ * puesto. Con el cron `keep-warm` cada 30 minutos eso pasa casi siempre — casi.
+ * Un correo que sale "casi siempre" no es un correo que sale.
+ */
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -148,6 +162,29 @@ export async function GET(req: Request) {
                 }],
             });
 
+            /**
+             * EL ENVIO QUEDA REGISTRADO.
+             *
+             * El comentario de arriba decia desde siempre que este envio "queda
+             * en el audit log igual que la descarga manual", y no habia ni una
+             * llamada de auditoria en el archivo. Un correo con censo,
+             * medicacion y alergias de todos los residentes salia cada lunes a
+             * varios destinatarios sin dejar rastro de que salio.
+             *
+             * DISCLOSURE y no EXPORT: el PDF no se descarga, se ENVIA fuera del
+             * sistema. Lo que importa poder reconstruir despues es a cuantas
+             * direcciones fue y de que sede, no quien pulso un boton — aqui no
+             * lo pulso nadie.
+             */
+            logPhiAccess({
+                action: 'DISCLOSURE',
+                resourceType: 'ContinuityPackage',
+                hqId: sede.id,
+                userId: null,
+                routePath: '/api/cron/continuidad-semanal',
+                context: { destinatarios: emails.length, residentes: patients.length, automatico: true },
+            });
+
             resultados.push({ sede: sede.name, enviado: emails.length, residentes: patients.length });
         }
 
@@ -158,12 +195,12 @@ export async function GET(req: Request) {
     }
 }
 
-/** scheduleTimes puede venir como JSON `["08:00"]` o CSV `"08:00, 14:00"`. */
 /** Por razon necesaria — por `frequency` o por `status`, que conviven. */
 function esPRN(m: { frequency?: string | null; status?: string | null }): boolean {
     return (m.frequency ?? '').toUpperCase().includes('PRN') || m.status === 'PRN';
 }
 
+/** scheduleTimes puede venir como JSON `["08:00"]` o CSV `"08:00, 14:00"`. */
 function horarios(raw: string | null): string[] {
     if (!raw) return [];
     try {
