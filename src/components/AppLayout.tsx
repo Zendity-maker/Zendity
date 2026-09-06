@@ -751,7 +751,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
      * residente, y es una pantalla suya.
      */
     const TRABAJAN_EN_CORPORATIVO = ['ADMIN', 'DIRECTOR', 'SUPERVISOR', 'HR_MANAGER', 'SUPER_ADMIN', 'COORDINATOR'];
-    const rutaCorporativa = pathname.startsWith("/corporate") || pathname.startsWith("/locations") || pathname.startsWith("/hr") || pathname.startsWith("/coordinator");
+    /**
+     * `/reception` entra aquí desde sep-2026.
+     *
+     * "Registro de Visitas" y "Kiosco de Recepción" viven en la sección
+     * Administración del menú corporativo, y sus rutas empiezan por
+     * `/reception`. Al tocarlas, el menú entero se sustituía por el clínico —
+     * barra blanca, otras opciones— sin haber salido de una tarea
+     * administrativa. Lo reportó Andrés: "al accesar pasa a clinical".
+     *
+     * El kiosco en sí (la tableta de recepción) no usa este menú para nada: es
+     * pantalla completa con su propio flujo. Quien llega a /reception desde el
+     * menú es quien administra, y ese se queda donde estaba.
+     */
+    const rutaCorporativa = pathname.startsWith("/corporate")
+        || pathname.startsWith("/locations")
+        || pathname.startsWith("/hr")
+        || pathname.startsWith("/coordinator")
+        || pathname.startsWith("/reception");
     const isCorporateWorkspace = rutaCorporativa && TRABAJAN_EN_CORPORATIVO.includes(user?.role ?? '');
 
     // Sidebar colors and styles based on workspace
@@ -761,7 +778,46 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const sidebarActiveItem = isCorporateWorkspace ? "bg-slate-800 text-teal-400 font-bold border border-slate-700/50 shadow-sm" : "bg-teal-50 text-teal-700 border border-teal-100 font-bold shadow-sm";
 
     return (
-        <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
+        <>
+        {/**
+          * QUE EL ARMAZON NO SE IMPRIMA.
+          *
+          * AppLayout envuelve TODA la aplicación desde el layout raíz, y no
+          * tenía ni una regla de impresión. Así que `window.print()` en
+          * cualquier pantalla sacaba también la barra lateral, la superior, el
+          * buscador y los widgets flotantes.
+          *
+          * Diez pantallas imprimen, y entre ellas hay papeles que salen del
+          * edificio: el formulario de traslado que va CON el residente al
+          * hospital, el expediente de medicación, el plan de cuido que se le
+          * manda a la familia, y el registro de visitas que ve un inspector.
+          * Todos salían con un menú de navegación al lado.
+          *
+          * Cada una de esas páginas había escrito su propio `@media print` para
+          * esconder su barra — lo hicieron bien, pero no podían esconder un
+          * armazón que no saben que las envuelve. Se arregla aquí, una vez.
+          *
+          * `.no-print` se respeta también: varias páginas ya lo usan.
+          */}
+        <style>{`
+            @media print {
+                .no-print { display: none !important; }
+                html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+                body { display: block !important; }
+                /* h-screen + overflow-hidden recorta la impresion a UNA pagina:
+                   un registro de visitas de tres hojas salia con la primera y
+                   nada mas. Es peor que la barra lateral, y menos visible. */
+                .zendity-shell, .zendity-main {
+                    height: auto !important;
+                    overflow: visible !important;
+                    background: #fff !important;
+                    display: block !important;
+                }
+                .zendity-main > * { overflow: visible !important; height: auto !important; }
+            }
+        `}</style>
+
+        <div className="zendity-shell flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
             <ZendiWidget />
 
             {/* Punto 8 — Botón de soporte flotante (oculto para FAMILY) */}
@@ -786,7 +842,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Unified Sidebar — hidden on mobile, collapsible on tablet */}
-            <aside className={`${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col h-screen shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
+            <aside className={`no-print ${isSidebarCollapsed ? 'w-14' : 'w-56'} border-r hidden md:flex flex-col h-screen shadow-sm transition-all duration-200 flex-shrink-0 z-50 ${sidebarBg}`}>
                 {/* Workspace Switcher / Logo */}
                 <div className="h-20 flex items-center justify-between px-4 border-b border-opacity-20 border-current relative">
                     <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
@@ -1140,9 +1196,9 @@ if ((item as any).onlyRoles) {
             )}
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
+            <main className="zendity-main flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
                 {/* Unified Topbar */}
-                <header className="h-16 md:h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 md:px-8 z-40 sticky top-0 shadow-sm flex-shrink-0 gap-3">
+                <header className="no-print h-16 md:h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 md:px-8 z-40 sticky top-0 shadow-sm flex-shrink-0 gap-3">
                     {/* Hamburger — visible on mobile always, on tablet/desktop as extra toggle */}
                     <button onClick={toggleSidebar} className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors shrink-0 lg:hidden">
                         <Menu className="w-5 h-5 text-slate-600" />
@@ -1338,6 +1394,7 @@ if ((item as any).onlyRoles) {
                 </div>
             </main>
         </div>
+        </>
     );
 }
 // cache-bust Tue Mar 31 17:54:26 AST 2026
