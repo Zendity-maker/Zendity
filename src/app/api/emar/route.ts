@@ -1,22 +1,58 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
 import { format } from 'date-fns';
 import { todayStartAST } from '@/lib/dates';
 import { withPhiAccessLog } from '@/lib/phi-audit';
+import { requireRole } from '@/lib/api-auth';
+
+/**
+ * QUIEN PUEDE VER Y ESCRIBIR EL eMAR.
+ *
+ * Esta ruta comprobaba UNICAMENTE que hubiera sesion iniciada. No miraba el rol
+ * y, en el POST, tampoco la sede.
+ *
+ * LO QUE ESO SIGNIFICABA, medido en Cupey el 05-sep-2026:
+ *
+ *   · El GET devolvia 33 residentes con sus 261 medicamentos activos a
+ *     CUALQUIER cuenta con sesion en la sede. Tres cuentas activas no clinicas
+ *     tienen headquartersId de Cupey: cocina, mantenimiento y un INVERSIONISTA.
+ *     Un inversionista con la lista de medicacion de cada residente no es un
+ *     detalle de permisos.
+ *
+ *   · El POST escribia una administracion de medicamento —firmada con el id de
+ *     quien llamara— sin comprobar rol NI sede. `patientMedicationId` venia del
+ *     body y nada verificaba que ese medicamento fuera de un residente de la
+ *     sede del invocador. O sea: fuga multi-tenant en escritura, sobre el
+ *     registro clinico que dice quien recibio que farmaco.
+ *
+ * Ver las preguntas 1, 2 y 3 de la auditoria proactiva en CLAUDE.md. Las tres
+ * fallaban en el mismo archivo.
+ */
+/**
+ * LEER el roster. SOCIAL_WORKER incluido, con el mismo criterio que ya estaba
+ * decidido en /api/emar/patient/[id]: trabajo social lee el eMAR del residente
+ * para contextualizar su caso. Como ya puede leerlo uno a uno, bloquearle el
+ * listado no protegeria nada y si podria romperle una pantalla.
+ */
+const VEN_EMAR = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN', 'SOCIAL_WORKER'];
+
+/**
+ * ESCRIBIR una administracion. SOCIAL_WORKER fuera — la decision ya estaba
+ * tomada y escrita en /api/emar/patient/[id]: "la administracion de meds vive
+ * en /api/care/meds/bulk y /api/emar/route.ts (escritura), donde SW NO esta".
+ * Hasta hoy esa frase describia una intencion que el codigo no cumplia.
+ */
+const ADMINISTRAN = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
 // PHI audit (Pilar 1) — roster eMAR de la sede (lista).
 export const GET = withPhiAccessLog(getEmarRosterHandler, { resourceType: 'eMAR' });
 
 async function getEmarRosterHandler(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
+        const auth = await requireRole(VEN_EMAR);
+        if (auth instanceof NextResponse) return auth;
 
-        const hqId = (session.user as any).headquartersId;
+        const hqId = auth.headquartersId;
         const todayStart = todayStartAST();
         const todayEnd = new Date();
 
@@ -84,18 +120,33 @@ async function getEmarRosterHandler(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-        }
+        const auth = await requireRole(ADMINISTRAN);
+        if (auth instanceof NextResponse) return auth;
 
         const body = await req.json();
         const { patientMedicationId, status, notes, scheduledFor } = body;
-        const nurseId = session.user.id;
+        // El firmante SIEMPRE sale de la sesion, nunca del body.
+        const nurseId = auth.id;
 
         // Validaciones Cero-Error
         if (!patientMedicationId || !status) {
             return NextResponse.json({ error: 'Faltan parámetros biométricos' }, { status: 400 });
+        }
+
+        /**
+         * El medicamento tiene que ser de un residente de ESTA sede.
+         *
+         * Faltaba por completo: `patientMedicationId` llegaba del body y se
+         * escribia sin comprobar nada. Cualquiera con sesion en cualquier sede
+         * podia firmar una administracion sobre el expediente de un residente
+         * de otra.
+         */
+        const receta = await prisma.patientMedication.findFirst({
+            where: { id: patientMedicationId, patient: { headquartersId: auth.headquartersId } },
+            select: { id: true },
+        });
+        if (!receta) {
+            return NextResponse.json({ error: 'Medicamento no encontrado en tu sede' }, { status: 404 });
         }
 
         // Crear el registro inmutable en PostgreSQL
