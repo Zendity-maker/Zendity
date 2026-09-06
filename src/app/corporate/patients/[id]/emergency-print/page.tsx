@@ -142,7 +142,7 @@ export default async function EmergencyPrintPage({
 
       {/* Top bar — no-print controls */}
       <div className="no-print flex items-center justify-between mb-6">
-        <PrintButton />
+        <PrintButton patientId={card.id} />
         <span className="text-xs text-slate-400">
           Vista previa — use el botón para imprimir o guardar como PDF
         </span>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Printer, X, Loader2, FileText, UserCircle2, Phone, AlertTriangle } from "lucide-react";
+import { alergiasSinDocumentar } from '@/lib/alergias';
 
 interface ResidentSummaryPrintProps {
     patientId: string;
@@ -197,7 +198,9 @@ export default function ResidentSummaryPrint({
     }
 
     const intake = data.intakeData;
-    const allergiesText = intake?.allergies?.trim() || null;
+    // "N/A" no es una alergia: null significa "no hay dato" y dispara el aviso.
+    // Ver src/lib/alergias.ts — misma regla que el chequeo y que el PDF.
+    const allergiesText = alergiasSinDocumentar(intake?.allergies) ? null : (intake?.allergies ?? '').trim();
     const diagnosesText = intake?.diagnoses?.trim() || null;
     const diagnosesList = diagnosesText ? diagnosesText.split('\n').map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean) : [];
     const activeMeds = data.medications;

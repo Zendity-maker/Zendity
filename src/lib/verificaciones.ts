@@ -29,6 +29,8 @@
  */
 import { prisma } from '@/lib/prisma';
 import { llegaAlPiso } from '@/lib/receta';
+// Alias: el chequeo de este archivo ya se llama `alergiasSinDocumentar`.
+import { alergiasSinDocumentar as sinDatoDeAlergia } from '@/lib/alergias';
 
 export type Severidad = 'CRITICA' | 'ALTA' | 'MEDIA';
 
@@ -88,8 +90,9 @@ async function alergiasSinDocumentar(hqId: string): Promise<Hallazgo> {
         where: { headquartersId: hqId, status: 'ACTIVE' },
         select: { name: true, intakeData: { select: { allergies: true } } },
     });
-    const vacio = /^(n\s*\/?\s*a|nka|ninguna|nunguna|no|none|sin alergias|-|\.)?$/i;
-    const sin = activos.filter(p => vacio.test((p.intakeData?.allergies ?? '').trim()));
+    // La misma regla que el papel. Antes vivia aqui suelta y los tres caminos
+    // que producen el formulario decidian por su cuenta — y no coincidian.
+    const sin = activos.filter(p => sinDatoDeAlergia(p.intakeData?.allergies));
     return {
         codigo: 'ALERGIAS_SIN_DOCUMENTAR',
         titulo: 'Residentes sin información de alergias en el expediente',

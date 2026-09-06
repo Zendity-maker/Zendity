@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { lineaModalidad } from '@/lib/cuidado-final';
 import { requireRole } from '@/lib/api-auth';
+import { textoDeAlergias } from '@/lib/alergias';
 
 export async function GET(
     _req: Request,
@@ -63,10 +64,7 @@ export async function GET(
          *
          * Ahora el papel dice la verdad, y dice que hay que preguntar.
          */
-        const allergiesText =
-            (patient.intakeData?.allergies && patient.intakeData.allergies.trim().length > 0)
-                ? patient.intakeData.allergies.trim()
-                : 'NO DOCUMENTADO — confirmar con el hogar antes de medicar';
+        const allergiesText = textoDeAlergias(patient.intakeData?.allergies);
 
         const diagnosesText =
             (patient.intakeData?.diagnoses && patient.intakeData.diagnoses.trim().length > 0)
