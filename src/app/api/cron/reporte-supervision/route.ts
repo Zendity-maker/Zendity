@@ -33,6 +33,7 @@ export async function GET(req: Request) {
                 rutaCron: '/api/cron/reporte-supervision',
                 recurso: 'ReporteSupervision',
                 entrada: 'Triage & Supervisión',
+                canal: 'supervision',
             }));
         }
         return NextResponse.json({ success: true, sedes: resultados });

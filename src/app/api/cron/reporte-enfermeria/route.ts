@@ -41,6 +41,7 @@ export async function GET(req: Request) {
                 rutaCron: '/api/cron/reporte-enfermeria',
                 recurso: 'ReporteEnfermeria',
                 entrada: 'Enfermería',
+                canal: 'enfermeria',
             }));
         }
         return NextResponse.json({ success: true, sedes: resultados });

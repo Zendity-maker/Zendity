@@ -18,6 +18,11 @@
  *   · SI NO HAY NADA, NO SE ENVÍA. Un correo semanal que llega diciendo "cero"
  *     se convierte en un correo que no se abre, y el día que traiga algo
  *     tampoco se abrirá.
+ *
+ * AL FINAL PUEDE IR UN BLOQUE DE NOVEDADES —src/lib/novedades.ts— con lo que
+ * cambió en el sistema. Viaja pegado a este correo porque este SÍ se abre, y
+ * cada novedad caduca sola. Ojo con la tercera regla de arriba: si una semana no
+ * hay nada pendiente, tampoco sale la novedad. Informa; no garantiza.
  */
 import sgMail from '@sendgrid/mail';
 import { prisma } from '@/lib/prisma';
@@ -25,6 +30,7 @@ import type { Role } from '@prisma/client';
 import { logPhiAccess } from '@/lib/phi-audit';
 import type { ReporteSemanal } from '@/lib/reporte-enfermeria';
 import { generarReporteSemanalPDF } from '@/lib/reporte-enfermeria-pdf';
+import { novedadesHTML, type CanalNovedad } from '@/lib/novedades';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -37,10 +43,65 @@ export interface ResultadoEnvio {
     saltada?: string;
 }
 
+export interface OpcionesReporte {
+    rutaCron: string;
+    recurso: string;
+    /** Por dónde se entra en la app. Va en la última línea del cuerpo. */
+    entrada: string;
+    /** De qué canal saca las novedades. Ver src/lib/novedades.ts. */
+    canal: CanalNovedad;
+}
+
+/**
+ * El asunto y el cuerpo, aparte del envío.
+ *
+ * Está exportada para poder VER el correo sin mandarlo. Antes esto vivía dentro
+ * de `sgMail.send`, así que la única forma de comprobar un cambio de texto era
+ * mandárselo a Celia y a Andrés. Un correo que solo se puede probar mandándolo
+ * se prueba poco.
+ *
+ * REGLA QUE NO SE ROMPE AQUÍ: ningún nombre de residente en el cuerpo. Las filas
+ * llevan el titular del bloque y el conteo; los nombres viven en el adjunto.
+ */
+export function construirCorreo(
+    reporte: ReporteSemanal,
+    opciones: OpcionesReporte,
+    ahora: Date = new Date(),
+): { subject: string; html: string } {
+    const sede = reporte.sedeNombre;
+    const hoy = ahora.toLocaleDateString('es-PR', { day: '2-digit', month: 'long', timeZone: 'America/Puerto_Rico' });
+
+    // Solo titulares y números. Ningún nombre.
+    const filas = reporte.bloques
+        .filter(b => b.numero <= 3 && b.total > 0)
+        .map(b => `<tr><td style="padding:6px 0;font-size:14px;color:#12211D;">${b.titulo}</td>`
+            + `<td style="padding:6px 0;font-size:14px;font-weight:800;color:#12211D;text-align:right;">${b.total}</td></tr>`)
+        .join('');
+    const resuelto = reporte.bloques.find(b => b.numero === 5 || b.numero === 4);
+
+    return {
+        subject: `${reporte.titulo.replace('Reporte semanal de ', '')} — ${sede} — ${reporte.totalPendiente} ${reporte.totalPendiente === 1 ? 'cosa' : 'cosas'} (${hoy})`,
+        html: `<meta charset="utf-8"><div style="background:#ffffff;color:#12211D;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;padding:28px;max-width:560px;margin:0 auto;">
+<p style="margin:0 0 6px;font-size:18px;font-weight:800;">${reporte.titulo}</p>
+<p style="margin:0 0 20px;font-size:14px;color:#66766F;">${sede} · ${reporte.residentesActivos} residentes activos</p>
+<table style="width:100%;border-collapse:collapse;margin:0 0 18px;">${filas}</table>
+<div style="background:#F1F7F4;border-left:4px solid #0F6E56;padding:14px 16px;margin:0 0 18px;">
+<p style="margin:0;font-size:14px;"><strong>El detalle y los nombres van en el PDF adjunto.</strong> Ordenado de lo más urgente a lo menos.</p>
+</div>
+${resuelto && resuelto.total > 0
+    ? `<p style="margin:0 0 18px;font-size:14px;">Esta semana quedó registrado trabajo en <strong>${resuelto.lineas.length}</strong> frentes. El detalle, al final del adjunto.</p>`
+    : ''}
+<p style="margin:0 0 18px;font-size:14px;color:#66766F;">Todo esto se calcula contra el expediente cada lunes. Nada se marca a mano como hecho: cada línea desaparece sola cuando el trabajo se registra.</p>
+<p style="margin:0;font-size:13px;color:#66766F;">Se entra por <strong>${opciones.entrada}</strong> en app.zendity.com.</p>
+${novedadesHTML(opciones.canal, ahora)}
+</div>`,
+    };
+}
+
 export async function enviarReporte(
     reporte: ReporteSemanal,
     roles: Role[],
-    opciones: { rutaCron: string; recurso: string; entrada: string },
+    opciones: OpcionesReporte,
 ): Promise<ResultadoEnvio> {
     const { sedeNombre: sede } = reporte;
 
@@ -65,34 +126,14 @@ export async function enviarReporte(
     }
 
     const pdf = generarReporteSemanalPDF(reporte);
-    const hoy = new Date().toLocaleDateString('es-PR', { day: '2-digit', month: 'long', timeZone: 'America/Puerto_Rico' });
-
-    // Solo titulares y números. Ningún nombre.
-    const filas = reporte.bloques
-        .filter(b => b.numero <= 3 && b.total > 0)
-        .map(b => `<tr><td style="padding:6px 0;font-size:14px;color:#12211D;">${b.titulo}</td>`
-            + `<td style="padding:6px 0;font-size:14px;font-weight:800;color:#12211D;text-align:right;">${b.total}</td></tr>`)
-        .join('');
-    const resuelto = reporte.bloques.find(b => b.numero === 5 || b.numero === 4);
+    const { subject, html } = construirCorreo(reporte, opciones);
 
     await sgMail.send({
         to: emails,
         from: remitente,
         isMultiple: true,
-        subject: `${reporte.titulo.replace('Reporte semanal de ', '')} — ${sede} — ${reporte.totalPendiente} ${reporte.totalPendiente === 1 ? 'cosa' : 'cosas'} (${hoy})`,
-        html: `<meta charset="utf-8"><div style="background:#ffffff;color:#12211D;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;padding:28px;max-width:560px;margin:0 auto;">
-<p style="margin:0 0 6px;font-size:18px;font-weight:800;">${reporte.titulo}</p>
-<p style="margin:0 0 20px;font-size:14px;color:#66766F;">${sede} · ${reporte.residentesActivos} residentes activos</p>
-<table style="width:100%;border-collapse:collapse;margin:0 0 18px;">${filas}</table>
-<div style="background:#F1F7F4;border-left:4px solid #0F6E56;padding:14px 16px;margin:0 0 18px;">
-<p style="margin:0;font-size:14px;"><strong>El detalle y los nombres van en el PDF adjunto.</strong> Ordenado de lo más urgente a lo menos.</p>
-</div>
-${resuelto && resuelto.total > 0
-    ? `<p style="margin:0 0 18px;font-size:14px;">Esta semana quedó registrado trabajo en <strong>${resuelto.lineas.length}</strong> frentes. El detalle, al final del adjunto.</p>`
-    : ''}
-<p style="margin:0 0 18px;font-size:14px;color:#66766F;">Todo esto se calcula contra el expediente cada lunes. Nada se marca a mano como hecho: cada línea desaparece sola cuando el trabajo se registra.</p>
-<p style="margin:0;font-size:13px;color:#66766F;">Se entra por <strong>${opciones.entrada}</strong> en app.zendity.com.</p>
-</div>`,
+        subject,
+        html,
         attachments: [{
             content: Buffer.from(pdf).toString('base64'),
             filename: `${opciones.recurso.toLowerCase()}-${sede.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`,

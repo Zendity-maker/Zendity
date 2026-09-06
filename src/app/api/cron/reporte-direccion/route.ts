@@ -38,6 +38,7 @@ export async function GET(req: Request) {
                 rutaCron: '/api/cron/reporte-direccion',
                 recurso: 'ReporteDireccion',
                 entrada: 'Insights',
+                canal: 'direccion',
             }));
         }
         return NextResponse.json({ success: true, sedes: resultados });

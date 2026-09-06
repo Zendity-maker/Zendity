@@ -60,6 +60,8 @@ scripts/*
 !scripts/db-push-guard.sh.broken-bak
 !scripts/dr-restore.sh
 !scripts/smoke-nursing-rotation.ts
+# Ver el correo semanal sin mandarselo a Celia para comprobarlo
+!scripts/previsualizar-reporte.ts
 # Migración de catálogo Academy — se reusa al abrir cada sede nueva
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva
