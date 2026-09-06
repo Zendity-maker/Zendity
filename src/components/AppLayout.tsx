@@ -20,7 +20,7 @@ import {
     ChevronDown, ChevronLeft, ChevronRight, Building2, Stethoscope, Search, Bell, Menu, X,
     LineChart, UserPlus, Smartphone, Eye, FileText, Utensils, CalendarDays, Monitor, SprayCan,
     Info, AlertTriangle, CheckCircle2, Users as UsersIcon, MessageSquare, FileWarning, BookOpen,
-    Shield, QrCode, Bed, Send, Phone, TrendingUp
+    Shield, QrCode, Bed, Send, Phone, TrendingUp, Sparkles
 } from 'lucide-react';
 import { UserIcon } from "@heroicons/react/24/outline";
 
@@ -46,6 +46,9 @@ const clinicalNavigation = [
     // realidad, no un tablero. Va ANTES que las pantallas a las que enlaza
     // porque es donde se decide a cual entrar.
     { name: 'Enfermería', href: '/care/enfermeria', icon: Stethoscope, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+    // Lo que Zendi encuentra leyendo el texto libre. Mismo gate que
+    // PUEDEN_RESOLVER en src/lib/hallazgos-zendi.ts.
+    { name: 'Lo que Zendi encontró', href: '/care/hallazgos', icon: Sparkles, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     // Cambios de condicion reportados desde el piso. Mismo gate que
     // PUEDEN_REVISAR_CAMBIO en src/lib/cambios-de-condicion.ts.
     { name: 'Cambios del piso', href: '/care/cambios', icon: TrendingUp, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },

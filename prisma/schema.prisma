@@ -228,6 +228,9 @@ model Headquarters {
 
   /// Cambios en la condicion de un residente vistos desde el piso.
   cambiosDeCondicion CambioDeCondicion[]
+
+  /// Lo que Zendi encontro leyendo, pendiente de confirmar por una persona.
+  hallazgosZendi HallazgoZendi[]
 }
 
 // =======================
@@ -1078,6 +1081,9 @@ model Patient {
 
   /// Lo que el piso nota que cambió en este residente. Ver CambioDeCondicion.
   cambiosDeCondicion CambioDeCondicion[]
+
+  /// Ver HallazgoZendi. No son hechos: son preguntas con su evidencia.
+  hallazgosZendi HallazgoZendi[]
 
   /// Marca EXPLICITA de que este residente no tiene familiar conocido.
   ///
@@ -4176,4 +4182,75 @@ model CambioDeCondicion {
   @@index([headquartersId, revisadoAt, reportadoAt])
   /// El historial del residente.
   @@index([patientId, reportadoAt])
+}
+
+/// LO QUE ZENDI ENCUENTRA LEYENDO, Y QUE UN HUMANO TIENE QUE CONFIRMAR
+/// ──────────────────────────────────────────────────────────────────
+/// La IA de Zéndity escribía —prosa a familias— y no leía. Todo lo que se
+/// encontró en sep-2026 salió de LEER texto libre y compararlo con los campos:
+///
+///     los cuatro campos que faltaban   de 25 notas de turno
+///     el PRN que no se registraba      de cruzar 27 notas contra el eMAR
+///     el Warfarin invisible            de comparar un texto contra un parser
+///     la dieta que no cuadra           de cruzar diagnóstico contra prescripción
+///
+/// Los cuatro son lectura y comparación, y los cuatro los encontró una persona
+/// corriendo consultas a mano. `verificaciones.ts` hace lo mismo con once reglas
+/// escritas una a una, cada una porque alguien se tropezó antes. La número doce
+/// necesita que alguien se vuelva a tropezar. Eso es lo que no escala.
+///
+/// LA REGLA QUE HACE ESTO SEGURO: un hallazgo NO ES UN HECHO. No cambia nada, no
+/// avisa a familias, no toca un expediente. Es una pregunta con su evidencia al
+/// lado, esperando que alguien diga sí o no.
+///
+/// `evidencia` es TEXTUAL a propósito — la frase exacta que lo disparó, copiada
+/// sin reformular. Es lo que permite comprobar el hallazgo sin fiarse del
+/// modelo: se lee la frase y se decide. Un resumen generado de un texto
+/// generado no se puede auditar.
+model HallazgoZendi {
+  id             String @id @default(uuid())
+  headquartersId String
+
+  /// SIN_CAMPO          — información que no tiene dónde guardarse
+  /// CONTRADICCION      — lo narrado no coincide con lo estructurado
+  /// ALERTA_NO_ESCALADA — una nota que describe algo que debió avisar
+  tipo String
+
+  /// Sobre quién, cuando aplica. Un patrón sin residente concreto va null.
+  patientId String?
+
+  /// Lo que Zendi cree haber notado. Una línea.
+  resumen String @db.Text
+
+  /// LA FRASE EXACTA que lo disparó, copiada sin reformular. Sin esto el
+  /// hallazgo no se puede comprobar y no se debería poder crear.
+  evidencia String @db.Text
+
+  /// De dónde salió la frase: "DailyLog:<id>", "LifePlan:<id>". Para poder ir.
+  fuente String?
+
+  /// Qué haría falta para resolverlo, en palabras de quien lo va a hacer.
+  sugerencia String? @db.Text
+
+  /// PENDIENTE | CONFIRMADO | DESCARTADO
+  estado        String    @default("PENDIENTE")
+  revisadoPorId String?
+  revisadoAt    DateTime?
+  /// Por qué se descartó, cuando se descarta. Un descarte sin razón no enseña.
+  nota          String?   @db.Text
+
+  /// Huella de la evidencia, para no volver a reportar lo mismo cada semana.
+  huella String
+
+  createdAt DateTime @default(now())
+
+  headquarters Headquarters @relation(fields: [headquartersId], references: [id])
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+
+  /// Un hallazgo por evidencia y sede. Zendi relee las mismas notas cada
+  /// semana; sin esto, la misma frase generaría el mismo hallazgo para siempre
+  /// y la lista dejaría de servir en un mes.
+  @@unique([headquartersId, huella])
+  /// La cola: lo pendiente de esta sede, lo más viejo primero.
+  @@index([headquartersId, estado, createdAt])
 }

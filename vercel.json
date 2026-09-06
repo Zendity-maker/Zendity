@@ -103,6 +103,10 @@
     {
       "path": "/api/cron/vitals-reminder",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/hallazgos-zendi",
+      "schedule": "45 11 * * 1"
     }
   ]
 }

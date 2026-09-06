@@ -191,6 +191,13 @@ export async function construirReporte(sedeId: string, sedeNombre: string): Prom
         total: 0,
     };
 
+    // Lo que Zendi encontro leyendo y todavia nadie confirmo ni descarto.
+    // Va en el bloque 3 —espera una decision— y no en el 1: son preguntas, no
+    // deuda clinica. Ver src/lib/hallazgos-zendi.ts.
+    const hallazgosZendi = await prisma.hallazgoZendi.count({
+        where: { headquartersId: sedeId, estado: 'PENDIENTE' },
+    });
+
     /* ── 3. LO QUE ESPERA UNA FIRMA ─────────────────────────────────────── */
     const paiPendientes = planes.filter(p => {
         const ap = p.lifePlans.find(l => l.status === 'APPROVED');
@@ -217,6 +224,7 @@ export async function construirReporte(sedeId: string, sedeNombre: string): Prom
             // cuenta los que llevan mas de 30 dias sin ninguno: son subconjuntos
             // distintos a proposito y por eso se enseñan por separado.
             { texto: 'Planes de cuido sin resolver', casos: [], total: paiPendientes },
+            { texto: 'Cosas que Zendi encontró leyendo, sin confirmar', casos: [], total: hallazgosZendi },
         ],
         total: 0,
     };
