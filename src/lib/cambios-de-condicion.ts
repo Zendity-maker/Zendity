@@ -98,7 +98,18 @@ export interface ResultadoDeRevision {
     codigo: string;
     etiqueta: string;
     descripcion: string;
+    /**
+     * Lo escribe el sistema, no se ofrece como botón.
+     *
+     * Un cierre que dice "declaré la úlcera" sin úlcera declarada sería la misma
+     * mentira con otra etiqueta. Estos resultados solo existen como consecuencia
+     * de haber hecho de verdad la cosa que dicen.
+     */
+    automatico?: boolean;
 }
+
+/** Los que una persona puede escoger. El resto los pone el sistema. */
+export const RESULTADOS_ELEGIBLES = () => RESULTADOS.filter(r => !r.automatico);
 
 export const RESULTADOS: ResultadoDeRevision[] = [
     {
@@ -112,6 +123,26 @@ export const RESULTADOS: ResultadoDeRevision[] = [
     {
         codigo: 'DERIVADO_MEDICO', etiqueta: 'Referido a médico',
         descripcion: 'Necesita evaluación externa. Queda constancia de que se refirió.',
+    },
+    {
+        /**
+         * DECLARAR LA ÚLCERA — el cierre que faltaba.
+         *
+         * Un cambio de PIEL cerrado con "actualicé el expediente" deja la nota
+         * resuelta y la úlcera sin existir. Medido en Cupey el 06-sep-2026: once
+         * residentes tenían úlceras escritas en notas de turno y CERO fichas en
+         * el módulo, que enseñaba dos. Uno de ellos se fue al hospital por una
+         * úlcera que el sistema no sabía que existía.
+         *
+         * Este resultado NO se puede elegir a mano: lo escribe el sistema cuando
+         * de verdad se creó la ficha, en el mismo gesto. Un cierre que dice
+         * "declaré la úlcera" sin úlcera declarada sería la misma mentira con
+         * otra etiqueta.
+         */
+        codigo: 'ULCERA_DECLARADA', etiqueta: 'Declaré la úlcera',
+        descripcion: 'Crea la ficha en el módulo de UPP, con su plan y sus dos relojes.',
+        /** No sale en la lista de botones: lo escribe el sistema al crear la ficha. */
+        automatico: true,
     },
     {
         codigo: 'SIN_CAMBIO', etiqueta: 'Revisado, sin cambio',

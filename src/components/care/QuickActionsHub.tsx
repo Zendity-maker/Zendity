@@ -96,6 +96,26 @@ export function QuickActionsHub({ open, onClose, currentUserId, patients: patien
                 endpoint = "/api/care/reports/complaint";
                 payload = { patientId, authorId: currentUserId, description, type: "COMPLAINT" };
             } else if (action === "UPP_ALERT") {
+                /**
+                 * LA ALERTA DE PIEL YA NO SE PIERDE.
+                 *
+                 * Este boton escribia una nota de turno y NADA MAS: no creaba
+                 * ficha, no avisaba al modulo de UPP y no llegaba a ninguna
+                 * pantalla de enfermeria. Medido el 06-sep-2026: se uso cuatro
+                 * veces y las cuatro se perdieron, mientras once residentes
+                 * tenian ulceras escritas en notas y cero fichas — con el
+                 * modulo enseñando dos. Uno se fue al hospital por una ulcera
+                 * que el sistema no sabia que existia.
+                 *
+                 * Ahora ademas abre un CAMBIO DE CONDICION de area PIEL, que es
+                 * una cola que enfermeria TIENE que cerrar y que cuenta en su
+                 * badge hasta que alguien decida: o se declara la ulcera, o se
+                 * descarta con una razon. La nota de turno se sigue escribiendo
+                 * —el turno la necesita— pero ya no es el unico sitio donde vive.
+                 *
+                 * La cuidadora no clasifica nada: reporta lo que ve, como antes.
+                 * El estadio y la localizacion los pone quien puede ponerlos.
+                 */
                 endpoint = "/api/care/vitals";
                 payload = {
                     patientId, authorId: currentUserId, type: 'LOG',
@@ -127,7 +147,31 @@ export function QuickActionsHub({ open, onClose, currentUserId, patients: patien
             });
             const data = await res.json();
             if (data.success) {
-                alert(`Reporte ${action} enviado a Central.`);
+                /**
+                 * La nota ya esta escrita; ahora abre la cola de enfermeria.
+                 *
+                 * Va DESPUES y no bloquea: si esto fallara, la cuidadora ya
+                 * cumplio y su nota existe. Lo que no puede pasar es que el
+                 * fallo de la cola le diga a ella que no se reporto nada.
+                 */
+                let enCola = false;
+                if (action === "UPP_ALERT" && patientId) {
+                    try {
+                        const c = await fetch("/api/care/cambio-condicion", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ patientId, area: "PIEL", descripcion: description }),
+                        });
+                        enCola = (await c.json())?.success === true;
+                    } catch { /* la nota ya se guardo */ }
+                }
+                alert(
+                    action === "UPP_ALERT"
+                        ? enCola
+                            ? "Reportado. Enfermería lo tiene que revisar y te avisa si es una úlcera."
+                            : "Nota guardada. No se pudo abrir el aviso a enfermería — díselo en el relevo."
+                        : `Reporte ${action} enviado a Central.`,
+                );
                 onReported?.(action!);
                 onClose();
             } else {

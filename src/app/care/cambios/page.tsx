@@ -17,12 +17,13 @@
  * paradas.
  */
 import { useEffect, useState, useCallback } from "react";
-import AppLayout from "@/components/AppLayout";
 import { Loader2, CheckCircle2, Clock } from "lucide-react";
-import { RESULTADOS } from "@/lib/cambios-de-condicion";
+import { RESULTADOS_ELEGIBLES } from "@/lib/cambios-de-condicion";
 
 interface Cambio {
     id: string;
+    /** El codigo, no la etiqueta: PIEL abre la declaracion de ulcera. */
+    area: string;
     areaEtiqueta: string;
     descripcion: string;
     reportadoAt: string;
@@ -39,6 +40,17 @@ export default function CambiosDelPisoPage() {
     const [respuesta, setRespuesta] = useState("");
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    /**
+     * DECLARAR LA ÚLCERA DESDE AQUÍ.
+     *
+     * Un cambio de PIEL cerrado con "actualicé el expediente" deja la nota
+     * resuelta y la úlcera sin existir. Es lo que pasó once veces en Cupey. Por
+     * eso el cierre y la ficha son el MISMO gesto: o las dos cosas o ninguna.
+     */
+    const [declarando, setDeclarando] = useState(false);
+    const [zona, setZona] = useState("");
+    const [estadio, setEstadio] = useState<number | null>(null);
 
     const cargar = useCallback(async () => {
         try {
@@ -69,8 +81,27 @@ export default function CambiosDelPisoPage() {
         finally { setGuardando(false); }
     };
 
+    /** Declarar y cerrar son el MISMO gesto: o las dos cosas o ninguna. */
+    const declararUlcera = async (id: string) => {
+        if (!zona.trim() || !estadio) return;
+        setGuardando(true); setError(null);
+        try {
+            const res = await fetch(`/api/care/cambio-condicion/${id}/declarar-ulcera`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bodyLocation: zona.trim(), stage: estadio, respuesta: respuesta.trim() }),
+            });
+            const data = await res.json();
+            if (!data.success) { setError(data.error || 'No se pudo declarar'); return; }
+            setAbierto(null); setResultado(null); setRespuesta(""); setDeclarando(false); setZona(""); setEstadio(null);
+            await cargar();
+        } catch { setError('Error de red'); }
+        finally { setGuardando(false); }
+    };
+
+    // Sin <AppLayout>: el layout raiz ya envuelve la app. Montarlo otra vez
+    // daba dos barras laterales y un h-screen dentro de otro.
     return (
-        <AppLayout>
             <div className="max-w-3xl mx-auto p-4 md:p-8">
                 <div className="mb-6">
                     <h1 className="text-2xl md:text-3xl font-black text-slate-900">Cambios del piso</h1>
@@ -123,7 +154,7 @@ export default function CambiosDelPisoPage() {
 
                                         {!estaAbierto && (
                                             <button
-                                                onClick={() => { setAbierto(c.id); setResultado(null); setRespuesta(""); setError(null); }}
+                                                onClick={() => { setAbierto(c.id); setResultado(null); setRespuesta(""); setError(null); setDeclarando(false); setZona(""); setEstadio(null); }}
                                                 className="mt-4 w-full min-h-[48px] bg-[#0F6B78] hover:bg-[#0d5a64] text-white font-black rounded-2xl transition-colors"
                                             >
                                                 Revisar
@@ -133,9 +164,61 @@ export default function CambiosDelPisoPage() {
 
                                     {estaAbierto && (
                                         <div className="px-5 pb-5 pt-1 border-t border-slate-100 bg-slate-50/60">
+                                            {/* Solo en PIEL: es el unico area donde el
+                                                cierre puede crear una ficha clinica. */}
+                                            {c.area === 'PIEL' && (
+                                                declarando ? (
+                                                    <div className="mt-4 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 space-y-3">
+                                                        <p className="text-xs font-black uppercase tracking-wider text-rose-800">Declarar la úlcera</p>
+                                                        <input
+                                                            type="text" value={zona} onChange={e => setZona(e.target.value)} maxLength={120}
+                                                            placeholder="Dónde está — ej. Sacro, Talón derecho"
+                                                            className="w-full p-3 border-2 border-rose-200 rounded-xl text-sm outline-none focus:border-rose-500 bg-white"
+                                                        />
+                                                        <div>
+                                                            <p className="text-[11px] font-black uppercase tracking-wider text-rose-800 mb-1.5">Estadio</p>
+                                                            <div className="grid grid-cols-4 gap-1.5">
+                                                                {[1, 2, 3, 4].map(e => (
+                                                                    <button key={e} onClick={() => setEstadio(e)}
+                                                                        className={`py-3 rounded-xl text-sm font-black border-2 transition-colors ${
+                                                                            estadio === e ? 'bg-rose-600 text-white border-rose-700' : 'bg-white text-slate-600 border-rose-200 hover:border-rose-400'
+                                                                        }`}>{e}</button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-rose-800/80 leading-snug">
+                                                            La ficha se abre con la fecha en que el piso lo reportó, no con la de hoy —
+                                                            si no, los relojes arrancarían en cero y se perderían los días que lleva.
+                                                        </p>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => declararUlcera(c.id)}
+                                                                disabled={guardando || !zona.trim() || !estadio}
+                                                                className="flex-1 min-h-[48px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-xl transition-colors"
+                                                            >
+                                                                {guardando ? 'Declarando…' : 'Declarar y cerrar'}
+                                                            </button>
+                                                            <button onClick={() => setDeclarando(false)}
+                                                                className="px-4 min-h-[48px] bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl">
+                                                                Atrás
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setDeclarando(true)}
+                                                        className="mt-4 w-full min-h-[48px] bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl transition-colors"
+                                                    >
+                                                        Esto es una úlcera — declararla
+                                                    </button>
+                                                )
+                                            )}
+
+                                            {!declarando && (
+                                            <>
                                             <p className="text-xs font-black uppercase tracking-wider text-slate-500 mt-4 mb-2">¿Qué se hizo?</p>
                                             <div className="space-y-2">
-                                                {RESULTADOS.map(r => (
+                                                {RESULTADOS_ELEGIBLES().map(r => (
                                                     <button
                                                         key={r.codigo}
                                                         onClick={() => setResultado(r.codigo)}
@@ -181,6 +264,8 @@ export default function CambiosDelPisoPage() {
                                                     {guardando ? 'Guardando…' : 'Cerrar y avisar'}
                                                 </button>
                                             </div>
+                                            </>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -189,6 +274,5 @@ export default function CambiosDelPisoPage() {
                     </div>
                 )}
             </div>
-        </AppLayout>
     );
 }

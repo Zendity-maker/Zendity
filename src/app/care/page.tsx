@@ -2206,11 +2206,39 @@ export default function ZendityCareTabletPage() {
             const data = await res.json();
 
             if (data.success) {
+                /**
+                 * LA ALERTA DE PIEL ABRE LA COLA DE ENFERMERIA.
+                 *
+                 * Escribia una nota de turno y nada mas: no creaba ficha de
+                 * ulcera ni llegaba a ninguna pantalla de enfermeria. Medido el
+                 * 06-sep-2026, once residentes tenian ulceras escritas en notas
+                 * y CERO fichas, con el modulo enseñando dos — y uno de ellos
+                 * se fue al hospital por una ulcera que el sistema no conocia.
+                 *
+                 * Va DESPUES del POST principal y no bloquea: si falla, la nota
+                 * de la cuidadora ya existe y ella ya cumplio. Lo que no puede
+                 * pasar es que un fallo de la cola le diga que no reporto nada.
+                 */
+                let pielEnCola = false;
+                if (hubAction === "UPP_ALERT" && hubPatientId) {
+                    try {
+                        const c = await fetch("/api/care/cambio-condicion", {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ patientId: hubPatientId, area: "PIEL", descripcion: hubDescription }),
+                        });
+                        pielEnCola = (await c.json())?.success === true;
+                    } catch { /* la nota ya se guardo */ }
+                }
+
                 // El servidor detectó que ya estaba registrado. No es error, y
                 // decirlo evita que se vuelva a pulsar "por si acaso".
                 avisoOk(data.duplicada
                     ? (data.message || 'Ese reporte ya estaba registrado. No se duplicó.')
-                    : ` Reporte de tipo ${hubAction} enviado a Central.`);
+                    : hubAction === "UPP_ALERT"
+                        ? (pielEnCola
+                            ? 'Reportado. Enfermería lo tiene que revisar y te avisa si es una úlcera.'
+                            : 'Nota guardada. No se pudo abrir el aviso a enfermería — díselo en el relevo.')
+                        : ` Reporte de tipo ${hubAction} enviado a Central.`);
                 setHubAction(null);
                 // Vuelve a 'alerta' por defecto: que una alerta real acabe
                 // archivada como nota es peor que lo contrario.
