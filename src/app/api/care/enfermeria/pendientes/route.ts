@@ -22,7 +22,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
 import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
-import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION } from '@/lib/upp';
+import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION, ULCERA_ABIERTA } from '@/lib/upp';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +54,7 @@ export async function GET() {
         const [ulceras, prnSinRespuesta, cambios, relevos, rotacion, planes] = await Promise.all([
             // Úlceras abiertas: sin curación reciente, o de alguien que ya no está.
             prisma.pressureUlcer.findMany({
-                where: { patient: { headquartersId: hqId }, resolvedAt: null, status: { not: 'RESOLVED' } },
+                where: { patient: { headquartersId: hqId }, ...ULCERA_ABIERTA },
                 select: {
                     stage: true, identifiedAt: true,
                     patient: { select: { status: true } },
@@ -80,7 +80,7 @@ export async function GET() {
                     headquartersId: hqId, status: 'ACTIVE',
                     OR: [
                         { requiresPosturalChanges: true },
-                        { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } },
+                        { pressureUlcers: { some: ULCERA_ABIERTA } },
                     ],
                 },
                 select: {

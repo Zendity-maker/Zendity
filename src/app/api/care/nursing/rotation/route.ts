@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ULCERA_ABIERTA } from '@/lib/upp';
 import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
@@ -111,7 +112,7 @@ export async function GET(_req: Request) {
                 OR: [
                     { requiresPosturalChanges: true },
                     { nortonRisk: true },
-                    { pressureUlcers: { some: { status: { not: 'RESOLVED' } } } },
+                    { pressureUlcers: { some: ULCERA_ABIERTA } },
                 ],
             },
             select: {
@@ -132,7 +133,7 @@ export async function GET(_req: Request) {
                     },
                 },
                 pressureUlcers: {
-                    where: { status: { not: 'RESOLVED' } },
+                    where: ULCERA_ABIERTA,
                     orderBy: [{ stage: 'desc' }, { identifiedAt: 'asc' }],
                     select: {
                         id: true,

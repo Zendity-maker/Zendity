@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { TIPOS_UPP, MOTIVOS_CAMBIO, puedeRegistrar, type TipoRegistroUpp } from "@/lib/upp";
+import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, puedeRegistrar, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
     Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
@@ -139,7 +139,9 @@ export default function NursingRotationPage() {
     const [medida, setMedida] = useState("");
     const [notaCura, setNotaCura] = useState("");
     const [estadioNuevo, setEstadioNuevo] = useState<number | null>(null);
-    const [cerrarUlcera, setCerrarUlcera] = useState(false);
+    /** '' = no cerrar · 'SANO' = sanó · 'SIN_RESOLVER' = dejó de seguirse. */
+    const [cierre, setCierre] = useState<'' | 'SANO' | 'SIN_RESOLVER'>('');
+    const [motivoCierre, setMotivoCierre] = useState('');
     const [guardandoCura, setGuardandoCura] = useState(false);
     const [errorCura, setErrorCura] = useState<string | null>(null);
 
@@ -171,7 +173,7 @@ export default function NursingRotationPage() {
         // El primero que su rol permita. Una cuidadora abre directamente en
         // "Cambié el apósito" sin tener que escoger nada.
         setTipoRegistro(tiposDisponibles[0] ?? 'CAMBIO_APOSITO');
-        setEstadioNuevo(ulcera.stage); setCerrarUlcera(false); setErrorCura(null);
+        setEstadioNuevo(ulcera.stage); setCierre(''); setMotivoCierre(''); setErrorCura(null);
         setEditandoPlan(false);
         setPlanTexto(ulcera.planTratamiento ?? '');
         setPlanQuien(ulcera.planEstablecidoPor ?? '');
@@ -200,10 +202,14 @@ export default function NursingRotationPage() {
         }
     };
 
+    const cerrando = cierre !== '';
     const listoParaGuardar = !!curando
-        && (!def.pideTratamiento || !!tratamiento.trim())
-        && (!def.pideMotivo || !!motivo)
-        && !(motivo === 'OTRO' && !notaCura.trim());
+        // Cerrar no exige inventarse una curación: es un acto en sí mismo.
+        && (cerrando || !def.pideTratamiento || !!tratamiento.trim())
+        && (cerrando || !def.pideMotivo || !!motivo)
+        && !(!cerrando && motivo === 'OTRO' && !notaCura.trim())
+        && !(cierre === 'SIN_RESOLVER' && !motivoCierre)
+        && !(cierre === 'SIN_RESOLVER' && motivoCierre === 'OTRO' && !notaCura.trim());
 
     const guardarCuracion = async () => {
         if (!curando || !listoParaGuardar) return;
@@ -220,7 +226,9 @@ export default function NursingRotationPage() {
                     woundSize: medida.trim(),
                     notes: notaCura.trim(),
                     stage: def.puedeCambiarEstadio ? estadioNuevo : undefined,
-                    status: def.puedeCambiarEstadio && cerrarUlcera ? 'RESOLVED' : undefined,
+                    status: cierre === 'SANO' ? 'RESOLVED'
+                        : cierre === 'SIN_RESOLVER' ? 'CERRADA_SIN_RESOLVER' : undefined,
+                    motivoCierre: cierre === 'SIN_RESOLVER' ? motivoCierre : undefined,
                 }),
             });
             const data = await res.json();
@@ -811,21 +819,54 @@ export default function NursingRotationPage() {
                             {/* Cerrar una ulcera tenia que ser posible: dos de las cuatro
                                 de Cupey son de un residente que fallecio hace 84 dias y
                                 seguian abiertas porque nada podia cerrarlas. */}
+                            {/* CERRAR UNA ÚLCERA: DOS COSAS DISTINTAS.
+                                Antes solo se podía "dar por resuelta", así que
+                                cerrar la úlcera de alguien que falleció obligaba
+                                a escribir en el expediente que la herida sanó.
+                                Wilfredo Matos murió y las suyas llevaban 85 días
+                                abiertas porque nadie quiso escribir esa mentira. */}
                             {def.puedeCambiarEstadio && (
-                            <label className="flex items-start gap-3 p-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={cerrarUlcera}
-                                    onChange={e => setCerrarUlcera(e.target.checked)}
-                                    className="w-5 h-5 accent-emerald-600 shrink-0 mt-0.5"
-                                />
-                                <span className="text-sm font-bold text-emerald-900 leading-snug">
-                                    Dar la úlcera por resuelta
-                                    <span className="block text-xs font-medium text-emerald-700/80 mt-0.5">
-                                        Deja de contar como activa y de pedir rotación por su causa.
+                            <div className="space-y-2 pt-1">
+                                <p className="text-xs font-black text-slate-600 uppercase tracking-wide">Cerrar esta úlcera</p>
+                                <button
+                                    onClick={() => setCierre(cierre === 'SANO' ? '' : 'SANO')}
+                                    className={`w-full text-left px-3 py-3 rounded-xl border-2 transition-colors ${
+                                        cierre === 'SANO' ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:border-emerald-400'
+                                    }`}
+                                >
+                                    <span className="text-sm font-bold block">Sanó</span>
+                                    <span className={`text-xs font-medium block mt-0.5 ${cierre === 'SANO' ? 'text-emerald-100' : 'text-emerald-700/80'}`}>
+                                        La herida cerró. Deja de contar como activa.
                                     </span>
-                                </span>
-                            </label>
+                                </button>
+                                <button
+                                    onClick={() => setCierre(cierre === 'SIN_RESOLVER' ? '' : 'SIN_RESOLVER')}
+                                    className={`w-full text-left px-3 py-3 rounded-xl border-2 transition-colors ${
+                                        cierre === 'SIN_RESOLVER' ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-400'
+                                    }`}
+                                >
+                                    <span className="text-sm font-bold block">Se cerró sin sanar</span>
+                                    <span className={`text-xs font-medium block mt-0.5 ${cierre === 'SIN_RESOLVER' ? 'text-slate-300' : 'text-slate-500'}`}>
+                                        El residente falleció, salió del hogar o pasó al hospital.
+                                    </span>
+                                </button>
+
+                                {cierre === 'SIN_RESOLVER' && (
+                                    <div className="space-y-1.5 pl-1">
+                                        {MOTIVOS_CIERRE.map(m => (
+                                            <button
+                                                key={m.codigo}
+                                                onClick={() => setMotivoCierre(m.codigo)}
+                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold border-2 transition-colors ${
+                                                    motivoCierre === m.codigo
+                                                        ? 'bg-slate-700 text-white border-slate-800'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                                }`}
+                                            >{m.etiqueta}</button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             )}
 
                             {errorCura && <p className="text-rose-600 text-sm font-bold">{errorCura}</p>}
@@ -835,7 +876,10 @@ export default function NursingRotationPage() {
                                 disabled={guardandoCura || !listoParaGuardar}
                                 className="w-full min-h-[52px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
                             >
-                                {guardandoCura ? 'Guardando…' : cerrarUlcera ? 'Registrar y cerrar' : `Registrar: ${def.etiqueta.toLowerCase()}`}
+                                {guardandoCura ? 'Guardando…'
+                                    : cierre === 'SANO' ? 'Cerrar: sanó'
+                                    : cierre === 'SIN_RESOLVER' ? 'Cerrar sin resolver'
+                                    : `Registrar: ${def.etiqueta.toLowerCase()}`}
                             </button>
                         </div>
                     </div>

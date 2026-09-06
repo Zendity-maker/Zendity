@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ULCERA_ABIERTA } from '@/lib/upp';
 import { esCuidadoDeFinal, lineaModalidad, etiquetaModalidad } from '@/lib/cuidado-final';
 import { generateObject, generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
@@ -75,7 +76,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         // ── 4. UPPs activas ───────────────────────────────────────────────────
         const upps = await prisma.pressureUlcer.findMany({
-            where: { patientId, status: { not: 'RESOLVED' } },
+            where: { patientId, ...ULCERA_ABIERTA },
             select: { bodyLocation: true, stage: true, status: true }
         });
 

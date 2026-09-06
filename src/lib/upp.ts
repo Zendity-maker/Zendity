@@ -42,6 +42,45 @@
  * registrada. Se activa cuando se active la tableta.
  */
 
+/**
+ * EN QUÉ ESTADO ESTÁ UNA ÚLCERA — Y POR QUÉ HAY DOS FORMAS DE CERRARLA
+ *
+ * Wilfredo Matos Marchany falleció. Sus dos úlceras llevaban 85 días abiertas y
+ * seguían contando en Enfermería, porque los únicos estados eran ACTIVE,
+ * HEALING y RESOLVED — y marcar "resuelta" la úlcera de alguien que murió es
+ * escribir en un expediente clínico que la herida sanó. No sanó: el residente
+ * se fue.
+ *
+ * Es la lista cerrada sin salida honesta otra vez: sin un estado que diga la
+ * verdad, la opción era mentir o dejarlo abierto para siempre. Se dejó abierto,
+ * y el conteo mintió hacia arriba durante tres meses.
+ *
+ * ABIERTAS SE DEFINE EN POSITIVO, y es a propósito. Media docena de consultas
+ * filtraban `status != 'RESOLVED'`, así que CUALQUIER estado nuevo entraba solo
+ * en todas ellas. Con una lista blanca, añadir un estado no puede colar una
+ * úlcera cerrada en una pantalla que nadie recordaba tocar.
+ */
+export const ESTADOS_ABIERTOS = ['ACTIVE', 'HEALING'] as const;
+export const ESTADOS_UPP = ['ACTIVE', 'HEALING', 'RESOLVED', 'CERRADA_SIN_RESOLVER'] as const;
+
+/** El `where` de Prisma para "sigue abierta". Se usa en TODAS las consultas. */
+export const ULCERA_ABIERTA = { status: { in: [...ESTADOS_ABIERTOS] } };
+
+/**
+ * Por qué se cerró sin sanar. Obligatorio: un cierre sin motivo es un hueco con
+ * fecha, y dentro de un año nadie sabrá si la herida sanó o el residente murió.
+ */
+export const MOTIVOS_CIERRE = [
+    { codigo: 'FALLECIMIENTO', etiqueta: 'El residente falleció' },
+    { codigo: 'EGRESO', etiqueta: 'El residente salió del hogar' },
+    { codigo: 'HOSPITALIZACION', etiqueta: 'Pasó a manos del hospital' },
+    { codigo: 'OTRO', etiqueta: 'Otra razón — la escribo abajo' },
+] as const;
+
+export function etiquetaDeCierre(codigo: string | null | undefined): string {
+    return MOTIVOS_CIERRE.find(m => m.codigo === codigo)?.etiqueta ?? (codigo ?? '—');
+}
+
 export type TipoRegistroUpp = 'CURACION' | 'CAMBIO_APOSITO' | 'VALORACION';
 
 export interface DefinicionTipo {

@@ -43,12 +43,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/api-auth';
 import { notifyRoles } from '@/lib/notifications';
-import { TIPOS_UPP, puedeRegistrar, avisoAEnfermeria, etiquetaDeMotivo, MOTIVOS_CAMBIO, type TipoRegistroUpp } from '@/lib/upp';
+import { TIPOS_UPP, puedeRegistrar, avisoAEnfermeria, etiquetaDeMotivo, etiquetaDeCierre, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, ESTADOS_UPP, type TipoRegistroUpp } from '@/lib/upp';
 
 export const dynamic = 'force-dynamic';
 
-/** Estados que puede tomar una úlcera. RESOLVED sella `resolvedAt`. */
-const ESTADOS = ['ACTIVE', 'HEALING', 'RESOLVED'];
+/**
+ * DOS FORMAS DE CERRAR, Y NO SIGNIFICAN LO MISMO.
+ *
+ *   RESOLVED              la herida sanó
+ *   CERRADA_SIN_RESOLVER  dejó de seguirse sin sanar — el residente falleció,
+ *                         salió del hogar o pasó a manos del hospital
+ *
+ * Wilfredo Matos falleció y sus dos úlceras llevaban 85 días abiertas, porque
+ * la única forma de cerrarlas era declararlas sanadas. Eso es escribir en un
+ * expediente clínico que una herida sanó cuando lo que pasó es que el residente
+ * murió. Se dejaron abiertas, y el conteo de Enfermería mintió tres meses.
+ *
+ * `resolvedAt` SOLO se sella cuando sanó de verdad. El cierre sin resolver vive
+ * en `status`, y su motivo queda en el UlcerLog del cierre.
+ */
+const ESTADOS: string[] = [...ESTADOS_UPP];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
     const auth = await getSessionUser();
@@ -81,7 +95,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         const nuevoEstadio = def.puedeCambiarEstadio && body.stage != null ? Number(body.stage) : null;
         const nuevoEstado = def.puedeCambiarEstadio && body.status ? String(body.status).trim() : null;
 
-        if (def.pideTratamiento && !treatmentApplied) {
+        // Cerrar es un acto en sí mismo: no se le pide a nadie que invente una
+        // curación para poder cerrar la úlcera de alguien que se murió.
+        const cerrandoSinResolver = nuevoEstado === 'CERRADA_SIN_RESOLVER';
+        const cerrando = cerrandoSinResolver || nuevoEstado === 'RESOLVED';
+        const motivoCierre = String(body.motivoCierre ?? '').trim();
+
+        if (cerrandoSinResolver && !MOTIVOS_CIERRE.some(m => m.codigo === motivoCierre)) {
+            return NextResponse.json({ success: false, error: 'Falta por qué se cierra sin resolver' }, { status: 400 });
+        }
+        if (cerrandoSinResolver && motivoCierre === 'OTRO' && !notes) {
+            return NextResponse.json({ success: false, error: 'Escribe la razón del cierre' }, { status: 400 });
+        }
+        if (!cerrando && def.pideTratamiento && !treatmentApplied) {
             return NextResponse.json({ success: false, error: 'Falta qué se aplicó' }, { status: 400 });
         }
         if (def.pideMotivo && !MOTIVOS_CAMBIO.some(m => m.codigo === motivo)) {
@@ -120,13 +146,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 data: {
                     ulcerId: id,
                     nurseId: auth.id,
-                    tipo,
-                    motivo: def.pideMotivo ? motivo : null,
-                    treatmentApplied: def.pideTratamiento ? treatmentApplied.slice(0, 500) : null,
+                    // El cierre es su propio tipo de registro: la fila dice
+                    // "cerrada porque falleció", no "curación sin tratamiento".
+                    tipo: cerrando ? 'CIERRE' : tipo,
+                    motivo: cerrandoSinResolver ? motivoCierre : def.pideMotivo ? motivo : null,
+                    treatmentApplied: !cerrando && def.pideTratamiento ? treatmentApplied.slice(0, 500) : null,
                     // `notes` es obligatorio en el modelo. Si no se escribe nada,
                     // se guarda lo que dé sentido a la fila —lo aplicado, o el
                     // motivo— en vez de un string vacío que nadie sabe leer.
-                    notes: (notes || treatmentApplied || etiquetaDeMotivo(motivo)).slice(0, 2000),
+                    notes: (
+                        notes
+                        || (cerrandoSinResolver ? etiquetaDeCierre(motivoCierre) : '')
+                        || (nuevoEstado === 'RESOLVED' ? 'La úlcera sanó.' : '')
+                        || treatmentApplied
+                        || etiquetaDeMotivo(motivo)
+                    ).slice(0, 2000),
                     woundSize: woundSize.slice(0, 60) || null,
                     photoUrl: photoUrl,
                     hasPhoto: !!photoUrl,
@@ -140,6 +174,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                 cambios.status = nuevoEstado;
                 // Cerrar sella la fecha. Reabrir la borra: una úlcera que
                 // vuelve a abrirse no puede conservar la fecha en que sanó.
+                // `resolvedAt` significa SANÓ. Un cierre sin resolver no lo
+                // sella: si lo hiciera, dentro de un año nadie sabría si la
+                // herida cerró o el residente se fue.
                 cambios.resolvedAt = nuevoEstado === 'RESOLVED' ? new Date() : null;
             }
             if (Object.keys(cambios).length > 0) {
@@ -196,8 +233,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({
             success: true,
             logId: log.id,
-            mensaje: nuevoEstado === 'RESOLVED'
-                ? 'Úlcera cerrada.'
+            mensaje: cerrandoSinResolver
+                ? `Úlcera cerrada sin resolver — ${etiquetaDeCierre(motivoCierre).toLowerCase()}.`
+                : nuevoEstado === 'RESOLVED'
+                ? 'Úlcera cerrada: sanó.'
                 : empeora ? `${base} Se avisó del deterioro.`
                 : avisado ? `${base} Se avisó a enfermería.` : base,
         });

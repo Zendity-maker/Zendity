@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { ULCERA_ABIERTA } from '@/lib/upp';
 import { applyScoreEvent } from '@/lib/score-event';
 import { solapaConSinServicio } from '@/lib/ventanas-sin-servicio';
 import { resolverHoraReal } from '@/lib/hora-real';
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
             select: {
                 id: true, headquartersId: true, status: true,
                 requiresPosturalChanges: true, nortonRisk: true,
-                pressureUlcers: { where: { status: { not: 'RESOLVED' } }, select: { id: true } },
+                pressureUlcers: { where: ULCERA_ABIERTA, select: { id: true } },
             },
         });
         if (!patient) {
