@@ -165,10 +165,17 @@ export function etiquetaDeMotivo(codigo: string | null | undefined): string {
 /**
  * LOS DOS RELOJES.
  *
- * Siete días es lo que ya usaba el sistema para la curación; la valoración
- * hereda el mismo número. NO es un estándar clínico: es un valor de producto
- * que Celia debería confirmar o corregir. Queda escrito para que nadie lo
- * confunda con una guía.
+ * SIETE DÍAS, CONFIRMADO POR EL HOGAR el 06-sep-2026. El número no cambió —era
+ * el que el sistema ya usaba para la curación y que la valoración heredó— pero
+ * hasta ese día era un valor puesto por herencia que nadie había validado.
+ * Ahora es una decisión de enfermería, y eso es lo que hay que saber antes de
+ * tocarlo: si alguien lo cambia, está cambiando un criterio clínico acordado,
+ * no ajustando un parámetro.
+ *
+ * SE PREGUNTÓ EXPRESAMENTE SI UNA ÚLCERA PROFUNDA NECESITA MENOS. La respuesta
+ * fue que no: siete días para todas. Por eso aquí no hay una tabla por estadio
+ * — un umbral por estadio sería complejidad que nadie pidió y que además
+ * tendría que mantenerse cada vez que una úlcera sube o baja de grado.
  */
 export const DIAS_SIN_CURACION = 7;
 export const DIAS_SIN_VALORACION = 7;
