@@ -66,6 +66,10 @@ scripts/*
 !scripts/verificar-dossier.ts
 # Rescate de las alertas de piel anteriores al canal (sep-2026)
 !scripts/rescatar-alertas-de-piel.ts
+# Guias del segundo bloque de septiembre (dom 6-sep)
+!scripts/guia-cambios-sep2026-b.ts
+# Papeles de la reunion: hoja de ruta de piel + formularios de tratamiento
+!scripts/papeles-de-la-reunion.ts
 # Migración de catálogo Academy — se reusa al abrir cada sede nueva
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva

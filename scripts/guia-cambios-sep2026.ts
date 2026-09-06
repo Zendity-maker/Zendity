@@ -14,129 +14,9 @@
  *
  * Uso: npx tsx scripts/guia-cambios-sep2026.ts [carpeta-destino]
  */
-import jsPDF from 'jspdf';
 import { writeFileSync } from 'fs';
+import { generarGuiaPDF, type Guia } from '../src/lib/guia-pdf';
 import { join } from 'path';
-
-const TEAL: [number, number, number] = [15, 110, 86];
-const INK: [number, number, number] = [31, 45, 58];
-const MUTED: [number, number, number] = [100, 116, 139];
-const LINE: [number, number, number] = [226, 232, 240];
-const CASO_BG: [number, number, number] = [254, 249, 235];
-const CASO_BR: [number, number, number] = [234, 179, 8];
-const M = 16;
-
-interface Punto {
-    titulo: string;
-    antes: string;
-    ahora: string;
-    /** El caso real. Es lo que hace que se recuerde. */
-    caso?: string;
-    /** Dónde está, con las palabras que se ven en pantalla. */
-    donde?: string;
-}
-
-interface Guia {
-    archivo: string;
-    paraQuien: string;
-    entradilla: string;
-    puntos: Punto[];
-    cierre: string;
-}
-
-function generar(g: Guia): ArrayBuffer {
-    const doc = new jsPDF({ unit: 'mm', format: 'letter' });
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
-    const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
-    const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
-
-    let y = 0, pagina = 1;
-    const pie = () => {
-        setText(MUTED);
-        doc.setFont('helvetica', 'normal').setFontSize(7.5);
-        doc.text(`Zéndity · ${g.paraQuien} · septiembre 2026 · página ${pagina}`, M, H - 9);
-    };
-    const salto = () => { pie(); doc.addPage(); pagina++; y = M + 4; };
-    const sitio = (mm: number) => { if (y + mm > H - 16) salto(); };
-
-    const parrafo = (texto: string, tam: number, color: [number, number, number], estilo: 'normal' | 'bold' | 'italic', sangria = 0) => {
-        setText(color);
-        doc.setFont('helvetica', estilo).setFontSize(tam);
-        for (const ln of doc.splitTextToSize(texto, W - 2 * M - sangria) as string[]) {
-            sitio(tam * 0.55);
-            doc.text(ln, M + sangria, y);
-            y += tam * 0.52;
-        }
-    };
-
-    // Cabecera
-    setFill(TEAL);
-    doc.rect(0, 0, W, 34, 'F');
-    setText([255, 255, 255]);
-    doc.setFont('helvetica', 'bold').setFontSize(17);
-    doc.text('Lo que cambió en Zéndity', M, 15);
-    doc.setFont('helvetica', 'normal').setFontSize(10);
-    doc.text(g.paraQuien, M, 23);
-    doc.setFontSize(8.5);
-    doc.text('Septiembre 2026', W - M, 15, { align: 'right' });
-    y = 44;
-
-    parrafo(g.entradilla, 10.5, INK, 'normal');
-    y += 6;
-
-    g.puntos.forEach((p, i) => {
-        sitio(40);
-        setDraw(LINE);
-        doc.line(M, y, W - M, y);
-        y += 7;
-
-        setText(TEAL);
-        doc.setFont('helvetica', 'bold').setFontSize(9);
-        doc.text(String(i + 1).padStart(2, '0'), M, y);
-        setText(INK);
-        doc.setFont('helvetica', 'bold').setFontSize(13);
-        doc.text(p.titulo, M + 9, y);
-        y += 7;
-
-        parrafo(`Antes:  ${p.antes}`, 10, MUTED, 'normal', 9);
-        y += 1.5;
-        parrafo(`Ahora:  ${p.ahora}`, 10.5, INK, 'bold', 9);
-        y += 2;
-
-        if (p.donde) {
-            parrafo(`Dónde: ${p.donde}`, 9, TEAL, 'normal', 9);
-            y += 1;
-        }
-
-        if (p.caso) {
-            const lineas = doc.splitTextToSize(p.caso, W - 2 * M - 20) as string[];
-            const alto = lineas.length * 4.6 + 8;
-            sitio(alto + 4);
-            setFill(CASO_BG); setDraw(CASO_BR);
-            doc.setLineWidth(0.8);
-            doc.rect(M + 9, y - 1, W - 2 * M - 9, alto, 'F');
-            doc.line(M + 9, y - 1, M + 9, y - 1 + alto);
-            doc.setLineWidth(0.2);
-            setText([120, 80, 10]);
-            doc.setFont('helvetica', 'italic').setFontSize(9.5);
-            let yy = y + 4.5;
-            for (const ln of lineas) { doc.text(ln, M + 14, yy); yy += 4.6; }
-            y += alto + 3;
-        }
-        y += 4;
-    });
-
-    sitio(26);
-    setDraw(LINE);
-    doc.line(M, y, W - M, y);
-    y += 8;
-    parrafo(g.cierre, 10, INK, 'normal');
-
-    pie();
-    return doc.output('arraybuffer');
-}
 
 /* ═══════════════════ EL CONTENIDO ═══════════════════ */
 
@@ -150,7 +30,7 @@ const CUIDADORAS: Guia = {
             titulo: 'Cuando come poco o nada, ahora se dice por qué',
             antes: 'Solo se marcaba cuánto: todo, mitad, poco, nada. Y ahí quedaba.',
             ahora: 'Al tocar "Poco" o "Nada", la tableta pregunta por qué, y hay un campo para escribir qué SÍ aceptó. Eso le llega a la cocina.',
-            donde: 'Bitácora → Registro Nutricional, después de elegir la comida.',
+            donde: 'Bitácora > Registro Nutricional, después de elegir la comida.',
             caso: 'Alguien escribió a mano: "Se niega diariamente a desayunar tostadas, sándwiches o '
                 + 'panqueques. Solo acepta avena." Esa frase resuelve el desayuno de esa señora, y la '
                 + 'cocina nunca la leyó porque estaba en una nota de turno. Había 258 "no comió nada" sin una sola causa.',
@@ -221,13 +101,13 @@ const CLINICO: Guia = {
             titulo: 'Pantalla "Enfermería": lo que te toca hoy',
             antes: 'El trabajo estaba repartido en siete pantallas y ninguna decía si había algo pendiente. Había que entrar a las siete a comprobarlo.',
             ahora: 'Una lista de trabajo con lo que espera, de lo más urgente a lo menos, y cada línea lleva a donde se hace. Nada se tacha a mano: cada número desaparece cuando el trabajo se registra.',
-            donde: 'Menú → Enfermería.',
+            donde: 'Menú > Enfermería.',
         },
         {
             titulo: 'Las úlceras ahora se pueden curar en el sistema',
             antes: 'No existía forma de registrar una curación. La API solo permitía CREAR una úlcera, nunca añadirle una nota ni cerrarla.',
             ahora: 'En Rotación / UPP, la etiqueta de la úlcera es un botón. Registras qué aplicaste, la medida, cómo la viste, corriges el estadio, y puedes darla por resuelta. Si sube de estadio, avisa sola.',
-            donde: 'Rotación / UPP → tocar la etiqueta roja de la úlcera.',
+            donde: 'Rotación / UPP > tocar la etiqueta roja de la úlcera.',
             caso: 'Cuatro úlceras registradas, las cuatro con UNA sola curación: la del día que se '
                 + 'abrieron. Una sacra estadio 4 llevaba 77 días así, y dos seguían abiertas 84 días '
                 + 'después de que el residente falleciera. No era descuido: no había cómo.',
@@ -236,7 +116,7 @@ const CLINICO: Guia = {
             titulo: '"Cambios del piso": lo que reportan las cuidadoras',
             antes: 'No existía.',
             ahora: 'Cada cambio que reportan espera tu revisión, con un contador en el menú que no baja hasta que lo cierras. Al cerrarlo, a quien lo reportó le llega tu respuesta.',
-            donde: 'Menú → Cambios del piso.',
+            donde: 'Menú > Cambios del piso.',
             caso: 'Dos observaciones de personal llevaban 56 y 45 días paradas, y las dos SÍ habían '
                 + 'disparado su notificación. Un aviso se lee una vez y se va; un contador insiste.',
         },
@@ -244,7 +124,7 @@ const CLINICO: Guia = {
             titulo: '"Lo que Zendi encontró": preguntas, no hechos',
             antes: 'La IA solo escribía mensajes para familias.',
             ahora: 'Cada lunes lee las notas de la semana y señala lo que no tiene dónde guardarse, lo que contradice al expediente, y lo que debió avisar. Cada tarjeta lleva la FRASE EXACTA. Lees la frase y decides: es real, o no aplica.',
-            donde: 'Menú → Lo que Zendi encontró.',
+            donde: 'Menú > Lo que Zendi encontró.',
             caso: 'No es un diagnóstico ni una orden. Si Zendi se equivoca, se descarta con una razón '
                 + 'y ya. Lo que no puede hacer es cambiar nada por su cuenta.',
         },
@@ -252,7 +132,7 @@ const CLINICO: Guia = {
             titulo: 'Medicamentos: frecuencia, días y quién lo recetó',
             antes: 'El formulario no pedía la frecuencia, así que "semanal" se escribía dentro del horario: "08:00 AM (Semanal)". El sistema no sabe leer eso y descartaba el medicamento en silencio.',
             ahora: 'Se elige: todos los días / solo ciertos días / por razón necesaria. Y hay campo para el médico que lo recetó. No deja guardar un horario que el sistema no vaya a poder leer.',
-            donde: 'Med & Zoning → añadir medicamento.',
+            donde: 'Med & Zoning > añadir medicamento.',
             caso: 'TRECE medicamentos activos no aparecían en ningún pack y nadie los administraba nunca. '
                 + 'Entre ellos un Warfarin —anticoagulante— con 107 días sin una sola administración. '
                 + 'Hay que corregirlos a mano; están listados en el reporte del lunes.',
@@ -261,7 +141,7 @@ const CLINICO: Guia = {
             titulo: 'Los PRN se registran de uno en uno',
             antes: 'El botón mandaba TODOS los medicamentos del turno y los marcaba como administrados. Se usó una vez en la historia del sistema.',
             ahora: 'Eliges el medicamento, dices para qué, y después el sistema pregunta si hizo efecto. "Sin efecto" avisa a enfermería.',
-            donde: 'Medicamentos → Registrar dosis PRN.',
+            donde: 'Medicamentos > Registrar dosis PRN.',
             caso: 'Cuatro medicamentos PRN activos con CERO administraciones registradas, contra 27 notas de turno diciendo que se administró algo.',
         },
         {
@@ -298,7 +178,7 @@ const COCINA: Guia = {
 
 const destino = process.argv[2] || '.';
 for (const g of [CUIDADORAS, CLINICO, COCINA]) {
-    const buf = generar(g);
+    const buf = generarGuiaPDF(g);
     const ruta = join(destino, `${g.archivo}.pdf`);
     writeFileSync(ruta, Buffer.from(buf));
     console.log(`${g.paraQuien.padEnd(32)} ${(buf.byteLength / 1024).toFixed(0)} KB  ->  ${ruta}`);
