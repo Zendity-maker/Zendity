@@ -71,10 +71,17 @@ const MAX_EJEMPLOS = 8;
 
 /* ───────────────────────── 1. ALERGIAS SIN DOCUMENTAR ───────────────────── */
 /**
- * El formulario de traslado ya no miente —lee IntakeData.allergies— pero si ese
- * campo está vacío el papel dice "NO DOCUMENTADO". Eso es honesto y es mejor que
- * el "NKA" anterior, pero sigue siendo un residente que llega a emergencias sin
- * información de alergias. Es una pregunta a la familia, no un bug.
+ * El formulario de traslado lee IntakeData.allergies, y si ese campo está vacío
+ * el papel dice "NO DOCUMENTADO — confirmar con el hogar antes de medicar".
+ *
+ * CORRECCIÓN DEL 06-sep-2026. Este comentario afirmaba eso desde que se escribió
+ * y era FALSO: los dos caminos que producen el papel decían "Ninguna conocida" y
+ * "Sin alergias conocidas", y el segundo en una caja VERDE. O sea que el
+ * chequeo describía un arreglo que no existía, sobre 28 de 33 residentes
+ * activos. Se arregló en el mismo commit que esta corrección.
+ *
+ * Sigue siendo un residente que llega a emergencias sin información de alergias.
+ * Eso es una pregunta a la familia, no un bug — pero el papel ahora lo dice.
  */
 async function alergiasSinDocumentar(hqId: string): Promise<Hallazgo> {
     const activos = await prisma.patient.findMany({

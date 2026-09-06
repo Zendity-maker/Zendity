@@ -13,8 +13,21 @@ export async function GET(
 
         const { id } = await params;
 
-        const patient = await prisma.patient.findUnique({
-            where: { id },
+        /**
+         * LA SEDE, QUE FALTABA.
+         *
+         * Era `findUnique({ where: { id } })` a secas: comprobaba el ROL y no
+         * el residente. Cualquier supervisora, enfermera o directora de
+         * cualquier sede podia pedir la tarjeta de emergencia de un residente
+         * de otra con solo su id — medicacion, alergias, diagnosticos, numero
+         * de seguro y telefono del familiar.
+         *
+         * Pregunta 3 de la auditoria proactiva de CLAUDE.md: una operacion por
+         * ID tiene que verificar que el invocador tenga acceso a ESE id, no
+         * solo el rol.
+         */
+        const patient = await prisma.patient.findFirst({
+            where: { id, headquartersId: auth.headquartersId },
             include: {
                 headquarters: { select: { name: true, phone: true, address: true, billingAddress: true } },
                 medications: {
@@ -34,11 +47,26 @@ export async function GET(
             );
         }
 
-        // Resolver texto de alergias: IntakeData es la fuente principal
+        /**
+         * UN CAMPO VACIO NO ES "NINGUNA CONOCIDA".
+         *
+         * Decia 'Ninguna conocida' cuando el campo estaba vacio. Eso no es un
+         * dato que falta: es una AFIRMACION, y el hogar no puede sostenerla.
+         * Medido el 06-sep-2026: 28 de 33 residentes activos de Cupey no tienen
+         * alergias documentadas. Su papel de traslado le decia a la sala de
+         * urgencias que no se le conocen alergias — como si alguien lo hubiera
+         * comprobado.
+         *
+         * Cinco SI las tienen documentadas, y tres de esas cinco son a
+         * penicilina. La diferencia entre "no tiene" y "no lo sabemos" es
+         * exactamente la que importa cuando alguien va a medicar.
+         *
+         * Ahora el papel dice la verdad, y dice que hay que preguntar.
+         */
         const allergiesText =
             (patient.intakeData?.allergies && patient.intakeData.allergies.trim().length > 0)
                 ? patient.intakeData.allergies.trim()
-                : 'Ninguna conocida';
+                : 'NO DOCUMENTADO — confirmar con el hogar antes de medicar';
 
         const diagnosesText =
             (patient.intakeData?.diagnoses && patient.intakeData.diagnoses.trim().length > 0)

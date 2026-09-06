@@ -273,7 +273,7 @@ export default function ResidentSummaryPrint({
                                     <div>
                                         <p className="font-black text-[10px] text-rose-600 uppercase tracking-widest">Alergias</p>
                                         <p className={`font-bold ${allergiesText ? 'text-rose-700' : 'text-slate-400 italic'}`}>
-                                            {allergiesText || 'Sin alergias conocidas'}
+                                            {allergiesText || 'NO DOCUMENTADO — confirmar antes de medicar'}
                                         </p>
                                     </div>
                                     <div>
@@ -621,17 +621,33 @@ export default function ResidentSummaryPrint({
                                 {allergiesText}
                             </div>
                         ) : (
+                            /**
+                             * AUSENCIA DE DATO, NO AUSENCIA DE ALERGIA.
+                             *
+                             * Esto salia en VERDE —el color de "todo bien"— con el
+                             * texto "Sin alergias conocidas". Un residente del que
+                             * nadie preguntó recibia una caja tranquilizadora en el
+                             * papel que va al hospital.
+                             *
+                             * Medido el 06-sep-2026: 28 de 33 residentes activos de
+                             * Cupey no tienen alergias documentadas. De los cinco que
+                             * si, tres son alergicos a penicilina. La diferencia entre
+                             * "no tiene" y "no lo sabemos" es justo la que importa
+                             * cuando alguien va a medicar en urgencias.
+                             *
+                             * Ambar, no verde. Y dice qué hacer.
+                             */
                             <div style={{
-                                backgroundColor: '#ECFDF5',
-                                borderLeft: '4px solid #059669',
+                                backgroundColor: '#FFFBEB',
+                                borderLeft: '4px solid #D97706',
                                 padding: '10px 14px',
                                 borderRadius: '0 6px 6px 0',
                                 marginBottom: '16px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                color: '#065F46',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                color: '#78350F',
                             }}>
-                                Sin alergias conocidas
+                                NO DOCUMENTADO — confirmar con el hogar antes de medicar
                             </div>
                         )}
 
