@@ -49,7 +49,16 @@ export interface BloqueReporte {
     total: number;
 }
 
-export interface ReporteEnfermeria {
+/**
+ * La forma que comparten los tres reportes semanales — enfermería, supervisión
+ * y dirección. El PDF los pinta a todos con este contrato, así que añadir un
+ * cuarto no toca el generador.
+ */
+export interface ReporteSemanal {
+    /** Lo que va en la cabecera del PDF y en el asunto. */
+    titulo: string;
+    /** Para quién es, en una línea. Aparece bajo el título. */
+    paraQuien: string;
     sedeId: string;
     sedeNombre: string;
     generadoAt: Date;
@@ -61,6 +70,9 @@ export interface ReporteEnfermeria {
     /** Para poder decir "todo al día" con propiedad y no por falta de datos. */
     frentesRevisados: number;
 }
+
+/** Alias histórico. El reporte de enfermería es un ReporteSemanal más. */
+export type ReporteEnfermeria = ReporteSemanal;
 
 /**
  * Toma un hallazgo de verificaciones.ts y lo convierte en línea del reporte.
@@ -74,7 +86,7 @@ function desdeHallazgo(hs: Hallazgo[], codigo: CodigoChequeo, texto: string): Li
     return { texto, casos: h?.ejemplos ?? [], total: h?.total ?? 0 };
 }
 
-export async function construirReporte(sedeId: string, sedeNombre: string): Promise<ReporteEnfermeria> {
+export async function construirReporte(sedeId: string, sedeNombre: string): Promise<ReporteSemanal> {
     const ahora = new Date();
     const desde = new Date(ahora.getTime() - 7 * 86400000);
     const limiteCuracion = new Date(ahora.getTime() - DIAS_SIN_CURACION * 86400000);
@@ -252,6 +264,8 @@ export async function construirReporte(sedeId: string, sedeNombre: string): Prom
     }
 
     return {
+        titulo: 'Reporte semanal de enfermería',
+        paraQuien: 'Enfermería y dirección',
         sedeId, sedeNombre,
         generadoAt: ahora, desde,
         residentesActivos: activos,

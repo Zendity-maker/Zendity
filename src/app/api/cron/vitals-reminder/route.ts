@@ -13,6 +13,28 @@ export const dynamic = 'force-dynamic';
 // vitales a 15 residentes). Máximo 5 penalidades/día = −10 pts máx.
 const DAILY_PENALTY_CAP = 5;
 
+/**
+ * LA PENALIDAD, APAGADA. El aviso, encendido.
+ *
+ * Este cron nunca estuvo programado en vercel.json, así que hace tres cosas de
+ * las que solo una faltaba de verdad: recordar 20 minutos antes, marcar
+ * vencidas, y restar puntos. Las órdenes YA se vencen solas al cerrar turno
+ * —6 337 así en producción— o sea que lo único que hacía falta era el aviso.
+ *
+ * No se enciende el castigo, por lo mismo que se apagó el de omitir un
+ * medicamento el 05-sep-2026: penalizar el registro de un hueco enseña a no
+ * registrarlo. En 24 537 administraciones había TRES omisiones, y no porque no
+ * se omita. Y aquí la asimetría es peor todavía: 280 órdenes vencieron en una
+ * semana, casi todas por falta de manos, no por descuido — restarle puntos a
+ * quien estaba solo con quince residentes no cambia que estaba solo.
+ *
+ * El aviso sí queda: quien no las tomó se entera, y supervisión también. Ahí
+ * está la información; lo que sobra es el precio.
+ *
+ * Hacer el dato veraz, no crear una métrica que castigue la conducta.
+ */
+const APLICAR_PENALIDAD = false;
+
 // La gracia vive en src/lib/vitals-window.ts, junto al plazo que modifica.
 
 // Cron cada 5 min:
@@ -149,7 +171,7 @@ export async function GET(req: Request) {
 
                 // Aplicar deducción vía applyScoreEvent (registra en ScoreEvent
                 // para que calculateDynamicScore lo capture en el cron diario)
-                if (pointsDeducted > 0) {
+                if (APLICAR_PENALIDAD && pointsDeducted > 0) {
                     await applyScoreEvent(
                         caregiverId,
                         hqId,
@@ -166,15 +188,19 @@ export async function GET(req: Request) {
 
                 await notifyUser(caregiverId, {
                     type: 'EMAR_ALERT',
-                    title: 'Vitales no tomados — Penalidad',
-                    message: `${orders.length} residentes sin vitales: ${residentNames}. −${pointsDeducted} pts aplicados${capSuffix}.`,
+                    title: 'Vitales no tomados',
+                    message: APLICAR_PENALIDAD
+                        ? `${orders.length} residentes sin vitales: ${residentNames}. −${pointsDeducted} pts aplicados${capSuffix}.`
+                        : `${orders.length} residentes se quedaron sin vitales en tu turno: ${residentNames}.`,
                     link: '/care',
                 });
 
                 await notifyRoles(hqId, ['SUPERVISOR'], {
                     type: 'EMAR_ALERT',
                     title: `Vitales vencidos — ${caregiver.name}`,
-                    message: `${orders.length} residentes sin vitales en turno de ${caregiver.name}. −${pointsDeducted} pts aplicados${capSuffix}.`,
+                    message: APLICAR_PENALIDAD
+                        ? `${orders.length} residentes sin vitales en turno de ${caregiver.name}. −${pointsDeducted} pts aplicados${capSuffix}.`
+                        : `${orders.length} residentes sin vitales en el turno de ${caregiver.name}. Si se repite, mira si el turno tenía manos suficientes.`,
                     link: '/care/supervisor',
                 });
 

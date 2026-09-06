@@ -1,6 +1,10 @@
 /**
- * EL PDF DEL REPORTE SEMANAL DE ENFERMERÍA
- * ────────────────────────────────────────
+ * EL PDF DE LOS REPORTES SEMANALES
+ * ────────────────────────────────
+ * Uno solo para los tres —enfermería, supervisión y dirección— porque los tres
+ * tienen la misma forma: bloques numerados, ordenados por lo que pasa si nadie
+ * los mira. Añadir un cuarto reporte no toca este archivo.
+ *
  * Va adjunto al correo de los lunes. Los nombres viven AQUÍ y no en el cuerpo
  * del mensaje: la regla del proyecto es que un correo no lleva diagnósticos ni
  * datos clínicos identificables. Mismo reparto que el paquete de continuidad.
@@ -18,7 +22,7 @@
  *     enseña a leer solo el principio.
  */
 import jsPDF from 'jspdf';
-import type { ReporteEnfermeria } from '@/lib/reporte-enfermeria';
+import type { ReporteSemanal } from '@/lib/reporte-enfermeria';
 
 // Misma paleta que continuity-pdf.ts — es el mismo hogar y el mismo lector.
 const TEAL: [number, number, number] = [15, 110, 86];
@@ -41,7 +45,7 @@ function colorBloque(n: number, vacio: boolean): [number, number, number] {
     return MUTED;
 }
 
-export function generarReporteEnfermeriaPDF(r: ReporteEnfermeria): ArrayBuffer {
+export function generarReporteSemanalPDF(r: ReporteSemanal): ArrayBuffer {
     const doc = new jsPDF({ unit: 'mm', format: 'letter' });
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
@@ -60,7 +64,7 @@ export function generarReporteEnfermeriaPDF(r: ReporteEnfermeria): ArrayBuffer {
     const pie = () => {
         setText(MUTED);
         doc.setFont('helvetica', 'normal').setFontSize(7);
-        doc.text(`Zéndity · ${r.sedeNombre} · Reporte de enfermería · página ${pagina}`, M, H - 8);
+        doc.text(`Zéndity · ${r.sedeNombre} · ${r.titulo} · página ${pagina}`, M, H - 8);
         doc.text('Documento con información clínica. Trátese como el expediente.', W - M, H - 8, { align: 'right' });
     };
 
@@ -72,9 +76,9 @@ export function generarReporteEnfermeriaPDF(r: ReporteEnfermeria): ArrayBuffer {
     doc.rect(0, 0, W, 30, 'F');
     setText([255, 255, 255]);
     doc.setFont('helvetica', 'bold').setFontSize(15);
-    doc.text('Reporte semanal de enfermería', M, 13);
+    doc.text(r.titulo, M, 13);
     doc.setFont('helvetica', 'normal').setFontSize(9);
-    doc.text(r.sedeNombre, M, 20);
+    doc.text(`${r.sedeNombre} · ${r.paraQuien}`, M, 20);
     doc.text(fecha(r.generadoAt), W - M, 13, { align: 'right' });
     doc.setFontSize(8);
     doc.text(`Semana del ${fecha(r.desde).replace(/^\w+,?\s*/, '')}`, W - M, 20, { align: 'right' });
@@ -186,7 +190,7 @@ export function generarReporteEnfermeriaPDF(r: ReporteEnfermeria): ArrayBuffer {
     doc.setFont('helvetica', 'normal').setFontSize(8);
     doc.text('Todo lo de este reporte se calcula contra el expediente cada lunes. Nada se marca a mano como hecho:', M, y);
     y += 4;
-    doc.text('cada línea desaparece sola cuando el trabajo se registra. Se entra por Enfermería en app.zendity.com.', M, y);
+    doc.text('cada línea desaparece sola cuando el trabajo se registra. Se entra en app.zendity.com.', M, y);
 
     pie();
     return doc.output('arraybuffer');

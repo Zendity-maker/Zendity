@@ -83,6 +83,26 @@
     {
       "path": "/api/cron/reporte-enfermeria",
       "schedule": "30 12 * * 1"
+    },
+    {
+      "path": "/api/cron/reporte-supervision",
+      "schedule": "30 12 * * 1"
+    },
+    {
+      "path": "/api/cron/reporte-direccion",
+      "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron/quarterly-pai",
+      "schedule": "0 12 1 1,4,7,10 *"
+    },
+    {
+      "path": "/api/cron/expire-cleaning-requests",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/vitals-reminder",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
