@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
 import { estaDormida, FUNCIONES_DORMIDAS } from '@/lib/funciones-dormidas';
 import { esRutaPublica } from '@/lib/rutas-publicas';
-import ZendiWidget from "./ZendiWidget"; // FASE 9 ZENDI
 import StaffChat from "./StaffChat"; // FASE 81 — Chat interno staff
 import FamilyMessagesPanel from "./corporate/FamilyMessagesPanel"; // Sprint — Panel mensajes familiares
 import BackToDashboard from "./ui/BackToDashboard";
@@ -842,7 +841,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         `}</style>
 
         <div className="zendity-shell flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
-            <ZendiWidget />
+            {/* El boton flotante de Zendi se retiro el 06-sep-2026.
+                Medido: DOS interacciones en la historia del sistema, las dos de
+                Andres el 26-may, y la segunda fue "a que te refieres con estado
+                rojo y estado amarillo" — o sea, preguntando por que la respuesta
+                no cuadraba. No cuadraba porque el prompt trataba los colores
+                como niveles de urgencia (son grupos de asignacion de 8-10
+                residentes) y ademas no contaba BLUE: describia el piso con 22
+                de 33 residentes. Ver el commit para el detalle. */}
 
             {/* Punto 8 — Botón de soporte flotante (oculto para FAMILY) */}
             {user?.role !== 'FAMILY' && <SupportButton />}

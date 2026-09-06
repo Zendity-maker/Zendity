@@ -6,7 +6,6 @@ import { ActiveHqProvider } from "@/contexts/ActiveHqContext";
 import { NextAuthProvider } from "@/components/NextAuthProvider";
 import BillingGuard from "@/components/BillingGuard";
 import AppLayout from "@/components/AppLayout";
-import ZendiSpeaker from "@/components/care/zendi/ZendiSpeaker";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -71,7 +70,11 @@ export default function RootLayout({
           <AuthProvider>
             <ActiveHqProvider>
               <AppLayout>
-                <ZendiSpeaker />
+                {/* El altavoz de anuncios se retiro con el boton de voz: era su
+                    UNICO productor. Consultaba /api/ai/announcements cada 8
+                    segundos en cada tableta abierta —unas 10.800 peticiones al
+                    dia por dispositivo— para una funcion con CERO registros en
+                    la historia del sistema. */}
                 <BillingGuard />
                 {children}
               </AppLayout>

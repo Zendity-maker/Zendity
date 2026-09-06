@@ -1,7 +1,31 @@
 "use client";
 
+/**
+ * ZENDI PROPONE. LA PERSONA DECIDE.
+ * ─────────────────────────────────
+ * Este botón REESCRIBÍA el texto en el sitio: `onChange(data.formattedText)`, y
+ * lo que había escrito la persona desaparecía. Nadie podía saber después qué
+ * escribió la cuidadora y qué escribió el modelo, y varios de estos cuadros son
+ * notas clínicas que quedan firmadas con el nombre de quien las escribió.
+ *
+ * Va contra la regla que ya rige el resto del sistema —"la IA pasa de escribir
+ * a leer"—: Zendi propone, una persona confirma. Los borradores de enfermería
+ * funcionan así y son la única superficie de Zendi que se usa de verdad.
+ *
+ * POR QUÉ ESTO Y NO GUARDAR LAS DOS VERSIONES. Guardar original y reescrito
+ * habría pedido una columna nueva en cada modelo donde cae este texto —notas de
+ * turno, observaciones de cocina, memos, mensajes a familias— y aun así el
+ * expediente seguiría enseñando prosa de una máquina firmada por una persona.
+ * El problema no era la falta de registro: era que se sustituía sin que nadie
+ * leyera. Si la persona LEE la propuesta y decide quedársela, es suya — eso es
+ * autoría. Y si no la lee, ahora tiene que dar un paso más para aceptarla.
+ *
+ * El original no se pierde nunca: se queda en el cuadro hasta que alguien
+ * pulsa "usar esta versión", y hay "volver a lo mío" después de aceptar.
+ */
+
 import { useState, useRef } from "react";
-import { Loader2, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Sparkles, Volume2, VolumeX, Undo2 } from "lucide-react";
 
 interface ZendiAssistProps {
     value: string;
@@ -25,7 +49,10 @@ export default function ZendiAssist({
     label,
 }: ZendiAssistProps) {
     const [improving, setImproving] = useState(false);
-    const [improved, setImproved] = useState(false);
+    /** La propuesta de Zendi. No toca el cuadro hasta que alguien la acepta. */
+    const [propuesta, setPropuesta] = useState<string | null>(null);
+    /** Lo que había escrito la persona antes de aceptar, para poder volver. */
+    const [original, setOriginal] = useState<string | null>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -62,7 +89,7 @@ export default function ZendiAssist({
     const handleImprove = async () => {
         if (!value.trim() || improving) return;
         setImproving(true);
-        setImproved(false);
+        setPropuesta(null);
         try {
             const res = await fetch("/api/ai/shadow", {
                 method: "POST",
@@ -71,15 +98,28 @@ export default function ZendiAssist({
             });
             const data = await res.json();
             if (data.success && data.formattedText) {
-                onChange(data.formattedText);
-                setImproved(true);
-                setTimeout(() => setImproved(false), 3000);
+                const sugerido = String(data.formattedText).trim();
+                // Si no cambia nada, no se enseña un panel para nada.
+                if (sugerido && sugerido !== value.trim()) setPropuesta(sugerido);
             }
         } catch (e) {
             console.error("ZendiAssist error:", e);
         } finally {
             setImproving(false);
         }
+    };
+
+    const aceptarPropuesta = () => {
+        if (!propuesta) return;
+        setOriginal(value);
+        onChange(propuesta);
+        setPropuesta(null);
+    };
+
+    const volverALoMio = () => {
+        if (original === null) return;
+        onChange(original);
+        setOriginal(null);
     };
 
     return (
@@ -92,7 +132,7 @@ export default function ZendiAssist({
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
                 rows={rows}
-                className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none resize-none pr-14 transition-colors ${improved ? 'border-teal-300 bg-teal-50/30' : ''} ${className}`}
+                className={`w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-5 py-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none resize-none pr-14 transition-colors ${original !== null ? 'border-teal-300 bg-teal-50/30' : ''} ${className}`}
             />
             {value?.trim() && (
                 <button
@@ -115,9 +155,9 @@ export default function ZendiAssist({
                 type="button"
                 onClick={handleImprove}
                 disabled={!value.trim() || improving}
-                title="Zendi — Mejorar redacción"
+                title="Zendi — proponer otra redacción"
                 className={`absolute bottom-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-sm border
-                    ${improved
+                    ${propuesta
                         ? 'bg-teal-500 border-teal-500 text-white scale-110'
                         : 'bg-white border-slate-200 text-slate-400 hover:border-teal-400 hover:text-teal-600 hover:shadow-md'
                     }
@@ -128,10 +168,44 @@ export default function ZendiAssist({
                     : <Sparkles className="w-4 h-4" />
                 }
             </button>
-            {improved && (
-                <p className="text-xs text-teal-600 font-medium mt-1.5 flex items-center gap-1 ml-1">
-                    <Sparkles className="w-3 h-3" /> Zendi mejoró la redacción
-                </p>
+            {/* LA PROPUESTA, AL LADO. No sustituye nada hasta que alguien la
+                lee y decide quedársela. */}
+            {propuesta && (
+                <div className="mt-2 rounded-2xl border-2 border-teal-200 bg-teal-50/60 p-3">
+                    <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Zendi propone
+                    </p>
+                    <p className="text-sm text-slate-800 leading-snug whitespace-pre-line">{propuesta}</p>
+                    <div className="flex gap-2 mt-3">
+                        <button
+                            type="button"
+                            onClick={aceptarPropuesta}
+                            className="flex-1 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-black rounded-lg transition-colors"
+                        >
+                            Usar esta versión
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPropuesta(null)}
+                            className="px-4 py-2 bg-white border-2 border-slate-200 hover:border-slate-400 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+                        >
+                            Dejar lo mío
+                        </button>
+                    </div>
+                    <p className="text-[10px] text-teal-800/70 mt-2 leading-snug">
+                        Léela antes de aceptarla. Lo que se guarde va firmado con tu nombre.
+                    </p>
+                </div>
+            )}
+
+            {original !== null && (
+                <button
+                    type="button"
+                    onClick={volverALoMio}
+                    className="mt-1.5 ml-1 text-xs text-teal-700 font-bold flex items-center gap-1 hover:underline"
+                >
+                    <Undo2 className="w-3 h-3" /> Volver a lo que yo había escrito
+                </button>
             )}
         </div>
     );
