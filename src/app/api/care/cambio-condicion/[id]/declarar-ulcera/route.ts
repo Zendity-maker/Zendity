@@ -30,7 +30,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { notifyRoles, notifyUser } from '@/lib/notifications';
-import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
+import { PUEDEN_REVISAR_CAMBIO, respuestaParaQuienReporto } from '@/lib/cambios-de-condicion';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,7 +131,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         notifyUser(cambio.reportadoPorId, {
             type: 'TRIAGE',
             title: 'Lo que reportaste es una úlcera',
-            message: `${cambio.patient.name.trim()}: se declaró estadio ${stage} en ${bodyLocation}. Gracias por reportarlo.`,
+            message: `${cambio.patient.name.trim()}: estadio ${stage} en ${bodyLocation}. `
+                + respuestaParaQuienReporto('ULCERA_DECLARADA')
+                + (respuesta ? ` — ${respuesta.slice(0, 160)}` : ''),
             link: '/care/nursing',
         }).catch(e => console.error('[declarar-ulcera] aviso al piso:', e));
 

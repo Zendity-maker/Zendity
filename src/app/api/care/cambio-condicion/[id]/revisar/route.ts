@@ -13,7 +13,7 @@ import { requireRole } from '@/lib/api-auth';
 import { notifyUser } from '@/lib/notifications';
 import {
     esResultadoValido, etiquetaResultado, etiquetaArea,
-    PUEDEN_REVISAR_CAMBIO,
+    respuestaParaQuienReporto, PUEDEN_REVISAR_CAMBIO,
 } from '@/lib/cambios-de-condicion';
 
 export const dynamic = 'force-dynamic';
@@ -66,8 +66,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         notifyUser(cambio.reportadoPorId, {
             type: 'TRIAGE',
             title: `Revisado: ${etiquetaArea(cambio.area)} — ${cambio.patient.name.trim()}`,
-            message: `${auth.name ?? 'Enfermería'}: ${etiquetaResultado(resultado)}.`
-                + (respuesta ? ` ${respuesta.slice(0, 160)}` : ''),
+            // La DECISIÓN va siempre, escrita para quien está en el pasillo.
+            // Decir solo "Referido a médico" es cierto y vacío: no dice qué
+            // pasa ahora ni si le toca hacer algo. La respuesta a mano se añade
+            // detrás cuando la hay.
+            message: `${auth.name ?? 'Enfermería'}: ${etiquetaResultado(resultado)}. `
+                + respuestaParaQuienReporto(resultado)
+                + (respuesta ? ` — ${respuesta.slice(0, 160)}` : ''),
             link: '/care',
         }).catch(e => console.error('Aviso de revisión:', e));
 

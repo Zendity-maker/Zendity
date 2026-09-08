@@ -18,7 +18,7 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, CheckCircle2, Clock } from "lucide-react";
-import { RESULTADOS_ELEGIBLES } from "@/lib/cambios-de-condicion";
+import { RESULTADOS_ELEGIBLES, respuestaParaQuienReporto } from "@/lib/cambios-de-condicion";
 
 interface Cambio {
     id: string;
@@ -236,14 +236,32 @@ export default function CambiosDelPisoPage() {
                                                 ))}
                                             </div>
 
-                                            {/* Le llega a quien lo reportó. Sin esto, reportar se
-                                                siente como hablarle a una pared. */}
+                                            {/* LO QUE LE VA A LLEGAR, A LA VISTA.
+                                                La decisión se escribe sola: quien revisa no
+                                                tiene que redactar nueve veces lo mismo — que
+                                                es exactamente por lo que los nueve primeros
+                                                reportes de piel se cerraron sin una sola
+                                                respuesta escrita. El cuadro de abajo es para
+                                                lo que SOLO esta vez hace falta decir. */}
+                                            {resultado && (
+                                                <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2.5">
+                                                    <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider mb-1">
+                                                        {c.reportadoPor} va a recibir
+                                                    </p>
+                                                    <p className="text-sm text-teal-900 leading-snug">
+                                                        {respuestaParaQuienReporto(resultado)}
+                                                        {respuesta.trim() && <span className="text-teal-800"> — {respuesta.trim()}</span>}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Solo para lo que haga falta añadir esta vez. */}
                                             <textarea
                                                 value={respuesta}
                                                 onChange={e => setRespuesta(e.target.value)}
                                                 rows={3}
                                                 maxLength={2000}
-                                                placeholder="Respuesta para quien lo reportó (opcional). Le llega como aviso."
+                                                placeholder="¿Algo más que decirle? (opcional)"
                                                 className="w-full mt-3 bg-white border-2 border-slate-200 rounded-2xl p-3 text-sm text-slate-800 focus:border-[#0F6B78] outline-none"
                                             />
 

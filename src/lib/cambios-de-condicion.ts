@@ -97,7 +97,22 @@ export function etiquetaArea(codigo: string | null | undefined): string {
 export interface ResultadoDeRevision {
     codigo: string;
     etiqueta: string;
+    /** Lo que lee quien REVISA, al escoger el botón. */
     descripcion: string;
+    /**
+     * Lo que le llega a QUIEN LO REPORTÓ, y va siempre — se escriba o no una
+     * respuesta a mano.
+     *
+     * Antes el aviso decía solo la etiqueta: "Andrés Flores: Referido a
+     * médico." Cierto, y vacío para quien está en el pasillo: no dice qué pasa
+     * ahora ni si tiene que hacer algo. Medido el 08-sep-2026, los nueve
+     * reportes de piel se cerraron sin una sola respuesta escrita — no por
+     * descuido, sino porque escribir nueve veces lo mismo no lo hace nadie.
+     * Si la frase es siempre la misma, la escribe el sistema.
+     *
+     * La respuesta a mano no desaparece: se añade detrás cuando la hay.
+     */
+    paraQuienReporto: string;
     /**
      * Lo escribe el sistema, no se ofrece como botón.
      *
@@ -115,14 +130,21 @@ export const RESULTADOS: ResultadoDeRevision[] = [
     {
         codigo: 'ACTUALIZADO_EXPEDIENTE', etiqueta: 'Actualicé el expediente',
         descripcion: 'El cambio era real y el expediente ya lo refleja.',
+        paraQuienReporto: 'Tenías razón: el cambio era real y el expediente ya lo recoge.',
     },
     {
         codigo: 'EN_OBSERVACION', etiqueta: 'Queda en observación',
         descripcion: 'Todavía no hay suficiente para cambiar nada. Se vigila.',
+        paraQuienReporto: 'Se está vigilando. Todavía no hay suficiente para cambiar nada — si lo ves distinto, vuelve a reportarlo.',
     },
     {
         codigo: 'DERIVADO_MEDICO', etiqueta: 'Referido a médico',
-        descripcion: 'Necesita evaluación externa. Queda constancia de que se refirió.',
+        // Cómo funciona de verdad, contado por Andrés el 08-sep-2026:
+        // enfermería o administración manda la consulta al médico POR CORREO,
+        // y él responde con instrucciones, con tratamiento, o lo deja anotado
+        // para verlo en su próxima visita. No es una derivación abstracta.
+        descripcion: 'Se le manda la consulta al médico por correo. Contesta con instrucciones o lo deja para su próxima visita.',
+        paraQuienReporto: 'Se le consultó al médico por correo. Cuando conteste —con instrucciones, con tratamiento, o dejándolo para su próxima visita— se aplica aquí.',
     },
     {
         /**
@@ -141,12 +163,14 @@ export const RESULTADOS: ResultadoDeRevision[] = [
          */
         codigo: 'ULCERA_DECLARADA', etiqueta: 'Declaré la úlcera',
         descripcion: 'Crea la ficha en el módulo de UPP, con su plan y sus dos relojes.',
+        paraQuienReporto: 'Lo que reportaste es una úlcera. Ya está en el módulo, con su plan y su seguimiento.',
         /** No sale en la lista de botones: lo escribe el sistema al crear la ficha. */
         automatico: true,
     },
     {
         codigo: 'SIN_CAMBIO', etiqueta: 'Revisado, sin cambio',
         descripcion: 'Se miró y no procede. Vale registrarlo: el próximo turno no lo vuelve a reportar.',
+        paraQuienReporto: 'Se miró y no procede. Hiciste bien en reportarlo: ahora queda constancia de que se revisó.',
     },
 ];
 
@@ -158,6 +182,11 @@ export function esResultadoValido(codigo: string | null | undefined): boolean {
 
 export function etiquetaResultado(codigo: string | null | undefined): string | null {
     return (codigo && RES.get(codigo)?.etiqueta) || null;
+}
+
+/** Lo que se le dice a quien reportó. Siempre hay algo que decirle. */
+export function respuestaParaQuienReporto(codigo: string | null | undefined): string {
+    return (codigo && RES.get(codigo)?.paraQuienReporto) || 'Tu reporte fue revisado.';
 }
 
 /** Quién puede reportar: quien está en el pasillo. */
