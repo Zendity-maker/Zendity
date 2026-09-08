@@ -33,7 +33,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
-import { PUEDEN_RESOLVER } from '@/lib/hallazgos-zendi';
+import { PUEDEN_RESOLVER, SALIDAS, CONSTRUIDO } from '@/lib/hallazgos-zendi';
 import { esAreaValida, etiquetaArea } from '@/lib/cambios-de-condicion';
 import { notifyRoles } from '@/lib/notifications';
 
@@ -49,9 +49,9 @@ export const dynamic = 'force-dynamic';
  * nunca, que es exactamente lo que enseña a ignorar una pantalla. Un hueco del
  * sistema confirmado deja de contar cuando el hueco se tapa — no antes.
  */
-const ESTADOS = ['CONFIRMADO', 'DESCARTADO'];
-const CONSTRUIDO = 'CONSTRUIDO';
-const MINIMO_RAZON = 10;
+const ESTADOS = SALIDAS.map(s => s.codigo);
+const MINIMO_DESTINO = 4;
+
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
     const auth = await requireRole(PUEDEN_RESOLVER);
@@ -68,10 +68,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         if (!ESTADOS.includes(estado) && estado !== CONSTRUIDO) {
             return NextResponse.json({ success: false, error: 'Diga si es real o no' }, { status: 400 });
         }
-        if (estado === 'DESCARTADO' && nota.length < MINIMO_RAZON) {
+        /**
+         * LA RAZÓN YA NO SE EXIGE AL DESCARTAR. Con tres salidas, el botón que
+         * se escoge ES la razón: "no hace falta" ya dice lo que decía la nota
+         * obligatoria. Lo que sí se exige es el DESTINO cuando se dice que ya
+         * se puede documentar — sin él no hay nada que decirle a la cuidadora,
+         * y el aviso quedaría en "esto tiene un sitio" sin decir cuál.
+         */
+        if (estado === 'YA_EXISTE' && nota.trim().length < MINIMO_DESTINO) {
             return NextResponse.json({
                 success: false,
-                error: `Para descartarlo, diga por qué — al menos ${MINIMO_RAZON} caracteres.`,
+                error: 'Diga dónde se documenta: es lo único que le sirve a quien lo escribió.',
             }, { status: 400 });
         }
 
@@ -94,7 +101,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             return NextResponse.json({ success: false, error: 'Ya fue revisado.' }, { status: 409 });
         }
 
-        const abreCambio = estado === 'CONFIRMADO'
+        // Una alerta que nadie escaló abre trabajo pase lo que pase: da igual
+        // si el campo existía o no — lo que importa es que aquello no llegó a
+        // enfermería. Por eso vale tanto YA_EXISTE como CONFIRMADO.
+        const abreCambio = (estado === 'CONFIRMADO' || estado === 'YA_EXISTE')
             && h.tipo === 'ALERTA_NO_ESCALADA'
             && !!h.patientId;
 
@@ -167,10 +177,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         return NextResponse.json({
             success: true,
             mensaje: estado === CONSTRUIDO ? 'Marcado como construido. Deja de contar.'
-                : estado !== 'CONFIRMADO' ? 'Descartado.'
-                : creado ? `Confirmado. Se abrió en ${etiquetaArea(area)} para que enfermería lo cierre.`
-                : abreCambio ? 'Confirmado. Ya había un aviso abierto de ese residente en esa área.'
-                : 'Confirmado.',
+                : estado === 'DESCARTADO' ? 'Cerrado.'
+                : estado === 'YA_EXISTE'
+                    ? (creado
+                        ? `Anotado. Se abrió en ${etiquetaArea(area)}, y va en el resumen del lunes a quien escribió la nota.`
+                        : 'Anotado. Va en el resumen del lunes a quien escribió la nota.')
+                : creado ? `Para evaluar. Se abrió en ${etiquetaArea(area)} para que enfermería lo cierre.`
+                : abreCambio ? 'Para evaluar. Ya había un aviso abierto de ese residente en esa área.'
+                : 'Guardado en la lista de dirección.',
         });
     } catch (error) {
         console.error('Resolver hallazgo:', error);

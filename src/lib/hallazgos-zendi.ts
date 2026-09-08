@@ -38,6 +38,7 @@
  */
 import { createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { AREAS_DE_CAMBIO } from '@/lib/cambios-de-condicion';
 
 export const TIPOS = ['SIN_CAMPO', 'CONTRADICCION', 'ALERTA_NO_ESCALADA'] as const;
 export type TipoHallazgo = typeof TIPOS[number];
@@ -220,3 +221,81 @@ export async function guardarHallazgos(
 
 /** Quién puede cerrar un hallazgo. El mismo criterio que revisar un cambio del piso. */
 export const PUEDEN_RESOLVER = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+/* ════════════════ QUÉ SE DECIDE SOBRE UN HALLAZGO ════════════════════════ */
+
+/**
+ * TRES SALIDAS, NO DOS — Y LA PREGUNTA ERA LA QUE ESTABA MAL.
+ *
+ * Había "¿es real?" con sí/no. Esa pregunta asume que cada hallazgo es una
+ * propuesta de producto que hay que aprobar o rechazar. Medido el 08-sep-2026
+ * sobre los 36 hallazgos de tipo SIN_CAMPO: 27 piden un campo QUE YA EXISTE.
+ * Seis pedían "un campo para registrar caídas" —hay módulo de caídas y su
+ * botón— y seis "un campo para lesiones de piel" —hay Alerta Piel/UPP—.
+ *
+ * Ante uno de esos, "¿es real?" no tiene buena respuesta: sí es real, la nota
+ * existe, pero no hay nada que construir. Por eso quien revisaba no sabía qué
+ * escribir al descartar. La pregunta estaba mal hecha.
+ *
+ * Y AL HABER TRES, LA RAZÓN OBLIGATORIA SOBRA. Con dos botones, "descartado"
+ * no decía nada y por eso se exigía una explicación. Ahora el botón que se
+ * escoge ES la razón.
+ *
+ * Los códigos CONFIRMADO y DESCARTADO se conservan aunque la etiqueta cambie:
+ * ya hay filas con ellos y renombrarlos rompería el historial por cosmética.
+ */
+export interface SalidaHallazgo {
+    codigo: string;
+    etiqueta: string;
+    ayuda: string;
+    /** Pide decir DÓNDE se documenta. Solo YA_EXISTE. */
+    pideDestino?: boolean;
+}
+
+export const SALIDAS: SalidaHallazgo[] = [
+    {
+        codigo: 'YA_EXISTE',
+        etiqueta: 'Ya se puede documentar',
+        ayuda: 'El sitio existe. Se le avisa a quien escribió la nota dónde va, con sus propias palabras.',
+        pideDestino: true,
+    },
+    {
+        codigo: 'CONFIRMADO',
+        etiqueta: 'Sí, para evaluar',
+        ayuda: 'El hueco es real. Pasa a la lista de dirección, en el reporte de los lunes.',
+    },
+    {
+        codigo: 'DESCARTADO',
+        etiqueta: 'No hace falta',
+        ayuda: 'Ni existe ni merece construirse. Se cierra.',
+    },
+];
+
+/**
+ * Estados terminales, cada uno cierra su camino:
+ *   CONFIRMADO -> CONSTRUIDO   dirección tapó el hueco
+ *   YA_EXISTE  -> AVISADO      el resumen semanal ya salió
+ */
+export const CONSTRUIDO = 'CONSTRUIDO';
+export const AVISADO = 'AVISADO';
+
+/**
+ * DÓNDE SE DOCUMENTA — lo dice la persona que revisa, no un mapa.
+ *
+ * Un mapa automático entre "lo que Zendi sugiere" y "el botón que existe"
+ * tendría que mantenerse cada vez que se construye algo, y a los tres meses
+ * mentiría. Quien revisa sabe dónde va cada cosa y decirlo es un clic; ese
+ * conocimiento no se desactualiza.
+ *
+ * Se guarda el TEXTO, no un código: es lo que va a leer la cuidadora, y si
+ * mañana cambia esta lista, las filas viejas siguen diciendo algo cierto.
+ */
+export const DESTINOS: string[] = [
+    'El botón de Caída, en la tableta',
+    'Alerta Piel / UPP, en la tableta',
+    'Vitales — presión, pulso, temperatura, saturación',
+    'eMAR — motivo al omitir un medicamento',
+    'Registro nutricional — motivo del rechazo',
+    'Traslado a emergencias',
+    ...AREAS_DE_CAMBIO.map(a => `"Algo cambió en el residente" → ${a.etiqueta}`),
+];

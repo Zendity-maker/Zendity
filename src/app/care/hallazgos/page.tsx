@@ -12,6 +12,7 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
+import { SALIDAS, DESTINOS } from "@/lib/hallazgos-zendi";
 import { Loader2, CheckCircle2, Sparkles, Clock } from "lucide-react";
 import { ETIQUETA_TIPO_LARGA, type TipoHallazgo } from "@/lib/hallazgos-zendi";
 
@@ -51,7 +52,6 @@ export default function HallazgosPage() {
      * una pantalla.
      */
     const [viendo, setViendo] = useState<'PENDIENTE' | 'CONFIRMADO'>('PENDIENTE');
-    const [abierto, setAbierto] = useState<string | null>(null);
     const [nota, setNota] = useState("");
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,6 +69,9 @@ export default function HallazgosPage() {
      */
     const [confirmando, setConfirmando] = useState<string | null>(null);
     const [area, setArea] = useState("");
+    /** Qué salida se escogió, y dónde se documenta si es "ya existe". */
+    const [salida, setSalida] = useState<string>("");
+    const [destino, setDestino] = useState("");
 
     const cargar = useCallback(async () => {
         try {
@@ -85,17 +88,25 @@ export default function HallazgosPage() {
 
     useEffect(() => { setCargando(true); cargar(); }, [cargar]);
 
-    const resolver = async (id: string, estado: 'CONFIRMADO' | 'DESCARTADO' | 'CONSTRUIDO') => {
+    const resolver = async (id: string, estado: string) => {
         setGuardando(true); setError(null);
         try {
             const res = await fetch(`/api/care/hallazgos/${id}/resolver`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ estado, nota: nota.trim(), area: area || undefined }),
+                body: JSON.stringify({
+                    estado,
+                    // Para YA_EXISTE la nota ES el destino: lo que se le dice a
+                    // quien escribió. Para el resto sigue siendo lo que se quiera
+                    // añadir, y ya no es obligatorio.
+                    nota: (estado === 'YA_EXISTE' ? destino : nota).trim(),
+                    area: area || undefined,
+                }),
             });
             const data = await res.json();
             if (!data.success) { setError(data.error || 'No se pudo guardar'); return; }
-            setAbierto(null); setNota(""); setConfirmando(null); setArea("");
+            setNota(""); setConfirmando(null); setArea("");
+            setSalida(""); setDestino("");
             if (data.mensaje) setAviso(data.mensaje);
             await cargar();
         } catch { setError('Error de red'); }
@@ -171,7 +182,6 @@ export default function HallazgosPage() {
                 ) : (
                     <div className="space-y-3">
                         {hallazgos.map(h => {
-                            const estaAbierto = abierto === h.id;
                             return (
                                 <div key={h.id} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                                     <div className="p-5">
@@ -220,111 +230,118 @@ export default function HallazgosPage() {
                                             </button>
                                         )}
 
-                                        {viendo === 'PENDIENTE' && !estaAbierto && confirmando !== h.id && (
-                                            <div className="flex gap-2 mt-4">
-                                                <button
-                                                    onClick={() => { setAbierto(h.id); setNota(""); setError(null); }}
-                                                    className="flex-1 min-h-[48px] bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-colors"
-                                                >
-                                                    No aplica
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        // Una alerta que nadie escalo abre trabajo real,
-                                                        // asi que pregunta el area. Lo demas se confirma
-                                                        // de un toque: es una idea de producto.
-                                                        if (h.tipo === 'ALERTA_NO_ESCALADA' && h.residente) {
-                                                            setConfirmando(h.id); setArea(""); setError(null);
-                                                        } else {
-                                                            resolver(h.id, 'CONFIRMADO');
-                                                        }
-                                                    }}
-                                                    disabled={guardando}
-                                                    className="flex-1 min-h-[48px] bg-[#0F6B78] hover:bg-[#0d5a64] disabled:opacity-40 text-white font-black rounded-2xl transition-colors"
-                                                >
-                                                    Sí, es real
-                                                </button>
+                                        {viendo === 'PENDIENTE' && confirmando !== h.id && (
+                                            <div className="mt-4 space-y-2">
+                                                {SALIDAS.map(sa => (
+                                                    <button
+                                                        key={sa.codigo}
+                                                        onClick={() => {
+                                                            setSalida(sa.codigo); setError(null); setNota(""); setDestino("");
+                                                            // "Ya existe" pide destino; una alerta no escalada
+                                                            // pide ademas el area, porque abre trabajo.
+                                                            if (sa.pideDestino || (h.tipo === 'ALERTA_NO_ESCALADA' && h.residente)) {
+                                                                setConfirmando(h.id); setArea("");
+                                                            } else {
+                                                                resolver(h.id, sa.codigo);
+                                                            }
+                                                        }}
+                                                        disabled={guardando}
+                                                        className={`w-full text-left px-4 py-3 rounded-2xl border-2 transition-colors disabled:opacity-40 ${
+                                                            sa.codigo === 'YA_EXISTE'
+                                                                ? 'bg-[#0F6B78] text-white border-[#0F6B78] hover:bg-[#0d5a64]'
+                                                                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                                        }`}
+                                                    >
+                                                        <span className="block font-black text-sm">{sa.etiqueta}</span>
+                                                        <span className={`block text-xs mt-0.5 leading-snug ${sa.codigo === 'YA_EXISTE' ? 'text-white/75' : 'text-slate-400'}`}>
+                                                            {sa.ayuda}
+                                                        </span>
+                                                    </button>
+                                                ))}
                                             </div>
                                         )}
 
                                         {/* CONFIRMAR UNA ALERTA NO ESCALADA ABRE TRABAJO.
                                             Se dice antes de pulsar, no despues. */}
                                         {confirmando === h.id && (
-                                            <div className="mt-4 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4">
-                                                <p className="text-xs font-black uppercase tracking-wider text-rose-800 mb-1">
-                                                    ¿En qué área cae?
-                                                </p>
-                                                <p className="text-xs text-rose-800/80 mb-3 leading-snug">
-                                                    Al confirmarlo se abre un aviso en Cambios del piso para
-                                                    {h.residente ? ` ${h.residente.nombre}` : ' el residente'}, y enfermería
-                                                    tiene que cerrarlo. Se atribuye a quien lo escribió, con su fecha.
-                                                </p>
-                                                <div className="grid grid-cols-2 gap-1.5">
-                                                    {AREAS_DE_CAMBIO.map(a => (
-                                                        <button
-                                                            key={a.codigo}
-                                                            onClick={() => setArea(a.codigo)}
-                                                            className={`px-3 py-2.5 rounded-xl text-sm font-bold border-2 text-left transition-colors ${
-                                                                area === a.codigo
-                                                                    ? 'bg-rose-600 text-white border-rose-700'
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-rose-300'
-                                                            }`}
-                                                        >{a.etiqueta}</button>
-                                                    ))}
-                                                </div>
-                                                {error && <p className="text-rose-700 text-sm font-bold mt-2">{error}</p>}
-                                                <div className="flex gap-2 mt-3">
+                                            <div className="mt-4 rounded-2xl border-2 border-[#0F6B78] bg-[#e1f5ee] p-4 space-y-3">
+                                                {salida === 'YA_EXISTE' && (
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase tracking-wider text-[#0F6B78] mb-1">
+                                                            ¿Dónde se documenta?
+                                                        </p>
+                                                        <p className="text-xs text-[#0F6B78]/80 mb-2.5 leading-snug">
+                                                            Esto es lo que va a leer en el resumen del lunes quien escribió la nota,
+                                                            junto a su propia nota. Lo dices tú porque tú sabes dónde va.
+                                                        </p>
+                                                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                                                            {DESTINOS.map(d => (
+                                                                <button
+                                                                    key={d}
+                                                                    onClick={() => setDestino(d)}
+                                                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-bold border-2 transition-colors ${
+                                                                        destino === d ? 'bg-[#0F6B78] text-white border-[#0d5a64]' : 'bg-white text-slate-700 border-slate-200 hover:border-[#0F6B78]/50'
+                                                                    }`}
+                                                                >{d}</button>
+                                                            ))}
+                                                        </div>
+                                                        {/* La salida honesta: si el sitio no esta en la lista,
+                                                            se escribe. Una lista cerrada haria que se escogiera
+                                                            el menos equivocado. */}
+                                                        <input
+                                                            type="text"
+                                                            value={DESTINOS.includes(destino) ? '' : destino}
+                                                            onChange={e => setDestino(e.target.value)}
+                                                            maxLength={200}
+                                                            placeholder="…o escríbelo tú, si no está en la lista"
+                                                            className="w-full mt-2 p-3 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-[#0F6B78] bg-white"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {h.tipo === 'ALERTA_NO_ESCALADA' && h.residente && (
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase tracking-wider text-rose-800 mb-1">¿En qué área cae?</p>
+                                                        <p className="text-xs text-rose-800/80 mb-2.5 leading-snug">
+                                                            Esto además abre un aviso en Cambios del piso para {h.residente.nombre}, porque
+                                                            nadie lo escaló en su momento. Se atribuye a quien lo escribió, con su fecha.
+                                                        </p>
+                                                        <div className="grid grid-cols-2 gap-1.5">
+                                                            {AREAS_DE_CAMBIO.map(a => (
+                                                                <button
+                                                                    key={a.codigo}
+                                                                    onClick={() => setArea(a.codigo)}
+                                                                    className={`px-3 py-2.5 rounded-xl text-sm font-bold border-2 text-left transition-colors ${
+                                                                        area === a.codigo ? 'bg-rose-600 text-white border-rose-700' : 'bg-white text-slate-700 border-slate-200 hover:border-rose-300'
+                                                                    }`}
+                                                                >{a.etiqueta}</button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {error && <p className="text-rose-700 text-sm font-bold">{error}</p>}
+                                                <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => { setConfirmando(null); setArea(""); setError(null); }}
+                                                        onClick={() => { setConfirmando(null); setArea(""); setDestino(""); setSalida(""); setError(null); }}
                                                         className="px-5 min-h-[48px] bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl"
                                                     >
                                                         Cancelar
                                                     </button>
                                                     <button
-                                                        onClick={() => resolver(h.id, 'CONFIRMADO')}
-                                                        disabled={guardando || !area}
-                                                        className="flex-1 min-h-[48px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                                                        onClick={() => resolver(h.id, salida)}
+                                                        disabled={guardando
+                                                            || (salida === 'YA_EXISTE' && destino.trim().length < 4)
+                                                            || (h.tipo === 'ALERTA_NO_ESCALADA' && !!h.residente && !area)}
+                                                        className="flex-1 min-h-[48px] bg-[#0F6B78] hover:bg-[#0d5a64] disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
                                                     >
-                                                        {guardando ? 'Guardando…' : 'Confirmar y abrir el aviso'}
+                                                        {guardando ? 'Guardando…' : 'Guardar'}
                                                     </button>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    {estaAbierto && (
-                                        <div className="px-5 pb-5 pt-1 border-t border-slate-100 bg-slate-50/60">
-                                            <p className="text-xs font-black uppercase tracking-wider text-slate-500 mt-4 mb-2">
-                                                ¿Por qué no aplica?
-                                            </p>
-                                            {/* Sin razón, dentro de dos meses nadie sabrá si se
-                                                descartó porque era falso o porque no había tiempo. */}
-                                            <textarea
-                                                value={nota}
-                                                onChange={e => setNota(e.target.value)}
-                                                rows={3}
-                                                maxLength={2000}
-                                                placeholder="Ej. Ya está registrado en el plan de cuido, Zendi no lo vio."
-                                                className="w-full bg-white border-2 border-slate-200 rounded-2xl p-3 text-sm text-slate-800 focus:border-[#0F6B78] outline-none"
-                                            />
-                                            {error && <p className="text-rose-600 text-sm font-bold mt-2">{error}</p>}
-                                            <div className="flex gap-2 mt-3">
-                                                <button
-                                                    onClick={() => { setAbierto(null); setError(null); }}
-                                                    className="px-5 min-h-[48px] bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-colors"
-                                                >
-                                                    Cancelar
-                                                </button>
-                                                <button
-                                                    onClick={() => resolver(h.id, 'DESCARTADO')}
-                                                    disabled={guardando || nota.trim().length < 10}
-                                                    className="flex-1 min-h-[48px] bg-slate-700 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
-                                                >
-                                                    {guardando ? 'Guardando…' : 'Descartar'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
