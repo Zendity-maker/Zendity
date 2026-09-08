@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { ACTIVE_PRESENCE_MAX_HOURS } from '@/lib/shift-coverage';
 import { TicketStatus } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
         }
 
         const today = todayStartAST();
+        const capPresencia = new Date(Date.now() - ACTIVE_PRESENCE_MAX_HOURS * 60 * 60 * 1000);
         const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
         const hqFilter = effectiveHqId === 'ALL' ? {} : { headquartersId: effectiveHqId };
@@ -56,7 +58,11 @@ export async function GET(request: NextRequest) {
         ] = await Promise.all([
             // 1. Cuidadores con sesión abierta hoy
             prisma.shiftSession.findMany({
-                where: { ...hqFilter, actualEndTime: null, startTime: { gte: today } },
+                // Presencia = cap deslizante de 16h, NO la frontera de las 6am.
+                // `today` aqui es todayStartAST() = el corte de las 6:00 del dia
+                // clinico, asi que este tablero perdia el turno nocturno entero
+                // y a quien ponchara antes de las 6. Ver ACTIVE_PRESENCE_MAX_HOURS.
+                where: { ...hqFilter, actualEndTime: null, startTime: { gte: capPresencia } },
                 select: {
                     id: true,
                     startTime: true,
