@@ -297,5 +297,8 @@ export const DESTINOS: string[] = [
     'eMAR — motivo al omitir un medicamento',
     'Registro nutricional — motivo del rechazo',
     'Traslado a emergencias',
+    // Lo escribió Andrés a mano el 08-sep al revisar: la lista no lo tenía y la
+    // salida honesta hizo su trabajo. Se añade para que nadie más lo escriba.
+    'El botón de salida al hospital',
     ...AREAS_DE_CAMBIO.map(a => `"Algo cambió en el residente" → ${a.etiqueta}`),
 ];

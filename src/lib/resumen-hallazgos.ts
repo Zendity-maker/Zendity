@@ -59,10 +59,33 @@ interface Pieza {
     dondes: string[];
 }
 
+/**
+ * MODO PRUEBA: manda TODOS los correos a una sola dirección y no toca nada.
+ *
+ * Sin esto, la única forma de ver este correo era mandárselo de verdad a tres
+ * cuidadoras — y además el envío las marca AVISADO, así que el lunes ya no
+ * saldría. Un correo que solo se puede probar mandándolo se prueba poco, y este
+ * en concreto no se puede "probar otra vez".
+ *
+ * En prueba: no marca AVISADO, no manda la campana, y el asunto lleva [PRUEBA]
+ * con el nombre de a quién le habría llegado.
+ */
+export interface OpcionesResumen {
+    /**
+     * `paraCorreo` manda todo a una direccion. `escribirEn` no manda nada y
+     * guarda el HTML en esa carpeta — util cuando SendGrid no esta configurado
+     * (las claves viven en Vercel, no en el .env del repo) y para ver los tres
+     * correos de golpe en vez de uno por bandeja.
+     */
+    prueba?: { paraCorreo?: string; escribirEn?: string };
+}
+
 export async function enviarResumenHallazgos(
     sedeId: string,
     sedeNombre: string,
+    opciones: OpcionesResumen = {},
 ): Promise<ResultadoResumen> {
+    const prueba = opciones.prueba;
     /**
      * YA_EXISTE y todavía sin avisar. Al mandarlo pasan a AVISADO, así que un
      * segundo pase el mismo lunes no repite nada.
@@ -135,14 +158,15 @@ export async function enviarResumenHallazgos(
          * El aviso en la campana va SIEMPRE, tenga correo o no. El correo es
          * mejor para leerlo con calma; la campana es la que no falla.
          */
-        notifyUser(p.id, {
+        if (!prueba) notifyUser(p.id, {
             type: 'SHIFT_ALERT',
             title: piezas.length === 1 ? 'Un atajo para lo que escribiste' : `${piezas.length} atajos para lo que escribiste`,
             message: `${piezas[0].loQueEscribio.slice(0, 80)}… → ${piezas[0].dondes[0]}`,
             link: '/care',
         }).catch(e => console.error('[resumen-hallazgos] campana:', e));
 
-        if (puedeCorreo && p.email?.includes('@')) {
+        const destinatario = prueba?.paraCorreo ?? p.email;
+        if (prueba?.escribirEn || (puedeCorreo && destinatario?.includes('@'))) {
             const filas = piezas.map(x => `
 <div style="border-left:3px solid #0F6E56;padding:0 0 0 14px;margin:0 0 18px;">
 <p style="margin:0 0 4px;font-size:14px;color:#3D4B45;font-style:italic;">"${x.loQueEscribio.slice(0, 240)}"</p>
@@ -150,12 +174,13 @@ export async function enviarResumenHallazgos(
 <p style="margin:0;font-size:14px;color:#12211D;"><strong>Eso tiene su sitio:</strong> ${x.dondes.join(' · ')}</p>
 </div>`).join('');
 
-            await sgMail.send({
-                to: p.email,
+            const mensaje = {
+                to: destinatario ?? '',
                 from: remitente!,
-                subject: piezas.length === 1
-                    ? 'Un atajo para algo que escribiste esta semana'
-                    : `${piezas.length} atajos para cosas que escribiste esta semana`,
+                subject: (prueba ? `[PRUEBA — iría a ${nombre}] ` : '')
+                    + (piezas.length === 1
+                        ? 'Un atajo para algo que escribiste esta semana'
+                        : `${piezas.length} atajos para cosas que escribiste esta semana`),
                 html: `<meta charset="utf-8"><div style="background:#ffffff;color:#12211D;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.65;padding:28px;max-width:560px;margin:0 auto;">
 <p style="margin:0 0 6px;font-size:18px;font-weight:800;">${nombre}, esto lo escribiste tú</p>
 <p style="margin:0 0 20px;font-size:14px;color:#66766F;">${sedeNombre}</p>
@@ -171,10 +196,18 @@ ${filas}
 <p style="margin:0 0 18px;font-size:13px;color:#66766F;">Si crees que el sitio que te decimos no es el correcto, dilo en el relevo — a lo mejor el equivocado es el botón.</p>
 <p style="margin:0;font-size:13px;color:#66766F;">Se entra por <strong>Zendity Care</strong> en app.zendity.com.</p>
 </div>`,
-            });
+            };
+            if (prueba?.escribirEn) {
+                const { writeFileSync } = await import('fs');
+                const { join } = await import('path');
+                const limpio = (p.name ?? p.id).trim().replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+                writeFileSync(join(prueba.escribirEn, `atajos-${limpio}.html`), mensaje.html);
+            } else {
+                await sgMail.send(mensaje);
+            }
             enviados++;
         }
-        avisados.push(...piezas.flatMap(x => x.hallazgoIds));
+        if (!prueba) avisados.push(...piezas.flatMap(x => x.hallazgoIds));
     }
 
     if (avisados.length) {
@@ -184,5 +217,11 @@ ${filas}
         });
     }
 
-    return { sede: sedeNombre, personas: personas.length, hallazgos: avisados.length, ...(enviados === 0 ? { saltada: 'solo campana, sin correo' } : {}) };
+    return {
+        sede: sedeNombre,
+        personas: personas.length,
+        hallazgos: prueba ? 0 : avisados.length,
+        ...(prueba ? { saltada: `PRUEBA — ${enviados} ${prueba.escribirEn ? `HTML en ${prueba.escribirEn}` : `correos a ${prueba.paraCorreo}`}, nada marcado` }
+            : enviados === 0 ? { saltada: 'solo campana, sin correo' } : {}),
+    };
 }

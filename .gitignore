@@ -70,6 +70,8 @@ scripts/*
 !scripts/guia-cambios-sep2026-b.ts
 # Papeles de la reunion: hoja de ruta de piel + formularios de tratamiento
 !scripts/papeles-de-la-reunion.ts
+# Ver el resumen de atajos sin mandarselo a las cuidadoras
+!scripts/probar-resumen-hallazgos.ts
 # Migración de catálogo Academy — se reusa al abrir cada sede nueva
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva
