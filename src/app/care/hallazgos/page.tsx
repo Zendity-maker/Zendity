@@ -37,6 +37,20 @@ export default function HallazgosPage() {
     const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
     const [cargando, setCargando] = useState(true);
     const [aviso, setAviso] = useState<string | null>(null);
+    /**
+     * LOS CONFIRMADOS NO PUEDEN DESAPARECER.
+     *
+     * Los SIN_CAMPO confirmados son la lista de lo que le falta a Zéndity — el
+     * hueco de la fecha de fallecimiento, el del estado final de una úlcera que
+     * no sanó (que se construyó el 07-sep sin saber que Zendi ya lo había
+     * encontrado). Se marcaban y se iban de la pantalla, así que la lista no
+     * vivía en ningún sitio donde alguien fuera a leerla al decidir qué hacer.
+     *
+     * Aquí se ven, y desde aquí se marcan CONSTRUIDO cuando el hueco se tapa.
+     * Sin ese segundo paso la lista solo crece, que es lo que enseña a ignorar
+     * una pantalla.
+     */
+    const [viendo, setViendo] = useState<'PENDIENTE' | 'CONFIRMADO'>('PENDIENTE');
     const [abierto, setAbierto] = useState<string | null>(null);
     const [nota, setNota] = useState("");
     const [guardando, setGuardando] = useState(false);
@@ -58,16 +72,20 @@ export default function HallazgosPage() {
 
     const cargar = useCallback(async () => {
         try {
-            const res = await fetch('/api/care/hallazgos');
+            const res = await fetch(viendo === 'CONFIRMADO' ? '/api/care/hallazgos?historial=1' : '/api/care/hallazgos');
             const data = await res.json();
-            if (data.success) setHallazgos(data.hallazgos);
+            if (data.success) {
+                setHallazgos(viendo === 'CONFIRMADO'
+                    ? (data.hallazgos ?? []).filter((h: { estado: string }) => h.estado === 'CONFIRMADO')
+                    : data.hallazgos);
+            }
         } catch { /* la pantalla se queda como está */ }
         finally { setCargando(false); }
-    }, []);
+    }, [viendo]);
 
-    useEffect(() => { cargar(); }, [cargar]);
+    useEffect(() => { setCargando(true); cargar(); }, [cargar]);
 
-    const resolver = async (id: string, estado: 'CONFIRMADO' | 'DESCARTADO') => {
+    const resolver = async (id: string, estado: 'CONFIRMADO' | 'DESCARTADO' | 'CONSTRUIDO') => {
         setGuardando(true); setError(null);
         try {
             const res = await fetch(`/api/care/hallazgos/${id}/resolver`, {
@@ -99,6 +117,32 @@ export default function HallazgosPage() {
                 {/* Lo que paso al confirmar. Un "Confirmado." a secas no dice si se
 
                     abrio trabajo para alguien o si solo se archivo. */}
+
+                {/* Pendientes y confirmados. Los confirmados son el backlog de Zendity:
+
+                    si no se ven, no se construyen. */}
+
+                <div className="flex gap-1.5 mb-4">
+
+                    {([['PENDIENTE', 'Por decidir'], ['CONFIRMADO', 'Confirmados — falta construirlos']] as const).map(([v, etiqueta]) => (
+
+                        <button
+
+                            key={v}
+
+                            onClick={() => setViendo(v)}
+
+                            className={`px-4 py-2 rounded-xl text-sm font-black border-2 transition-colors ${
+
+                                viendo === v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+
+                            }`}
+
+                        >{etiqueta}</button>
+
+                    ))}
+
+                </div>
 
                 {aviso && (
 
@@ -166,7 +210,17 @@ export default function HallazgosPage() {
                                             </p>
                                         )}
 
-                                        {!estaAbierto && confirmando !== h.id && (
+                                        {viendo === 'CONFIRMADO' && (
+                                            <button
+                                                onClick={() => resolver(h.id, 'CONSTRUIDO')}
+                                                disabled={guardando}
+                                                className="mt-4 w-full min-h-[48px] bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black rounded-2xl transition-colors"
+                                            >
+                                                Ya está construido — quitarlo de la lista
+                                            </button>
+                                        )}
+
+                                        {viendo === 'PENDIENTE' && !estaAbierto && confirmando !== h.id && (
                                             <div className="flex gap-2 mt-4">
                                                 <button
                                                     onClick={() => { setAbierto(h.id); setNota(""); setError(null); }}

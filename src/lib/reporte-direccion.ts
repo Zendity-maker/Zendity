@@ -238,7 +238,45 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         total: 0,
     };
 
-    const bloques = [bloque1, bloque2, bloque3, bloque4, bloque5];
+    /* ── Lo que Zendi encontró que le falta al sistema ─────────────────── */
+    /**
+     * ESTO NO ES TRABAJO DEL HOGAR. Es el backlog de Zéndity.
+     *
+     * Zendi lee las notas de turno cada lunes y encuentra sitios donde alguien
+     * escribió a mano algo que debería tener su campo. Cuando dirección lo
+     * confirma, ese hueco pasa a ser una decisión de producto — y hasta hoy se
+     * marcaba y desaparecía de la pantalla, así que la lista no vivía en ningún
+     * sitio donde alguien fuera a leerla al decidir qué construir.
+     *
+     * Solo salen los CONFIRMADOS que todavía no se han construido: al marcarlos
+     * CONSTRUIDO dejan de contar. Una lista que solo crece se ignora.
+     *
+     * Va en el reporte de dirección y no en los otros dos a propósito: una
+     * enfermera no puede hacer nada con "falta un campo para la saturación de
+     * oxígeno", y contárselo es gastar la media hora que va a prestar.
+     */
+    const huecos = await prisma.hallazgoZendi.findMany({
+        where: { headquartersId: sedeId, estado: 'CONFIRMADO', tipo: 'SIN_CAMPO' },
+        orderBy: { revisadoAt: 'asc' },
+        select: { sugerencia: true, resumen: true, revisadoAt: true },
+        take: 30,
+    });
+    const bloque6: BloqueReporte = {
+        numero: 6,
+        titulo: 'Huecos del sistema que confirmaste',
+        consecuencia: 'Zéndity los tiene pendientes de construir. No es trabajo del hogar.',
+        lineas: huecos.length ? [{
+            texto: 'Confirmados y sin construir',
+            casos: huecos.map(h => {
+                const dias = h.revisadoAt ? Math.floor((ahora.getTime() - h.revisadoAt.getTime()) / 86400000) : null;
+                return `${(h.sugerencia || h.resumen).trim()}${dias !== null ? ` — confirmado hace ${dias} día${dias === 1 ? '' : 's'}` : ''}`;
+            }),
+            total: huecos.length,
+        }] : [],
+        total: 0,
+    };
+
+    const bloques = [bloque1, bloque2, bloque3, bloque4, bloque5, bloque6];
     for (const b of bloques) {
         b.lineas = b.lineas.filter(l => l.total > 0);
         b.total = b.lineas.reduce((n, l) => n + l.total, 0);
@@ -254,6 +292,6 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         // Para dirección lo pendiente es el número de DECISIONES, no la suma de
         // todo: sumar 114 y 368 daría un número que no significa nada.
         totalPendiente: recs.length,
-        frentesRevisados: 5,
+        frentesRevisados: 6,
     };
 }

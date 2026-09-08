@@ -39,7 +39,18 @@ import { notifyRoles } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * LOS ESTADOS, Y QUÉ TRANSICIÓN ES LEGÍTIMA.
+ *
+ *   PENDIENTE  -> CONFIRMADO | DESCARTADO   lo decide quien lo lee
+ *   CONFIRMADO -> CONSTRUIDO                lo marca dirección al construirlo
+ *
+ * CONSTRUIDO existe porque sin él la lista de confirmados crece y no baja
+ * nunca, que es exactamente lo que enseña a ignorar una pantalla. Un hueco del
+ * sistema confirmado deja de contar cuando el hueco se tapa — no antes.
+ */
 const ESTADOS = ['CONFIRMADO', 'DESCARTADO'];
+const CONSTRUIDO = 'CONSTRUIDO';
 const MINIMO_RAZON = 10;
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -54,7 +65,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         // Solo para ALERTA_NO_ESCALADA confirmada: en qué área cae.
         const area = String(body.area ?? '').trim();
 
-        if (!ESTADOS.includes(estado)) {
+        if (!ESTADOS.includes(estado) && estado !== CONSTRUIDO) {
             return NextResponse.json({ success: false, error: 'Diga si es real o no' }, { status: 400 });
         }
         if (estado === 'DESCARTADO' && nota.length < MINIMO_RAZON) {
@@ -73,7 +84,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
             },
         });
         if (!h) return NextResponse.json({ success: false, error: 'No encontrado' }, { status: 404 });
-        if (h.estado !== 'PENDIENTE') {
+        // Marcar construido parte de CONFIRMADO, no de PENDIENTE: no se puede
+        // dar por construido algo que nadie ha dicho todavia que haga falta.
+        if (estado === CONSTRUIDO) {
+            if (h.estado !== 'CONFIRMADO') {
+                return NextResponse.json({ success: false, error: 'Solo se marca construido lo que ya se confirmó.' }, { status: 409 });
+            }
+        } else if (h.estado !== 'PENDIENTE') {
             return NextResponse.json({ success: false, error: 'Ya fue revisado.' }, { status: 409 });
         }
 
@@ -110,7 +127,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
                     estado,
                     revisadoAt: new Date(),
                     revisadoPorId: auth.id,
-                    nota: nota.slice(0, 2000) || null,
+                    // Marcar construido no borra la razon con la que se confirmo.
+                    ...(nota ? { nota: nota.slice(0, 2000) } : estado === CONSTRUIDO ? {} : { nota: null }),
                 },
             });
 
@@ -148,7 +166,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
         return NextResponse.json({
             success: true,
-            mensaje: estado !== 'CONFIRMADO' ? 'Descartado.'
+            mensaje: estado === CONSTRUIDO ? 'Marcado como construido. Deja de contar.'
+                : estado !== 'CONFIRMADO' ? 'Descartado.'
                 : creado ? `Confirmado. Se abrió en ${etiquetaArea(area)} para que enfermería lo cierre.`
                 : abreCambio ? 'Confirmado. Ya había un aviso abierto de ese residente en esa área.'
                 : 'Confirmado.',
