@@ -72,6 +72,8 @@ scripts/*
 !scripts/papeles-de-la-reunion.ts
 # Ver el resumen de atajos sin mandarselo a las cuidadoras
 !scripts/probar-resumen-hallazgos.ts
+# Hoja para registrar las caidas que quedaron solo en una nota
+!scripts/hoja-de-caidas.ts
 # Migración de catálogo Academy — se reusa al abrir cada sede nueva
 !scripts/academy-roles-y-puntos.ts
 # Cursos de Fase 2 (formación del oficio) — se siembra en cada sede nueva
