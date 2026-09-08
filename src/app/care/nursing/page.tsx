@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import DeclareUlcerModal from "@/components/medical/upps/DeclareUlcerModal";
 import { descargarFormularioUppPDF } from "@/lib/formulario-tratamiento-upp";
-import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, puedeRegistrar, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
+import { TIPOS_UPP, MOTIVOS_CAMBIO, MOTIVOS_CIERRE, DIAS_SIN_CURACION, puedeRegistrar, etiquetaDeMotivo, type TipoRegistroUpp } from "@/lib/upp";
 import {
     AlertTriangle, Clock, CheckCircle2, AlertOctagon, Loader2, RefreshCw,
     Bandage, ShieldAlert, Activity, Bed, Heart, ArrowLeft, Building2, HelpCircle,
@@ -694,22 +694,43 @@ export default function NursingRotationPage() {
                                             las demas detras de un "+1". Los dias sin curacion van
                                             en la etiqueta porque son el dato que decide si hay algo
                                             que hacer hoy; a partir de 7 se pinta en ambar. */}
-                                        {p.activeUlcers.map(u => (
+                                        {/* ESTA ETIQUETA ES UN BOTÓN, Y TIENE QUE PARECERLO.
+                                            Iba en el mismo tono suave que ENCAMADO y
+                                            NORTON, que son etiquetas muertas. Andrés
+                                            la tuvo delante y no la encontró: no había
+                                            nada que dijera que se tocaba. Ahora va
+                                            rellena, con sombra y con la palabra
+                                            "REGISTRAR" — el único elemento de la fila
+                                            que se ve como una acción.
+
+                                            Y EL COLOR SE INVIERTE. Antes ámbar era
+                                            "más de 7 días" y rosa "al día", o sea que
+                                            la de 79 días se veía MENOS grave que una
+                                            recién curada. Rojo es vencida, gris es al
+                                            día. El color tiene que empujar en la misma
+                                            dirección que el número. */}
+                                        {p.activeUlcers.map(u => {
+                                            const vencida = u.diasSinCuracion >= DIAS_SIN_CURACION;
+                                            return (
                                             <button
                                                 key={u.id}
                                                 onClick={() => abrirCuracion(u, p.name, p.roomNumber)}
-                                                title={`Última curación hace ${u.diasSinCuracion} día(s). Toca para registrar una.`}
-                                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full inline-flex items-center gap-1 border transition-colors ${
-                                                    u.diasSinCuracion >= 7
-                                                        ? 'text-amber-900 bg-amber-50 border-amber-300 hover:bg-amber-100'
-                                                        : 'text-rose-800 bg-rose-50 border-rose-200 hover:bg-rose-100'
+                                                title={`Última curación hace ${u.diasSinCuracion} día(s). Toca para registrar.`}
+                                                className={`text-[10px] font-black uppercase tracking-wider pl-2 pr-1.5 py-1.5 rounded-full inline-flex items-center gap-1.5 shadow-sm transition-all hover:shadow-md active:scale-95 ${
+                                                    vencida
+                                                        ? 'bg-rose-600 text-white hover:bg-rose-700'
+                                                        : 'bg-slate-700 text-white hover:bg-slate-800'
                                                 }`}
                                             >
-                                                <Bandage className="w-3 h-3" />
+                                                <Bandage className="w-3 h-3 shrink-0" />
                                                 UPP {u.bodyLocation} E{u.stage}
-                                                <span className="opacity-60">· {u.diasSinCuracion}d</span>
+                                                <span className={vencida ? 'text-rose-200' : 'text-slate-300'}>· {u.diasSinCuracion}d</span>
+                                                <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] ${vencida ? 'bg-white/20' : 'bg-white/15'}`}>
+                                                    REGISTRAR
+                                                </span>
                                             </button>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
 
                                     {/* Salida del estado "Riesgo Norton — sin orden".
