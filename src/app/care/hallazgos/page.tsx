@@ -11,7 +11,7 @@
  * al lado. El porqué completo está en src/lib/hallazgos-zendi.ts.
  */
 import { useEffect, useState, useCallback } from "react";
-import AppLayout from "@/components/AppLayout";
+import { AREAS_DE_CAMBIO } from "@/lib/cambios-de-condicion";
 import { Loader2, CheckCircle2, Sparkles, Clock } from "lucide-react";
 import { ETIQUETA_TIPO_LARGA, type TipoHallazgo } from "@/lib/hallazgos-zendi";
 
@@ -36,10 +36,25 @@ const COLOR: Record<string, string> = {
 export default function HallazgosPage() {
     const [hallazgos, setHallazgos] = useState<Hallazgo[]>([]);
     const [cargando, setCargando] = useState(true);
+    const [aviso, setAviso] = useState<string | null>(null);
     const [abierto, setAbierto] = useState<string | null>(null);
     const [nota, setNota] = useState("");
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /**
+     * En qué área cae una ALERTA_NO_ESCALADA al confirmarla.
+     *
+     * Solo estas necesitan área: son algo clínico que ya pasó y que nadie
+     * escaló, así que confirmarlas ABRE un cambio de condición en la cola de
+     * enfermería. Un SIN_CAMPO no — ese es una idea de producto y no genera
+     * trabajo de piso.
+     *
+     * El área la escoge la persona, no se adivina del texto: quien está
+     * leyendo el hallazgo sabe si "camina inclinado" es movilidad o dolor, y
+     * un acierto del 70% en una cola clínica es peor que preguntar.
+     */
+    const [confirmando, setConfirmando] = useState<string | null>(null);
+    const [area, setArea] = useState("");
 
     const cargar = useCallback(async () => {
         try {
@@ -58,18 +73,18 @@ export default function HallazgosPage() {
             const res = await fetch(`/api/care/hallazgos/${id}/resolver`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ estado, nota: nota.trim() }),
+                body: JSON.stringify({ estado, nota: nota.trim(), area: area || undefined }),
             });
             const data = await res.json();
             if (!data.success) { setError(data.error || 'No se pudo guardar'); return; }
-            setAbierto(null); setNota("");
+            setAbierto(null); setNota(""); setConfirmando(null); setArea("");
+            if (data.mensaje) setAviso(data.mensaje);
             await cargar();
         } catch { setError('Error de red'); }
         finally { setGuardando(false); }
     };
 
     return (
-        <AppLayout>
             <div className="max-w-3xl mx-auto p-4 md:p-8">
                 <div className="mb-6">
                     <h1 className="text-2xl md:text-3xl font-black text-slate-900 flex items-center gap-2">
@@ -80,6 +95,22 @@ export default function HallazgosPage() {
                         <strong className="text-slate-700"> No son hechos: son preguntas.</strong> Lee la frase original y decide.
                     </p>
                 </div>
+
+                {/* Lo que paso al confirmar. Un "Confirmado." a secas no dice si se
+
+                    abrio trabajo para alguien o si solo se archivo. */}
+
+                {aviso && (
+
+                    <div className="mb-4 rounded-2xl border-2 border-teal-200 bg-teal-50 px-4 py-3 flex items-start justify-between gap-3">
+
+                        <p className="text-sm font-bold text-teal-900">{aviso}</p>
+
+                        <button onClick={() => setAviso(null)} className="text-teal-700 font-black shrink-0">×</button>
+
+                    </div>
+
+                )}
 
                 {cargando ? (
                     <div className="flex items-center gap-3 text-slate-400 py-16 justify-center">
@@ -135,7 +166,7 @@ export default function HallazgosPage() {
                                             </p>
                                         )}
 
-                                        {!estaAbierto && (
+                                        {!estaAbierto && confirmando !== h.id && (
                                             <div className="flex gap-2 mt-4">
                                                 <button
                                                     onClick={() => { setAbierto(h.id); setNota(""); setError(null); }}
@@ -144,12 +175,65 @@ export default function HallazgosPage() {
                                                     No aplica
                                                 </button>
                                                 <button
-                                                    onClick={() => resolver(h.id, 'CONFIRMADO')}
+                                                    onClick={() => {
+                                                        // Una alerta que nadie escalo abre trabajo real,
+                                                        // asi que pregunta el area. Lo demas se confirma
+                                                        // de un toque: es una idea de producto.
+                                                        if (h.tipo === 'ALERTA_NO_ESCALADA' && h.residente) {
+                                                            setConfirmando(h.id); setArea(""); setError(null);
+                                                        } else {
+                                                            resolver(h.id, 'CONFIRMADO');
+                                                        }
+                                                    }}
                                                     disabled={guardando}
                                                     className="flex-1 min-h-[48px] bg-[#0F6B78] hover:bg-[#0d5a64] disabled:opacity-40 text-white font-black rounded-2xl transition-colors"
                                                 >
                                                     Sí, es real
                                                 </button>
+                                            </div>
+                                        )}
+
+                                        {/* CONFIRMAR UNA ALERTA NO ESCALADA ABRE TRABAJO.
+                                            Se dice antes de pulsar, no despues. */}
+                                        {confirmando === h.id && (
+                                            <div className="mt-4 rounded-2xl border-2 border-rose-300 bg-rose-50 p-4">
+                                                <p className="text-xs font-black uppercase tracking-wider text-rose-800 mb-1">
+                                                    ¿En qué área cae?
+                                                </p>
+                                                <p className="text-xs text-rose-800/80 mb-3 leading-snug">
+                                                    Al confirmarlo se abre un aviso en Cambios del piso para
+                                                    {h.residente ? ` ${h.residente.nombre}` : ' el residente'}, y enfermería
+                                                    tiene que cerrarlo. Se atribuye a quien lo escribió, con su fecha.
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-1.5">
+                                                    {AREAS_DE_CAMBIO.map(a => (
+                                                        <button
+                                                            key={a.codigo}
+                                                            onClick={() => setArea(a.codigo)}
+                                                            className={`px-3 py-2.5 rounded-xl text-sm font-bold border-2 text-left transition-colors ${
+                                                                area === a.codigo
+                                                                    ? 'bg-rose-600 text-white border-rose-700'
+                                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-rose-300'
+                                                            }`}
+                                                        >{a.etiqueta}</button>
+                                                    ))}
+                                                </div>
+                                                {error && <p className="text-rose-700 text-sm font-bold mt-2">{error}</p>}
+                                                <div className="flex gap-2 mt-3">
+                                                    <button
+                                                        onClick={() => { setConfirmando(null); setArea(""); setError(null); }}
+                                                        className="px-5 min-h-[48px] bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => resolver(h.id, 'CONFIRMADO')}
+                                                        disabled={guardando || !area}
+                                                        className="flex-1 min-h-[48px] bg-rose-600 hover:bg-rose-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black rounded-2xl transition-colors"
+                                                    >
+                                                        {guardando ? 'Guardando…' : 'Confirmar y abrir el aviso'}
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -193,6 +277,5 @@ export default function HallazgosPage() {
                     </div>
                 )}
             </div>
-        </AppLayout>
     );
 }
