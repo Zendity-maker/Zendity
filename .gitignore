@@ -103,3 +103,5 @@ public/academy/_backup_old/
 !scripts/verificar-fuentes-cuidado.ts
 # Genera las guias de cambios por rol para las reuniones de turno.
 !scripts/guia-cambios-sep2026.ts
+# Convierte a °F las lecturas que quedaron guardadas en Celsius
+!scripts/normalizar-temperatura-a-fahrenheit.ts

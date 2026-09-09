@@ -58,8 +58,20 @@ export interface HallazgoVital {
 const HIPOTERMIA_LLAMAR_C = 35.0;
 const HIPOTERMIA_ANOTAR_C = 35.5;
 
-/** Fahrenheit por debajo del cual no existe temperatura corporal medible. */
-const F_MIN_PLAUSIBLE = 95;
+/**
+ * Fahrenheit por debajo del cual no existe temperatura corporal medible.
+ *
+ * Estuvo en 95 desde el 21-ago-2026 y era un error. 95 °F son exactamente
+ * 35.0 °C, que es el umbral de HIPOTERMIA_LLAMAR: el backend rechazaba como
+ * ilegible justo la lectura que debia disparar la alarma. En Cupey hay 86
+ * lecturas entre 93.2 y 94.9 °F (34.0–34.9 °C) — no son errores de digitacion
+ * como decia el comentario anterior, son hipotermias de termometro de frente,
+ * que es lo que este hogar mide. La ultima es del 20-ago; desde el 21 no hay
+ * ninguna, no porque dejaran de pasar sino porque la API las devolvia.
+ *
+ * Se deriva de C_MIN_PLAUSIBLE para que los dos extremos no se separen nunca.
+ */
+const F_MIN_PLAUSIBLE = 86;   // = C_MIN_PLAUSIBLE (30 °C)
 /** Celsius por encima del cual el valor ya no puede ser Celsius corporal. */
 const C_MAX_PLAUSIBLE = 45;
 /**
@@ -78,9 +90,8 @@ const F_MAX_PLAUSIBLE = 113;
  *
  * El personal registra unas veces en Celsius y otras en Fahrenheit. La regla
  * anterior era `temp < 45 ? celsius : fahrenheit`, que interpretaba un 50 como
- * 50 °F — es decir, 10 °C. En los datos de Cupey hay 86 lecturas en la banda
- * 45–95 que no son ni una cosa ni la otra: son errores de digitación que
- * estaban entrando al expediente como si fueran válidos.
+ * 50 °F — es decir, 10 °C. La banda 45–86 no es ni una cosa ni la otra, y hoy
+ * no hay ninguna lectura ahí.
  *
  * Devuelve null cuando el valor no es interpretable, para que quien llama lo
  * rechace en vez de guardar una temperatura inventada.
