@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
-import { recibeElAviso, ES_AUDIENCIA, type Audiencia } from '@/lib/audiencias-personal';
+import { recibeElAviso, ES_AUDIENCIA, AUDIENCIAS, type Audiencia } from '@/lib/audiencias-personal';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
                </div>`
             : `<div style="background-color:#0F6E56;padding:24px;text-align:center;">
                    ${emailLogoSrc(hqId, hq?.logoUrl) ? `<img src="${emailLogoSrc(hqId, hq?.logoUrl)}" alt="${hqName}" style="max-height:50px;margin-bottom:12px;border-radius:8px;" />` : `<h2 style="color:white;margin:0;font-size:24px;">${hqName}</h2>`}
-                   <p style="color:#A8DCC6;margin:5px 0 0 0;font-size:14px;">Aviso oficial · A todo el personal</p>
+                   <p style="color:#A8DCC6;margin:5px 0 0 0;font-size:14px;">Aviso oficial · ${AUDIENCIAS[audiencia].etiqueta}</p>
                </div>`;
 
         const pie = deZendity
