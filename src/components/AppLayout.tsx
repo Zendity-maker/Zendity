@@ -73,6 +73,10 @@ const clinicalNavigation = [
     { name: 'Academy', href: '/academy', icon: GraduationCap },
     // Mis Observaciones — solo visible para CAREGIVER, NURSE, SUPERVISOR (con badge)
     { name: 'Mis Observaciones', href: '/my-observations', icon: FileWarning, onlyRoles: ['CAREGIVER', 'NURSE', 'SUPERVISOR'] },
+    // Lo ve todo el mundo, incluidos los roles que no dejan rastro: a esos la
+    // pantalla les dice con esas palabras que Zendity no recoge su trabajo,
+    // en vez de fingir una metrica. Ver src/lib/desempeno.ts.
+    { name: 'Mi Desempeño', href: '/mi-desempeno', icon: TrendingUp },
     // Limpieza — dashboard de turno solo para personal CLEANING/MAINTENANCE
     // CAREGIVER incluido: hoy son ellas quienes limpian, y sin el enlace
     // la limpieza que hacen no queda registrada en ninguna parte.
