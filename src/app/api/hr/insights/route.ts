@@ -23,40 +23,66 @@ export async function GET(_req: Request) {
             return NextResponse.json({ success: false, error: 'Usuario sin sede asignada' }, { status: 400 });
         }
 
-        // 1. Fetch Staff con compliance bajo el rango neutral (< 75)
-        //
-        // Bandas oficiales del sistema:
-        //   ≥ 90       verde — excelente
-        //   75-89      ámbar — área de mejora (NO se alerta)
-        //   60-74      naranja — bajo rendimiento (warning MEDIUM)
-        //   < 60       rojo — riesgo operacional (CRITICAL)
-        //
-        // Excluye staff con menos de 7 días en el sistema — un empleado
-        // recién creado arranca en 75 y todavía no tiene actividad para
-        // que el cron lo mueva arriba. Alertar de él sería falso positivo.
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const lowScoreStaff = await prisma.user.findMany({
-            where: {
-                headquartersId: hqId,
-                complianceScore: { lt: 75 },
-                createdAt: { lt: sevenDaysAgo },
-                isDeleted: false,
-                isActive: true,
-                role: { in: ['CAREGIVER', 'NURSE', 'KITCHEN', 'SOCIAL_WORKER', 'MAINTENANCE', 'CLEANING'] }
-            },
-            select: { id: true, name: true, role: true, complianceScore: true }
-        });
+        /**
+         * EL complianceScore SE QUEDA FUERA. Decidido el 09-sep-2026.
+         *
+         * Esta pantalla alertaba de todo el que tuviera el score por debajo de
+         * 75. Medido contra produccion ese dia, las seis alertas que mostraba
+         * eran, al lado de lo que esas personas hacen de verdad:
+         *
+         *   Yedaira Gonzalez ....  0   la que MAS reporta de su turno (17 notas)
+         *   Neylianne Torres ...  15   de las que mas reporta del hogar (19)
+         *   Joaneliz Rosario ...  43   2,959 administraciones de medicamento
+         *   Mileska Aviles .... 100   cero notas en 25 turnos
+         *   Jediel Rosario ....  99   el que menos reporta (6 en 76 turnos)
+         *
+         * Estaba invertido. Le decia a direccion que la mejor documentadora era
+         * un riesgo operacional.
+         *
+         * Y el numero no cumple ni su propia formula: la formula documentada da
+         * 46 para Yedaira y 32 para Jediel; guardados estan 0 y 99. Hay SIETE
+         * sitios que escriben complianceScore con logicas distintas —el cron,
+         * las evaluaciones, el audit-report, las observaciones pendientes, dos
+         * endpoints corporativos y /api/admin/sedes que lo pone en 100 fijo— y
+         * gana el ultimo que corrio. La formula bonita vive en un endpoint que
+         * solo LEE y que ninguno de los siete usa.
+         *
+         * Mientras ese numero no tenga un solo dueno y una sola formula, no
+         * puede sostener una alerta sobre una persona. Ver
+         * [veracidad-no-puntuacion]: ante un problema de registro, hacer el
+         * dato veraz — no crear una metrica que castigue la conducta.
+         *
+         * Lo que queda son hechos con fecha y firma: observaciones APLICADAS.
+         */
 
         // 2. Fetch recent Incidents (last 30 days)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
+        /**
+         * SOLO APPLIED. Antes tomaba todos los estados, y en los 14 incidentes
+         * de los ultimos 30 dias hay 3 DISMISSED, 2 DRAFT y 2 PENDING_EXPLANATION.
+         *
+         * Un DISMISSED es una observacion que se descarto: la persona quedo
+         * exonerada. Un DRAFT no se le ha entregado a nadie. Un
+         * PENDING_EXPLANATION esta esperando la version del empleado.
+         *
+         * Contar esos tres como reincidencia es acusar a alguien con lo que se
+         * le retiro, con lo que nunca se le dijo, y con lo que todavia no ha
+         * podido contestar.
+         */
         const recentIncidents = await prisma.incidentReport.findMany({
             where: {
                 headquartersId: hqId,
-                createdAt: { gte: thirtyDaysAgo }
+                createdAt: { gte: thirtyDaysAgo },
+                status: 'APPLIED',
+                // Y de gente que sigue trabajando aqui. Sin esto, la unica
+                // senal que quedaba hoy era de Medelyn Garcia, que esta
+                // inactiva y borrada: senalar a quien ya se fue no le pide una
+                // conversacion a nadie. Mismo fallo que tenian las ulceras
+                // hasta que aparecio Wilfredo, y la pantalla de riesgo de
+                // caidas hasta ayer.
+                employee: { isActive: true, isDeleted: false },
             },
             include: {
                 employee: { select: { id: true, name: true, role: true } }
@@ -74,25 +100,6 @@ export async function GET(_req: Request) {
 
         // 3. Compile "Red Flags"
         const insights: any[] = [];
-
-        // Add Red Flags for Low Score Staff — dos tiers según severidad
-        lowScoreStaff.forEach(staff => {
-            const score = staff.complianceScore;
-            const isCritical = score < 60;
-            insights.push({
-                id: `compliance_risk_${staff.id}`,
-                type: isCritical ? 'CRITICAL' : 'MEDIUM',
-                category: 'STAFF_COMPLIANCE',
-                title: isCritical ? 'Bajo Rendimiento Crítico' : 'Rendimiento Bajo',
-                description: isCritical
-                    ? `El score de ${staff.name} (${staff.role}) está en ${score} pts. Representa un riesgo operacional — revisión urgente recomendada.`
-                    : `El score de ${staff.name} (${staff.role}) está en ${score} pts, por debajo del rango neutral (75). Conviene revisar rondas, observaciones y completitud de Academy.`,
-                employeeId: staff.id,
-                employeeName: staff.name,
-                employeeRole: staff.role,
-                timestamp: new Date().toISOString()
-            });
-        });
 
         // Add Insights based on repeated incidents
         const incidentCounts: Record<string, number> = {};

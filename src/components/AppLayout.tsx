@@ -184,7 +184,9 @@ const corporateNavigationSections = [
     {
         title: "Recursos Humanos",
         links: [
-            { name: "Alertas Zendi AI", href: "/hr/insights", icon: ShieldAlert },
+            // Se llamaba "Alertas Zendi AI" y no hay IA ninguna: son dos
+            // condiciones sobre observaciones ya firmadas. Ver el endpoint.
+            { name: "Señales de Personal", href: "/hr/insights", icon: ShieldAlert },
             { name: "Observaciones de Personal", href: "/hr/incidents", icon: FileWarning },
             { name: "Desempeño & Evaluaciones", href: "/hr", icon: ClipboardList },
             { name: "Constructor de Horarios", href: "/hr/schedule", icon: CalendarDays },

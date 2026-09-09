@@ -99,8 +99,8 @@ export default function ZendiInsightsPage() {
         return (
             <div className="flex flex-col items-center justify-center p-20 animate-pulse">
                 <BrainCircuit className="w-16 h-16 text-indigo-400 mb-4 animate-spin-slow" />
-                <h2 className="text-xl font-bold text-slate-700">Zendi está analizando los datos operativos...</h2>
-                <p className="text-slate-500 mt-2">Correlacionando scores, incidentes y métricas clínicas.</p>
+                <h2 className="text-xl font-bold text-slate-700">Cargando observaciones…</h2>
+                <p className="text-slate-500 mt-2">Las de los últimos 30 días.</p>
             </div>
         );
     }
@@ -115,8 +115,12 @@ export default function ZendiInsightsPage() {
                         <BrainCircuit className="w-8 h-8" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Centro de Mando AI</h1>
-                        <p className="text-slate-500 font-medium mt-1">Monitoreo proactivo de operaciones y disciplina corporativa impulsado por Zendi.</p>
+                        {/* No decia la verdad. Esta pantalla no llama a ningun
+                            modelo: son dos condiciones sobre observaciones que ya
+                            estan firmadas. Llamarla "AI" y decir que "correlaciona
+                            metricas" hacia que un umbral pareciera un criterio. */}
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Señales de personal</h1>
+                        <p className="text-slate-500 font-medium mt-1">Observaciones disciplinarias aplicadas en los últimos 30 días. No hay cálculo ni score: son hechos con fecha y firma.</p>
                     </div>
                 </div>
             </div>
@@ -125,10 +129,10 @@ export default function ZendiInsightsPage() {
             <div className="space-y-6">
                 <div className="flex items-center justify-between mb-2">
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5 text-rose-500" /> Banderas Rojas Activas
+                        <ShieldAlert className="w-5 h-5 text-rose-500" /> Lo que pide una conversación
                     </h2>
                     <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold ring-1 ring-slate-200 shadow-sm">
-                        {insights.length} Alteraciones Detectadas
+                        {insights.length === 1 ? '1 señal' : `${insights.length} señales`}
                     </span>
                 </div>
 
@@ -137,8 +141,11 @@ export default function ZendiInsightsPage() {
                         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="text-4xl"></span>
                         </div>
-                        <h3 className="text-2xl font-black text-emerald-800 mb-2">Operación 100% Saludable</h3>
-                        <p className="text-emerald-600 font-medium">Zendi no ha detectado ninguna anomalía disciplinaria o de bajo rendimiento en el panel de control.</p>
+                        {/* "Operación 100% Saludable" con cero alertas era un
+                            salto: lo que hay es ausencia de observaciones
+                            aplicadas, que no es lo mismo que estar bien. */}
+                        <h3 className="text-2xl font-black text-emerald-800 mb-2">Sin observaciones aplicadas</h3>
+                        <p className="text-emerald-600 font-medium">Ninguna observación disciplinaria se aplicó en los últimos 30 días. Los borradores y las descartadas no cuentan.</p>
                     </div>
                 ) : (
                     <div className="grid gap-4">
