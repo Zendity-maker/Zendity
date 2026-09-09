@@ -31,9 +31,33 @@
  *   npx tsx scripts/orientacion-boton-cambios.ts --enviar     (al piso)
  */
 import sgMail from '@sendgrid/mail';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { prisma } from '../src/lib/prisma';
+
+/**
+ * Las llaves de SendGrid viven en .env.local y en Vercel — no en .env.
+ * Por eso la consulta a la base funcionaba (Prisma lee .env solo) y el envio
+ * decia "SendGrid no esta configurado".
+ *
+ * Se leen SOLO esas dos variables, sin cargar el resto del archivo. .env.local
+ * tambien trae DATABASE_URL, y este script no tiene por que mover a que base
+ * apunta Prisma: lo que no se necesita, no se carga.
+ */
+function llavesDeCorreo(): { key?: string; from?: string } {
+    const key = process.env.SENDGRID_API_KEY;
+    const from = process.env.SENDGRID_FROM_EMAIL;
+    if (key && from) return { key, from };
+
+    const archivo = '.env.local';
+    if (!existsSync(archivo)) return { key, from };
+    const leidas: Record<string, string> = {};
+    for (const linea of readFileSync(archivo, 'utf-8').split('\n')) {
+        const m = linea.match(/^\s*(SENDGRID_API_KEY|SENDGRID_FROM_EMAIL)\s*=\s*(.*)$/);
+        if (m) leidas[m[1]] = m[2].trim().replace(/^["']|["']$/g, '');
+    }
+    return { key: key ?? leidas.SENDGRID_API_KEY, from: from ?? leidas.SENDGRID_FROM_EMAIL };
+}
 
 const HQ = 'a792f420-07a5-4088-8097-5ef47ca05ac8';
 const ANDRES = 'serenityelderlyhome@gmail.com';
@@ -128,12 +152,13 @@ async function main() {
         return;
     }
 
-    const remitente = process.env.SENDGRID_FROM_EMAIL;
-    if (!process.env.SENDGRID_API_KEY || !remitente) {
-        console.log('\nSendGrid no está configurado en este shell. No se mandó nada.');
+    const { key, from: remitente } = llavesDeCorreo();
+    if (!key || !remitente) {
+        console.log('\nNo encontré SENDGRID_API_KEY / SENDGRID_FROM_EMAIL ni en el shell ni en .env.local.');
+        console.log('No se mandó nada.');
         return;
     }
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    sgMail.setApiKey(key);
 
     const to = PARA_MI ? [ANDRES] : emails;
     await sgMail.send({
