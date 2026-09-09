@@ -119,9 +119,13 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
 
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                    {/* max-h + flex: al añadir el selector de audiencia el modal
+                        crecio hasta sacar el boton de enviar fuera de la pantalla.
+                        Ahora la cabecera se queda arriba, el cuerpo rueda, y el
+                        boton no se va nunca. */}
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300 max-h-[92vh] flex flex-col">
                         {/* Header */}
-                        <div className="bg-indigo-600 px-6 py-5 flex justify-between items-center relative overflow-hidden">
+                        <div className="shrink-0 bg-indigo-600 px-6 py-5 flex justify-between items-center relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-50 -mr-10 -mt-10"></div>
                             <div className="relative z-10 flex items-center gap-3">
                                 <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
@@ -141,7 +145,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                         </div>
 
                         {/* Form Body */}
-                        <div className="p-6 md:p-8">
+                        <div className="p-6 md:p-8 flex-1 min-h-0 overflow-y-auto">
 
                             {status && (
                                 <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 border ${status.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
@@ -195,11 +199,10 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                                     e?.email?.includes('@') && recibeElAviso(a, e.role, e.secondaryRoles ?? [])).length;
                                                 return (
                                                     <button key={a} type="button" onClick={() => setAudiencia(a)}
-                                                        className={`p-3 rounded-xl border-2 text-left transition-all ${audiencia === a ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
-                                                        <p className={`font-black text-sm ${audiencia === a ? 'text-teal-800' : 'text-slate-600'}`}>
+                                                        className={`px-3 py-2.5 rounded-xl border-2 text-left transition-all ${audiencia === a ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                                                        <p className={`font-black text-sm leading-tight ${audiencia === a ? 'text-teal-800' : 'text-slate-600'}`}>
                                                             {AUDIENCIAS[a].etiqueta} <span className="font-bold opacity-60">· {cuantos}</span>
                                                         </p>
-                                                        <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{AUDIENCIAS[a].explicacion}</p>
                                                     </button>
                                                 );
                                             })}
@@ -210,6 +213,9 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                             <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-1">
                                                 Le llega a {alcanzados.length} {alcanzados.length === 1 ? 'persona' : 'personas'}
                                             </p>
+                                            {/* La explicacion solo de la escogida: cinco explicaciones
+                                                a la vez son 120px de alto que nadie lee. */}
+                                            <p className="text-[12px] text-slate-500 leading-snug mb-1.5">{AUDIENCIAS[audiencia].explicacion}</p>
                                             <p className="text-[12px] text-slate-600 leading-snug">
                                                 {alcanzados.length === 0
                                                     ? 'Nadie con correo válido en este grupo.'
@@ -273,7 +279,9 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
                                     />
                                 </div>
 
-                                <div className="pt-2 flex justify-end gap-3">
+                                {/* sticky: el boton se queda pegado abajo aunque el
+                                    formulario sea mas largo que la pantalla. */}
+                                <div className="sticky bottom-0 -mx-6 md:-mx-8 px-6 md:px-8 pt-3 pb-1 bg-white border-t border-slate-100 flex justify-end gap-3">
                                     <button
                                         type="button"
                                         onClick={() => setIsOpen(false)}
