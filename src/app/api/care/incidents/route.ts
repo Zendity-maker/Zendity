@@ -171,9 +171,31 @@ export async function POST(req: Request) {
              * error: la cuidadora hizo lo correcto, y un error rojo la haria
              * intentarlo otra vez — que es justo lo que causo el duplicado.
              */
+            /**
+             * Desde que se puede registrar con fecha retroactiva, "mismo
+             * residente hace un momento" ya no alcanza como prueba de
+             * duplicado. Celia va a sentarse a escribir cuatro caidas viejas
+             * de corrido, y DOS SON DEL MISMO RESIDENTE: Dwight el 28-ago y
+             * Dwight el 1-sep. Con la regla vieja, la segunda se tragaba en
+             * silencio devolviendo exito — ella creeria que quedaron las dos.
+             *
+             * Lo que se bloquea es el MISMO evento enviado dos veces, y eso
+             * son la misma fecha de ocurrencia. La ventana de la fecha del
+             * evento es la misma de cinco minutos, asi que cuando no se manda
+             * fecha (la cuidadora en la tableta) el comportamiento es
+             * exactamente el de antes.
+             */
             const haceCinco = new Date(Date.now() - 5 * 60000);
+            const fechaEvento = incidentDate ?? new Date();
             const yaRegistrada = await prisma.fallIncident.findFirst({
-                where: { patientId, reportedAt: { gte: haceCinco } },
+                where: {
+                    patientId,
+                    reportedAt: { gte: haceCinco },
+                    incidentDate: {
+                        gte: new Date(fechaEvento.getTime() - 5 * 60000),
+                        lte: new Date(fechaEvento.getTime() + 5 * 60000),
+                    },
+                },
                 select: { id: true, reportedAt: true },
                 orderBy: { reportedAt: 'desc' },
             });

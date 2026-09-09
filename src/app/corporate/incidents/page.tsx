@@ -50,184 +50,14 @@ function formatRelative(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('es-PR', { month: 'short', day: '2-digit' });
 }
 
-// ── Modal de Reporte Rápido ───────────────────────────────────────────────
-/**
- * Ahora, en el formato que pide <input type="datetime-local"> (hora local).
- * Puerto Rico es AST todo el ano, sin horario de verano, asi que la hora local
- * del navegador y la del hogar son la misma.
- */
-function ahoraLocal(): string {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-}
-
-function ReportIncidentModal({ hqId, patients, onClose, onSuccess }: {
-    hqId: string;
-    patients: { id: string; name: string; roomNumber: string | null }[];
-    onClose: () => void;
-    onSuccess: () => void;
-}) {
-    const [type, setType] = useState<'FALL' | 'MEDICATION_ERROR' | 'OTHER'>('FALL');
-    const [patientId, setPatientId] = useState('');
-    const [description, setDescription] = useState('');
-    const [location, setLocation] = useState('');
-    const [cuando, setCuando] = useState(ahoraLocal());
-    const [conscious, setConscious] = useState(true);
-    const [bleeding, setBleeding] = useState(false);
-    const [painLevel, setPainLevel] = useState(0);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-
-    const esRetroactiva = !!cuando && Date.now() - new Date(cuando).getTime() > 24 * 60 * 60 * 1000;
-
-    const submit = async () => {
-        if (!patientId && type !== 'OTHER') return setError('Selecciona un residente.');
-        if (!description.trim() && type !== 'FALL') return setError('La descripción es requerida.');
-        setSaving(true); setError('');
-        try {
-            const body: any = { type, patientId: patientId || undefined, description: description || undefined };
-            if (type === 'FALL') {
-                body.location = location; body.conscious = conscious;
-                body.bleeding = bleeding; body.painLevel = painLevel;
-                // Si no se toco el campo, es ahora — y el backend hace lo mismo.
-                if (cuando) body.incidentDate = new Date(cuando).toISOString();
-            }
-            const res = await fetch('/api/care/incidents', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            const data = await res.json();
-            if (!res.ok) { setError(data.error || 'Error al guardar'); setSaving(false); return; }
-            onSuccess();
-        } catch { setError('Error de conexión.'); setSaving(false); }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 text-white">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                        <ShieldAlert className="w-5 h-5" /> Reportar Incidente Clínico
-                    </h3>
-                    <p className="text-red-100 text-xs mt-0.5">Se notificará al equipo de supervisión automáticamente.</p>
-                </div>
-
-                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                    {/* Tipo */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Tipo de Incidente</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {(['FALL', 'MEDICATION_ERROR', 'OTHER'] as const).map(t => (
-                                <button key={t} onClick={() => setType(t)}
-                                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-xs font-semibold transition-all ${type === t ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                                    {TYPE_META[t]?.icon}
-                                    {TYPE_META[t]?.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Residente */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                            Residente {type !== 'OTHER' && <span className="text-red-500">*</span>}
-                        </label>
-                        <select
-                            value={patientId}
-                            onChange={e => setPatientId(e.target.value)}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
-                        >
-                            <option value="">Seleccionar residente...</option>
-                            {patients.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}{p.roomNumber ? ` · Hab. ${p.roomNumber}` : ''}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Campos específicos por tipo */}
-                    {type === 'FALL' && (
-                        <>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                                    ¿Cuándo ocurrió? <span className="text-red-500">*</span>
-                                </label>
-                                <input type="datetime-local" value={cuando} max={ahoraLocal()}
-                                    onChange={e => setCuando(e.target.value)}
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
-                                {esRetroactiva ? (
-                                    <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                        Se registra con esa fecha, no con la de hoy. Como ya pasó,
-                                        no se avisa como emergencia: entra al expediente y a triage
-                                        con prioridad baja.
-                                    </p>
-                                ) : (
-                                    <p className="mt-1.5 text-xs text-gray-400">
-                                        Viene puesta la hora de ahora. Cámbiala si la caída fue antes.
-                                    </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Ubicación</label>
-                                <input value={location} onChange={e => setLocation(e.target.value)}
-                                    placeholder="Baño, Habitación, Pasillo..."
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                                    <input type="checkbox" checked={conscious} onChange={e => setConscious(e.target.checked)}
-                                        className="w-4 h-4 rounded text-red-500" />
-                                    <span className="text-sm font-medium text-gray-700">Consciente</span>
-                                </label>
-                                <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                                    <input type="checkbox" checked={bleeding} onChange={e => setBleeding(e.target.checked)}
-                                        className="w-4 h-4 rounded text-red-500" />
-                                    <span className="text-sm font-medium text-gray-700">Sangrado</span>
-                                </label>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                                    Nivel de Dolor: <span className="text-red-600 font-black">{painLevel}/10</span>
-                                </label>
-                                <input type="range" min={0} max={10} value={painLevel}
-                                    onChange={e => setPainLevel(Number(e.target.value))}
-                                    className="w-full accent-red-500" />
-                            </div>
-                        </>
-                    )}
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                            {type === 'FALL' ? 'Observaciones adicionales' : 'Descripción *'}
-                        </label>
-                        <textarea
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            rows={3}
-                            placeholder={type === 'FALL' ? 'Ej. Residente intentó levantarse sin asistencia...' : 'Describe el incidente detalladamente...'}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
-                        />
-                    </div>
-
-                    {error && <p className="text-sm text-red-600 font-medium bg-red-50 rounded-xl px-4 py-2">{error}</p>}
-                </div>
-
-                <div className="p-5 border-t border-gray-100 flex gap-3">
-                    <button onClick={onClose}
-                        className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors">
-                        Cancelar
-                    </button>
-                    <button onClick={submit} disabled={saving}
-                        className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                        {saving ? <span className="animate-spin">⏳</span> : <ShieldAlert className="w-4 h-4" />}
-                        {saving ? 'Guardando...' : 'Reportar Incidente'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+// El formulario de reporte vivia aqui y no lo uso nadie: 0 registros en cuatro
+// meses. Las 8 caidas entraron por la tableta (7) y por el traslado al hospital
+// (1); errores de medicacion, 0 en total. No era que no hicieran falta — estaba
+// en el sitio equivocado. Se mudo entero, con sus tres tipos, a
+// src/components/care/RegistrarIncidente.tsx, que usa /care/caidas.
+//
+// Esta pantalla se queda como lo que si es: el historial de 30 dias para
+// direccion, con sus filtros y su CSV.
 
 // ── Página Principal ──────────────────────────────────────────────────────
 export default function IncidentsDashboard() {
@@ -236,8 +66,6 @@ export default function IncidentsDashboard() {
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState('');
     const [filterSeverity, setFilterSeverity] = useState('');
-    const [showModal, setShowModal] = useState(false);
-    const [patients, setPatients] = useState<{ id: string; name: string; roomNumber: string | null }[]>([]);
 
     const fetchIncidents = useCallback(async () => {
         if (!activeHqId || activeHqId === 'ALL') { setLoading(false); return; }
@@ -250,13 +78,9 @@ export default function IncidentsDashboard() {
         finally { setLoading(false); }
     }, [activeHqId]);
 
-    const fetchPatients = useCallback(async () => {
-        if (!activeHqId || activeHqId === 'ALL') return;
-        const res = await fetch(`/api/patients?hqId=${activeHqId}`);
-        if (res.ok) setPatients(await res.json());
-    }, [activeHqId]);
-
-    useEffect(() => { fetchIncidents(); fetchPatients(); }, [fetchIncidents, fetchPatients]);
+    // Ya no se carga la lista de residentes: se cargaba solo para el selector
+    // del formulario, que se mudo a /care/caidas.
+    useEffect(() => { fetchIncidents(); }, [fetchIncidents]);
 
     const filtered = incidents.filter(i => {
         if (filterType && i.type !== filterType) return false;
@@ -299,10 +123,12 @@ export default function IncidentsDashboard() {
                             <Download className="w-4 h-4" /> Exportar CSV
                         </button>
                     )}
-                    <button onClick={() => setShowModal(true)}
+                    {/* Un enlace, no un segundo formulario. Se registra en un
+                        solo sitio y desde aqui se llega. */}
+                    <Link href="/care/caidas"
                         className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-5 py-2.5 transition-colors shadow-sm shadow-red-200">
-                        <Plus className="w-4 h-4" /> Reportar Incidente
-                    </button>
+                        <Plus className="w-4 h-4" /> Registrar en enfermería
+                    </Link>
                 </div>
             </div>
 
@@ -413,15 +239,6 @@ export default function IncidentsDashboard() {
                 </Link>
             </div>
 
-            {/* Modal */}
-            {showModal && (
-                <ReportIncidentModal
-                    hqId={activeHqId || ''}
-                    patients={patients}
-                    onClose={() => setShowModal(false)}
-                    onSuccess={() => { setShowModal(false); fetchIncidents(); }}
-                />
-            )}
         </div>
     );
 }

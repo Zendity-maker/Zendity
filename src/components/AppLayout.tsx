@@ -37,6 +37,9 @@ const clinicalNavigation = [
     // (NURSE/SUPERVISOR/DIRECTOR/ADMIN). CAREGIVER no ve el link y URL directa
     // recibe 403 del endpoint.
     { name: 'Rotación / UPP', href: '/care/nursing', icon: Bed, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
+    // Caidas: vivian solo en la tableta y en /corporate/incidents, donde en
+    // cuatro meses no se registro ninguna. Enfermeria no tenia por donde.
+    { name: 'Caídas', href: '/care/caidas', icon: ShieldAlert, onlyRoles: ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'] },
     { name: 'Reportes de Turno', href: '/care/reports', icon: ClipboardList },
     // Match exacto del role gate de /api/cuidadores/lifeplans. Sin onlyRoles lo
     // veian cocina y mantenimiento, y al entrar chocaban con un 403.
