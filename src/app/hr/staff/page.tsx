@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import AddStaffModal from "./AddStaffModal";
 import SendEmailModal from "./SendEmailModal";
 import { Trash2 } from "lucide-react";
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function ZendityStaffDirectoryPage() {
     const { user } = useAuth();
@@ -180,14 +181,19 @@ export default function ZendityStaffDirectoryPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <span className={`text-lg font-black ${emp.complianceScore < 80 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                {emp.complianceScore}
-                                            </span>
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                / 100 PTA.
-                                            </span>
-                                        </div>
+                                        {/* Ver src/lib/z-score-visible.ts */}
+                                        {Z_SCORE_VISIBLE ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className={`text-lg font-black ${emp.complianceScore < 80 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                    {emp.complianceScore}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                                    / 100 PTA.
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[11px] text-slate-400 font-medium">En revisión</span>
+                                        )}
                                     </td>
                                     {/* Formacion continua — cursos aprobados frente a la meta
                                         prorrateada. Va junto al Metric Score a proposito: los dos

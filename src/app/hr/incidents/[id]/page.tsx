@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { SignaturePad } from '@/components/sw-evaluation/SignaturePad';
 import { generateIncidentReportPDF } from '@/lib/incident-report-pdf';
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 const STATUS_LABELS: Record<string, string> = {
     DRAFT: 'Borrador',
@@ -383,7 +384,10 @@ export default function IncidentDetailPage() {
                                 {incident.employee?.name}
                             </h1>
                             <p className="text-slate-500 text-sm mt-1">
-                                {incident.employee?.role} · Score actual: <strong>{incident.employee?.complianceScore ?? '—'}/100</strong>
+                                {/* El score no acompana a una observacion disciplinaria.
+                                    Poner un numero al lado de la falta invita a decidir la
+                                    sancion por el numero. Ver src/lib/z-score-visible.ts */}
+                                {incident.employee?.role}{Z_SCORE_VISIBLE ? <> · Score actual: <strong>{incident.employee?.complianceScore ?? '—'}/100</strong></> : null}
                             </p>
                         </div>
                         <div className="text-right">

@@ -41,6 +41,7 @@ import { estaDormida } from "@/lib/funciones-dormidas";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
 import ForceCloseShiftButton from "@/components/ForceCloseShiftButton";
 import StaffChat from "@/components/StaffChat";
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 // --- SUB-COMPONENT: Zendi Morning Briefing ---
 const ZendiMorningBriefing = ({ text }: { text: string }) => {
@@ -1741,15 +1742,20 @@ export default function SupervisorMissionControlPage() {
                                     // El item conserva fondo tintado por umbral del score (helper scoreBg).
                                     // Esto NO va en la primitiva Card — es decisión del call site.
                                     return (
-                                        <div key={ts.caregiverId} className={`border rounded-[1.25rem] p-4 ${scoreBg(score)}`}>
+                                        <div key={ts.caregiverId} className={`border rounded-[1.25rem] p-4 ${Z_SCORE_VISIBLE ? scoreBg(score) : 'bg-white border-slate-200'}`}>
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="min-w-0 flex-1">
                                                     <p className="font-bold text-slate-800 text-sm truncate">{ts.name}</p>
                                                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{ts.role}</p>
                                                 </div>
-                                                <div className={`font-black text-2xl leading-none ${scoreColor(score)}`}>
-                                                    {score ?? '—'}<span className="text-xs">/100</span>
-                                                </div>
+                                                {/* Ver src/lib/z-score-visible.ts: el numero
+                                                    esta invertido y sin dueno. Se va el numero Y
+                                                    el fondo tintado, que decia lo mismo en color. */}
+                                                {Z_SCORE_VISIBLE && (
+                                                    <div className={`font-black text-2xl leading-none ${scoreColor(score)}`}>
+                                                        {score ?? '—'}<span className="text-xs">/100</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             {score !== null && score !== undefined && (
                                                 <div className="mt-2">

@@ -9,6 +9,7 @@ import {
     GraduationCap, CalendarX, Trophy, ClipboardCheck, TrendingUp, History, Mail,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 type Period = 30 | 60 | 90;
 
@@ -233,14 +234,24 @@ export default function HRAuditPage() {
                     </div>
                     <div className="flex gap-3">
                         <div className="text-center px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                            {/* El score y el puesto en el ranking salen del mismo
+                                numero invertido. Y un "#12 de 20" en el expediente
+                                de alguien pesa mas que el numero: ordena a la
+                                plantilla. Ver src/lib/z-score-visible.ts */}
                             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Score</div>
-                            <div className={`text-2xl font-black ${data.employee.complianceScore >= 90 ? 'text-emerald-600' : data.employee.complianceScore >= 75 ? 'text-amber-600' : 'text-rose-600'}`}>{data.employee.complianceScore}</div>
+                            {Z_SCORE_VISIBLE ? (
+                                <div className={`text-2xl font-black ${data.employee.complianceScore >= 90 ? 'text-emerald-600' : data.employee.complianceScore >= 75 ? 'text-amber-600' : 'text-rose-600'}`}>{data.employee.complianceScore}</div>
+                            ) : (
+                                <div className="text-sm font-bold text-slate-400 mt-1">En revisión</div>
+                            )}
                         </div>
+                        {Z_SCORE_VISIBLE && (
                         <div className="text-center px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
                             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ranking</div>
                             <div className="text-2xl font-black text-slate-800 flex items-center gap-1"><Trophy className="w-4 h-4 text-amber-500" />#{data.findings.ranking.position}</div>
                             <div className="text-[10px] text-slate-500 font-bold">de {data.findings.ranking.totalStaff}</div>
                         </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -412,9 +423,13 @@ export default function HRAuditPage() {
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-5 pt-4 border-t border-slate-100 gap-4">
                         <p className="text-[11px] text-slate-500 font-semibold">
+                            {/* El ajuste manual SI se ensena: lo puso una persona y
+                                responde por el. El del sistema no. Ver z-score-visible. */}
                             {useHumanScore
                                 ? <>Score final = <span className="font-black text-teal-700">{humanScore}</span> (ajuste manual)</>
-                                : <>Score final = <span className="font-black text-slate-700">{data.employee.complianceScore}</span> (sistema)</>}
+                                : Z_SCORE_VISIBLE
+                                    ? <>Score final = <span className="font-black text-slate-700">{data.employee.complianceScore}</span> (sistema)</>
+                                    : <>{Z_SCORE_OCULTO_MOTIVO}</>}
                         </p>
                         <div className="flex gap-3">
                             {data.performanceScoreId && (

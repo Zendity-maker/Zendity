@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import InteractiveCourseCard from "@/components/academy/InteractiveCourseCard";
 import { generateZendityMasterCertificate } from "@/components/academy/CertificateGenerator";
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 // Orden fijo de categorías en la Academy
 const CATEGORY_ORDER = [
@@ -134,12 +135,20 @@ export default function ZendityAcademyPage() {
                                     <span className="text-lg text-white/40">/{totalSeries || courses.length}</span>
                                 </p>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/70">Créditos</p>
-                                <p className={`font-serif text-4xl mt-1 ${complianceScore < 80 ? 'text-amber-300' : 'text-white'}`}>
-                                    {complianceScore}
-                                </p>
-                            </div>
+                            {/* Esto es lo que ve la EMPLEADA de si misma, y
+                                llamarlo "Créditos" ademas confundia el score de
+                                cumplimiento con los creditos de Academy, que
+                                son otra cosa. Yedaira habria entrado a ver que
+                                tiene 0 de 80 — siendo la que mas reporta de su
+                                turno. Ver src/lib/z-score-visible.ts */}
+                            {Z_SCORE_VISIBLE && (
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300/70">Créditos</p>
+                                    <p className={`font-serif text-4xl mt-1 ${complianceScore < 80 ? 'text-amber-300' : 'text-white'}`}>
+                                        {complianceScore}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -238,7 +247,7 @@ export default function ZendityAcademyPage() {
             )}
 
             {/* Aviso de Riesgo Operativo */}
-            {complianceScore < 80 && (
+            {Z_SCORE_VISIBLE && complianceScore < 80 && (
                 <div className="bg-white border-l-4 border-amber-500 border-y border-r border-slate-200 rounded-r-2xl px-6 py-5">
                     <p className="font-serif text-lg text-slate-800">Créditos por debajo del mínimo</p>
                     <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">

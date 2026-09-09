@@ -228,7 +228,13 @@ export async function GET(request: Request) {
                 recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
                 `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
                 `- Ausencias injustificadas: ${absences} en el período`,
-                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+                // El score y el ranking salen de aqui a proposito. Este texto
+                // se lo come gpt-4o-mini para escribir la evaluacion de una
+                // persona, y complianceScore esta invertido y sin dueno: le
+                // daria a la IA que Yedaira —la que mas reporta de su turno—
+                // es la ultima del hogar. Lo de arriba (eMAR, relevos, vitales,
+                // observaciones, Academy, ausencias) si es observable y se
+                // queda. Ver src/lib/z-score-visible.ts.
             ].filter(Boolean).join('\n');
 
         } else if (isSupervisor) {
@@ -242,7 +248,13 @@ export async function GET(request: Request) {
                 recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
                 `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
                 `- Ausencias: ${absences} en el período`,
-                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+                // El score y el ranking salen de aqui a proposito. Este texto
+                // se lo come gpt-4o-mini para escribir la evaluacion de una
+                // persona, y complianceScore esta invertido y sin dueno: le
+                // daria a la IA que Yedaira —la que mas reporta de su turno—
+                // es la ultima del hogar. Lo de arriba (eMAR, relevos, vitales,
+                // observaciones, Academy, ausencias) si es observable y se
+                // queda. Ver src/lib/z-score-visible.ts.
                 `⚠️ NOTA: Las métricas de eMAR, vitales y wizard de turno corresponden al equipo bajo su supervisión, no a este rol directamente.`,
             ].filter(Boolean).join('\n');
 
@@ -262,7 +274,13 @@ export async function GET(request: Request) {
                 recentIncidents.length > 0 ? `  Recientes: ${recentIncidents.map(r => `"${r.description.slice(0, 80)}"`).join(' | ')}` : '',
                 `- Academy: ${academyCompleted}/${academyAssigned} cursos completados (${academyPct}%)`,
                 `- Ausencias: ${absences} en el período`,
-                `- Score de compliance: ${employee.complianceScore} pts — Ranking: #${position} de ${totalStaff}`,
+                // El score y el ranking salen de aqui a proposito. Este texto
+                // se lo come gpt-4o-mini para escribir la evaluacion de una
+                // persona, y complianceScore esta invertido y sin dueno: le
+                // daria a la IA que Yedaira —la que mas reporta de su turno—
+                // es la ultima del hogar. Lo de arriba (eMAR, relevos, vitales,
+                // observaciones, Academy, ausencias) si es observable y se
+                // queda. Ver src/lib/z-score-visible.ts.
                 `⚠️ NOTA: Este rol no opera eMAR, vitales ni wizard de turno. Las métricas clínicas no aplican. La evaluación debe enfocarse en conducta, puntualidad, capacitación y observaciones disciplinarias.`,
             ].filter(Boolean).join('\n');
         }

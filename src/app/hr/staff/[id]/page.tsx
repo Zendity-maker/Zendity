@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import EditStaffRolesModal from "./EditStaffRolesModal";
 import WriteIncidentModal from "@/components/hr/WriteIncidentModal";
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -467,7 +468,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                         <div className="lg:w-56 shrink-0 flex flex-col justify-between gap-4">
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.14em]">Z-Score</p>
-                                <div className="flex items-baseline gap-3 mt-1">
+                                {/* Ver src/lib/z-score-visible.ts */}
+                                {!Z_SCORE_VISIBLE && (
+                                    <p className="text-sm font-bold text-slate-400 mt-2 leading-snug max-w-[13rem]">{Z_SCORE_OCULTO_MOTIVO}</p>
+                                )}
+                                {Z_SCORE_VISIBLE && <div className="flex items-baseline gap-3 mt-1">
                                     <span className="text-6xl md:text-7xl font-black text-slate-800 leading-none tracking-tight">
                                         {employee.complianceScore}
                                     </span>
@@ -476,10 +481,12 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                                             {scoreDelta > 0 ? '▲' : '▼'} {Math.abs(scoreDelta)}
                                         </span>
                                     )}
-                                </div>
-                                <span className={`inline-block mt-3 px-3 py-1 rounded-full border text-[11px] font-black ${getScoreColor(employee.complianceScore)}`}>
-                                    {scoreBand(employee.complianceScore)}
-                                </span>
+                                </div>}
+                                {Z_SCORE_VISIBLE && (
+                                    <span className={`inline-block mt-3 px-3 py-1 rounded-full border text-[11px] font-black ${getScoreColor(employee.complianceScore)}`}>
+                                        {scoreBand(employee.complianceScore)}
+                                    </span>
+                                )}
                             </div>
                             {scoreHistory && (
                                 <div className="flex flex-wrap gap-1.5">

@@ -24,6 +24,7 @@ type StaffMember = {
 };
 
 import Link from 'next/link';
+import { Z_SCORE_VISIBLE, Z_SCORE_OCULTO_MOTIVO } from '@/lib/z-score-visible';
 
 export default function StaffManagementPage() {
     const { activeHqId } = useActiveHq();
@@ -251,17 +252,22 @@ export default function StaffManagementPage() {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full rounded-full ${s.complianceScore >= 80 ? 'bg-green-500' : 'bg-red-500'}`}
-                                                        style={{ width: `${Math.max(0, Math.min(100, s.complianceScore))}%` }}
-                                                    />
+                                            {/* Ver src/lib/z-score-visible.ts */}
+                                            {Z_SCORE_VISIBLE ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full ${s.complianceScore >= 80 ? 'bg-green-500' : 'bg-red-500'}`}
+                                                            style={{ width: `${Math.max(0, Math.min(100, s.complianceScore))}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className={`text-xs font-bold ${s.complianceScore >= 80 ? 'text-green-700' : 'text-red-600'}`}>
+                                                        {s.complianceScore}
+                                                    </span>
                                                 </div>
-                                                <span className={`text-xs font-bold ${s.complianceScore >= 80 ? 'text-green-700' : 'text-red-600'}`}>
-                                                    {s.complianceScore}
-                                                </span>
-                                            </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 font-medium">{Z_SCORE_OCULTO_MOTIVO}</span>
+                                            )}
                                         </td>
                                         <td className="p-4">
                                             {estaDeBaja(s) ? (

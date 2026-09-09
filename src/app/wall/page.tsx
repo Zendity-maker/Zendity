@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 import {
     Activity, ShieldAlert, Pill, Users,
     Clock, Calendar as CalendarIcon, Loader2,
@@ -232,7 +233,15 @@ export default function WallOfCarePage() {
                             <span className="font-bold text-xl text-white uppercase tracking-widest drop-shadow-md">Top Excellence</span>
                         </div>
                         <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
-                            {data.leaderboard?.map((staff: any, idx: number) => (
+                            {/* EL RANKING ENTERO, no solo el numero.
+                                Ordena por complianceScore, y ese numero esta
+                                invertido: el 09-sep-2026 el "Top 5" que se
+                                proyectaba en esta pared eran los cuatro que
+                                MENOS documentan del hogar, mas una empleada
+                                que ya no trabaja aqui. Tapar la cifra dejaria
+                                el orden, que es justo la parte que miente.
+                                Ver src/lib/z-score-visible.ts */}
+                            {Z_SCORE_VISIBLE && data.leaderboard?.map((staff: any, idx: number) => (
                                 <div key={staff.id} className="flex items-center gap-4 bg-white/5 rounded-2xl p-4 border border-white/5 hover:bg-white/10 hover:border-[#3CC6C4]/30 transition-all">
                                     <div className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl bg-gradient-to-br from-[#0F6B78] to-[#3CC6C4] text-white border border-[#3CC6C4]/40 shadow-md">
                                         #{idx + 1}
@@ -241,10 +250,12 @@ export default function WallOfCarePage() {
                                         <p className="text-white font-bold tracking-wide truncate">{staff.name}</p>
                                         <p className="text-[#3CC6C4] text-[10px] font-bold uppercase tracking-widest truncate">{staff.role}</p>
                                     </div>
-                                    <div className="text-2xl font-black text-emerald-400 drop-shadow-sm">{staff.complianceScore} <span className="text-xs text-emerald-600">pts</span></div>
+                                    {Z_SCORE_VISIBLE && (
+                                        <div className="text-2xl font-black text-emerald-400 drop-shadow-sm">{staff.complianceScore} <span className="text-xs text-emerald-600">pts</span></div>
+                                    )}
                                 </div>
                             ))}
-                            {(!data.leaderboard || data.leaderboard.length === 0) && (
+                            {(!Z_SCORE_VISIBLE || !data.leaderboard || data.leaderboard.length === 0) && (
                                 <p className="text-slate-500 text-sm font-bold text-center mt-8 uppercase tracking-widest">Sin Data Operacional</p>
                             )}
                         </div>

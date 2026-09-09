@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { UserCog, Award, UserPlus, ClipboardCheck, Users, Search, Sparkles } from 'lucide-react';
+import { Z_SCORE_VISIBLE } from '@/lib/z-score-visible';
 
 // Formateador de fecha relativa en español
 function formatRelative(dateIso: string | null): string {
@@ -147,7 +148,10 @@ export default function HRScorecardPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {emp.complianceScore >= 90 ? (
+                    {/* Ver src/lib/z-score-visible.ts */}
+                    {!Z_SCORE_VISIBLE ? (
+                      <span className="text-[11px] text-slate-400 font-medium">En revisión</span>
+                    ) : emp.complianceScore >= 90 ? (
                       <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3.5 py-1.5 rounded-full text-[11px] font-black tracking-widest border border-emerald-200/60 shadow-sm">
                         {emp.complianceScore} PTA.
                       </span>
