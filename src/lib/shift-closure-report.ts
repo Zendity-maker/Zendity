@@ -117,7 +117,7 @@ export async function collectShiftActivity(params: {
             bathCount: 0,
             vitalCount: 0,
             falls: [] as { patientName: string; severity: string; location: string }[],
-            clinicalAlerts: [] as { patientName: string; notes: string }[],
+            clinicalAlerts: [] as { patientName: string; notes: string; reportadoPor: string | null }[],
             rotations: 0,
         };
     }
@@ -145,15 +145,39 @@ export async function collectShiftActivity(params: {
             include: { patient: { select: { name: true } } },
             take: 10,
         }),
+        /**
+         * SIN filtrar por autor. Antes llevaba `authorId: caregiverId`, y esa
+         * linea es la que hacia mentir al relevo.
+         *
+         * Medido el 09-sep-2026 sobre 858 relevos de 90 dias: 102 dijeron
+         * "Sin novedades que requieran seguimiento" y 39 de esos eran falsos —
+         * habia alerta o caida en el turno. En 32 de los 39 la alerta la habia
+         * escrito OTRA persona, asi que Zendi nunca la vio.
+         *
+         * Entre ellos, cuatro relevos del 28-ago que dijeron "sin novedades"
+         * el dia que un residente FALLECIO.
+         *
+         * El relevo no es un parte de lo que hizo la cuidadora: es lo que el
+         * turno que entra necesita saber de ESTOS residentes. Una caida que
+         * reporto una companera le importa igual a quien recibe. Por eso ahora
+         * el criterio es el residente, no el autor — que es como ya funcionaba
+         * la consulta de caidas, tres lineas mas arriba.
+         *
+         * Se trae el autor para que el resumen pueda decir quien lo reporto:
+         * incluirlo sin decir de quien viene convertiria el relevo en algo que
+         * ella firma sin haberlo visto.
+         */
         prisma.dailyLog.findMany({
             where: {
                 patientId: { in: patientIds },
-                authorId: caregiverId,
                 createdAt: { gte: shiftStart },
                 isClinicalAlert: true,
             },
-            include: { patient: { select: { name: true } } },
-            take: 10,
+            include: {
+                patient: { select: { name: true } },
+                author: { select: { id: true, name: true } },
+            },
+            take: 15,
         }),
         prisma.posturalChangeLog.count({ where: { nurseId: caregiverId, performedAt: { gte: shiftStart } } }),
     ]);
@@ -169,7 +193,11 @@ export async function collectShiftActivity(params: {
         bathCount,
         vitalCount,
         falls: falls.map(f => ({ patientName: f.patient?.name || 'Desconocido', severity: f.severity, location: f.location })),
-        clinicalAlerts: alerts.map(a => ({ patientName: a.patient?.name || 'Desconocido', notes: a.notes || '(sin notas)' })),
+        clinicalAlerts: alerts.map(a => ({
+            patientName: a.patient?.name || 'Desconocido',
+            notes: a.notes || '(sin notas)',
+            reportadoPor: a.author?.id === caregiverId ? null : (a.author?.name ?? null),
+        })),
         rotations,
     };
 }
@@ -216,7 +244,8 @@ export async function buildZendiSummary(params: {
         : '  · ninguno';
 
     const alertLines = activity.clinicalAlerts.length > 0
-        ? activity.clinicalAlerts.map(a => `  · ${a.patientName}: ${a.notes}`).join('\n')
+        ? activity.clinicalAlerts.map(a =>
+            `  · ${a.patientName}: ${a.notes}${a.reportadoPor ? ` (lo reportó ${a.reportadoPor})` : ''}`).join('\n')
         : '  · ninguno';
 
     const justLines = Object.keys(justifications).length > 0
@@ -276,7 +305,8 @@ ${omittedLines}
 - Rotaciones UPP (cambios posturales): ${activity.rotations}
 - Caídas durante el turno:
 ${fallLines}
-- Alertas clínicas del cuidador (isClinicalAlert en DailyLog):
+- Alertas clínicas de estos residentes durante el turno (las haya escrito quien
+  las haya escrito; si la reportó otra persona, dilo — "lo reportó Fulana"):
 ${alertLines}
 - Justificaciones del wizard (tareas pendientes/trasladadas):
 ${justLines}
