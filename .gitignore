@@ -105,3 +105,5 @@ public/academy/_backup_old/
 !scripts/guia-cambios-sep2026.ts
 # Convierte a °F las lecturas que quedaron guardadas en Celsius
 !scripts/normalizar-temperatura-a-fahrenheit.ts
+# Correo de orientacion al piso sobre el boton "Algo cambio en el residente"
+!scripts/orientacion-boton-cambios.ts
