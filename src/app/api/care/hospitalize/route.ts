@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { logError } from '@/lib/logger';
+import { notifyRoles } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,8 +108,8 @@ export async function PATCH(req: Request) {
             select: { name: true, role: true }
         });
 
-        // 2. Opcionalmente registrar estp como un Ticket/Reporte Clinico (Hub)
-        await prisma.dailyLog.create({
+        // 2. La nota del traslado en el expediente.
+        const nota = await prisma.dailyLog.create({
             data: {
                 patientId,
                 authorId,
@@ -117,7 +118,24 @@ export async function PATCH(req: Request) {
                 // se lee como "no comió nada".
                 foodIntake: null,
                 notes: `[TRASLADO HOSPITALARIO DE EMERGENCIA] Motivo: ${reason}`,
-                isClinicalAlert: true, // Esto lo manda a triage
+                /**
+                 * OJO: `isClinicalAlert` NO manda esto a triage.
+                 *
+                 * El comentario anterior decia que si, y era falso: el ticket lo
+                 * crea /api/care/vitals cuando la nota entra por ahi, y esta ruta
+                 * escribe el DailyLog directo con prisma, saltandose esa logica.
+                 * Un comentario que promete lo que el codigo no hace es peor que
+                 * no tener comentario: nadie vuelve a comprobarlo.
+                 *
+                 * Medido el 08-sep-2026: de 53 notas marcadas como alerta en 30
+                 * dias, 19 no llegaron al inbox del supervisor — 15 de ellas
+                 * traslados hospitalarios, incluido uno cuyo motivo era
+                 * "Fallecio". El ticket se crea ahora abajo, a mano.
+                 *
+                 * La bandera se queda porque marca la nota como clinica en el
+                 * expediente, que es otra cosa.
+                 */
+                isClinicalAlert: true,
                 /**
                  * Nace RESUELTA. El traslado no es una tarea pendiente: ya
                  * ocurrio y ya se atendio — el residente esta camino al
@@ -136,6 +154,52 @@ export async function PATCH(req: Request) {
                 isResolved: true,
             }
         });
+
+        /**
+         * 3. EL TICKET, PARA QUE EL SUPERVISOR SE ENTERE.
+         *
+         * Un traslado a emergencias es el evento mas grave que puede reportar
+         * una cuidadora, y hasta hoy no aparecia en el inbox: solo cambiaba el
+         * contador de "En Hospital", que es un ESTADO, no algo que alguien
+         * tenga que atender.
+         *
+         * NACE ABIERTO, aunque la nota nazca resuelta. No son lo mismo: la nota
+         * resuelta dice "esto ya paso y se atendio"; el ticket abierto dice
+         * "el supervisor todavia no lo ha visto". Cerrarlo es un clic y son
+         * quince al mes, no quince al dia — no es el contador que no baja del
+         * que avisa el comentario de arriba.
+         *
+         * CRITICO si el motivo habla de un fallecimiento. Existe boton propio
+         * para reportarlo, pero mientras alguien lo escriba aqui, aqui hay que
+         * tratarlo como lo que es.
+         */
+        const esFallecimiento = /fallec|muri[oó]|defunci/i.test(reason);
+        try {
+            await prisma.triageTicket.create({
+                data: {
+                    headquartersId: sessionHqId,
+                    patientId,
+                    originType: 'INCIDENT',
+                    originReferenceId: nota.id,
+                    priority: esFallecimiento ? 'CRITICAL' : 'HIGH',
+                    status: 'OPEN',
+                    description: `[TRASLADO A EMERGENCIAS] ${reason}`
+                        + (porCaida ? ' · Fue por una caida.' : '')
+                        + ` — Trasladado por ${author?.name?.trim() ?? 'personal'}.`,
+                },
+            });
+        } catch (e) {
+            // El traslado ya ocurrio y el residente ya esta camino al hospital:
+            // si el ticket falla, no se tumba la respuesta. Queda en el log.
+            logError('care.hospitalize.ticket', e as Error);
+        }
+
+        notifyRoles(sessionHqId, ['SUPERVISOR', 'DIRECTOR', 'NURSE'], {
+            type: 'TRIAGE',
+            title: esFallecimiento ? 'Traslado a emergencias — fallecimiento' : 'Traslado a emergencias',
+            message: `${reason.slice(0, 140)} — por ${author?.name?.trim() ?? 'personal'}.`,
+            link: '/care/supervisor',
+        }, authorId).catch(e => logError('care.hospitalize.notify', e as Error));
 
         return NextResponse.json({
             success: true,
