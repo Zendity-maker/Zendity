@@ -90,6 +90,11 @@ export async function GET(req: Request) {
         const leaderboard = await prisma.user.findMany({
             where: {
                 headquartersId,
+                // El 09-sep-2026 el #2 de esta pared era Eiby Caraballo, que
+                // esta inactiva y borrada. El ranking esta oculto ahora mismo
+                // (ver z-score-visible.ts), pero la consulta se arregla igual.
+                isActive: true,
+                isDeleted: false,
                 role: { in: ['CAREGIVER', 'NURSE'] }
             },
             orderBy: { complianceScore: 'desc' },

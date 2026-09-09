@@ -33,7 +33,9 @@ export async function POST(req: Request) {
 
         // Extraer residentes del HQ con signos vitales o logs recientes
         const patients = await prisma.patient.findMany({
-            where: { headquartersId },
+            // status ACTIVE: un digest de relevo sobre alguien que fallecio o
+            // se fue no le sirve a nadie, y ademas lo nombra.
+            where: { headquartersId, status: 'ACTIVE' },
             include: {
                 vitalSigns: {
                     where: { createdAt: { gte: eightHoursAgo } },

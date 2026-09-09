@@ -31,6 +31,9 @@ export async function GET(request: Request) {
         const availableStaff = await prisma.user.findMany({
             where: {
                 headquartersId: hqId,
+                // Se llama availableStaff: quien se fue no esta disponible.
+                isActive: true,
+                isDeleted: false,
                 role: { in: ['NURSE', 'THERAPIST', 'BEAUTY_SPECIALIST', 'CAREGIVER'] }
             },
             select: { id: true, name: true, role: true }

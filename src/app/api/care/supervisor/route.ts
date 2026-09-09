@@ -17,7 +17,8 @@ export async function GET() {
 
         // Traer Staff para armar los horarios
         const staff = await prisma.user.findMany({
-            where: { headquartersId: hqId, role: { in: ['NURSE', 'CAREGIVER'] } },
+            // No se le arma horario a quien ya no trabaja aqui.
+            where: { headquartersId: hqId, isActive: true, isDeleted: false, role: { in: ['NURSE', 'CAREGIVER'] } },
             select: { id: true, name: true, role: true }
         });
 
