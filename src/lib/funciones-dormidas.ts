@@ -54,6 +54,30 @@ export const FUNCIONES_DORMIDAS = {
      * Para despertarla: `documentosLegales: true`.
      */
     documentosLegales: false,
+
+    /**
+     * Incidentes Clinicos en corporate — /corporate/incidents.
+     *
+     * Dormida el 09-sep-2026 por decision de Andres: "ahora quita falls de
+     * corporate". Lo que hay detras de esa decision, medido:
+     *
+     *   8 caidas: 7 desde la tableta, 1 desde el traslado al hospital.
+     *   0 registradas desde esta pantalla en cuatro meses.
+     *   0 errores de medicacion, en total.
+     *
+     * No estaba rota: estaba en el sitio equivocado. Una caida la levanta
+     * enfermeria, no direccion. El formulario ya se mudo a /care/caidas
+     * (commit 08cd8c0), que tambien lleva el historial de 90 dias. Dejar aqui
+     * una segunda lista de lo mismo es lo que convierte la app en un menu de
+     * pantallas que se parecen.
+     *
+     * Lo unico que se pierde de vista es el CSV de 30 dias. Si direccion lo
+     * echa de menos, se pone en /care/caidas, que es donde estan los datos.
+     *
+     * Para despertarla: `incidentesEnCorporate: true`. La pantalla, sus
+     * filtros y el endpoint GET siguen donde estaban.
+     */
+    incidentesEnCorporate: false,
 } as const;
 
 export function estaDormida(f: keyof typeof FUNCIONES_DORMIDAS): boolean {

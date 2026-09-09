@@ -286,14 +286,18 @@ export default function RunbookPage() {
                             <p className="text-xs text-slate-500">Tickets abiertos</p>
                         </div>
                     </Link>
+                    {/* A enfermeria, no a /corporate/incidents: esa pantalla se
+                        durmio el 09-sep-2026 y las caidas se registran en
+                        /care/caidas. Un enlace que lleva a un sitio dormido es
+                        un enlace roto que nadie reporta. */}
                     <Link
-                        href="/corporate/incidents"
+                        href="/care/caidas"
                         className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-all"
                     >
                         <AlertTriangle className="w-5 h-5 text-amber-500" />
                         <div>
-                            <p className="text-sm font-semibold text-slate-800">Incidentes</p>
-                            <p className="text-xs text-slate-500">Reportar incidente</p>
+                            <p className="text-sm font-semibold text-slate-800">Caídas</p>
+                            <p className="text-xs text-slate-500">Registrar en enfermería</p>
                         </div>
                     </Link>
                     <Link
@@ -373,7 +377,7 @@ export default function RunbookPage() {
                             { label: "Triage Center sin tickets CRITICAL sin atender", link: "/corporate/triage", linkLabel: "Ver Triage" },
                             { label: "Reportes de turno firmados por el supervisor", link: "/corporate/reports", linkLabel: "Ver Reportes" },
                             { label: "Vitales registradas para residentes en vigilancia", link: "/care/vitals", linkLabel: "Ver Vitales" },
-                            { label: "Sin incidentes sin documentar en las últimas 8h", link: "/corporate/incidents", linkLabel: "Ver Incidentes" },
+                            { label: "Sin incidentes sin documentar en las últimas 8h", link: "/care/caidas", linkLabel: "Ver caídas" },
                         ].map((item, i) => (
                             <div key={i} className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-lg">
                                 <div className="flex items-center gap-3">

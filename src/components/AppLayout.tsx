@@ -141,7 +141,10 @@ const corporateNavigationSections = [
         links: [
             { name: "Dashboard Global", href: "/corporate", icon: LayoutDashboard },
             { name: "Triage Center", href: "/corporate/triage", icon: ShieldAlert },
-            { name: "Incidentes Clínicos", href: "/corporate/incidents", icon: AlertTriangle },
+            // Dormida el 09-sep-2026: las caidas se registran en enfermeria
+            // (/care/caidas). Cero registros desde aqui en cuatro meses.
+            // Ver src/lib/funciones-dormidas.ts.
+            { name: "Incidentes Clínicos", href: "/corporate/incidents", icon: AlertTriangle, dormida: "incidentesEnCorporate" },
             { name: "Runbook Operacional", href: "/corporate/runbook", icon: FileText },
             { name: "Planta Física & Mantenimiento", href: "/maintenance", icon: Settings },
             { name: "Limpieza & Sanitización", href: "/corporate/cleaning", icon: SprayCan },
@@ -167,7 +170,11 @@ const corporateNavigationSections = [
             // inexistente en DB, página siempre vacía. La funcionalidad real vive
             // en la ficha individual del residente (?tab=falls). Restaurar cuando
             // se migre a multi-tenant con resolveEffectiveHqId.
-            // { name: "Prevención de Riesgos", href: "/corporate/medical/fall-risk", icon: ShieldAlert },
+            // Prevencion de Riesgos (/corporate/medical/fall-risk) estuvo aqui
+            // comentada sin fecha ni motivo: nadie podia llegar. Las caidas
+            // viven ahora en /care/caidas. Lo unico que esa pantalla tenia y
+            // no esta replicado es la clasificacion de riesgo por residente
+            // (ALTO/MODERADO/BAJO); si hace falta, va en enfermeria.
             { name: "UPPs (Úlceras)", href: "/corporate/medical/upp-dashboard", icon: Activity },
             { name: "eMAR Audit", href: "/corporate/medical/emar", icon: Pill },
             { name: "Catálogo Farmacia", href: "/corporate/medical/catalog", icon: Package },
