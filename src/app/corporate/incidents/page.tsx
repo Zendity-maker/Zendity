@@ -51,6 +51,17 @@ function formatRelative(dateStr: string) {
 }
 
 // ── Modal de Reporte Rápido ───────────────────────────────────────────────
+/**
+ * Ahora, en el formato que pide <input type="datetime-local"> (hora local).
+ * Puerto Rico es AST todo el ano, sin horario de verano, asi que la hora local
+ * del navegador y la del hogar son la misma.
+ */
+function ahoraLocal(): string {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+}
+
 function ReportIncidentModal({ hqId, patients, onClose, onSuccess }: {
     hqId: string;
     patients: { id: string; name: string; roomNumber: string | null }[];
@@ -61,11 +72,14 @@ function ReportIncidentModal({ hqId, patients, onClose, onSuccess }: {
     const [patientId, setPatientId] = useState('');
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
+    const [cuando, setCuando] = useState(ahoraLocal());
     const [conscious, setConscious] = useState(true);
     const [bleeding, setBleeding] = useState(false);
     const [painLevel, setPainLevel] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+
+    const esRetroactiva = !!cuando && Date.now() - new Date(cuando).getTime() > 24 * 60 * 60 * 1000;
 
     const submit = async () => {
         if (!patientId && type !== 'OTHER') return setError('Selecciona un residente.');
@@ -76,6 +90,8 @@ function ReportIncidentModal({ hqId, patients, onClose, onSuccess }: {
             if (type === 'FALL') {
                 body.location = location; body.conscious = conscious;
                 body.bleeding = bleeding; body.painLevel = painLevel;
+                // Si no se toco el campo, es ahora — y el backend hace lo mismo.
+                if (cuando) body.incidentDate = new Date(cuando).toISOString();
             }
             const res = await fetch('/api/care/incidents', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -133,6 +149,25 @@ function ReportIncidentModal({ hqId, patients, onClose, onSuccess }: {
                     {/* Campos específicos por tipo */}
                     {type === 'FALL' && (
                         <>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                                    ¿Cuándo ocurrió? <span className="text-red-500">*</span>
+                                </label>
+                                <input type="datetime-local" value={cuando} max={ahoraLocal()}
+                                    onChange={e => setCuando(e.target.value)}
+                                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+                                {esRetroactiva ? (
+                                    <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                        Se registra con esa fecha, no con la de hoy. Como ya pasó,
+                                        no se avisa como emergencia: entra al expediente y a triage
+                                        con prioridad baja.
+                                    </p>
+                                ) : (
+                                    <p className="mt-1.5 text-xs text-gray-400">
+                                        Viene puesta la hora de ahora. Cámbiala si la caída fue antes.
+                                    </p>
+                                )}
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Ubicación</label>
                                 <input value={location} onChange={e => setLocation(e.target.value)}

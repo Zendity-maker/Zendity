@@ -48,6 +48,16 @@ interface MedDelResidente {
 import { Toaster, toast } from 'sonner';
 import { aFahrenheit } from '@/lib/vitals-thresholds';
 
+/**
+ * Ahora, en el formato de <input type="datetime-local"> (hora local).
+ * Puerto Rico es AST todo el ano, asi que la hora del navegador es la del hogar.
+ */
+function ahoraLocal(): string {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+}
+
 function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
     const hour = new Date().getHours();
     if (hour >= 6 && hour < 14) return 'MORNING';
@@ -335,6 +345,8 @@ export default function ZendityCareTabletPage() {
     // y la caída nunca llegó al módulo. Hizo lo correcto con lo que había.
     const [caidaNoPresenciada, setCaidaNoPresenciada] = useState(false);
     const [caidaReportadaPor, setCaidaReportadaPor] = useState("");
+    // Solo se pregunta cuando la caida NO se presencio: si la viste, es ahora.
+    const [caidaCuando, setCaidaCuando] = useState("");
     // Sprint Diet System — prescripción canónica (textura + flags ortogonales).
     // Reemplaza al viejo `dietFormValue` string con vocabulario drift.
     const [careDietDraft, setCareDietDraft] = useState<DietPrescriptionData>({
@@ -2024,6 +2036,11 @@ export default function ZendityCareTabletPage() {
                     bleeding: caidaNoPresenciada ? undefined : fallProtocol.bleeding,
                     painLevel: caidaNoPresenciada ? undefined : fallProtocol.painLevel,
                     location: caidaNoPresenciada ? 'No presenciada — reportada por terceros' : undefined,
+                    // Una caida que te reportaron no ocurrio cuando la escribes.
+                    // Si la presenciaste, no se manda nada y el backend pone ahora.
+                    incidentDate: caidaNoPresenciada && caidaCuando
+                        ? new Date(caidaCuando).toISOString()
+                        : undefined,
                     description: caidaNoPresenciada
                         ? `Caída no presenciada por quien la registra. Reportada por: ${caidaReportadaPor.trim() || 'no indicado'}.`
                         : `Residente sufrió caída. Consciente: ${fallProtocol.consciousness ? 'Sí' : 'No'}, Sangrado: ${fallProtocol.bleeding ? 'Sí' : 'No'}, Dolor: ${fallProtocol.painLevel}/10`,
@@ -2034,6 +2051,7 @@ export default function ZendityCareTabletPage() {
                 setFallProtocol({ consciousness: true, bleeding: false, painLevel: 5 });
                 setCaidaNoPresenciada(false);
                 setCaidaReportadaPor("");
+                setCaidaCuando("");
                 setModalType(null);
                 // El servidor detectó que esta caída ya estaba registrada hace
                 // menos de cinco minutos. No es un error: la cuidadora hizo lo
@@ -4873,6 +4891,25 @@ export default function ZendityCareTabletPage() {
                                         placeholder="¿Quién te la reportó? Ej. Yedaira, turno de noche"
                                         className="w-full px-4 py-3 rounded-xl border-2 border-amber-200 bg-white font-medium text-[15px]"
                                     />
+                                )}
+                                {caidaNoPresenciada && (
+                                    <div>
+                                        <label className="block text-[13px] font-bold text-amber-900 mb-1.5">
+                                            ¿Cuándo fue?
+                                        </label>
+                                        <input
+                                            type="datetime-local"
+                                            value={caidaCuando}
+                                            max={ahoraLocal()}
+                                            onChange={e => setCaidaCuando(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-amber-200 bg-white font-medium text-[15px]"
+                                        />
+                                        <p className="text-[13px] text-amber-800/80 mt-1 leading-snug">
+                                            Si la dejas en blanco queda con la hora de ahora. La caída
+                                            del turno de noche que te cuentan por la mañana no pasó
+                                            por la mañana.
+                                        </p>
+                                    </div>
                                 )}
                                 {!caidaNoPresenciada && (
                                 <div className="bg-rose-50 p-5 rounded-2xl border border-rose-200 space-y-4 shadow-inner">

@@ -25,6 +25,25 @@ const IncidentFallSchema = z.object({
     location:    z.string().max(200).optional().nullable(),
     // severity llega del cliente pero la sobreescribimos con deriveSeverity
     severity:    z.string().optional(),
+    /**
+     * CUANDO OCURRIO. Opcional: si no viene, es ahora.
+     *
+     * El modelo siempre tuvo `incidentDate` y `reportedAt` separados, y la
+     * separacion existe justo para esto. Pero la API nunca ponia el primero,
+     * asi que los dos caian en now(): las 8 caidas de Cupey tienen las dos
+     * marcas identicas al segundo. El campo "cuando paso" nunca llevo
+     * informacion.
+     *
+     * Eso da igual cuando la cuidadora reporta desde la tableta en el momento.
+     * Rompe el registro cuando se escribe despues — y hay 4 caidas de Cupey
+     * que solo existen en una nota de texto libre y hay que meterlas. Si las
+     * cuatro se sellan el dia que se escriben, el patron que hace util un
+     * registro de caidas (cada cuanto, a que hora, en que turno) sale falso.
+     *
+     * Hacia atras no hay limite, porque ese es exactamente el caso real.
+     * Hacia adelante no se acepta.
+     */
+    incidentDate: z.coerce.date().optional(),
 });
 
 const IncidentOtherSchema = z.object({
@@ -100,7 +119,34 @@ export async function POST(req: Request) {
 
         // ─── FLUJO FALL ───
         if (parsed.data.type === 'FALL') {
-            const { patientId, description, conscious, bleeding, painLevel, location } = parsed.data;
+            const { patientId, description, conscious, bleeding, painLevel, location, incidentDate } = parsed.data;
+
+            // Un margen de 5 minutos por el reloj de la tableta.
+            if (incidentDate && incidentDate.getTime() > Date.now() + 5 * 60 * 1000) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'La caída no puede haber ocurrido en el futuro. Revisa la fecha.',
+                }, { status: 400 });
+            }
+
+            /**
+             * Retroactiva = se escribe mas de 24 horas despues de ocurrir.
+             *
+             * Importa porque lo que cuelga de una caida esta pensado para
+             * ACTUAR YA: ticket CRITICAL en triage y aviso a supervision,
+             * enfermeria y direccion. Para una caida de hace tres semanas eso
+             * no es una emergencia, es una falsa alarma — y en este sistema ya
+             * sabemos como termina una falsa alarma repetida (ver el comentario
+             * de HIPOTERMIA en vitals-thresholds: asi se aprende a ignorarlas).
+             *
+             * El incidente se guarda igual, con su fecha real. Lo que baja es
+             * el volumen: prioridad LOW y un aviso que dice cuando paso.
+             */
+            const esRetroactiva = !!incidentDate
+                && Date.now() - incidentDate.getTime() > 24 * 60 * 60 * 1000;
+            const cuandoPaso = incidentDate
+                ? incidentDate.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
+                : null;
             // Tenant check: paciente debe ser de la sede del invocador
             const fallPatient = await prisma.patient.findFirst({
                 where: { id: patientId, headquartersId: hqId },
@@ -177,6 +223,9 @@ export async function POST(req: Request) {
                     severity: derivedSeverity as any,
                     interventions,
                     notes: description || null,
+                    // Sin incidentDate cae en @default(now()), que es lo correcto
+                    // para la cuidadora que reporta desde la tableta al momento.
+                    ...(incidentDate ? { incidentDate } : {}),
                 }
             });
 
@@ -193,9 +242,11 @@ export async function POST(req: Request) {
                     patientId,
                     originType: 'FALL',
                     originReferenceId: incident.id,
-                    priority: 'CRITICAL',
+                    priority: esRetroactiva ? 'LOW' : 'CRITICAL',
                     status: 'OPEN',
-                    description: `Caída de ${fallPatient.name} (${derivedSeverity}): ${interventions}. ${description || ''}`.trim(),
+                    description: (esRetroactiva
+                        ? `Registro retroactivo — la caída de ${fallPatient.name} ocurrió el ${cuandoPaso}. (${derivedSeverity}): ${interventions}. ${description || ''}`
+                        : `Caída de ${fallPatient.name} (${derivedSeverity}): ${interventions}. ${description || ''}`).trim(),
                 }
             });
 
@@ -212,7 +263,9 @@ export async function POST(req: Request) {
             try {
                 await notifyRoles(fallPatient.headquartersId, ['SUPERVISOR', 'NURSE', 'DIRECTOR'], {
                     type: 'TRIAGE',
-                    title: `Caída reportada — ${derivedSeverity}`,
+                    title: esRetroactiva
+                        ? `Caída registrada — ocurrió el ${cuandoPaso}`
+                        : `Caída reportada — ${derivedSeverity}`,
                     message: `${fallPatient.name} — ${interventions.substring(0, 120)}`,
                     link: '/corporate/triage',
                 });
