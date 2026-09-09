@@ -25,7 +25,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, ShieldAlert, CalendarClock } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, ShieldAlert, CalendarClock, ChevronDown } from "lucide-react";
 import RegistrarIncidente from "@/components/care/RegistrarIncidente";
 
 interface Incidente {
@@ -40,6 +40,33 @@ interface Incidente {
     createdAt: string;
 }
 
+interface EnRiesgo {
+    id: string;
+    nombre: string;
+    habitacion: string | null;
+    nivel: 'HIGH' | 'MODERATE' | 'LOW' | null;   // null = nadie lo ha evaluado
+    evaluadoEl: string | null;
+    caidas90d: number;
+    ultimaCaida: string | null;
+}
+
+/**
+ * SIN EVALUAR va primero y es su propia categoría.
+ *
+ * Un residente al que nadie ha evaluado no es de riesgo bajo: es un residente
+ * del que no se sabe. Meterlo en "bajo" da un número que tranquiliza sin
+ * sostener nada.
+ */
+const NIVELES: { clave: EnRiesgo['nivel']; texto: string; chip: string; punto: string }[] = [
+    { clave: null,       texto: 'Sin evaluar', chip: 'bg-slate-100 text-slate-700 border-slate-300', punto: 'bg-slate-400' },
+    { clave: 'HIGH',     texto: 'Alto',        chip: 'bg-rose-100 text-rose-800 border-rose-300',    punto: 'bg-rose-500' },
+    { clave: 'MODERATE', texto: 'Moderado',    chip: 'bg-amber-100 text-amber-800 border-amber-300', punto: 'bg-amber-500' },
+    { clave: 'LOW',      texto: 'Bajo',        chip: 'bg-emerald-50 text-emerald-800 border-emerald-200', punto: 'bg-emerald-500' },
+];
+
+/** Una evaluación de hace más de 90 días ya no describe a nadie. */
+const VENCE_A_LOS_DIAS = 90;
+
 const GRAVEDAD: Record<string, { texto: string; clase: string }> = {
     SEVERE: { texto: 'Grave',   clase: 'bg-rose-100 text-rose-800 border-rose-200' },
     MILD:   { texto: 'Leve',    clase: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -51,6 +78,8 @@ const fmt = (iso: string) =>
         day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit',
     });
 
+const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+
 /** Se registró después de ocurrir. Más de una hora, para no marcar el papeleo normal. */
 const seEscribioDespues = (i: Incidente) =>
     new Date(i.createdAt).getTime() - new Date(i.occurredAt).getTime() > 60 * 60 * 1000;
@@ -59,21 +88,27 @@ export default function CaidasPage() {
     const router = useRouter();
     const [incidentes, setIncidentes] = useState<Incidente[]>([]);
     const [residentes, setResidentes] = useState<{ id: string; name: string; roomNumber?: string | null }[]>([]);
+    const [enRiesgo, setEnRiesgo] = useState<EnRiesgo[]>([]);
     const [cargando, setCargando] = useState(true);
     const [abierto, setAbierto] = useState(false);
+    // Por defecto solo se abren los dos grupos que piden trabajo.
+    const [verTodos, setVerTodos] = useState(false);
 
     const cargar = useCallback(async () => {
         try {
             // 90 días: menos que eso y el patrón —cada cuánto, a qué hora— no se ve.
-            const [ri, rp] = await Promise.all([
+            const [ri, rp, rr] = await Promise.all([
                 fetch('/api/care/incidents?hoursBack=2160'),
                 fetch('/api/patients'),
+                fetch('/api/care/fall-risk'),
             ]);
             const di = await ri.json();
             const dp = await rp.json();
+            const dr = await rr.json();
             if (di.success) setIncidentes(di.incidents ?? []);
             // /api/patients devuelve el array pelado, no {success, data}.
             setResidentes(Array.isArray(dp) ? dp : []);
+            if (dr.success) setEnRiesgo(dr.residentes ?? []);
         } catch { /* la pantalla se queda como está */ }
         finally { setCargando(false); }
     }, []);
@@ -103,6 +138,72 @@ export default function CaidasPage() {
                     <Plus className="w-4 h-4" /> Registrar
                 </button>
             </div>
+
+            {/* RIESGO DE CAÍDA.
+                Estaba en /corporate/medical/fall-risk, comentada fuera del menú:
+                existía y nadie podía llegar. El sistema calcula el nivel solo
+                (cada caída crea un FallRiskAssessment) y nadie lo miraba. */}
+            {!cargando && enRiesgo.length > 0 && (
+                <div className="mb-6 rounded-3xl border-2 border-slate-200 bg-white p-5">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="font-black text-slate-900">Riesgo de caída</p>
+                        <button onClick={() => setVerTodos(v => !v)}
+                            className="text-xs font-bold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1">
+                            {verTodos ? 'Ver solo lo que pide trabajo' : 'Ver los 4 grupos'}
+                            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${verTodos ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                        {NIVELES.map(n => (
+                            <div key={n.texto} className={`rounded-xl border px-3 py-2.5 ${n.chip}`}>
+                                <div className="text-2xl font-black leading-none">
+                                    {enRiesgo.filter(r => r.nivel === n.clave).length}
+                                </div>
+                                <div className="text-[11px] font-bold uppercase tracking-wide mt-1 opacity-80">{n.texto}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="space-y-4">
+                        {NIVELES
+                            // Sin evaluar y Alto siempre; los otros dos solo si se piden.
+                            .filter(n => verTodos || n.clave === null || n.clave === 'HIGH')
+                            .map(n => {
+                                const gente = enRiesgo.filter(r => r.nivel === n.clave);
+                                if (gente.length === 0) return null;
+                                return (
+                                    <div key={n.texto}>
+                                        <p className="text-xs font-black uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full ${n.punto}`} />
+                                            {n.texto} · {gente.length}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {gente.map(r => {
+                                                const vencida = r.evaluadoEl && diasDesde(r.evaluadoEl) > VENCE_A_LOS_DIAS;
+                                                return (
+                                                    <span key={r.id}
+                                                        className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border ${n.chip}`}>
+                                                        {r.nombre}
+                                                        {r.habitacion && <span className="opacity-60"> · {r.habitacion}</span>}
+                                                        {r.caidas90d > 0 && (
+                                                            <span className="opacity-80"> · {r.caidas90d} caída{r.caidas90d === 1 ? '' : 's'} en 90 días</span>
+                                                        )}
+                                                        {/* Una evaluación de hace medio año no describe
+                                                            a nadie. Decirlo es más útil que el nivel. */}
+                                                        {vencida && (
+                                                            <span className="opacity-60"> · evaluado hace {diasDesde(r.evaluadoEl!)} días</span>
+                                                        )}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </div>
+                </div>
+            )}
 
             {cargando ? (
                 <div className="flex items-center gap-3 text-slate-400 py-16 justify-center">
