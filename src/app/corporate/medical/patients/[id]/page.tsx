@@ -598,9 +598,15 @@ export default function PatientDossierPage(props: { params: Promise<{ id: string
                                 <Link href={`/care/patient/emar-print?patientId=${patientData.id}`} target="_blank" className="flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                     <DocumentTextIcon className="w-5 h-5" /> Auditoría eMAR
                                 </Link>
-                                <Link href={`/corporate/patients/${patientData.id}/emergency-print`} target="_blank" className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
-                                    🆘 Tarjeta de Emergencia
-                                </Link>
+                                {/* La "Tarjeta de Emergencia" se retiró el 08-sep-2026.
+                                    Hacía el mismo trabajo que el Resumen del Residente y
+                                    peor: el hogar la probó en emergencias y prefirió el
+                                    resumen, porque lleva la FOTO de la tarjeta del plan
+                                    médico —lo que pide la ventanilla del hospital— y los
+                                    últimos signos vitales. Dos papeles para el mismo
+                                    momento es garantizar que alguien saque el equivocado
+                                    con prisa. El botón del resumen está arriba, siempre
+                                    visible. */}
                                 {puedeDarPermiso && (
                                     <button onClick={() => setShowLeaveModal(true)} className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-sm transition-colors text-sm">
                                         <CalendarDaysIcon className="w-5 h-5" /> Permiso Temporal

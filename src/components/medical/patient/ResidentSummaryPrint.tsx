@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { Printer, X, Loader2, FileText, UserCircle2, Phone, AlertTriangle } from "lucide-react";
-import { alergiasSinDocumentar } from '@/lib/alergias';
+import { alergiasSinDocumentar, textoDeAlergias } from '@/lib/alergias';
+import { descargarResumenResidentePDF } from '@/lib/resumen-residente-pdf';
 
 interface ResidentSummaryPrintProps {
     patientId: string;
@@ -131,41 +131,79 @@ export default function ResidentSummaryPrint({
         fetchData();
     }, [patientId]);
 
+    /**
+     * EL PDF SE ARMA, NO SE FOTOGRAFÍA.
+     *
+     * Esto era html2canvas: una imagen larga cortada en trozos del tamaño de
+     * una hoja. El texto no se podía seleccionar, las filas de medicamentos se
+     * partían por la mitad en el corte, y el nombre del residente salía solo en
+     * la hoja 1 — en una sala de urgencias ese papel se separa, y la hoja 2 era
+     * una lista de medicamentos sin dueño.
+     *
+     * Ahora lo arma jsPDF en src/lib/resumen-residente-pdf.ts, que además pone
+     * las alergias primero y en rojo, y lleva las tarjetas del plan médico y la
+     * identificación al final — que es lo que pide la ventanilla del hospital y
+     * la razón por la que el hogar prefiere este papel al de traslado.
+     */
     const handleExportPDF = async () => {
-        if (!printRef.current || !data) return;
+        if (!data) return;
         setExporting(true);
         try {
-            printRef.current.style.display = 'block';
-            await new Promise(r => setTimeout(r, 600));
-
-            const canvas = await html2canvas(printRef.current, {
-                scale: 2, useCORS: true, logging: false, allowTaint: true,
+            descargarResumenResidentePDF({
+                nombre: data.name.trim(),
+                habitacion: data.roomNumber,
+                fechaNacimiento: data.dateOfBirth ? formatDOB(data.dateOfBirth) : null,
+                edad: calcAge(data.dateOfBirth),
+                foto: data.photoUrl,
+                dieta: data.diet,
+                grupoColor: data.colorGroup,
+                alergias: textoDeAlergias(data.intakeData?.allergies),
+                alergiasSinDocumentar: alergiasSinDocumentar(data.intakeData?.allergies),
+                diagnosticos: data.intakeData?.diagnoses ?? null,
+                historialMedico: data.intakeData?.medicalHistory ?? null,
+                motivoDelTraslado: transferReason ?? null,
+                seguro: {
+                    plan: data.insurancePlanName,
+                    poliza: data.insurancePolicyNumber,
+                    ssnUltimos4: data.ssnLastFour,
+                    hospitalPreferido: data.preferredHospital,
+                },
+                direccionPrevia: data.address,
+                medicamentos: data.medications.map(md => ({
+                    nombre: md.medication?.name ?? '—',
+                    dosis: md.medication?.dosage ?? null,
+                    via: md.medication?.route ?? null,
+                    frecuencia: md.frequency,
+                    horario: md.scheduleTimes,
+                })),
+                vitales: data.vitalSigns.map(v => ({
+                    fecha: v.createdAt,
+                    sistolica: v.systolic,
+                    diastolica: v.diastolic,
+                    pulso: v.heartRate,
+                    temperatura: v.temperature,
+                    glucosa: v.glucose,
+                    oxigeno: v.oxygen,
+                    medidoPor: v.measuredBy?.name ?? null,
+                })),
+                familia: data.familyMembers.map(f => ({
+                    nombre: f.name, telefono: f.phone, parentesco: f.relationship,
+                })),
+                // Se suben segun las familias las consiguen. Las que falten se
+                // dicen al final del papel, sin alarmar: no es un fallo.
+                tarjetas: [
+                    { etiqueta: 'Plan médico', imagen: data.medicalPlanUrl },
+                    { etiqueta: 'Identificación', imagen: data.idCardUrl },
+                    { etiqueta: 'Medicare', imagen: data.medicareCardUrl },
+                ],
+                hogar: {
+                    nombre: data.headquarters.name,
+                    telefono: data.headquarters.phone,
+                    direccion: data.headquarters.address ?? data.headquarters.billingAddress,
+                    logo: data.headquarters.logoUrl,
+                },
+                generadoAt: new Date(),
             });
-            printRef.current.style.display = 'none';
-
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfPageHeight = pdf.internal.pageSize.getHeight();
-            const margin = 8;
-            const imgWidth = pdfWidth - (margin * 2);
-            const imgHeightScaled = (canvas.height * imgWidth) / canvas.width;
-
-            let heightLeft = imgHeightScaled;
-            let position = 0;
-            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeightScaled);
-            heightLeft -= (pdfPageHeight - margin);
-
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeightScaled;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', margin, position + margin, imgWidth, imgHeightScaled);
-                heightLeft -= (pdfPageHeight - margin * 2);
-            }
-
-            const datePart = new Date().toISOString().split('T')[0];
-            const nameForFile = data.name.replace(/\s+/g, '_');
-            pdf.save(`Resumen_${nameForFile}_${datePart}.pdf`);
         } catch (err) {
             console.error('PDF error:', err);
             alert('Error generando el PDF.');
