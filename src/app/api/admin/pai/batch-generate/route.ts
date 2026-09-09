@@ -5,6 +5,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 /**
  * POST /api/admin/pai/batch-generate
@@ -112,7 +113,7 @@ async function buildClinicalContext(patientId: string): Promise<{ context: strin
 
     const vitalsText = vitals.length > 0
         ? vitals.slice(0, 5).map(v =>
-            `${new Date(v.createdAt).toLocaleDateString('es-PR')}: TA ${v.systolic || '?'}/${v.diastolic || '?'}, FC ${v.heartRate || '?'}, SpO2 ${v.spo2 || '?'}%, T° ${v.temperature || '?'}°F`
+            `${new Date(v.createdAt).toLocaleDateString('es-PR')}: TA ${v.systolic || '?'}/${v.diastolic || '?'}, FC ${v.heartRate || '?'}, SpO2 ${v.spo2 || '?'}%, T° ${aFahrenheit(v.temperature) ?? '?'}°F`
         ).join(' | ')
         : 'Sin vitales recientes';
 

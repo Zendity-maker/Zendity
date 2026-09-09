@@ -37,6 +37,7 @@
  */
 import jsPDF from 'jspdf';
 import { dosisODejarloEnBlanco } from '@/lib/dosis';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 const ROJO: [number, number, number] = [190, 18, 60];
 const ROJO_BG: [number, number, number] = [254, 226, 226];
@@ -413,7 +414,7 @@ function pintarDossier(doc: jsPDF, m: DossierMeta, primero: boolean): string[] {
                     doc.text(fechaHora(v.date), cols[0] + 1.5, y);
                     doc.text(`${v.systolic}/${v.diastolic}`, cols[1] + 1.5, y);
                     doc.text(`${v.heartRate} bpm`, cols[2] + 1.5, y);
-                    doc.text(`${v.temperature} °F`, cols[3] + 1.5, y);
+                    doc.text(`${aFahrenheit(v.temperature) ?? '—'} °F`, cols[3] + 1.5, y);
                     doc.setFont('helvetica', 'normal');
                     doc.text((doc.splitTextToSize(v.measuredBy ?? '—', W - M - cols[4] - 3) as string[])[0], cols[4] + 1.5, y);
                     y += 4.8;

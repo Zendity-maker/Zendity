@@ -29,6 +29,7 @@
  */
 import jsPDF from 'jspdf';
 import { dosisODejarloEnBlanco } from '@/lib/dosis';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 const ROJO: [number, number, number] = [190, 18, 60];
 const ROJO_BG: [number, number, number] = [254, 226, 226];
@@ -297,7 +298,7 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
             doc.text(new Date(v.fecha).toLocaleString('es-PR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Puerto_Rico' }), cols[0] + 1.5, y);
             doc.text(`${v.sistolica}/${v.diastolica}`, cols[1] + 1.5, y);
             doc.text(`${v.pulso} bpm`, cols[2] + 1.5, y);
-            doc.text(`${v.temperatura} °F`, cols[3] + 1.5, y);
+            doc.text(`${aFahrenheit(v.temperatura) ?? '—'} °F`, cols[3] + 1.5, y);
             doc.text(v.glucosa != null ? String(v.glucosa) : '—', cols[4] + 1.5, y);
             doc.text((doc.splitTextToSize(v.medidoPor ?? '—', W - M - cols[5] - 3) as string[])[0], cols[5] + 1.5, y);
             y += 5;

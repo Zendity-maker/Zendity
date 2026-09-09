@@ -6,6 +6,7 @@ import { generateObject, generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { requireRole } from '@/lib/api-auth';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 /**
  * HIPAA — Zendi AI PAI Builder v2
@@ -109,7 +110,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         // ── 8. Construir contexto clínico completo ────────────────────────────
         const vitalsText = vitals.length > 0
             ? vitals.slice(0, 5).map(v =>
-                `${new Date(v.createdAt).toLocaleDateString('es-PR')}: TA ${v.systolic || '?'}/${v.diastolic || '?'}, FC ${v.heartRate || '?'}, SpO2 ${v.spo2 || '?'}%, T° ${v.temperature || '?'}°F`
+                `${new Date(v.createdAt).toLocaleDateString('es-PR')}: TA ${v.systolic || '?'}/${v.diastolic || '?'}, FC ${v.heartRate || '?'}, SpO2 ${v.spo2 || '?'}%, T° ${aFahrenheit(v.temperature) ?? '?'}°F`
             ).join(' | ')
             : 'Sin vitales recientes';
 

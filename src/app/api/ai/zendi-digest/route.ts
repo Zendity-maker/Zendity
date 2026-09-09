@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import OpenAI from 'openai';
 import { notifyRoles } from '@/lib/notifications';
 import { requireRole } from '@/lib/api-auth';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 const ALLOWED_ROLES = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 
@@ -52,13 +53,13 @@ export async function POST(req: Request) {
         }
 
         // Ensamblar contexto clínico para el Prompt
-        let promptData = "Analiza los siguientes datos clínicos de las últimas 8 horas y genera notas de relevo de guardia concisas y profesionales. Para cada residente, determina si la nota es crítica (isCritical: true/false) basado en signos vitales anormales (ej. presión > 140/90, temp > 38C) o alertas en log.\n\nResidentes:\n";
+        let promptData = "Analiza los siguientes datos clínicos de las últimas 8 horas y genera notas de relevo de guardia concisas y profesionales. Para cada residente, determina si la nota es crítica (isCritical: true/false) basado en signos vitales anormales (ej. presión > 140/90, temp > 100.4 °F) o alertas en log.\n\nResidentes:\n";
 
         for (const p of activePatients) {
             promptData += `Residente ID: ${p.id}, Nombre: ${p.name}, Cuarto: ${p.roomNumber}\n`;
             if (p.vitalSigns.length > 0) {
                 const latest = p.vitalSigns[0]; // El más reciente
-                promptData += `- Últimos Vitales: PA ${latest.systolic}/${latest.diastolic} mmHg, Temp ${latest.temperature}°C, FC ${latest.heartRate} lpm.\n`;
+                promptData += `- Últimos Vitales: PA ${latest.systolic}/${latest.diastolic} mmHg, Temp ${aFahrenheit(latest.temperature) ?? '?'} °F, FC ${latest.heartRate} lpm.\n`;
             }
             if (p.dailyLogs.length > 0) {
                 for (const log of p.dailyLogs) {

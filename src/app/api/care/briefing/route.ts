@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { todayStartAST } from '@/lib/dates';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { aFahrenheit, FIEBRE_F } from '@/lib/vitals-thresholds';
 
 
 /**
@@ -117,9 +118,12 @@ export async function POST(req: Request) {
         patients.forEach(p => {
             // `temperature` es nulable desde sep-2026: una toma que solo
             // registro glucosa no dice nada sobre fiebre.
-            const fever = p.vitalSigns.find(v => v.temperature != null && v.temperature > 99.5);
+            // aFahrenheit y no `v.temperature` directo: hay 1,751 lecturas
+            // historicas guardadas en Celsius. `36.4 > 99.5` es falso, y asi
+            // dos fiebres reales de 102 °F no llegaron nunca a este relevo.
+            const fever = p.vitalSigns.find(v => (aFahrenheit(v.temperature) ?? 0) > FIEBRE_F);
             if (fever) {
-                ttsMessage += `Por favor, mantén en observación a ${p.name}, presentó una temperatura elevada de ${fever.temperature} grados recientemente. Sugiero aumentar su ingesta hídrica. `;
+                ttsMessage += `Por favor, mantén en observación a ${p.name}, presentó una temperatura elevada de ${aFahrenheit(fever.temperature)} grados recientemente. Sugiero aumentar su ingesta hídrica. `;
                 quickRead.vitalsAlerts++;
                 hasIssues = true;
             }

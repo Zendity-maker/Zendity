@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useActiveHq } from "@/contexts/ActiveHqContext";
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 const ALLOWED_ROLES = ["NURSE", "SUPERVISOR", "DIRECTOR", "ADMIN"];
 
@@ -18,7 +19,9 @@ const COLOR_GROUPS = [
 function isCritical(field: string, value: number | null | undefined): boolean {
     if (value == null) return false;
     if (field === "systolic") return value > 140 || value < 90;
-    if (field === "temperature") return value > 100.4;
+    // Por aFahrenheit: hay lecturas historicas en Celsius, y `39.3 > 100.4`
+    // es falso — una fiebre de 102.7 °F se pintaba como si fuera normal.
+    if (field === "temperature") return (aFahrenheit(value) ?? 0) > 100.4;
     if (field === "heartRate") return value > 100 || value < 60;
     return false;
 }
@@ -26,13 +29,13 @@ function isCritical(field: string, value: number | null | undefined): boolean {
 function CellValue({ field, value }: { field: string; value: number | null | undefined }) {
     if (value == null) return <span className="text-slate-600">—</span>;
     const critical = isCritical(field, value);
-    return <span className={critical ? "text-red-400 font-black" : "text-slate-200"}>{field === "temperature" ? value.toFixed(1) : value}</span>;
+    return <span className={critical ? "text-red-400 font-black" : "text-slate-200"}>{field === "temperature" ? (aFahrenheit(value) ?? value).toFixed(1) : value}</span>;
 }
 
 function PrintCellValue({ field, value }: { field: string; value: number | null | undefined }) {
     if (value == null) return <>—</>;
     const critical = isCritical(field, value);
-    const display = field === "temperature" ? (value as number).toFixed(1) : String(value);
+    const display = field === "temperature" ? (aFahrenheit(value) ?? (value as number)).toFixed(1) : String(value);
     return critical ? <strong>{display} *</strong> : <>{display}</>;
 }
 

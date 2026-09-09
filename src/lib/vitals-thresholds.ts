@@ -62,6 +62,16 @@ const HIPOTERMIA_ANOTAR_C = 35.5;
 const F_MIN_PLAUSIBLE = 95;
 /** Celsius por encima del cual el valor ya no puede ser Celsius corporal. */
 const C_MAX_PLAUSIBLE = 45;
+/**
+ * Los dos extremos. Por debajo de 30 °C / por encima de 45 °C (113 °F) no hay
+ * temperatura corporal: hay un termometro apuntando a la pared o un dedo que
+ * resbalo en el teclado. El limite se pone bajo a proposito —una hipotermia
+ * real de 32 °C tiene que poder registrarse— pero existe, porque hasta hoy
+ * `aCelsius(0)` devolvia 0 °C y la lectura entraba al expediente como 32 °F.
+ * Ninguna de las 5,994 lecturas de Cupey cae fuera de esta banda.
+ */
+const C_MIN_PLAUSIBLE = 30;
+const F_MAX_PLAUSIBLE = 113;
 
 /**
  * Normaliza la temperatura a Celsius.
@@ -77,10 +87,47 @@ const C_MAX_PLAUSIBLE = 45;
  */
 export function aCelsius(temp: number): number | null {
     if (!Number.isFinite(temp)) return null;
-    if (temp < C_MAX_PLAUSIBLE) return temp;            // ya viene en Celsius
+    if (temp < C_MIN_PLAUSIBLE) return null;             // ni Celsius ni Fahrenheit
+    if (temp < C_MAX_PLAUSIBLE) return temp;             // ya viene en Celsius
+    if (temp > F_MAX_PLAUSIBLE) return null;             // por encima de todo lo vivo
     if (temp >= F_MIN_PLAUSIBLE) return (temp - 32) * 5 / 9;
-    return null;                                         // banda imposible
+    return null;                                         // banda imposible 45–95
 }
+
+/**
+ * Normaliza a Fahrenheit — la unidad en la que se GUARDA la temperatura.
+ *
+ * Por qué existe (medido 08-sep-2026, producción Cupey):
+ * de 5,994 lecturas, 1,751 (29%) estaban guardadas en Celsius dentro de un
+ * campo que todo el resto del sistema lee como Fahrenheit. Los 32 residentes
+ * activos tenían lecturas en las DOS unidades. Nadie escribió mal: el hogar
+ * usa termómetros que se cambian de unidad, y la caja de texto acepta
+ * cualquiera de las dos.
+ *
+ * El daño no era el número guardado, era todo lo que lo leía después:
+ *   - `temperature > 99.5` (briefing de turno, cron del director) NUNCA se
+ *     cumple con 39.3 — dos fiebres reales de 102.7 °F y 102.2 °F pasaron
+ *     por ahí sin que el seguimiento las viera. La alerta del momento sí
+ *     saltó (evaluarVitales convierte); lo que falló fue el día siguiente.
+ *   - el dossier del médico y el resumen del hospital imprimían "36.4 °F",
+ *     que es hipotermia mortal.
+ *
+ * La entrada se sigue aceptando en cualquiera de las dos unidades: la
+ * cuidadora escribe lo que marca el aparato y la pantalla le confirma la
+ * conversión. La normalización pasa aquí, una sola vez, al guardar.
+ *
+ * También se usa al LEER, porque las lecturas históricas en Celsius siguen
+ * en la base: un lector que asuma la unidad vuelve a equivocarse.
+ */
+export function aFahrenheit(temp: number | null | undefined): number | null {
+    if (temp === null || temp === undefined) return null;
+    const c = aCelsius(temp);
+    if (c === null) return null;
+    return Math.round((c * 9 / 5 + 32) * 10) / 10;
+}
+
+/** Umbral de fiebre en Fahrenheit — el que usan briefing, cron y tabla. */
+export const FIEBRE_F = 99.5;
 
 /**
  * Evalúa una lectura contra los umbrales aprobados.

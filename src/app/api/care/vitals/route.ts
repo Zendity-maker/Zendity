@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { VITALS_WINDOW_MS, PENALTY_GRACE_MS } from '@/lib/vitals-window';
-import { evaluarVitales, nivelDe, aCelsius } from '@/lib/vitals-thresholds';
+import { evaluarVitales, nivelDe, aCelsius, aFahrenheit } from '@/lib/vitals-thresholds';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { withPhiAccessLog } from '@/lib/phi-audit';
@@ -339,7 +339,15 @@ export async function POST(req: Request) {
                     systolic: sys,
                     diastolic: dia,
                     heartRate: hr,
-                    temperature: temp,
+                    // SE GUARDA EN FAHRENHEIT, venga como venga.
+                    //
+                    // Hasta el 08-sep-2026 aquí se guardaba `temp` crudo. La
+                    // cuidadora escribía 36.4 (Celsius, lo que marcaba el
+                    // aparato), la pantalla le confirmaba "36.4 °C → 97.5 °F",
+                    // y la base guardaba 36.4. 1,751 de 5,994 lecturas (29%)
+                    // quedaron así, y todo lector que asumía Fahrenheit las
+                    // leyó mal — incluido el documento que va al hospital.
+                    temperature: aFahrenheit(temp),
                     glucose,
                     spo2,
                     weight,

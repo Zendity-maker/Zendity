@@ -4,6 +4,7 @@ import { materializarDosisDelDia } from '@/lib/emar-schedule';
 import { todayStartAST } from '@/lib/dates';
 import OpenAI from 'openai';
 import { requireCronSecret } from '@/lib/cron-auth';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -107,7 +108,11 @@ export async function GET(req: Request) {
                     patientId: { in: patientIds },
                     createdAt: { gte: clinicalDayStart, lt: clinicalDayEnd },
                     OR: [
+                        // Dos bandas para la misma fiebre: 99.5 °F = 37.5 °C.
+                        // Las lecturas historicas en Celsius no cruzan la
+                        // primera, y aqui no se puede convertir en el where.
                         { temperature: { gt: 99.5 } },
+                        { temperature: { gt: 37.5, lte: 45 } },
                         { systolic: { gt: 140 } },
                         { systolic: { lt: 90 } },
                         { heartRate: { gt: 110 } },
@@ -156,7 +161,7 @@ export async function GET(req: Request) {
                     dataBlock += `MEDICAMENTOS OMITIDOS / RECHAZADOS:\n${omittedMeds.map(m => `- ${m.patientMedication.patient.name}: ${m.patientMedication.medication.name} (${m.status}) — ${m.notes || 'Sin nota'}`).join('\n')}\n\n`;
                 }
                 if (criticalVitals.length > 0) {
-                    dataBlock += `VITALES CRÍTICOS:\n${criticalVitals.map(v => `- ${v.patient.name}: T ${v.temperature ?? 'N/A'} · PA ${v.systolic ?? '?'}/${v.diastolic ?? '?'} · FC ${v.heartRate ?? '?'} · Glu ${v.glucose ?? '?'}`).join('\n')}\n\n`;
+                    dataBlock += `VITALES CRÍTICOS:\n${criticalVitals.map(v => `- ${v.patient.name}: T ${aFahrenheit(v.temperature) ?? 'N/A'} °F · PA ${v.systolic ?? '?'}/${v.diastolic ?? '?'} · FC ${v.heartRate ?? '?'} · Glu ${v.glucose ?? '?'}`).join('\n')}\n\n`;
                 }
                 if (newUPPs.length > 0) {
                     dataBlock += `UPPs NUEVAS:\n${newUPPs.map(u => `- ${u.patient.name}: Etapa ${u.stage} — ${u.bodyLocation}`).join('\n')}\n\n`;

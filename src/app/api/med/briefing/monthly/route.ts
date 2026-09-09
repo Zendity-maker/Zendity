@@ -29,6 +29,7 @@ import { requireRole } from '@/lib/api-auth';
 import { logPhiAccess } from '@/lib/phi-audit';
 import { textoDeAlergias, alergiasSinDocumentar } from '@/lib/alergias';
 import OpenAI from 'openai';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "dummy" });
 
@@ -67,9 +68,22 @@ export async function POST(req: Request) {
         // `acc + null` da NaN: un solo registro incompleto imprimia "NaN/NaN"
         // como promedio del mes. Hoy en produccion no hay ninguno (0 de 1.790
         // en 30 dias), asi que esto es un cerrojo, no un arreglo de algo roto.
-        const vitals = (patient.vitalSigns as any[]).filter(
-            (v) => v.systolic != null && v.diastolic != null && v.heartRate != null && v.temperature != null,
-        );
+        //
+        // La temperatura se normaliza AQUI, una sola vez. Debajo hay cinco
+        // lugares que la usan —promedio, isAbnormal (x2), el texto que lee la
+        // IA y el red flag— y los cinco asumen Fahrenheit. Con 1,751 lecturas
+        // historicas guardadas en Celsius, el promedio que se le imprimia al
+        // medico salia en 83.0 °F.
+        //
+        // aFahrenheit devuelve null para una lectura fisicamente imposible
+        // (ni Celsius ni Fahrenheit plausibles), y el filter de abajo la
+        // descarta entera. Es lo correcto: un numero ilegible no debe entrar
+        // al promedio del mes ni listarse como "fuera de rango".
+        const vitals = (patient.vitalSigns as any[])
+            .map((v) => ({ ...v, temperature: aFahrenheit(v.temperature) }))
+            .filter(
+                (v) => v.systolic != null && v.diastolic != null && v.heartRate != null && v.temperature != null,
+            );
         let avgSys = 0, avgDia = 0, avgHr = 0, avgTemp = 0;
         const abnormalVitals: string[] = [];
         const redFlags: string[] = [];

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -310,7 +311,7 @@ export async function GET(req: Request) {
                 const parts: string[] = [];
                 if (v.heartRate) parts.push(`FC ${v.heartRate}bpm`);
                 if (v.systolic && v.diastolic) parts.push(`PA ${v.systolic}/${v.diastolic}`);
-                if (v.temperature) parts.push(`T° ${v.temperature}°F`);
+                if (v.temperature) parts.push(`T° ${aFahrenheit(v.temperature)}°F`);
                 if (v.spo2) parts.push(`SpO2 ${v.spo2}%`);
                 entries.push({
                     time: v.createdAt,

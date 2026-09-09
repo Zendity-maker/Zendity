@@ -46,6 +46,7 @@ interface MedDelResidente {
     medication?: { name?: string | null; dosage?: string | null } | null;
 }
 import { Toaster, toast } from 'sonner';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 function getCurrentShift(): 'MORNING' | 'EVENING' | 'NIGHT' {
     const hour = new Date().getHours();
@@ -1419,7 +1420,13 @@ export default function ZendityCareTabletPage() {
         }
 
         // Validación de rango fisiológico de temperatura — solo si se tomó.
-        // El backend detecta la unidad: < 45 = Celsius, ≥ 45 = Fahrenheit
+        //
+        // Se acepta en las dos unidades porque el hogar tiene termómetros que
+        // se cambian de escala: < 45 se lee como Celsius, ≥ 45 como Fahrenheit.
+        // La caja de abajo le confirma a la cuidadora la conversión antes de
+        // guardar, y el backend NORMALIZA A FAHRENHEIT al escribir — hasta el
+        // 08-sep-2026 guardaba el número crudo, y ese es el origen de las 1,751
+        // lecturas en Celsius que quedaron dentro de un campo en Fahrenheit.
         if (vitals.temp) {
             const tempNum = parseFloat(vitals.temp);
             const isCelsiusEntry = tempNum < 45;
@@ -3815,7 +3822,11 @@ export default function ZendityCareTabletPage() {
                                     >
                                         {p.vitalSigns?.length > 0 ? (() => {
                                             const v = p.vitalSigns[0];
-                                            const tempNum = parseFloat(v.temperature);
+                                            // aFahrenheit: sin esto, toda lectura guardada en
+                                            // Celsius (36.4) caia en `< 96` y pintaba la etiqueta
+                                            // ambar. Era el 29% de las tomas — una falsa alarma
+                                            // constante, que es como se aprende a ignorarlas.
+                                            const tempNum = aFahrenheit(parseFloat(v.temperature)) ?? NaN;
                                             const spo2Num = parseFloat(v.spo2);
                                             const tempAlert = !isNaN(tempNum) && (tempNum > 99 || tempNum < 96);
                                             const spo2Alert = !isNaN(spo2Num) && spo2Num > 0 && spo2Num < 94;
@@ -3828,7 +3839,7 @@ export default function ZendityCareTabletPage() {
                                                         <span className="px-[9px] py-1 rounded-md text-[11px] font-medium bg-[#e1f5ee] text-[#0F6B78]">FC {v.heartRate}</span>
                                                     )}
                                                     {v.temperature && (
-                                                        <span className={`px-[9px] py-1 rounded-md text-[11px] font-medium ${tempAlert ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#dcfce7] text-[#166534]'}`}>T {v.temperature}°</span>
+                                                        <span className={`px-[9px] py-1 rounded-md text-[11px] font-medium ${tempAlert ? 'bg-[#fef3c7] text-[#92400e]' : 'bg-[#dcfce7] text-[#166534]'}`}>T {isNaN(tempNum) ? v.temperature : tempNum.toFixed(1)}°F</span>
                                                     )}
                                                     {v.spo2 && (
                                                         <span className={`px-[9px] py-1 rounded-md text-[11px] font-medium ${spo2Alert ? 'bg-[#fee2e2] text-[#991b1b]' : 'bg-[#dcfce7] text-[#166534]'}`}>SpO₂ {v.spo2}%</span>
@@ -4174,7 +4185,7 @@ export default function ZendityCareTabletPage() {
                                                     <p className="font-black text-teal-900 text-sm">
                                                         BP: {v.systolic || '--'} / {v.diastolic || '--'} <span className="text-teal-300 mx-2">|</span> 
                                                         HR: {v.heartRate || '--'} <span className="text-teal-300 mx-2">|</span> 
-                                                        Temp: {v.temperature || '--'}°
+                                                        Temp: {aFahrenheit(v.temperature) ?? '--'}°F
                                                     </p>
                                                     <p className="text-xs font-bold text-teal-700 mt-1">
                                                         SpO2: {v.spo2 || '--'}% {v.glucose ? `| Glucosa: ${v.glucose}` : ''}

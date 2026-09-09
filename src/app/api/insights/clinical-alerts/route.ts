@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { todayStartAST } from '@/lib/dates';
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,12 +80,13 @@ export async function GET() {
             }),
         ]);
 
-        // Filtrar vitales críticos — detección unidad temperatura (Celsius si < 45 → convertir a °F)
+        // Filtrar vitales críticos.
         const criticalVitals = criticalVitalsRaw.filter(v => {
             // Los signos son nulables desde sep-2026: lo que no se midio no
             // puede estar alterado. Cada condicion se evalua solo si su signo existe.
-            const tempF = v.temperature == null ? null
-                : v.temperature < 45 ? (v.temperature * 9 / 5) + 32 : v.temperature;
+            // La conversion de unidad vivia aqui inline; ahora es aFahrenheit,
+            // la misma que usa el resto del sistema.
+            const tempF = aFahrenheit(v.temperature);
             const isFeverish = tempF != null && tempF > 100.4;
             const isHypoxic = v.spo2 !== null && v.spo2 !== undefined && v.spo2 < 94;
             const isHypertensive = (v.systolic != null && v.systolic > 140)

@@ -14,6 +14,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { aFahrenheit } from '@/lib/vitals-thresholds';
 import {
     IconAlimentacion,
     IconHigiene,
@@ -146,7 +147,7 @@ export default function FamilyDashboard() {
               systolic: latestVitals.systolic,
               diastolic: latestVitals.diastolic,
               spO2: latestVitals.spo2 ?? "—",
-              temperature: latestVitals.temperature,
+              temperature: aFahrenheit(latestVitals.temperature) ?? "—",
               pulse: latestVitals.heartRate,
           }
         : null;
@@ -256,7 +257,7 @@ export default function FamilyDashboard() {
                             {[
                                 { Icon: IconPresion,      value: `${safeVitals.systolic}/${safeVitals.diastolic}`, label: "Presión" },
                                 { Icon: IconSpO2,         value: `${safeVitals.spO2}`,                              label: "SpO₂" },
-                                { Icon: IconTemperatura,  value: `${safeVitals.temperature}`,                       label: "Temp" },
+                                { Icon: IconTemperatura,  value: `${safeVitals.temperature}°F`,                     label: "Temp" },
                                 { Icon: IconPulso,        value: `${safeVitals.pulse}`,                             label: "Pulso" },
                             ].map(({ Icon, value, label }) => (
                                 <div key={label} className="flex flex-col items-center text-center">
