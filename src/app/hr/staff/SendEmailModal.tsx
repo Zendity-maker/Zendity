@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Mail, Send, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import ZendiAssist from "@/components/ZendiAssist";
+import { AUDIENCIAS, recibeElAviso, type Audiencia } from "@/lib/audiencias-personal";
 
 export default function SendEmailModal({ employees }: { employees: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -18,6 +19,14 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
     // para cuando quien tiene que responder al personal es la plataforma —una
     // caída, un cambio del sistema— y no la dirección por algo que no causó.
     const [remitente, setRemitente] = useState<'HOGAR' | 'ZENDITY'>('HOGAR');
+    // A quien le llega. Antes no habia opcion: iba a todos los activos de la
+    // sede, inversionista incluido.
+    const [audiencia, setAudiencia] = useState<Audiencia>('TODOS');
+
+    // Se calcula aqui solo para ENSEÑARLO antes de mandar. Quien filtra de
+    // verdad es el servidor: esta lista es lo que ve el que aprieta el boton.
+    const alcanzados = (employees ?? []).filter((e: any) =>
+        e?.email?.includes('@') && recibeElAviso(audiencia, e.role, e.secondaryRoles ?? []));
 
     // Status visual
     const [status, setStatus] = useState<{ type: 'error' | 'success', msg: string } | null>(null);
@@ -42,7 +51,7 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
             const endpoint = sendMode === 'BROADCAST' ? '/api/hr/comms/send-broadcast' : '/api/hr/comms/send';
 
             const payload = sendMode === 'BROADCAST'
-                ? { subject, html: message, remitente }
+                ? { subject, html: message, remitente, audiencia }
                 : { employeeId: targetEmployeeId, subject, html: message };
 
             const response = await fetch(endpoint, {
@@ -179,6 +188,34 @@ export default function SendEmailModal({ employees }: { employees: any[] }) {
 
                                 {sendMode === 'BROADCAST' && (
                                     <div className="mb-4">
+                                        <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">A quién le llega</label>
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            {(Object.keys(AUDIENCIAS) as Audiencia[]).map(a => {
+                                                const cuantos = (employees ?? []).filter((e: any) =>
+                                                    e?.email?.includes('@') && recibeElAviso(a, e.role, e.secondaryRoles ?? [])).length;
+                                                return (
+                                                    <button key={a} type="button" onClick={() => setAudiencia(a)}
+                                                        className={`p-3 rounded-xl border-2 text-left transition-all ${audiencia === a ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                                                        <p className={`font-black text-sm ${audiencia === a ? 'text-teal-800' : 'text-slate-600'}`}>
+                                                            {AUDIENCIAS[a].etiqueta} <span className="font-bold opacity-60">· {cuantos}</span>
+                                                        </p>
+                                                        <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{AUDIENCIAS[a].explicacion}</p>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {/* Los NOMBRES, no un contador. Un "20" no deja ver que ahi
+                                            sobra alguien; una lista sí. */}
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 mb-4">
+                                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-wide mb-1">
+                                                Le llega a {alcanzados.length} {alcanzados.length === 1 ? 'persona' : 'personas'}
+                                            </p>
+                                            <p className="text-[12px] text-slate-600 leading-snug">
+                                                {alcanzados.length === 0
+                                                    ? 'Nadie con correo válido en este grupo.'
+                                                    : alcanzados.map((e: any) => e.name).join(' · ')}
+                                            </p>
+                                        </div>
                                         <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Quién firma</label>
                                         <div className="grid grid-cols-2 gap-2">
                                             <button

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { emailLogoSrc } from '@/lib/email-logo';
 import sgMail from '@sendgrid/mail';
+import { recibeElAviso, ES_AUDIENCIA, type Audiencia } from '@/lib/audiencias-personal';
 
 if (process.env.SENDGRID_API_KEY) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -24,6 +25,9 @@ export async function POST(request: Request) {
         // responder al personal es Zéndity, no la dirección del hogar
         // disculpándose por algo que no causó.
         const { subject, html, remitente } = body;
+        // Sin audiencia = TODOS, que es lo que hacia antes. Lo que cambia
+        // aunque no se mande nada es que TODOS ya no alcanza a un inversionista.
+        const audiencia: Audiencia = ES_AUDIENCIA(body.audiencia) ? body.audiencia : 'TODOS';
         const deZendity = remitente === 'ZENDITY';
         const hqId = session.user.headquartersId || (session.user as any).hqId;
 
@@ -43,11 +47,17 @@ export async function POST(request: Request) {
         // (isDeleted:true). Mismo patrón que hr/staff, audit-report y corporate/hr/comms.
         const allEmployees = await prisma.user.findMany({
             where: { headquartersId: hqId, isActive: true, isDeleted: false },
-            select: { email: true, name: true }
+            select: { email: true, name: true, role: true, secondaryRoles: true }
         });
 
+        // El filtro de audiencia manda. Ver src/lib/audiencias-personal.ts:
+        // "todo el personal" excluye INVESTOR y SUPER_ADMIN siempre, porque un
+        // socio y una cuenta de plataforma no son personal del hogar.
+        const destinatarios = allEmployees.filter(e =>
+            recibeElAviso(audiencia, e.role, e.secondaryRoles ?? []));
+
         // Filtrar aquellos que no tengan correo asignado
-        const targetEmails = allEmployees
+        const targetEmails = destinatarios
             .map(e => e.email)
             .filter((email) => email && email.includes('@'));
 
@@ -132,7 +142,16 @@ export async function POST(request: Request) {
 
         await sgMail.send(msg);
 
-        return NextResponse.json({ success: true, message: `Email enviado masivamente a ${targetEmails.length} empleados` }, { status: 200 });
+        // Se devuelven los nombres, no solo el numero: quien manda un aviso
+        // tiene derecho a ver a quien le llego, y un "20 empleados" no deja ver
+        // que ahi sobraba alguien.
+        return NextResponse.json({
+            success: true,
+            audiencia,
+            enviados: targetEmails.length,
+            nombres: destinatarios.filter(d => d.email?.includes('@')).map(d => d.name),
+            message: `Enviado a ${targetEmails.length} ${targetEmails.length === 1 ? 'persona' : 'personas'}`,
+        }, { status: 200 });
 
     } catch (error: any) {
         console.error('API Comms Broadcast Error:', error);
