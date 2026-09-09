@@ -59,6 +59,8 @@ export interface ResumenMeta {
     seguro: {
         plan?: string | null;
         poliza?: string | null;
+        medicare?: string | null;
+        medicaid?: string | null;
         ssnUltimos4?: string | null;
         hospitalPreferido?: string | null;
     };
@@ -66,8 +68,14 @@ export interface ResumenMeta {
     medicamentos: { nombre: string; dosis: string | null; via: string | null; frecuencia: string | null; horario: string | null }[];
     vitales: { fecha: string; sistolica: number; diastolica: number; pulso: number; temperatura: number; glucosa: number | null; oxigeno: number | null; medidoPor: string | null }[];
     familia: { nombre: string; telefono: string | null; parentesco: string | null }[];
-    /** data:image/... — se suben según las consiguen las familias. */
-    tarjetas: { etiqueta: string; imagen: string | null }[];
+    /**
+     * data:image/... — se suben según las consiguen las familias.
+     *
+     * `datos` va IMPRESO junto a la foto de la tarjeta. Las fotos se toman con
+     * un móvil y muchas veces el número no se lee por resolución; si el número
+     * solo vive en la imagen, la tarjeta no sirve para admitir a nadie.
+     */
+    tarjetas: { etiqueta: string; imagen: string | null; datos?: { campo: string; valor: string | null }[] }[];
     hogar: { nombre: string; telefono?: string | null; direccion?: string | null; logo?: string | null };
     generadoAt: Date;
 }
@@ -132,7 +140,13 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
         );
     };
 
-    const sitio = (mm: number) => { if (y + mm > H - 18) { pie(); abrirPagina(); } };
+    /**
+     * El pie NO se pinta aquí. Lo pinta el bucle final, que es el único que
+     * sabe cuántas páginas hay en total para poner "Página N de M". Pintarlo
+     * en los dos sitios imprimía el pie DOS VECES, uno encima de otro — se veía
+     * como una línea emborronada y en el PDF salía el texto duplicado.
+     */
+    const sitio = (mm: number) => { if (y + mm > H - 18) abrirPagina(); };
 
     const titulo = (t: string, color: [number, number, number] = TEAL) => {
         sitio(12);
@@ -205,10 +219,10 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
         const campos: [string, string][] = [
             ['Dieta', m.dieta || '—'],
             ['Grupo', m.grupoColor || '—'],
-            ['Seguro social', m.seguro.ssnUltimos4 ? `···· ${m.seguro.ssnUltimos4}` : 'No registrado'],
-            ['Hospital preferido', m.seguro.hospitalPreferido || 'No indicado'],
             ['Plan médico', m.seguro.plan || '—'],
-            ['Póliza', m.seguro.poliza || '—'],
+            ['Hospital preferido', m.seguro.hospitalPreferido || 'No indicado'],
+            ['Seguro social', m.seguro.ssnUltimos4 ? `···· ${m.seguro.ssnUltimos4}` : 'No registrado'],
+            ['Medicare', m.seguro.medicare || (m.seguro.medicaid ? `Medicaid ${m.seguro.medicaid}` : 'No registrado')],
         ];
         const anchoCol = (W - M - x) / 2 - 3;
         campos.forEach((c, i) => {
@@ -221,7 +235,31 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
             doc.setFont('helvetica', 'bold').setFontSize(9);
             doc.text((doc.splitTextToSize(c[1], anchoCol) as string[])[0], cx, cy + 0.8);
         });
-        y += Math.max(altoFoto, 5 + 3 * 8.5) + 6;
+        y += Math.max(altoFoto, 5 + 3 * 8.5) + 4;
+
+        /**
+         * LA PÓLIZA, GRANDE Y APARTE.
+         *
+         * Es el dato que teclean en la ventanilla del hospital, y las fotos de
+         * las tarjetas casi nunca se leen: se toman con un móvil y el número
+         * sale borroso. Si el número solo vive en la imagen, la tarjeta no
+         * sirve para admitir a nadie. Aquí va en cuerpo grande, en su propia
+         * caja, para que se lea de un vistazo y se pueda copiar.
+         */
+        setFill([241, 247, 244]); setDraw(TEAL); doc.setLineWidth(0.5);
+        doc.rect(M, y, W - 2 * M, 13, 'FD'); doc.setLineWidth(0.2);
+        setText(TEAL);
+        doc.setFont('helvetica', 'bold').setFontSize(7);
+        doc.text('NÚMERO DE PÓLIZA', M + 4, y + 5);
+        setText(m.seguro.poliza ? INK : AMBAR);
+        doc.setFont('helvetica', 'bold').setFontSize(m.seguro.poliza ? 14 : 9.5);
+        doc.text(m.seguro.poliza || 'No está escrito en el expediente', M + 4, y + 10.5);
+        if (m.seguro.plan) {
+            setText(MUTED);
+            doc.setFont('helvetica', 'normal').setFontSize(9);
+            doc.text(m.seguro.plan, W - M - 4, y + 10, { align: 'right' });
+        }
+        y += 18;
         if (m.direccionPrevia) {
             setText(MUTED);
             doc.setFont('helvetica', 'normal').setFontSize(7.5);
@@ -320,7 +358,10 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
     const conImagen = m.tarjetas.filter(t => t.imagen);
     const sinImagen = m.tarjetas.filter(t => !t.imagen);
     if (conImagen.length > 0) {
-        pie(); abrirPagina();
+        // Sin forzar página nueva. Forzarla dejaba una hoja con una sola línea
+        // —"no hay familiar registrado"— y mandaba las tarjetas a la tercera.
+        // `sitio` ya impide que una tarjeta se parta por la mitad.
+        sitio(30);
         titulo('Documentos para admisión');
         setText(MUTED);
         doc.setFont('helvetica', 'normal').setFontSize(8);
@@ -334,12 +375,24 @@ export function construirResumenResidentePDF(m: ResumenMeta): jsPDF {
                 const escala = Math.min((W - 2 * M) / p.width, altoMax / p.height);
                 ancho = p.width * escala; alto = p.height * escala;
             } catch { continue; }
-            sitio(alto + 12);
+            const datos = (t.datos ?? []).filter(d => d.campo);
+            sitio(alto + 14 + datos.length * 5);
             setText(INK);
             doc.setFont('helvetica', 'bold').setFontSize(9);
             doc.text(t.etiqueta, M, y); y += 4;
             try { doc.addImage(t.imagen!, M, y, ancho, alto); } catch { /* ilegible */ }
-            y += alto + 8;
+            y += alto + 4;
+            // EL NÚMERO, ESCRITO. La foto casi nunca se lee.
+            for (const d of datos) {
+                setText(MUTED);
+                doc.setFont('helvetica', 'bold').setFontSize(7);
+                doc.text(d.campo.toUpperCase(), M, y);
+                setText(d.valor ? INK : AMBAR);
+                doc.setFont('helvetica', 'bold').setFontSize(d.valor ? 11 : 8.5);
+                doc.text(d.valor || 'no está escrito en el expediente — solo en la foto', M + 34, y);
+                y += 5;
+            }
+            y += 5;
         }
     }
     if (sinImagen.length > 0) {

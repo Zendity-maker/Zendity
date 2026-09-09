@@ -36,6 +36,8 @@ interface FullPatientData {
     ssnLastFour: string | null;
     insurancePlanName: string | null;
     insurancePolicyNumber: string | null;
+    medicareNumber: string | null;
+    medicaidNumber: string | null;
     preferredHospital: string | null;
     // FASE 84 — dirección previa
     address: string | null;
@@ -165,6 +167,8 @@ export default function ResidentSummaryPrint({
                 seguro: {
                     plan: data.insurancePlanName,
                     poliza: data.insurancePolicyNumber,
+                    medicare: data.medicareNumber ?? null,
+                    medicaid: data.medicaidNumber ?? null,
                     ssnUltimos4: data.ssnLastFour,
                     hospitalPreferido: data.preferredHospital,
                 },
@@ -191,10 +195,17 @@ export default function ResidentSummaryPrint({
                 })),
                 // Se suben segun las familias las consiguen. Las que falten se
                 // dicen al final del papel, sin alarmar: no es un fallo.
+                // Cada tarjeta con SU numero escrito al lado: las fotos se
+                // toman con movil y el numero casi nunca se lee.
                 tarjetas: [
-                    { etiqueta: 'Plan médico', imagen: data.medicalPlanUrl },
+                    { etiqueta: 'Plan médico', imagen: data.medicalPlanUrl, datos: [
+                        { campo: 'Plan', valor: data.insurancePlanName },
+                        { campo: 'Póliza', valor: data.insurancePolicyNumber },
+                    ] },
+                    { etiqueta: 'Medicare', imagen: data.medicareCardUrl, datos: [
+                        { campo: 'Número', valor: data.medicareNumber ?? null },
+                    ] },
                     { etiqueta: 'Identificación', imagen: data.idCardUrl },
-                    { etiqueta: 'Medicare', imagen: data.medicareCardUrl },
                 ],
                 hogar: {
                     nombre: data.headquarters.name,
