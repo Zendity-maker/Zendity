@@ -193,3 +193,40 @@ export function respuestaParaQuienReporto(codigo: string | null | undefined): st
 export const PUEDEN_REPORTAR_CAMBIO = ['CAREGIVER', 'NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
 /** Quién puede cerrar: quien puede tocar el expediente. */
 export const PUEDEN_REVISAR_CAMBIO = ['NURSE', 'SUPERVISOR', 'DIRECTOR', 'ADMIN'];
+
+/**
+ * EL COMPROMISO: 48 HORAS PARA MIRAR LO QUE REPORTA EL PISO.
+ *
+ * Decidido el 10-sep-2026 por Andrés y Celia, sobre esto, medido:
+ *
+ *     22 cambios reportados en 30 días
+ *     11 revisados · 11 SIN REVISAR
+ *     mediana hasta revisar: 123 horas — cinco días
+ *
+ * Y de los once resueltos, DIEZ fueron accionables (cuatro al médico, cuatro a
+ * observación, dos al expediente). Uno solo resultó no ser nada. El piso
+ * reporta bien; lo que falla es que la mitad de lo que reporta no lo mira
+ * nadie.
+ *
+ * Por qué 48 y no 24: un cambio de condición no es una emergencia —para eso
+ * están la alerta clínica y el traslado—, es un aviso temprano. 48 horas son
+ * dos turnos y margen, y siguen siendo temprano. Y por qué no 72: a los cinco
+ * días el aviso ya no es temprano, que es exactamente donde estábamos.
+ *
+ * SIN CONSECUENCIA NO ES UN COMPROMISO. Pasadas las 48 horas:
+ *   - la línea de enfermería sube de MEDIA a ALTA y dice cuánto lleva el más
+ *     viejo esperando;
+ *   - y entra en el reporte semanal de dirección.
+ *
+ * Si esto hay que moverlo, se mueve aquí. Un número, un sitio.
+ */
+export const HORAS_PARA_REVISAR_CAMBIO = 48;
+
+/** Horas que lleva esperando un cambio sin revisar. */
+export function horasEsperando(reportadoAt: Date, ahora = new Date()): number {
+    return (ahora.getTime() - reportadoAt.getTime()) / 3_600_000;
+}
+
+export function pasoElCompromiso(reportadoAt: Date, ahora = new Date()): boolean {
+    return horasEsperando(reportadoAt, ahora) > HORAS_PARA_REVISAR_CAMBIO;
+}

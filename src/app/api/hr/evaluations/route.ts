@@ -71,6 +71,18 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
+        /**
+         * Cocina y trabajo social no se evaluan (decision del hogar,
+         * 10-sep-2026). El boton de la pantalla esta apagado, pero un boton
+         * apagado no es un candado: la ruta acepta POST de todos modos.
+         */
+        if (['KITCHEN', 'SOCIAL_WORKER'].includes(empleadoRol)) {
+            return NextResponse.json({
+                success: false,
+                error: 'Este puesto no se evalúa desde Zéndity.',
+            }, { status: 403 });
+        }
+
         if (employeeId === evaluatorId) {
             return NextResponse.json({
                 success: false,

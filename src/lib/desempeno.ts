@@ -45,6 +45,7 @@
  * dice con esas palabras en vez de fingir una métrica que no existe.
  */
 import { prisma } from '@/lib/prisma';
+import { PUEDEN_REVISAR_CAMBIO, pasoElCompromiso, HORAS_PARA_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
 
 /** Solo cuenta lo que escribió una persona. El resto lo genera un endpoint. */
 const ESCRITO_A_MANO = /^\[(NOTA DE TURNO|ALERTA CLÍNICA|ALERTA UPP\/PIEL|MEDICAMENTO SIN ADMINISTRAR)\]/;
@@ -198,6 +199,42 @@ export async function calcularDesempeno(userId: string, dias = 30): Promise<Dese
             : undefined,
         detalle: 'Se compara solo con quien tiene tu mismo puesto y trabaja tu mismo turno. De noche hay menos que reportar, y eso no cuenta en contra.',
     });
+
+    /**
+     * ── LO QUE REVISASTE, Y SI LLEGASTE A TIEMPO ────────────────────────
+     *
+     * Esta es la medida que Andrés y Celia decidieron premiar el 10-sep-2026,
+     * y la razón está en los datos: de 22 cambios reportados en 30 días, ONCE
+     * seguían sin mirar, con una mediana de 123 horas. De los once resueltos,
+     * DIEZ fueron accionables.
+     *
+     * O sea: el piso reporta bien y la otra punta de la cadena es la que está
+     * rota. Premiar al piso por reportar MÁS habría metido más volumen en una
+     * cola que ya estaba a medio atender — y quien escribe y no recibe
+     * respuesta deja de escribir.
+     *
+     * No se cuenta cuántos revisó (eso premia despachar rápido y mal): se
+     * cuenta qué proporción de los que revisó llegó dentro de las 48 horas.
+     */
+    if (PUEDEN_REVISAR_CAMBIO.includes(usuario.role)) {
+        const revisados = await prisma.cambioDeCondicion.findMany({
+            where: { revisadoPorId: userId, revisadoAt: { gte: desde } },
+            select: { reportadoAt: true, revisadoAt: true },
+        });
+        const aTiempo = revisados.filter(c =>
+            c.revisadoAt !== null && !pasoElCompromiso(c.reportadoAt, c.revisadoAt)).length;
+
+        medidas.push({
+            etiqueta: 'Lo que revisaste del piso',
+            valor: revisados.length === 0
+                ? 'Nada en este periodo'
+                : `${aTiempo} de ${revisados.length} dentro de plazo`,
+            referencia: revisados.length > 0
+                ? `${Math.round(100 * aTiempo / revisados.length)}% en menos de ${HORAS_PARA_REVISAR_CAMBIO} horas`
+                : undefined,
+            detalle: 'Lo que alguien vio y nadie decide no sirve de aviso. Cuenta llegar a tiempo, no despachar muchos.',
+        });
+    }
 
     // ── Academy ─────────────────────────────────────────────────────────
     const [hechos, asignados] = await Promise.all([

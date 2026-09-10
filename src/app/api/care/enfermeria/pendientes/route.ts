@@ -23,6 +23,7 @@ import { requireRole } from '@/lib/api-auth';
 import { HORAS_PARA_EXIGIR_EFECTO } from '@/lib/prn';
 import { PUEDEN_REVISAR_CAMBIO } from '@/lib/cambios-de-condicion';
 import { DIAS_SIN_CURACION, DIAS_SIN_VALORACION, ULCERA_ABIERTA } from '@/lib/upp';
+import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando } from '@/lib/cambios-de-condicion';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +73,13 @@ export async function GET() {
                     patientMedication: { patient: { headquartersId: hqId } },
                 },
             }),
-            prisma.cambioDeCondicion.count({ where: { headquartersId: hqId, revisadoAt: null } }),
+            // findMany y no count: hace falta la EDAD del mas viejo, no cuantos
+            // hay. "6 pendientes" y "uno lleva cinco dias" no son el mismo aviso.
+            prisma.cambioDeCondicion.findMany({
+                where: { headquartersId: hqId, revisadoAt: null },
+                select: { reportadoAt: true },
+                orderBy: { reportadoAt: 'asc' },
+            }),
             prisma.shiftHandover.count({ where: { headquartersId: hqId, status: 'PENDING' } }),
             // Rotación vencida: quien la necesita y lleva más de 135 minutos.
             prisma.patient.findMany({
@@ -149,6 +156,8 @@ export async function GET() {
         }).length;
 
         const ahoraMs = Date.now();
+        const vencidos = cambios.filter(c => pasoElCompromiso(c.reportadoAt)).length;
+        const horasDelMasViejo = cambios.length > 0 ? horasEsperando(cambios[0].reportadoAt) : 0;
         const sinEvaluarCaida = riesgoCaida.filter(p => p.fallRiskAssessments.length === 0).length;
         const caidaVencida = riesgoCaida.filter(p => {
             const rev = p.fallRiskAssessments[0]?.nextReviewAt;
@@ -177,9 +186,19 @@ export async function GET() {
                 total: prnSinRespuesta, urgencia: 'ALTA', href: '/care',
             },
             {
-                codigo: 'CAMBIOS_PISO', titulo: 'Cambios reportados del piso',
-                detalle: 'Alguien vio algo distinto y espera que se revise.',
-                total: cambios, urgencia: 'MEDIA', href: '/care/cambios',
+                codigo: 'CAMBIOS_PISO',
+                titulo: vencidos > 0
+                    ? 'Cambios del piso que pasaron el plazo'
+                    : 'Cambios reportados del piso',
+                detalle: vencidos > 0
+                    ? `${vencidos} llevan más de ${HORAS_PARA_REVISAR_CAMBIO} horas esperando. El más viejo, ${Math.floor(horasDelMasViejo / 24)} día${Math.floor(horasDelMasViejo / 24) === 1 ? '' : 's'}.`
+                    : 'Alguien vio algo distinto y espera que se revise.',
+                total: cambios.length,
+                // ALTA en cuanto uno pase de 48 horas. Un aviso temprano que
+                // lleva cinco dias esperando ya no es temprano, y quedaba
+                // debajo de las ulceras para siempre por ser MEDIA fija.
+                urgencia: vencidos > 0 ? 'ALTA' : 'MEDIA',
+                href: '/care/cambios',
             },
             {
                 codigo: 'RELEVOS_PENDIENTES', titulo: 'Relevos de turno sin aceptar',

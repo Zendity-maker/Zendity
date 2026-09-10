@@ -27,6 +27,7 @@ import { prisma } from '@/lib/prisma';
 import type { ReporteSemanal, BloqueReporte, LineaReporte } from '@/lib/reporte-enfermeria';
 import { construirReporte } from '@/lib/reporte-enfermeria';
 import { construirReporteSupervision } from '@/lib/reporte-supervision';
+import { HORAS_PARA_REVISAR_CAMBIO, pasoElCompromiso, horasEsperando } from '@/lib/cambios-de-condicion';
 
 /** Medicamentos cuyo hueco no admite espera. */
 const ALTO_RIESGO = /warfarin|coumadin|heparin|apixaban|eliquis|rivaroxaban|xarelto|clopidogrel|plavix|insulin|lantus|humalog|humulin|novolog|levotiroxina|levothyroxine|synthroid|digoxin|litio|lithium|fenitoina|phenytoin/i;
@@ -46,7 +47,7 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
     const ahora = new Date();
     const desde = new Date(ahora.getTime() - 7 * 86400000);
 
-    const [enfermeria, supervision, sede, medsInvisibles, ulceras, obsParadas, acuerdos, quejasAbiertas] = await Promise.all([
+    const [enfermeria, supervision, sede, medsInvisibles, ulceras, obsParadas, acuerdos, quejasAbiertas, cambiosSinRevisar] = await Promise.all([
         construirReporte(sedeId, sedeNombre),
         construirReporteSupervision(sedeId, sedeNombre),
         prisma.headquarters.findUnique({
@@ -68,6 +69,12 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
         }),
         prisma.acuerdoSede.findMany({ where: { headquartersId: sedeId }, select: { tipo: true, aceptadoEn: true } }),
         prisma.complaint.count({ where: { patient: { headquartersId: sedeId }, status: 'PENDING' } }),
+        // Lo que el piso reporto y nadie ha mirado. Ver HORAS_PARA_REVISAR_CAMBIO.
+        prisma.cambioDeCondicion.findMany({
+            where: { headquartersId: sedeId, revisadoAt: null },
+            select: { reportadoAt: true, area: true, patient: { select: { name: true } } },
+            orderBy: { reportadoAt: 'asc' },
+        }),
     ]);
 
     const activos = enfermeria.residentesActivos;
@@ -76,6 +83,32 @@ export async function construirReporteDireccion(sedeId: string, sedeNombre: stri
 
     /* ── LAS RECOMENDACIONES ────────────────────────────────────────────── */
     const recs: Recomendacion[] = [];
+
+    /**
+     * 0. LO QUE EL PISO REPORTO Y NADIE MIRO.
+     *
+     * Va con orden -1, delante de todo. Medido el 10-sep-2026: de 22 cambios
+     * reportados en 30 dias, ONCE seguian sin revisar, con una mediana de 123
+     * horas. Y de los once resueltos, diez fueron accionables — cuatro
+     * derivados al medico.
+     *
+     * El piso reporta bien. Lo que se rompe es la otra punta de la cadena, y
+     * una cadena rota por el otro lado ensena lo mismo que no tener cadena:
+     * quien escribe y no recibe respuesta deja de escribir.
+     *
+     * Este bloque es la consecuencia del compromiso de 48 horas. Sin algo que
+     * llegue a direccion, un compromiso es una intencion.
+     */
+    const cambiosVencidos = cambiosSinRevisar.filter(c => pasoElCompromiso(c.reportadoAt));
+    if (cambiosVencidos.length > 0) {
+        const masViejo = Math.floor(horasEsperando(cambiosVencidos[0].reportadoAt) / 24);
+        recs.push({
+            que: `Revisar los ${cambiosVencidos.length} cambios del piso que pasaron las ${HORAS_PARA_REVISAR_CAMBIO} horas`,
+            porque: `El más viejo lleva ${masViejo} día${masViejo === 1 ? '' : 's'} esperando. Es lo que alguien vio y todavía nadie ha decidido.`,
+            quien: 'Enfermería, en Cambios del piso',
+            orden: -1,
+        });
+    }
 
     // 1. Un medicamento de alto riesgo que el sistema nunca pide.
     const invisiblesRiesgo = medsInvisibles.filter(m => {

@@ -47,11 +47,43 @@ const RUBRICAS: Record<string, Pregunta[]> = {
         { id: 'sla_resolution', label: 'Cumplimiento de SLA (Tiempos de Resolución)', desc: 'Velocidad y eficacia cerrando tickets de averías críticas reportadas por el Action Hub.' },
         { id: 'prevencion_riesgos', label: 'Prevención de Riesgos Estructurales', desc: 'Detección proactiva de peligros ambientales (pisos mojados, cables expuestos, iluminación fundida).' },
     ],
+
+    /**
+     * SUPERVISIÓN. Escrita el 10-sep-2026 con Celia.
+     *
+     * Cada pregunta es sobre algo que se VE, no sobre una impresión: es lo que
+     * hace que una evaluación se pueda sostener delante de la persona.
+     *
+     * La segunda no está aquí por completar: de 22 cambios que reportó el piso
+     * en 30 días, once seguían sin mirar. Es el trabajo de supervisión que más
+     * pesa sobre el residente y el que menos se veía.
+     */
+    SUPERVISOR: [
+        { id: 'cierre_equipo', label: 'Cierre de turno de su equipo', desc: 'Los relevos quedan firmados y sin huecos, y el turno que entra sabe a quién mirar.' },
+        { id: 'respuesta_al_piso', label: 'Responde a lo que reporta el piso', desc: 'Un cambio de condición no se queda días esperando. Quien lo escribió recibe en qué quedó.' },
+        { id: 'cobertura', label: 'Cobertura del turno', desc: 'Una ausencia se resuelve sin dejar un color descubierto ni cargar el doble a otra persona.' },
+        { id: 'familias', label: 'Manejo de un señalamiento de familia', desc: 'Cómo lo recibió, qué hizo con él y cómo lo cerró con la familia.' },
+        { id: 'presencia', label: 'Presencia en piso', desc: 'Se le ve recorriendo y con los residentes, no solo en el panel.' },
+    ],
 };
+
+/**
+ * COCINA Y TRABAJO SOCIAL NO SE EVALÚAN AQUÍ. Decisión de Andrés y Celia el
+ * 10-sep-2026, y es coherente con la anterior: Zéndity no recoge nada de lo que
+ * hacen esos puestos, así que una evaluación desde esta pantalla se apoyaría
+ * enteramente en la memoria de quien la llena. Se manejan por conversación.
+ *
+ * Si algún día se decide medirlos, lo primero no es la rúbrica: es darles
+ * dónde registrar su trabajo.
+ */
 RUBRICAS.CAREGIVER = RUBRICAS.NURSE;
 RUBRICAS.DIRECTOR = RUBRICAS.ADMIN;
 
+/** Puestos que el hogar decidió NO medir desde esta pantalla. */
+const SIN_EVALUACION = ['KITCHEN', 'SOCIAL_WORKER'];
+
 const rubricaDe = (rol: string): Pregunta[] => RUBRICAS[rol] ?? [];
+const seEvalua = (rol: string) => !SIN_EVALUACION.includes(rol);
 
 export default function HREvaluatePage() {
     const { user } = useAuth();
@@ -239,16 +271,24 @@ export default function HREvaluatePage() {
 
                                 <div className="p-6 md:p-8 space-y-8">
 
-                                    {preguntas.length === 0 ? (
+                                    {!seEvalua(selectedEmp.role) ? (
+                                        <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-4">
+                                            <p className="font-black text-slate-800">Este puesto no se evalúa aquí.</p>
+                                            <p className="text-sm text-slate-600 mt-1 leading-snug">
+                                                Zéndity no recoge nada del trabajo de cocina ni de trabajo social, así
+                                                que una evaluación desde esta pantalla se apoyaría solo en la memoria de
+                                                quien la llena. Se manejan por conversación, y eso es una decisión del
+                                                hogar, no una carencia de la app.
+                                            </p>
+                                        </div>
+                                    ) : preguntas.length === 0 ? (
                                         /* Antes esto era un formulario en blanco que se podía
                                            enviar igual. Un puesto sin rúbrica no se evalúa aquí. */
                                         <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-5 py-4">
                                             <p className="font-black text-amber-900">No hay rúbrica para este puesto.</p>
                                             <p className="text-sm text-amber-800 mt-1 leading-snug">
-                                                Zéndity no tiene preguntas definidas para {selectedEmp.role}. Antes el
-                                                formulario salía vacío y se podía guardar igual — y el score de la
-                                                persona acababa siendo su porcentaje de Academy y nada más.
-                                                Escribe la rúbrica y se añade en un minuto.
+                                                Zéndity no tiene preguntas definidas para {selectedEmp.role}.
+                                                Escríbelas y se añaden en un minuto.
                                             </p>
                                         </div>
                                     ) : preguntas.map(q => (
@@ -266,7 +306,7 @@ export default function HREvaluatePage() {
 
                                     <div className="pt-6 mt-6 border-t border-slate-100 flex justify-between items-center">
                                         <p className="text-xs text-slate-500 max-w-xs">Tus inputs afectarán el Cumplimiento Anual y podrían causar bloqueos de turno según la política de Zendity.</p>
-                                        <button onClick={handleSubmit} disabled={submitting || preguntas.length === 0} className={`bg-slate-900 hover:bg-black text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all ${submitting || preguntas.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-teal-500/20 active:scale-95'}`}>
+                                        <button onClick={handleSubmit} disabled={submitting || preguntas.length === 0 || !seEvalua(selectedEmp.role)} className={`bg-slate-900 hover:bg-black text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all ${submitting || preguntas.length === 0 || !seEvalua(selectedEmp.role) ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-teal-500/20 active:scale-95'}`}>
                                             {submitting ? 'Evaluando...' : 'Guardar y Certificar'}
                                         </button>
                                     </div>
