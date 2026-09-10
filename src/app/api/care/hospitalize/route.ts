@@ -182,8 +182,31 @@ export async function PATCH(req: Request) {
                     originType: 'INCIDENT',
                     originReferenceId: nota.id,
                     priority: esFallecimiento ? 'CRITICAL' : 'HIGH',
-                    status: 'OPEN',
+                    /**
+                     * NACE EN SEGUIMIENTO, NO ABIERTO.
+                     *
+                     * Este ticket lo puse yo el 09-sep-2026 para que un traslado
+                     * a emergencias dejara de ser invisible en el inbox. Lo hice
+                     * OPEN, y eso fue un error: OPEN significa "esto no lo ha
+                     * tocado nadie y hay algo que hacer".
+                     *
+                     * Un traslado ya ocurrió. El residente va camino al hospital
+                     * y la cuidadora ya hizo lo suyo — por eso la alerta clínica
+                     * de este mismo evento nace RESUELTA, dos bloques más arriba.
+                     * Crear al lado un ticket que pide acción es contradecir esa
+                     * decisión con la mano izquierda.
+                     *
+                     * Lo que SÍ está pendiente mientras el residente está fuera
+                     * es el seguimiento: saber cómo sigue y recibirlo de vuelta.
+                     * Eso es IN_PROGRESS. Y se cierra solo cuando vuelve, en
+                     * /api/corporate/patients/[id]/discharge.
+                     *
+                     * Un fallecimiento sí queda OPEN: ahí hay cosas que hacer y
+                     * nadie va a "volver".
+                     */
+                    status: esFallecimiento ? 'OPEN' : 'IN_PROGRESS',
                     description: `[TRASLADO A EMERGENCIAS] ${reason}`
+                        + (esFallecimiento ? '' : ' · Se cierra solo cuando el residente regrese.')
                         + (porCaida ? ' · Fue por una caida.' : '')
                         + ` — Trasladado por ${author?.name?.trim() ?? 'personal'}.`,
                 },

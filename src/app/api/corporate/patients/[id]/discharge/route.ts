@@ -20,6 +20,7 @@ export async function POST(
         }
 
         const invokerRole = (session.user as any).role as string;
+        const invokerId = (session.user as any).id as string;
         const sessionHqId = (session.user as any).headquartersId as string;
 
         const { action, leaveType, date, reason } = await req.json();
@@ -95,6 +96,50 @@ export async function POST(
             where: { id: patientId },
             data: updateData,
         });
+
+        /**
+         * EL TRASLADO SE CIERRA SOLO CUANDO EL RESIDENTE VUELVE.
+         *
+         * Un traslado a emergencias crea un TriageTicket para que supervisión y
+         * dirección se enteren (ver /api/care/hospitalize). Ese ticket nacía
+         * OPEN y nadie lo cerraba nunca: la alerta clínica del traslado nace
+         * RESUELTA a propósito —el traslado ya pasó, no hay nada que hacer— así
+         * que nadie abría el panel a cerrarla, y el ticket se quedaba abierto
+         * para siempre. Andrés lo dijo: "el traslado de Carlos se solucionó
+         * pero me sigue apareciendo como abierto sin resolver".
+         *
+         * Mientras el residente está fuera, el ticket abierto dice la verdad:
+         * hay alguien en el hospital y hay seguimiento pendiente. Cuando vuelve,
+         * deja de ser verdad — y lo que deja de ser verdad no puede seguir
+         * ocupando una bandeja.
+         *
+         * DECEASED y DISCHARGED también cierran: un traslado de alguien que ya
+         * no está no le pide nada a nadie. Es el mismo fallo de las úlceras de
+         * Wilfredo y del riesgo de caídas, por tercera vez.
+         *
+         * Best-effort: el cambio de estado del residente ya se guardó y no se
+         * revierte porque falle el cierre de un ticket.
+         */
+        if (action === 'RETURN' || action === 'DISCHARGED' || action === 'DECEASED') {
+            try {
+                const motivo = action === 'RETURN'
+                    ? 'El residente regresó al hogar.'
+                    : action === 'DECEASED'
+                        ? 'Cerrado: el residente falleció.'
+                        : 'Cerrado: el residente fue dado de baja.';
+                await prisma.triageTicket.updateMany({
+                    where: {
+                        patientId, originType: 'INCIDENT',
+                        status: { not: 'RESOLVED' },
+                        description: { startsWith: '[TRASLADO A EMERGENCIAS]' },
+                    },
+                    data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedById: invokerId },
+                });
+                console.log(`[discharge] tickets de traslado cerrados para ${patientId}: ${motivo}`);
+            } catch (e) {
+                console.error('[discharge] no se pudo cerrar el ticket del traslado', e);
+            }
+        }
 
         return NextResponse.json({ success: true, patient: updatedPatient });
 
