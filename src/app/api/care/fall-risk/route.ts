@@ -152,7 +152,7 @@ export async function POST(req: Request) {
         // y ensucia el conteo de pendientes.
         const paciente = await prisma.patient.findFirst({
             where: { id: patientId, headquartersId: auth.headquartersId, status: 'ACTIVE' },
-            select: { id: true, name: true },
+            select: { id: true, name: true, roomNumber: true, headquarters: { select: { name: true } } },
         });
         if (!paciente) {
             return NextResponse.json({ success: false, error: 'Residente no encontrado o inactivo en tu sede' }, { status: 404 });
@@ -185,12 +185,27 @@ export async function POST(req: Request) {
             data: { downtonRisk: evaluacion.nivel === 'HIGH' },
         });
 
+        // Se devuelve lo que hace falta para IMPRIMIR la hoja sin otra vuelta al
+        // servidor: quien evaluo, cuando, y de que sede. Andres la pidio "por si
+        // fuera necesario" — y lo necesario suele ser en el momento.
+        const evaluador = await prisma.user.findUnique({
+            where: { id: auth.id }, select: { name: true },
+        });
+
         return NextResponse.json({
             success: true,
             id: guardada.id,
             puntaje: evaluacion.puntaje,
             nivel: evaluacion.nivel,
             proximaRevision: guardada.nextReviewAt,
+            paraImprimir: {
+                residente: paciente.name.trim(),
+                habitacion: paciente.roomNumber,
+                sede: paciente.headquarters?.name ?? '',
+                evaluadoPor: evaluador?.name?.trim() ?? 'Sin identificar',
+                evaluadoEl: guardada.evaluatedAt,
+                evaluacion,
+            },
         });
     } catch (err: any) {
         console.error('[fall-risk POST]', err);

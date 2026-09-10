@@ -13,7 +13,8 @@
  * quitar de esta app.
  */
 import { useMemo, useState } from "react";
-import { X, ShieldAlert } from "lucide-react";
+import { X, ShieldAlert, Printer, Check } from "lucide-react";
+import { generarHojaDownton, nombreDeArchivo } from "@/lib/downton-pdf";
 import {
     ITEMS, GRUPOS, puntuar, nivelDe, CORTE_RIESGO_ALTO,
     MESES_ENTRE_EVALUACIONES, CONFIRMADA_POR_ENFERMERIA, type Respuestas,
@@ -34,6 +35,11 @@ export default function EvaluarRiesgoCaida({ residente, onCerrar, onGuardado }: 
     const [nota, setNota] = useState('');
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
+    // Se guarda el resultado en vez de cerrar de golpe: quien acaba de evaluar
+    // es quien va a querer el papel, y mandarle a buscarlo en otra pantalla es
+    // como no tenerlo. Andrés la pidió "por si fuera necesario", y lo necesario
+    // suele ser en el momento.
+    const [guardado, setGuardado] = useState<any>(null);
 
     const puntaje = useMemo(() => puntuar(respuestas), [respuestas]);
     const nivel = nivelDe(puntaje);
@@ -51,9 +57,51 @@ export default function EvaluarRiesgoCaida({ residente, onCerrar, onGuardado }: 
             if (!res.ok || !data.success) {
                 setError(data.error || 'No se pudo guardar.'); setGuardando(false); return;
             }
-            onGuardado();
+            setGuardando(false);
+            setGuardado(data.paraImprimir ?? null);
+            if (!data.paraImprimir) onGuardado();   // sin datos de impresión, se cierra como antes
         } catch { setError('Error de conexión.'); setGuardando(false); }
     };
+
+    const imprimir = () => {
+        if (!guardado) return;
+        const doc = generarHojaDownton({
+            residente: guardado.residente,
+            habitacion: guardado.habitacion,
+            sede: guardado.sede,
+            evaluacion: guardado.evaluacion,
+            evaluadoPor: guardado.evaluadoPor,
+            evaluadoEl: new Date(guardado.evaluadoEl),
+            proximaRevision: null,
+        });
+        doc.save(nombreDeArchivo(guardado.residente, new Date(guardado.evaluadoEl)));
+    };
+
+    if (guardado) {
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
+                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                        <Check className="w-7 h-7 text-emerald-700" />
+                    </div>
+                    <p className="font-black text-slate-900 text-lg">Evaluación guardada</p>
+                    <p className="text-sm text-slate-500 mt-1 leading-snug">
+                        {guardado.residente} · {puntaje} puntos · {meta.texto.toLowerCase()}
+                    </p>
+                    <div className="flex flex-col gap-2 mt-6">
+                        <button onClick={imprimir}
+                            className="w-full py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 inline-flex items-center justify-center gap-2">
+                            <Printer className="w-4 h-4" /> Imprimir la hoja
+                        </button>
+                        <button onClick={onGuardado}
+                            className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-black">
+                            Seguir con el siguiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">

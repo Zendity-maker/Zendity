@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { ClipboardDocumentCheckIcon, ExclamationTriangleIcon, MapPinIcon, HeartIcon } from "@heroicons/react/24/outline";
 import { Loader2, AlertTriangle, Printer } from "lucide-react";
 import FallIncidentPrint from "./FallIncidentPrint";
+import { leerEvaluacion, ITEMS } from "@/lib/downton";
+import { generarHojaDownton, nombreDeArchivo } from "@/lib/downton-pdf";
 
 interface FallIncident {
     id: string;
@@ -92,6 +94,22 @@ export default function PatientFallRiskTab({ patientId }: { patientId?: string }
     const { patient, fallIncidents, riskAssessments, currentRiskLevel } = data;
     const lastAssessment = riskAssessments[0];
 
+    const downton = leerEvaluacion(lastAssessment?.factors);
+
+    const imprimirDownton = () => {
+        if (!downton || !lastAssessment || !data) return;
+        const doc = generarHojaDownton({
+            residente: data.patient.name.trim(),
+            habitacion: null,
+            sede: '',
+            evaluacion: downton,
+            evaluadoPor: lastAssessment.evaluator?.name?.trim() ?? 'Sin identificar',
+            evaluadoEl: new Date(lastAssessment.evaluatedAt),
+            proximaRevision: lastAssessment.nextReviewAt ? new Date(lastAssessment.nextReviewAt) : null,
+        });
+        doc.save(nombreDeArchivo(data.patient.name, new Date(lastAssessment.evaluatedAt)));
+    };
+
     return (
         <div className="space-y-6">
             {/* ── Header con badge de riesgo ── */}
@@ -128,13 +146,34 @@ export default function PatientFallRiskTab({ patientId }: { patientId?: string }
                                 <p className="text-xs text-slate-500">{lastAssessment.evaluator.name} ({lastAssessment.evaluator.role})</p>
                             )}
                         </div>
+                        {/* Desde el 10-sep-2026 las evaluaciones son Downton y
+                            guardan su JSON en `factors`. Las viejas guardaban
+                            texto plano ("Post-caída: …") y no tienen puntaje —
+                            por eso se lee y se cae con gracia si no lo es.
+                            `morseScore` no se enseña: siempre fue null. */}
                         <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Score Morse</p>
-                            <p className="font-bold text-slate-800">{lastAssessment.morseScore ?? 'No aplicado'}</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Puntaje</p>
+                            <p className="font-bold text-slate-800">
+                                {downton ? `${downton.puntaje} de 11 (Downton)` : 'Sin escala'}
+                            </p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Factores</p>
-                            <p className="text-xs text-slate-700 font-medium leading-tight line-clamp-3">{lastAssessment.factors || '—'}</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                                {downton ? 'Lo que se marcó' : 'Factores'}
+                            </p>
+                            {downton ? (
+                                <>
+                                    <p className="text-xs text-slate-700 font-medium leading-tight line-clamp-3">
+                                        {ITEMS.filter(i => downton.respuestas[i.clave]).map(i => i.texto).join(' · ') || 'Nada marcado'}
+                                    </p>
+                                    <button onClick={imprimirDownton}
+                                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 hover:text-teal-900">
+                                        <Printer className="w-3.5 h-3.5" /> Imprimir la hoja
+                                    </button>
+                                </>
+                            ) : (
+                                <p className="text-xs text-slate-700 font-medium leading-tight line-clamp-3">{lastAssessment.factors || '—'}</p>
+                            )}
                         </div>
                     </div>
                 )}

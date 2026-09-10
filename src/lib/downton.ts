@@ -7,16 +7,12 @@
  * juicio se pospone.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ⚠ LOS ÍTEMS SON LOS DEL ÍNDICE PUBLICADO, NO LOS DEL HOGAR TODAVÍA.
+ * ÍTEMS CONFIRMADOS POR EL HOGAR el 10-sep-2026.
  *
- * Andrés dijo "adelante" sin pasarme la hoja del hogar, así que aquí están los
- * del instrumento estándar. Son los que se usan en geriatría y los que casi
- * seguro Celia tiene en papel — pero CASI SEGURO no es lo mismo que
- * confirmado, y una escala mal transcrita es peor que ninguna.
- *
- * Cuando Celia los revise: corregir esta lista y poner
- * `CONFIRMADA_POR_ENFERMERIA = true`. Es un archivo, una lista, un booleano.
- * Mientras sea false, el formulario se lo dice a quien evalúa.
+ * Se propusieron los del índice publicado, con un aviso en el formulario que
+ * decía que estaban sin confirmar. Celia los revisó con Andrés delante y dijo
+ * que el hogar usará esa hoja. Si algún día cambian, se corrigen en esta lista
+ * y el formulario los pinta solo.
  * ─────────────────────────────────────────────────────────────────────────
  *
  * DÓNDE SE GUARDA. En FallRiskAssessment, que ya existía:
@@ -33,7 +29,8 @@
  * nombre de la escala al lado, hasta que haya una columna propia.
  */
 
-export const CONFIRMADA_POR_ENFERMERIA = false;
+/** Celia la revisó con Andrés el 10-sep-2026: el hogar usa esta hoja. */
+export const CONFIRMADA_POR_ENFERMERIA = true;
 
 /** A los 6 meses toca repetirla. Decidido el 10-sep-2026. */
 export const MESES_ENTRE_EVALUACIONES = 6;
